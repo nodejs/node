@@ -5,7 +5,7 @@ const common = require('../common.js');
 const dgram = require('dgram');
 const PORT = common.PORT;
 
-// `num` is the number of send requests to queue up each time.
+// `n` is the number of send requests to queue up each time.
 // Keep it reasonably high (>10) otherwise you're benchmarking the speed of
 // event loop cycles more than anything else.
 const bench = common.createBenchmark(main, {
@@ -15,7 +15,7 @@ const bench = common.createBenchmark(main, {
   dur: [5],
 });
 
-function main({ dur, len, num: n, type }) {
+function main({ dur, len, n, type }) {
   const chunk = Buffer.allocUnsafe(len);
   let sent = 0;
   let received = 0;
