@@ -119,6 +119,13 @@
 #include <unistd.h>        // STDIN_FILENO, STDERR_FILENO
 #endif
 
+#if defined(_WIN32)
+// For GetProcessMitigationPolicy(), PROCESS_MITIGATION_USER_SHADOW_STACK_POLICY,
+// and IsUserCetAvailableInEnvironment(), used in the CET shadow stack detection
+// in InitializeNodeWithArgsInternal().
+#include <processthreadsapi.h>
+#endif  // defined(_WIN32)
+
 #include "absl/synchronization/mutex.h"
 
 // ========== global C++ headers ==========
@@ -866,6 +873,46 @@ static ExitCode InitializeNodeWithArgsInternal(
   // Specify this explicitly to avoid being affected by V8 changes to the
   // default value.
   V8::SetFlagsFromString("--rehash-snapshot");
+
+#if defined(_WIN32) && !defined(V8_ENABLE_CET_SHADOW_STACK)
+  // When Windows CET (Control-flow Enforcement Technology) hardware shadow
+  // stacks are active but Node.js was not compiled with
+  // V8_ENABLE_CET_SHADOW_STACK support, V8's Maglev deoptimizer does not
+  // synchronize the hardware shadow stack. This causes a
+  // STATUS_STACK_BUFFER_OVERRUN (0xC0000409) crash when Maglev JIT-compiled
+  // code deoptimizes on Windows versions that enforce CET strictly (e.g.
+  // Windows 11 Insider builds).
+  //
+  // Automatically disable the Maglev tier when CET shadow stacks are active.
+  // TurboFan remains enabled, preserving JIT performance and fetch()
+  // functionality. The user can explicitly re-enable Maglev with --maglev.
+  {
+    using IsUserCetAvailableInEnvironment_t = BOOL(WINAPI*)(DWORD);
+    using GetProcessMitigationPolicy_t =
+        BOOL(WINAPI*)(HANDLE, PROCESS_MITIGATION_POLICY, PVOID, SIZE_T);
+
+    HMODULE kernel32 = ::GetModuleHandleW(L"kernel32.dll");
+    auto fn_is_cet_available =
+        reinterpret_cast<IsUserCetAvailableInEnvironment_t>(
+            ::GetProcAddress(kernel32, "IsUserCetAvailableInEnvironment"));
+    auto fn_get_mitigation_policy =
+        reinterpret_cast<GetProcessMitigationPolicy_t>(
+            ::GetProcAddress(kernel32, "GetProcessMitigationPolicy"));
+
+    if (fn_is_cet_available != nullptr &&
+        fn_get_mitigation_policy != nullptr &&
+        fn_is_cet_available(USER_CET_ENVIRONMENT_WIN32_PROCESS)) {
+      PROCESS_MITIGATION_USER_SHADOW_STACK_POLICY uss_policy{};
+      if (fn_get_mitigation_policy(GetCurrentProcess(),
+                                   ProcessUserShadowStackPolicy,
+                                   &uss_policy,
+                                   sizeof(uss_policy)) &&
+          uss_policy.EnableUserShadowStack) {
+        V8::SetFlagsFromString("--no-maglev");
+      }
+    }
+  }
+#endif  // defined(_WIN32) && !defined(V8_ENABLE_CET_SHADOW_STACK)
 
   HandleEnvOptions(per_process::cli_options->per_isolate->per_env);
 

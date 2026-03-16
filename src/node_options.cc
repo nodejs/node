@@ -1246,6 +1246,14 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
             "disable runtime allocation of executable memory",
             V8Option{},
             kAllowedInEnvvar);
+  AddOption("--maglev",
+            "enable the Maglev optimizing compiler",
+            V8Option{},
+            kAllowedInEnvvar);
+  AddOption("--no-maglev",
+            "disable the Maglev optimizing compiler",
+            V8Option{},
+            kAllowedInEnvvar);
   AddOption("--report-uncaught-exception",
             "generate diagnostic report on uncaught exceptions",
             &PerIsolateOptions::report_uncaught_exception,
