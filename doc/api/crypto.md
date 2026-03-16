@@ -2379,7 +2379,9 @@ object, the following additional properties can be passed:
   * `'ieee-p1363'`: Signature format `r || s` as proposed in IEEE-P1363.
 * `dsaNonceType` {string} For DSA and ECDSA, this option specifies the
   nonce generation method. It can be one of the following:
-  * `'random'` (default): Use a random nonce.
+  * `'hedged'` (default): Use a hedged nonce that combines cryptographic
+    randomness with the private key and the message, providing resilience
+    against both weak random number generators and side-channel attacks.
   * `'deterministic'`[^openssl32]: Use a deterministic nonce as defined in [RFC 6979][].
 * `padding` {integer} Optional padding value for RSA, one of the following:
 
@@ -2515,7 +2517,9 @@ object, the following additional properties can be passed:
   * `'ieee-p1363'`: Signature format `r || s` as proposed in IEEE-P1363.
 * `dsaNonceType` {string} For DSA and ECDSA, this option specifies the
   nonce generation method used during signing. It can be one of the following:
-  * `'random'` (default): Use a random nonce.
+  * `'hedged'` (default): Use a hedged nonce that combines cryptographic
+    randomness with the private key and the message, providing resilience
+    against both weak random number generators and side-channel attacks.
   * `'deterministic'`[^openssl32]: Use a deterministic nonce as defined in [RFC 6979][].
 * `padding` {integer} Optional padding value for RSA, one of the following:
 
@@ -5808,7 +5812,9 @@ additional properties can be passed:
   * `'ieee-p1363'`: Signature format `r || s` as proposed in IEEE-P1363.
 * `dsaNonceType` {string} For DSA and ECDSA, this option specifies the
   nonce generation method. It can be one of the following:
-  * `'random'` (default): Use a random nonce.
+  * `'hedged'` (default): Use a hedged nonce that combines cryptographic
+    randomness with the private key and the message, providing resilience
+    against both weak random number generators and side-channel attacks.
   * `'deterministic'`[^openssl32]: Use a deterministic nonce as defined in [RFC 6979][].
 * `padding` {integer} Optional padding value for RSA, one of the following:
 
@@ -5943,7 +5949,9 @@ additional properties can be passed:
   * `'ieee-p1363'`: Signature format `r || s` as proposed in IEEE-P1363.
 * `dsaNonceType` {string} For DSA and ECDSA, this option specifies the
   nonce generation method used during signing. It can be one of the following:
-  * `'random'` (default): Use a random nonce.
+  * `'hedged'` (default): Use a hedged nonce that combines cryptographic
+    randomness with the private key and the message, providing resilience
+    against both weak random number generators and side-channel attacks.
   * `'deterministic'`[^openssl32]: Use a deterministic nonce as defined in [RFC 6979][].
 * `padding` {integer} Optional padding value for RSA, one of the following:
 

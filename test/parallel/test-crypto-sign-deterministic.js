@@ -96,13 +96,13 @@ const data = Buffer.from('Hello world');
   );
 }
 
-// Test dsaNonceType: 'random' produces valid signatures (explicit default).
+// Test dsaNonceType: 'hedged' produces valid signatures (explicit default).
 {
   const ecPrivKey = fixtures.readKey('ec_p256_private.pem');
 
   const sig = crypto.sign('sha256', data, {
     key: ecPrivKey,
-    dsaNonceType: 'random',
+    dsaNonceType: 'hedged',
   });
   assert.strictEqual(
     crypto.verify('sha256', data, ecPrivKey, sig),
@@ -170,7 +170,7 @@ const data = Buffer.from('Hello world');
 {
   const ecPrivKey = fixtures.readKey('ec_p256_private.pem');
 
-  for (const dsaNonceType of ['foo', null, {}, 5, true, NaN]) {
+  for (const dsaNonceType of ['foo', 'random', null, {}, 5, true, NaN]) {
     assert.throws(() => {
       crypto.sign('sha256', data, {
         key: ecPrivKey,
@@ -186,7 +186,7 @@ const data = Buffer.from('Hello world');
 {
   const ecPrivKey = fixtures.readKey('ec_p256_private.pem');
 
-  for (const dsaNonceType of ['foo', null, {}, 5, true, NaN]) {
+  for (const dsaNonceType of ['foo', 'random', null, {}, 5, true, NaN]) {
     assert.throws(() => {
       crypto.createSign('sha256').update(data).sign({
         key: ecPrivKey,

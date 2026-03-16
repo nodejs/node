@@ -81,11 +81,11 @@ const expectedError = {
   }));
 }
 
-// dsaNonceType: 'random' should still work (explicit default).
+// dsaNonceType: 'hedged' should still work (explicit default).
 {
   const sig = crypto.sign('sha256', data, {
     key: ecPrivKey,
-    dsaNonceType: 'random',
+    dsaNonceType: 'hedged',
   });
   assert.strictEqual(
     crypto.verify('sha256', data, ecPrivKey, sig),
@@ -95,7 +95,7 @@ const expectedError = {
 
 // Invalid dsaNonceType values should still throw validation errors.
 {
-  for (const dsaNonceType of ['foo', null, {}, 5, true, NaN]) {
+  for (const dsaNonceType of ['foo', 'random', null, {}, 5, true, NaN]) {
     assert.throws(() => {
       crypto.sign('sha256', data, {
         key: ecPrivKey,
