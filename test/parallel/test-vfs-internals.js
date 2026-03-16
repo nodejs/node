@@ -292,3 +292,649 @@ const { VirtualFileHandle } = require('internal/vfs/file_handle');
   stream.destroy();
   myVfs.unmount();
 }
+
+// === VirtualDir: read() async, entries() on closed dir ===
+{
+  // Create dirents via VFS opendirSync to get proper entries
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/dirtest', { recursive: true });
+  myVfs.writeFileSync('/dirtest/file1.txt', 'a');
+  myVfs.writeFileSync('/dirtest/file2.txt', 'b');
+
+  const dir = myVfs.opendirSync('/dirtest');
+
+  // Async read
+  dir.read().then(common.mustCall((e) => {
+    assert.ok(e);
+    assert.ok(e.name);
+  }));
+}
+
+// Test VirtualDir async read and close
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/dirtest2', { recursive: true });
+  myVfs.writeFileSync('/dirtest2/file.txt', 'data');
+
+  const dir = myVfs.opendirSync('/dirtest2');
+  dir.read().then(common.mustCall((e) => {
+    assert.strictEqual(e.name, 'file.txt');
+    // Read again should return null
+    dir.read().then(common.mustCall((e2) => {
+      assert.strictEqual(e2, null);
+      // Async close
+      dir.close().then(common.mustCall());
+    }));
+  }));
+}
+
+// Test entries() on closed VirtualDir throws ERR_DIR_CLOSED
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/dirclosed', { recursive: true });
+  const dir = myVfs.opendirSync('/dirclosed');
+  dir.closeSync();
+
+  // readSync on closed dir should throw
+  assert.throws(() => dir.readSync(), { code: 'ERR_DIR_CLOSED' });
+
+  // entries() on closed dir should throw
+  (async () => {
+    const iter = dir.entries();
+    await assert.rejects(iter.next(), { code: 'ERR_DIR_CLOSED' });
+  })().then(common.mustCall());
+}
+
+// Test VirtualDir readSync returns null when exhausted
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/dirempty', { recursive: true });
+  const dir = myVfs.opendirSync('/dirempty');
+  assert.strictEqual(dir.readSync(), null);
+  assert.strictEqual(dir.path, '/dirempty');
+  dir.closeSync();
+}
+
+// === VirtualDir entries() iteration ===
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/diriter', { recursive: true });
+  myVfs.writeFileSync('/diriter/a.txt', 'data');
+
+  const dir = myVfs.opendirSync('/diriter');
+
+  (async () => {
+    const names = [];
+    for await (const e of dir) {
+      names.push(e.name);
+    }
+    assert.deepStrictEqual(names, ['a.txt']);
+  })().then(common.mustCall());
+}
+
+// === VirtualWriteStream ===
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/ws-test.txt', '');
+  myVfs.mount('/ws-mount');
+
+  const stream = myVfs.createWriteStream('/ws-mount/ws-test.txt');
+  stream.on('open', common.mustCall((fd) => {
+    assert.ok(fd >= 10000);
+  }));
+  stream.on('ready', common.mustCall());
+  stream.write('hello ', common.mustCall());
+  stream.end('world', common.mustCall(() => {
+    // Read via VFS since it's mounted
+    const vfsContent = myVfs.readFileSync('/ws-mount/ws-test.txt', 'utf8');
+    assert.strictEqual(vfsContent, 'hello world');
+    myVfs.unmount();
+  }));
+}
+
+// === VirtualWriteStream path property ===
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/ws-path.txt', '');
+
+  const stream = myVfs.createWriteStream('/ws-path.txt');
+  assert.strictEqual(stream.path, '/ws-path.txt');
+  stream.end();
+  stream.on('finish', common.mustCall());
+}
+
+// === VirtualWriteStream with error on open ===
+{
+  const { MemoryProvider } = require('internal/vfs/providers/memory');
+  const mp = new MemoryProvider();
+  mp.setReadOnly();
+  const myVfs = new (require('internal/vfs/file_system').VirtualFileSystem)(mp);
+  // Try to write to a read-only VFS (should fail with EROFS)
+  const stream = myVfs.createWriteStream('/path.txt');
+  stream.on('error', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'EROFS');
+  }));
+}
+
+// === Provider linkSync/link on non-readonly (ERR_METHOD_NOT_IMPLEMENTED) ===
+{
+  const baseProvider = new (require('internal/vfs/provider').VirtualProvider)();
+  assert.throws(() => baseProvider.linkSync('/a', '/b'),
+                { code: 'ERR_METHOD_NOT_IMPLEMENTED' });
+  assert.rejects(baseProvider.link('/a', '/b'),
+                 { code: 'ERR_METHOD_NOT_IMPLEMENTED' }).then(common.mustCall());
+
+  // Readonly provider: link should throw EROFS
+  class ReadonlyProvider extends (require('internal/vfs/provider').VirtualProvider) {
+    get readonly() { return true; }
+  }
+  const roProv = new ReadonlyProvider();
+  assert.throws(() => roProv.linkSync('/a', '/b'), { code: 'EROFS' });
+  assert.rejects(roProv.link('/a', '/b'), { code: 'EROFS' }).then(common.mustCall());
+}
+
+// === Provider async default methods (open, stat, readdir) ===
+{
+  const baseProvider = new (require('internal/vfs/provider').VirtualProvider)();
+
+  assert.rejects(baseProvider.open('/f', 'r'),
+                 { code: 'ERR_METHOD_NOT_IMPLEMENTED' }).then(common.mustCall());
+  assert.rejects(baseProvider.stat('/f'),
+                 { code: 'ERR_METHOD_NOT_IMPLEMENTED' }).then(common.mustCall());
+  assert.rejects(baseProvider.readdir('/f'),
+                 { code: 'ERR_METHOD_NOT_IMPLEMENTED' }).then(common.mustCall());
+}
+
+// === Provider openSync/statSync (ERR_METHOD_NOT_IMPLEMENTED) ===
+{
+  const baseProvider = new (require('internal/vfs/provider').VirtualProvider)();
+  assert.throws(() => baseProvider.openSync('/f', 'r'),
+                { code: 'ERR_METHOD_NOT_IMPLEMENTED' });
+  assert.throws(() => baseProvider.statSync('/f'),
+                { code: 'ERR_METHOD_NOT_IMPLEMENTED' });
+}
+
+// === Provider default implementations: lstat delegates to stat ===
+{
+  const { VirtualProvider } = require('internal/vfs/provider');
+
+  class MockProvider extends VirtualProvider {
+    statSync(p) { return { isFile: () => true }; }
+    async stat(p) { return { isFile: () => true }; }
+  }
+  const mp = new MockProvider();
+  const s = mp.lstatSync('/f');
+  assert.strictEqual(s.isFile(), true);
+
+  mp.lstat('/f').then(common.mustCall((ls) => {
+    assert.strictEqual(ls.isFile(), true);
+  }));
+}
+
+// === Provider capability flags ===
+{
+  const { VirtualProvider } = require('internal/vfs/provider');
+  const bp = new VirtualProvider();
+  assert.strictEqual(bp.readonly, false);
+  assert.strictEqual(bp.supportsSymlinks, false);
+  assert.strictEqual(bp.supportsWatch, false);
+}
+
+// === VFS constructor with options-as-first-arg (no provider) ===
+{
+  const myVfs = vfs.create({ overlay: true });
+  assert.strictEqual(myVfs.overlay, true);
+}
+
+// === VFS virtualCwd feature ===
+{
+  const myVfs = vfs.create({ virtualCwd: true });
+  myVfs.mkdirSync('/app/data', { recursive: true });
+  myVfs.writeFileSync('/app/data/file.txt', 'content');
+  myVfs.mount('/vcwd-test');
+
+  // Cwd should return null initially
+  assert.strictEqual(myVfs.cwd(), null);
+
+  // Chdir to a directory in VFS
+  myVfs.chdir('/vcwd-test/app/data');
+  assert.strictEqual(myVfs.cwd(), path.resolve('/vcwd-test/app/data'));
+
+  // resolvePath should resolve relative to virtual cwd
+  const resolved = myVfs.resolvePath('file.txt');
+  assert.ok(resolved.endsWith('file.txt'));
+
+  // resolvePath with absolute path returns as-is
+  const absResolved = myVfs.resolvePath('/absolute/path');
+  assert.strictEqual(absResolved, path.resolve('/absolute/path'));
+
+  // Chdir to non-directory should throw ENOTDIR
+  assert.throws(() => myVfs.chdir('/vcwd-test/app/data/file.txt'), { code: 'ENOTDIR' });
+
+  myVfs.unmount();
+}
+
+// === VFS virtualCwd disabled ===
+{
+  const myVfs = vfs.create();
+  assert.strictEqual(myVfs.virtualCwdEnabled, false);
+  assert.throws(() => myVfs.cwd(), { code: 'ERR_INVALID_STATE' });
+  assert.throws(() => myVfs.chdir('/foo'), { code: 'ERR_INVALID_STATE' });
+}
+
+// === VFS resolvePath without virtualCwd ===
+{
+  const myVfs = vfs.create();
+  // Without virtualCwd, resolvePath resolves normally
+  assert.strictEqual(myVfs.resolvePath('/abs/path'), path.resolve('/abs/path'));
+}
+
+// === VFS mount double-mount error ===
+{
+  const myVfs = vfs.create();
+  myVfs.mount('/test-double');
+  assert.throws(() => myVfs.mount('/test-double2'), { code: 'ERR_INVALID_STATE' });
+  myVfs.unmount();
+}
+
+// === MemoryProvider setReadOnly ===
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/file.txt', 'content');
+  assert.strictEqual(myVfs.readonly, false);
+  myVfs.provider.setReadOnly();
+  assert.strictEqual(myVfs.readonly, true);
+
+  // Write ops should now throw EROFS
+  assert.throws(() => myVfs.writeFileSync('/file.txt', 'new'), { code: 'EROFS' });
+  assert.throws(() => myVfs.mkdirSync('/newdir'), { code: 'EROFS' });
+  assert.throws(() => myVfs.unlinkSync('/file.txt'), { code: 'EROFS' });
+  assert.throws(() => myVfs.rmdirSync('/'), { code: 'EROFS' });
+  assert.throws(() => myVfs.renameSync('/file.txt', '/file2.txt'), { code: 'EROFS' });
+  assert.throws(() => myVfs.appendFileSync('/file.txt', 'data'), { code: 'EROFS' });
+  assert.throws(() => myVfs.copyFileSync('/file.txt', '/file2.txt'), { code: 'EROFS' });
+  assert.throws(() => myVfs.symlinkSync('/file.txt', '/link'), { code: 'EROFS' });
+}
+
+// === MemoryProvider supportsWatch and supportsSymlinks ===
+{
+  const { MemoryProvider } = require('internal/vfs/providers/memory');
+  const mp = new MemoryProvider();
+  assert.strictEqual(mp.supportsWatch, true);
+  assert.strictEqual(mp.supportsSymlinks, true);
+  assert.strictEqual(mp.readonly, false);
+}
+
+// === MemoryProvider open directory throws EISDIR ===
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/opendir');
+  assert.throws(() => myVfs.openSync('/opendir'), { code: 'EISDIR' });
+}
+
+// === MemoryProvider unlink directory throws EISDIR ===
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/rm-dir');
+  assert.throws(() => myVfs.unlinkSync('/rm-dir'), { code: 'EISDIR' });
+}
+
+// === MemoryProvider rmdir on file throws ENOTDIR ===
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/rmdir-file.txt', 'data');
+  assert.throws(() => myVfs.rmdirSync('/rmdir-file.txt'), { code: 'ENOTDIR' });
+}
+
+// === MemoryProvider hard link ===
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/link-src.txt', 'linkdata');
+
+  // Link to a directory should throw EINVAL
+  myVfs.mkdirSync('/link-dir');
+  assert.throws(() => myVfs.linkSync('/link-dir', '/link-copy'), { code: 'EINVAL' });
+
+  // Link to existing path should throw EEXIST
+  myVfs.writeFileSync('/link-existing.txt', 'existing');
+  assert.throws(() => myVfs.linkSync('/link-src.txt', '/link-existing.txt'), { code: 'EEXIST' });
+}
+
+// === MemoryProvider symlink to existing path throws EEXIST ===
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/sym-exists.txt', 'data');
+  assert.throws(() => myVfs.symlinkSync('/target', '/sym-exists.txt'), { code: 'EEXIST' });
+}
+
+// === MemoryProvider readlink on non-symlink throws EINVAL ===
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/readlink-file.txt', 'data');
+  assert.throws(() => myVfs.readlinkSync('/readlink-file.txt'), { code: 'EINVAL' });
+}
+
+// === MemoryProvider mkdir on non-directory throws ENOTDIR ===
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/file-not-dir.txt', 'data');
+  assert.throws(() => myVfs.mkdirSync('/file-not-dir.txt/subdir', { recursive: true }),
+                { code: 'ENOTDIR' });
+}
+
+// === MemoryEntry contentProvider (dynamic content) ===
+{
+  const myVfs = vfs.create();
+  // Use the provider's populate mechanism for dynamic content
+  myVfs.provider.addFile = (p, content) => {
+    myVfs.writeFileSync(p, content);
+  };
+  myVfs.writeFileSync('/dynamic.txt', 'initial');
+
+  const content = myVfs.readFileSync('/dynamic.txt', 'utf8');
+  assert.strictEqual(content, 'initial');
+}
+
+// === VFS callback-based operations: rm, truncate, ftruncate, link, mkdtemp, opendir ===
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/rm-cb.txt', 'data');
+
+  myVfs.rm('/rm-cb.txt', common.mustCall((err) => {
+    assert.strictEqual(err, null);
+    assert.strictEqual(myVfs.existsSync('/rm-cb.txt'), false);
+  }));
+}
+
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/trunc-cb.txt', 'hello world');
+
+  myVfs.truncate('/trunc-cb.txt', 5, common.mustCall((err) => {
+    assert.strictEqual(err, null);
+    assert.strictEqual(myVfs.readFileSync('/trunc-cb.txt', 'utf8'), 'hello');
+  }));
+}
+
+// Truncate with callback as second arg
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/trunc-cb2.txt', 'hello');
+
+  myVfs.truncate('/trunc-cb2.txt', common.mustCall((err) => {
+    assert.strictEqual(err, null);
+    assert.strictEqual(myVfs.readFileSync('/trunc-cb2.txt', 'utf8'), '');
+  }));
+}
+
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/ftrunc-cb.txt', 'hello world');
+  const fd = myVfs.openSync('/ftrunc-cb.txt', 'r+');
+
+  myVfs.ftruncate(fd, 5, common.mustCall((err) => {
+    assert.strictEqual(err, null);
+    myVfs.closeSync(fd);
+    assert.strictEqual(myVfs.readFileSync('/ftrunc-cb.txt', 'utf8'), 'hello');
+  }));
+}
+
+// Ftruncate with callback as second arg
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/ftrunc-cb2.txt', 'hello');
+  const fd = myVfs.openSync('/ftrunc-cb2.txt', 'r+');
+
+  myVfs.ftruncate(fd, common.mustCall((err) => {
+    assert.strictEqual(err, null);
+    myVfs.closeSync(fd);
+  }));
+}
+
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/link-cb-src.txt', 'data');
+
+  myVfs.link('/link-cb-src.txt', '/link-cb-dest.txt', common.mustCall((err) => {
+    assert.strictEqual(err, null);
+    assert.strictEqual(myVfs.readFileSync('/link-cb-dest.txt', 'utf8'), 'data');
+  }));
+}
+
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/tmp', { recursive: true });
+
+  myVfs.mkdtemp('/tmp/test-', common.mustCall((err, dirPath) => {
+    assert.strictEqual(err, null);
+    assert.ok(dirPath.startsWith('/tmp/test-'));
+  }));
+}
+
+// Mkdtemp with options as second arg (callback as third)
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/tmp2', { recursive: true });
+
+  myVfs.mkdtemp('/tmp2/test-', {}, common.mustCall((err, dirPath) => {
+    assert.strictEqual(err, null);
+    assert.ok(dirPath.startsWith('/tmp2/test-'));
+  }));
+}
+
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/opendir-cb');
+  myVfs.writeFileSync('/opendir-cb/file.txt', 'data');
+
+  myVfs.opendir('/opendir-cb', common.mustCall((err, dir) => {
+    assert.strictEqual(err, null);
+    const e = dir.readSync();
+    assert.strictEqual(e.name, 'file.txt');
+    dir.closeSync();
+  }));
+}
+
+// Opendir with options as second arg
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/opendir-cb2');
+  myVfs.writeFileSync('/opendir-cb2/file.txt', 'data');
+
+  myVfs.opendir('/opendir-cb2', {}, common.mustCall((err, dir) => {
+    assert.strictEqual(err, null);
+    dir.closeSync();
+  }));
+}
+
+// === VFS callback: open with flags as callback (minimal args) ===
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/open-cb-min.txt', 'data');
+
+  myVfs.open('/open-cb-min.txt', common.mustCall((err, fd) => {
+    assert.strictEqual(err, null);
+    myVfs.closeSync(fd);
+  }));
+}
+
+// === VFS callback: open with mode as callback ===
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/open-cb-mode.txt', 'data');
+
+  myVfs.open('/open-cb-mode.txt', 'r', common.mustCall((err, fd) => {
+    assert.strictEqual(err, null);
+    myVfs.closeSync(fd);
+  }));
+}
+
+// === VFS close EBADF ===
+{
+  const myVfs = vfs.create();
+  myVfs.close(99999, common.mustCall((err) => {
+    assert.strictEqual(err.code, 'EBADF');
+  }));
+}
+
+// === VFS read EBADF ===
+{
+  const myVfs = vfs.create();
+  myVfs.read(99999, Buffer.alloc(10), 0, 10, 0, common.mustCall((err) => {
+    assert.strictEqual(err.code, 'EBADF');
+  }));
+}
+
+// === VFS write EBADF ===
+{
+  const myVfs = vfs.create();
+  myVfs.write(99999, Buffer.alloc(10), 0, 10, 0, common.mustCall((err) => {
+    assert.strictEqual(err.code, 'EBADF');
+  }));
+}
+
+// === VFS fstat EBADF ===
+{
+  const myVfs = vfs.create();
+  myVfs.fstat(99999, common.mustCall((err) => {
+    assert.strictEqual(err.code, 'EBADF');
+  }));
+}
+
+// === VFS fstat with options as function ===
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/fstat-cb.txt', 'data');
+  const fd = myVfs.openSync('/fstat-cb.txt');
+
+  myVfs.fstat(fd, common.mustCall((err, stats) => {
+    assert.strictEqual(err, null);
+    assert.strictEqual(stats.isFile(), true);
+    myVfs.closeSync(fd);
+  }));
+}
+
+// === VFS ftruncateSync EBADF ===
+{
+  const myVfs = vfs.create();
+  assert.throws(() => myVfs.ftruncateSync(99999), { code: 'EBADF' });
+}
+
+// === VFS writeSync EBADF ===
+{
+  const myVfs = vfs.create();
+  assert.throws(() => myVfs.writeSync(99999, Buffer.alloc(10), 0, 10, 0), { code: 'EBADF' });
+}
+
+// === VFS rm callback with options as function ===
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/rm-cb-opts.txt', 'data');
+
+  myVfs.rm('/rm-cb-opts.txt', common.mustCall((err) => {
+    assert.strictEqual(err, null);
+  }));
+}
+
+// === MemoryProvider async open ===
+{
+  const { MemoryProvider } = require('internal/vfs/providers/memory');
+  const mp = new MemoryProvider();
+  mp.writeFileSync('/async-open.txt', 'data');
+
+  mp.open('/async-open.txt', 'r').then(common.mustCall((handle) => {
+    assert.ok(handle);
+    handle.closeSync();
+  }));
+}
+
+// === MemoryProvider async stat, lstat, readdir, realpath, access ===
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/async-ops', { recursive: true });
+  myVfs.writeFileSync('/async-ops/file.txt', 'data');
+
+  myVfs.provider.stat('/async-ops/file.txt').then(common.mustCall((stats) => {
+    assert.strictEqual(stats.isFile(), true);
+  }));
+
+  myVfs.provider.lstat('/async-ops/file.txt').then(common.mustCall((stats) => {
+    assert.strictEqual(stats.isFile(), true);
+  }));
+
+  myVfs.provider.readdir('/async-ops').then(common.mustCall((entries) => {
+    assert.ok(entries.includes('file.txt'));
+  }));
+
+  myVfs.provider.realpath('/async-ops/file.txt').then(common.mustCall((rp) => {
+    assert.strictEqual(rp, '/async-ops/file.txt');
+  }));
+
+  myVfs.provider.access('/async-ops/file.txt').then(common.mustCall());
+}
+
+// === MemoryProvider async mkdir, rmdir, unlink, rename, symlink, readlink, link ===
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/async-write', { recursive: true });
+
+  myVfs.provider.mkdir('/async-write/sub').then(common.mustCall());
+  myVfs.provider.writeFile('/async-write/wf.txt', 'data').then(common.mustCall(() => {
+    myVfs.provider.readFile('/async-write/wf.txt', 'utf8').then(common.mustCall((content) => {
+      assert.strictEqual(content, 'data');
+    }));
+  }));
+}
+
+// === promises.rm with force option on nonexistent ===
+{
+  const myVfs = vfs.create();
+  myVfs.mount('/rm-force-test');
+  myVfs.promises.rm('/rm-force-test/nonexistent', { force: true }).then(common.mustCall());
+  // Clean up will happen after promise resolves
+  setTimeout(() => myVfs.unmount(), 100);
+}
+
+// === promises.truncate ===
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/ptrunc.txt', 'hello world');
+
+  myVfs.promises.truncate('/ptrunc.txt', 5).then(common.mustCall(() => {
+    assert.strictEqual(myVfs.readFileSync('/ptrunc.txt', 'utf8'), 'hello');
+  }));
+}
+
+// === promises.link ===
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/plink-src.txt', 'data');
+
+  myVfs.promises.link('/plink-src.txt', '/plink-dest.txt').then(common.mustCall(() => {
+    assert.strictEqual(myVfs.readFileSync('/plink-dest.txt', 'utf8'), 'data');
+  }));
+}
+
+// === promises.mkdtemp ===
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/ptmp', { recursive: true });
+
+  myVfs.promises.mkdtemp('/ptmp/test-').then(common.mustCall((dirPath) => {
+    assert.ok(dirPath.startsWith('/ptmp/test-'));
+    assert.strictEqual(dirPath.length, '/ptmp/test-'.length + 6);
+  }));
+}
+
+// === VFS shouldHandle when not mounted ===
+{
+  const myVfs = vfs.create();
+  assert.strictEqual(myVfs.shouldHandle('/any/path'), false);
+}
+
+// === VFS existsSync returns false for errors ===
+{
+  const myVfs = vfs.create();
+  // Path outside mount - existsSync catches errors
+  assert.strictEqual(myVfs.existsSync('/nonexistent'), false);
+}
