@@ -1,48 +1,50 @@
 'use strict';
+// Regression test for https://github.com/nodejs/node/issues/50665
+// t.test() should expose the same .skip, .todo, .only, .expectFailure
+// variants as the top-level test() function.
 const common = require('../common');
 const assert = require('node:assert');
 const { test } = require('node:test');
 
-// Verify that all subtest variants exist on TestContext.
-test('subtest variants exist on TestContext', common.mustCall(async (t) => {
-  assert.strictEqual(typeof t.test, 'function');
-  assert.strictEqual(typeof t.test.skip, 'function');
-  assert.strictEqual(typeof t.test.todo, 'function');
-  assert.strictEqual(typeof t.test.only, 'function');
-  assert.strictEqual(typeof t.test.expectFailure, 'function');
-}));
+test('context test function exposes all variant methods', async (t) => {
+  for (const variant of ['skip', 'todo', 'only', 'expectFailure']) {
+    assert.strictEqual(
+      typeof t.test[variant], 'function',
+      `t.test.${variant} should be a function`,
+    );
+  }
+});
 
-// t.test.skip: callback must NOT be called.
-test('t.test.skip prevents callback execution', common.mustCall(async (t) => {
-  await t.test.skip('skipped subtest', common.mustNotCall());
-}));
+test('skip variant does not execute the callback', async (t) => {
+  await t.test.skip('this is skipped', common.mustNotCall());
+});
 
-// t.test.todo without callback: subtest is marked as todo and skipped.
-test('t.test.todo without callback', common.mustCall(async (t) => {
-  await t.test.todo('todo subtest without callback');
-}));
+test('todo variant without callback marks subtest as todo', async (t) => {
+  await t.test.todo('pending feature');
+});
 
-// t.test.todo with callback: callback runs but subtest is marked as todo.
-test('t.test.todo with callback runs the callback', common.mustCall(async (t) => {
-  await t.test.todo('todo subtest with callback', common.mustCall());
-}));
+test('todo variant with callback still runs', async (t) => {
+  let ran = false;
+  await t.test.todo('work in progress', () => { ran = true; });
+  assert.ok(ran, 'todo callback should have been invoked');
+});
 
-// Plan counting works with subtest variants.
-test('plan counts subtest variants', common.mustCall(async (t) => {
-  t.plan(3);
-  await t.test('normal subtest', common.mustCall());
-  await t.test.skip('skipped subtest');
-  await t.test.todo('todo subtest');
-}));
+test('variants increment the plan counter', async (t) => {
+  t.plan(4);
+  await t.test('regular', common.mustCall());
+  await t.test.skip('skipped');
+  await t.test.todo('todo');
+  await t.test.todo('todo with cb', common.mustCall());
+});
 
-// Nested subtests also expose the variants.
-test('nested subtests have variants', common.mustCall(async (t) => {
-  await t.test('level 1', common.mustCall(async (t2) => {
-    assert.strictEqual(typeof t2.test.skip, 'function');
-    assert.strictEqual(typeof t2.test.todo, 'function');
-    assert.strictEqual(typeof t2.test.only, 'function');
-    assert.strictEqual(typeof t2.test.expectFailure, 'function');
-
-    await t2.test.skip('nested skipped', common.mustNotCall());
-  }));
-}));
+test('variants propagate to nested subtests', async (t) => {
+  await t.test('outer', async (t2) => {
+    for (const variant of ['skip', 'todo', 'only', 'expectFailure']) {
+      assert.strictEqual(
+        typeof t2.test[variant], 'function',
+        `nested t.test.${variant} should be a function`,
+      );
+    }
+    await t2.test.skip('inner skip', common.mustNotCall());
+  });
+});
