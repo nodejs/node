@@ -13611,9 +13611,11 @@ var require_fetch = __commonJS({
       function dispatch({ body }) {
         const url = requestCurrentURL(request);
         const agent = fetchParams.controller.dispatcher;
+        const path = url.pathname + url.search;
+        const hasTrailingQuestionMark = url.search.length === 0 && url.href[url.href.length - url.hash.length - 1] === "?";
         return new Promise((resolve, reject) => agent.dispatch(
           {
-            path: url.href.slice(url.href.indexOf(url.host) + url.host.length, url.hash.length ? -url.hash.length : void 0),
+            path: hasTrailingQuestionMark ? `${path}?` : path,
             origin: url.origin,
             method: request.method,
             body: agent.isMockActive ? request.body && (request.body.source || request.body.stream) : body,
