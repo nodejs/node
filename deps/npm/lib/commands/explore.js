@@ -31,9 +31,7 @@ class Explore extends BaseCommand {
       throw this.usageError()
     }
 
-    // run as if running a script named '_explore', which we set to either
-    // the set of arguments, or the shell config, and let @npmcli/run-script
-    // handle all the escaping and PATH setup stuff.
+    // run as if running a script named '_explore', which we set to either the set of arguments, or the shell config, and let @npmcli/run-script handle all the escaping and PATH setup stuff.
 
     const { content: pkg } = await pkgJson.normalize(path).catch(er => {
       log.error('explore', `It doesn't look like ${pkgname} is installed.`)
