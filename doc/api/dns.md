@@ -277,18 +277,19 @@ changes:
 * `callback` {Function}
   * `err` {Error}
   * `address` {string} A string representation of an IPv4 or IPv6 address.
+    This argument is only provided when `options.all` is `false`.
   * `family` {integer} `4` or `6`, denoting the family of `address`, or `0` if
     the address is not an IPv4 or IPv6 address. `0` is a likely indicator of a
-    bug in the name resolution service used by the operating system.
+    bug in the name resolution service used by the operating system. This
+    argument is only provided when `options.all` is `false`.
+  * `addresses` {Object[]} Returned when `options.all` is `true`.
+    * `address` {string} A resolved IPv4 or IPv6 address.
+    * `family` {integer} `4` or `6`, denoting the family of `address`.
 
 Resolves a host name (e.g. `'nodejs.org'`) into the first found A (IPv4) or
 AAAA (IPv6) record. All `option` properties are optional. If `options` is an
 integer, then it must be `4` or `6` – if `options` is not provided, then
 either IPv4 or IPv6 addresses, or both, are returned if found.
-
-With the `all` option set to `true`, the arguments for `callback` change to
-`(err, addresses)`, with `addresses` being an array of objects with the
-properties `address` and `family`.
 
 On error, `err` is an [`Error`][] object, where `err.code` is the error code.
 Keep in mind that `err.code` will be set to `'ENOTFOUND'` not only when
