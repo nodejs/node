@@ -2005,7 +2005,7 @@ w.on('online', async () => {
 });
 ```
 
-### `worker.startHeapProfile([sampleInterval[, stackDepth[, flags]]])`
+### `worker.startHeapProfile([options])`
 
 <!-- YAML
 added:
@@ -2013,13 +2013,17 @@ added:
   - v22.20.0
 -->
 
-* `sampleInterval` {number} The average sampling interval in bytes.
-  **Default:** `524288` (512 KiB).
-* `stackDepth` {integer} The maximum stack depth for samples.
-  **Default:** `16`.
-* `flags` {integer} Flags to control sampling behavior. Use constants from
-  [`v8.heapProfilerConstants`][]. Multiple flags can be combined with bitwise
-  OR. **Default:** `v8.heapProfilerConstants.SAMPLING_NO_FLAGS`.
+* `options` {Object}
+  * `sampleInterval` {number} The average sampling interval in bytes.
+    **Default:** `524288` (512 KiB).
+  * `stackDepth` {integer} The maximum stack depth for samples.
+    **Default:** `16`.
+  * `forceGC` {boolean} Force garbage collection before taking the profile.
+    **Default:** `false`.
+  * `includeObjectsCollectedByMajorGC` {boolean} Include objects collected
+    by major GC. **Default:** `false`.
+  * `includeObjectsCollectedByMinorGC` {boolean} Include objects collected
+    by minor GC. **Default:** `false`.
 * Returns: {Promise}
 
 Starting a Heap profile then return a Promise that fulfills with an error
@@ -2303,7 +2307,6 @@ thread spawned will spawn another until the application crashes.
 [`trace_events`]: tracing.md
 [`v8.getHeapSnapshot()`]: v8.md#v8getheapsnapshotoptions
 [`v8.getHeapStatistics()`]: v8.md#v8getheapstatistics
-[`v8.heapProfilerConstants`]: v8.md#v8heapprofilerconstants
 [`vm`]: vm.md
 [`worker.SHARE_ENV`]: #worker_threadsshare_env
 [`worker.on('message')`]: #event-message_1

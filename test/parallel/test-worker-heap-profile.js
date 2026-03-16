@@ -1,9 +1,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const v8 = require('v8');
 const { Worker } = require('worker_threads');
-const { heapProfilerConstants } = v8;
 
 const worker = new Worker(`
   const { parentPort } = require('worker_threads');
@@ -11,50 +9,55 @@ const worker = new Worker(`
   `, { eval: true });
 
 worker.on('online', common.mustCall(async () => {
-  assert.throws(() => worker.startHeapProfile('1024'), {
+  assert.throws(() => worker.startHeapProfile('bad'), {
     code: 'ERR_INVALID_ARG_TYPE',
   });
-  assert.throws(() => worker.startHeapProfile(1.1), {
+
+  assert.throws(() => worker.startHeapProfile({ sampleInterval: '1024' }), {
+    code: 'ERR_INVALID_ARG_TYPE',
+  });
+  assert.throws(() => worker.startHeapProfile({ sampleInterval: 1.1 }), {
     code: 'ERR_OUT_OF_RANGE',
   });
-  assert.throws(() => worker.startHeapProfile(0), {
+  assert.throws(() => worker.startHeapProfile({ sampleInterval: 0 }), {
     code: 'ERR_OUT_OF_RANGE',
   });
-  assert.throws(() => worker.startHeapProfile(-1), {
+  assert.throws(() => worker.startHeapProfile({ sampleInterval: -1 }), {
     code: 'ERR_OUT_OF_RANGE',
   });
 
-  assert.throws(() => worker.startHeapProfile(1024, '16'), {
+  assert.throws(() => worker.startHeapProfile({ stackDepth: '16' }), {
     code: 'ERR_INVALID_ARG_TYPE',
   });
-  assert.throws(() => worker.startHeapProfile(1024, 1.1), {
+  assert.throws(() => worker.startHeapProfile({ stackDepth: 1.1 }), {
     code: 'ERR_OUT_OF_RANGE',
   });
-  assert.throws(() => worker.startHeapProfile(1024, -1), {
+  assert.throws(() => worker.startHeapProfile({ stackDepth: -1 }), {
     code: 'ERR_OUT_OF_RANGE',
   });
 
-
-  assert.throws(() => worker.startHeapProfile(1024, 16, '0'), {
+  assert.throws(() => worker.startHeapProfile({ forceGC: 'true' }), {
     code: 'ERR_INVALID_ARG_TYPE',
   });
-  assert.throws(() => worker.startHeapProfile(1024, 16, -1), {
-    code: 'ERR_OUT_OF_RANGE',
-  });
-  assert.throws(() => worker.startHeapProfile(1024, 16, 8), {
-    code: 'ERR_OUT_OF_RANGE',
-  });
+  assert.throws(
+    () => worker.startHeapProfile({ includeObjectsCollectedByMajorGC: 1 }), {
+      code: 'ERR_INVALID_ARG_TYPE',
+    });
+  assert.throws(
+    () => worker.startHeapProfile({ includeObjectsCollectedByMinorGC: 1 }), {
+      code: 'ERR_INVALID_ARG_TYPE',
+    });
 
   {
-    const handle = await worker.startHeapProfile(
-      1024,
-      8,
-      heapProfilerConstants.SAMPLING_FORCE_GC |
-        heapProfilerConstants.SAMPLING_INCLUDE_OBJECTS_COLLECTED_BY_MAJOR_GC |
-        heapProfilerConstants.SAMPLING_INCLUDE_OBJECTS_COLLECTED_BY_MINOR_GC,
-    );
+    const handle = await worker.startHeapProfile({
+      sampleInterval: 1024,
+      stackDepth: 8,
+      forceGC: true,
+      includeObjectsCollectedByMajorGC: true,
+      includeObjectsCollectedByMinorGC: true,
+    });
     JSON.parse(await handle.stop());
-    // Stop again
+    // Stop again returns cached result.
     JSON.parse(await handle.stop());
   }
 

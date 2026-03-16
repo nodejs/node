@@ -816,7 +816,7 @@ v8::Maybe<int> GetValidFileMode(Environment* env,
   return v8::Just(mode);
 }
 
-static void buildHeapProfileNode(Isolate* isolate,
+static void BuildHeapProfileNode(Isolate* isolate,
                                  const AllocationProfile::Node* node,
                                  JSONWriter* writer) {
   size_t selfSize = 0;
@@ -838,7 +838,7 @@ static void buildHeapProfileNode(Isolate* isolate,
   writer->json_arraystart("children");
   for (const auto* child : node->children) {
     writer->json_start();
-    buildHeapProfileNode(isolate, child, writer);
+    BuildHeapProfileNode(isolate, child, writer);
     writer->json_end();
   }
   writer->json_arrayend();
@@ -866,7 +866,7 @@ bool SerializeHeapProfile(Isolate* isolate, std::ostringstream& out_stream) {
   writer.json_arrayend();
 
   writer.json_objectstart("head");
-  buildHeapProfileNode(isolate, profile->GetRootNode(), &writer);
+  BuildHeapProfileNode(isolate, profile->GetRootNode(), &writer);
   writer.json_objectend();
 
   writer.json_end();
