@@ -221,6 +221,7 @@ t.test('getUsage() with no params and no definitions', async t => {
   class TestCommand extends BaseCommand {
     static name = 'test-command'
     static description = 'Test command description'
+    static usage = ['']
   }
 
   const usage = TestCommand.describeUsage

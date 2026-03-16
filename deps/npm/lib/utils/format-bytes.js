@@ -1,6 +1,5 @@
 // Convert bytes to printable output, for file reporting in tarballs
-// Only supports up to GB because that's way larger than anything the registry
-// supports anyways.
+// Only supports up to GB because that's way larger than anything the registry supports anyways.
 
 const formatBytes = (bytes, space = true) => {
   let spacer = ''
