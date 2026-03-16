@@ -15,7 +15,7 @@ using v8::Object;
 using v8::Value;
 
 static void ThrowEventError(v8::Isolate* isolate, const std::string& message) {
-  isolate->ThrowException(v8::Exception::Error(
+  isolate->ThrowException(v8::Exception::TypeError(
       v8::String::NewFromUtf8(isolate, message.c_str()).ToLocalChecked()));
 }
 
