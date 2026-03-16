@@ -12,30 +12,30 @@ const stream = run({
 });
 
 stream.on('test:fail', mustNotCall());
-stream.on('test:pass', mustCall(4));
+stream.on('test:pass', mustCall(6));
 // eslint-disable-next-line no-unused-vars
 for await (const _ of stream);
 allowGlobals(globalThis.GLOBAL_ORDER);
+
+// Each file is wrapped in an implicit suite when using isolation: 'none',
+// so top-level hooks (before, beforeEach, etc.) are scoped to the file
+// and do not leak across test files.
+const file1 = fixtures.path('test-runner', 'no-isolation', 'one.test.js');
+const file2 = fixtures.path('test-runner', 'no-isolation', 'two.test.js');
 assert.deepStrictEqual(globalThis.GLOBAL_ORDER, [
-  'before one: <root>',
   'suite one',
-  'before two: <root>',
   'suite two',
 
+  `before one: ${file1}`,
   'beforeEach one: suite one - test',
-  'beforeEach two: suite one - test',
   'suite one - test',
   'afterEach one: suite one - test',
-  'afterEach two: suite one - test',
+  `after one: ${file1}`,
 
+  `before two: ${file2}`,
   'before suite two: suite two',
-
-  'beforeEach one: suite two - test',
   'beforeEach two: suite two - test',
   'suite two - test',
-  'afterEach one: suite two - test',
   'afterEach two: suite two - test',
-
-  'after one: <root>',
-  'after two: <root>',
+  `after two: ${file2}`,
 ]);
