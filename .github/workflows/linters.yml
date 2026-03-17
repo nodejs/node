@@ -151,7 +151,6 @@ jobs:
           sparse-checkout-cone-mode: false
       - uses: cachix/install-nix-action@2126ae7fc54c9df00dd18f7f18754393182c73cd  # v31.9.1
       - name: Lint Nix files
-        id: lint-step
         run: |
           nix-shell -I nixpkgs=./tools/nix/pkgs.nix -p 'nixfmt-tree' --run '
             treefmt --quiet --ci
