@@ -339,7 +339,7 @@ coverage-run-js: ## Run JavaScript tests with coverage.
 
 .PHONY: test
 # This does not run tests of third-party libraries inside deps.
-test: all ## Run default tests, linters, and build docs.
+test: all ## Run default tests and build docs.
 	$(MAKE) -s tooltest
 	$(MAKE) -s test-doc
 	$(MAKE) -s build-addons
@@ -350,7 +350,7 @@ test: all ## Run default tests, linters, and build docs.
 	$(MAKE) -s jstest
 
 .PHONY: test-only
-test-only: all  ## Run default tests, without linters or building the docs.
+test-only: all  ## Run default tests without building the docs.
 	$(MAKE) build-addons
 	$(MAKE) build-js-native-api-tests
 	$(MAKE) build-node-api-tests
