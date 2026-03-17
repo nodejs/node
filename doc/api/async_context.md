@@ -540,6 +540,48 @@ with JavaScript's `using` syntax.
 The scope automatically restores the previous store value when the `using` block
 exits, whether through normal completion or by throwing an error.
 
+### `scope.dispose()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Explicitly ends the scope and restores the previous store value. This method
+is idempotent: calling it multiple times has the same effect as calling it once.
+
+The `[Symbol.dispose]()` method defers to `dispose()`.
+
+If `withScope()` is called without the `using` keyword, `dispose()` must be
+called manually to restore the previous store value. Forgetting to call
+`dispose()` will cause the store value to persist for the remainder of the
+current execution context:
+
+```mjs
+import { AsyncLocalStorage } from 'node:async_hooks';
+
+const storage = new AsyncLocalStorage();
+
+// Without using, the scope must be disposed manually
+const scope = storage.withScope('my-store');
+// storage.getStore() === 'my-store' here
+
+scope.dispose(); // Restore previous value
+// storage.getStore() === undefined here
+```
+
+```cjs
+const { AsyncLocalStorage } = require('node:async_hooks');
+
+const storage = new AsyncLocalStorage();
+
+// Without using, the scope must be disposed manually
+const scope = storage.withScope('my-store');
+// storage.getStore() === 'my-store' here
+
+scope.dispose(); // Restore previous value
+// storage.getStore() === undefined here
+```
+
 ## Class: `AsyncResource`
 
 <!-- YAML

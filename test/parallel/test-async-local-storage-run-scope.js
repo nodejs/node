@@ -77,23 +77,57 @@ const { AsyncLocalStorage } = require('node:async_hooks');
   assert.strictEqual(storage.getStore(), 'before');
 }
 
-// Test idempotent disposal
+// Test idempotent disposal via named dispose() method
 {
   const storage = new AsyncLocalStorage();
 
   const scope = storage.withScope('test');
   assert.strictEqual(storage.getStore(), 'test');
 
-  // Dispose via Symbol.dispose
-  scope[Symbol.dispose]();
+  // Dispose via named dispose() method
+  scope.dispose();
   assert.strictEqual(storage.getStore(), undefined);
 
   storage.enterWith('test2');
   assert.strictEqual(storage.getStore(), 'test2');
 
   // Double dispose should be idempotent
-  scope[Symbol.dispose]();
+  scope.dispose();
   assert.strictEqual(storage.getStore(), 'test2');
+}
+
+// Test withScope without using keyword (scope leaks until manually disposed)
+{
+  const storage = new AsyncLocalStorage();
+
+  const scope = storage.withScope('leaked');
+  assert.strictEqual(storage.getStore(), 'leaked');
+
+  // Without using, the scope persists
+  assert.strictEqual(storage.getStore(), 'leaked');
+
+  // Must manually dispose via named method
+  scope.dispose();
+  assert.strictEqual(storage.getStore(), undefined);
+}
+
+// Test that dispose undoes enterWith called inside scope
+{
+  const storage = new AsyncLocalStorage();
+
+  storage.enterWith('store1');
+  assert.strictEqual(storage.getStore(), 'store1');
+
+  {
+    using _ = storage.withScope('store2');
+    assert.strictEqual(storage.getStore(), 'store2');
+
+    storage.enterWith('store3');
+    assert.strictEqual(storage.getStore(), 'store3');
+  }
+
+  // Restores to store1, undoing both withScope and the enterWith inside scope
+  assert.strictEqual(storage.getStore(), 'store1');
 }
 
 // Test RunScope with defaultValue
