@@ -329,8 +329,13 @@ constexpr size_t kNumFlags = arraysize(flags);
 
 base::Vector<Flag> Flags() { return base::ArrayVector(flags); }
 
+#if V8_CC_MSVC && defined(_DEBUG)
+std::array<int, kNumFlags> GetSortedFlagIndices() {
+  const char* kFlagNames[] = {
+#else
 consteval std::array<int, kNumFlags> GetSortedFlagIndices() {
   constexpr const char* kFlagNames[] = {
+#endif
 #define FLAG_MODE_APPLY_NAME(nam) #nam,
 #define FLAG_ALIAS(ftype, ctype, alias, nam) #alias,
 #include "src/flags/flag-definitions.h"  // NOLINT(build/include)
@@ -362,7 +367,11 @@ struct FlagNameGreater {
 class FlagMapByName {
  public:
   FlagMapByName() {
+#if V8_CC_MSVC && defined(_DEBUG)
+    const std::array<int, kNumFlags> sorted_indices =
+#else
     constexpr std::array<int, kNumFlags> sorted_indices =
+#endif
         GetSortedFlagIndices();
     for (size_t i = 0; i < kNumFlags; ++i) {
       flags_[i] = &flags[sorted_indices[i]];

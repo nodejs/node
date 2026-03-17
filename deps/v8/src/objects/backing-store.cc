@@ -321,7 +321,7 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
   // For accounting purposes, whether a GC was necessary.
   bool did_retry = false;
 
-  auto gc_retry = [&](const std::function<bool()>& fn) {
+  auto gc_retry = [&](const auto& fn) {
     if (fn()) return true;
     // Collect garbage and retry.
     did_retry = true;
