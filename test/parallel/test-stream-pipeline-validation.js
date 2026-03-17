@@ -150,7 +150,9 @@ function assertInvalidArg(fn, name) {
     }),
   );
 
-  writer.write('x').then(common.mustCall(() => writer.close()));
+  writer.write('x')
+    .then(() => writer.close())
+    .then(common.mustCall());
 
   const transformed = [];
   pipeline(
@@ -171,15 +173,14 @@ function assertInvalidArg(fn, name) {
     }),
   );
 
-  assert.doesNotThrow(() => {
-    pipeline(
-      Readable.from(['x']),
-      new TransformStream({ // destination
-        transform() {},
-      }),
-      () => {},
-    );
-  });
+  // Destination TransformStream should not throw
+  pipeline(
+    Readable.from(['x']),
+    new TransformStream({ // destination
+      transform() {},
+    }),
+    () => {},
+  );
 }
 
 // WritableStream
