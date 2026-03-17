@@ -1,0 +1,31 @@
+TAP version 13
+# Subtest: subject calls dependency
+ok 1 - subject calls dependency
+  ---
+  duration_ms: *
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms *
+# start of coverage report
+# -------------------------------------------------------------------------------
+# file                           | line % | branch % | funcs % | uncovered lines
+# -------------------------------------------------------------------------------
+# test                           |        |          |         |
+#  fixtures                      |        |          |         |
+#   test-runner                  |        |          |         |
+#    coverage-with-mock          |        |          |         |
+#     subject.mjs                | 100.00 |   100.00 |  100.00 |
+#    output                      |        |          |         |
+#     coverage-with-mock-cjs.mjs | 100.00 |   100.00 |  100.00 |
+# -------------------------------------------------------------------------------
+# all files                      | 100.00 |   100.00 |  100.00 |
+# -------------------------------------------------------------------------------
+# end of coverage report
