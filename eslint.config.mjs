@@ -128,6 +128,7 @@ export default [
         Float16Array: 'readonly',
         FormData: 'readonly',
         navigator: 'readonly',
+        QuotaExceededError: 'readonly',
         ReadableStream: 'readonly',
         ReadableStreamDefaultReader: 'readonly',
         ReadableStreamBYOBReader: 'readonly',
