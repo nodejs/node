@@ -7779,9 +7779,9 @@ added:
 
 * Type: {number|bigint}
 
-A numeric identifier for the file system type. This value is a filesystem magic
+A numeric identifier for the file system type. This value is a file system magic
 number set by the operating system kernel, such as `0xEF53` for ext4 or
-`0x01021994` for tmpfs on Linux. On some platforms, this value is `0`.
+`0x01021994` for tmpfs on Linux. On some platforms (e.g., Windows, Solaris), this value is `0`.
 
 ### Class: `fs.Utf8Stream`
 
