@@ -4431,12 +4431,15 @@ import { opendir } from 'node:fs/promises';
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62173
+    description: Runtime deprecation.
   - version: v25.7.0
     pr-url: https://github.com/nodejs/node/pull/61632
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 Passing the `type` option to [`Duplex.toWeb()`][] is deprecated. To specify the
 type of the readable half of the constructed readable-writable pair, use the
