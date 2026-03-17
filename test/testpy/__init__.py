@@ -97,6 +97,11 @@ class SimpleTestCase(test.TestCase):
         # TODO(joyeecheung): add this to the status file variables so that we can
         # list the crypto dependency in the status files explicitly instead.
         print(': Skipping as node was compiled without crypto support')
+      elif (('--experimental-ffi' in flags or
+          '--no-experimental-ffi' in flags or
+          '--allow-ffi' in flags) and
+          not self.context.node_has_ffi):
+        print(': Skipping as node was compiled without FFI support')
       else:
         result += flags
 

@@ -5,7 +5,9 @@
 #include "node_ffi.h"
 #include "v8.h"
 
+#include <climits>
 #include <cmath>
+#include <limits>
 
 using v8::Array;
 using v8::ArrayBuffer;
@@ -25,6 +27,18 @@ using v8::Value;
 namespace node {
 
 namespace ffi {
+
+bool IsFFINarrowSignedInteger(ffi_type* type) {
+  return type == &ffi_type_sint8 || type == &ffi_type_sint16;
+}
+
+bool IsFFINarrowUnsignedInteger(ffi_type* type) {
+  return type == &ffi_type_uint8 || type == &ffi_type_uint16;
+}
+
+bool IsFFINarrowInteger(ffi_type* type) {
+  return IsFFINarrowSignedInteger(type) || IsFFINarrowUnsignedInteger(type);
+}
 
 bool HasProperty(Local<Context> context,
                  Local<Object> object,
@@ -221,9 +235,10 @@ bool ToFFIType(Environment* env, const std::string& type_str, ffi_type** ret) {
     *ret = &ffi_type_void;
   } else if (type_str == "i8" || type_str == "int8") {
     *ret = &ffi_type_sint8;
-  } else if (type_str == "u8" || type_str == "uint8" || type_str == "bool" ||
-             type_str == "char") {
+  } else if (type_str == "u8" || type_str == "uint8" || type_str == "bool") {
     *ret = &ffi_type_uint8;
+  } else if (type_str == "char") {
+    *ret = CHAR_MIN < 0 ? &ffi_type_sint8 : &ffi_type_uint8;
   } else if (type_str == "i16" || type_str == "int16") {
     *ret = &ffi_type_sint16;
   } else if (type_str == "u16" || type_str == "uint16") {
@@ -327,7 +342,13 @@ uint8_t ToFFIArgument(Environment* env,
       return 0;
     }
 
-    *static_cast<int64_t*>(ret) = arg.As<BigInt>()->Int64Value(nullptr);
+    bool lossless;
+    *static_cast<int64_t*>(ret) = arg.As<BigInt>()->Int64Value(&lossless);
+    if (!lossless) {
+      env->ThrowTypeError(
+          ("Argument " + std::to_string(index) + " must be an int64").c_str());
+      return 0;
+    }
   } else if (type == &ffi_type_uint64) {
     if (!arg->IsBigInt()) {
       env->ThrowTypeError(
@@ -335,7 +356,13 @@ uint8_t ToFFIArgument(Environment* env,
       return 0;
     }
 
-    *static_cast<uint64_t*>(ret) = arg.As<BigInt>()->Uint64Value(nullptr);
+    bool lossless;
+    *static_cast<uint64_t*>(ret) = arg.As<BigInt>()->Uint64Value(&lossless);
+    if (!lossless) {
+      env->ThrowTypeError(
+          ("Argument " + std::to_string(index) + " must be a uint64").c_str());
+      return 0;
+    }
   } else if (type == &ffi_type_float) {
     if (!arg->IsNumber()) {
       env->ThrowTypeError(
@@ -391,13 +418,16 @@ uint8_t ToFFIArgument(Environment* env,
       *static_cast<uint64_t*>(ret) = reinterpret_cast<uint64_t>(store->Data());
     } else if (arg->IsBigInt()) {
       bool lossless;
-      *static_cast<uint64_t*>(ret) = arg.As<BigInt>()->Uint64Value(&lossless);
-      if (!lossless) {
+      uint64_t pointer = arg.As<BigInt>()->Uint64Value(&lossless);
+      if (!lossless || pointer > static_cast<uint64_t>(
+                                     std::numeric_limits<uintptr_t>::max())) {
         env->ThrowTypeError(("Argument " + std::to_string(index) +
                              " must be a non-negative pointer bigint")
                                 .c_str());
         return 0;
       }
+
+      *static_cast<uint64_t*>(ret) = pointer;
     } else {
       env->ThrowTypeError(
           ("Argument " + std::to_string(index) +
@@ -450,6 +480,14 @@ Local<Value> ToJSArgument(Isolate* isolate, ffi_type* type, void* data) {
   return ret;
 }
 
+size_t GetFFIReturnValueStorageSize(ffi_type* type) {
+  if (IsFFINarrowInteger(type)) {
+    return sizeof(ffi_arg);
+  }
+
+  return type->size;
+}
+
 bool ToJSReturnValue(Environment* env,
                      const FunctionCallbackInfo<Value>& args,
                      ffi_type* type,
@@ -457,17 +495,17 @@ bool ToJSReturnValue(Environment* env,
   if (type == &ffi_type_void) {
     args.GetReturnValue().SetUndefined();
   } else if (type == &ffi_type_sint8) {
-    args.GetReturnValue().Set(
-        static_cast<int32_t>(*static_cast<const int8_t*>(result)));
+    args.GetReturnValue().Set(static_cast<int32_t>(
+        static_cast<int8_t>(*static_cast<const ffi_sarg*>(result))));
   } else if (type == &ffi_type_uint8) {
-    args.GetReturnValue().Set(
-        static_cast<uint32_t>(*static_cast<const uint8_t*>(result)));
+    args.GetReturnValue().Set(static_cast<uint32_t>(
+        static_cast<uint8_t>(*static_cast<const ffi_arg*>(result))));
   } else if (type == &ffi_type_sint16) {
-    args.GetReturnValue().Set(
-        static_cast<int32_t>(*static_cast<const int16_t*>(result)));
+    args.GetReturnValue().Set(static_cast<int32_t>(
+        static_cast<int16_t>(*static_cast<const ffi_sarg*>(result))));
   } else if (type == &ffi_type_uint16) {
-    args.GetReturnValue().Set(
-        static_cast<uint32_t>(*static_cast<const uint16_t*>(result)));
+    args.GetReturnValue().Set(static_cast<uint32_t>(
+        static_cast<uint16_t>(*static_cast<const ffi_arg*>(result))));
   } else if (type == &ffi_type_sint32) {
     args.GetReturnValue().Set(*static_cast<const int32_t*>(result));
   } else if (type == &ffi_type_uint32) {
@@ -494,7 +532,7 @@ bool ToJSReturnValue(Environment* env,
 
 bool ToFFIReturnValue(Local<Value> result, ffi_type* type, void* ret) {
   if (type != &ffi_type_void && ret != nullptr) {
-    std::memset(ret, 0, type->size);
+    std::memset(ret, 0, GetFFIReturnValueStorageSize(type));
   }
 
   if (type == &ffi_type_sint8) {
@@ -504,7 +542,7 @@ bool ToFFIReturnValue(Local<Value> result, ffi_type* type, void* ret) {
       return false;
     }
 
-    *static_cast<int8_t*>(ret) = static_cast<int8_t>(value);
+    *static_cast<ffi_sarg*>(ret) = static_cast<ffi_sarg>(value);
   } else if (type == &ffi_type_uint8) {
     uint64_t value;
 
@@ -512,7 +550,7 @@ bool ToFFIReturnValue(Local<Value> result, ffi_type* type, void* ret) {
       return false;
     }
 
-    *static_cast<uint8_t*>(ret) = static_cast<uint8_t>(value);
+    *static_cast<ffi_arg*>(ret) = static_cast<ffi_arg>(value);
   } else if (type == &ffi_type_sint16) {
     int64_t value;
 
@@ -520,7 +558,7 @@ bool ToFFIReturnValue(Local<Value> result, ffi_type* type, void* ret) {
       return false;
     }
 
-    *static_cast<int16_t*>(ret) = static_cast<int16_t>(value);
+    *static_cast<ffi_sarg*>(ret) = static_cast<ffi_sarg>(value);
   } else if (type == &ffi_type_uint16) {
     uint64_t value;
 
@@ -528,7 +566,7 @@ bool ToFFIReturnValue(Local<Value> result, ffi_type* type, void* ret) {
       return false;
     }
 
-    *static_cast<uint16_t*>(ret) = static_cast<uint16_t>(value);
+    *static_cast<ffi_arg*>(ret) = static_cast<ffi_arg>(value);
   } else if (type == &ffi_type_sint32) {
     int64_t value;
 
@@ -584,11 +622,13 @@ bool ToFFIReturnValue(Local<Value> result, ffi_type* type, void* ret) {
     bool lossless;
 
     if (result->IsBigInt()) {
-      *static_cast<uint64_t*>(ret) =
-          result.As<BigInt>()->Uint64Value(&lossless);
-      if (!lossless) {
+      uint64_t pointer = result.As<BigInt>()->Uint64Value(&lossless);
+      if (!lossless || pointer > static_cast<uint64_t>(
+                                     std::numeric_limits<uintptr_t>::max())) {
         return false;
       }
+
+      *static_cast<uint64_t*>(ret) = pointer;
     } else {
       // Note that strings, buffer or ArrayBuffer are ignored
       *static_cast<uint64_t*>(ret) = reinterpret_cast<uint64_t>(nullptr);

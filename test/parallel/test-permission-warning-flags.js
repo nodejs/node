@@ -8,10 +8,13 @@ const warnFlags = [
   '--allow-addons',
   '--allow-child-process',
   '--allow-inspector',
-  '--allow-ffi',
   '--allow-wasi',
   '--allow-worker',
 ];
+
+if (process.config.variables.node_use_ffi) {
+  warnFlags.splice(3, 0, '--allow-ffi');
+}
 
 for (const flag of warnFlags) {
   const { status, stderr } = spawnSync(

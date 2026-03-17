@@ -1,7 +1,7 @@
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
 
 // Integer operations.
 
@@ -35,6 +35,14 @@ int64_t add_i64(int64_t a, int64_t b) {
 
 uint64_t add_u64(uint64_t a, uint64_t b) {
   return a + b;
+}
+
+char identity_char(char value) {
+  return value;
+}
+
+int32_t char_is_signed(void) {
+  return ((char)-1) < 0;
 }
 
 // Floating point operations.
@@ -161,7 +169,7 @@ typedef struct {
 } Point3D;
 
 Point make_point(int32_t x, int32_t y) {
-  Point p = { x, y };
+  Point p = {x, y};
   return p;
 }
 
@@ -172,7 +180,7 @@ int32_t point_distance_squared(Point p1, Point p2) {
 }
 
 Point3D make_point3d(float x, float y, float z) {
-  Point3D p = { x, y, z };
+  Point3D p = {x, y, z};
   return p;
 }
 
@@ -237,7 +245,9 @@ void call_string_callback(StringCallback callback, const char* str) {
   }
 }
 
-int32_t call_binary_int_callback(BinaryIntCallback callback, int32_t a, int32_t b) {
+int32_t call_binary_int_callback(BinaryIntCallback callback,
+                                 int32_t a,
+                                 int32_t b) {
   if (!callback) {
     return -1;
   }

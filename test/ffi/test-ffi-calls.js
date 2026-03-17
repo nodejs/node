@@ -1,6 +1,7 @@
 // Flags: --experimental-ffi --expose-gc
 'use strict';
 const common = require('../common');
+common.skipIfFFIMissing();
 const { gcUntil } = require('../common/gc');
 const {
   deepStrictEqual,
@@ -23,6 +24,14 @@ const { lib, functions: symbols } = ffi.dlopen(libraryPath, fixtureSymbols);
   strictEqual(symbols.add_u32(0xFFFFFFFF, 1), 0);
   strictEqual(symbols.add_i64(20n, 22n), 42n);
   strictEqual(symbols.add_u64(20n, 22n), 42n);
+
+  if (symbols.char_is_signed()) {
+    strictEqual(symbols.identity_char(-1), -1);
+    strictEqual(symbols.identity_char(-128), -128);
+  } else {
+    strictEqual(symbols.identity_char(255), 255);
+    strictEqual(symbols.identity_char(128), 128);
+  }
 }
 
 {
@@ -38,6 +47,13 @@ const { lib, functions: symbols } = ffi.dlopen(libraryPath, fixtureSymbols);
   strictEqual(symbols.logical_and(1, 0), 0);
   strictEqual(symbols.logical_or(0, 1), 1);
   strictEqual(symbols.logical_not(0), 1);
+
+  const boolAdder = lib.getFunction('add_u8', {
+    parameters: ['bool', 'bool'],
+    result: 'bool',
+  });
+  strictEqual(boolAdder(1, 0), 1);
+  throws(() => boolAdder(true, false), /Argument 0 must be a uint8/);
 }
 
 {
@@ -167,11 +183,19 @@ const { lib, functions: symbols } = ffi.dlopen(libraryPath, fixtureSymbols);
   throws(() => symbols.add_u16(70_000, 1), /Argument 0 must be a uint16/);
   throws(() => symbols.add_i64(1, 2n), /Argument 0 must be an int64/);
   throws(() => symbols.add_i64(1.5, 2n), /Argument 0 must be an int64/);
+  throws(() => symbols.add_i64(2n ** 63n, 2n), /Argument 0 must be an int64/);
+  throws(() => symbols.add_i64(-(2n ** 63n) - 1n, 2n), /Argument 0 must be an int64/);
   throws(() => symbols.add_u64('1', 2n), /Argument 0 must be a uint64/);
   throws(() => symbols.add_u64(1, 2n), /Argument 0 must be a uint64/);
   throws(() => symbols.add_u64(Number.NaN, 2n), /Argument 0 must be a uint64/);
+  throws(() => symbols.add_u64(-1n, 2n), /Argument 0 must be a uint64/);
+  throws(() => symbols.add_u64(2n ** 64n, 2n), /Argument 0 must be a uint64/);
   throws(() => symbols.identity_pointer(-1n), /Argument 0 must be a non-negative pointer bigint/);
   throws(() => symbols.string_length(Symbol('x')), /must be a buffer, an ArrayBuffer, a string, or a bigint/);
+
+  if (process.arch === 'ia32' || process.arch === 'arm') {
+    throws(() => symbols.identity_pointer(2n ** 32n), /platform pointer range|non-negative pointer bigint/);
+  }
 }
 
 {

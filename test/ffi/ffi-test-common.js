@@ -39,6 +39,8 @@ const fixtureSymbols = {
   add_u32: { parameters: ['u32', 'u32'], result: 'u32' },
   add_i64: { parameters: ['i64', 'i64'], result: 'i64' },
   add_u64: { parameters: ['u64', 'u64'], result: 'u64' },
+  identity_char: { parameters: ['char'], result: 'char' },
+  char_is_signed: { parameters: [], result: 'i32' },
   add_f32: { parameters: ['f32', 'f32'], result: 'f32' },
   multiply_f64: { parameters: ['f64', 'f64'], result: 'f64' },
   identity_pointer: { parameters: ['pointer'], result: 'pointer' },

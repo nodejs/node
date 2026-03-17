@@ -1,5 +1,7 @@
 // Flags: --experimental-ffi
 'use strict';
+const common = require('../common');
+common.skipIfFFIMissing();
 const {
   ok,
   strictEqual,
@@ -110,6 +112,20 @@ const { fixtureSymbols, libraryPath } = require('./ffi-test-common');
 
   throws(() => {
     lib.getFunctions('not an object');
+  }, {
+    name: 'TypeError',
+    message: 'Functions signatures must be an object',
+  });
+
+  throws(() => {
+    lib.getFunctions([]);
+  }, {
+    name: 'TypeError',
+    message: 'Functions signatures must be an object',
+  });
+
+  throws(() => {
+    lib.getFunctions([fixtureSymbols.add_i32]);
   }, {
     name: 'TypeError',
     message: 'Functions signatures must be an object',

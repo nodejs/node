@@ -2214,8 +2214,8 @@ def configure_sqlite(o):
 
 def bundled_ffi_supported(os_name, target_arch):
   supported = {
-    'freebsd': {'arm', 'arm64', 'ia32', 'x64'},
-    'linux': {'arm', 'arm64', 'ia32', 'x64'},
+    'freebsd': {'arm', 'arm64', 'x64'},
+    'linux': {'arm', 'arm64', 'x64'},
     'mac': {'arm64', 'x64'},
     'win': {'arm', 'arm64', 'x64'},
   }

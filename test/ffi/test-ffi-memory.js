@@ -1,6 +1,9 @@
 // Flags: --experimental-ffi
 'use strict';
 
+const common = require('../common');
+common.skipIfFFIMissing();
+
 const {
   deepStrictEqual,
   strictEqual,
@@ -83,6 +86,11 @@ withAllocations((alloc) => {
   view[1] = 9;
   deepStrictEqual([...ffi.toBuffer(ptr, 4)], [1, 9, 3, 4]);
   deepStrictEqual([...copy], [1, 2, 3, 4]);
+
+  const copyFromUndefined = ffi.toBuffer(ptr, 4, undefined);
+  copyFromUndefined[0] = 77;
+  deepStrictEqual([...copyFromUndefined], [77, 9, 3, 4]);
+  deepStrictEqual([...ffi.toBuffer(ptr, 4)], [1, 9, 3, 4]);
 });
 
 withAllocations((alloc) => {
@@ -98,6 +106,11 @@ withAllocations((alloc) => {
   shared[2] = 99;
   deepStrictEqual([...ffi.toBuffer(ptr, 4)], [10, 20, 99, 40]);
   deepStrictEqual([...copied], [10, 20, 30, 40]);
+
+  const copiedFromUndefined = new Uint8Array(ffi.toArrayBuffer(ptr, 4, undefined));
+  copiedFromUndefined[1] = 55;
+  deepStrictEqual([...copiedFromUndefined], [10, 55, 99, 40]);
+  deepStrictEqual([...ffi.toBuffer(ptr, 4)], [10, 20, 99, 40]);
 });
 
 withAllocations((alloc) => {
@@ -119,6 +132,9 @@ withAllocations((alloc) => {
 
 withAllocations((alloc) => {
   const ptr = alloc(8);
+  const maxPointer = process.arch === 'ia32' || process.arch === 'arm' ?
+    0xfffffffcn :
+    0xfffffffffffffffcn;
 
   throws(() => ffi.toBuffer('nope', 4), /The first argument must be a bigint/);
   throws(() => ffi.toBuffer(-1n, 4), /The first argument must be a non-negative bigint/);
@@ -129,8 +145,10 @@ withAllocations((alloc) => {
   throws(() => ffi.toArrayBuffer(0n, 1), /Cannot create an ArrayBuffer from a null pointer/);
   throws(() => ffi.getInt32(0n), /Cannot dereference a null pointer/);
   throws(() => ffi.getInt32(-1n), /The pointer must be a non-negative bigint/);
+  throws(() => ffi.getInt8(maxPointer, 8), /pointer and offset exceed the platform address range/);
   throws(() => ffi.setUint8(ptr), /Expected an offset argument/);
   throws(() => ffi.setUint8(-1n, 0, 1), /The pointer must be a non-negative bigint/);
+  throws(() => ffi.setUint8(maxPointer, 8, 1), /pointer and offset exceed the platform address range/);
   throws(() => ffi.setUint8(ptr, 0), /Expected a value argument/);
   throws(() => ffi.setInt8(ptr, 0, 1.5), /Value must be an int8/);
   throws(() => ffi.setInt8(ptr, 0, Number.NaN), /Value must be an int8/);
@@ -141,12 +159,18 @@ withAllocations((alloc) => {
   throws(() => ffi.setUint16(ptr, 0, Number.NaN), /Value must be a uint16/);
   throws(() => ffi.setInt64(ptr, 0, 1.5), /Value must be an int64/);
   throws(() => ffi.setInt64(ptr, 0, Number.NaN), /Value must be an int64/);
+  throws(() => ffi.setInt64(ptr, 0, 2n ** 63n), /Value must be an int64/);
   throws(() => ffi.setInt64(ptr, 0, Number.MAX_SAFE_INTEGER + 1), /Value must be an int64/);
   throws(() => ffi.setUint64(ptr, 0, -1), /Value must be a uint64/);
   throws(() => ffi.setUint64(ptr, 0, 1.5), /Value must be a uint64/);
+  throws(() => ffi.setUint64(ptr, 0, -1n), /Value must be a uint64/);
+  throws(() => ffi.setUint64(ptr, 0, 2n ** 64n), /Value must be a uint64/);
   throws(() => ffi.setUint64(ptr, 0, Number.MAX_SAFE_INTEGER + 1), /Value must be a uint64/);
   throws(() => ffi.exportString(1, ptr, 4), {
     code: 'ERR_INVALID_ARG_TYPE',
+  });
+  throws(() => ffi.exportString('ok', ptr, -1), {
+    code: 'ERR_OUT_OF_RANGE',
   });
   throws(() => ffi.exportString('ok', ptr, 4, 1), {
     code: 'ERR_INVALID_ARG_TYPE',
@@ -154,4 +178,11 @@ withAllocations((alloc) => {
   throws(() => ffi.exportBuffer('bad', ptr, 4), {
     code: 'ERR_INVALID_ARG_TYPE',
   });
+  throws(() => ffi.exportBuffer(Buffer.from([1]), ptr, -1), {
+    code: 'ERR_OUT_OF_RANGE',
+  });
+
+  if (process.arch === 'ia32' || process.arch === 'arm') {
+    throws(() => ffi.toBuffer(2n ** 32n, 0), /platform pointer range/);
+  }
 });

@@ -59,7 +59,7 @@ bool GetValidatedSize(Environment* env,
 bool GetValidatedPointerAddress(Environment* env,
                                 Local<Value> value,
                                 const char* label,
-                                uint64_t* out) {
+                                uintptr_t* out) {
   if (!value->IsBigInt()) {
     env->ThrowTypeError(
         (std::string("The ") + label + " must be a bigint").c_str());
@@ -67,13 +67,22 @@ bool GetValidatedPointerAddress(Environment* env,
   }
 
   bool lossless;
-  *out = value.As<BigInt>()->Uint64Value(&lossless);
+  uint64_t address = value.As<BigInt>()->Uint64Value(&lossless);
   if (!lossless) {
     env->ThrowTypeError(
         (std::string("The ") + label + " must be a non-negative bigint")
             .c_str());
     return false;
   }
+
+  if (address > static_cast<uint64_t>(std::numeric_limits<uintptr_t>::max())) {
+    env->ThrowRangeError(
+        (std::string("The ") + label + " exceeds the platform pointer range")
+            .c_str());
+    return false;
+  }
+
+  *out = static_cast<uintptr_t>(address);
 
   return true;
 }
@@ -125,7 +134,7 @@ bool GetValidatedPointerAndOffset(Environment* env,
                                   const FunctionCallbackInfo<Value>& args,
                                   uint8_t** ptr,
                                   size_t* offset) {
-  uint64_t raw_ptr;
+  uintptr_t raw_ptr;
   if (args.Length() < 1 ||
       !GetValidatedPointerAddress(env, args[0], "pointer", &raw_ptr)) {
     return false;
@@ -143,6 +152,12 @@ bool GetValidatedPointerAndOffset(Environment* env,
     }
   }
 
+  if (*offset > std::numeric_limits<uintptr_t>::max() - raw_ptr) {
+    env->ThrowRangeError(
+        "The pointer and offset exceed the platform address range");
+    return false;
+  }
+
   *ptr = reinterpret_cast<uint8_t*>(static_cast<uintptr_t>(raw_ptr));
   return true;
 }
@@ -152,7 +167,7 @@ bool GetValidatedPointerValueAndOffset(Environment* env,
                                        uint8_t** ptr,
                                        Local<Value>* value,
                                        size_t* offset) {
-  uint64_t raw_ptr;
+  uintptr_t raw_ptr;
   if (args.Length() < 1 ||
       !GetValidatedPointerAddress(env, args[0], "pointer", &raw_ptr)) {
     return false;
@@ -169,6 +184,12 @@ bool GetValidatedPointerValueAndOffset(Environment* env,
   }
 
   if (!GetValidatedSize(env, args[1], "offset", offset)) {
+    return false;
+  }
+
+  if (*offset > std::numeric_limits<uintptr_t>::max() - raw_ptr) {
+    env->ThrowRangeError(
+        "The pointer and offset exceed the platform address range");
     return false;
   }
 
@@ -271,7 +292,12 @@ void SetValue(const FunctionCallbackInfo<Value>& args) {
     converted = static_cast<T>(validated);
   } else if constexpr (std::is_same_v<T, int64_t>) {
     if (value->IsBigInt()) {
-      converted = static_cast<T>(value.As<BigInt>()->Int64Value());
+      bool lossless;
+      converted = static_cast<T>(value.As<BigInt>()->Int64Value(&lossless));
+      if (!lossless) {
+        env->ThrowTypeError("Value must be an int64");
+        return;
+      }
     } else if (value->IsNumber()) {
       int64_t validated;
       if (!GetValidatedSignedInt(env,
@@ -289,7 +315,12 @@ void SetValue(const FunctionCallbackInfo<Value>& args) {
     }
   } else if constexpr (std::is_same_v<T, uint64_t>) {
     if (value->IsBigInt()) {
-      converted = static_cast<T>(value.As<BigInt>()->Uint64Value());
+      bool lossless;
+      converted = static_cast<T>(value.As<BigInt>()->Uint64Value(&lossless));
+      if (!lossless) {
+        env->ThrowTypeError("Value must be a uint64");
+        return;
+      }
     } else if (value->IsNumber()) {
       uint64_t validated;
       if (!GetValidatedUnsignedInt(
@@ -411,7 +442,7 @@ void ToString(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  uint64_t ptr;
+  uintptr_t ptr;
   if (!GetValidatedPointerAddress(env, args[0], "first argument", &ptr)) {
     return;
   }
@@ -442,7 +473,7 @@ void ToBuffer(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  uint64_t ptr;
+  uintptr_t ptr;
   if (!GetValidatedPointerAddress(env, args[0], "first argument", &ptr)) {
     return;
   }
@@ -458,7 +489,8 @@ void ToBuffer(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Object> buf;
-  if (args.Length() < 3 || args[2]->BooleanValue(isolate)) {
+  if (args.Length() < 3 || args[2]->IsUndefined() ||
+      args[2]->BooleanValue(isolate)) {
     buf = Buffer::Copy(env, reinterpret_cast<char*>(ptr), len).ToLocalChecked();
   } else {
     buf = Buffer::New(
@@ -484,7 +516,7 @@ void ToArrayBuffer(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  uint64_t ptr;
+  uintptr_t ptr;
   if (!GetValidatedPointerAddress(env, args[0], "first argument", &ptr)) {
     return;
   }
@@ -501,7 +533,8 @@ void ToArrayBuffer(const FunctionCallbackInfo<Value>& args) {
 
   Local<ArrayBuffer> ab;
 
-  if (args.Length() < 3 || args[2]->BooleanValue(isolate)) {
+  if (args.Length() < 3 || args[2]->IsUndefined() ||
+      args[2]->BooleanValue(isolate)) {
     std::unique_ptr<BackingStore> store =
         ArrayBuffer::NewBackingStore(isolate, len);
     memcpy(store->Data(), reinterpret_cast<void*>(ptr), len);

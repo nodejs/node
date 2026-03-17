@@ -202,7 +202,8 @@ added: REPLACEME
 When using the [Permission Model][], the process will not be able to use FFI
 APIs by default. Attempts to use FFI APIs will throw an `ERR_ACCESS_DENIED`
 exception unless the user explicitly passes the `--allow-ffi` flag when
-starting Node.js.
+starting Node.js. The [`node:ffi`][] module also requires the
+`--experimental-ffi` flag and is only available in builds with FFI support.
 
 Example:
 
@@ -1185,6 +1186,8 @@ added: REPLACEME
 
 Enable the experimental [`node:ffi`][] module.
 
+This flag is only available in builds with FFI support.
+
 ### `--experimental-import-meta-resolve`
 
 <!-- YAML
@@ -1995,6 +1998,8 @@ added: REPLACEME
 -->
 
 Disable the experimental [`node:ffi`][] module.
+
+This flag is only available in builds with FFI support.
 
 ### `--no-experimental-sqlite`
 

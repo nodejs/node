@@ -47,12 +47,6 @@
             ],
           },
         }],
-        ['target_arch == "ia32" or target_arch == "x86"', {
-          # Windows x86 is not supported by libffi
-          'variables': {
-            'libffi_arch_sources': [],
-          },
-        }],
       ],
     }],
     ['OS == "linux" or OS == "freebsd"', {
@@ -62,14 +56,6 @@
             'libffi_arch_sources': [
               'src/x86/ffi64.c',
               'src/x86/unix64.S',
-            ],
-          },
-        }],
-        ['target_arch == "ia32" or target_arch == "x86"', {
-          'variables': {
-            'libffi_arch_sources': [
-              'src/x86/ffi.c',
-              'src/x86/sysv.S',
             ],
           },
         }],

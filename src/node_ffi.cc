@@ -208,6 +208,12 @@ Local<Function> DynamicLibrary::CreateFunction(
 void DynamicLibrary::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  if (!args.IsConstructCall()) {
+    return THROW_ERR_CONSTRUCT_CALL_REQUIRED(
+        env,
+        "Class constructor DynamicLibrary cannot be invoked without 'new'");
+  }
+
   THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kFFI, "");
 
   if (args.Length() < 1 || !args[0]->IsString()) {
@@ -290,7 +296,7 @@ void DynamicLibrary::InvokeFunction(const FunctionCallbackInfo<Value>& args) {
   void* result = nullptr;
 
   if (fn->return_type->type != FFI_TYPE_VOID) {
-    result = Malloc(fn->return_type->size);
+    result = Malloc(GetFFIReturnValueStorageSize(fn->return_type));
   }
 
   ffi_call(&fn->cif, FFI_FN(fn->ptr), result, ffi_args.data());
@@ -308,7 +314,7 @@ void DynamicLibrary::InvokeCallback(ffi_cif* cif,
 
   if (cb->owner->handle_ == nullptr || cb->ptr == nullptr) {
     if (ret != nullptr && cb->return_type->size > 0) {
-      std::memset(ret, 0, cb->return_type->size);
+      std::memset(ret, 0, GetFFIReturnValueStorageSize(cb->return_type));
     }
     return;
   }
@@ -419,7 +425,7 @@ void DynamicLibrary::GetFunctions(const FunctionCallbackInfo<Value>& args) {
   Local<Object> functions = Object::New(isolate);
 
   if (args.Length() > 0) {
-    if (!args[0]->IsObject()) {
+    if (!args[0]->IsObject() || args[0]->IsArray()) {
       env->ThrowTypeError("Functions signatures must be an object");
       return;
     }
@@ -663,7 +669,7 @@ void DynamicLibrary::UnregisterCallback(
     return;
   }
 
-  uint64_t raw_ptr;
+  uintptr_t raw_ptr;
   if (!GetValidatedPointerAddress(env, args[0], "first argument", &raw_ptr)) {
     return;
   }
@@ -697,7 +703,7 @@ void DynamicLibrary::RefCallback(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  uint64_t raw_ptr;
+  uintptr_t raw_ptr;
   if (!GetValidatedPointerAddress(env, args[0], "first argument", &raw_ptr)) {
     return;
   }
@@ -727,7 +733,7 @@ void DynamicLibrary::UnrefCallback(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  uint64_t raw_ptr;
+  uintptr_t raw_ptr;
   if (!GetValidatedPointerAddress(env, args[0], "first argument", &raw_ptr)) {
     return;
   }

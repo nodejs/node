@@ -27,8 +27,8 @@ import ffi from 'node:ffi';
 const ffi = require('node:ffi');
 ```
 
-This module is only available under the `node:` scheme and is gated by the
-`--experimental-ffi` flag.
+This module is only available under the `node:` scheme in builds with FFI
+support and is gated by the `--experimental-ffi` flag.
 
 When using the [Permission Model][], FFI APIs are restricted unless the
 [`--allow-ffi`][] flag is provided.
@@ -68,6 +68,12 @@ Supported type names:
 
 Pointer-like types (`pointer`, `string`, `buffer`, `arraybuffer`, and
 `function`) are all passed through the native layer as pointers.
+
+The `char` type follows the platform C ABI. On platforms where plain C `char`
+is signed it behaves like `i8`; otherwise it behaves like `u8`.
+
+The `bool` type is marshaled as an 8-bit unsigned integer. Pass numeric values
+such as `0` and `1`; JavaScript `true` and `false` are not accepted.
 
 ## Signature objects
 

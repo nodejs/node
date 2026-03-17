@@ -9,6 +9,11 @@ import("$node_v8_path/gni/v8.gni")
 # The actual configurations are put inside a template in unofficial.gni to
 # prevent accidental edits from contributors.
 template("node_gn_build") {
+  assert(!node_use_ffi,
+         "The unofficial GN build does not support node:ffi yet.")
+  assert(!node_shared_ffi,
+         "The unofficial GN build does not support shared libffi.")
+
   config("node_features") {
     defines = []
     if (is_component_build) {
@@ -206,12 +211,6 @@ template("node_gn_build") {
     if (node_use_sqlite) {
       deps += [ "deps/sqlite" ]
       sources += gypi_values.node_sqlite_sources
-    }
-    if (node_use_ffi && !node_shared_ffi) {
-      deps += [ "deps/libffi" ]
-    }
-    if (node_use_ffi) {
-      sources += gypi_values.node_ffi_sources
     }
     if (node_enable_inspector) {
       deps += [

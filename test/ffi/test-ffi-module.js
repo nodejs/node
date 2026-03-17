@@ -39,6 +39,21 @@ const ffi = require('node:ffi');
 }
 
 {
+  const { stdout, stderr, status, signal } = spawnSync(process.execPath, [
+    '--experimental-ffi',
+    '-e',
+    'const ffi = require("node:ffi"); ffi.DynamicLibrary("missing");',
+  ], {
+    encoding: 'utf8',
+  });
+
+  strictEqual(stdout, '');
+  match(stderr, /Class constructor DynamicLibrary cannot be invoked without 'new'/);
+  notStrictEqual(status, 0);
+  strictEqual(signal, null);
+}
+
+{
   const expected = [
     'DynamicLibrary',
     'dlclose',

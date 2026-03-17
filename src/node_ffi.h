@@ -7,6 +7,7 @@
 #include "util.h"
 #include "uv.h"
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <thread>
@@ -29,6 +30,12 @@ namespace node::ffi {
 
 class DynamicLibrary;
 struct FFIFunction;
+
+bool IsFFINarrowSignedInteger(ffi_type* type);
+
+bool IsFFINarrowUnsignedInteger(ffi_type* type);
+
+bool IsFFINarrowInteger(ffi_type* type);
 
 bool HasProperty(Local<Context> context,
                  Local<Object> object,
@@ -69,6 +76,8 @@ bool ToJSReturnValue(Environment* env,
 
 bool ToFFIReturnValue(Local<Value> result, ffi_type* type, void* ret);
 
+size_t GetFFIReturnValueStorageSize(ffi_type* type);
+
 bool GetValidatedSize(Environment* env,
                       Local<Value> value,
                       const char* label,
@@ -77,7 +86,7 @@ bool GetValidatedSize(Environment* env,
 bool GetValidatedPointerAddress(Environment* env,
                                 Local<Value> value,
                                 const char* label,
-                                uint64_t* out);
+                                uintptr_t* out);
 
 bool GetValidatedSignedInt(Environment* env,
                            Local<Value> value,

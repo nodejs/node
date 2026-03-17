@@ -20,7 +20,7 @@ common.skipIfFFIMissing();
   }, {
     code: 'ERR_ACCESS_DENIED',
     permission: 'FFI',
-    message: /Access to this API has been restricted/,
+    message: /Access to this API has been restricted\. Use --allow-ffi to manage permissions\./,
   });
 
   throws(() => {
@@ -28,7 +28,7 @@ common.skipIfFFIMissing();
   }, {
     code: 'ERR_ACCESS_DENIED',
     permission: 'FFI',
-    message: /Access to this API has been restricted/,
+    message: /Access to this API has been restricted\. Use --allow-ffi to manage permissions\./,
   });
 }
 
@@ -38,7 +38,7 @@ common.skipIfFFIMissing();
   }, {
     code: 'ERR_ACCESS_DENIED',
     permission: 'FFI',
-    message: /Access to this API has been restricted/,
+    message: /Access to this API has been restricted\. Use --allow-ffi to manage permissions\./,
   });
 
   throws(() => {
@@ -46,7 +46,7 @@ common.skipIfFFIMissing();
   }, {
     code: 'ERR_ACCESS_DENIED',
     permission: 'FFI',
-    message: /Access to this API has been restricted/,
+    message: /Access to this API has been restricted\. Use --allow-ffi to manage permissions\./,
   });
 
   throws(() => {
@@ -54,7 +54,7 @@ common.skipIfFFIMissing();
   }, {
     code: 'ERR_ACCESS_DENIED',
     permission: 'FFI',
-    message: /Access to this API has been restricted/,
+    message: /Access to this API has been restricted\. Use --allow-ffi to manage permissions\./,
   });
 
   throws(() => {
@@ -62,7 +62,7 @@ common.skipIfFFIMissing();
   }, {
     code: 'ERR_ACCESS_DENIED',
     permission: 'FFI',
-    message: /Access to this API has been restricted/,
+    message: /Access to this API has been restricted\. Use --allow-ffi to manage permissions\./,
   });
 
   throws(() => {
@@ -70,7 +70,7 @@ common.skipIfFFIMissing();
   }, {
     code: 'ERR_ACCESS_DENIED',
     permission: 'FFI',
-    message: /Access to this API has been restricted/,
+    message: /Access to this API has been restricted\. Use --allow-ffi to manage permissions\./,
   });
 
   throws(() => {
@@ -78,7 +78,7 @@ common.skipIfFFIMissing();
   }, {
     code: 'ERR_ACCESS_DENIED',
     permission: 'FFI',
-    message: /Access to this API has been restricted/,
+    message: /Access to this API has been restricted\. Use --allow-ffi to manage permissions\./,
   });
 
   throws(() => {
@@ -86,6 +86,14 @@ common.skipIfFFIMissing();
   }, {
     code: 'ERR_ACCESS_DENIED',
     permission: 'FFI',
-    message: /Access to this API has been restricted/,
+    message: /Access to this API has been restricted\. Use --allow-ffi to manage permissions\./,
+  });
+
+  throws(() => {
+    ffi.dlclose({ close() {} });
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FFI',
+    message: /Access to this API has been restricted\. Use --allow-ffi to manage permissions\./,
   });
 }

@@ -11,19 +11,14 @@ LIBFFI_VERSION_NUMBER = '30502'
 TARGETS = {
     ('freebsd', 'arm'): ('ARM', 'arm'),
     ('freebsd', 'arm64'): ('AARCH64', 'aarch64'),
-    ('freebsd', 'ia32'): ('X86_FREEBSD', 'x86'),
     ('freebsd', 'x64'): ('X86_64', 'x86'),
-    ('freebsd', 'x86'): ('X86_FREEBSD', 'x86'),
     ('linux', 'arm'): ('ARM', 'arm'),
     ('linux', 'arm64'): ('AARCH64', 'aarch64'),
-    ('linux', 'ia32'): ('X86', 'x86'),
     ('linux', 'x64'): ('X86_64', 'x86'),
-    ('linux', 'x86'): ('X86', 'x86'),
     ('mac', 'arm64'): ('AARCH64', 'aarch64'),
     ('mac', 'x64'): ('X86_64', 'x86'),
     ('win', 'arm'): ('ARM_WIN32', 'arm'),
     ('win', 'arm64'): ('ARM_WIN64', 'aarch64'),
-    ('win', 'ia32'): ('X86', 'x86'),
     ('win', 'x64'): ('X86_WIN64', 'x86'),
 }
 
