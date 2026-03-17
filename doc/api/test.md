@@ -2416,6 +2416,10 @@ The mock file system is automatically cleaned up when the test completes.
 
 ## Class: `MockFSContext`
 
+<!-- YAML
+added: REPLACEME
+-->
+
 The `MockFSContext` object is returned by `mock.fs()` and provides the
 following methods and properties:
 
