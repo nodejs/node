@@ -679,3 +679,93 @@ test('wrong import syntax should throw error after module mocking', async () => 
   assert.match(stderr, /Error \[ERR_MODULE_NOT_FOUND\]: Cannot find module/);
   assert.strictEqual(code, 1);
 });
+
+test('virtual mock of nonexistent module with ESM', async (t) => {
+  await t.test('mock with namedExports', async (t) => {
+    t.mock.module('nonexistent-esm-pkg', {
+      virtual: true,
+      namedExports: { hello() { return 'mocked'; } },
+    });
+
+    const mod = await import('nonexistent-esm-pkg');
+    assert.strictEqual(mod.hello(), 'mocked');
+  });
+
+  await t.test('mock with defaultExport', async (t) => {
+    const defaultValue = { key: 'value' };
+    t.mock.module('nonexistent-esm-default', {
+      virtual: true,
+      defaultExport: defaultValue,
+    });
+
+    const mod = await import('nonexistent-esm-default');
+    assert.deepStrictEqual(mod.default, defaultValue);
+  });
+
+  await t.test('mock with both namedExports and defaultExport', async (t) => {
+    t.mock.module('nonexistent-esm-both', {
+      virtual: true,
+      defaultExport: 'the default',
+      namedExports: { foo: 42 },
+    });
+
+    const mod = await import('nonexistent-esm-both');
+    assert.strictEqual(mod.default, 'the default');
+    assert.strictEqual(mod.foo, 42);
+  });
+});
+
+test('virtual mock restore works', async (t) => {
+  const ctx = t.mock.module('nonexistent-restore-pkg', {
+    virtual: true,
+    namedExports: { value: 1 },
+  });
+
+  const mod = await import('nonexistent-restore-pkg');
+  assert.strictEqual(mod.value, 1);
+
+  ctx.restore();
+
+  await assert.rejects(
+    import('nonexistent-restore-pkg'),
+    { code: 'ERR_MODULE_NOT_FOUND' },
+  );
+});
+
+test('virtual mock of nonexistent module with CJS', async (t) => {
+  t.mock.module('nonexistent-cjs-pkg', {
+    virtual: true,
+    namedExports: { greet() { return 'hi'; } },
+  });
+
+  const mod = require('nonexistent-cjs-pkg');
+  assert.strictEqual(mod.greet(), 'hi');
+});
+
+test('nonexistent module without virtual flag still throws', async (t) => {
+  assert.throws(() => {
+    t.mock.module('totally-nonexistent-pkg-12345', {
+      namedExports: { foo: 'bar' },
+    });
+  }, { code: 'ERR_MODULE_NOT_FOUND' });
+});
+
+test('virtual mock overrides an existing module', async (t) => {
+  const original = require('readline');
+  assert.strictEqual(typeof original.cursorTo, 'function');
+
+  t.mock.module('readline', {
+    virtual: true,
+    namedExports: { custom() { return 'virtual'; } },
+  });
+
+  const mocked = await import('readline');
+  assert.strictEqual(mocked.custom(), 'virtual');
+  assert.strictEqual(mocked.cursorTo, undefined);
+});
+
+test('input validation for virtual option', async (t) => {
+  assert.throws(() => {
+    t.mock.module('some-pkg', { virtual: 'yes' });
+  }, { code: 'ERR_INVALID_ARG_TYPE' });
+});
