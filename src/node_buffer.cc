@@ -1051,23 +1051,19 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
         offset,
         is_forward);
   } else if (enc == LATIN1) {
-    uint8_t* needle_data = node::UncheckedMalloc<uint8_t>(needle_length);
-    if (needle_data == nullptr) {
-      return args.GetReturnValue().Set(-1);
-    }
+    MaybeStackBuffer<uint8_t> needle_data(needle_length);
     StringBytes::Write(isolate,
-                       reinterpret_cast<char*>(needle_data),
+                       reinterpret_cast<char*>(needle_data.out()),
                        needle_length,
                        needle,
                        enc);
 
     result = nbytes::SearchString(reinterpret_cast<const uint8_t*>(haystack),
                                   haystack_length,
-                                  needle_data,
+                                  needle_data.out(),
                                   needle_length,
                                   offset,
                                   is_forward);
-    free(needle_data);
   }
 
   args.GetReturnValue().Set(
