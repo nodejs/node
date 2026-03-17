@@ -57,23 +57,23 @@ using v8::Value;
 
 static void ThrowQuotaExceededException(Local<Context> context) {
   Isolate* isolate = Isolate::GetCurrent();
-  auto dom_exception_str = FIXED_ONE_BYTE_STRING(isolate, "DOMException");
-  auto err_name = FIXED_ONE_BYTE_STRING(isolate, "QuotaExceededError");
+  auto quota_exceeded_str =
+      FIXED_ONE_BYTE_STRING(isolate, "QuotaExceededError");
   auto err_message =
       FIXED_ONE_BYTE_STRING(isolate, "Setting the value exceeded the quota");
   Local<Object> per_context_bindings;
-  Local<Value> domexception_ctor_val;
+  Local<Value> quota_exceeded_ctor_val;
   if (!GetPerContextExports(context).ToLocal(&per_context_bindings) ||
-      !per_context_bindings->Get(context, dom_exception_str)
-           .ToLocal(&domexception_ctor_val)) {
+      !per_context_bindings->Get(context, quota_exceeded_str)
+           .ToLocal(&quota_exceeded_ctor_val)) {
     return;
   }
-  CHECK(domexception_ctor_val->IsFunction());
-  Local<Function> domexception_ctor = domexception_ctor_val.As<Function>();
-  Local<Value> argv[] = {err_message, err_name};
+  CHECK(quota_exceeded_ctor_val->IsFunction());
+  Local<Function> quota_exceeded_ctor = quota_exceeded_ctor_val.As<Function>();
+  Local<Value> argv[] = {err_message};
   Local<Value> exception;
 
-  if (!domexception_ctor->NewInstance(context, arraysize(argv), argv)
+  if (!quota_exceeded_ctor->NewInstance(context, arraysize(argv), argv)
            .ToLocal(&exception)) {
     return;
   }

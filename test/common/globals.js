@@ -79,6 +79,7 @@ intrinsics.add('console');
 
 const webIdlExposedWildcard = new Set([
   'DOMException',
+  'QuotaExceededError',
   'TextEncoder',
   'TextDecoder',
   'AbortController',
