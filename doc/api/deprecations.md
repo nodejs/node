@@ -4534,14 +4534,18 @@ deprecated and will throw an error in a future version.
 [`Buffer.from(buffer)`]: buffer.md#static-method-bufferfrombuffer
 [`Buffer.isBuffer()`]: buffer.md#static-method-bufferisbufferobj
 [`Cipheriv`]: crypto.md#class-cipheriv
+[`CryptoKey`]: webcrypto.md#class-cryptokey
 [`Decipheriv`]: crypto.md#class-decipheriv
 [`Duplex.toWeb()`]: stream.md#streamduplextowebstreamduplex-options
 [`Error.isError`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/isError
+[`KeyObject.from()`]: crypto.md#static-method-keyobjectfromkey
 [`REPLServer.clearBufferedCommand()`]: repl.md#replserverclearbufferedcommand
 [`ReadStream.open()`]: fs.md#class-fsreadstream
 [`Server.getConnections()`]: net.md#servergetconnectionscallback
 [`Server.listen({fd: <number>})`]: net.md#serverlistenhandle-backlog-callback
+[`Sign.prototype.sign()`]: crypto.md#signsignprivatekey-outputencoding
 [`String.prototype.toWellFormed`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/toWellFormed
+[`Verify.prototype.verify()`]: crypto.md#verifyverifyobject-signature-signatureencoding
 [`WriteStream.open()`]: fs.md#class-fswritestream
 [`assert`]: assert.md
 [`asyncResource.runInAsyncScope()`]: async_context.md#asyncresourceruninasyncscopefn-thisarg-args
@@ -4554,7 +4558,6 @@ deprecated and will throw an error in a future version.
 [`clearTimeout()`]: timers.md#cleartimeouttimeout
 [`console.error()`]: console.md#consoleerrordata-args
 [`console.log()`]: console.md#consolelogdata-args
-[`CryptoKey`]: webcrypto.md#class-cryptokey
 [`crypto.Certificate()` constructor]: crypto.md#legacy-api
 [`crypto.createCipheriv()`]: crypto.md#cryptocreatecipherivalgorithm-key-iv-options
 [`crypto.createDecipheriv()`]: crypto.md#cryptocreatedecipherivalgorithm-key-iv-options
@@ -4578,12 +4581,6 @@ deprecated and will throw an error in a future version.
 [`decipher.final()`]: crypto.md#decipherfinaloutputencoding
 [`decipher.setAuthTag()`]: crypto.md#deciphersetauthtagbuffer-encoding
 [`dirent.parentPath`]: fs.md#direntparentpath
-[KeyObject]: crypto.md#class-keyobject
-[`KeyObject`]: crypto.md#class-keyobject
-[`KeyObject.from()`]: crypto.md#static-method-keyobjectfromkey
-[`Sign.prototype.sign()`]: crypto.md#signsignprivatekey-outputencoding
-[`Verify.prototype.verify()`]: crypto.md#verifyverifyobject-signature-signatureencoding
-[WebCrypto API]: webcrypto.md
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
 [`domain`]: domain.md
