@@ -130,6 +130,7 @@ const vfs = require('node:vfs');
 // Test fs.watch with mounted VFS
 {
   const myVfs = vfs.create();
+  myVfs.mkdirSync('/data');
   myVfs.writeFileSync('/data/file.txt', 'initial');
   myVfs.mount('/virtual');
 
@@ -151,6 +152,7 @@ const vfs = require('node:vfs');
 // Test fs.watchFile with mounted VFS
 {
   const myVfs = vfs.create();
+  myVfs.mkdirSync('/data');
   myVfs.writeFileSync('/data/watchfile.txt', 'initial');
   myVfs.mount('/virtual2');
 
