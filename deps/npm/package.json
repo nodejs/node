@@ -1,5 +1,5 @@
 {
-  "version": "10.9.6",
+  "version": "10.9.7",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "workspaces": [
@@ -52,7 +52,7 @@
   },
   "dependencies": {
     "@isaacs/string-locale-compare": "^1.1.0",
-    "@npmcli/arborist": "^8.0.3",
+    "@npmcli/arborist": "^8.0.4",
     "@npmcli/config": "^9.0.0",
     "@npmcli/fs": "^4.0.0",
     "@npmcli/map-workspaces": "^4.0.2",
@@ -77,12 +77,12 @@
     "is-cidr": "^5.1.1",
     "json-parse-even-better-errors": "^4.0.0",
     "libnpmaccess": "^9.0.0",
-    "libnpmdiff": "^7.0.3",
-    "libnpmexec": "^9.0.3",
-    "libnpmfund": "^6.0.3",
+    "libnpmdiff": "^7.0.4",
+    "libnpmexec": "^9.0.4",
+    "libnpmfund": "^6.0.4",
     "libnpmhook": "^11.0.0",
     "libnpmorg": "^7.0.0",
-    "libnpmpack": "^8.0.3",
+    "libnpmpack": "^8.0.4",
     "libnpmpublish": "^10.0.2",
     "libnpmsearch": "^8.0.0",
     "libnpmteam": "^7.0.0",

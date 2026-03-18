@@ -1,5 +1,6 @@
 const npa = require('npm-package-arg')
 const semver = require('semver')
+const { log } = require('proc-log')
 
 class OverrideSet {
   constructor ({ overrides, key, parent }) {
@@ -42,6 +43,43 @@ class OverrideSet {
 
       this.children.set(child.key, child)
     }
+  }
+
+  childrenAreEqual (other) {
+    if (this.children.size !== other.children.size) {
+      return false
+    }
+    for (const [key] of this.children) {
+      if (!other.children.has(key)) {
+        return false
+      }
+      if (this.children.get(key).value !== other.children.get(key).value) {
+        return false
+      }
+      if (!this.children.get(key).childrenAreEqual(other.children.get(key))) {
+        return false
+      }
+    }
+    return true
+  }
+
+  isEqual (other) {
+    if (this === other) {
+      return true
+    }
+    if (!other) {
+      return false
+    }
+    if (this.key !== other.key || this.value !== other.value) {
+      return false
+    }
+    if (!this.childrenAreEqual(other)) {
+      return false
+    }
+    if (!this.parent) {
+      return !other.parent
+    }
+    return this.parent.isEqual(other.parent)
   }
 
   getEdgeRule (edge) {
@@ -141,6 +179,123 @@ class OverrideSet {
     }
 
     return ruleset
+  }
+
+  static findSpecificOverrideSet (first, second) {
+    for (let overrideSet = second; overrideSet; overrideSet = overrideSet.parent) {
+      if (overrideSet.isEqual(first)) {
+        return second
+      }
+    }
+    for (let overrideSet = first; overrideSet; overrideSet = overrideSet.parent) {
+      if (overrideSet.isEqual(second)) {
+        return first
+      }
+    }
+
+    // The override sets are incomparable (e.g. siblings like the "react" and "react-dom" children of the root override set). Check if they have semantically conflicting rules before treating this as an error.
+    if (this.haveConflictingRules(first, second)) {
+      log.silly('Conflicting override sets', first, second)
+      return undefined
+    }
+
+    // The override sets are structurally incomparable but have compatible rules. Fall back to their nearest common ancestor so the node still has a valid override set.
+    return this.findCommonAncestor(first, second)
+  }
+
+  static findCommonAncestor (first, second) {
+    const firstAncestors = []
+    for (const ancestor of first.ancestry()) {
+      firstAncestors.push(ancestor)
+    }
+    for (const secondAnc of second.ancestry()) {
+      for (const firstAnc of firstAncestors) {
+        if (firstAnc.isEqual(secondAnc)) {
+          return firstAnc
+        }
+      }
+    }
+    return null
+  }
+
+  static doOverrideSetsConflict (first, second) {
+    // If override sets contain one another then we can try to use the more specific one.
+    // If neither one is more specific, check for semantic conflicts.
+    const specificSet = this.findSpecificOverrideSet(first, second)
+    if (specificSet !== undefined) {
+      // One contains the other, so no conflict
+      return false
+    }
+
+    // The override sets are structurally incomparable, but this doesn't necessarily
+    // mean they conflict. We need to check if they have conflicting version requirements
+    // for any package that appears in both rulesets.
+    return this.haveConflictingRules(first, second)
+  }
+
+  static haveConflictingRules (first, second) {
+    // Get all rules from both override sets
+    const firstRules = first.ruleset
+    const secondRules = second.ruleset
+
+    // Check each package that appears in both rulesets
+    for (const [key, firstRule] of firstRules) {
+      const secondRule = secondRules.get(key)
+      if (!secondRule) {
+        // Package only appears in one ruleset, no conflict
+        continue
+      }
+
+      // Same rule object means no conflict
+      if (firstRule === secondRule || firstRule.isEqual(secondRule)) {
+        continue
+      }
+
+      // Both rulesets have rules for this package with different values.
+      // Check if the version requirements are actually incompatible.
+      const firstValue = firstRule.value
+      const secondValue = secondRule.value
+
+      // If either value is a reference (starts with $), we can't determine
+      // compatibility here - the reference might resolve to compatible versions.
+      // We defer to runtime resolution rather than failing early.
+      if (firstValue.startsWith('$') || secondValue.startsWith('$')) {
+        continue
+      }
+
+      // Check if the version ranges are compatible using semver
+      // If both specify version ranges, they conflict only if they have no overlap
+      try {
+        const firstSpec = npa(`${firstRule.name}@${firstValue}`)
+        const secondSpec = npa(`${secondRule.name}@${secondValue}`)
+
+        // For range/version types, check if they intersect
+        if ((firstSpec.type === 'range' || firstSpec.type === 'version') &&
+            (secondSpec.type === 'range' || secondSpec.type === 'version')) {
+          // Check if the ranges intersect
+          const firstRange = firstSpec.fetchSpec
+          const secondRange = secondSpec.fetchSpec
+
+          // If the ranges don't intersect, we have a real conflict
+          if (!semver.intersects(firstRange, secondRange)) {
+            log.silly('Found conflicting override rules', {
+              package: firstRule.name,
+              first: firstValue,
+              second: secondValue,
+            })
+            return true
+          }
+        }
+        // For other types (git, file, directory, tag), we can't easily determine
+        // compatibility, so we conservatively assume no conflict
+      } catch {
+        // If we can't parse the specs, conservatively assume no conflict
+        // Real conflicts will be caught during dependency resolution
+      }
+    }
+
+    // No conflicting rules found
+    return false
   }
 }
 
