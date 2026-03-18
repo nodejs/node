@@ -571,6 +571,44 @@ NODE_EXTERN v8::Local<v8::Context> NewContext(
 // Return value indicates success of operation
 NODE_EXTERN v8::Maybe<bool> InitializeContext(v8::Local<v8::Context> context);
 
+class ContextifyOptions {
+ public:
+  enum class MicrotaskMode {
+    kDefault,
+    kAfterEvaluate,
+  };
+
+  ContextifyOptions(v8::Local<v8::String> name,
+                    v8::Local<v8::String> origin,
+                    bool allow_code_gen_strings,
+                    bool allow_code_gen_wasm,
+                    MicrotaskMode microtask_mode);
+
+  v8::Local<v8::String> name() const { return name_; }
+  v8::Local<v8::String> origin() const { return origin_; }
+  bool allow_code_gen_strings() const { return allow_code_gen_strings_; }
+  bool allow_code_gen_wasm() const { return allow_code_gen_wasm_; }
+  MicrotaskMode microtask_mode() const { return microtask_mode_; }
+
+ private:
+  v8::Local<v8::String> name_;
+  v8::Local<v8::String> origin_;
+  bool allow_code_gen_strings_;
+  bool allow_code_gen_wasm_;
+  MicrotaskMode microtask_mode_;
+};
+
+// Create a Node.js managed v8::Context with the `context_object`. If the
+// `contextObject` is an empty handle, the v8::Context is created without
+// wrapping its global object with an object in a Node.js-specific manner.
+// The created context is supported in Node.js inspector.
+NODE_EXTERN v8::MaybeLocal<v8::Context> MakeContextify(
+    Environment* env,
+    v8::Local<v8::Object> context_object,
+    const ContextifyOptions& options);
+NODE_EXTERN v8::MaybeLocal<v8::Context> GetContextified(
+    Environment* env, v8::Local<v8::Object> context_object);
+
 // If `platform` is passed, it will be used to register new Worker instances.
 // It can be `nullptr`, in which case creating new Workers inside of
 // Environments that use this `IsolateData` will not work.

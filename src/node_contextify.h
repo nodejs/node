@@ -131,10 +131,11 @@ class ContextifyContext final : CPPGC_MIXIN(ContextifyContext) {
 
   static void InitializeGlobalTemplates(IsolateData* isolate_data);
 
- private:
   static ContextifyContext* New(Environment* env,
                                 v8::Local<v8::Object> sandbox_obj,
                                 ContextOptions* options);
+
+ private:
   // Initialize a context created from CreateV8Context()
   static ContextifyContext* New(v8::Local<v8::Context> ctx,
                                 Environment* env,
