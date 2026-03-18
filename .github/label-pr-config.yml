@@ -214,6 +214,7 @@ allJsSubSystems:
   - url
   - util
   - v8
+  - vfs
   - vm
   - wasi
   - worker
