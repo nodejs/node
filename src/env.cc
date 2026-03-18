@@ -642,7 +642,23 @@ void IsolateData::MemoryInfo(MemoryTracker* tracker) const {
   // TODO(joyeecheung): implement MemoryRetainer in the option classes.
 }
 
+void Environment::AddTraceCategoryMapping(const uint8_t* source,
+                                          uint8_t* dest) {
+  trace_category_mappings_.push_back({source, dest});
+}
+
+void Environment::SyncTraceCategoryBuffers() {
+  for (const auto& mapping : trace_category_mappings_) {
+    *mapping.dest = *mapping.source;
+  }
+}
+
 void TrackingTraceStateObserver::UpdateTraceCategoryState() {
+  // Sync sandbox-copied trace category buffers before anything else.
+  // This must happen regardless of thread/JS-callability checks below,
+  // because the underlying enabled_pointer values have already changed.
+  env_->SyncTraceCategoryBuffers();
+
   if (!env_->owns_process_state() || !env_->can_call_into_js()) {
     // Ideally, we’d have a consistent story that treats all threads/Environment
     // instances equally here. However, tracing is essentially global, and this

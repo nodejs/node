@@ -472,6 +472,15 @@ class TickInfo : public MemoryRetainer {
   AliasedUint8Array fields_;
 };
 
+// Mapping between a trace category enabled pointer (owned by the trace
+// infrastructure, outside the V8 sandbox) and a cage-allocated copy that
+// backs a JS Uint8Array. Used to keep the two in sync when V8_ENABLE_SANDBOX
+// prevents wrapping the external pointer directly.
+struct TraceCategoryMapping {
+  const uint8_t* source;  // Original enabled_pointer (external, read-only).
+  uint8_t* dest;          // Cage-allocated copy backing the JS buffer.
+};
+
 class TrackingTraceStateObserver :
     public v8::TracingController::TraceStateObserver {
  public:
@@ -730,6 +739,9 @@ class Environment final : public MemoryRetainer {
 
   void PrintSyncTrace() const;
   inline void set_trace_sync_io(bool value);
+
+  void AddTraceCategoryMapping(const uint8_t* source, uint8_t* dest);
+  void SyncTraceCategoryBuffers();
 
   inline void set_force_context_aware(bool value);
   inline bool force_context_aware() const;
@@ -1162,6 +1174,7 @@ class Environment final : public MemoryRetainer {
   int should_not_abort_scope_counter_ = 0;
 
   std::unique_ptr<TrackingTraceStateObserver> trace_state_observer_;
+  std::vector<TraceCategoryMapping> trace_category_mappings_;
 
   AliasedInt32Array stream_base_state_;
 

@@ -7,6 +7,7 @@
 #include "memory_tracker-inl.h"
 #include "ncrypto.h"
 #include "node_errors.h"
+#include "node_v8_sandbox.h"
 #ifndef OPENSSL_IS_BORINGSSL
 #include "openssl/bnerr.h"
 #endif
@@ -22,8 +23,6 @@ using ncrypto::DHPointer;
 using ncrypto::EVPKeyCtxPointer;
 using ncrypto::EVPKeyPointer;
 using v8::ArrayBuffer;
-using v8::BackingStoreInitializationMode;
-using v8::BackingStoreOnFailureMode;
 using v8::ConstructorBehavior;
 using v8::Context;
 using v8::DontDelete;
@@ -61,17 +60,10 @@ MaybeLocal<Value> DataPointerToBuffer(Environment* env, DataPointer&& data) {
     bool secure;
   };
 #ifdef V8_ENABLE_SANDBOX
-  auto backing = ArrayBuffer::NewBackingStore(
-      env->isolate(),
-      data.size(),
-      BackingStoreInitializationMode::kUninitialized,
-      BackingStoreOnFailureMode::kReturnNull);
+  auto backing = CopyCageBackingStore(data.get(), data.size());
   if (!backing) {
     THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
     return MaybeLocal<Value>();
-  }
-  if (data.size() > 0) {
-    memcpy(backing->Data(), data.get(), data.size());
   }
 #else
   auto backing = ArrayBuffer::NewBackingStore(
