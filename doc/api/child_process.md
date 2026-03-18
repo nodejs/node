@@ -126,9 +126,6 @@ When running on Windows, `.bat` and `.cmd` files can be invoked by:
 
 In any case, if the script filename contains spaces, it needs to be quoted.
 
-Using [`child_process.spawn()`][] with the `shell` option is not recommended
-because passing arguments that way is deprecated ([DEP0190][]).
-
 ```cjs
 const { exec, spawn } = require('node:child_process');
 
