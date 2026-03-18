@@ -2157,7 +2157,8 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
 
       Local<Function> filterFunc = filterValue.As<Function>();
 
-      context.filterCallback = [&](std::string_view item) -> bool {
+      context.filterCallback =
+          [env, db, filterFunc](std::string_view item) -> bool {
         // If there was an error in the previous call to the filter's
         // callback, we skip calling it again.
         if (db->ignore_next_sqlite_error_) {
