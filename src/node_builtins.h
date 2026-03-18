@@ -73,6 +73,7 @@ struct BuiltinSource {
   std::string id;
   UnionBytes source;
   BuiltinSourceType type;
+  bool is_typescript = false;
 };
 
 using BuiltinSourceMap = std::map<std::string, BuiltinSource>;
@@ -202,6 +203,13 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
 
   const BuiltinSource* AddExternalizedBuiltin(const char* id,
                                               const char* filename);
+
+#ifdef NODE_BUILTIN_MODULES_PATH
+  // Returns the on-disk path for a builtin module id.
+  // Uses the pre-built source map to determine the file extension rather
+  // than probing the filesystem.
+  std::string OnDiskFileName(const char* id) const;
+#endif
 
   ThreadsafeCopyOnWrite<BuiltinSourceMap> source_;
 

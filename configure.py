@@ -1765,7 +1765,8 @@ def gcc_version_ge(version_checked):
   return True
 
 def configure_node_lib_files(o):
-  o['variables']['node_library_files'] = SearchFiles('lib', 'js')
+  o['variables']['node_library_files'] = SearchFiles('lib', 'js') + \
+    SearchFiles('lib', 'ts')
 
 def configure_node_cctest_sources(o):
   o['variables']['node_cctest_sources'] = [ 'src/node_snapshot_stub.cc' ] + \

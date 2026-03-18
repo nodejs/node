@@ -95,8 +95,14 @@
     }],
     [ 'node_use_bundled_v8=="true"', {
       'dependencies': [
-        'tools/v8_gypfiles/v8.gyp:v8_snapshot',
         'tools/v8_gypfiles/v8.gyp:v8_libplatform',
+      ],
+      'conditions': [
+        [ '_target_name!="node_js2c"', {
+          'dependencies': [
+            'tools/v8_gypfiles/v8.gyp:v8_snapshot',
+          ],
+        }],
       ],
     }],
     [ 'node_use_v8_platform=="true"', {

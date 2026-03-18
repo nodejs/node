@@ -462,11 +462,59 @@
     ],
     'node_mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_mksnapshot<(EXECUTABLE_SUFFIX)',
     'node_js2c_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_js2c<(EXECUTABLE_SUFFIX)',
+    'node_js2c_snapshot_empty_object_path': '<(PRODUCT_DIR)/obj.host/mksnapshot/deps/v8/src/snapshot/snapshot-empty.o',
+    'node_js2c_embedded_empty_object_path': '<(PRODUCT_DIR)/obj.host/mksnapshot/deps/v8/src/snapshot/embedded/embedded-empty.o',
     'conditions': [
       ['GENERATOR == "ninja"', {
-        'node_text_start_object_path': 'src/large_pages/node_text_start.node_text_start.o'
+        'node_text_start_object_path': 'src/large_pages/node_text_start.node_text_start.o',
+        'conditions': [
+          ['want_separate_host_toolset', {
+            'conditions': [
+              ['OS=="win"', {
+                'node_js2c_snapshot_empty_object_path': '<(PRODUCT_DIR)/obj.host/deps/v8/src/snapshot/mksnapshot.snapshot-empty.obj',
+                'node_js2c_embedded_empty_object_path': '<(PRODUCT_DIR)/obj.host/deps/v8/src/snapshot/embedded/mksnapshot.embedded-empty.obj',
+              }, {
+                'node_js2c_snapshot_empty_object_path': '<(PRODUCT_DIR)/obj.host/deps/v8/src/snapshot/mksnapshot.snapshot-empty.o',
+                'node_js2c_embedded_empty_object_path': '<(PRODUCT_DIR)/obj.host/deps/v8/src/snapshot/embedded/mksnapshot.embedded-empty.o',
+              }],
+            ],
+          }, {
+            'conditions': [
+              ['OS=="win"', {
+                'node_js2c_snapshot_empty_object_path': '<(PRODUCT_DIR)/obj/deps/v8/src/snapshot/mksnapshot.snapshot-empty.obj',
+                'node_js2c_embedded_empty_object_path': '<(PRODUCT_DIR)/obj/deps/v8/src/snapshot/embedded/mksnapshot.embedded-empty.obj',
+              }, {
+                'node_js2c_snapshot_empty_object_path': '<(PRODUCT_DIR)/obj/deps/v8/src/snapshot/mksnapshot.snapshot-empty.o',
+                'node_js2c_embedded_empty_object_path': '<(PRODUCT_DIR)/obj/deps/v8/src/snapshot/embedded/mksnapshot.embedded-empty.o',
+              }],
+            ],
+          }],
+        ],
       }, {
-        'node_text_start_object_path': 'node_text_start/src/large_pages/node_text_start.o'
+        'node_text_start_object_path': 'node_text_start/src/large_pages/node_text_start.o',
+        'conditions': [
+          ['GENERATOR == "msvs"', {
+            'conditions': [
+              ['want_separate_host_toolset', {
+                'node_js2c_snapshot_empty_object_path': '$(OutDir)obj\\mksnapshot_host\\deps\\v8\\src\\snapshot\\snapshot-empty.obj',
+                'node_js2c_embedded_empty_object_path': '$(OutDir)obj\\mksnapshot_host\\deps\\v8\\src\\snapshot\\embedded\\embedded-empty.obj',
+              }, {
+                'node_js2c_snapshot_empty_object_path': '$(OutDir)obj\\mksnapshot\\deps\\v8\\src\\snapshot\\snapshot-empty.obj',
+                'node_js2c_embedded_empty_object_path': '$(OutDir)obj\\mksnapshot\\deps\\v8\\src\\snapshot\\embedded\\embedded-empty.obj',
+              }],
+            ],
+          }, {
+            'conditions': [
+              ['want_separate_host_toolset', {
+                'node_js2c_snapshot_empty_object_path': '<(PRODUCT_DIR)/obj.host/mksnapshot/deps/v8/src/snapshot/snapshot-empty.o',
+                'node_js2c_embedded_empty_object_path': '<(PRODUCT_DIR)/obj.host/mksnapshot/deps/v8/src/snapshot/embedded/embedded-empty.o',
+              }, {
+                'node_js2c_snapshot_empty_object_path': '<(PRODUCT_DIR)/obj.target/mksnapshot/deps/v8/src/snapshot/snapshot-empty.o',
+                'node_js2c_embedded_empty_object_path': '<(PRODUCT_DIR)/obj.target/mksnapshot/deps/v8/src/snapshot/embedded/embedded-empty.o',
+              }],
+            ],
+          }],
+        ],
       }],
       [ 'node_shared=="true"', {
         'node_target_type%': 'shared_library',
@@ -1557,12 +1605,27 @@
       'target_name': 'node_js2c',
       'type': 'executable',
       'toolsets': ['host'],
+      'dependencies': [
+        'tools/v8_gypfiles/v8.gyp:v8_base_without_compiler',
+        'tools/v8_gypfiles/v8.gyp:v8_compiler_for_mksnapshot',
+        'tools/v8_gypfiles/v8.gyp:v8_init',
+        'tools/v8_gypfiles/v8.gyp:v8_libbase',
+        'tools/v8_gypfiles/v8.gyp:v8_libplatform',
+        'tools/v8_gypfiles/v8.gyp:v8_maybe_icu',
+        'tools/v8_gypfiles/v8.gyp:v8_pch',
+        'tools/v8_gypfiles/v8.gyp:fp16',
+        'tools/v8_gypfiles/abseil.gyp:abseil',
+      ],
       'include_dirs': [
+        'deps/v8',
+        'deps/v8/include',
         'tools',
         'src',
       ],
       'sources': [
         'tools/js2c.cc',
+        'tools/typescript_transpiler.cc',
+        'tools/typescript_transpiler.h',
         'tools/executable_wrapper.h',
         'src/embedded_data.h',
         'src/embedded_data.cc',
@@ -1570,6 +1633,26 @@
         'src/builtin_info.cc',
       ],
       'conditions': [
+        [ 'want_separate_host_toolset', {
+          'dependencies': [ 'tools/v8_gypfiles/v8.gyp:mksnapshot#host' ],
+        }, {
+          'dependencies': [ 'tools/v8_gypfiles/v8.gyp:mksnapshot' ],
+        }],
+        [ 'GENERATOR=="msvs"', {
+          'msvs_settings': {
+            'VCLinkerTool': {
+              'AdditionalDependencies': [
+                '<(node_js2c_snapshot_empty_object_path)',
+                '<(node_js2c_embedded_empty_object_path)',
+              ],
+            },
+          },
+        }, {
+          'libraries': [
+            '<(node_js2c_snapshot_empty_object_path)',
+            '<(node_js2c_embedded_empty_object_path)',
+          ],
+        }],
         [ 'OS=="mac"', {
           'libraries': [ '-framework CoreFoundation -framework Security' ],
         }],

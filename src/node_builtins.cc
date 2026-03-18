@@ -178,10 +178,12 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
 }
 
 #ifdef NODE_BUILTIN_MODULES_PATH
-static std::string OnDiskFileName(const char* id) {
+std::string BuiltinLoader::OnDiskFileName(const char* id) const {
   std::string filename = NODE_BUILTIN_MODULES_PATH;
   filename += "/";
 
+  // Save the original id for source map lookup before any pointer arithmetic.
+  const char* original_id = id;
   if (strncmp(id, "internal/deps", strlen("internal/deps")) == 0) {
     id += strlen("internal/");
   } else {
@@ -192,7 +194,15 @@ static std::string OnDiskFileName(const char* id) {
     // V8 tools scripts are .mjs files.
     filename += ".mjs";
   } else {
-    filename += ".js";
+    // Use the pre-built source map to determine the file extension.
+    // This avoids a filesystem probe on every module load in dev mode.
+    auto source = source_.read();
+    auto it = source->find(original_id);
+    if (it != source->end() && it->second.is_typescript) {
+      filename += ".ts";
+    } else {
+      filename += ".js";
+    }
   }
 
   return filename;
