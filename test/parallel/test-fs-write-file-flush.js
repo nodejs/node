@@ -26,7 +26,7 @@ test('synchronous version', async (t) => {
 
   await t.test('performs flush', (t) => {
     const spy = t.mock.method(fs, 'fsyncSync');
-    const checkCalls = (expected) => {
+    const checkCalls = common.mustCall((expected) => {
       const calls = spy.mock.calls;
       assert.strictEqual(calls.length, expected);
       if (expected === 0) return;
@@ -34,7 +34,7 @@ test('synchronous version', async (t) => {
       assert.strictEqual(calls.at(-1).error, undefined);
       assert.strictEqual(calls.at(-1).arguments.length, 1);
       assert.strictEqual(typeof calls.at(-1).arguments[0], 'number');
-    };
+    }, 4);
 
     const file = nextFile();
 
