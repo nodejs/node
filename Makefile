@@ -1433,7 +1433,8 @@ format-md: tools/lint-md/node_modules/remark-parse/package.json ## Format the ma
 LINT_JS_TARGETS = eslint.config.mjs benchmark doc lib test tools
 
 run-lint-js = tools/eslint/node_modules/eslint/bin/eslint.js --cache \
-	--max-warnings=0 --report-unused-disable-directives $(LINT_JS_TARGETS)
+	--max-warnings=0 --report-unused-disable-directives \
+	--concurrency auto $(LINT_JS_TARGETS)
 run-lint-js-fix = $(run-lint-js) --fix
 
 tools/eslint/node_modules/eslint/bin/eslint.js: tools/eslint/package-lock.json
@@ -1460,7 +1461,7 @@ jslint: lint-js
 
 run-lint-js-ci = tools/eslint/node_modules/eslint/bin/eslint.js \
   --max-warnings=0 --report-unused-disable-directives -f tap \
-	-o test-eslint.tap $(LINT_JS_TARGETS)
+  --concurrency auto -o test-eslint.tap $(LINT_JS_TARGETS)
 
 .PHONY: lint-js-ci
 # On the CI the output is emitted in the TAP format.
