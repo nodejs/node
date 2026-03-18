@@ -191,11 +191,9 @@ name = "node_crates"
 version = "0.1.0"
 dependencies = [
  "icu_calendar",
- "icu_calendar_data",
  "icu_collections",
  "icu_locale",
  "icu_locale_core",
- "icu_locale_data",
  "icu_provider",
  "temporal_capi",
  "temporal_rs",
