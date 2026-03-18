@@ -4486,6 +4486,7 @@ const server = http2.createSecureServer({
 <!-- YAML
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62321
     description: Documentation-only deprecation.
 -->
 
@@ -4507,6 +4508,7 @@ will throw an error in a future version. This includes
 <!-- YAML
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62321
     description: Documentation-only deprecation.
 -->
 
