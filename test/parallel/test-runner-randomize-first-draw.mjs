@@ -1,3 +1,4 @@
+import '../common/index.mjs';
 import assert from 'node:assert';
 import { test, run } from 'node:test';
 import * as fixtures from '../common/fixtures.mjs';

@@ -106,19 +106,24 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
         files: [fixtures.path('test-runner', 'cancelled-report-order.mjs')],
         isolation,
       });
-      const cancelledNames = [];
+      const cancelledFailures = [];
 
       stream.on('test:fail', ({ name, details }) => {
         if (name === 'second' || name === 'third') {
-          cancelledNames.push(name);
-          assert.strictEqual(details.error.failureType, 'cancelledByParent');
+          cancelledFailures.push({
+            name,
+            failureType: details.error.failureType,
+          });
         }
       });
 
       // eslint-disable-next-line no-unused-vars
       for await (const _ of stream);
 
-      assert.deepStrictEqual(cancelledNames, ['second', 'third']);
+      assert.deepStrictEqual(cancelledFailures, [
+        { name: 'second', failureType: 'cancelledByParent' },
+        { name: 'third', failureType: 'cancelledByParent' },
+      ]);
     });
   }
 
