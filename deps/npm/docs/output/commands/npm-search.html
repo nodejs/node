@@ -186,9 +186,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-search----11111">
+<h1 id="----npm-search----11120">
     <span>npm-search</span>
-    <span class="version">@11.11.1</span>
+    <span class="version">@11.12.0</span>
 </h1>
 <span class="description">Search for packages</span>
 </header>
@@ -280,6 +280,7 @@ searches.</p>
 </ul>
 <p>If true, staleness checks for cached data will be forced, making the CLI
 look for updates immediately even for fresh package data.</p>
+<p>This config cannot be used with: <code>prefer-offline</code></p>
 <h4 id="prefer-offline"><code>prefer-offline</code></h4>
 <ul>
 <li>Default: false</li>
@@ -288,6 +289,7 @@ look for updates immediately even for fresh package data.</p>
 <p>If true, staleness checks for cached data will be bypassed, but missing data
 will be requested from the server. To force full offline mode, use
 <code>--offline</code>.</p>
+<p>This config cannot be used with: <code>prefer-online</code></p>
 <h4 id="offline"><code>offline</code></h4>
 <ul>
 <li>Default: false</li>

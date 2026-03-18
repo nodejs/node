@@ -1,10 +1,16 @@
 'use strict'
 
+const crypto = require('crypto')
 const { withTempDir } = require('@npmcli/fs')
 const fs = require('fs/promises')
 const path = require('path')
 
 module.exports.mkdir = mktmpdir
+
+module.exports.tmpName = function tmpName (cache, tmpPrefix) {
+  const id = crypto.randomUUID()
+  return path.join(cache, 'tmp', tmpPrefix ? `${tmpPrefix}-${id}` : id)
+}
 
 async function mktmpdir (cache, opts = {}) {
   const { tmpPrefix } = opts

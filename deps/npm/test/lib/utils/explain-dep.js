@@ -1,6 +1,6 @@
 const { resolve } = require('node:path')
 const t = require('tap')
-const { explainNode, printNode } = require('../../../lib/utils/explain-dep.js')
+const { explainNode, printNode, explainEdge } = require('../../../lib/utils/explain-dep.js')
 const { cleanCwd } = require('../../fixtures/clean-snapshot')
 
 t.cleanSnapshot = (str) => cleanCwd(str)
@@ -267,6 +267,47 @@ t.test('basic', async t => {
       t.end()
     })
   }
+
+  // Regression test for https://github.com/npm/cli/issues/9109
+  // Circular dependency graphs (common in linked strategy store nodes) should not cause infinite recursion in explainNode.
+  const cycleA = {
+    name: 'cycle-a',
+    version: '1.0.0',
+    location: 'node_modules/cycle-a',
+    dependents: [],
+  }
+  const cycleB = {
+    name: 'cycle-b',
+    version: '2.0.0',
+    location: 'node_modules/cycle-b',
+    dependents: [{
+      type: 'prod',
+      name: 'cycle-b',
+      spec: '2.x',
+      from: cycleA,
+    }],
+  }
+  cycleA.dependents = [{
+    type: 'prod',
+    name: 'cycle-a',
+    spec: '1.x',
+    from: cycleB,
+  }]
+  t.matchSnapshot(explainNode(cycleA, Infinity, noColor), 'circular dependency does not recurse infinitely')
+  t.matchSnapshot(explainNode(cycleB, Infinity, noColor), 'circular dependency from other side')
+
+  // explainEdge called without seen parameter (covers default seen = new Set() branch on explainEdge and explainFrom)
+  t.matchSnapshot(explainEdge({
+    type: 'prod',
+    name: 'some-dep',
+    spec: '1.x',
+    from: {
+      name: 'parent-pkg',
+      version: '2.0.0',
+      location: 'node_modules/parent-pkg',
+      dependents: [],
+    },
+  }, 2, noColor), 'explainEdge without seen parameter')
 
   // make sure that we show the last one if it's the only one that would
   // hit the ...

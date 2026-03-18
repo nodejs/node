@@ -121,7 +121,7 @@ The base URL of the npm registry.
 If true, staleness checks for cached data will be forced, making the CLI
 look for updates immediately even for fresh package data.
 
-
+This config cannot be used with: `prefer-offline`
 
 #### `prefer-offline`
 
@@ -132,7 +132,7 @@ If true, staleness checks for cached data will be bypassed, but missing data
 will be requested from the server. To force full offline mode, use
 `--offline`.
 
-
+This config cannot be used with: `prefer-online`
 
 #### `offline`
 

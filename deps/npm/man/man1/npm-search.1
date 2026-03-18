@@ -1,4 +1,4 @@
-.TH "NPM-SEARCH" "1" "March 2026" "NPM@11.11.1" ""
+.TH "NPM-SEARCH" "1" "March 2026" "NPM@11.12.0" ""
 .SH "NAME"
 \fBnpm-search\fR - Search for packages
 .SS "Synopsis"
@@ -119,6 +119,8 @@ Type: Boolean
 
 .P
 If true, staleness checks for cached data will be forced, making the CLI look for updates immediately even for fresh package data.
+.P
+This config cannot be used with: \fBprefer-offline\fR
 .SS "\fBprefer-offline\fR"
 .RS 0
 .IP \(bu 4
@@ -129,6 +131,8 @@ Type: Boolean
 
 .P
 If true, staleness checks for cached data will be bypassed, but missing data will be requested from the server. To force full offline mode, use \fB--offline\fR.
+.P
+This config cannot be used with: \fBprefer-online\fR
 .SS "\fBoffline\fR"
 .RS 0
 .IP \(bu 4

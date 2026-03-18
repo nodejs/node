@@ -770,6 +770,18 @@ the order in which omit/include are specified on the command-line.
 
 
 
+#### `include-attestations`
+
+* Default: false
+* Type: Boolean
+
+When used with `npm audit signatures --json`, includes the full sigstore
+attestation bundles in the JSON output for each verified package. The
+bundles contain DSSE envelopes, verification material, and transparency log
+entries.
+
+
+
 #### `include-staged`
 
 * Default: false
@@ -1086,6 +1098,8 @@ of a relative number of days.
 
 This config cannot be used with: `before`
 
+This value is not exported to the environment for child processes.
+
 #### `name`
 
 * Default: null
@@ -1331,7 +1345,7 @@ If true, staleness checks for cached data will be bypassed, but missing data
 will be requested from the server. To force full offline mode, use
 `--offline`.
 
-
+This config cannot be used with: `prefer-online`
 
 #### `prefer-online`
 
@@ -1341,7 +1355,7 @@ will be requested from the server. To force full offline mode, use
 If true, staleness checks for cached data will be forced, making the CLI
 look for updates immediately even for fresh package data.
 
-
+This config cannot be used with: `prefer-offline`
 
 #### `prefix`
 
