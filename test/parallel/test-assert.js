@@ -1596,6 +1596,13 @@ test('assert/strict exists', () => {
   assert.strictEqual(require('assert/strict'), assert.strict);
 });
 
+test('assert.strict.partialDeepEqual is an alias for partialDeepStrictEqual', () => {
+  assert.strictEqual(
+    assert.strict.partialDeepEqual,
+    assert.strict.partialDeepStrictEqual
+  );
+});
+
 test('Printf-like format strings as error message', () => {
   assert.throws(
     () => assert.equal(1, 2, 'The answer to all questions is %i', 42),

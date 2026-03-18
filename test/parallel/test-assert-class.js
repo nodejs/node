@@ -148,6 +148,10 @@ test('Assert class strict', () => {
     assertInstance.notDeepEqual,
     assertInstance.notDeepStrictEqual
   );
+  assertInstance.equal(
+    assertInstance.partialDeepEqual,
+    assertInstance.partialDeepStrictEqual
+  );
 });
 
 test('Assert class with invalid diff option', () => {
