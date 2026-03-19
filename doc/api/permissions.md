@@ -71,7 +71,7 @@ using the [`--allow-child-process`][] and [`--allow-worker`][] respectively.
 To allow network access, use [`--allow-net`][] and for allowing native addons
 when using permission model, use the [`--allow-addons`][]
 flag. For WASI, use the [`--allow-wasi`][] flag. For FFI, use the
-[`--allow-ffi`][] flag. The [`node:ffi`][] module also requires the
+[`--allow-ffi`][] flag. The \[`node:ffi`]\[] module also requires the
 `--experimental-ffi` flag and is only available in builds with FFI support.
 
 #### Runtime API

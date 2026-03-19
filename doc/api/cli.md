@@ -2224,7 +2224,7 @@ following permissions are restricted:
 * Worker Threads - manageable through [`--allow-worker`][] flag
 * WASI - manageable through [`--allow-wasi`][] flag
 * Addons - manageable through [`--allow-addons`][] flag
-* FFI - manageable through [`--allow-ffi`][] flag
+* FFI - manageable through \[`--allow-ffi`]\[] flag
 
 ### `--permission-audit`
 

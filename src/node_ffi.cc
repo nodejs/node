@@ -222,7 +222,7 @@ void DynamicLibrary::New(const FunctionCallbackInfo<Value>& args) {
   }
 
   DynamicLibrary* lib = new DynamicLibrary(env, args.This());
-  node::Utf8Value filename(env->isolate(), args[0]);
+  Utf8Value filename(env->isolate(), args[0]);
   lib->path_ = std::string(*filename);
 
   // Open the library
@@ -277,7 +277,7 @@ void DynamicLibrary::InvokeFunction(const FunctionCallbackInfo<Value>& args) {
 
     // The argument is a string, we need to copy
     if (res == 2) {
-      String::Utf8Value str(env->isolate(), args[i]);
+      Utf8Value str(env->isolate(), args[i]);
 
       if (*str == nullptr) {
         env->ThrowTypeError(
@@ -399,7 +399,7 @@ void DynamicLibrary::GetFunction(const FunctionCallbackInfo<Value>& args) {
   }
 
   DynamicLibrary* lib = Unwrap<DynamicLibrary>(args.This());
-  node::Utf8Value name(isolate, args[0]);
+  Utf8Value name(isolate, args[0]);
   std::shared_ptr<FFIFunction> fn;
 
   Local<Object> signature = args[1].As<Object>();
@@ -444,14 +444,14 @@ void DynamicLibrary::GetFunctions(const FunctionCallbackInfo<Value>& args) {
         return;
       }
 
-      node::Utf8Value name(isolate, key);
+      Utf8Value name(isolate, key);
 
       if (!signatures->Get(env->context(), key).ToLocal(&signature)) {
         return;
       }
 
       if (!signature->IsObject() || signature->IsArray()) {
-        std::string msg = std::string("Signature of function ") + *name +
+        std::string msg = std::string("Signature of function ") + name.out() +
                           " must be an object";
         env->ThrowTypeError(msg.c_str());
         return;
@@ -499,7 +499,7 @@ void DynamicLibrary::GetSymbol(const FunctionCallbackInfo<Value>& args) {
   }
 
   DynamicLibrary* lib = Unwrap<DynamicLibrary>(args.This());
-  node::Utf8Value name(isolate, args[0]);
+  Utf8Value name(isolate, args[0]);
   void* ptr;
 
   if (!lib->FindOrCreateSymbol(env, *name, &ptr)) {

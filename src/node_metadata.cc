@@ -54,7 +54,7 @@
 
 #if HAVE_FFI
 #include "ffi.h"
-#endif // HAVE_FFI
+#endif  // HAVE_FFI
 
 namespace node {
 

@@ -476,7 +476,7 @@ When `copy` is `false`, the returned `ArrayBuffer` references the original
 native memory directly.
 
 The same lifetime and bounds requirements described for
-[`ffi.toBuffer(pointer, length[, copy])`][] apply here. With `copy: false`, the
+[`ffi.toBuffer()`][] apply here. With `copy: false`, the
 returned `ArrayBuffer` is a zero-copy view of foreign memory and is only safe
 while that memory remains allocated, unchanged in layout, and valid for the
 entire exposed range.
@@ -545,4 +545,4 @@ and keep callback and pointer lifetimes explicit on the native side.
 
 [Permission Model]: permissions.md#permission-model
 [`--allow-ffi`]: cli.md#--allow-ffi
-[`ffi.toBuffer(pointer, length[, copy])`]: #ffitobufferpointer-length-copy
+[`ffi.toBuffer()`]: #ffitobufferpointer-length-copy

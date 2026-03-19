@@ -1,13 +1,7 @@
 // Flags: --experimental-ffi
 'use strict';
 const common = require('../common');
-const {
-  deepStrictEqual,
-  match,
-  notStrictEqual,
-  strictEqual,
-  throws,
-} = require('node:assert');
+const assert = require('node:assert');
 const { spawnSync } = require('node:child_process');
 
 common.skipIfFFIMissing();
@@ -15,7 +9,7 @@ common.skipIfFFIMissing();
 const ffi = require('node:ffi');
 
 {
-  throws(() => {
+  assert.throws(() => {
     require('ffi');
   }, {
     code: 'MODULE_NOT_FOUND',
@@ -32,10 +26,10 @@ const ffi = require('node:ffi');
     encoding: 'utf8',
   });
 
-  strictEqual(stdout, '');
-  match(stderr, /No such built-in module: node:ffi/);
-  notStrictEqual(status, 0);
-  strictEqual(signal, null);
+  assert.strictEqual(stdout, '');
+  assert.match(stderr, /No such built-in module: node:ffi/);
+  assert.notStrictEqual(status, 0);
+  assert.strictEqual(signal, null);
 }
 
 {
@@ -47,10 +41,10 @@ const ffi = require('node:ffi');
     encoding: 'utf8',
   });
 
-  strictEqual(stdout, '');
-  match(stderr, /Class constructor DynamicLibrary cannot be invoked without 'new'/);
-  notStrictEqual(status, 0);
-  strictEqual(signal, null);
+  assert.strictEqual(stdout, '');
+  assert.match(stderr, /Class constructor DynamicLibrary cannot be invoked without 'new'/);
+  assert.notStrictEqual(status, 0);
+  assert.strictEqual(signal, null);
 }
 
 {
@@ -86,34 +80,34 @@ const ffi = require('node:ffi');
     'toString',
   ];
 
-  deepStrictEqual(Object.keys(ffi).sort(), expected);
-  strictEqual(typeof ffi.DynamicLibrary, 'function');
-  strictEqual(typeof ffi.dlopen, 'function');
-  strictEqual(typeof ffi.dlclose, 'function');
-  strictEqual(typeof ffi.dlsym, 'function');
-  strictEqual(typeof ffi.exportString, 'function');
-  strictEqual(typeof ffi.exportBuffer, 'function');
-  strictEqual(typeof ffi.getInt8, 'function');
-  strictEqual(typeof ffi.getUint8, 'function');
-  strictEqual(typeof ffi.getInt16, 'function');
-  strictEqual(typeof ffi.getUint16, 'function');
-  strictEqual(typeof ffi.getInt32, 'function');
-  strictEqual(typeof ffi.getUint32, 'function');
-  strictEqual(typeof ffi.getInt64, 'function');
-  strictEqual(typeof ffi.getUint64, 'function');
-  strictEqual(typeof ffi.getFloat32, 'function');
-  strictEqual(typeof ffi.getFloat64, 'function');
-  strictEqual(typeof ffi.setInt8, 'function');
-  strictEqual(typeof ffi.setUint8, 'function');
-  strictEqual(typeof ffi.setInt16, 'function');
-  strictEqual(typeof ffi.setUint16, 'function');
-  strictEqual(typeof ffi.setInt32, 'function');
-  strictEqual(typeof ffi.setUint32, 'function');
-  strictEqual(typeof ffi.setInt64, 'function');
-  strictEqual(typeof ffi.setUint64, 'function');
-  strictEqual(typeof ffi.setFloat32, 'function');
-  strictEqual(typeof ffi.setFloat64, 'function');
-  strictEqual(typeof ffi.toString, 'function');
-  strictEqual(typeof ffi.toBuffer, 'function');
-  strictEqual(typeof ffi.toArrayBuffer, 'function');
+  assert.deepStrictEqual(Object.keys(ffi).sort(), expected);
+  assert.strictEqual(typeof ffi.DynamicLibrary, 'function');
+  assert.strictEqual(typeof ffi.dlopen, 'function');
+  assert.strictEqual(typeof ffi.dlclose, 'function');
+  assert.strictEqual(typeof ffi.dlsym, 'function');
+  assert.strictEqual(typeof ffi.exportString, 'function');
+  assert.strictEqual(typeof ffi.exportBuffer, 'function');
+  assert.strictEqual(typeof ffi.getInt8, 'function');
+  assert.strictEqual(typeof ffi.getUint8, 'function');
+  assert.strictEqual(typeof ffi.getInt16, 'function');
+  assert.strictEqual(typeof ffi.getUint16, 'function');
+  assert.strictEqual(typeof ffi.getInt32, 'function');
+  assert.strictEqual(typeof ffi.getUint32, 'function');
+  assert.strictEqual(typeof ffi.getInt64, 'function');
+  assert.strictEqual(typeof ffi.getUint64, 'function');
+  assert.strictEqual(typeof ffi.getFloat32, 'function');
+  assert.strictEqual(typeof ffi.getFloat64, 'function');
+  assert.strictEqual(typeof ffi.setInt8, 'function');
+  assert.strictEqual(typeof ffi.setUint8, 'function');
+  assert.strictEqual(typeof ffi.setInt16, 'function');
+  assert.strictEqual(typeof ffi.setUint16, 'function');
+  assert.strictEqual(typeof ffi.setInt32, 'function');
+  assert.strictEqual(typeof ffi.setUint32, 'function');
+  assert.strictEqual(typeof ffi.setInt64, 'function');
+  assert.strictEqual(typeof ffi.setUint64, 'function');
+  assert.strictEqual(typeof ffi.setFloat32, 'function');
+  assert.strictEqual(typeof ffi.setFloat64, 'function');
+  assert.strictEqual(typeof ffi.toString, 'function');
+  assert.strictEqual(typeof ffi.toBuffer, 'function');
+  assert.strictEqual(typeof ffi.toArrayBuffer, 'function');
 }

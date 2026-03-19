@@ -3,12 +3,7 @@
 const common = require('../common');
 common.skipIfFFIMissing();
 const { gcUntil } = require('../common/gc');
-const {
-  deepStrictEqual,
-  ok,
-  strictEqual,
-  throws,
-} = require('node:assert');
+const assert = require('node:assert');
 const { spawnSync } = require('node:child_process');
 const ffi = require('node:ffi');
 const { cString, fixtureSymbols, libraryPath } = require('./ffi-test-common');
@@ -16,100 +11,100 @@ const { cString, fixtureSymbols, libraryPath } = require('./ffi-test-common');
 const { lib, functions: symbols } = ffi.dlopen(libraryPath, fixtureSymbols);
 
 {
-  strictEqual(symbols.add_i8(120, 10), -126);
-  strictEqual(symbols.add_u8(250, 10), 4);
-  strictEqual(symbols.add_i16(10_000, -58), 9_942);
-  strictEqual(symbols.add_u16(65_530, 10), 4);
-  strictEqual(symbols.add_i32(-10, 52), 42);
-  strictEqual(symbols.add_u32(0xFFFFFFFF, 1), 0);
-  strictEqual(symbols.add_i64(20n, 22n), 42n);
-  strictEqual(symbols.add_u64(20n, 22n), 42n);
+  assert.strictEqual(symbols.add_i8(120, 10), -126);
+  assert.strictEqual(symbols.add_u8(250, 10), 4);
+  assert.strictEqual(symbols.add_i16(10_000, -58), 9_942);
+  assert.strictEqual(symbols.add_u16(65_530, 10), 4);
+  assert.strictEqual(symbols.add_i32(-10, 52), 42);
+  assert.strictEqual(symbols.add_u32(0xFFFFFFFF, 1), 0);
+  assert.strictEqual(symbols.add_i64(20n, 22n), 42n);
+  assert.strictEqual(symbols.add_u64(20n, 22n), 42n);
 
   if (symbols.char_is_signed()) {
-    strictEqual(symbols.identity_char(-1), -1);
-    strictEqual(symbols.identity_char(-128), -128);
+    assert.strictEqual(symbols.identity_char(-1), -1);
+    assert.strictEqual(symbols.identity_char(-128), -128);
   } else {
-    strictEqual(symbols.identity_char(255), 255);
-    strictEqual(symbols.identity_char(128), 128);
+    assert.strictEqual(symbols.identity_char(255), 255);
+    assert.strictEqual(symbols.identity_char(128), 128);
   }
 }
 
 {
-  strictEqual(symbols.add_f32(1.25, 2.75), 4);
-  strictEqual(symbols.multiply_f64(6, 7), 42);
-  strictEqual(symbols.sum_five_i32(10, 8, 7, 9, 8), 42);
-  strictEqual(symbols.sum_five_f64(10, 8, 7, 9, 8), 42);
-  strictEqual(symbols.mixed_operation(10, 2.5, 3.5, 4), 20);
+  assert.strictEqual(symbols.add_f32(1.25, 2.75), 4);
+  assert.strictEqual(symbols.multiply_f64(6, 7), 42);
+  assert.strictEqual(symbols.sum_five_i32(10, 8, 7, 9, 8), 42);
+  assert.strictEqual(symbols.sum_five_f64(10, 8, 7, 9, 8), 42);
+  assert.strictEqual(symbols.mixed_operation(10, 2.5, 3.5, 4), 20);
 }
 
 {
-  strictEqual(symbols.logical_and(1, 1), 1);
-  strictEqual(symbols.logical_and(1, 0), 0);
-  strictEqual(symbols.logical_or(0, 1), 1);
-  strictEqual(symbols.logical_not(0), 1);
+  assert.strictEqual(symbols.logical_and(1, 1), 1);
+  assert.strictEqual(symbols.logical_and(1, 0), 0);
+  assert.strictEqual(symbols.logical_or(0, 1), 1);
+  assert.strictEqual(symbols.logical_not(0), 1);
 
   const boolAdder = lib.getFunction('add_u8', {
     parameters: ['bool', 'bool'],
     result: 'bool',
   });
-  strictEqual(boolAdder(1, 0), 1);
-  throws(() => boolAdder(true, false), /Argument 0 must be a uint8/);
+  assert.strictEqual(boolAdder(1, 0), 1);
+  assert.throws(() => boolAdder(true, false), /Argument 0 must be a uint8/);
 }
 
 {
   const address = 0x1234n;
 
-  strictEqual(symbols.identity_pointer(address), address);
-  strictEqual(symbols.pointer_to_usize(address), address);
-  strictEqual(symbols.usize_to_pointer(address), address);
+  assert.strictEqual(symbols.identity_pointer(address), address);
+  assert.strictEqual(symbols.pointer_to_usize(address), address);
+  assert.strictEqual(symbols.usize_to_pointer(address), address);
 }
 
 {
-  strictEqual(symbols.string_length('hello ffi'), 9n);
-  strictEqual(symbols.string_length(cString('hello ffi')), 9n);
-  strictEqual(symbols.safe_strlen(null), -1);
+  assert.strictEqual(symbols.string_length('hello ffi'), 9n);
+  assert.strictEqual(symbols.string_length(cString('hello ffi')), 9n);
+  assert.strictEqual(symbols.safe_strlen(null), -1);
 
   const concatenated = symbols.string_concat('hello ', 'ffi');
-  strictEqual(typeof concatenated, 'bigint');
-  strictEqual(ffi.toString(concatenated), 'hello ffi');
+  assert.strictEqual(typeof concatenated, 'bigint');
+  assert.strictEqual(ffi.toString(concatenated), 'hello ffi');
   symbols.free_string(concatenated);
 
   const duplicated = symbols.string_duplicate('copied string');
-  strictEqual(ffi.toString(duplicated), 'copied string');
+  assert.strictEqual(ffi.toString(duplicated), 'copied string');
   symbols.free_string(duplicated);
 
   const buffer = Buffer.from([1, 2, 3, 4]);
-  strictEqual(symbols.sum_buffer(buffer, BigInt(buffer.length)), 10n);
+  assert.strictEqual(symbols.sum_buffer(buffer, BigInt(buffer.length)), 10n);
   symbols.reverse_buffer(buffer, BigInt(buffer.length));
-  deepStrictEqual([...buffer], [4, 3, 2, 1]);
+  assert.deepStrictEqual([...buffer], [4, 3, 2, 1]);
 
   const typed = new Uint8Array([5, 6, 7, 8]);
-  strictEqual(symbols.sum_buffer(typed, BigInt(typed.byteLength)), 26n);
+  assert.strictEqual(symbols.sum_buffer(typed, BigInt(typed.byteLength)), 26n);
 
   const arrayBuffer = new Uint8Array([9, 10, 11, 12]).buffer;
-  strictEqual(symbols.sum_buffer(arrayBuffer, BigInt(arrayBuffer.byteLength)), 42n);
+  assert.strictEqual(symbols.sum_buffer(arrayBuffer, BigInt(arrayBuffer.byteLength)), 42n);
 }
 
 {
   const ints = new Int32Array([10, 20, 30, 40]);
-  strictEqual(symbols.array_get_i32(ints, 2n), 30);
+  assert.strictEqual(symbols.array_get_i32(ints, 2n), 30);
   symbols.array_set_i32(ints, 1n, 22);
-  deepStrictEqual([...ints], [10, 22, 30, 40]);
+  assert.deepStrictEqual([...ints], [10, 22, 30, 40]);
 
   const doubles = new Float64Array([1, 2, 3, 4]);
-  strictEqual(symbols.array_get_f64(doubles, 1n), 2);
+  assert.strictEqual(symbols.array_get_f64(doubles, 1n), 2);
   symbols.array_set_f64(doubles, 2n, 39.5);
-  deepStrictEqual([...doubles], [1, 2, 39.5, 4]);
+  assert.deepStrictEqual([...doubles], [1, 2, 39.5, 4]);
 }
 
 {
   symbols.reset_counter();
-  strictEqual(symbols.get_counter(), 0);
+  assert.strictEqual(symbols.get_counter(), 0);
   symbols.increment_counter();
   symbols.increment_counter();
-  strictEqual(symbols.get_counter(), 2);
+  assert.strictEqual(symbols.get_counter(), 2);
   symbols.reset_counter();
-  strictEqual(symbols.get_counter(), 0);
+  assert.strictEqual(symbols.get_counter(), 0);
 }
 
 {
@@ -128,10 +123,10 @@ const { lib, functions: symbols } = ffi.dlopen(libraryPath, fixtureSymbols);
   );
 
   try {
-    strictEqual(symbols.call_int_callback(intCallback, 21), 42);
+    assert.strictEqual(symbols.call_int_callback(intCallback, 21), 42);
     symbols.call_string_callback(stringCallback, cString('hello callback'));
-    deepStrictEqual(seen, ['hello callback']);
-    strictEqual(symbols.call_binary_int_callback(binaryCallback, 19, 23), 42);
+    assert.deepStrictEqual(seen, ['hello callback']);
+    assert.strictEqual(symbols.call_binary_int_callback(binaryCallback, 19, 23), 42);
   } finally {
     lib.unregisterCallback(intCallback);
     lib.unregisterCallback(stringCallback);
@@ -159,49 +154,49 @@ const { lib, functions: symbols } = ffi.dlopen(libraryPath, fixtureSymbols);
     symbols.call_void_callback(voidCallback);
     symbols.call_callback_multiple_times(countingCallback, 5);
 
-    strictEqual(called, true);
-    deepStrictEqual(values, [0, 1, 2, 3, 4]);
+    assert.strictEqual(called, true);
+    assert.deepStrictEqual(values, [0, 1, 2, 3, 4]);
   } finally {
     lib.unregisterCallback(voidCallback);
     lib.unregisterCallback(countingCallback);
   }
 
-  throws(() => lib.refCallback(voidCallback), /Callback not found/);
-  throws(() => lib.unregisterCallback(-1n), /The first argument must be a non-negative bigint/);
+  assert.throws(() => lib.refCallback(voidCallback), /Callback not found/);
+  assert.throws(() => lib.unregisterCallback(-1n), /The first argument must be a non-negative bigint/);
 }
 
 {
-  throws(() => symbols.add_i32(1), /Invalid argument count: expected 2, got 1/);
-  throws(() => symbols.add_i32('1', 2), /Argument 0 must be an int32/);
-  throws(() => symbols.add_i8(1.5, 1), /Argument 0 must be an int8/);
-  throws(() => symbols.add_i8(200, 1), /Argument 0 must be an int8/);
-  throws(() => symbols.add_u8(Number.NaN, 1), /Argument 0 must be a uint8/);
-  throws(() => symbols.add_u8(300, 1), /Argument 0 must be a uint8/);
-  throws(() => symbols.add_i16(1.5, 1), /Argument 0 must be an int16/);
-  throws(() => symbols.add_i16(40_000, 1), /Argument 0 must be an int16/);
-  throws(() => symbols.add_u16(Number.NaN, 1), /Argument 0 must be a uint16/);
-  throws(() => symbols.add_u16(70_000, 1), /Argument 0 must be a uint16/);
-  throws(() => symbols.add_i64(1, 2n), /Argument 0 must be an int64/);
-  throws(() => symbols.add_i64(1.5, 2n), /Argument 0 must be an int64/);
-  throws(() => symbols.add_i64(2n ** 63n, 2n), /Argument 0 must be an int64/);
-  throws(() => symbols.add_i64(-(2n ** 63n) - 1n, 2n), /Argument 0 must be an int64/);
-  throws(() => symbols.add_u64('1', 2n), /Argument 0 must be a uint64/);
-  throws(() => symbols.add_u64(1, 2n), /Argument 0 must be a uint64/);
-  throws(() => symbols.add_u64(Number.NaN, 2n), /Argument 0 must be a uint64/);
-  throws(() => symbols.add_u64(-1n, 2n), /Argument 0 must be a uint64/);
-  throws(() => symbols.add_u64(2n ** 64n, 2n), /Argument 0 must be a uint64/);
-  throws(() => symbols.identity_pointer(-1n), /Argument 0 must be a non-negative pointer bigint/);
-  throws(() => symbols.string_length(Symbol('x')), /must be a buffer, an ArrayBuffer, a string, or a bigint/);
+  assert.throws(() => symbols.add_i32(1), /Invalid argument count: expected 2, got 1/);
+  assert.throws(() => symbols.add_i32('1', 2), /Argument 0 must be an int32/);
+  assert.throws(() => symbols.add_i8(1.5, 1), /Argument 0 must be an int8/);
+  assert.throws(() => symbols.add_i8(200, 1), /Argument 0 must be an int8/);
+  assert.throws(() => symbols.add_u8(Number.NaN, 1), /Argument 0 must be a uint8/);
+  assert.throws(() => symbols.add_u8(300, 1), /Argument 0 must be a uint8/);
+  assert.throws(() => symbols.add_i16(1.5, 1), /Argument 0 must be an int16/);
+  assert.throws(() => symbols.add_i16(40_000, 1), /Argument 0 must be an int16/);
+  assert.throws(() => symbols.add_u16(Number.NaN, 1), /Argument 0 must be a uint16/);
+  assert.throws(() => symbols.add_u16(70_000, 1), /Argument 0 must be a uint16/);
+  assert.throws(() => symbols.add_i64(1, 2n), /Argument 0 must be an int64/);
+  assert.throws(() => symbols.add_i64(1.5, 2n), /Argument 0 must be an int64/);
+  assert.throws(() => symbols.add_i64(2n ** 63n, 2n), /Argument 0 must be an int64/);
+  assert.throws(() => symbols.add_i64(-(2n ** 63n) - 1n, 2n), /Argument 0 must be an int64/);
+  assert.throws(() => symbols.add_u64('1', 2n), /Argument 0 must be a uint64/);
+  assert.throws(() => symbols.add_u64(1, 2n), /Argument 0 must be a uint64/);
+  assert.throws(() => symbols.add_u64(Number.NaN, 2n), /Argument 0 must be a uint64/);
+  assert.throws(() => symbols.add_u64(-1n, 2n), /Argument 0 must be a uint64/);
+  assert.throws(() => symbols.add_u64(2n ** 64n, 2n), /Argument 0 must be a uint64/);
+  assert.throws(() => symbols.identity_pointer(-1n), /Argument 0 must be a non-negative pointer bigint/);
+  assert.throws(() => symbols.string_length(Symbol('x')), /must be a buffer, an ArrayBuffer, a string, or a bigint/);
 
   if (process.arch === 'ia32' || process.arch === 'arm') {
-    throws(() => symbols.identity_pointer(2n ** 32n), /platform pointer range|non-negative pointer bigint/);
+    assert.throws(() => symbols.identity_pointer(2n ** 32n), /platform pointer range|non-negative pointer bigint/);
   }
 }
 
 {
-  strictEqual(symbols.divide_i32(84, 2), 42);
-  strictEqual(symbols.divide_i32(84, 0), 0);
-  strictEqual(symbols.safe_strlen(null), -1);
+  assert.strictEqual(symbols.divide_i32(84, 2), 42);
+  assert.strictEqual(symbols.divide_i32(84, 0), 0);
+  assert.strictEqual(symbols.safe_strlen(null), -1);
 }
 
 function assertInvalidCallbackReturnAborts(returnExpression) {
@@ -221,9 +216,9 @@ functions.call_int_callback(callback, 21);`,
     encoding: 'utf8',
   });
 
-  ok(common.nodeProcessAborted(status, signal),
-     `status: ${status}, signal: ${signal}\nstderr: ${stderr}`);
-  ok(/Callback returned invalid value for declared FFI type/.test(stderr));
+  assert.ok(common.nodeProcessAborted(status, signal),
+            `status: ${status}, signal: ${signal}\nstderr: ${stderr}`);
+  assert.match(stderr, /Callback returned invalid value for declared FFI type/);
 }
 
 assertInvalidCallbackReturnAborts('1.5');
@@ -245,7 +240,7 @@ assertInvalidCallbackReturnAborts('2 ** 40');
       return ref.deref() === undefined;
     });
 
-    strictEqual(symbols.call_int_callback(pointer, 21), 0);
+    assert.strictEqual(symbols.call_int_callback(pointer, 21), 0);
 
     lib.unregisterCallback(pointer);
   }
@@ -261,7 +256,7 @@ assertInvalidCallbackReturnAborts('2 ** 40');
 
     for (let i = 0; i < 5; i++) {
       await gcUntil('ffi refCallback retains callback function', () => true, 1);
-      strictEqual(typeof ref.deref(), 'function');
+      assert.strictEqual(typeof ref.deref(), 'function');
     }
 
     lib.unregisterCallback(pointer);
@@ -272,8 +267,8 @@ assertInvalidCallbackReturnAborts('2 ** 40');
 
     lib.close();
 
-    throws(() => lib.unregisterCallback(callback), /Library is closed/);
-    throws(() => lib.refCallback(callback), /Library is closed/);
-    throws(() => lib.unrefCallback(callback), /Library is closed/);
+    assert.throws(() => lib.unregisterCallback(callback), /Library is closed/);
+    assert.throws(() => lib.refCallback(callback), /Library is closed/);
+    assert.throws(() => lib.unrefCallback(callback), /Library is closed/);
   }
-})().then(common.mustCall(), common.mustNotCall());
+})().then(common.mustCall());
