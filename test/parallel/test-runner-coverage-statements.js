@@ -40,6 +40,11 @@ test('statement coverage is reported via custom reporter', () => {
             summary.totals.coveredStatementPercent <= 100,
             `statement percent should be 0-100, got ${summary.totals.coveredStatementPercent}`);
 
+  // Regression: totalStatementCount must be > 0 for files with actual
+  // statements. A zero here means the AST visitor is not firing.
+  assert.ok(summary.totals.totalStatementCount > 0,
+            `totalStatementCount must be > 0, got ${summary.totals.totalStatementCount}`);
+
   // Each file should have statement data
   for (const file of summary.files) {
     assert.ok('coveredStatementPercent' in file,
@@ -73,6 +78,11 @@ test('statement coverage reports covered and uncovered statements', () => {
   const coverageFile = summary.files.find((f) => f.path.endsWith('coverage.js'));
 
   assert.ok(coverageFile, 'coverage.js should be in the report');
+
+  // Regression: totalStatementCount must be > 0 for files with actual
+  // statements. A zero here means the AST visitor is not firing.
+  assert.ok(coverageFile.totalStatementCount > 0,
+            `totalStatementCount must be > 0, got ${coverageFile.totalStatementCount}`);
 
   // The file has uncalled functions and dead branches, so statement
   // coverage should be less than 100%.
