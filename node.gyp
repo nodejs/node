@@ -1005,9 +1005,11 @@
           ],
           'conditions': [
             [ 'node_shared_ffi=="false"', {
+              'dependencies': [
+                'deps/libffi/libffi.gyp:libffi',
+              ],
               'include_dirs': [
-                'deps/libffi/include',
-                '<(PRODUCT_DIR)/obj/deps/libffi/libffi.gen',
+                '<(PRODUCT_DIR)/obj.target/libffi/geni',
               ],
             }],
           ],
@@ -1073,9 +1075,11 @@
           ],
           'conditions': [
             [ 'node_shared_ffi=="false"', {
+              'dependencies': [
+                'deps/libffi/libffi.gyp:libffi',
+              ],
               'include_dirs': [
-                'deps/libffi/include',
-                '<(PRODUCT_DIR)/obj/deps/libffi/libffi.gen',
+                '<(PRODUCT_DIR)/obj.target/libffi/geni',
               ],
             }],
           ],
