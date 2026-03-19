@@ -3,6 +3,10 @@ const common = require('../common');
 if (process.config.variables.node_without_node_options)
   common.skip('missing NODE_OPTIONS support');
 
+if (common.isWindows) {
+  common.skip('`make doc` does not run on Windows');
+}
+
 // Test options specified by env variable.
 
 const assert = require('assert');
