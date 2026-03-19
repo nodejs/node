@@ -436,6 +436,16 @@ static void DefineLazyProperties(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+void AtomicsWaitAsyncRef(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  env->add_refs(1);
+}
+
+void AtomicsWaitAsyncUnref(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  env->add_refs(-1);
+}
+
 void ConstructSharedArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   int64_t length;
@@ -478,6 +488,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(DefineLazyProperties);
   registry->Register(DefineLazyPropertiesGetter);
   registry->Register(ConstructSharedArrayBuffer);
+  registry->Register(AtomicsWaitAsyncRef);
+  registry->Register(AtomicsWaitAsyncUnref);
 }
 
 void Initialize(Local<Object> target,
@@ -583,6 +595,8 @@ void Initialize(Local<Object> target,
             target,
             "constructSharedArrayBuffer",
             ConstructSharedArrayBuffer);
+  SetMethod(context, target, "atomicsWaitAsyncRef", AtomicsWaitAsyncRef);
+  SetMethod(context, target, "atomicsWaitAsyncUnref", AtomicsWaitAsyncUnref);
 
   Local<String> should_abort_on_uncaught_toggle =
       FIXED_ONE_BYTE_STRING(env->isolate(), "shouldAbortOnUncaughtToggle");
