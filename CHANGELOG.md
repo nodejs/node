@@ -115,7 +115,8 @@ release.
 <a href="doc/changelogs/CHANGELOG_V22.md#22.0.0">22.0.0</a><br/>
   </td>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V20.md#20.20.1">20.20.1</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V20.md#20.20.2">20.20.2</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V20.md#20.20.1">20.20.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V20.md#20.20.0">20.20.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V20.md#20.19.6">20.19.6</a><br/>
 <a href="doc/changelogs/CHANGELOG_V20.md#20.19.5">20.19.5</a><br/>
