@@ -95,6 +95,109 @@ For certain use cases, such as automating shell scripts, the
 the synchronous methods can have significant impact on performance due to
 stalling the event loop while spawned processes complete.
 
+The `node:child_process/promises` API provides promise-based versions of
+`exec()` and `execFile()`:
+
+```mjs
+import { execFile } from 'node:child_process/promises';
+const { stdout } = await execFile('node', ['--version']);
+console.log(stdout);
+```
+
+```cjs
+const { execFile } = require('node:child_process/promises');
+(async () => {
+  const { stdout } = await execFile('node', ['--version']);
+  console.log(stdout);
+})();
+```
+
+## Promises API
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The `child_process/promises` API provides promise-returning versions of
+`child_process.exec()` and `child_process.execFile()`. The API is accessible
+via `require('node:child_process/promises')` or
+`import from 'node:child_process/promises'`.
+
+### `exec(command[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `command` {string} The command to run, with space-separated arguments.
+* `options` {Object}
+  * `cwd` {string|URL} Current working directory of the child process.
+    **Default:** `process.cwd()`.
+  * `env` {Object} Environment key-value pairs. **Default:** `process.env`.
+  * `encoding` {string} **Default:** `'utf8'`
+  * `shell` {string} Shell to run the command with.
+    **Default:** `'/bin/sh'` on Unix, `process.env.ComSpec` on Windows.
+  * `signal` {AbortSignal} Allows aborting the child process using an
+    AbortSignal.
+  * `timeout` {number} **Default:** `0`
+  * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
+    stderr. If exceeded, the child process is terminated and any output is
+    truncated. **Default:** `1024 * 1024`.
+  * `killSignal` {string|integer} **Default:** `'SIGTERM'`
+  * `uid` {number} Sets the user identity of the process (see setuid(2)).
+  * `gid` {number} Sets the group identity of the process (see setgid(2)).
+  * `windowsHide` {boolean} Hide the subprocess console window that would
+    normally be created on Windows systems. **Default:** `false`.
+* Returns: {Promise} Fulfills with an {Object} containing:
+  * `stdout` {string|Buffer}
+  * `stderr` {string|Buffer}
+
+The returned promise has a `child` property with a reference to the
+[`ChildProcess`][] instance.
+
+If the child process exits with a non-zero code or encounters an error, the
+promise is rejected with an error containing `stdout`, `stderr`, `code`,
+`signal`, `cmd`, and `killed` properties.
+
+### `execFile(file[, args][, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `file` {string} The name or path of the executable file to run.
+* `args` {string\[]} List of string arguments.
+* `options` {Object}
+  * `cwd` {string|URL} Current working directory of the child process.
+  * `env` {Object} Environment key-value pairs. **Default:** `process.env`.
+  * `encoding` {string} **Default:** `'utf8'`
+  * `timeout` {number} **Default:** `0`
+  * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
+    stderr. If exceeded, the child process is terminated and any output is
+    truncated. **Default:** `1024 * 1024`.
+  * `killSignal` {string|integer} **Default:** `'SIGTERM'`
+  * `uid` {number} Sets the user identity of the process (see setuid(2)).
+  * `gid` {number} Sets the group identity of the process (see setgid(2)).
+  * `windowsHide` {boolean} Hide the subprocess console window that would
+    normally be created on Windows systems. **Default:** `false`.
+  * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
+    done on Windows. Ignored on Unix. **Default:** `false`.
+  * `shell` {boolean|string} If `true`, runs `file` inside of a shell. Uses
+    `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
+    shell can be specified as a string. **Default:** `false` (no shell).
+  * `signal` {AbortSignal} Allows aborting the child process using an
+    AbortSignal.
+* Returns: {Promise} Fulfills with an {Object} containing:
+  * `stdout` {string|Buffer}
+  * `stderr` {string|Buffer}
+
+The returned promise has a `child` property with a reference to the
+[`ChildProcess`][] instance.
+
+If the child process exits with a non-zero code or encounters an error, the
+promise is rejected with an error containing `stdout`, `stderr`, `code`,
+`signal`, `cmd`, and `killed` properties.
+
 ## Asynchronous process creation
 
 The [`child_process.spawn()`][], [`child_process.fork()`][], [`child_process.exec()`][],
