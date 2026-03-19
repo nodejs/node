@@ -3,11 +3,11 @@
 
 const { skipIfFFIMissing } = require('../common');
 const assert = require('node:assert');
-const { fixtureSymbols, libraryPath } = require('../ffi/ffi-test-common');
 
 skipIfFFIMissing();
 
 const ffi = require('node:ffi');
+const { fixtureSymbols, libraryPath } = require('../ffi/ffi-test-common');
 
 assert.ok(process.permission.has('ffi'));
 assert.strictEqual(typeof ffi.DynamicLibrary, 'function');

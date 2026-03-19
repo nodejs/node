@@ -13,7 +13,7 @@ const warnFlags = [
 ];
 
 if (process.config.variables.node_use_ffi) {
-  warnFlags.splice(3, 0, '--allow-ffi');
+  warnFlags.push('--allow-ffi');
 }
 
 for (const flag of warnFlags) {
