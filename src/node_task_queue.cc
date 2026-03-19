@@ -78,9 +78,14 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
                   "unhandled", unhandledRejections,
                   "handledAfter", rejectionsHandledAfter);
   } else if (event == kPromiseResolveAfterResolved) {
-    value = message.GetValue();
+    // Intentional no-op. The multipleResolves event was EOL'd in v25
+    // (PR #58707), and the JS handler does nothing for these events.
+    // Skipping the JS callback avoids accumulating C++-to-JS boundary
+    // references in tight Promise.race()/Promise.any() loops, which
+    // previously caused OOM (see #51452).
+    return;
   } else if (event == kPromiseRejectAfterResolved) {
-    value = message.GetValue();
+    return;
   } else {
     return;
   }
