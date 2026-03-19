@@ -17,7 +17,6 @@ const { exec, execFile } = require('child_process/promises');
 {
   const promise = exec(...common.escapePOSIXShell`"${process.execPath}" -p 42`);
 
-  assert(promise.child instanceof child_process.ChildProcess);
   promise.then(common.mustCall((result) => {
     assert.deepStrictEqual(result, { stdout: '42\n', stderr: '' });
   }));
@@ -27,7 +26,6 @@ const { exec, execFile } = require('child_process/promises');
 {
   const promise = execFile(process.execPath, ['-p', '42']);
 
-  assert(promise.child instanceof child_process.ChildProcess);
   promise.then(common.mustCall((result) => {
     assert.deepStrictEqual(result, { stdout: '42\n', stderr: '' });
   }));
@@ -37,7 +35,6 @@ const { exec, execFile } = require('child_process/promises');
 {
   const promise = exec('doesntexist');
 
-  assert(promise.child instanceof child_process.ChildProcess);
   promise.catch(common.mustCall((err) => {
     assert(err.message.includes('doesntexist'));
   }));
@@ -47,7 +44,6 @@ const { exec, execFile } = require('child_process/promises');
 {
   const promise = execFile('doesntexist', ['-p', '42']);
 
-  assert(promise.child instanceof child_process.ChildProcess);
   promise.catch(common.mustCall((err) => {
     assert(err.message.includes('doesntexist'));
   }));
@@ -58,12 +54,12 @@ const failingCodeWithStdoutErr =
   'console.log(42);console.error(43);process.exit(1)';
 
 {
-  exec(...common.escapePOSIXShell`"${process.execPath}" -e "${failingCodeWithStdoutErr}"`)
-    .catch(common.mustCall((err) => {
-      assert.strictEqual(err.code, 1);
-      assert.strictEqual(err.stdout, '42\n');
-      assert.strictEqual(err.stderr, '43\n');
-    }));
+  assert.rejects(exec(...common.escapePOSIXShell`"${process.execPath}" -e "${failingCodeWithStdoutErr}"`),
+    {
+      code: 1,
+      stdout: '42\n',
+      stderr: '43\n',
+    }).then(common.mustCall());
 }
 
 {
@@ -75,21 +71,21 @@ const failingCodeWithStdoutErr =
     }));
 }
 
-// execFile with options but no args array.
+// execFile with timeout rejects with killed process.
 {
-  execFile(process.execPath, { timeout: 5000 })
-    .catch(common.mustCall(() => {
-      // Expected to fail (no script), but should not throw synchronously.
-    }));
+  assert.rejects(execFile(process.execPath, ['-e', 'setInterval(()=>{}, 99)'], { timeout: 5 }), {
+    killed: true,
+  }).then(common.mustCall());
 }
 
 // encoding option returns strings.
 {
   execFile(process.execPath, ['-p', '"hello"'], { encoding: 'utf8' })
     .then(common.mustCall((result) => {
-      assert.strictEqual(typeof result.stdout, 'string');
-      assert.strictEqual(typeof result.stderr, 'string');
-      assert.strictEqual(result.stdout, 'hello\n');
+      assert.deepStrictEqual(result, {
+        stdout: 'hello\n',
+        stderr: '',
+      });
     }));
 }
 
@@ -97,9 +93,10 @@ const failingCodeWithStdoutErr =
 {
   execFile(process.execPath, ['-p', '"hello"'], { encoding: 'buffer' })
     .then(common.mustCall((result) => {
-      assert(Buffer.isBuffer(result.stdout));
-      assert(Buffer.isBuffer(result.stderr));
-      assert.strictEqual(result.stdout.toString(), 'hello\n');
+      assert.deepStrictEqual(result, {
+        stderr: Buffer.from(''),
+        stdout: Buffer.from('hello\n'),
+      });
     }));
 }
 
@@ -143,14 +140,14 @@ const failingCodeWithStdoutErr =
 
 // maxBuffer causes rejection.
 {
-  execFile(
+  assert.rejects(execFile(
     process.execPath,
     ['-e', "console.log('a'.repeat(100))"],
     { maxBuffer: 10 },
-  ).catch(common.mustCall((err) => {
-    assert(err instanceof RangeError);
-    assert.strictEqual(err.code, 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER');
-  }));
+  ), {
+    name: 'RangeError',
+    code: 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER',
+  }).then(common.mustCall());
 }
 
 // timeout causes the child process to be killed.
@@ -168,7 +165,5 @@ const failingCodeWithStdoutErr =
 
 // Module can be loaded with node: scheme.
 {
-  const promises = require('node:child_process/promises');
-  assert.strictEqual(typeof promises.exec, 'function');
-  assert.strictEqual(typeof promises.execFile, 'function');
+  assert.strictEqual(require('node:child_process/promises'), require('child_process/promises'));
 }

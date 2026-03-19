@@ -118,7 +118,7 @@ const { execFile } = require('node:child_process/promises');
 added: REPLACEME
 -->
 
-The `child_process/promises` API provides promise-returning versions of
+The `node:child_process/promises` API provides promise-returning versions of
 `child_process.exec()` and `child_process.execFile()`. The API is accessible
 via `require('node:child_process/promises')` or
 `import from 'node:child_process/promises'`.
