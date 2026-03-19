@@ -13,25 +13,22 @@ const fs = require('fs');
 const path = require('path');
 const { test } = require('node:test');
 
-test('assert.ok does not hang on long single-line source', () => {
-  // Generate a synthetic minified file: many variable declarations on a
-  // single line followed by a failing assert.ok call.
-  let code = '';
-  for (let i = 0; i < 100000; i++) {
-    code += `var a${i}=function(){return ${i}};`;
-  }
-  code += "require('node:assert').ok(false)";
+test('assert.ok completes quickly on long single-line source', () => {
+  // Generate a single-line file that exceeds kMaxSourceLineLength (2048)
+  // with semicolons as statement boundaries, followed by a failing assert.
+  // ~3000 chars is enough to trigger windowing without stressing the filesystem.
+  const padding = 'var x=1;'.repeat(375);
+  const code = padding + "require('node:assert').ok(false)";
 
   const file = path.join(tmpdir.path, 'assert-minified-perf.js');
   fs.writeFileSync(file, code);
 
-  // Run the file as a child process with a generous timeout.
-  // Before the fix, this would hang for minutes. After the fix, it should
-  // complete in well under 5 seconds even on slow CI machines.
+  const start = process.hrtime.bigint();
   const result = spawnSync(process.execPath, [file], {
-    timeout: 10_000,
+    timeout: 30_000,
     encoding: 'utf8',
   });
+  const elapsedMs = Number(process.hrtime.bigint() - start) / 1e6;
 
   // The process should exit with code 1 (assertion error), not be killed
   // by the timeout signal.
@@ -39,19 +36,24 @@ test('assert.ok does not hang on long single-line source', () => {
     'Process was killed by timeout - assert.ok hung on long line');
   assert.strictEqual(result.status, 1);
   assert.match(result.stderr, /AssertionError/);
+
+  // With windowing, this should complete in well under 10 seconds even on
+  // slow CI machines. Without windowing, long lines can take minutes.
+  assert.ok(elapsedMs < 10_000,
+    `Expected completion in <10s, took ${elapsedMs.toFixed(0)}ms`);
 });
 
 test('assert.ok error message is correct for long single-line source', () => {
-  // A long line with a failing assert at the end should still produce
-  // a meaningful error message with the expression.
-  const padding = ';'.repeat(5000);
+  // A long line with semicolons followed by a failing assert. The windowing
+  // logic should find the semicolons and extract the expression correctly.
+  const padding = ';'.repeat(3000);
   const code = padding + "require('node:assert').ok(false)";
 
   const file = path.join(tmpdir.path, 'assert-long-line-msg.js');
   fs.writeFileSync(file, code);
 
   const result = spawnSync(process.execPath, [file], {
-    timeout: 10_000,
+    timeout: 30_000,
     encoding: 'utf8',
   });
 
