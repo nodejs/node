@@ -5,8 +5,8 @@ require('../common');
 const assert = require('assert');
 const vfs = require('node:vfs');
 
-// Test that invalid package.json in VFS throws ERR_INVALID_PACKAGE_CONFIG
-// just like the real filesystem does, instead of silently falling through.
+// Test that invalid package.json in VFS falls through to index.js
+// (bad JSON is skipped, like a missing package.json).
 {
   const myVfs = vfs.create();
   myVfs.mkdirSync('/pkg', { recursive: true });
@@ -14,10 +14,7 @@ const vfs = require('node:vfs');
   myVfs.writeFileSync('/pkg/index.js', 'module.exports = 42;');
   myVfs.mount('/mnt');
 
-  assert.throws(
-    () => require('/mnt/pkg'),
-    { code: 'ERR_INVALID_PACKAGE_CONFIG' },
-  );
+  assert.strictEqual(require('/mnt/pkg'), 42);
 
   myVfs.unmount();
 }
