@@ -218,6 +218,13 @@ parser.add_argument("--enable-lto",
     help="Enable compiling with lto of a binary. This feature is only available "
          "with gcc 5.4.1+ or clang 3.9.1+.")
 
+parser.add_argument("--enable-thin-lto",
+    action="store_true",
+    dest="enable_thin_lto",
+    default=None,
+    help="Enable compiling with thin lto of a binary. This feature is only available "
+         "on windows.")
+
 parser.add_argument("--link-module",
     action="append",
     dest="linked_module",
@@ -919,7 +926,8 @@ parser.add_argument('--with-ltcg',
     action='store_true',
     dest='with_ltcg',
     default=None,
-    help='Use Thin LTO. This feature is only available on Windows.')
+    help='Use Thin LTO scoped to node.exe and libnode only. '
+         'This feature is only available on Windows.')
 
 parser.add_argument('--write-snapshot-as-array-literals',
     action='store_true',
@@ -1932,11 +1940,27 @@ def configure_node(o):
   o['variables']['enable_pgo_generate'] = b(options.enable_pgo_generate)
   o['variables']['enable_pgo_use']      = b(options.enable_pgo_use)
 
-  if flavor == 'win' and (options.enable_lto):
+  if flavor != 'win' and options.enable_thin_lto:
     raise Exception(
-      'Use Link Time Code Generation instead.')
+      'Use --enable-lto instead.')
 
-  if options.enable_lto:
+  # LTO mutual exclusion
+  if flavor == 'win':
+    lto_options = []
+    if options.enable_lto:
+      lto_options.append('--enable-lto')
+    if options.enable_thin_lto:
+      lto_options.append('--enable-thin-lto')
+    if options.with_ltcg:
+      lto_options.append('--with-ltcg')
+    if len(lto_options) > 1:
+      raise Exception(
+        f'Only one LTO option can be specified at a time: {", ".join(lto_options)}. '
+        'Use --enable-lto for Full LTO (global), '
+        '--enable-thin-lto for Thin LTO (global), '
+        'or --with-ltcg for Thin LTO (scoped to node.exe and libnode).')
+
+  if options.enable_lto and flavor != 'win':
     gcc_version_checked = (5, 4, 1)
     clang_version_checked = (3, 9, 1)
     if not gcc_version_ge(gcc_version_checked) and not clang_version_ge(clang_version_checked):
@@ -1947,6 +1971,7 @@ def configure_node(o):
         f'or clang {clang_version_checked_str}+ only.')
 
   o['variables']['enable_lto'] = b(options.enable_lto)
+  o['variables']['enable_thin_lto'] = b(options.enable_thin_lto)
 
   if options.node_use_large_pages or options.node_use_large_pages_script_lld:
     warn('''The `--use-largepages` and `--use-largepages-script-lld` options

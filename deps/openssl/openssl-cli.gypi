@@ -25,5 +25,15 @@
     ['enable_lto=="true"', {
       'ldflags': [ '-fno-lto' ],
     }],
+    ['node_with_ltcg=="true" or enable_lto=="true" or enable_thin_lto=="true"', {
+      'msvs_settings': {
+        'VCCLCompilerTool': {
+          'AdditionalOptions': ['-fno-lto'],
+        },
+        'VCLinkerTool': {
+          'AdditionalOptions': ['-fno-lto'],
+        },
+      },
+    }],
   ],
 }
