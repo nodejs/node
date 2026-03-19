@@ -2701,6 +2701,21 @@ added: v22.8.0
 Require a minimum percent of covered lines. If code coverage does not reach
 the threshold specified, the process will exit with code `1`.
 
+### `--test-coverage-statements=threshold`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Require a minimum percent of covered statements. If code coverage does not reach
+the threshold specified, the process will exit with code `1`.
+
+Statement coverage uses acorn to parse source files and extract statement
+nodes from the AST. The V8 coverage ranges are then mapped to these statements
+to determine which ones were executed.
+
 ### `--test-force-exit`
 
 <!-- YAML
@@ -3687,6 +3702,7 @@ one is included in the list below.
 * `--test-coverage-functions`
 * `--test-coverage-include`
 * `--test-coverage-lines`
+* `--test-coverage-statements`
 * `--test-global-setup`
 * `--test-isolation`
 * `--test-name-pattern`
