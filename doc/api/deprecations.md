@@ -4486,11 +4486,14 @@ const server = http2.createSecureServer({
 <!-- YAML
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62453
+    description: Runtime deprecation.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/62321
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 Passing a [`CryptoKey`][] to `node:crypto` functions is deprecated and
 will throw an error in a future version. This includes
@@ -4508,11 +4511,14 @@ will throw an error in a future version. This includes
 <!-- YAML
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62453
+    description: Runtime deprecation.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/62321
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 Passing a non-extractable [`CryptoKey`][] to [`KeyObject.from()`][] is
 deprecated and will throw an error in a future version.
