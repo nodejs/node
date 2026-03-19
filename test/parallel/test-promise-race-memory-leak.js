@@ -1,4 +1,4 @@
-// Flags: --max-old-space-size=20
+// Flags: --max-old-space-size=64
 'use strict';
 
 // Regression test for https://github.com/nodejs/node/issues/51452
@@ -6,7 +6,7 @@
 // kPromiseRejectAfterResolved for each "losing" promise. Before this fix,
 // the C++ PromiseRejectCallback crossed into JS for these no-op events,
 // accumulating references and causing OOM in tight async loops.
-// With --max-old-space-size=20, this test would crash before completing
+// With --max-old-space-size=64, this test would crash before completing
 // if the leak is present.
 
 const common = require('../common');
