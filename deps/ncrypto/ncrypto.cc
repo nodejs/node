@@ -3825,6 +3825,23 @@ bool EVPKeyCtxPointer::setSignatureMd(const EVPMDCtxPointer& md) {
          1;
 }
 
+bool EVPKeyCtxPointer::setSignatureMd(const Digest& md) {
+  if (!ctx_ || !md) return false;
+  return EVP_PKEY_CTX_set_signature_md(ctx_.get(), md.get()) == 1;
+}
+
+#if OPENSSL_VERSION_MAJOR >= 3
+int EVPKeyCtxPointer::initForSignEx(const OSSL_PARAM params[]) {
+  if (!ctx_) return 0;
+  return EVP_PKEY_sign_init_ex(ctx_.get(), params);
+}
+
+int EVPKeyCtxPointer::initForVerifyEx(const OSSL_PARAM params[]) {
+  if (!ctx_) return 0;
+  return EVP_PKEY_verify_init_ex(ctx_.get(), params);
+}
+#endif
+
 bool EVPKeyCtxPointer::initForEncrypt() {
   if (!ctx_) return false;
   return EVP_PKEY_encrypt_init(ctx_.get()) == 1;

@@ -88,6 +88,8 @@ void Decode(const v8::FunctionCallbackInfo<v8::Value>& args,
   V(KMAC_FAILED, "KMAC derivation failed")                                     \
   V(OK, "Ok")                                                                  \
   V(PBKDF2_FAILED, "PBKDF2 derivation failed")                                 \
+  V(PREHASH_UNSUPPORTED,                                                       \
+    "Prehashed signing is not supported for this key type")                    \
   V(SCRYPT_FAILED, "scrypt derivation failed")
 
 enum class NodeCryptoError {

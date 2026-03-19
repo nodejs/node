@@ -9,7 +9,8 @@ const {
   hasOpenSSL,
 } = require('../common/crypto');
 
-// RFC 8032 Section 7 test vectors for Ed25519, Ed25519ctx, and Ed448.
+// RFC 8032 Section 7 test vectors for Ed25519, Ed25519ctx, Ed25519ph,
+// Ed448, and Ed448ph.
 // https://www.rfc-editor.org/rfc/rfc8032.html#section-7
 
 /* eslint-disable @stylistic/js/max-len */
@@ -91,6 +92,14 @@ const vectors = [
     signature: '21655b5f1aa965996b3f97b3c849eafba922a0a62992f73b3d1b73106a84ad85e9b86a7b6005ea868337ff2d20a7f5fbd4cd10b0be49a68da2b2e0dc0ad8960f',
   },
   {
+    name: 'TEST abc',
+    algorithm: 'Ed25519ph',
+    secretKey: '833fe62409237b9d62ec77587520911e9a759cec1d19755b7da901b96dca3d42',
+    publicKey: 'ec172b93ad5e563bf4932c70e1245034c35467ef2efd4d64ebf819683467e2bf',
+    message: '616263',
+    signature: '98a70222f0b8121aa9d30f813d683f809e462b469c7ff87639499bb94e6dae4131f85042463c2a355a2003d062adf5aaa10b8c61e636062aaad11c2a26083406',
+  },
+  {
     name: 'Blank',
     algorithm: 'Ed448',
     secretKey: '6c82a562cb808d10d632be89c8513ebf6c929f34ddfa8c9f63c9960ef6e348a3528c8a3fcc2f044e39a3fc5b94492f8f032e7549a20098f95b',
@@ -163,6 +172,23 @@ const vectors = [
     message: '6ddf802e1aae4986935f7f981ba3f0351d6273c0a0c22c9c0e8339168e675412a3debfaf435ed651558007db4384b650fcc07e3b586a27a4f7a00ac8a6fec2cd86ae4bf1570c41e6a40c931db27b2faa15a8cedd52cff7362c4e6e23daec0fbc3a79b6806e316efcc7b68119bf46bc76a26067a53f296dafdbdc11c77f7777e972660cf4b6a9b369a6665f02e0cc9b6edfad136b4fabe723d2813db3136cfde9b6d044322fee2947952e031b73ab5c603349b307bdc27bc6cb8b8bbd7bd323219b8033a581b59eadebb09b3c4f3d2277d4f0343624acc817804728b25ab797172b4c5c21a22f9c7839d64300232eb66e53f31c723fa37fe387c7d3e50bdf9813a30e5bb12cf4cd930c40cfb4e1fc622592a49588794494d56d24ea4b40c89fc0596cc9ebb961c8cb10adde976a5d602b1c3f85b9b9a001ed3c6a4d3b1437f52096cd1956d042a597d561a596ecd3d1735a8d570ea0ec27225a2c4aaff26306d1526c1af3ca6d9cf5a2c98f47e1c46db9a33234cfd4d81f2c98538a09ebe76998d0d8fd25997c7d255c6d66ece6fa56f11144950f027795e653008f4bd7ca2dee85d8e90f3dc315130ce2a00375a318c7c3d97be2c8ce5b6db41a6254ff264fa6155baee3b0773c0f497c573f19bb4f4240281f0b1f4f7be857a4e59d416c06b4c50fa09e1810ddc6b1467baeac5a3668d11b6ecaa901440016f389f80acc4db977025e7f5924388c7e340a732e554440e76570f8dd71b7d640b3450d1fd5f0410a18f9a3494f707c717b79b4bf75c98400b096b21653b5d217cf3565c9597456f70703497a078763829bc01bb1cbc8fa04eadc9a6e3f6699587a9e75c94e5bab0036e0b2e711392cff0047d0d6b05bd2a588bc109718954259f1d86678a579a3120f19cfb2963f177aeb70f2d4844826262e51b80271272068ef5b3856fa8535aa2a88b2d41f2a0e2fda7624c2850272ac4a2f561f8f2f7a318bfd5caf9696149e4ac824ad3460538fdc25421beec2cc6818162d06bbed0c40a387192349db67a118bada6cd5ab0140ee273204f628aad1c135f770279a651e24d8c14d75a6059d76b96a6fd857def5e0b354b27ab937a5815d16b5fae407ff18222c6d1ed263be68c95f32d908bd895cd76207ae726487567f9a67dad79abec316f683b17f2d02bf07e0ac8b5bc6162cf94697b3c27cd1fea49b27f23ba2901871962506520c392da8b6ad0d99f7013fbc06c2c17a569500c8a7696481c1cd33e9b14e40b82e79a5f5db82571ba97bae3ad3e0479515bb0e2b0f3bfcd1fd33034efc6245eddd7ee2086ddae2600d8ca73e214e8c2b0bdb2b047c6a464a562ed77b73d2d841c4b34973551257713b753632efba348169abc90a68f42611a40126d7cb21b58695568186f7e569d2ff0f9e745d0487dd2eb997cafc5abf9dd102e62ff66cba87',
     signature: 'e301345a41a39a4d72fff8df69c98075a0cc082b802fc9b2b6bc503f926b65bddf7f4c8f1cb49f6396afc8a70abe6d8aef0db478d4c6b2970076c6a0484fe76d76b3a97625d79f1ce240e7c576750d295528286f719b413de9ada3e8eb78ed573603ce30d8bb761785dc30dbc320869e1a00',
   },
+  {
+    name: 'TEST abc',
+    algorithm: 'Ed448ph',
+    secretKey: '833fe62409237b9d62ec77587520911e9a759cec1d19755b7da901b96dca3d42ef7822e0d5104127dc05d6dbefde69e3ab2cec7c867c6e2c49',
+    publicKey: '259b71c19f83ef77a7abd26524cbdb3161b590a48f7d17de3ee0ba9c52beb743c09428a131d6b1b57303d90d8132c276d5ed3d5d01c0f53880',
+    message: '616263',
+    signature: '822f6901f7480f3d5f562c592994d9693602875614483256505600bbc281ae381f54d6bce2ea911574932f52a4e6cadd78769375ec3ffd1b801a0d9b3f4030cd433964b6457ea39476511214f97469b57dd32dbc560a9a94d00bff07620464a3ad203df7dc7ce360c3cd3696d9d9fab90f00',
+  },
+  {
+    name: 'TEST abc (with context)',
+    algorithm: 'Ed448ph',
+    secretKey: '833fe62409237b9d62ec77587520911e9a759cec1d19755b7da901b96dca3d42ef7822e0d5104127dc05d6dbefde69e3ab2cec7c867c6e2c49',
+    publicKey: '259b71c19f83ef77a7abd26524cbdb3161b590a48f7d17de3ee0ba9c52beb743c09428a131d6b1b57303d90d8132c276d5ed3d5d01c0f53880',
+    message: '616263',
+    context: '666f6f',
+    signature: 'c32299d46ec8ff02b54540982814dce9a05812f81962b649d528095916a2aa481065b1580423ef927ecf0af5888f90da0f6a9a85ad5dc3f280d91224ba9911a3653d00e484e2ce232521481c8658df304bb7745a73514cdb9bf3e15784ab71284f8d0704a608c54a6b62d97beb511d132100',
+  },
 ];
 /* eslint-enable @stylistic/js/max-len */
 
@@ -180,7 +206,7 @@ function createKeyPair(algorithm, secretKeyHex, publicKeyHex) {
 
 for (const v of vectors) {
   if (v.algorithm.startsWith('Ed448') && process.features.openssl_is_boringssl) continue;
-  if (v.algorithm.endsWith('ctx') || v.context) {
+  if (v.algorithm.endsWith('ctx') || v.algorithm.endsWith('ph') || v.context) {
     if (!hasOpenSSL(3, 2)) continue;
   }
   const { privateKey, publicKey } = createKeyPair(v.algorithm, v.secretKey, v.publicKey);
@@ -191,8 +217,22 @@ for (const v of vectors) {
   const signKey = context ? { key: privateKey, context } : privateKey;
   const verifyKey = context ? { key: publicKey, context } : publicKey;
 
-  const sig = crypto.sign(null, message, signKey);
-  assert.deepStrictEqual(sig, expectedSig);
-  assert.strictEqual(
-    crypto.verify(null, message, verifyKey, expectedSig), true);
+  const prehash = v.algorithm.endsWith('ph');
+
+  if (prehash) {
+    const hashAlgo = v.algorithm.startsWith('Ed448') ? 'shake256' : 'sha512';
+    const hashOpts = hashAlgo === 'shake256' ?
+      { outputLength: 64, outputEncoding: 'buffer' } : 'buffer';
+    const digest = crypto.hash(hashAlgo, message, hashOpts);
+
+    const sig = crypto.signDigest(null, digest, signKey);
+    assert.deepStrictEqual(sig, expectedSig);
+    assert.strictEqual(
+      crypto.verifyDigest(null, digest, verifyKey, expectedSig), true);
+  } else {
+    const sig = crypto.sign(null, message, signKey);
+    assert.deepStrictEqual(sig, expectedSig);
+    assert.strictEqual(
+      crypto.verify(null, message, verifyKey, expectedSig), true);
+  }
 }
