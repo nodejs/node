@@ -1199,7 +1199,7 @@ True to enable TLS keylogging output.
 added: v23.8.0
 -->
 
-* Type: {KeyObject|CryptoKey|KeyObject\[]|CryptoKey\[]}
+* Type: {KeyObject|KeyObject\[]}
 
 The TLS crypto keys to use for sessions.
 
