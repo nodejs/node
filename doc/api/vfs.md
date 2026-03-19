@@ -454,12 +454,13 @@ before VFS operations.
 **Operation routing:**
 
 * **Read operations** (`readFile`, `readdir`, `stat`, `lstat`, `access`,
-  `exists`, `realpath`, `readlink`): Check VFS first. If the path doesn't exist
-  in VFS, fall through to the real file system.
+  `exists`, `realpath`, `readlink`, `statfs`, `opendir`): Check VFS first. If
+  the path doesn't exist in VFS, fall through to the real file system.
 * **Write operations** (`writeFile`, `appendFile`, `mkdir`, `rename`, `unlink`,
-  `rmdir`, `symlink`, `copyFile`): Always operate on VFS. New files are created
-  in VFS, and attempting to modify a real file that doesn't exist in VFS will
-  create a new VFS file instead.
+  `rmdir`, `symlink`, `copyFile`, `truncate`, `link`, `chmod`, `chown`,
+  `utimes`, `lutimes`, `mkdtemp`, `rm`, `cp`): Always operate on VFS. New
+  files are created in VFS, and attempting to modify a real file that doesn't
+  exist in VFS will create a new VFS file instead.
 * **File descriptors**: Once a file is opened, all subsequent operations on that
   descriptor stay within the same layer (VFS or real FS) where it was opened.
 
@@ -468,16 +469,6 @@ before VFS operations.
 The `VirtualFileSystem` class supports all common synchronous `node:fs` methods
 for reading, writing, and managing files and directories. Methods mirror the
 `node:fs` module API.
-
-The following `node:fs` sync methods have **no** VFS equivalent:
-
-* `chmodSync()` / `fchmodSync()` - VFS does not support permission changes
-* `chownSync()` / `fchownSync()` - VFS does not support ownership changes
-* `truncateSync()` / `ftruncateSync()` - Use `writeFileSync()` instead
-* `utimesSync()` / `futimesSync()` / `lutimesSync()` - VFS does not support
-  changing timestamps
-* `linkSync()` - VFS does not support hard links (use `symlinkSync()`)
-* `fdatasyncSync()` / `fsyncSync()` - Not applicable to in-memory storage
 
 #### Promise Methods
 
@@ -534,6 +525,17 @@ added: REPLACEME
 * {boolean}
 
 Returns `true` if the provider supports symbolic links.
+
+### `provider.supportsWatch`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+Returns `true` if the provider supports file watching via `watch()`,
+`watchFile()`, and `unwatchFile()`.
 
 ### Creating Custom Providers
 
@@ -718,6 +720,8 @@ method is intercepted in its synchronous, callback, and/or promise form.
 * `realpathSync()`, `realpath()`, `fs.promises.realpath()`
 * `accessSync()`, `access()`, `fs.promises.access()`
 * `readlinkSync()`, `readlink()`, `fs.promises.readlink()`
+* `statfsSync()`, `statfs()`, `fs.promises.statfs()`
+* `opendirSync()`, `opendir()`
 
 **Path-based write operations** (synchronous, callback, and promise):
 
@@ -730,6 +734,16 @@ method is intercepted in its synchronous, callback, and/or promise form.
 * `renameSync()`, `rename()`, `fs.promises.rename()`
 * `copyFileSync()`, `copyFile()`, `fs.promises.copyFile()`
 * `symlinkSync()`, `symlink()`, `fs.promises.symlink()`
+* `truncateSync()`, `truncate()`, `fs.promises.truncate()`
+* `linkSync()`, `link()`, `fs.promises.link()`
+* `chmodSync()`, `chmod()`, `fs.promises.chmod()`
+* `chownSync()`, `chown()`, `fs.promises.chown()`
+* `lchownSync()`, `lchown()`, `fs.promises.lchown()`
+* `utimesSync()`, `utimes()`, `fs.promises.utimes()`
+* `lutimesSync()`, `lutimes()`, `fs.promises.lutimes()`
+* `mkdtempSync()`, `mkdtemp()`, `fs.promises.mkdtemp()`
+* `lchmod()`, `fs.promises.lchmod()`
+* `cpSync()`, `cp()`, `fs.promises.cp()`
 
 **File descriptor operations** (synchronous and callback):
 
@@ -737,7 +751,15 @@ method is intercepted in its synchronous, callback, and/or promise form.
 * `closeSync()`, `close()`
 * `readSync()`, `read()`
 * `writeSync()`, `write()`
+* `readvSync()`, `readv()`
+* `writevSync()`, `writev()`
 * `fstatSync()`, `fstat()`
+* `ftruncateSync()`, `ftruncate()`
+* `fchmodSync()`, `fchmod()` (no-op for VFS file descriptors)
+* `fchownSync()`, `fchown()` (no-op for VFS file descriptors)
+* `futimesSync()`, `futimes()` (no-op for VFS file descriptors)
+* `fdatasyncSync()`, `fdatasync()` (no-op for VFS file descriptors)
+* `fsyncSync()`, `fsync()` (no-op for VFS file descriptors)
 
 Virtual file descriptors use values starting at 10000 to avoid conflicts with
 real file descriptors.
@@ -758,18 +780,7 @@ real file descriptors.
 The following `node:fs` methods are **not** intercepted and always operate on
 the real file system:
 
-* `chmod()`, `chmodSync()`, `fchmod()`, `fchmodSync()`
-* `chown()`, `chownSync()`, `fchown()`, `fchownSync()`
-* `truncate()`, `truncateSync()`, `ftruncate()`, `ftruncateSync()`
-* `utimes()`, `utimesSync()`, `futimes()`, `futimesSync()`, `lutimes()`,
-  `lutimesSync()`
-* `link()`, `linkSync()`
-* `fdatasync()`, `fdatasyncSync()`, `fsync()`, `fsyncSync()`
-* `mkdtemp()`, `mkdtempSync()`
-* `cp()`, `cpSync()`
 * `glob()`, `globSync()`
-* `statfs()`, `statfsSync()`
-* `opendir()`, `opendirSync()`
 
 ## Integration with module loading
 
