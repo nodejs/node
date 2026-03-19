@@ -202,3 +202,32 @@ test('100% statement coverage for fully covered file', () => {
   assert.ok(invalidTap, 'invalid-tap.js should be in the report');
   assert.strictEqual(invalidTap.coveredStatementPercent, 100);
 });
+
+test('statement coverage counts class and function declarations', () => {
+  const classFixture = fixtures.path('test-runner', 'coverage-class.js');
+  const result = spawnSync(process.execPath, [
+    '--test',
+    '--experimental-test-coverage',
+    '--test-coverage-exclude=!test/**',
+    '--test-reporter', reporter,
+    classFixture,
+  ]);
+
+  assert.strictEqual(result.stderr.toString(), '');
+  assert.strictEqual(result.status, 0);
+
+  const { summary } = JSON.parse(result.stdout.toString());
+  const classFile = summary.files.find(
+    (f) => f.path.endsWith('coverage-class.js'),
+  );
+
+  assert.ok(classFile, 'coverage-class.js should be in the report');
+  assert.ok(classFile.totalStatementCount > 0,
+            `totalStatementCount must be > 0, got ${classFile.totalStatementCount}`);
+
+  // The file has an unused class, so statement coverage should be < 100%.
+  assert.ok(classFile.coveredStatementPercent < 100,
+            'should have uncovered statements from UnusedClass');
+  assert.ok(classFile.coveredStatementPercent > 0,
+            'should have covered statements from Dog/Animal');
+});
