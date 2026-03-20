@@ -215,9 +215,9 @@ const vfs = require('node:vfs');
   const myVfs = vfs.create();
   myVfs.writeFileSync('/target', 'content');
   myVfs.symlinkSync('/target', '/link');
-  myVfs.mount('/virtual');
+  myVfs.mount('/vsym_arl');
 
-  myVfs.readlink('/virtual/link', common.mustSucceed((target) => {
+  myVfs.readlink('/vsym_arl/link', common.mustSucceed((target) => {
     assert.strictEqual(target, '/target');
     myVfs.unmount();
   }));
@@ -229,10 +229,10 @@ const vfs = require('node:vfs');
   myVfs.mkdirSync('/real', { recursive: true });
   myVfs.writeFileSync('/real/file.txt', 'content');
   myVfs.symlinkSync('/real', '/link');
-  myVfs.mount('/virtual');
+  myVfs.mount('/vsym_arp');
 
-  myVfs.realpath('/virtual/link/file.txt', common.mustSucceed((resolvedPath) => {
-    assert.strictEqual(resolvedPath, path.resolve('/virtual/real/file.txt'));
+  myVfs.realpath('/vsym_arp/link/file.txt', common.mustSucceed((resolvedPath) => {
+    assert.strictEqual(resolvedPath, path.resolve('/vsym_arp/real/file.txt'));
     myVfs.unmount();
   }));
 }
@@ -242,10 +242,10 @@ const vfs = require('node:vfs');
   const myVfs = vfs.create();
   myVfs.writeFileSync('/file.txt', 'x'.repeat(50));
   myVfs.symlinkSync('/file.txt', '/link.txt');
-  myVfs.mount('/virtual');
+  myVfs.mount('/vsym_pst');
 
   (async () => {
-    const stat = await myVfs.promises.stat('/virtual/link.txt');
+    const stat = await myVfs.promises.stat('/vsym_pst/link.txt');
     assert.strictEqual(stat.isFile(), true);
     assert.strictEqual(stat.size, 50);
     myVfs.unmount();
@@ -257,10 +257,10 @@ const vfs = require('node:vfs');
   const myVfs = vfs.create();
   myVfs.writeFileSync('/file.txt', 'x'.repeat(50));
   myVfs.symlinkSync('/file.txt', '/link.txt');
-  myVfs.mount('/virtual');
+  myVfs.mount('/vsym_pls');
 
   (async () => {
-    const lstat = await myVfs.promises.lstat('/virtual/link.txt');
+    const lstat = await myVfs.promises.lstat('/vsym_pls/link.txt');
     assert.strictEqual(lstat.isSymbolicLink(), true);
     myVfs.unmount();
   })().then(common.mustCall());
@@ -271,10 +271,10 @@ const vfs = require('node:vfs');
   const myVfs = vfs.create();
   myVfs.writeFileSync('/target', 'content');
   myVfs.symlinkSync('/target', '/link');
-  myVfs.mount('/virtual');
+  myVfs.mount('/vsym_prl');
 
   (async () => {
-    const target = await myVfs.promises.readlink('/virtual/link');
+    const target = await myVfs.promises.readlink('/vsym_prl/link');
     assert.strictEqual(target, '/target');
     myVfs.unmount();
   })().then(common.mustCall());
@@ -286,11 +286,11 @@ const vfs = require('node:vfs');
   myVfs.mkdirSync('/real', { recursive: true });
   myVfs.writeFileSync('/real/file.txt', 'content');
   myVfs.symlinkSync('/real', '/link');
-  myVfs.mount('/virtual');
+  myVfs.mount('/vsym_prp');
 
   (async () => {
-    const resolved = await myVfs.promises.realpath('/virtual/link/file.txt');
-    assert.strictEqual(resolved, path.resolve('/virtual/real/file.txt'));
+    const resolved = await myVfs.promises.realpath('/vsym_prp/link/file.txt');
+    assert.strictEqual(resolved, path.resolve('/vsym_prp/real/file.txt'));
     myVfs.unmount();
   })().then(common.mustCall());
 }
