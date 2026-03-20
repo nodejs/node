@@ -51,12 +51,12 @@ namespace {
 bool DoKEMEncapsulate(Environment* env,
                       const EVPKeyPointer& public_key,
                       ByteSource* out,
-                      CryptoJobMode mode) {
+                      CryptoJobMode mode,
+                      CryptoErrorStore* errors) {
   auto result = ncrypto::KEM::Encapsulate(public_key);
   if (!result) {
-    if (mode == kCryptoJobSync) {
-      THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to perform encapsulation");
-    }
+    errors->Insert(NodeCryptoError::ENCAPSULATION_FAILED);
+    errors->SetNodeErrorCode("ERR_CRYPTO_OPERATION_FAILED");
     return false;
   }
 
@@ -68,10 +68,8 @@ bool DoKEMEncapsulate(Environment* env,
 
   auto data = ncrypto::DataPointer::Alloc(total_len);
   if (!data) {
-    if (mode == kCryptoJobSync) {
-      THROW_ERR_CRYPTO_OPERATION_FAILED(env,
-                                        "Failed to allocate output buffer");
-    }
+    errors->Insert(NodeCryptoError::ALLOCATION_FAILED);
+    errors->SetNodeErrorCode("ERR_CRYPTO_OPERATION_FAILED");
     return false;
   }
 
@@ -97,14 +95,14 @@ bool DoKEMDecapsulate(Environment* env,
                       const EVPKeyPointer& private_key,
                       const ByteSource& ciphertext,
                       ByteSource* out,
-                      CryptoJobMode mode) {
+                      CryptoJobMode mode,
+                      CryptoErrorStore* errors) {
   ncrypto::Buffer<const void> ciphertext_buf{ciphertext.data(),
                                              ciphertext.size()};
   auto shared_key = ncrypto::KEM::Decapsulate(private_key, ciphertext_buf);
   if (!shared_key) {
-    if (mode == kCryptoJobSync) {
-      THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to perform decapsulation");
-    }
+    errors->Insert(NodeCryptoError::DECAPSULATION_FAILED);
+    errors->SetNodeErrorCode("ERR_CRYPTO_OPERATION_FAILED");
     return false;
   }
 
@@ -137,11 +135,12 @@ Maybe<void> KEMEncapsulateTraits::AdditionalConfig(
 bool KEMEncapsulateTraits::DeriveBits(Environment* env,
                                       const KEMConfiguration& params,
                                       ByteSource* out,
-                                      CryptoJobMode mode) {
+                                      CryptoJobMode mode,
+                                      CryptoErrorStore* errors) {
   Mutex::ScopedLock lock(params.key.mutex());
   const auto& public_key = params.key.GetAsymmetricKey();
 
-  return DoKEMEncapsulate(env, public_key, out, mode);
+  return DoKEMEncapsulate(env, public_key, out, mode, errors);
 }
 
 MaybeLocal<Value> KEMEncapsulateTraits::EncodeOutput(
@@ -218,11 +217,13 @@ Maybe<void> KEMDecapsulateTraits::AdditionalConfig(
 bool KEMDecapsulateTraits::DeriveBits(Environment* env,
                                       const KEMConfiguration& params,
                                       ByteSource* out,
-                                      CryptoJobMode mode) {
+                                      CryptoJobMode mode,
+                                      CryptoErrorStore* errors) {
   Mutex::ScopedLock lock(params.key.mutex());
   const auto& private_key = params.key.GetAsymmetricKey();
 
-  return DoKEMDecapsulate(env, private_key, params.ciphertext, out, mode);
+  return DoKEMDecapsulate(
+      env, private_key, params.ciphertext, out, mode, errors);
 }
 
 MaybeLocal<Value> KEMDecapsulateTraits::EncodeOutput(

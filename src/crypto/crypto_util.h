@@ -72,13 +72,23 @@ void Decode(const v8::FunctionCallbackInfo<v8::Value>& args,
   }
 }
 
-#define NODE_CRYPTO_ERROR_CODES_MAP(V)                                        \
-    V(CIPHER_JOB_FAILED, "Cipher job failed")                                 \
-    V(DERIVING_BITS_FAILED, "Deriving bits failed")                           \
-    V(ENGINE_NOT_FOUND, "Engine \"%s\" was not found")                        \
-    V(INVALID_KEY_TYPE, "Invalid key type")                                   \
-    V(KEY_GENERATION_JOB_FAILED, "Key generation job failed")                 \
-    V(OK, "Ok")                                                               \
+#define NODE_CRYPTO_ERROR_CODES_MAP(V)                                         \
+  V(ALLOCATION_FAILED, "Failed to allocate output buffer")                     \
+  V(ARGON2_FAILED, "Argon2 derivation failed")                                 \
+  V(CIPHER_JOB_FAILED, "Cipher job failed")                                    \
+  V(CONTEXT_UNSUPPORTED, "Context parameter is unsupported")                   \
+  V(DECAPSULATION_FAILED, "Decapsulation failed")                              \
+  V(DERIVING_BITS_FAILED, "Deriving bits failed")                              \
+  V(ECDH_FAILED, "ECDH key agreement failed")                                  \
+  V(ENCAPSULATION_FAILED, "Encapsulation failed")                              \
+  V(ENGINE_NOT_FOUND, "Engine \"%s\" was not found")                           \
+  V(HKDF_FAILED, "HKDF derivation failed")                                     \
+  V(INVALID_KEY_TYPE, "Invalid key type")                                      \
+  V(KEY_GENERATION_JOB_FAILED, "Key generation job failed")                    \
+  V(KMAC_FAILED, "KMAC derivation failed")                                     \
+  V(OK, "Ok")                                                                  \
+  V(PBKDF2_FAILED, "PBKDF2 derivation failed")                                 \
+  V(SCRYPT_FAILED, "scrypt derivation failed")
 
 enum class NodeCryptoError {
 #define V(CODE, DESCRIPTION) CODE,
@@ -115,12 +125,16 @@ struct CryptoErrorStore final : public MemoryRetainer {
       Environment* env,
       v8::Local<v8::String> exception_string = v8::Local<v8::String>()) const;
 
+  void SetNodeErrorCode(const char* code) { node_error_code_ = code; }
+
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(CryptoErrorStore)
   SET_SELF_SIZE(CryptoErrorStore)
 
  private:
   std::vector<std::string> errors_;
+  unsigned long primary_openssl_error_ = 0;  // NOLINT(runtime/int)
+  const char* node_error_code_ = nullptr;
 };
 
 template <typename... Args>
@@ -411,14 +425,17 @@ class DeriveBitsJob final : public CryptoJob<DeriveBitsTraits> {
 
   void DoThreadPoolWork() override {
     ncrypto::ClearErrorOnReturn clear_error_on_return;
+    CryptoErrorStore* errors = CryptoJob<DeriveBitsTraits>::errors();
     if (!DeriveBitsTraits::DeriveBits(AsyncWrap::env(),
                                       *CryptoJob<DeriveBitsTraits>::params(),
                                       &out_,
-                                      this->mode())) {
-      CryptoErrorStore* errors = CryptoJob<DeriveBitsTraits>::errors();
-      errors->Capture();
-      if (errors->Empty())
+                                      this->mode(),
+                                      errors)) {
+      if (errors->Empty()) errors->Capture();
+      if (errors->Empty()) {
         errors->Insert(NodeCryptoError::DERIVING_BITS_FAILED);
+        errors->SetNodeErrorCode("ERR_CRYPTO_OPERATION_FAILED");
+      }
       return;
     }
     success_ = true;

@@ -224,7 +224,7 @@ for (const [name, {
   {
     const { ciphertext } = crypto.encapsulate(publicKey);
     assert.throws(() => crypto.decapsulate(wrongPrivateKey, ciphertext), {
-      message: /Failed to (initialize|perform) decapsulation/,
+      message: /Decapsulation failed/,
       code: 'ERR_CRYPTO_OPERATION_FAILED',
     });
   }
@@ -234,7 +234,8 @@ for (const [name, {
     crypto.encapsulate(publicKey, common.mustSucceed(({ ciphertext }) => {
       crypto.decapsulate(wrongPrivateKey, ciphertext, common.mustCall((err) => {
         assert(err);
-        assert.strictEqual(err.message, 'Deriving bits failed');
+        assert.match(err.message, /Decapsulation failed/);
+        assert.strictEqual(err.code, 'ERR_CRYPTO_OPERATION_FAILED');
       }));
     }));
   }

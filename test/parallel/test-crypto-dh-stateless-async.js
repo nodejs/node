@@ -141,6 +141,7 @@ for (const [params1, params2] of list) {
     assert.ok(err);
     assert.strictEqual(err.name, 'Error');
     assert.match(err.message, hasOpenSSL3 ? /mismatching domain parameters/ : /different parameters/);
+    assert.match(err.code, /^ERR_OSSL_.*(?:MISMATCHING_DOMAIN_PARAMETERS|DIFFERENT_PARAMETERS)$/);
   }));
 }
 
@@ -199,6 +200,7 @@ crypto.diffieHellman({
   assert.ok(err);
   assert.strictEqual(err.name, 'Error');
   assert.match(err.message, hasOpenSSL3 ? /mismatching domain parameters/ : /different parameters/);
+  assert.match(err.code, /^ERR_OSSL_.*(?:MISMATCHING_DOMAIN_PARAMETERS|DIFFERENT_PARAMETERS)$/);
 }));
 
 test(crypto.generateKeyPairSync('x448'),
@@ -216,5 +218,6 @@ test(crypto.generateKeyPairSync('x25519'),
     assert.ok(err);
     assert.strictEqual(err.name, 'Error');
     assert.match(err.message, hasOpenSSL3 ? /failed during derivation/ : /Deriving bits failed/);
+    assert.strictEqual(err.code, hasOpenSSL3 ? 'ERR_OSSL_FAILED_DURING_DERIVATION' : 'ERR_CRYPTO_OPERATION_FAILED');
   }));
 }

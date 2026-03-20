@@ -100,7 +100,8 @@ Maybe<void> HKDFTraits::AdditionalConfig(
 bool HKDFTraits::DeriveBits(Environment* env,
                             const HKDFConfig& params,
                             ByteSource* out,
-                            CryptoJobMode mode) {
+                            CryptoJobMode mode,
+                            CryptoErrorStore* errors) {
   auto dp = ncrypto::hkdf(params.digest,
                           ncrypto::Buffer<const unsigned char>{
                               .data = reinterpret_cast<const unsigned char*>(
@@ -116,7 +117,10 @@ bool HKDFTraits::DeriveBits(Environment* env,
                               .len = params.salt.size(),
                           },
                           params.length);
-  if (!dp) return false;
+  if (!dp) {
+    errors->Insert(NodeCryptoError::HKDF_FAILED);
+    return false;
+  }
 
   DCHECK(!dp.isSecure());
   *out = ByteSource::Allocated(dp.release());

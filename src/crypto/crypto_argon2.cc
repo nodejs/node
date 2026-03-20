@@ -124,7 +124,8 @@ Maybe<void> Argon2Traits::AdditionalConfig(
 bool Argon2Traits::DeriveBits(Environment* env,
                               const Argon2Config& config,
                               ByteSource* out,
-                              CryptoJobMode mode) {
+                              CryptoJobMode mode,
+                              CryptoErrorStore* errors) {
   // If the config.length is zero-length, just return an empty buffer.
   // It's useless, yes, but allowed via the API.
   if (config.keylen == 0) {
@@ -144,7 +145,10 @@ bool Argon2Traits::DeriveBits(Environment* env,
                             config.ad,
                             config.type);
 
-  if (!dp) return false;
+  if (!dp) {
+    errors->Insert(NodeCryptoError::ARGON2_FAILED);
+    return false;
+  }
   DCHECK(!dp.isSecure());
   *out = ByteSource::Allocated(dp.release());
   return true;

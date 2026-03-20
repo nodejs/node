@@ -688,8 +688,8 @@ Maybe<void> SignTraits::AdditionalConfig(
 bool SignTraits::DeriveBits(Environment* env,
                             const SignConfiguration& params,
                             ByteSource* out,
-                            CryptoJobMode mode) {
-  bool can_throw = mode == CryptoJobMode::kCryptoJobSync;
+                            CryptoJobMode mode,
+                            CryptoErrorStore* errors) {
   auto context = EVPMDCtxPointer::New();
   if (!context) [[unlikely]]
     return false;
@@ -699,7 +699,8 @@ bool SignTraits::DeriveBits(Environment* env,
                       params.context_string.size() > 0);
 
   if (has_context && !SupportsContextString(key)) {
-    if (can_throw) crypto::CheckThrow(env, SignBase::Error::ContextUnsupported);
+    errors->Insert(NodeCryptoError::CONTEXT_UNSUPPORTED);
+    errors->SetNodeErrorCode("ERR_CRYPTO_OPERATION_FAILED");
     return false;
   }
 
@@ -728,7 +729,6 @@ bool SignTraits::DeriveBits(Environment* env,
   })();
 
   if (!ctx.has_value()) [[unlikely]] {
-    if (can_throw) crypto::CheckThrow(env, SignBase::Error::Init);
     return false;
   }
 
@@ -742,7 +742,6 @@ bool SignTraits::DeriveBits(Environment* env,
           : std::nullopt;
 
   if (!ApplyRSAOptions(key, *ctx, padding, salt_length)) {
-    if (can_throw) crypto::CheckThrow(env, SignBase::Error::PrivateKey);
     return false;
   }
 
@@ -751,7 +750,6 @@ bool SignTraits::DeriveBits(Environment* env,
       if (key.isOneShotVariant()) {
         auto data = context.signOneShot(params.data);
         if (!data) [[unlikely]] {
-          if (can_throw) crypto::CheckThrow(env, SignBase::Error::PrivateKey);
           return false;
         }
         DCHECK(!data.isSecure());
@@ -759,7 +757,6 @@ bool SignTraits::DeriveBits(Environment* env,
       } else {
         auto data = context.sign(params.data);
         if (!data) [[unlikely]] {
-          if (can_throw) crypto::CheckThrow(env, SignBase::Error::PrivateKey);
           return false;
         }
         DCHECK(!data.isSecure());
