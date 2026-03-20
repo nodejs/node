@@ -8,6 +8,7 @@
 </tr>
 <tr>
 <td>
+<a href="#25.8.2">25.8.2</a><br/>
 <a href="#25.8.1">25.8.1</a><br/>
 <a href="#25.8.0">25.8.0</a><br/>
 <a href="#25.7.0">25.7.0</a><br/>
@@ -50,6 +51,40 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="25.8.2"></a>
+
+## 2026-03-24, Version 25.8.2 (Current), @RafaelGSS
+
+This is a security release.
+
+### Notable Changes
+
+* (CVE-2026-21637) wrap `SNICallback` invocation in `try`/`catch` (Matteo Collina) - High
+* (CVE-2026-21710) use null prototype for `headersDistinct`/`trailersDistinct` (Matteo Collina) - High
+* (CVE-2026-21711) include permission check to `pipe_wrap.cc` (RafaelGSS) - Medium
+* (CVE-2026-21712) handle url crash on different url formats (RafaelGSS) - Medium
+* (CVE-2026-21713) use timing-safe comparison in Web Cryptography HMAC and KMAC (Filip Skokan) - Medium
+* (CVE-2026-21714) handle `NGHTTP2_ERR_FLOW_CONTROL` error code (RafaelGSS) - Medium
+* (CVE-2026-21717) test array index hash collision (Joyee Cheung) - Medium
+* (CVE-2026-21715) add permission check to `realpath.native` (RafaelGSS) - Low
+* (CVE-2026-21716) include permission check on `lib/fs/promises` (RafaelGSS) - Low
+
+### Commits
+
+* \[[`2086b7477b`](https://github.com/nodejs/node/commit/2086b7477b)] - **(CVE-2026-21717)** **build,test**: test array index hash collision (Joyee Cheung) [nodejs-private/node-private#834](https://github.com/nodejs-private/node-private/pull/834)
+* \[[`0f9332a40a`](https://github.com/nodejs/node/commit/0f9332a40a)] - **(CVE-2026-21713)** **crypto**: use timing-safe comparison in Web Cryptography HMAC and KMAC (Filip Skokan) [nodejs-private/node-private#822](https://github.com/nodejs-private/node-private/pull/822)
+* \[[`2b6937ddb2`](https://github.com/nodejs/node/commit/2b6937ddb2)] - **deps**: update undici to 7.24.4 (Node.js GitHub Bot) [#62271](https://github.com/nodejs/node/pull/62271)
+* \[[`bfb8ad5787`](https://github.com/nodejs/node/commit/bfb8ad5787)] - **deps**: update undici to 7.24.3 (Node.js GitHub Bot) [#62233](https://github.com/nodejs/node/pull/62233)
+* \[[`be6384727f`](https://github.com/nodejs/node/commit/be6384727f)] - **deps**: upgrade npm to 11.11.1 (npm team) [#62216](https://github.com/nodejs/node/pull/62216)
+* \[[`2feea5bb97`](https://github.com/nodejs/node/commit/2feea5bb97)] - **deps**: V8: override `depot_tools` version (Richard Lau) [#62344](https://github.com/nodejs/node/pull/62344)
+* \[[`86c04784dd`](https://github.com/nodejs/node/commit/86c04784dd)] - **(CVE-2026-21710)** **http**: use null prototype for headersDistinct/trailersDistinct (Matteo Collina) [nodejs-private/node-private#821](https://github.com/nodejs-private/node-private/pull/821)
+* \[[`5197a56a34`](https://github.com/nodejs/node/commit/5197a56a34)] - **(CVE-2026-21711)** **permission**: include permission check to pipe\_wrap.cc (RafaelGSS) [nodejs-private/node-private#820](https://github.com/nodejs-private/node-private/pull/820)
+* \[[`04a886c735`](https://github.com/nodejs/node/commit/04a886c735)] - **(CVE-2026-21716)** **permission**: include permission check on lib/fs/promises (RafaelGSS) [nodejs-private/node-private#795](https://github.com/nodejs-private/node-private/pull/795)
+* \[[`9a7f80f2b0`](https://github.com/nodejs/node/commit/9a7f80f2b0)] - **(CVE-2026-21715)** **permission**: add permission check to realpath.native (RafaelGSS) [nodejs-private/node-private#794](https://github.com/nodejs-private/node-private/pull/794)
+* \[[`d9c9b628cf`](https://github.com/nodejs/node/commit/d9c9b628cf)] - **(CVE-2026-21714)** **src**: handle NGHTTP2\_ERR\_FLOW\_CONTROL error code (RafaelGSS) [nodejs-private/node-private#832](https://github.com/nodejs-private/node-private/pull/832)
+* \[[`45b55dc786`](https://github.com/nodejs/node/commit/45b55dc786)] - **(CVE-2026-21712)** **src**: handle url crash on different url formats (RafaelGSS) [nodejs-private/node-private#816](https://github.com/nodejs-private/node-private/pull/816)
+* \[[`4bfda307c0`](https://github.com/nodejs/node/commit/4bfda307c0)] - **(CVE-2026-21637)** **tls**: wrap SNICallback invocation in try/catch (Matteo Collina) [nodejs-private/node-private#819](https://github.com/nodejs-private/node-private/pull/819)
 
 <a id="25.8.1"></a>
 
