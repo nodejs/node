@@ -9,7 +9,7 @@
     "@eslint/js": "^10.0.1",
     "@eslint/markdown": "^7.5.1",
     "@stylistic/eslint-plugin": "^5.10.0",
-    "eslint": "^10.0.3",
+    "eslint": "^10.1.0",
     "eslint-formatter-tap": "^9.0.1",
     "eslint-plugin-jsdoc": "^62.8.0",
     "eslint-plugin-regexp": "^3.1.0",
