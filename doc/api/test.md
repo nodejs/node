@@ -3255,12 +3255,15 @@ are defined, while others are emitted in the order that the tests execute.
       * `totalLineCount` {number} The total number of lines.
       * `totalBranchCount` {number} The total number of branches.
       * `totalFunctionCount` {number} The total number of functions.
+      * `totalStatementCount` {number} The total number of statements.
       * `coveredLineCount` {number} The number of covered lines.
       * `coveredBranchCount` {number} The number of covered branches.
       * `coveredFunctionCount` {number} The number of covered functions.
+      * `coveredStatementCount` {number} The number of covered statements.
       * `coveredLinePercent` {number} The percentage of lines covered.
       * `coveredBranchPercent` {number} The percentage of branches covered.
       * `coveredFunctionPercent` {number} The percentage of functions covered.
+      * `coveredStatementPercent` {number} The percentage of statements covered.
       * `functions` {Array} An array of functions representing function
         coverage.
         * `name` {string} The name of the function.
@@ -3273,22 +3276,30 @@ are defined, while others are emitted in the order that the tests execute.
         numbers and the number of times they were covered.
         * `line` {number} The line number.
         * `count` {number} The number of times the line was covered.
+      * `statements` {Array} An array of statements representing statement
+        coverage.
+        * `line` {number} The line number where the statement starts.
+        * `count` {number} The number of times the statement was executed.
     * `thresholds` {Object} An object containing whether or not the coverage for
       each coverage type.
       * `function` {number} The function coverage threshold.
       * `branch` {number} The branch coverage threshold.
       * `line` {number} The line coverage threshold.
+      * `statement` {number} The statement coverage threshold.
     * `totals` {Object} An object containing a summary of coverage for all
       files.
       * `totalLineCount` {number} The total number of lines.
       * `totalBranchCount` {number} The total number of branches.
       * `totalFunctionCount` {number} The total number of functions.
+      * `totalStatementCount` {number} The total number of statements.
       * `coveredLineCount` {number} The number of covered lines.
       * `coveredBranchCount` {number} The number of covered branches.
       * `coveredFunctionCount` {number} The number of covered functions.
+      * `coveredStatementCount` {number} The number of covered statements.
       * `coveredLinePercent` {number} The percentage of lines covered.
       * `coveredBranchPercent` {number} The percentage of branches covered.
       * `coveredFunctionPercent` {number} The percentage of functions covered.
+      * `coveredStatementPercent` {number} The percentage of statements covered.
     * `workingDirectory` {string} The working directory when code coverage
       began. This is useful for displaying relative path names in case the tests
       changed the working directory of the Node.js process.

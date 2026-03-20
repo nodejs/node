@@ -4,10 +4,8 @@ const assert = require('node:assert');
 const { spawnSync } = require('node:child_process');
 const { test } = require('node:test');
 const fixtures = require('../common/fixtures');
-const tmpdir = require('../common/tmpdir');
 
 common.skipIfInspectorDisabled();
-tmpdir.refresh();
 
 const fixture = fixtures.path('test-runner', 'coverage.js');
 const reporter = fixtures.fileURL('test-runner/custom_reporters/coverage.mjs');
@@ -102,74 +100,8 @@ test('statement coverage reports covered and uncovered statements', () => {
             'should have covered statements');
 });
 
-test('statement coverage threshold passing', () => {
-  const result = spawnSync(process.execPath, [
-    '--test',
-    '--experimental-test-coverage',
-    '--test-coverage-exclude=!test/**',
-    '--test-coverage-statements=25',
-    '--test-reporter', 'tap',
-    fixture,
-  ]);
-
-  const stdout = result.stdout.toString();
-  assert.doesNotMatch(stdout, /Error: [\d.]+% statement coverage/);
-  assert.strictEqual(result.status, 0);
-});
-
-test('statement coverage threshold failing', () => {
-  const result = spawnSync(process.execPath, [
-    '--test',
-    '--experimental-test-coverage',
-    '--test-coverage-exclude=!test/**',
-    '--test-coverage-statements=99',
-    '--test-reporter', 'tap',
-    fixture,
-  ]);
-
-  const stdout = result.stdout.toString();
-  assert.match(stdout, /Error: [\d.]+% statement coverage does not meet threshold of 99%/);
-  assert.strictEqual(result.status, 1);
-});
-
-test('statement coverage threshold with custom reporter', () => {
-  const result = spawnSync(process.execPath, [
-    '--test',
-    '--experimental-test-coverage',
-    '--test-coverage-exclude=!test/**',
-    '--test-coverage-statements=50',
-    '--test-reporter', reporter,
-    fixture,
-  ]);
-
-  const stdout = JSON.parse(result.stdout.toString());
-  assert.strictEqual(stdout.summary.thresholds.statement, 50);
-  assert.strictEqual(result.status, 0);
-});
-
-test('statement coverage out-of-range threshold (too high)', () => {
-  const result = spawnSync(process.execPath, [
-    '--test',
-    '--experimental-test-coverage',
-    '--test-coverage-statements=101',
-    fixture,
-  ]);
-
-  assert.match(result.stderr.toString(), /The value of "--test-coverage-statements"/);
-  assert.strictEqual(result.status, 1);
-});
-
-test('statement coverage out-of-range threshold (too low)', () => {
-  const result = spawnSync(process.execPath, [
-    '--test',
-    '--experimental-test-coverage',
-    '--test-coverage-statements=-1',
-    fixture,
-  ]);
-
-  assert.match(result.stderr.toString(), /The value of "--test-coverage-statements"/);
-  assert.strictEqual(result.status, 1);
-});
+// Threshold passing/failing/out-of-range tests are in
+// test-runner-coverage-thresholds.js via the data-driven coverages loop.
 
 test('statement coverage column appears in report', () => {
   const result = spawnSync(process.execPath, [
@@ -201,6 +133,112 @@ test('100% statement coverage for fully covered file', () => {
   const invalidTap = summary.files.find((f) => f.path.endsWith('invalid-tap.js'));
   assert.ok(invalidTap, 'invalid-tap.js should be in the report');
   assert.strictEqual(invalidTap.coveredStatementPercent, 100);
+});
+
+test('statement coverage differs from line coverage on multistatement lines', () => {
+  const multiFixture = fixtures.path('test-runner', 'coverage-multistatement.js');
+  const result = spawnSync(process.execPath, [
+    '--test',
+    '--experimental-test-coverage',
+    '--test-coverage-exclude=!test/**',
+    '--test-reporter', reporter,
+    multiFixture,
+  ]);
+
+  assert.strictEqual(result.stderr.toString(), '');
+  assert.strictEqual(result.status, 0);
+
+  const { summary } = JSON.parse(result.stdout.toString());
+  const file = summary.files.find(
+    (f) => f.path.endsWith('coverage-multistatement.js'),
+  );
+
+  assert.ok(file, 'coverage-multistatement.js should be in the report');
+  assert.ok(file.totalStatementCount > 0,
+            'should have statements');
+
+  // The key assertion: statement coverage should be LOWER than line
+  // coverage because multiple statements share single lines where
+  // only some execute (e.g. early returns, single-line if/else).
+  assert.ok(file.coveredStatementPercent < file.coveredLinePercent,
+            `statement % (${file.coveredStatementPercent}) should be ` +
+            `lower than line % (${file.coveredLinePercent})`);
+
+  // The uncalled function has statements that are never executed
+  const uncoveredStmts = file.statements.filter((s) => s.count === 0);
+  assert.ok(uncoveredStmts.length > 0,
+            'should have uncovered statements from skipped branches and neverCalled');
+});
+
+test('shebang files get real statement coverage with allowHashBang', () => {
+  const shebangFixture = fixtures.path('test-runner', 'coverage-shebang.js');
+  const result = spawnSync(process.execPath, [
+    '--test',
+    '--experimental-test-coverage',
+    '--test-coverage-exclude=!test/**',
+    '--test-reporter', reporter,
+    shebangFixture,
+  ]);
+
+  assert.strictEqual(result.stderr.toString(), '');
+  assert.strictEqual(result.status, 0);
+
+  const { summary } = JSON.parse(result.stdout.toString());
+  const file = summary.files.find(
+    (f) => f.path.endsWith('coverage-shebang.js'),
+  );
+
+  assert.ok(file, 'coverage-shebang.js should be in the report');
+
+  // With allowHashBang: true, acorn parses the file successfully
+  // and totalStatementCount should be > 0 (not degraded to null).
+  assert.ok(file.totalStatementCount > 0,
+            `shebang file must have statements, got ${file.totalStatementCount}`);
+
+  // The farewell() function is uncalled, so coverage should be < 100%
+  assert.ok(file.coveredStatementPercent < 100,
+            'should have uncovered statements from farewell()');
+  assert.ok(file.coveredStatementPercent > 0,
+            'should have covered statements from greet()');
+});
+
+test('unparseable files degrade gracefully to zero statements', () => {
+  const unparseableTest = fixtures.path(
+    'test-runner', 'coverage-unparseable-test.js',
+  );
+  const result = spawnSync(process.execPath, [
+    '--test',
+    '--experimental-test-coverage',
+    '--test-coverage-exclude=!test/**',
+    '--test-reporter', reporter,
+    unparseableTest,
+  ]);
+
+  assert.strictEqual(result.stderr.toString(), '');
+  assert.strictEqual(result.status, 0);
+
+  const { summary } = JSON.parse(result.stdout.toString());
+  const file = summary.files.find(
+    (f) => f.path.endsWith('coverage-unparseable.js'),
+  );
+
+  assert.ok(file, 'coverage-unparseable.js should be in the report');
+
+  // The file uses top-level `using` which is valid at runtime (CJS wrapper)
+  // but acorn cannot parse as sourceType:'script'. Statement coverage
+  // degrades to 0 total statements while other metrics still work.
+  assert.strictEqual(file.totalStatementCount, 0,
+                     'unparseable file should have 0 statements');
+  assert.strictEqual(file.coveredStatementCount, 0,
+                     'unparseable file should have 0 covered statements');
+  assert.strictEqual(file.coveredStatementPercent, 100,
+                     'unparseable file should degrade to 100% statement coverage');
+  assert.ok(Array.isArray(file.statements) && file.statements.length === 0,
+            'unparseable file should have empty statements array');
+
+  // Line and function coverage should still work normally
+  assert.ok(file.totalLineCount > 0,
+            'line coverage should still work for unparseable files');
 });
 
 test('statement coverage counts class and function declarations', () => {
