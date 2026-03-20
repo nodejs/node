@@ -253,10 +253,7 @@ void DOMStorageAgent::registerStorage(Local<Context> context,
     }
     node::TwoByteValue key_utf16(isolate, key_value);
     node::TwoByteValue value_utf16(isolate, value_value);
-    storage_map[std::u16string(reinterpret_cast<const char16_t*>(*key_utf16),
-                               key_utf16.length())] =
-        std::u16string(reinterpret_cast<const char16_t*>(*value_utf16),
-                       value_utf16.length());
+    storage_map[key_utf16.ToU16String()] = value_utf16.ToU16String();
   }
 }
 
