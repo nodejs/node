@@ -819,7 +819,7 @@ VERSION=v$(RAWVER)
 
 .PHONY: doc-only
 .NOTPARALLEL: doc-only
-doc-only: $(apidoc_dirs) $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json out/doc/apilinks.json  ## Builds the docs with the local or the global Node.js binary.
+doc-only: $(apidoc_dirs) $(apidocs_html) $(apidocs_json) out/doc/api/all.json out/doc/apilinks.json  ## Builds the docs with the local or the global Node.js binary.
 
 .PHONY: doc
 doc: $(NODE_EXE) doc-only ## Build Node.js, and then build the documentation with the new binary.
@@ -838,20 +838,20 @@ out/doc/api: doc/api
 # Using grouped targets (&:) so Make knows one command produces all outputs
 ifeq ($(OSTYPE),aix)
 # TODO(@nodejs/web-infra): AIX is currently hanging during HTML minification
-$(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json:
+$(apidocs_html) $(apidocs_json) out/doc/api/all.json:
 	@echo "Skipping $@ (not currently supported by $(OSTYPE) machines)"
 else ifeq ($(OSTYPE),os400)
 # TODO(@nodejs/web-infra): IBMi is currently hanging during HTML minification
 $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json:
 	@echo "Skipping $@ (not currently supported by $(OSTYPE) machines)"
 else
-$(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json &: $(apidoc_sources) tools/doc/node_modules | out/doc/api
+$(apidocs_html) $(apidocs_json) out/doc/api/all.json &: $(apidoc_sources) tools/doc/node_modules | out/doc/api
 	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
 		echo "Skipping $@ (no crypto and/or no ICU)"; \
 	else \
 		$(call available-node, \
 			$(DOC_KIT) generate \
-			-t legacy-html-all \
+			-t web \
 			-t legacy-json-all \
 			-i doc/api/*.md \
 			--ignore $(skip_apidoc_files) \
