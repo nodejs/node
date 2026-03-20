@@ -1,7 +1,7 @@
 import { mock, test } from 'node:test';
 
 const dependency = mock.fn(() => 'mock-return-value');
-mock.module('../coverage-with-mock/dependency.cjs', { namedExports: { dependency } });
+mock.module('../coverage-with-mock/dependency.cjs', { exports: { dependency } });
 
 const { subject } = await import('../coverage-with-mock/subject.mjs');
 
