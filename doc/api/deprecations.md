@@ -4481,6 +4481,42 @@ const server = http2.createSecureServer({
 });
 ```
 
+### DEP0203: Passing `CryptoKey` to `node:crypto` APIs
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62321
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Passing a [`CryptoKey`][] to `node:crypto` functions is deprecated and
+will throw an error in a future version. This includes
+[`crypto.createPublicKey()`][], [`crypto.createPrivateKey()`][],
+[`crypto.sign()`][], [`crypto.verify()`][],
+[`crypto.publicEncrypt()`][], [`crypto.publicDecrypt()`][],
+[`crypto.privateEncrypt()`][], [`crypto.privateDecrypt()`][],
+[`Sign.prototype.sign()`][], [`Verify.prototype.verify()`][],
+[`crypto.createHmac()`][], [`crypto.createCipheriv()`][],
+[`crypto.createDecipheriv()`][], [`crypto.encapsulate()`][], and
+[`crypto.decapsulate()`][].
+
+### DEP0204: `KeyObject.from()` with non-extractable `CryptoKey`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62321
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Passing a non-extractable [`CryptoKey`][] to [`KeyObject.from()`][] is
+deprecated and will throw an error in a future version.
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
@@ -4498,14 +4534,18 @@ const server = http2.createSecureServer({
 [`Buffer.from(buffer)`]: buffer.md#static-method-bufferfrombuffer
 [`Buffer.isBuffer()`]: buffer.md#static-method-bufferisbufferobj
 [`Cipheriv`]: crypto.md#class-cipheriv
+[`CryptoKey`]: webcrypto.md#class-cryptokey
 [`Decipheriv`]: crypto.md#class-decipheriv
 [`Duplex.toWeb()`]: stream.md#streamduplextowebstreamduplex-options
 [`Error.isError`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/isError
+[`KeyObject.from()`]: crypto.md#static-method-keyobjectfromkey
 [`REPLServer.clearBufferedCommand()`]: repl.md#replserverclearbufferedcommand
 [`ReadStream.open()`]: fs.md#class-fsreadstream
 [`Server.getConnections()`]: net.md#servergetconnectionscallback
 [`Server.listen({fd: <number>})`]: net.md#serverlistenhandle-backlog-callback
+[`Sign.prototype.sign()`]: crypto.md#signsignprivatekey-outputencoding
 [`String.prototype.toWellFormed`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/toWellFormed
+[`Verify.prototype.verify()`]: crypto.md#verifyverifyobject-signature-signatureencoding
 [`WriteStream.open()`]: fs.md#class-fswritestream
 [`assert`]: assert.md
 [`asyncResource.runInAsyncScope()`]: async_context.md#asyncresourceruninasyncscopefn-thisarg-args
@@ -4523,11 +4563,21 @@ const server = http2.createSecureServer({
 [`crypto.createDecipheriv()`]: crypto.md#cryptocreatedecipherivalgorithm-key-iv-options
 [`crypto.createHash()`]: crypto.md#cryptocreatehashalgorithm-options
 [`crypto.createHmac()`]: crypto.md#cryptocreatehmacalgorithm-key-options
+[`crypto.createPrivateKey()`]: crypto.md#cryptocreateprivatekeykey
+[`crypto.createPublicKey()`]: crypto.md#cryptocreatepublickeykey
+[`crypto.decapsulate()`]: crypto.md#cryptodecapsulatekey-ciphertext-callback
+[`crypto.encapsulate()`]: crypto.md#cryptoencapsulatekey-callback
 [`crypto.fips`]: crypto.md#cryptofips
 [`crypto.pbkdf2()`]: crypto.md#cryptopbkdf2password-salt-iterations-keylen-digest-callback
+[`crypto.privateDecrypt()`]: crypto.md#cryptoprivatedecryptprivatekey-buffer
+[`crypto.privateEncrypt()`]: crypto.md#cryptoprivateencryptprivatekey-buffer
+[`crypto.publicDecrypt()`]: crypto.md#cryptopublicdecryptkey-buffer
+[`crypto.publicEncrypt()`]: crypto.md#cryptopublicencryptkey-buffer
 [`crypto.randomBytes()`]: crypto.md#cryptorandombytessize-callback
 [`crypto.scrypt()`]: crypto.md#cryptoscryptpassword-salt-keylen-options-callback
 [`crypto.setEngine()`]: crypto.md#cryptosetengineengine-flags
+[`crypto.sign()`]: crypto.md#cryptosignalgorithm-data-key-callback
+[`crypto.verify()`]: crypto.md#cryptoverifyalgorithm-data-key-signature-callback
 [`decipher.final()`]: crypto.md#decipherfinaloutputencoding
 [`decipher.setAuthTag()`]: crypto.md#deciphersetauthtagbuffer-encoding
 [`dirent.parentPath`]: fs.md#direntparentpath
