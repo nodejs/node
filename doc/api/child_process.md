@@ -1066,14 +1066,14 @@ pipes between the parent and child. The value is one of the following:
    corresponds to the index in the `stdio` array. The stream must have an
    underlying descriptor (file streams do not start until the `'open'` event has
    occurred).
-   **NOTE:** While it is technically possible to pass `stdin` as a writable or
-   `stdout`/`stderr` as readable, it is not recommended.
+   **NOTE:** While it is technically possible to pass `stdin` as a readable or
+   `stdout`/`stderr` as writable, it is not recommended.
    Readable and writable streams are designed with distinct behaviors, and using
    them incorrectly (e.g., passing a readable stream where a writable stream is
    expected) can lead to unexpected results or errors. This practice is discouraged
    as it may result in undefined behavior or dropped callbacks if the stream
-   encounters errors. Always ensure that `stdin` is used as readable and
-   `stdout`/`stderr` as writable to maintain the intended flow of data between
+   encounters errors. Always ensure that `stdin` is used as writable and
+   `stdout`/`stderr` as readable to maintain the intended flow of data between
    the parent and child processes.
 7. Positive integer: The integer value is interpreted as a file descriptor
    that is open in the parent process. It is shared with the child
@@ -2169,6 +2169,11 @@ until this stream has been closed via `end()`.
 
 If the child process was spawned with `stdio[0]` set to anything other than `'pipe'`,
 then this will be `null`.
+
+On non-Windows platforms, when `stdio[0]` is `'pipe'`, Node.js watches for the
+child process closing its end of the stdin pipe and destroys `subprocess.stdin`
+when that happens. This helps surface pipe peer-close semantics consistently for
+the writable side of the stream.
 
 `subprocess.stdin` is an alias for `subprocess.stdio[0]`. Both properties will
 refer to the same value.

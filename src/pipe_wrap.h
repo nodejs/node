@@ -54,6 +54,7 @@ class PipeWrap : public ConnectionWrap<PipeWrap, uv_pipe_t> {
   SET_SELF_SIZE(PipeWrap)
 
  private:
+  ~PipeWrap() override;
   PipeWrap(Environment* env,
            v8::Local<v8::Object> object,
            ProviderType provider,
@@ -64,12 +65,23 @@ class PipeWrap : public ConnectionWrap<PipeWrap, uv_pipe_t> {
   static void Listen(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Connect(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void WatchPeerClose(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void UnwatchPeerClose(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void PeerCloseAlloc(uv_handle_t* handle,
+                             size_t suggested_size,
+                             uv_buf_t* buf);
+  static void PeerCloseRead(uv_stream_t* stream,
+                            ssize_t nread,
+                            const uv_buf_t* buf);
 
 #ifdef _WIN32
   static void SetPendingInstances(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 #endif
   static void Fchmod(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  bool peer_close_watching_ = false;
+  v8::Global<v8::Function> peer_close_cb_;
 };
 
 

@@ -28,6 +28,7 @@
 #include "handle_wrap.h"
 #include "node.h"
 #include "node_buffer.h"
+#include "node_errors.h"
 #include "node_external_reference.h"
 #include "stream_base-inl.h"
 #include "stream_wrap.h"
@@ -80,6 +81,8 @@ void PipeWrap::Initialize(Local<Object> target,
   SetProtoMethod(isolate, t, "listen", Listen);
   SetProtoMethod(isolate, t, "connect", Connect);
   SetProtoMethod(isolate, t, "open", Open);
+  SetProtoMethod(isolate, t, "watchPeerClose", WatchPeerClose);
+  SetProtoMethod(isolate, t, "unwatchPeerClose", UnwatchPeerClose);
 
 #ifdef _WIN32
   SetProtoMethod(isolate, t, "setPendingInstances", SetPendingInstances);
@@ -110,6 +113,8 @@ void PipeWrap::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Listen);
   registry->Register(Connect);
   registry->Register(Open);
+  registry->Register(WatchPeerClose);
+  registry->Register(UnwatchPeerClose);
 #ifdef _WIN32
   registry->Register(SetPendingInstances);
 #endif
@@ -157,6 +162,11 @@ PipeWrap::PipeWrap(Environment* env,
   int r = uv_pipe_init(env->event_loop(), &handle_, ipc);
   CHECK_EQ(r, 0);  // How do we proxy this error up to javascript?
                    // Suggestion: uv_pipe_init() returns void.
+}
+
+PipeWrap::~PipeWrap() {
+  peer_close_watching_ = false;
+  peer_close_cb_.Reset();
 }
 
 void PipeWrap::Bind(const FunctionCallbackInfo<Value>& args) {
@@ -213,6 +223,96 @@ void PipeWrap::Open(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(err);
 }
 
+void PipeWrap::WatchPeerClose(const FunctionCallbackInfo<Value>& args) {
+  PipeWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
+
+  if (!wrap->IsAlive()) {
+    return args.GetReturnValue().Set(UV_EBADF);
+  }
+
+  if (wrap->peer_close_watching_) {
+    return args.GetReturnValue().Set(0);
+  }
+
+  CHECK_GT(args.Length(), 0);
+  CHECK(args[0]->IsFunction());
+
+  Environment* env = wrap->env();
+  Isolate* isolate = env->isolate();
+
+  // Store the JS callback securely so it isn't garbage collected.
+  wrap->peer_close_cb_.Reset(isolate, args[0].As<Function>());
+  wrap->peer_close_watching_ = true;
+
+  // Start reading to detect EOF/ECONNRESET from the peer.
+  // We use our custom allocator and reader, ignoring actual data.
+  int err = uv_read_start(wrap->stream(), PeerCloseAlloc, PeerCloseRead);
+  if (err != 0) {
+    wrap->peer_close_watching_ = false;
+    wrap->peer_close_cb_.Reset();
+  }
+  args.GetReturnValue().Set(err);
+}
+
+void PipeWrap::UnwatchPeerClose(const FunctionCallbackInfo<Value>& args) {
+  PipeWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
+
+  if (!wrap->peer_close_watching_) {
+    wrap->peer_close_cb_.Reset();
+    return args.GetReturnValue().Set(0);
+  }
+
+  // Stop listening and release the JS callback to prevent memory leaks.
+  wrap->peer_close_watching_ = false;
+  wrap->peer_close_cb_.Reset();
+  args.GetReturnValue().Set(uv_read_stop(wrap->stream()));
+}
+
+void PipeWrap::PeerCloseAlloc(uv_handle_t* handle,
+                              size_t suggested_size,
+                              uv_buf_t* buf) {
+  // We only care about EOF, not the actual data.
+  // Using a static 1-byte buffer avoids dynamic memory allocation overhead.
+  static char scratch;
+  *buf = uv_buf_init(&scratch, 1);
+}
+
+void PipeWrap::PeerCloseRead(uv_stream_t* stream,
+                             ssize_t nread,
+                             const uv_buf_t* buf) {
+  PipeWrap* wrap = static_cast<PipeWrap*>(stream->data);
+  if (wrap == nullptr || !wrap->peer_close_watching_) return;
+
+  // Ignore actual data reads or EAGAIN (0). We only watch for disconnects.
+  if (nread > 0 || nread == 0) return;
+
+  // Wait specifically for EOF or connection reset (peer closed).
+  if (nread != UV_EOF && nread != UV_ECONNRESET) return;
+
+  // Peer has closed the connection. Stop reading immediately.
+  wrap->peer_close_watching_ = false;
+  uv_read_stop(stream);
+
+  if (wrap->peer_close_cb_.IsEmpty()) return;
+  Environment* env = wrap->env();
+  Isolate* isolate = env->isolate();
+
+  // Set up V8 context and handles to safely execute the JS callback.
+  v8::HandleScope handle_scope(isolate);
+  v8::Context::Scope context_scope(env->context());
+  Local<Function> cb = wrap->peer_close_cb_.Get(isolate);
+  // Reset before calling to prevent re-entrancy issues
+  wrap->peer_close_cb_.Reset();
+
+  errors::TryCatchScope try_catch(env);
+  try_catch.SetVerbose(true);
+
+  // MakeCallback properly tracks AsyncHooks context and flushes microtasks.
+  wrap->MakeCallback(cb, 0, nullptr);
+}
+
 void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -252,7 +352,6 @@ void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
 
   args.GetReturnValue().Set(err);
 }
-
 }  // namespace node
 
 NODE_BINDING_CONTEXT_AWARE_INTERNAL(pipe_wrap, node::PipeWrap::Initialize)
