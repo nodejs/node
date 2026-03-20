@@ -549,6 +549,17 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::disable_sigusr1,
             kAllowedInEnvvar,
             false);
+  AddOption("--experimental-dns-cache-max-ttl",
+            "set the maximum TTL in seconds for the c-ares DNS query cache "
+            "(0 disables the cache, default: 0). This is experimental.",
+            &EnvironmentOptions::experimental_dns_cache_max_ttl,
+            kAllowedInEnvvar);
+  AddOption("--experimental-dns-lookup-cares",
+            "use c-ares ares_getaddrinfo for dns.lookup instead of the "
+            "system getaddrinfo(3). Enables truly async DNS and c-ares "
+            "query caching for all HTTP/net connections.",
+            &EnvironmentOptions::experimental_dns_lookup_cares,
+            kAllowedInEnvvar);
   AddOption("--dns-result-order",
             "set default value of verbatim in dns.lookup. Options are "
             "'ipv4first' (IPv4 addresses are placed before IPv6 addresses) "

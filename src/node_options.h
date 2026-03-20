@@ -121,6 +121,8 @@ class EnvironmentOptions : public Options {
   bool print_required_tla = false;
   bool require_module = true;
   std::string dns_result_order;
+  uint64_t experimental_dns_cache_max_ttl = 0;
+  bool experimental_dns_lookup_cares = false;
   bool enable_source_maps = false;
   bool experimental_addon_modules = false;
   bool experimental_eventsource = false;
