@@ -48,23 +48,32 @@ test('input validation', async (t) => {
     }, { code: 'ERR_INVALID_ARG_TYPE' });
   });
 
-  await t.test('allows exports to be used with legacy options', async (t) => {
-    const fixturePath = fixtures.path('module-mocking', 'basic-cjs.js');
-    const fixture = pathToFileURL(fixturePath);
+  await t.test('throws if exports is used with namedExports', async (t) => {
+    assert.throws(() => {
+      t.mock.module(__filename, {
+        exports: {},
+        namedExports: {},
+      });
+    }, { code: 'ERR_INVALID_ARG_VALUE' });
+  });
 
-    t.mock.module(fixture, {
-      exports: { value: 'from exports' },
-      namedExports: { value: 'from namedExports' },
-      defaultExport: { from: 'defaultExport' },
-    });
+  await t.test('throws if exports is used with defaultExport', async (t) => {
+    assert.throws(() => {
+      t.mock.module(__filename, {
+        exports: {},
+        defaultExport: {},
+      });
+    }, { code: 'ERR_INVALID_ARG_VALUE' });
+  });
 
-    const cjsMock = require(fixturePath);
-    const esmMock = await import(fixture);
-
-    assert.strictEqual(cjsMock.value, 'from namedExports');
-    assert.strictEqual(cjsMock.from, 'defaultExport');
-    assert.strictEqual(esmMock.value, 'from namedExports');
-    assert.strictEqual(esmMock.default.from, 'defaultExport');
+  await t.test('throws if exports is used with both legacy options', async (t) => {
+    assert.throws(() => {
+      t.mock.module(__filename, {
+        exports: {},
+        namedExports: {},
+        defaultExport: {},
+      });
+    }, { code: 'ERR_INVALID_ARG_VALUE' });
   });
 });
 

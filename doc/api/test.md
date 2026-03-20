@@ -2486,6 +2486,7 @@ changes:
   * `exports` {Object} Optional mocked exports. The `default` property, if
     provided, is used as the mocked module's default export. All other own
     enumerable properties are used as named exports.
+    This option cannot be used with `defaultExport` or `namedExports`.
     * If the mock is a CommonJS or builtin module, `exports.default` is used as
       the value of `module.exports`.
     * If `exports.default` is not provided for a CommonJS or builtin mock,
@@ -2497,6 +2498,7 @@ changes:
     export. If the mock is a CommonJS or builtin module, this setting is used as
     the value of `module.exports`. If this value is not provided, CJS and builtin
     mocks use an empty object as the value of `module.exports`.
+    This option cannot be used with `options.exports`.
     This option is deprecated and will be removed in a later version.
     Prefer `options.exports.default`.
   * `namedExports` {Object} An optional object whose keys and values are used to
@@ -2504,6 +2506,7 @@ changes:
     builtin module, these values are copied onto `module.exports`. Therefore, if a
     mock is created with both named exports and a non-object default export, the
     mock will throw an exception when used as a CJS or builtin module.
+    This option cannot be used with `options.exports`.
     This option is deprecated and will be removed in a later version.
     Prefer `options.exports`.
 * Returns: {MockModuleContext} An object that can be used to manipulate the mock.
