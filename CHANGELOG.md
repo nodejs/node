@@ -41,6 +41,21 @@ release.
 </tr>
 <tr>
   <td valign="top">
+<b><a href="doc/changelogs/CHANGELOG_V25.md#25.8.2">25.8.2</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V25.md#25.8.1">25.8.1</a><br/>
+<a href="doc/changelogs/CHANGELOG_V25.md#25.8.0">25.8.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V25.md#25.7.0">25.7.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V25.md#25.6.1">25.6.1</a><br/>
+<a href="doc/changelogs/CHANGELOG_V25.md#25.6.0">25.6.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V25.md#25.5.0">25.5.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V25.md#25.4.0">25.4.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V25.md#25.3.0">25.3.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V25.md#25.2.1">25.2.1</a><br/>
+<a href="doc/changelogs/CHANGELOG_V25.md#25.2.0">25.2.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V25.md#25.1.0">25.1.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V25.md#25.0.0">25.0.0</a><br/>
+  </td>
+  <td valign="top">
 <b><a href="doc/changelogs/CHANGELOG_V24.md#24.14.1">24.14.1</a></b><br/>
 <a href="doc/changelogs/CHANGELOG_V24.md#24.14.0">24.14.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V24.md#24.13.1">24.13.1</a><br/>
