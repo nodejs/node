@@ -156,23 +156,6 @@ test('mock.fs() exposes vfs property', (t) => {
   assert.strictEqual(content, 'content');
 });
 
-// Test mock.fs() with dynamic file content
-// TODO(vfs): Dynamic file content (functions) not yet exposed through mock.fs() API
-test('mock.fs() supports dynamic file content', { skip: true }, (t) => {
-  let counter = 0;
-  const mockFs = t.mock.fs({ prefix: '/dynamic-test' });
-
-  mockFs.addFile('/counter.txt', () => {
-    counter++;
-    return String(counter);
-  });
-
-  // Each read should call the function
-  assert.strictEqual(fs.readFileSync('/dynamic-test/counter.txt', 'utf8'), '1');
-  assert.strictEqual(fs.readFileSync('/dynamic-test/counter.txt', 'utf8'), '2');
-  assert.strictEqual(fs.readFileSync('/dynamic-test/counter.txt', 'utf8'), '3');
-});
-
 // Test require from mock.fs()
 test('mock.fs() supports require() from virtual files', (t) => {
   t.mock.fs({
