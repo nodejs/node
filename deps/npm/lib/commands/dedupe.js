@@ -36,10 +36,9 @@ class Dedupe extends ArboristWorkspaceCmd {
       ...this.npm.flatOptions,
       path: where,
       dryRun,
-      // Saving during dedupe would only update if one of your direct
-      // dependencies was also duplicated somewhere in your tree. It would be
-      // confusing if running this were to also update your package.json.  In
-      // order to reduce potential confusion we set this to false.
+      // Saving during dedupe would only update if one of your direct dependencies was also duplicated somewhere in your tree.
+      // It would be confusing if running this were to also update your package.json.
+      // In order to reduce potential confusion we set this to false.
       save: false,
       workspaces: this.workspaceNames,
     }

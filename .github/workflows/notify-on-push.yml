@@ -30,20 +30,16 @@ jobs:
 
   validateCommitMessage:
     name: Notify on Push on `main` with invalid message
-    if: github.repository == 'nodejs/node'
     # cannot use ubuntu-slim here because rtCamp/action-slack-notify is dockerized
     runs-on: ubuntu-24.04-arm
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-        with:
-          persist-credentials: false
-      - name: Check commit message
+      - name: Validate commits
+        run: echo "$COMMITS" | npx -q core-validate-commit -
         id: commit-check
-        run: npx -q core-validate-commit "$COMMIT"
         env:
-          COMMIT: ${{ github.event.after }}
+          COMMITS: ${{ toJSON(github.event.commits) }}
       - name: Slack Notification
-        if: ${{ failure() && steps.commit-check.conclusion == 'failure' }}
+        if: ${{ failure() && steps.commit-check.conclusion == 'failure' && github.repository == 'nodejs/node' }}
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661  # 2.3.3
         env:
           SLACK_COLOR: '#DE512A'

@@ -1,13 +1,12 @@
 const { log, output } = require('proc-log')
 const { redactLog: replaceInfo } = require('@npmcli/redact')
 
-// print an error or just nothing if the audit report has an error
-// this is called by the audit command, and by the reify-output util
-// prints a JSON version of the error if it's --json
-// returns 'true' if there was an error, false otherwise
+// Print an error or just nothing if the audit report has an error.
+// This is called by the audit command, and by the reify-output util prints a JSON version of the error if it's --json.
+// Returns 'true' if there was an error, false otherwise.
 
 const auditError = (npm, report) => {
-  if (!report || !report.error) {
+  if (!report?.error) {
     return false
   }
 
@@ -34,6 +33,7 @@ const auditError = (npm, report) => {
     output.standard(body)
   }
 
+  // XXX we should throw a real error here
   throw 'audit endpoint returned an error'
 }
 

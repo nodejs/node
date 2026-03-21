@@ -26,6 +26,17 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _WIN32
+/*
+ * Try to connect to an address on which nothing listens, get ECONNREFUSED
+ * (uv errno 12) and get connect_cb() called once with status != 0.
+ * Related issue: https://github.com/joyent/libuv/issues/443
+ */
+TEST_IMPL(tcp_connect_error_after_write) {
+  RETURN_SKIP("This test is disabled on Windows. "
+              "See https://github.com/joyent/libuv/issues/444\n");
+}
+#else  /* !_WIN32 */
 static int connect_cb_called;
 static int write_cb_called;
 static int close_cb_called;
@@ -55,11 +66,6 @@ static void write_cb(uv_write_t* req, int status) {
  * Related issue: https://github.com/joyent/libuv/issues/443
  */
 TEST_IMPL(tcp_connect_error_after_write) {
-#ifdef _WIN32
-  RETURN_SKIP("This test is disabled on Windows for now. "
-              "See https://github.com/joyent/libuv/issues/444\n");
-#else
-
   uv_connect_t connect_req;
   struct sockaddr_in addr;
   uv_write_t write_req;
@@ -94,5 +100,5 @@ TEST_IMPL(tcp_connect_error_after_write) {
 
   MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
-#endif
 }
+#endif  /* !_WIN32 */

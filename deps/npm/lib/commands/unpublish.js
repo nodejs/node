@@ -9,9 +9,7 @@ const getIdentity = require('../utils/get-identity.js')
 const { otplease } = require('../utils/auth.js')
 const BaseCommand = require('../base-cmd.js')
 
-const LAST_REMAINING_VERSION_ERROR = 'Refusing to delete the last version of the package. ' +
-'It will block from republishing a new version for 24 hours.\n' +
-'Run with --force to do this.'
+const LAST_REMAINING_VERSION_ERROR = 'Refusing to delete the last version of the package. It will block from republishing a new version for 24 hours.\nRun with --force to do this.'
 
 class Unpublish extends BaseCommand {
   static description = 'Remove a package from the registry'
@@ -45,9 +43,7 @@ class Unpublish extends BaseCommand {
     }
 
     const access = await libaccess.getPackages(username, opts)
-    // do a bit of filtering at this point, so that we don't need
-    // to fetch versions for more than one thing, but also don't
-    // accidentally unpublish a whole project
+    // do a bit of filtering at this point, so that we don't need to fetch versions for more than one thing, but also don't accidentally unpublish a whole project
     let pkgs = Object.keys(access)
     if (!partialWord || !pkgs.length) {
       return pkgs
@@ -85,10 +81,7 @@ class Unpublish extends BaseCommand {
     if (args.length) {
       spec = npa(args[0])
       if (spec.type !== 'version' && spec.rawSpec !== '*') {
-        throw this.usageError(
-          'Can only unpublish a single version, or the entire project.\n' +
-          'Tags and ranges are not supported.'
-        )
+        throw this.usageError('Can only unpublish a single version, or the entire project.\nTags and ranges are not supported.')
       }
     }
 
@@ -96,10 +89,7 @@ class Unpublish extends BaseCommand {
     log.silly('unpublish', 'spec', spec)
 
     if (spec?.rawSpec === '*' && !force) {
-      throw this.usageError(
-        'Refusing to delete entire project.\n' +
-        'Run with --force to do this.'
-      )
+      throw this.usageError('Refusing to delete entire project.\nRun with --force to do this.')
     }
 
     const opts = { ...this.npm.flatOptions }
@@ -111,14 +101,12 @@ class Unpublish extends BaseCommand {
     } catch (err) {
       if (err.code === 'ENOENT' || err.code === 'ENOTDIR') {
         if (!spec) {
-          // We needed a local package.json to figure out what package to
-          // unpublish
+          // We needed a local package.json to figure out what package to unpublish
           throw this.usageError()
         }
       } else {
         // folks should know if ANY local package.json had a parsing error.
-        // They may be relying on `publishConfig` to be loading and we don't
-        // want to ignore errors in that case.
+        // They may be relying on `publishConfig` to be loading and we don't want to ignore errors in that case.
         throw err
       }
     }
@@ -131,19 +119,14 @@ class Unpublish extends BaseCommand {
       log.verbose('unpublish', manifest)
       pkgVersion = manifest.version ? `@${manifest.version}` : ''
       if (!manifest.version && !force) {
-        throw this.usageError(
-          'Refusing to delete entire project.\n' +
-          'Run with --force to do this.'
-        )
+        throw this.usageError('Refusing to delete entire project.\nRun with --force to do this.')
       }
     }
 
-    // If localPrefix has a package.json with a name that matches the package
-    // being unpublished, load up the publishConfig
+    // If localPrefix has a package.json with a name that matches the package being unpublished, load up the publishConfig
     if (manifest?.name === spec.name && manifest.publishConfig) {
       const cliFlags = this.npm.config.data.get('cli').raw
-      // Filter out properties set in CLI flags to prioritize them over
-      // corresponding `publishConfig` settings
+      // Filter out properties set in CLI flags to prioritize them over corresponding `publishConfig` settings
       const filteredPublishConfig = Object.fromEntries(
         Object.entries(manifest.publishConfig).filter(([key]) => !(key in cliFlags)))
       for (const key in filteredPublishConfig) {

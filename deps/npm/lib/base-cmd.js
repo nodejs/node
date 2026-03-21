@@ -17,8 +17,7 @@ class BaseCommand {
   // Number of expected positional arguments (null = unlimited/unchecked)
   static positionals = null
 
-  // this is a static so that we can read from it without instantiating a command
-  // which would require loading the config
+  // this is a static so that we can read from it without instantiating a command which would require loading the config
   static get describeUsage () {
     return this.getUsage()
   }
@@ -29,8 +28,7 @@ class BaseCommand {
     const wrapWidth = 80
     const { description, usage = [''], name } = this
 
-    // Resolve to a definitions array: if the command has its own definitions, use
-    // those directly; otherwise resolve params from the global definitions pool.
+    // Resolve to a definitions array: if the command has its own definitions, use those directly; otherwise resolve params from the global definitions pool.
     let cmdDefs
     if (this.definitions) {
       cmdDefs = this.definitions
@@ -45,10 +43,15 @@ class BaseCommand {
       `${description}`,
       '',
       'Usage:',
-      ...usage.map(u => `npm ${fullCommandName} ${u}`.trim()),
     ]
+    if (usage) {
+      fullUsage.push(...usage.map(u => `npm ${fullCommandName} ${u}`.trim()))
+    }
 
     if (this.subcommands) {
+      for (const sub in this.subcommands) {
+        fullUsage.push(`npm ${fullCommandName} ${sub} ${this.subcommands[sub].usage}`)
+      }
       fullUsage.push('')
       fullUsage.push('Subcommands:')
       const subcommandEntries = Object.entries(this.subcommands)
@@ -392,8 +395,7 @@ class BaseCommand {
       throw this.usageError(`Unknown flag${unknownFlags.length > 1 ? 's' : ''}: ${flagList}`)
     }
 
-    // Remove warnings for command-specific definitions that npm's global config
-    // doesn't know about (these were queued as "unknown" during config.load())
+    // Remove warnings for command-specific definitions that npm's global config doesn't know about (these were queued as "unknown" during config.load())
     for (const def of commandDefinitions) {
       this.npm.config.removeWarning(def.key)
       if (def.alias && Array.isArray(def.alias)) {
@@ -403,8 +405,7 @@ class BaseCommand {
       }
     }
 
-    // Remove warnings for unknown positionals that were actually consumed as flag values
-    // by command-specific definitions (e.g., --id <value> where --id is command-specific)
+    // Remove warnings for unknown positionals that were actually consumed as flag values by command-specific definitions (e.g., --id <value> where --id is command-specific)
     const remainsSet = new Set(remains)
     for (const unknownPos of this.npm.config.getUnknownPositionals()) {
       if (!remainsSet.has(unknownPos)) {

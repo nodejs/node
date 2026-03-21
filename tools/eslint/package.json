@@ -12,6 +12,7 @@
     "eslint": "^10.0.2",
     "eslint-formatter-tap": "^9.0.1",
     "eslint-plugin-jsdoc": "^62.7.1",
+    "eslint-plugin-regexp": "^3.0.0",
     "globals": "^17.3.0"
   }
 }

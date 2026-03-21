@@ -1,4 +1,4 @@
-.TH "SCRIPTS" "7" "February 2026" "NPM@11.11.0" ""
+.TH "SCRIPTS" "7" "March 2026" "NPM@11.11.1" ""
 .SH "NAME"
 \fBScripts\fR - How npm handles the "scripts" field
 .SS "Description"
@@ -319,9 +319,6 @@ For more details, see:
 \fBDiscussion about script working directory reliability in npm v6 and earlier\fR \fI\(lahttps://github.com/npm/npm/issues/12356\(ra\fR
 .RE 0
 
-.SS "User"
-.P
-When npm is run as root, scripts are always run with the effective uid and gid of the working directory owner.
 .SS "Environment"
 .P
 Package scripts run in an environment where many pieces of information are made available regarding the setup of npm and the current state of the process.

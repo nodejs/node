@@ -5,7 +5,7 @@ module.exports._getTmpname = getTmpname // for testing
 module.exports._cleanupOnExit = cleanupOnExit
 
 const fs = require('fs')
-const MurmurHash3 = require('imurmurhash')
+const crypto = require('node:crypto')
 const { onExit } = require('signal-exit')
 const path = require('path')
 const { promisify } = require('util')
@@ -28,11 +28,13 @@ const threadId = (function getId () {
 let invocations = 0
 function getTmpname (filename) {
   return filename + '.' +
-    MurmurHash3(__filename)
-      .hash(String(process.pid))
-      .hash(String(threadId))
-      .hash(String(++invocations))
-      .result()
+    crypto.createHash('sha1')
+      .update(__filename)
+      .update(String(process.pid))
+      .update(String(threadId))
+      .update(String(++invocations))
+      .digest()
+      .readUInt32BE(0)
 }
 
 function cleanupOnExit (tmpfile) {

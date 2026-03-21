@@ -7,7 +7,7 @@ description: Manage trusted publishing relationships between packages and CI/CD 
 ### Synopsis
 
 ```bash
-npm trust
+
 ```
 
 Note: This command is unaware of workspaces.

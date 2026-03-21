@@ -96,7 +96,7 @@ static void empty_opendir_cb(uv_fs_t* req) {
  * of the uv_fs_opendir() -> uv_fs_readdir() -> uv_fs_closedir() sequence work
  * as expected when processing an empty directory.
  */
-TEST_IMPL(fs_readdir_empty_dir) {
+TEST_FS_IMPL(fs_readdir_empty_dir) {
   const char* path;
   uv_fs_t mkdir_req;
   uv_fs_t rmdir_req;
@@ -178,7 +178,7 @@ static void non_existing_opendir_cb(uv_fs_t* req) {
   ++non_existing_opendir_cb_count;
 }
 
-TEST_IMPL(fs_readdir_non_existing_dir) {
+TEST_FS_IMPL(fs_readdir_non_existing_dir) {
   const char* path;
   int r;
 
@@ -230,7 +230,7 @@ static void file_opendir_cb(uv_fs_t* req) {
   ++file_opendir_cb_count;
 }
 
-TEST_IMPL(fs_readdir_file) {
+TEST_FS_IMPL(fs_readdir_file) {
   const char* path;
   int r;
 
@@ -342,7 +342,7 @@ static void non_empty_opendir_cb(uv_fs_t* req) {
   ++non_empty_opendir_cb_count;
 }
 
-TEST_IMPL(fs_readdir_non_empty_dir) {
+TEST_FS_IMPL(fs_readdir_non_empty_dir) {
   size_t entries_count;
   uv_fs_t mkdir_req;
   uv_fs_t rmdir_req;
@@ -518,7 +518,7 @@ static void cleanup_symlink_test_files(void) {
   uv_fs_req_cleanup(&req);
 }
 
-TEST_IMPL(fs_readdir_symlink) {
+TEST_FS_IMPL(fs_readdir_symlink) {
 
   uv_fs_t mkdir_req;
   uv_fs_t symlink_req;

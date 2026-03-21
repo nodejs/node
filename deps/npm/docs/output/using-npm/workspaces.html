@@ -186,9 +186,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----workspaces----11110">
+<h1 id="----workspaces----11111">
     <span>Workspaces</span>
-    <span class="version">@11.11.0</span>
+    <span class="version">@11.11.1</span>
 </h1>
 <span class="description">Working with workspaces</span>
 </header>
@@ -253,17 +253,19 @@ For example in a project that already has a <code>package.json</code> defined yo
 <pre><code>npm install abbrev -w a
 </code></pre>
 <p><strong>Adding a workspace as a dependency of another workspace:</strong></p>
-<p>If you want to add workspace <strong>b</strong> as a dependency of workspace <strong>a</strong>, you can use the workspace protocol in the dependency specifier:</p>
-<pre><code>npm install b@workspace:* -w a
+<p>The same approach works when adding one workspace as a dependency of another.
+If you want to add workspace <strong>b</strong> as a dependency of workspace <strong>a</strong>, run:</p>
+<pre><code>npm install b -w a
 </code></pre>
-<p>This will add an entry to workspace <strong>a</strong>'s <code>package.json</code> like:</p>
+<p>npm will detect that <strong>b</strong> is a workspace and automatically symlink it rather
+than fetching it from the registry. The resulting entry in workspace <strong>a</strong>'s
+<code>package.json</code> will use a standard version range:</p>
 <pre><code class="language-json">{
   "dependencies": {
-    "b": "workspace:*"
+    "b": "^1.0.0"
   }
 }
 </code></pre>
-<p>The <code>workspace:</code> protocol tells npm to link to the local workspace rather than fetching from the registry. The <code>*</code> version means it will use whatever version is defined in workspace <strong>b</strong>'s <code>package.json</code>.</p>
 <p>Note: other installing commands such as <code>uninstall</code>, <code>ci</code>, etc will also respect the provided <code>workspace</code> configuration.</p>
 <h3 id="using-workspaces">Using workspaces</h3>
 <p>Given the <a href="https://nodejs.org/dist/latest-v14.x/docs/api/modules.html#modules_all_together">specifics of how Node.js handles module resolution</a> it's possible to consume any defined workspace by its declared <code>package.json</code> <code>name</code>.

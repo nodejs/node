@@ -8,6 +8,7 @@ const { InvalidArgumentError, RequestAbortedError, SecureProxyConnectionError } 
 const buildConnector = require('../core/connect')
 const Client = require('./client')
 const { channels } = require('../core/diagnostics')
+const Socks5ProxyAgent = require('./socks5-proxy-agent')
 
 const kAgent = Symbol('proxy agent')
 const kClient = Symbol('proxy client')
@@ -132,6 +133,19 @@ class ProxyAgent extends DispatcherBase {
     const agentFactory = opts.factory || defaultAgentFactory
     const factory = (origin, options) => {
       const { protocol } = new URL(origin)
+
+      // Handle SOCKS5 proxy
+      if (this[kProxy].protocol === 'socks5:' || this[kProxy].protocol === 'socks:') {
+        return new Socks5ProxyAgent(this[kProxy].uri, {
+          headers: this[kProxyHeaders],
+          connect,
+          factory: agentFactory,
+          username: opts.username || username,
+          password: opts.password || password,
+          proxyTls: opts.proxyTls
+        })
+      }
+
       if (!this[kTunnelProxy] && protocol === 'http:' && this[kProxy].protocol === 'http:') {
         return new Http1ProxyWrapper(this[kProxy].uri, {
           headers: this[kProxyHeaders],
@@ -141,11 +155,26 @@ class ProxyAgent extends DispatcherBase {
       }
       return agentFactory(origin, options)
     }
-    this[kClient] = clientFactory(url, { connect })
+
+    // For SOCKS5 proxies, we don't need a client to the proxy itself
+    // The SOCKS5 connection is handled within Socks5ProxyAgent
+    if (protocol === 'socks5:' || protocol === 'socks:') {
+      this[kClient] = null
+    } else {
+      this[kClient] = clientFactory(url, { connect })
+    }
+
     this[kAgent] = new Agent({
       ...opts,
       factory,
       connect: async (opts, callback) => {
+        // SOCKS5 proxies handle their own connections via Socks5ProxyAgent,
+        // so this connect function should never be called for them.
+        if (!this[kClient]) {
+          callback(new InvalidArgumentError('Cannot establish tunnel connection without a proxy client'))
+          return
+        }
+
         let requestedPath = opts.host
         if (!opts.port) {
           requestedPath += `:${defaultProtocolPort(opts.protocol)}`
@@ -233,17 +262,19 @@ class ProxyAgent extends DispatcherBase {
   }
 
   [kClose] () {
-    return Promise.all([
-      this[kAgent].close(),
-      this[kClient].close()
-    ])
+    const promises = [this[kAgent].close()]
+    if (this[kClient]) {
+      promises.push(this[kClient].close())
+    }
+    return Promise.all(promises)
   }
 
   [kDestroy] () {
-    return Promise.all([
-      this[kAgent].destroy(),
-      this[kClient].destroy()
-    ])
+    const promises = [this[kAgent].destroy()]
+    if (this[kClient]) {
+      promises.push(this[kClient].destroy())
+    }
+    return Promise.all(promises)
   }
 }
 

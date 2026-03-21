@@ -215,7 +215,7 @@ $ cmake ../..                 \
 $ brew install --HEAD libuv
 ```
 
-Note to OS X users:
+Note to macOS users:
 
 Make sure that you specify the architecture you wish to build for in the
 "ARCHS" flag. You can specify more than one by delimiting with a space

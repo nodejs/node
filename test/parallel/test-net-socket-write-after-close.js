@@ -12,7 +12,7 @@ const net = require('net');
       client.on('error', common.mustCall((err) => {
         server.close();
         assert.strictEqual(err.constructor, Error);
-        assert.strictEqual(err.message, 'write EBADF');
+        assert.strictEqual(err.message, `write ${common.isWindows ? 'EPIPE' : 'EBADF'}`);
       }));
       client._handle.close();
       client.write('foo');

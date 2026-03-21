@@ -18,6 +18,7 @@ import { SnapshotAgent } from './snapshot-agent'
 import { MockCallHistory, MockCallHistoryLog } from './mock-call-history'
 import mockErrors from './mock-errors'
 import ProxyAgent from './proxy-agent'
+import Socks5ProxyAgent from './socks5-proxy-agent'
 import EnvHttpProxyAgent from './env-http-proxy-agent'
 import RetryHandler from './retry-handler'
 import RetryAgent from './retry-agent'
@@ -43,7 +44,7 @@ export { Interceptable } from './mock-interceptor'
 
 declare function globalThisInstall (): void
 
-export { Dispatcher, BalancedPool, RoundRobinPool, Pool, Client, buildConnector, errors, Agent, request, stream, pipeline, connect, upgrade, setGlobalDispatcher, getGlobalDispatcher, setGlobalOrigin, getGlobalOrigin, interceptors, cacheStores, MockClient, MockPool, MockAgent, SnapshotAgent, MockCallHistory, MockCallHistoryLog, mockErrors, ProxyAgent, EnvHttpProxyAgent, RedirectHandler, DecoratorHandler, RetryHandler, RetryAgent, H2CClient, globalThisInstall as install }
+export { Dispatcher, BalancedPool, RoundRobinPool, Pool, Client, buildConnector, errors, Agent, request, stream, pipeline, connect, upgrade, setGlobalDispatcher, getGlobalDispatcher, setGlobalOrigin, getGlobalOrigin, interceptors, cacheStores, MockClient, MockPool, MockAgent, SnapshotAgent, MockCallHistory, MockCallHistoryLog, mockErrors, ProxyAgent, Socks5ProxyAgent, EnvHttpProxyAgent, RedirectHandler, DecoratorHandler, RetryHandler, RetryAgent, H2CClient, globalThisInstall as install }
 export default Undici
 
 declare namespace Undici {
@@ -73,6 +74,8 @@ declare namespace Undici {
   const MockCallHistory: typeof import('./mock-call-history').MockCallHistory
   const MockCallHistoryLog: typeof import('./mock-call-history').MockCallHistoryLog
   const mockErrors: typeof import('./mock-errors').default
+  const ProxyAgent: typeof import('./proxy-agent').default
+  const Socks5ProxyAgent: typeof import('./socks5-proxy-agent').default
   const fetch: typeof import('./fetch').fetch
   const Headers: typeof import('./fetch').Headers
   const Response: typeof import('./fetch').Response

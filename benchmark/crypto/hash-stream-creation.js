@@ -5,7 +5,7 @@ const common = require('../common.js');
 const crypto = require('crypto');
 
 const bench = common.createBenchmark(main, {
-  writes: [500],
+  n: [500],
   algo: [ 'sha256', 'md5' ],
   type: ['asc', 'utf', 'buf'],
   out: ['hex', 'binary', 'buffer'],
@@ -13,7 +13,7 @@ const bench = common.createBenchmark(main, {
   api: ['legacy', 'stream'],
 });
 
-function main({ api, type, len, out, writes, algo }) {
+function main({ api, type, len, out, n, algo }) {
   if (api === 'stream' && /^v0\.[0-8]\./.test(process.version)) {
     console.error('Crypto streams not available until v0.10');
     // Use the legacy, just so that we can compare them.
@@ -41,15 +41,15 @@ function main({ api, type, len, out, writes, algo }) {
   const fn = api === 'stream' ? streamWrite : legacyWrite;
 
   bench.start();
-  fn(algo, message, encoding, writes, len, out);
+  fn(algo, message, encoding, n, len, out);
 }
 
-function legacyWrite(algo, message, encoding, writes, len, outEnc) {
-  const written = writes * len;
+function legacyWrite(algo, message, encoding, n, len, outEnc) {
+  const written = n * len;
   const bits = written * 8;
   const gbits = bits / (1024 * 1024 * 1024);
 
-  while (writes-- > 0) {
+  while (n-- > 0) {
     const h = crypto.createHash(algo);
     h.update(message, encoding);
     h.digest(outEnc);
@@ -58,12 +58,12 @@ function legacyWrite(algo, message, encoding, writes, len, outEnc) {
   bench.end(gbits);
 }
 
-function streamWrite(algo, message, encoding, writes, len, outEnc) {
-  const written = writes * len;
+function streamWrite(algo, message, encoding, n, len, outEnc) {
+  const written = n * len;
   const bits = written * 8;
   const gbits = bits / (1024 * 1024 * 1024);
 
-  while (writes-- > 0) {
+  while (n-- > 0) {
     const h = crypto.createHash(algo);
 
     if (outEnc !== 'buffer')

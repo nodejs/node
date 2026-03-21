@@ -38,12 +38,7 @@ static void thread_run(void* arg) {
 
   sem = arg;
 
-#ifdef _WIN32
-  /* uv_thread_self isn't defined for the main thread on Windows. */
-  thread = GetCurrentThread();
-#else
   thread = uv_thread_self();
-#endif
 
   r = uv_thread_setname("worker-thread");
   ASSERT_OK(r);
@@ -82,12 +77,7 @@ TEST_IMPL(thread_name) {
   memset(long_thread_name, 'a', sizeof(long_thread_name) - 1);
   long_thread_name[sizeof(long_thread_name) - 1] = '\0';
 
-#ifdef _WIN32
-  /* uv_thread_self isn't defined for the main thread on Windows. */
-  threads[0] = GetCurrentThread();
-#else
   threads[0] = uv_thread_self();
-#endif
 
   r = uv_thread_getname(&threads[0], tn, sizeof(tn));
   ASSERT_OK(r);

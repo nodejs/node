@@ -69,7 +69,7 @@ const getDefaultNodeMaxHeaderSize = http &&
   ? () => http.maxHeaderSize
   : () => { throw new InvalidArgumentError('http module not available or http.maxHeaderSize invalid') }
 
-const noop = () => {}
+const noop = () => { }
 
 function getPipelining (client) {
   return client[kPipelining] ?? client[kHTTPContext]?.defaultPipelining ?? 1
@@ -235,6 +235,9 @@ class Client extends DispatcherBase {
         ...(typeof autoSelectFamily === 'boolean' ? { autoSelectFamily, autoSelectFamilyAttemptTimeout } : undefined),
         ...connect
       })
+    } else if (socketPath != null) {
+      const customConnect = connect
+      connect = (opts, callback) => customConnect({ ...opts, socketPath }, callback)
     }
 
     this[kUrl] = util.parseOrigin(url)
@@ -606,6 +609,10 @@ function _resume (client, sync) {
     }
 
     const request = client[kQueue][client[kPendingIdx]]
+
+    if (request === null) {
+      return
+    }
 
     if (client[kUrl].protocol === 'https:' && client[kServerName] !== request.servername) {
       if (client[kRunning] > 0) {

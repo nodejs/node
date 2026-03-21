@@ -31,8 +31,7 @@ class View extends BaseCommand {
 
   static async completion (opts, npm) {
     if (opts.conf.argv.remain.length <= 2) {
-      // There used to be registry completion here, but it stopped
-      // making sense somewhere around 50,000 packages on the registry
+      // There used to be registry completion here, but it stopped making sense somewhere around 50,000 packages on the registry
       return
     }
     // have the package, get the fields
@@ -103,8 +102,7 @@ class View extends BaseCommand {
     const wholePackument = !args.length
     const json = this.npm.config.get('json')
 
-    // If we are viewing many packages and outputting individual fields then
-    // output the name before doing any async activity
+    // If we are viewing many packages and outputting individual fields then output the name before doing any async activity
     if (!json && !wholePackument && workspace) {
       output.standard(`${name}:`)
     }
@@ -241,11 +239,10 @@ class View extends BaseCommand {
     })
 
     if (json) {
-      // TODO(BREAKING_CHANGE): all unwrapping should be removed. Users should know
-      // based on their arguments if they can expect an array or an object. And this
-      // unwrapping can break that assumption. Eg `npm view abbrev@^2` should always
-      // return an array, but currently since there is only one version matching `^2`
-      // this will return a single object instead.
+      // TODO(BREAKING_CHANGE): all unwrapping should be removed.
+      // Users should know based on their arguments if they can expect an array or an object.
+      // And this unwrapping can break that assumption.
+      // e.g. `npm view abbrev@^2` should always return an array, but currently since there is only one version matching `^2` this will return a single object instead.
       const first = Object.keys(res[0] || {})
       const jsonRes = first.length === 1 ? res.map(m => m[first[0]]) : res
       if (jsonRes.length === 0) {

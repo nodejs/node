@@ -145,7 +145,7 @@ There following two functions allow you to directly interact with `.env` files:
 
 * [`process.loadEnvFile`][] loads an `.env` file and populates `process.env` with its variables
 
-* [`util.parseEnv`][] parses the row content of an `.env` file and returns its value in an object
+* [`util.parseEnv`][] parses the raw content of an `.env` file and returns its value in an object
 
 [CLI Environment Variables documentation]: cli.md#environment-variables_1
 [`--env-file-if-exists=file`]: cli.md#--env-file-if-existsfile

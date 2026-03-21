@@ -1,9 +1,6 @@
-// This is separate to indicate that it should contain code we expect to work in
-// all versions of node >= 6.  This is a best effort to catch syntax errors to
-// give users a good error message if they are using a node version that doesn't
-// allow syntax we are using such as private properties, etc. This file is
-// linted with ecmaVersion=6 so we don't use invalid syntax, which is set in the
-// .eslintrc.local.json file
+// This is separate to indicate that it should contain code we expect to work in all versions of node >= 6.
+// This is a best effort to catch syntax errors to give users a good error message if they are using a node version that doesn't allow syntax we are using such as private properties, etc.
+// This file is linted with ecmaVersion=6 so we don't use invalid syntax, which is set in the .eslintrc.local.json file
 
 const { engines: { node: engines }, version } = require('../../package.json')
 const npm = `v${version}`
@@ -15,8 +12,7 @@ module.exports = (process, getCli) => {
 
   const brokenMessage = `ERROR: npm ${npm} is known not to run on Node.js ${node}.  This version of npm supports the following node versions: \`${engines}\`. You can find the latest version at https://nodejs.org/.`
 
-  // coverage ignored because this is only hit in very unsupported node versions
-  // and it's a best effort attempt to show something nice in those cases
+  // coverage ignored because this is only hit in very unsupported node versions and it's a best effort attempt to show something nice in those cases
   /* istanbul ignore next */
   const syntaxErrorHandler = (err) => {
     if (err instanceof SyntaxError) {

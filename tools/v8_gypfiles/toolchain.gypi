@@ -330,7 +330,7 @@
         'conditions': [
           ['OS=="aix" or OS=="os400"', {
             # Work around AIX ceil, trunc and round oddities.
-            'cflags': [ '-mcpu=power5+ -mfprnd' ],
+            'cflags': [ '-mcpu=power9 -mfprnd' ],
           }],
           ['OS=="aix" or OS=="os400"', {
             # Work around AIX assembler popcntb bug.

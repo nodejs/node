@@ -93,34 +93,33 @@ test('localStorage is persisted if it is used', async () => {
 describe('webstorage quota for localStorage and sessionStorage', () => {
   const MAX_STORAGE_SIZE = 10 * 1024 * 1024;
 
-  test('localStorage can store and retrieve a max of 10 MB quota', async () => {
-    const localStorageFile = nextLocalStorage();
-    const cp = await spawnPromisified(process.execPath, [
-      '--localstorage-file', localStorageFile,
+  for (const storage of ['localStorage', 'sessionStorage']) {
+    test(`${storage} can store a max of 10 MB quota`, async () => {
+      const args = [];
+      if (storage === 'localStorage') {
+        args.push('--localstorage-file', nextLocalStorage());
+      }
       // Each character is 2 bytes
-      '-pe', `
-      localStorage['a'.repeat(${MAX_STORAGE_SIZE} / 2)] = '';
-      console.error('filled');
-      localStorage.anything = 'should fail';
-      `,
-    ]);
-
-    assert.match(cp.stderr, /filled/);
-    assert.match(cp.stderr, /QuotaExceededError: Setting the value exceeded the quota/);
-  });
-
-  test('sessionStorage can store a max of 10 MB quota', async () => {
-    const cp = await spawnPromisified(process.execPath, [
-      // Each character is 2 bytes
-      '-pe', `sessionStorage['a'.repeat(${MAX_STORAGE_SIZE} / 2)] = '';
-      console.error('filled');
-      sessionStorage.anything = 'should fail';
-      `,
-    ]);
-
-    assert.match(cp.stderr, /filled/);
-    assert.match(cp.stderr, /QuotaExceededError/);
-  });
+      args.push('-e', `
+      const assert = require('assert');
+      ${storage}['a'.repeat(${MAX_STORAGE_SIZE} / 2)] = '';
+      assert.throws(
+        () => { ${storage}.anything = 'should fail'; },
+        (err) => {
+          assert.strictEqual(err.name, 'QuotaExceededError');
+          assert.strictEqual(err.code, 22);
+          assert(err instanceof DOMException);
+          assert(err instanceof QuotaExceededError);
+          assert.strictEqual(err.quota, null);
+          assert.strictEqual(err.requested, null);
+          return true;
+        },
+      );
+      `);
+      const cp = await spawnPromisified(process.execPath, args);
+      assert.strictEqual(cp.code, 0);
+    });
+  }
 });
 
 test('disabled with --no-webstorage', async () => {

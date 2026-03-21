@@ -62,8 +62,7 @@ class SBOM extends BaseCommand {
     // Populate the response with the list of unique nodes (sorted by location)
     this.#buildResponse(items.sort((a, b) => localeCompare(a.location, b.location)))
 
-    // TODO(BREAKING_CHANGE): all sbom output is in json mode but setting it before
-    // any of the errors will cause those to be thrown in json mode.
+    // TODO(BREAKING_CHANGE): all sbom output is in json mode but setting it before any of the errors will cause those to be thrown in json mode.
     this.npm.config.set('json', true)
     output.standard(JSON.stringify(this.#response, null, 2), { [META]: true, redact: false })
   }
@@ -79,8 +78,7 @@ class SBOM extends BaseCommand {
     const omit = this.npm.flatOptions.omit
     const workspacesEnabled = this.npm.flatOptions.workspacesEnabled
 
-    // If omit is specified, omit all nodes and their children which match the
-    // specified selectors
+    // If omit is specified, omit all nodes and their children which match the specified selectors
     const omits = omit.reduce((acc, o) => `${acc}:not(.${o})`, '')
 
     if (!workspacesEnabled) {

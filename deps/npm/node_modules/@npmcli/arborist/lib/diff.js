@@ -71,6 +71,7 @@ class Diff {
         tree: filterNode,
         visit: node => filterSet.add(node),
         getChildren: node => {
+          const orig = node
           node = node.target
           const loc = node.location
           const idealNode = ideal.inventory.get(loc)
@@ -87,7 +88,12 @@ class Diff {
             }
           }
 
-          return ideals.concat(actuals)
+          const result = ideals.concat(actuals)
+          // Include link targets so store entries end up in filterSet
+          if (orig.isLink) {
+            result.push(node)
+          }
+          return result
         },
       })
     }

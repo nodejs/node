@@ -15,7 +15,7 @@ function run_test() {
         var promise = importVectorKeys(vector, ["verify", "sign"])
         .then(function(vector) {
             promise_test(function(test) {
-                var algorithmParams = {name: vector.algorithm, length: vector.length};
+                var algorithmParams = {name: vector.algorithm, outputLength: vector.outputLength};
                 if (vector.customization !== undefined) {
                     algorithmParams.customization = vector.customization;
                 }
@@ -48,7 +48,7 @@ function run_test() {
                 var signature = copyBuffer(vector.signature);
                 signature[0] = 255 - signature[0];
                 var algorithmParams = {
-                    length: vector.length,
+                    outputLength: vector.outputLength,
                     get name() {
                         signature[0] = vector.signature[0];
                         return vector.algorithm;
@@ -81,7 +81,7 @@ function run_test() {
         .then(function(vector) {
             promise_test(function(test) {
                 var signature = copyBuffer(vector.signature);
-                var algorithmParams = {name: vector.algorithm, length: vector.length};
+                var algorithmParams = {name: vector.algorithm, outputLength: vector.outputLength};
                 if (vector.customization !== undefined) {
                     algorithmParams.customization = vector.customization;
                 }
@@ -115,7 +115,7 @@ function run_test() {
                         signature.buffer.transfer();
                         return vector.algorithm;
                     },
-                    length: vector.length
+                    outputLength: vector.outputLength
                 };
                 if (vector.customization !== undefined) {
                     algorithmParams.customization = vector.customization;
@@ -144,7 +144,7 @@ function run_test() {
         .then(function(vector) {
             promise_test(function(test) {
                 var signature = copyBuffer(vector.signature);
-                var algorithmParams = {name: vector.algorithm, length: vector.length};
+                var algorithmParams = {name: vector.algorithm, outputLength: vector.outputLength};
                 if (vector.customization !== undefined) {
                     algorithmParams.customization = vector.customization;
                 }
@@ -175,7 +175,7 @@ function run_test() {
                 var plaintext = copyBuffer(vector.plaintext);
                 plaintext[0] = 255 - plaintext[0];
                 var algorithmParams = {
-                    length: vector.length,
+                    outputLength: vector.outputLength,
                     get name() {
                         plaintext[0] = vector.plaintext[0];
                         return vector.algorithm;
@@ -208,7 +208,7 @@ function run_test() {
         .then(function(vector) {
             promise_test(function(test) {
                 var plaintext = copyBuffer(vector.plaintext);
-                var algorithmParams = {name: vector.algorithm, length: vector.length};
+                var algorithmParams = {name: vector.algorithm, outputLength: vector.outputLength};
                 if (vector.customization !== undefined) {
                     algorithmParams.customization = vector.customization;
                 }
@@ -242,7 +242,7 @@ function run_test() {
                         plaintext.buffer.transfer();
                         return vector.algorithm;
                     },
-                    length: vector.length
+                    outputLength: vector.outputLength
                 };
                 if (vector.customization !== undefined) {
                     algorithmParams.customization = vector.customization;
@@ -271,7 +271,7 @@ function run_test() {
         .then(function(vector) {
             promise_test(function(test) {
                 var plaintext = copyBuffer(vector.plaintext);
-                var algorithmParams = {name: vector.algorithm, length: vector.length};
+                var algorithmParams = {name: vector.algorithm, outputLength: vector.outputLength};
                 if (vector.customization !== undefined) {
                     algorithmParams.customization = vector.customization;
                 }
@@ -301,7 +301,7 @@ function run_test() {
         var promise = importVectorKeys(vector, ["sign"])
         .then(function(vector) {
             promise_test(function(test) {
-                var algorithmParams = {name: vector.algorithm, length: vector.length};
+                var algorithmParams = {name: vector.algorithm, outputLength: vector.outputLength};
                 if (vector.customization !== undefined) {
                     algorithmParams.customization = vector.customization;
                 }
@@ -326,7 +326,7 @@ function run_test() {
         var promise = importVectorKeys(vector, ["verify", "sign"])
         .then(function(vectors) {
             promise_test(function(test) {
-                var algorithmParams = {name: vector.algorithm, length: vector.length};
+                var algorithmParams = {name: vector.algorithm, outputLength: vector.outputLength};
                 if (vector.customization !== undefined) {
                     algorithmParams.customization = vector.customization;
                 }
@@ -363,7 +363,7 @@ function run_test() {
             return importVectorKeys(vector, ["verify", "sign"])
             .then(function(vectors) {
                 promise_test(function(test) {
-                    var algorithmParams = {name: vector.algorithm, length: vector.length};
+                    var algorithmParams = {name: vector.algorithm, outputLength: vector.outputLength};
                     if (vector.customization !== undefined) {
                         algorithmParams.customization = vector.customization;
                     }
@@ -401,7 +401,7 @@ function run_test() {
             return importVectorKeys(vector, ["verify", "sign"])
             .then(function(vector) {
                 promise_test(function(test) {
-                    var algorithmParams = {name: vector.algorithm, length: vector.length};
+                    var algorithmParams = {name: vector.algorithm, outputLength: vector.outputLength};
                     if (vector.customization !== undefined) {
                         algorithmParams.customization = vector.customization;
                     }
@@ -438,7 +438,7 @@ function run_test() {
             var plaintext = copyBuffer(vector.plaintext);
             plaintext[0] = 255 - plaintext[0];
             promise_test(function(test) {
-                var algorithmParams = {name: vector.algorithm, length: vector.length};
+                var algorithmParams = {name: vector.algorithm, outputLength: vector.outputLength};
                 if (vector.customization !== undefined) {
                     algorithmParams.customization = vector.customization;
                 }
@@ -470,7 +470,7 @@ function run_test() {
             var signature = copyBuffer(vector.signature);
             signature[0] = 255 - signature[0];
             promise_test(function(test) {
-                var algorithmParams = {name: vector.algorithm, length: vector.length};
+                var algorithmParams = {name: vector.algorithm, outputLength: vector.outputLength};
                 if (vector.customization !== undefined) {
                     algorithmParams.customization = vector.customization;
                 }
@@ -501,7 +501,7 @@ function run_test() {
         .then(function(vector) {
             var signature = vector.signature.slice(1); // Drop first byte
             promise_test(function(test) {
-                var algorithmParams = {name: vector.algorithm, length: vector.length};
+                var algorithmParams = {name: vector.algorithm, outputLength: vector.outputLength};
                 if (vector.customization !== undefined) {
                     algorithmParams.customization = vector.customization;
                 }
@@ -531,8 +531,8 @@ function run_test() {
         var promise = importVectorKeys(vector, ["verify", "sign"])
         .then(function(vector) {
             promise_test(function(test) {
-                var differentLength = vector.length === 256 ? 512 : 256;
-                var algorithmParams = {name: vector.algorithm, length: differentLength};
+                var differentLength = vector.outputLength === 256 ? 512 : 256;
+                var algorithmParams = {name: vector.algorithm, outputLength: differentLength};
                 if (vector.customization !== undefined) {
                     algorithmParams.customization = vector.customization;
                 }

@@ -68,7 +68,7 @@ class RoundRobinPool extends PoolBase {
 
     this[kConnections] = connections || null
     this[kUrl] = util.parseOrigin(origin)
-    this[kOptions] = { ...util.deepClone(options), connect, allowH2, clientTtl }
+    this[kOptions] = { ...util.deepClone(options), connect, allowH2, clientTtl, socketPath }
     this[kOptions].interceptors = options.interceptors
       ? { ...options.interceptors }
       : undefined

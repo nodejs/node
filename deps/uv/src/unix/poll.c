@@ -26,7 +26,7 @@
 #include <assert.h>
 
 
-static void uv__poll_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
+void uv__poll_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
   uv_poll_t* handle;
   int pevents;
 
@@ -87,7 +87,7 @@ int uv_poll_init(uv_loop_t* loop, uv_poll_t* handle, int fd) {
     return err;
 
   uv__handle_init(loop, (uv_handle_t*) handle, UV_POLL);
-  uv__io_init(&handle->io_watcher, uv__poll_io, fd);
+  uv__io_init(&handle->io_watcher, UV__POLL_IO, fd);
   handle->poll_cb = NULL;
   return 0;
 }

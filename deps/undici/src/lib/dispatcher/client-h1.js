@@ -1114,6 +1114,10 @@ function writeH1 (client, request) {
     socket[kBlocking] = true
   }
 
+  if (socket.setTypeOfService) {
+    socket.setTypeOfService(request.typeOfService)
+  }
+
   let header = `${method} ${path} HTTP/1.1\r\n`
 
   if (typeof host === 'string') {

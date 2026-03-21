@@ -1,3 +1,4 @@
+const { log } = require('proc-log')
 const { resolve, dirname, delimiter } = require('path')
 // the path here is relative, even though it does not need to be
 // in order to make the posix tests pass in windows
@@ -14,6 +15,13 @@ const setPATH = (projectPath, binPaths, env) => {
 
   const pathArr = []
   if (binPaths) {
+    for (const bin of binPaths) {
+      if (bin.includes(delimiter)) {
+        const event = env.npm_lifecycle_event
+        const context = event ? `"${event}" script` : 'script execution'
+        log.warn('run-script', `Path contains delimiter ("${delimiter}"), ${context} may not behave as expected.`)
+      }
+    }
     pathArr.push(...binPaths)
   }
   // unshift the ./node_modules/.bin from every folder

@@ -9,14 +9,11 @@ const { log, output } = require('proc-log')
 const BaseCommand = require('../base-cmd.js')
 const { redact } = require('@npmcli/redact')
 
-// These are the config values to swap with "protected".  It does not catch
-// every single sensitive thing a user may put in the npmrc file but it gets
-// the common ones.  This is distinct from nerfDarts because that is used to
-// validate valid configs during "npm config set", and folks may have old
-// invalid entries lying around in a config file that we still want to protect
-// when running "npm config list"
-// This is a more general list of values to consider protected.  You cannot
-// "npm config get" them, and they will not display during "npm config list"
+// These are the config values to swap with "protected".
+// It does not catch every single sensitive thing a user may put in the npmrc file but it gets the common ones.
+// This is distinct from nerfDarts because that is used to validate valid configs during "npm config set", and folks may have old invalid entries lying around in a config file that we still want to protect when running "npm config list"
+// This is a more general list of values to consider protected.
+// You cannot "npm config get" them, and they will not display during "npm config list"
 const protected = [
   'auth',
   'authToken',
@@ -27,8 +24,7 @@ const protected = [
   'username',
 ]
 
-// take an array of `[key, value, k2=v2, k3, v3, ...]` and turn into
-// { key: value, k2: v2, k3: v3 }
+// take an array of `[key, value, k2=v2, k3, v3, ...]` and turn into { key: value, k2: v2, k3: v3 }
 const keyValues = args => {
   const kv = {}
   for (let i = 0; i < args.length; i++) {

@@ -157,4 +157,6 @@ process.on('exit', () => {
   // Ensure that the originally-named `options.type` still works as an alias for `options.readableType`
   // `getReader({ mode: 'byob' })` throws if the underlying ReadableStream is not a byte stream
   Duplex.toWeb(duplex, { type: 'bytes' }).readable.getReader({ mode: 'byob' });
+  common.expectWarning('DeprecationWarning',
+                       [/Passing 'options\.type' to Duplex\.toWeb\(\) is deprecated/, 'DEP0201']);
 }

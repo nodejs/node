@@ -94,7 +94,7 @@ const getCommandByDoc = (docFile, docExt, commandLoader = defaultCommandLoader) 
     name,
     workspaces,
     definitions: name === 'npx' ? {} : resolvedDefs,
-    usage: usage.map(u => `${usagePrefix} ${u}`.trim()).join('\n'),
+    usage: usage?.map(u => `${usagePrefix} ${u}`.trim()).join('\n'),
   }
 }
 

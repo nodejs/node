@@ -110,9 +110,7 @@ class Org extends BaseCommand {
       output.standard([user, org, userCount, true].join('\t'))
     } else if (!this.npm.silent) {
       output.standard(
-        `Successfully removed ${user} from ${org}. You now have ${userCount} member${
-          userCount === 1 ? '' : 's'
-        } in this org.`
+        `Successfully removed ${user} from ${org}. You now have ${userCount} member${userCount === 1 ? '' : 's'} in this org.`
       )
     }
   }

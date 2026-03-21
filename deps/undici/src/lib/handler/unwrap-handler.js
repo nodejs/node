@@ -67,6 +67,10 @@ module.exports = class UnwrapHandler {
     this.#handler.onRequestStart?.(this.#controller, context)
   }
 
+  onResponseStarted () {
+    return this.#handler.onResponseStarted?.()
+  }
+
   onUpgrade (statusCode, rawHeaders, socket) {
     this.#handler.onRequestUpgrade?.(this.#controller, statusCode, parseHeaders(rawHeaders), socket)
   }

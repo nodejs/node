@@ -70,6 +70,14 @@ if (process.argv[2] === 'child') {
   assert.strictEqual(child.status, 1);
   assert.strictEqual(child.signal, null);
 
+  // An error thrown inside describe() should cause a non-zero exit code.
+  child = spawnSync(process.execPath, [
+    '--test',
+    fixtures.path('test-runner', 'describe_error.js'),
+  ]);
+  assert.strictEqual(child.status, 1);
+  assert.strictEqual(child.signal, null);
+
   // With process isolation (default), the test name shown is the file path
   // because the parent runner only knows about file-level tests
   const neverEndingSync = fixtures.path('test-runner', 'never_ending_sync.js');

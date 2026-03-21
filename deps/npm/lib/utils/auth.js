@@ -52,9 +52,8 @@ const adduser = async (npm, { creds, ...opts }) => {
     const username = await read.username('Username:', creds.username)
     const password = await read.password('Password:', creds.password)
     const email = await read.email('Email (this will be public):', creds.email)
-    // npm registry quirk: If you "add" an existing user with their current
-    // password, it's effectively a login, and if that account has otp you'll
-    // be prompted for it.
+    // npm registry quirk:
+    // If you "add" an existing user with their current password, it's effectively a login, and if that account has otp you'll be prompted for it.
     res = await otplease(npm, opts, (reqOpts) => adduserCouch(username, email, password, reqOpts))
   }
 

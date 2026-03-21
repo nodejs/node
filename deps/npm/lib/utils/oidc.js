@@ -8,9 +8,8 @@ const libaccess = require('libnpmaccess')
 /**
  * Handles OpenID Connect (OIDC) token retrieval and exchange for CI environments.
  *
- * This function is designed to work in Continuous Integration (CI) environments such as GitHub Actions,
- * GitLab, and CircleCI. It retrieves an OIDC token from the CI environment, exchanges it for an npm token, and
- * sets the token in the provided configuration for authentication with the npm registry.
+ * This function is designed to work in Continuous Integration (CI) environments such as GitHub Actions, GitLab, and CircleCI.
+ * It retrieves an OIDC token from the CI environment, exchanges it for an npm token, and sets the token in the provided configuration for authentication with the npm registry.
  *
  * This function is intended to never throw, as it mutates the state of the `opts` and `config` objects on success.
  * OIDC is always an optional feature, and the function should not throw if OIDC is not configured by the registry.
@@ -70,8 +69,7 @@ async function oidc ({ packageName, registry, opts, config }) {
       }
 
       /**
-       * The specification for an audience is `npm:registry.npmjs.org`,
-       * where "registry.npmjs.org" can be any supported registry.
+       * The specification for an audience is `npm:registry.npmjs.org`, where "registry.npmjs.org" can be any supported registry.
        */
       const audience = `npm:${new URL(registry).hostname}`
       const url = new URL(process.env.ACTIONS_ID_TOKEN_REQUEST_URL)
@@ -135,9 +133,8 @@ async function oidc ({ packageName, registry, opts, config }) {
     }
 
     /*
-     * The "opts" object is a clone of npm.flatOptions and is passed through the `publish` command,
-     * eventually reaching `otplease`. To ensure the token is accessible during the publishing process,
-     * it must be directly attached to the `opts` object.
+     * The "opts" object is a clone of npm.flatOptions and is passed through the `publish` command, eventually reaching `otplease`.
+     * To ensure the token is accessible during the publishing process, it must be directly attached to the `opts` object.
      * Additionally, the token is required by the "live" configuration or getters within `config`.
      */
     opts[authTokenKey] = response.token

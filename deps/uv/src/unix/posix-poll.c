@@ -195,31 +195,9 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
    * our caller then we need to loop around and poll() again.
    */
   for (;;) {
-    /* Only need to set the provider_entry_time if timeout != 0. The function
-     * will return early if the loop isn't configured with UV_METRICS_IDLE_TIME.
-     */
-    if (timeout != 0)
-      uv__metrics_set_provider_entry_time(loop);
-
-    /* Store the current timeout in a location that's globally accessible so
-     * other locations like uv__work_done() can determine whether the queue
-     * of events in the callback were waiting when poll was called.
-     */
-    lfields->current_timeout = timeout;
-
-    if (pset != NULL)
-      if (pthread_sigmask(SIG_BLOCK, pset, NULL))
-        abort();
+    uv__io_poll_prepare(loop, pset, timeout);
     nfds = poll(loop->poll_fds, (nfds_t)loop->poll_fds_used, timeout);
-    if (pset != NULL)
-      if (pthread_sigmask(SIG_UNBLOCK, pset, NULL))
-        abort();
-
-    /* Update loop->time unconditionally. It's tempting to skip the update when
-     * timeout == 0 (i.e. non-blocking poll) but there is no guarantee that the
-     * operating system didn't reschedule our process while in the syscall.
-     */
-    SAVE_ERRNO(uv__update_time(loop));
+    uv__io_poll_check(loop, pset);
 
     if (nfds == 0) {
       if (reset_timeout != 0) {
@@ -294,7 +272,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
           have_signals = 1;
         } else {
           uv__metrics_update_idle_time(loop);
-          w->cb(loop, w, pe->revents);
+          uv__io_cb(loop, w, pe->revents);
         }
 
         nevents++;
@@ -310,7 +288,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
     if (have_signals != 0) {
       uv__metrics_update_idle_time(loop);
-      loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher, POLLIN);
+      uv__signal_event(loop, &loop->signal_io_watcher, POLLIN);
     }
 
     loop->poll_fds_iterating = 0;

@@ -96,7 +96,7 @@ declare class Dispatcher extends EventEmitter {
 }
 
 declare namespace Dispatcher {
-  export interface ComposedDispatcher extends Dispatcher {}
+  export interface ComposedDispatcher extends Dispatcher { }
   export type Dispatch = Dispatcher['dispatch']
   export type DispatcherComposeInterceptor = (dispatch: Dispatch) => Dispatch
   export interface DispatchOptions {
@@ -113,6 +113,8 @@ declare namespace Dispatcher {
     idempotent?: boolean;
     /** Whether the response is expected to take a long time and would end up blocking the pipeline. When this is set to `true` further pipelining will be avoided on the same connection until headers have been received. Defaults to `method !== 'HEAD'`. */
     blocking?: boolean;
+    /** The IP Type of Service (ToS) value for the request socket. Must be an integer between 0 and 255. Default: `0` */
+    typeOfService?: number | null;
     /** Upgrade the request. Should be used to specify the kind of upgrade i.e. `'Websocket'`. Default: `method === 'CONNECT' || null`. */
     upgrade?: boolean | string | null;
     /** The amount of time, in milliseconds, the parser will wait to receive the complete HTTP headers. Defaults to 300 seconds. */
@@ -213,10 +215,10 @@ declare namespace Dispatcher {
   export type StreamFactory<TOpaque = null> = (data: StreamFactoryData<TOpaque>) => Writable
 
   export interface DispatchController {
-    get aborted () : boolean
-    get paused () : boolean
-    get reason () : Error | null
-    abort (reason: Error): void
+    get aborted(): boolean
+    get paused(): boolean
+    get reason(): Error | null
+    abort(reason: Error): void
     pause(): void
     resume(): void
   }

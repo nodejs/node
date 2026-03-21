@@ -111,6 +111,23 @@ int uv_read_stop(uv_stream_t* handle) {
 }
 
 
+static int uv__check_before_write(uv_stream_t* handle, unsigned int nbufs) {
+  /* We're not beholden to IOV_MAX but limit the buffer count to catch sign
+   * conversion bugs where a caller passes in a signed negative number that
+   * then gets converted to a really large unsigned number.
+   */
+  if (nbufs < 1 || nbufs > 1024*1024) {
+    return UV_EINVAL;
+  }
+
+  if (!(handle->flags & UV_HANDLE_WRITABLE)) {
+    return UV_EPIPE;
+  }
+
+  return 0;
+}
+
+
 int uv_write(uv_write_t* req,
              uv_stream_t* handle,
              const uv_buf_t bufs[],
@@ -119,8 +136,9 @@ int uv_write(uv_write_t* req,
   uv_loop_t* loop = handle->loop;
   int err;
 
-  if (!(handle->flags & UV_HANDLE_WRITABLE)) {
-    return UV_EPIPE;
+  err = uv__check_before_write(handle, nbufs);
+  if (err != 0) {
+    return err;
   }
 
   err = ERROR_INVALID_PARAMETER;
@@ -156,10 +174,13 @@ int uv_write2(uv_write_t* req,
     return uv_write(req, handle, bufs, nbufs, cb);
   }
 
+  err = uv__check_before_write(handle, nbufs);
+  if (err != 0) {
+    return err;
+  }
+
   if (handle->type != UV_NAMED_PIPE || !((uv_pipe_t*) handle)->ipc) {
     return UV_EINVAL;
-  } else if (!(handle->flags & UV_HANDLE_WRITABLE)) {
-    return UV_EPIPE;
   }
 
   err = uv__pipe_write(
@@ -171,10 +192,15 @@ int uv_write2(uv_write_t* req,
 int uv_try_write(uv_stream_t* stream,
                  const uv_buf_t bufs[],
                  unsigned int nbufs) {
+  int err;
+
+  err = uv__check_before_write(stream, nbufs);
+  if (err != 0) {
+    return err;
+  }
+
   if (stream->flags & UV_HANDLE_CLOSING)
     return UV_EBADF;
-  if (!(stream->flags & UV_HANDLE_WRITABLE))
-    return UV_EPIPE;
 
   switch (stream->type) {
     case UV_TCP:

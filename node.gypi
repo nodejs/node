@@ -84,6 +84,9 @@
     }, { # POSIX
       'defines': [ '__POSIX__' ],
     }],
+    [ 'OS=="aix" or OS=="os400"', {
+      'cflags': [ '-mcpu=power9' ],
+    }],
     [ 'node_enable_d8=="true"', {
       'dependencies': [ 'tools/v8_gypfiles/d8.gyp:d8' ],
     }],

@@ -296,6 +296,8 @@ class AuditReport extends Map {
     if (
       !node.version ||
       node.isRoot ||
+      node.isLink ||
+      node.linksIn?.size > 0 ||
       (this.filterSet && this.filterSet?.size !== 0 && !this.filterSet?.has(node))
     ) {
       return false

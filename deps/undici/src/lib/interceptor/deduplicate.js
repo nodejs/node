@@ -15,7 +15,8 @@ module.exports = (opts = {}) => {
   const {
     methods = ['GET'],
     skipHeaderNames = [],
-    excludeHeaderNames = []
+    excludeHeaderNames = [],
+    maxBufferSize = 5 * 1024 * 1024
   } = opts
 
   if (typeof opts !== 'object' || opts === null) {
@@ -38,6 +39,10 @@ module.exports = (opts = {}) => {
 
   if (!Array.isArray(excludeHeaderNames)) {
     throw new TypeError(`expected opts.excludeHeaderNames to be an array, got ${typeof excludeHeaderNames}`)
+  }
+
+  if (!Number.isFinite(maxBufferSize) || maxBufferSize <= 0) {
+    throw new TypeError(`expected opts.maxBufferSize to be a positive finite number, got ${maxBufferSize}`)
   }
 
   // Convert to lowercase Set for case-insensitive header matching
@@ -78,9 +83,13 @@ module.exports = (opts = {}) => {
       // Check if there's already a pending request for this key
       const pendingHandler = pendingRequests.get(dedupeKey)
       if (pendingHandler) {
-        // Add this handler to the waiting list
-        pendingHandler.addWaitingHandler(handler)
-        return true
+        // Add this handler to the waiting list when safe.
+        // If body streaming has already started, this request must be sent independently.
+        if (pendingHandler.addWaitingHandler(handler)) {
+          return true
+        }
+
+        return dispatch(opts, handler)
       }
 
       // Create a new deduplication handler
@@ -92,7 +101,8 @@ module.exports = (opts = {}) => {
           if (pendingRequestsChannel.hasSubscribers) {
             pendingRequestsChannel.publish({ size: pendingRequests.size, key: dedupeKey, type: 'removed' })
           }
-        }
+        },
+        maxBufferSize
       )
 
       // Register the pending request

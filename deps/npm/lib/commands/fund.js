@@ -98,8 +98,7 @@ class Fund extends ArboristWorkspaceCmd {
     const result = depth({
       tree: fundingInfo,
 
-      // composes human readable package name
-      // and creates a new archy item for readable output
+      // composes human readable package name and creates a new archy item for readable output
       visit: ({ name, version, funding }) => {
         const [fundingSource] = [].concat(normalizeFunding(funding)).filter(isValidFunding)
         const { url } = fundingSource || {}
@@ -126,8 +125,7 @@ class Fund extends ArboristWorkspaceCmd {
         return item
       },
 
-      // puts child nodes back into returned archy
-      // output while also filtering out missing items
+      // puts child nodes back into returned archy output while also filtering out missing items
       leave: (item, children) => {
         if (item) {
           item.nodes = children.filter(Boolean)
@@ -136,8 +134,7 @@ class Fund extends ArboristWorkspaceCmd {
         return item
       },
 
-      // turns tree-like object return by libnpmfund
-      // into children to be properly read by treeverse
+      // turns tree-like object return by libnpmfund into children to be properly read by treeverse
       getChildren: node =>
         Object.keys(node.dependencies || {}).map(key => ({
           name: key,
@@ -166,8 +163,7 @@ class Fund extends ArboristWorkspaceCmd {
           }
         }
       } else {
-        // tries to retrieve a package from arborist inventory
-        // by matching resulted package name from the provided spec
+        // tries to retrieve a package from arborist inventory by matching resulted package name from the provided spec
         const [item] = [...tree.inventory.query('name', arg.name)]
           .filter(i => semver.valid(i.package.version))
           .sort((a, b) => semver.rcompare(a.package.version, b.package.version))

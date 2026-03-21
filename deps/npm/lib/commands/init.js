@@ -56,9 +56,8 @@ class Init extends BaseCommand {
       await this.exec(args)
     }
 
-    // reads package.json for the top-level folder first, by doing this we
-    // ensure the command throw if no package.json is found before trying
-    // to create a workspace package.json file or its folders
+    // reads package.json for the top-level folder first
+    // by doing this we ensure the command throw if no package.json is found before trying to create a workspace package.json file or its folders
     const { content: pkg } = await PackageJson.normalize(this.npm.localPrefix).catch(err => {
       if (err.code === 'ENOENT') {
         log.warn('init', 'Missing package.json. Try with `--include-workspace-root`.')
@@ -66,8 +65,7 @@ class Init extends BaseCommand {
       throw err
     })
 
-    // these are workspaces that are being created, so we can't use
-    // this.setWorkspaces()
+    // these are workspaces that are being created, so we can't use this.setWorkspaces()
     const filters = this.npm.config.get('workspace')
     const wPath = filterArg => resolve(this.npm.localPrefix, filterArg)
 
@@ -161,11 +159,9 @@ class Init extends BaseCommand {
         'This utility will walk you through creating a package.json file.',
         'It only covers the most common items, and tries to guess sensible defaults.',
         '',
-        'See `npm help init` for definitive documentation on these fields',
-        'and exactly what they do.',
+        'See `npm help init` for definitive documentation on these fields and exactly what they do.',
         '',
-        'Use `npm install <pkg>` afterwards to install a package and',
-        'save it as a dependency in the package.json file.',
+        'Use `npm install <pkg>` afterwards to install a package and save it as a dependency in the package.json file.',
         '',
         'Press ^C at any time to quit.',
       ].join('\n'))
@@ -195,10 +191,7 @@ class Init extends BaseCommand {
       }
     }
 
-    // if a create-pkg didn't generate a package.json at the workspace
-    // folder level, it might not be recognized as a workspace by
-    // mapWorkspaces, so we're just going to avoid touching the
-    // top-level package.json
+    // if a create-pkg didn't generate a package.json at the workspace folder level, it might not be recognized as a workspace by mapWorkspaces, so we're just going to avoid touching the top-level package.json
     try {
       statSync(resolve(workspacePath, 'package.json'))
     } catch {

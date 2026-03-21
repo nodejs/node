@@ -17,9 +17,8 @@ const errorMessage = (er, npm) => {
       const { report } = require('./explain-eresolve.js')
       summary.push(['ERESOLVE', er.message])
       detail.push(['', ''])
-      // XXX(display): error messages are logged so we use the logColor since that is based
-      // on stderr. This should be handled solely by the display layer so it could also be
-      // printed to stdout if necessary.
+      // XXX(display): error messages are logged so we use the logColor since that is based on stderr.
+      // This should be handled solely by the display layer so it could also be printed to stdout if necessary.
       const { explanation, file } = report(er, npm.logChalk, npm.noColorChalk)
       detail.push(['', explanation])
       files.push(['eresolve-report.txt', file])
@@ -42,8 +41,7 @@ const errorMessage = (er, npm) => {
       summary.push(['', er])
       detail.push(['', [
         '',
-        'If you are behind a proxy, please make sure that the',
-        "'proxy' config is set properly.  See: 'npm help config'",
+        `If you are behind a proxy, please make sure that the 'proxy' config is set properly.  See: 'npm help config'`,
       ].join('\n')])
       break
 
@@ -59,8 +57,7 @@ const errorMessage = (er, npm) => {
         log.verbose(er.stack)
         summary.push(['', [
           '',
-          'Your cache folder contains root-owned files, due to a bug in',
-          'previous versions of npm which has since been addressed.',
+          'Your cache folder contains root-owned files, due to a bug in previous versions of npm which has since been addressed.',
           '',
           'To permanently fix this problem, please run:',
           `  sudo chown -R ${process.getuid()}:${process.getgid()} "${npm.config.get('cache')}"`,
@@ -71,15 +68,12 @@ const errorMessage = (er, npm) => {
           '',
           'The operation was rejected by your operating system.',
           ...process.platform === 'win32' ? [
-            "It's possible that the file was already in use (by a text editor or antivirus),",
-            'or that you lack permissions to access it.',
+            `It's possible that the file was already in use (by a text editor or antivirus), or that you lack permissions to access it.`,
           ] : [
             'It is likely you do not have the permissions to access this file as the current user',
           ],
           '',
-          'If you believe this might be a permissions issue, please double-check the',
-          'permissions of the file and its containing directories, or try running',
-          'the command again as root/Administrator.',
+          'If you believe this might be a permissions issue, please double-check the permissions of the file and its containing directories, or try running the command again as root/Administrator.',
         ].join('\n')])
       }
       break
@@ -138,8 +132,7 @@ const errorMessage = (er, npm) => {
           summary.push(['', 'This operation requires a one-time password from your authenticator.'])
           detail.push(['', [
             'You can provide a one-time password by passing --otp=<code> to the command you ran.',
-            'If you already provided a one-time password then it is likely that you either typoed',
-            'it, or it timed out. Please try again.',
+            'If you already provided a one-time password then it is likely that you either typoed it, or it timed out. Please try again.',
           ].join('\n')])
         }
       } else {
@@ -160,14 +153,12 @@ const errorMessage = (er, npm) => {
         } else if (auth.includes('Basic')) {
           summary.push(['', 'Incorrect or missing password.'])
           detail.push(['', [
-            'If you were trying to login, change your password, create an',
-            'authentication token or enable two-factor authentication then',
-            'that means you likely typed your password in incorrectly.',
+            'If you were trying to login, change your password, create an authentication token or enable two-factor authentication then that means you likely typed your password in incorrectly.',
             'Please try again, or recover your password at:',
             '  https://www.npmjs.com/forgot',
             '',
-            'If you were doing some other operation then your saved credentials are',
-            'probably out of date. To correct this please try logging in again with:',
+            'If you were doing some other operation then your saved credentials are probably out of date.',
+            'To correct this please try logging in again with:',
             '  npm login',
           ].join('\n')])
         } else {
@@ -207,7 +198,7 @@ const errorMessage = (er, npm) => {
 
     case 'EPUBLISHCONFLICT':
       summary.push(['publish fail', 'Cannot publish over existing version.'])
-      detail.push(['publish fail', "Update the 'version' field in package.json and try again."])
+      detail.push(['publish fail', `Update the 'version' field in package.json and try again.`])
       detail.push(['publish fail', ''])
       detail.push(['publish fail', 'To automatically increment version numbers, see:'])
       detail.push(['publish fail', '  npm help version'])
@@ -217,8 +208,7 @@ const errorMessage = (er, npm) => {
       summary.push(['git', er.message])
       summary.push(['git', `  ${er.path}`])
       detail.push(['git', [
-        'Refusing to remove it. Update manually,',
-        'or move it out of the way first.',
+        'Refusing to remove it. Update manually, or move it out of the way first.',
       ].join('\n')])
       break
 
@@ -290,25 +280,21 @@ const errorMessage = (er, npm) => {
         'This is a problem related to network connectivity.',
         'In most cases you are behind a proxy or have bad network settings.',
         '',
-        'If you are behind a proxy, please make sure that the',
-        "'proxy' config is set properly.  See: 'npm help config'",
+        `If you are behind a proxy, please make sure that the 'proxy' config is set properly.  See: 'npm help config'`,
       ].join('\n')])
       break
 
     case 'ETARGET':
       summary.push(['notarget', er.message])
       detail.push(['notarget', [
-        'In most cases you or one of your dependencies are requesting',
-        "a package version that doesn't exist.",
+        `In most cases you or one of your dependencies are requesting a package version that doesn't exist.`,
       ].join('\n')])
       break
 
     case 'E403':
       summary.push(['403', er.message])
       detail.push(['403', [
-        'In most cases, you or one of your dependencies are requesting',
-        'a package version that is forbidden by your security policy, or',
-        'on a server you do not have access to.',
+        'In most cases, you or one of your dependencies are requesting a package version that is forbidden by your security policy, or on a server you do not have access to.',
       ].join('\n')])
       break
 
@@ -334,8 +320,7 @@ const errorMessage = (er, npm) => {
     case 'EROFS':
       summary.push(['rofs', er.message])
       detail.push(['rofs', [
-        'Often virtualized file systems, or other file systems',
-        "that don't support symlinks, give this error.",
+        `Often virtualized file systems, or other file systems that don't support symlinks, give this error.`,
       ].join('\n')])
       break
 
@@ -354,7 +339,7 @@ const errorMessage = (er, npm) => {
       summary.push(['typeerror', er.stack])
       detail.push(['typeerror', [
         'This is an error with npm itself. Please report this error at:',
-        '  https://github.com/npm/cli/issues',
+        'https://github.com/npm/cli/issues',
       ].join('\n')])
       break
 
@@ -395,10 +380,8 @@ const getExitCodeFromError = (err) => {
 }
 
 const getError = (err, { npm, command, pkg }) => {
-  // if we got a command that just shells out to something else, then it
-  // will presumably print its own errors and exit with a proper status
-  // code if there's a problem.  If we got an error with a code=0, then...
-  // something else went wrong along the way, so maybe an npm problem?
+  // if we got a command that just shells out to something else, then it will presumably print its own errors and exit with a proper status code if there's a problem.
+  // If we got an error with a code=0, then... something else went wrong along the way, so maybe an npm problem?
   if (command?.constructor?.isShellout && typeof err.code === 'number' && err.code) {
     return {
       exitCode: err.code,
@@ -438,10 +421,9 @@ const getError = (err, { npm, command, pkg }) => {
     }
   }
 
-  // Anything after this is not suppressed and get more logged information
+  // Anything after this is not suppressed and gets more logged information
 
-  // add a code to the error if it doesnt have one and mutate some properties
-  // so they have redacted information
+  // add a code to the error if it doesnt have one and mutate some properties so they have redacted information
   err.code ??= err.message.match(/^(?:Error: )?(E[A-Z]+)/)?.[1]
   // this mutates the error and redacts stack/message
   const { summary, detail, files, json } = errorMessage(err, npm)

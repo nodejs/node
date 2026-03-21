@@ -208,7 +208,8 @@ static void uv__getaddrinfo_done(struct uv__work* w, int status) {
   }
 
 complete:
-  uv__req_unregister(req->loop);
+  if (req->loop != NULL)
+    uv__req_unregister(req->loop);
 
   /* finally do callback with converted result */
   if (req->getaddrinfo_cb)
@@ -239,7 +240,7 @@ void uv_freeaddrinfo(struct addrinfo* ai) {
  */
 int uv_getaddrinfo(uv_loop_t* loop,
                    uv_getaddrinfo_t* req,
-                   uv_getaddrinfo_cb getaddrinfo_cb,
+                   uv_getaddrinfo_cb cb,
                    const char* node,
                    const char* service,
                    const struct addrinfo* hints) {
@@ -252,12 +253,15 @@ int uv_getaddrinfo(uv_loop_t* loop,
   size_t hintoff = 0;
   ssize_t rc;
 
-  if (req == NULL || (node == NULL && service == NULL)) {
+  if (req == NULL || (node == NULL && service == NULL))
     return UV_EINVAL;
-  }
+  if (loop == NULL && cb != NULL)
+    return UV_EINVAL;
+
+  uv__once_init();
 
   UV_REQ_INIT(req, UV_GETADDRINFO);
-  req->getaddrinfo_cb = getaddrinfo_cb;
+  req->getaddrinfo_cb = cb;
   req->addrinfo = NULL;
   req->loop = loop;
   req->retcode = 0;
@@ -330,9 +334,10 @@ int uv_getaddrinfo(uv_loop_t* loop,
     req->addrinfow = NULL;
   }
 
-  uv__req_register(loop);
+  if (loop != NULL)
+    uv__req_register(loop);
 
-  if (getaddrinfo_cb) {
+  if (cb) {
     uv__work_submit(loop,
                     &req->work_req,
                     UV__WORK_SLOW_IO,

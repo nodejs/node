@@ -70,5 +70,6 @@ module.exports = {
   kPingInterval: Symbol('ping interval'),
   kNoProxyAgent: Symbol('no proxy agent'),
   kHttpProxyAgent: Symbol('http proxy agent'),
-  kHttpsProxyAgent: Symbol('https proxy agent')
+  kHttpsProxyAgent: Symbol('https proxy agent'),
+  kSocks5ProxyAgent: Symbol('socks5 proxy agent')
 }

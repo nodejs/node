@@ -1,6 +1,4 @@
-// print a banner telling the user to upgrade npm to latest
-// but not in CI, and not if we're doing that already.
-// Check daily for betas, and weekly otherwise.
+// print a banner telling the user to upgrade npm to latest but not in CI, and not if we're doing that already.
 
 const ciInfo = require('ci-info')
 const gt = require('semver/functions/gt')
@@ -14,11 +12,9 @@ const DAILY = 1000 * 60 * 60 * 24
 const WEEKLY = DAILY * 7
 
 // don't put it in the _cacache folder, just in npm's cache
-const lastCheckedFile = npm =>
-  resolve(npm.flatOptions.cache, '../_update-notifier-last-checked')
+const lastCheckedFile = npm => resolve(npm.flatOptions.cache, '../_update-notifier-last-checked')
 
-// Actual check for updates. This is a separate function so that we only load
-// this if we are doing the actual update
+// Actual check for updates. This is a separate function so that we only load this if we are doing the actual update
 const updateCheck = async (npm, spec, version, current) => {
   const pacote = require('pacote')
 
@@ -36,10 +32,8 @@ const updateCheck = async (npm, spec, version, current) => {
 
   const latest = mani.version
 
-  // if the current version is *greater* than latest, we're on a 'next'
-  // and should get the updates from that release train.
-  // Note that this isn't another http request over the network, because
-  // the packument will be cached by pacote from previous request.
+  // if the current version is *greater* than latest, we're on a 'next' and should get the updates from that release train.
+  // Note that this isn't another http request over the network, because the packument will be cached by pacote from previous request.
   if (gt(version, latest) && spec === '*') {
     return updateNotifier(npm, `^${version}`)
   }
@@ -51,9 +45,8 @@ const updateCheck = async (npm, spec, version, current) => {
 
   const chalk = npm.logChalk
 
-  // ok!  notify the user about this update they should get.
-  // The message is saved for printing at process exit so it will not get
-  // lost in any other messages being printed as part of the command.
+  // ok! notify the user about this update they should get.
+  // The message is saved for printing at process exit so it will not get lost in any other messages being printed as part of the command.
   const update = parse(mani.version)
   const type = update.major !== current.major ? 'major'
     : update.minor !== current.minor ? 'minor'
@@ -62,18 +55,20 @@ const updateCheck = async (npm, spec, version, current) => {
   const typec = type === 'major' ? 'red'
     : type === 'minor' ? 'yellow'
     : 'cyan'
-  const cmd = `npm install -g npm@${latest}`
-  const message = `\nNew ${chalk[typec](type)} version of npm available! ` +
-    `${chalk[typec](current)} -> ${chalk.blue(latest)}\n` +
-    `Changelog: ${chalk.blue(`https://github.com/npm/cli/releases/tag/v${latest}`)}\n` +
-    `To update run: ${chalk.underline(cmd)}\n`
+  const message = [
+    '',
+    `New ${chalk[typec](type)} version of npm available! ${chalk[typec](current)} -> ${chalk.blue(latest)}`,
+    `Changelog: ${chalk.blue(`https://github.com/npm/cli/releases/tag/v${latest}`)}`,
+    `To update run: ${chalk.underline(`npm install -g npm@${latest}`)}`,
+    '',
+  ].join('\n')
 
   return message
 }
 
 const updateNotifier = async (npm, spec = '*') => {
-  // if we're on a prerelease train, then updates are coming fast
-  // check for a new one daily.  otherwise, weekly.
+  // if we're on a prerelease train, then updates are coming fast check for a new one daily.
+  // otherwise, weekly.
   const { version } = npm
   const current = parse(version)
 
@@ -94,15 +89,15 @@ const updateNotifier = async (npm, spec = '*') => {
     return null
   }
 
-  // intentional.  do not await this.  it's a best-effort update.  if this
-  // fails, it's ok.  might be using /dev/null as the cache or something weird
-  // like that.
+  // intentional.  do not await this.  it's a best-effort update.
+  // if this fails, it's ok.
+  // might be using /dev/null as the cache or something weird like that.
   writeFile(lastCheckedFile(npm), '').catch(() => {})
 
   return updateCheck(npm, spec, version, current)
 }
 
-module.exports = npm => {
+module.exports = async npm => {
   if (
     // opted out
     !npm.config.get('update-notifier')
@@ -113,7 +108,7 @@ module.exports = npm => {
     // CI
     || ciInfo.isCI
   ) {
-    return Promise.resolve(null)
+    return null
   }
 
   return updateNotifier(npm)

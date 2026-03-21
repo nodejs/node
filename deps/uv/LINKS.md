@@ -30,7 +30,6 @@
 * [node9](https://github.com/jvburnes/node9): A portable, hybrid, distributed OS based on Inferno, LuaJIT and Libuv
 * [node.js](http://www.nodejs.org/): Javascript (using Google's V8) + libuv
 * [node.native](https://github.com/d5/node.native): node.js-like API for C++11
-* [nodeuv](https://github.com/nodeuv): An organization with several c++ wrappers for libs which are used in node.js.
 * [phastlight](https://github.com/phastlight/phastlight): Command line tool and web server written in PHP 5.3+ inspired by Node.js
 * [pilight](https://www.pilight.org/): home automation ("domotica")
 * [pixie](https://github.com/pixie-lang/pixie): clojure-inspired lisp with a tracing JIT
@@ -109,4 +108,6 @@
 * Haskell
    * [Z.Haskell](https://z.haskell.world)
 * C3
-   * [libuv.c3l](https://github.com/velikoss/libuv.c3l)   
+   * [libuv.c3l](https://github.com/velikoss/libuv.c3l)
+* C
+   * [c-asio](https://github.com/zelang-dev/c-asio) A memory safe focus *C framework*, combining [c-raii](https://zelang-dev.github.io/c-raii), `libuv`, **coroutine** and other concurrency primitives.

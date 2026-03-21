@@ -1,7 +1,10 @@
 'use strict';
 const common = require('../common');
+const os = require('os');
 if (common.isWindows)
   common.skip('dgram clustering is currently not supported on windows.');
+if (common.isAIX && os.release() === '7.3')
+  common.skip('dgram clutering with reuse does not work if built on AIX 7.3.');
 
 const assert = require('assert');
 const cluster = require('cluster');

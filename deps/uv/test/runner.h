@@ -22,7 +22,6 @@
 #ifndef RUNNER_H_
 #define RUNNER_H_
 
-#include <limits.h> /* PATH_MAX */
 #include <stdio.h> /* FILE */
 
 
@@ -57,7 +56,7 @@ typedef struct {
   task_entry_t TASKS[] = {
 
 #define TASK_LIST_END                               \
-    { 0, 0, 0, 0, 0, 0 }                               \
+    { 0, 0, 0, 0, 0, 0 }                            \
   };
 
 #define TEST_DECLARE(name)                          \
@@ -68,6 +67,23 @@ typedef struct {
 
 #define TEST_ENTRY_CUSTOM(name, is_helper, show_output, timeout) \
     { #name, #name, &run_test_##name, is_helper, show_output, timeout },
+
+/*
+ * Macros for fs tests that, on linux, generate both normal and io_uring
+ * versions.
+ */
+#ifdef __linux__
+#define TEST_FS_DECLARE(name)                       \
+  TEST_DECLARE(name)                                \
+  TEST_DECLARE(name##_iouring)
+
+#define TEST_FS_ENTRY(name)                         \
+  TEST_ENTRY(name)                                  \
+  TEST_ENTRY(name##_iouring)
+#else
+#define TEST_FS_DECLARE(name) TEST_DECLARE(name)
+#define TEST_FS_ENTRY(name) TEST_ENTRY(name)
+#endif
 
 #define BENCHMARK_DECLARE(name)                     \
   int run_benchmark_##name(void);

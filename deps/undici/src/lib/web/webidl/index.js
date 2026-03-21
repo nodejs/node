@@ -452,6 +452,9 @@ webidl.interfaceConverter = function (TypeCheck, name) {
 }
 
 webidl.dictionaryConverter = function (converters) {
+  // "For each dictionary member member declared on dictionary, in lexicographical order:"
+  converters.sort((a, b) => (a.key > b.key) - (a.key < b.key))
+
   return (dictionary, prefix, argument) => {
     const dict = {}
 

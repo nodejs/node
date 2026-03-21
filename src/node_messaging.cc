@@ -1762,6 +1762,21 @@ static void CreatePerContextProperties(Local<Object> target,
               domexception)
         .Check();
   }
+  {
+    Local<Object> per_context_bindings;
+    Local<Value> quota_exceeded_error_val;
+    if (GetPerContextExports(context).ToLocal(&per_context_bindings) &&
+        per_context_bindings
+            ->Get(context,
+                  FIXED_ONE_BYTE_STRING(env->isolate(), "QuotaExceededError"))
+            .ToLocal(&quota_exceeded_error_val)) {
+      target
+          ->Set(context,
+                FIXED_ONE_BYTE_STRING(env->isolate(), "QuotaExceededError"),
+                quota_exceeded_error_val)
+          .Check();
+    }
+  }
 }
 
 static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {

@@ -26,6 +26,7 @@ import { errors } from 'undici'
 | `InformationalError`                 | `UND_ERR_INFO`                        | expected error with reason                                                |
 | `ResponseExceededMaxSizeError`       | `UND_ERR_RES_EXCEEDED_MAX_SIZE`       | response body exceed the max size allowed                                 |
 | `SecureProxyConnectionError`         | `UND_ERR_PRX_TLS`                     | tls connection to a proxy failed                                          |
+| `MessageSizeExceededError`           | `UND_ERR_WS_MESSAGE_SIZE_EXCEEDED`    | WebSocket decompressed message exceeded the maximum allowed size          |
 
 Be aware of the possible difference between the global dispatcher version and the actual undici version you might be using. We recommend to avoid the check `instanceof errors.UndiciError` and seek for the `error.code === '<error_code>'` instead to avoid inconsistencies.
 ### `SocketError`

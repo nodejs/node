@@ -976,6 +976,14 @@ DataHandler.prototype.load = async function load(key) {
 };
 ```
 
+## Class: `QuotaExceededError`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The WHATWG {QuotaExceededError} class. Extends {DOMException}.
+
 ## Class: `ReadableByteStreamController`
 
 <!-- YAML

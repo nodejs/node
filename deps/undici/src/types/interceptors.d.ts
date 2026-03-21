@@ -60,6 +60,13 @@ declare namespace Interceptors {
      * @default []
      */
     excludeHeaderNames?: string[]
+    /**
+     * Maximum bytes buffered per paused waiting deduplicated handler.
+     * If a waiting handler remains paused and exceeds this threshold,
+     * it is failed with an abort error to prevent unbounded memory growth.
+     * @default 5 * 1024 * 1024
+     */
+    maxBufferSize?: number
   }
 
   export function dump (opts?: DumpInterceptorOpts): Dispatcher.DispatcherComposeInterceptor

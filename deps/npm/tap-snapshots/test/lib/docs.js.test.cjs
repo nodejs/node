@@ -5782,7 +5782,11 @@ exports[`test/lib/docs.js TAP usage trust > must match snapshot 1`] = `
 Create a trusted relationship between a package and a OIDC provider
 
 Usage:
-npm trust
+npm trust github [package] --file [--repo|--repository] [--env|--environment] [-y|--yes]
+npm trust gitlab [package] --file [--project|--repo|--repository] [--env|--environment] [-y|--yes]
+npm trust circleci [package] --org-id <uuid> --project-id <uuid> --pipeline-definition-id <uuid> --vcs-origin <origin> [--context-id <uuid>...] [-y|--yes]
+npm trust list [package]
+npm trust revoke [package] --id=<trust-id>
 
 Subcommands:
   github
@@ -5805,7 +5809,7 @@ Run "npm trust <subcommand> --help" for more info on a subcommand.
 Run "npm help trust" for more info
 
 \`\`\`bash
-npm trust
+
 \`\`\`
 
 Note: This command is unaware of workspaces.
