@@ -120,7 +120,8 @@ class TransportParams final {
     // connection migration. See the QUIC specification for more details on
     // connection migration.
     // https://www.rfc-editor.org/rfc/rfc9000.html#section-18.2-4.30.1
-    // TODO(@jasnell): We currently do not implement active migration.
+    // TODO(@jasnell): Active connection migration is not yet implemented.
+    // This will be revisited in a future update.
     bool disable_active_migration = true;
 
     static const Options kDefault;

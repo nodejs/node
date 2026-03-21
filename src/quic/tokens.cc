@@ -1,7 +1,6 @@
 #if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
-#include "tokens.h"
 #include <crypto/crypto_util.h>
 #include <ngtcp2/ngtcp2_crypto.h>
 #include <node_sockaddr-inl.h>
@@ -10,6 +9,7 @@
 #include <algorithm>
 #include "nbytes.h"
 #include "ncrypto.h"
+#include "tokens.h"
 
 namespace node::quic {
 
@@ -108,7 +108,7 @@ bool StatelessResetToken::operator==(const StatelessResetToken& other) const {
       (ptr_ != nullptr && other.ptr_ == nullptr)) {
     return false;
   }
-  return memcmp(ptr_, other.ptr_, kStatelessTokenLen) == 0;
+  return CRYPTO_memcmp(ptr_, other.ptr_, kStatelessTokenLen) == 0;
 }
 
 bool StatelessResetToken::operator!=(const StatelessResetToken& other) const {
@@ -126,11 +126,12 @@ std::string StatelessResetToken::ToString() const {
 
 size_t StatelessResetToken::Hash::operator()(
     const StatelessResetToken& token) const {
+  // See CID::Hash for details on this hash combine strategy.
   size_t hash = 0;
   if (token.ptr_ == nullptr) return hash;
-  for (size_t n = 0; n < kStatelessTokenLen; n++)
-    hash ^= std::hash<uint8_t>{}(token.ptr_[n]) + 0x9e3779b9 + (hash << 6) +
-            (hash >> 2);
+  for (size_t n = 0; n < kStatelessTokenLen; n++) {
+    hash ^= token.ptr_[n] + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+  }
   return hash;
 }
 
@@ -195,7 +196,7 @@ RetryToken::RetryToken(uint32_t version,
 RetryToken::RetryToken(const uint8_t* token, size_t size)
     : ptr_(ngtcp2_vec{const_cast<uint8_t*>(token), size}) {
   DCHECK_LE(size, RetryToken::kRetryTokenLen);
-  DCHECK_IMPLIES(token == nullptr, size = 0);
+  DCHECK_IMPLIES(token == nullptr, size == 0);
 }
 
 std::optional<CID> RetryToken::Validate(uint32_t version,
@@ -215,7 +216,9 @@ std::optional<CID> RetryToken::Validate(uint32_t version,
       addr.data(),
       addr.length(),
       dcid,
-      std::min(verification_expiration, QUIC_MIN_RETRYTOKEN_EXPIRATION),
+      std::clamp(verification_expiration,
+                 QUIC_MIN_RETRYTOKEN_EXPIRATION,
+                 QUIC_MAX_RETRYTOKEN_EXPIRATION),
       uv_hrtime());
   if (ret != 0) return std::nullopt;
   return std::optional<CID>(ocid);
@@ -256,7 +259,7 @@ RegularToken::RegularToken(uint32_t version,
 RegularToken::RegularToken(const uint8_t* token, size_t size)
     : ptr_(ngtcp2_vec{const_cast<uint8_t*>(token), size}) {
   DCHECK_LE(size, RegularToken::kRegularTokenLen);
-  DCHECK_IMPLIES(token == nullptr, size = 0);
+  DCHECK_IMPLIES(token == nullptr, size == 0);
 }
 
 RegularToken::operator bool() const {
@@ -275,8 +278,9 @@ bool RegularToken::Validate(uint32_t version,
              TokenSecret::QUIC_TOKENSECRET_LEN,
              addr.data(),
              addr.length(),
-             std::min(verification_expiration,
-                      QUIC_MIN_REGULARTOKEN_EXPIRATION),
+             std::clamp(verification_expiration,
+                        QUIC_MIN_REGULARTOKEN_EXPIRATION,
+                        QUIC_MAX_REGULARTOKEN_EXPIRATION),
              uv_hrtime()) == 0;
 }
 

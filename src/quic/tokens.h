@@ -161,6 +161,8 @@ class RetryToken final : public MemoryRetainer {
   static constexpr uint64_t QUIC_DEFAULT_RETRYTOKEN_EXPIRATION =
       10 * NGTCP2_SECONDS;
   static constexpr uint64_t QUIC_MIN_RETRYTOKEN_EXPIRATION = 1 * NGTCP2_SECONDS;
+  static constexpr uint64_t QUIC_MAX_RETRYTOKEN_EXPIRATION =
+      60 * NGTCP2_SECONDS;
 
   // Generates a new retry token.
   RetryToken(uint32_t version,
@@ -214,18 +216,20 @@ class RegularToken final : public MemoryRetainer {
       10 * NGTCP2_SECONDS;
   static constexpr uint64_t QUIC_MIN_REGULARTOKEN_EXPIRATION =
       1 * NGTCP2_SECONDS;
+  static constexpr uint64_t QUIC_MAX_REGULARTOKEN_EXPIRATION =
+      5 * 60 * NGTCP2_SECONDS;
 
   RegularToken();
 
-  // Generates a new retry token.
+  // Generates a new regular token.
   RegularToken(uint32_t version,
                const SocketAddress& address,
                const TokenSecret& token_secret);
 
-  // Wraps the given retry token
+  // Wraps the given regular token
   RegularToken(const uint8_t* token, size_t length);
 
-  // Validates the retry token given the input.
+  // Validates the regular token given the input.
   bool Validate(
       uint32_t version,
       const SocketAddress& address,
@@ -240,8 +244,8 @@ class RegularToken final : public MemoryRetainer {
   std::string ToString() const;
 
   SET_NO_MEMORY_INFO()
-  SET_MEMORY_INFO_NAME(RetryToken)
-  SET_SELF_SIZE(RetryToken)
+  SET_MEMORY_INFO_NAME(RegularToken)
+  SET_SELF_SIZE(RegularToken)
 
  private:
   operator const char*() const;
