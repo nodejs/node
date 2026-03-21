@@ -759,9 +759,30 @@ test('virtual mock overrides an existing module', async (t) => {
     namedExports: { custom() { return 'virtual'; } },
   });
 
+  // Both 'readline' and 'node:readline' should resolve to the mock
+  // because the specifier resolves to the same canonical URL.
   const mocked = await import('readline');
   assert.strictEqual(mocked.custom(), 'virtual');
   assert.strictEqual(mocked.cursorTo, undefined);
+
+  const mockedWithPrefix = await import('node:readline');
+  assert.strictEqual(mockedWithPrefix.custom(), 'virtual');
+  assert.strictEqual(mockedWithPrefix.cursorTo, undefined);
+});
+
+test('virtual mock intercepts all resolution paths to the same module', async (t) => {
+  const cwd = fixtures.path('test-runner');
+  const fixture = fixtures.path('test-runner', 'mock-virtual-paths.js');
+  const args = ['--experimental-test-module-mocks', fixture];
+  const {
+    code,
+    stdout,
+    signal,
+  } = await common.spawnPromisified(process.execPath, args, { cwd });
+
+  assert.strictEqual(code, 0);
+  assert.strictEqual(signal, null);
+  assert.match(stdout, /pass 1/);
 });
 
 test('input validation for virtual option', async (t) => {
