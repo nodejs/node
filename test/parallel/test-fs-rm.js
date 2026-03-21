@@ -569,3 +569,38 @@ if (isGitPresent) {
     }
   }
 }
+
+// Test that rm/rmSync normalize '.' and '..' in paths before processing.
+// Regression test for https://github.com/nodejs/node/issues/61958
+//
+// Each variant gets its own base directory to avoid async/sync races.
+// The weird path is constructed by joining components with path.sep so that
+// the '..' and '.' are preserved and not pre-normalized by path.join.
+{
+  // --- rmSync: <base>/a/b/../. should remove <base>/a entirely ---
+  const base = nextDirPath('dotdot-sync');
+  fs.mkdirSync(path.join(base, 'a', 'b', 'c', 'd'), common.mustNotMutateObjectDeep({ recursive: true }));
+  const weirdPath = [base, 'a', 'b', '..', '.'].join(path.sep);
+  fs.rmSync(weirdPath, common.mustNotMutateObjectDeep({ recursive: true }));
+  assert.strictEqual(fs.existsSync(path.join(base, 'a')), false);
+}
+
+{
+  // --- fs.rm (callback): same path construction ---
+  const base = nextDirPath('dotdot-cb');
+  fs.mkdirSync(path.join(base, 'a', 'b', 'c', 'd'), common.mustNotMutateObjectDeep({ recursive: true }));
+  const weirdPath = [base, 'a', 'b', '..', '.'].join(path.sep);
+  fs.rm(weirdPath, common.mustNotMutateObjectDeep({ recursive: true }), common.mustSucceed(() => {
+    assert.strictEqual(fs.existsSync(path.join(base, 'a')), false);
+  }));
+}
+
+{
+  // --- fs.promises.rm: same path construction ---
+  const base = nextDirPath('dotdot-prom');
+  fs.mkdirSync(path.join(base, 'a', 'b', 'c', 'd'), common.mustNotMutateObjectDeep({ recursive: true }));
+  const weirdPath = [base, 'a', 'b', '..', '.'].join(path.sep);
+  fs.promises.rm(weirdPath, common.mustNotMutateObjectDeep({ recursive: true })).then(common.mustCall(() => {
+    assert.strictEqual(fs.existsSync(path.join(base, 'a')), false);
+  }));
+}
