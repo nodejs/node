@@ -3288,7 +3288,7 @@ certificates instead. These environment variables can be used as workarounds
 if the conventional paths used by the version of OpenSSL Node.js links to are
 not consistent with the system configuration that the users have for some reason.
 
-### `--v8-options`
+### --v8-options
 
 <!-- YAML
 added: v0.1.3
@@ -3296,6 +3296,9 @@ added: v0.1.3
 
 Print V8 command-line options.
 
+The available V8 options are not covered by the Node.js stability guarantees
+and may change or be removed between releases, including when Node.js is
+updated to a newer V8 version.
 ### `--v8-pool-size=num`
 
 <!-- YAML
