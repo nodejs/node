@@ -18,14 +18,14 @@ assert.strictEqual(path.basename('basename.ext/'), 'basename.ext');
 assert.strictEqual(path.basename('basename.ext//'), 'basename.ext');
 assert.strictEqual(path.basename('aaa/bbb', '/bbb'), 'bbb');
 assert.strictEqual(path.basename('aaa/bbb', 'a/bbb'), 'bbb');
-assert.strictEqual(path.basename('aaa/bbb', 'bbb'), 'bbb');
-assert.strictEqual(path.basename('aaa/bbb//', 'bbb'), 'bbb');
+assert.strictEqual(path.basename('aaa/bbb', 'bbb'), '');
+assert.strictEqual(path.basename('aaa/bbb//', 'bbb'), '');
 assert.strictEqual(path.basename('aaa/bbb', 'bb'), 'b');
 assert.strictEqual(path.basename('aaa/bbb', 'b'), 'bb');
 assert.strictEqual(path.basename('/aaa/bbb', '/bbb'), 'bbb');
 assert.strictEqual(path.basename('/aaa/bbb', 'a/bbb'), 'bbb');
-assert.strictEqual(path.basename('/aaa/bbb', 'bbb'), 'bbb');
-assert.strictEqual(path.basename('/aaa/bbb//', 'bbb'), 'bbb');
+assert.strictEqual(path.basename('/aaa/bbb', 'bbb'), '');
+assert.strictEqual(path.basename('/aaa/bbb//', 'bbb'), '');
 assert.strictEqual(path.basename('/aaa/bbb', 'bb'), 'b');
 assert.strictEqual(path.basename('/aaa/bbb', 'b'), 'bb');
 assert.strictEqual(path.basename('/aaa/bbb'), 'bbb');
@@ -44,8 +44,8 @@ assert.strictEqual(path.win32.basename('basename.ext\\\\'), 'basename.ext');
 assert.strictEqual(path.win32.basename('foo'), 'foo');
 assert.strictEqual(path.win32.basename('aaa\\bbb', '\\bbb'), 'bbb');
 assert.strictEqual(path.win32.basename('aaa\\bbb', 'a\\bbb'), 'bbb');
-assert.strictEqual(path.win32.basename('aaa\\bbb', 'bbb'), 'bbb');
-assert.strictEqual(path.win32.basename('aaa\\bbb\\\\\\\\', 'bbb'), 'bbb');
+assert.strictEqual(path.win32.basename('aaa\\bbb', 'bbb'), '');
+assert.strictEqual(path.win32.basename('aaa\\bbb\\\\\\\\', 'bbb'), '');
 assert.strictEqual(path.win32.basename('aaa\\bbb', 'bb'), 'b');
 assert.strictEqual(path.win32.basename('aaa\\bbb', 'b'), 'bb');
 assert.strictEqual(path.win32.basename('C:'), '');
@@ -59,6 +59,21 @@ assert.strictEqual(path.win32.basename('C:basename.ext\\\\'), 'basename.ext');
 assert.strictEqual(path.win32.basename('C:foo'), 'foo');
 assert.strictEqual(path.win32.basename('file:stream'), 'file:stream');
 assert.strictEqual(path.win32.basename('a', 'a'), '');
+
+// Regression tests for https://github.com/nodejs/node/issues/21358
+// Suffix stripping should work consistently regardless of trailing slashes
+// or leading path components.
+assert.strictEqual(path.posix.basename('a/', 'a'), '');
+assert.strictEqual(path.posix.basename('a//', 'a'), '');
+assert.strictEqual(path.posix.basename('/dd', 'dd'), '');
+assert.strictEqual(path.posix.basename('d/dd', 'dd'), '');
+assert.strictEqual(path.posix.basename('d/dd/', 'dd'), '');
+assert.strictEqual(path.posix.basename('d/dd/', 'd'), 'd');
+assert.strictEqual(path.win32.basename('a\\', 'a'), '');
+assert.strictEqual(path.win32.basename('a\\\\', 'a'), '');
+assert.strictEqual(path.win32.basename('\\dd', 'dd'), '');
+assert.strictEqual(path.win32.basename('d\\dd', 'dd'), '');
+assert.strictEqual(path.win32.basename('d\\dd\\', 'dd'), '');
 
 // On unix a backslash is just treated as any other character.
 assert.strictEqual(path.posix.basename('\\dir\\basename.ext'),
