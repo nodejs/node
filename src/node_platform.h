@@ -53,6 +53,9 @@ class TaskQueue {
     std::unique_ptr<T> BlockingPop();
     void NotifyOfOutstandingCompletion();
     void BlockingDrain();
+    // Returns true if all outstanding tasks are drained, false on timeout.
+    bool TimedBlockingDrain(uint64_t timeout_in_ns);
+    bool HasOutstandingTasks();
     void Stop();
     PriorityQueue PopAll();
 
@@ -196,6 +199,8 @@ class WorkerThreadsTaskRunner {
                        double delay_in_seconds);
 
   void BlockingDrain();
+  bool TimedBlockingDrain(uint64_t timeout_in_ns);
+  bool HasOutstandingTasks();
   void Shutdown();
 
   int NumberOfWorkerThreads() const;
