@@ -3,6 +3,7 @@ import { before, describe, it } from 'node:test';
 import assert from 'node:assert';
 import { spawnSync } from 'node:child_process';
 import { cp } from 'node:fs/promises';
+import { join } from 'node:path';
 import tmpdir from '../common/tmpdir.js';
 import fixtures from '../common/fixtures.js';
 const skipIfNoInspector = {
@@ -14,6 +15,7 @@ tmpdir.refresh();
 async function setupFixtures() {
   const fixtureDir = fixtures.path('test-runner', 'coverage-default-exclusion');
   await cp(fixtureDir, tmpdir.path, { recursive: true });
+  await cp(fixtureDir, join(tmpdir.path, 'test'), { recursive: true });
 }
 
 describe('test runner coverage default exclusion', skipIfNoInspector, () => {
@@ -108,6 +110,35 @@ describe('test runner coverage default exclusion', skipIfNoInspector, () => {
     const result = spawnSync(process.execPath, args, {
       env: { ...process.env, NODE_TEST_TMPDIR: tmpdir.path },
       cwd: tmpdir.path
+    });
+
+    assert.strictEqual(result.stderr.toString(), '');
+    assert(result.stdout.toString().includes(report));
+    assert.strictEqual(result.status, 0);
+  });
+
+  it('should use cwd-relative matching for default exclusion globs', async () => {
+    const report = [
+      '# start of coverage report',
+      '# --------------------------------------------------------------',
+      '# file          | line % | branch % | funcs % | uncovered lines',
+      '# --------------------------------------------------------------',
+      '# logic-file.js |  66.67 |   100.00 |   50.00 | 5-7',
+      '# --------------------------------------------------------------',
+      '# all files     |  66.67 |   100.00 |   50.00 | ',
+      '# --------------------------------------------------------------',
+      '# end of coverage report',
+    ].join('\n');
+
+    const args = [
+      '--no-experimental-strip-types',
+      '--test',
+      '--experimental-test-coverage',
+      '--test-reporter=tap',
+    ];
+    const result = spawnSync(process.execPath, args, {
+      env: { ...process.env, NODE_TEST_TMPDIR: tmpdir.path },
+      cwd: join(tmpdir.path, 'test'),
     });
 
     assert.strictEqual(result.stderr.toString(), '');
