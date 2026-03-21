@@ -43,6 +43,7 @@ class Packet;
   V(session_datagram_status, SessionDatagramStatus)                            \
   V(session_handshake, SessionHandshake)                                       \
   V(session_new, SessionNew)                                                   \
+  V(session_new_token, SessionNewToken)                                       \
   V(session_path_validation, SessionPathValidation)                            \
   V(session_ticket, SessionTicket)                                             \
   V(session_version_negotiation, SessionVersionNegotiation)                    \
@@ -70,6 +71,7 @@ class Packet;
   V(cubic, "cubic")                                                            \
   V(disable_stateless_reset, "disableStatelessReset")                          \
   V(enable_connect_protocol, "enableConnectProtocol")                          \
+  V(enable_early_data, "enableEarlyData")                                      \
   V(enable_datagrams, "enableDatagrams")                                       \
   V(enable_tls_trace, "tlsTrace")                                              \
   V(endpoint, "Endpoint")                                                      \
@@ -121,6 +123,7 @@ class Packet;
   V(stream, "Stream")                                                          \
   V(success, "success")                                                        \
   V(tls_options, "tls")                                                        \
+  V(token, "token")                                                            \
   V(token_expiration, "tokenExpiration")                                       \
   V(token_secret, "tokenSecret")                                               \
   V(transport_params, "transportParams")                                       \

@@ -18,6 +18,7 @@ const callbacks = {
   onSessionHandshake() {},
   onSessionPathValidation() {},
   onSessionTicket() {},
+  onSessionNewToken() {},
   onSessionVersionNegotiation() {},
   onStreamCreated() {},
   onStreamBlocked() {},

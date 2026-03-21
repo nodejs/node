@@ -43,16 +43,6 @@ namespace quic {
 // ============================================================================
 
 namespace {
-// Performance optimization recommended by ngtcp2. Need to investigate why
-// this causes some tests to fail.
-// auto _ = []() {
-//   if (ngtcp2_crypto_ossl_init() != 0) {
-//     assert(0);
-//     abort();
-//   }
-
-//   return 0;
-// }();
 
 // Temporarily wraps an SSL pointer but does not take ownership.
 // Use by a few of the TLSSession methods that need access to the SSL*
@@ -99,7 +89,7 @@ void EnableTrace(Environment* env, BIOPointer* bio, SSL* ssl) {
 #endif
 }
 
-template <typename T, typename Opt, std::vector<T> Opt::*member>
+template <typename T, typename Opt, std::vector<T> Opt::* member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -230,7 +220,8 @@ std::string OSSLContext::get_selected_alpn() const {
   const unsigned char* alpn = nullptr;
   unsigned int len;
   SSL_get0_alpn_selected(*this, &alpn, &len);
-  return std::string(alpn, alpn + len);
+  if (alpn == nullptr) return {};
+  return std::string(reinterpret_cast<const char*>(alpn), len);
 }
 
 std::string_view OSSLContext::get_negotiated_group() const {
@@ -265,6 +256,12 @@ bool OSSLContext::set_transport_params(const ngtcp2_vec& tp) const {
 
 bool OSSLContext::get_early_data_accepted() const {
   return SSL_get_early_data_status(*this) == SSL_EARLY_DATA_ACCEPTED;
+}
+
+bool OSSLContext::set_session_ticket(const ncrypto::SSLSessionPointer& ticket) {
+  if (!ticket) return false;
+  if (SSL_set_session(*this, ticket.get()) != 1) return false;
+  return SSL_SESSION_get_max_early_data(ticket.get()) != 0;
 }
 
 bool OSSLContext::ConfigureServer() const {
@@ -366,8 +363,40 @@ void TLSContext::OnKeylog(const SSL* ssl, const char* line) {
 
 int TLSContext::OnVerifyClientCertificate(int preverify_ok,
                                           X509_STORE_CTX* ctx) {
-  // TODO(@jasnell): Implement the logic to verify the client certificate
-  return 1;
+  // This callback is invoked by OpenSSL for each certificate in the
+  // client's chain during the TLS handshake. The preverify_ok
+  // parameter reflects OpenSSL's own chain validation result for
+  // the current certificate. Failures include:
+  //   - Expired or not-yet-valid certificates
+  //   - Self-signed certificates not in the trusted CA list
+  //   - Broken chain (signature verification failure)
+  //   - Untrusted CA (chain does not terminate at a configured CA)
+  //   - Revoked certificates (if CRL is configured)
+  //   - Invalid basic constraints or key usage
+  //
+  // If preverify_ok is 1, validation passed for this cert and we
+  // always continue. If it is 0, the behavior depends on the
+  // reject_unauthorized option:
+  //   - true (default): return 0 to abort the handshake immediately,
+  //     avoiding wasted work on an untrusted client.
+  //   - false: return 1 to let the handshake complete. The validation
+  //     error is still recorded by OpenSSL and will be reported to JS
+  //     via VerifyPeerIdentity() in the handshake callback, allowing
+  //     the application to make its own decision.
+  //
+  // Note that even when preverify_ok is 1 (chain validation passed),
+  // the application may need to perform additional verification after
+  // the handshake — for example, checking the certificate's common
+  // name or subject alternative names against an allowlist, verifying
+  // application-specific fields or extensions, or enforcing certificate
+  // pinning. Chain validation only confirms cryptographic integrity
+  // and trust anchor; it does not confirm authorization.
+  if (preverify_ok) return 1;
+
+  SSL* ssl = static_cast<SSL*>(
+      X509_STORE_CTX_get_ex_data(ctx, SSL_get_ex_data_X509_STORE_CTX_idx()));
+  auto& tls_session = TLSSession::From(ssl);
+  return tls_session.context().options().reject_unauthorized ? 0 : 1;
 }
 
 std::unique_ptr<TLSSession> TLSContext::NewSession(
@@ -389,12 +418,17 @@ SSLCtxPointer TLSContext::Initialize(Environment* env) {
         return {};
       }
 
-      if (SSL_CTX_set_max_early_data(ctx.get(), UINT32_MAX) != 1) {
+      if (SSL_CTX_set_max_early_data(
+              ctx.get(),
+              options_.enable_early_data ? UINT32_MAX : 0) != 1) {
         validation_error_ = "Failed to set max early data";
         return {};
       }
+      // ngtcp2 handles replay protection at the QUIC layer,
+      // so we disable OpenSSL's built-in anti-replay.
       SSL_CTX_set_options(ctx.get(),
-                          (SSL_OP_ALL & ~SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS) |
+                          (SSL_OP_ALL &
+                              ~SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS) |
                               SSL_OP_SINGLE_ECDH_USE |
                               SSL_OP_CIPHER_SERVER_PREFERENCE |
                               SSL_OP_NO_ANTI_REPLAY);
@@ -408,20 +442,18 @@ SSLCtxPointer TLSContext::Initialize(Environment* env) {
         return {};
       }
 
-      if (options_.verify_client) [[likely]] {
+      if (options_.verify_client) [[unlikely]] {
         SSL_CTX_set_verify(ctx.get(),
                            SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE |
                                SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
                            OnVerifyClientCertificate);
       }
 
-      // TODO(@jasnell): There's a bug int the GenerateCallback flow somewhere.
-      // Need to update in order to support session tickets.
-      // CHECK_EQ(SSL_CTX_set_session_ticket_cb(ctx.get(),
-      //                                        SessionTicket::GenerateCallback,
-      //                                        SessionTicket::DecryptedCallback,
-      //                                        nullptr),
-      //          1);
+      CHECK_EQ(SSL_CTX_set_session_ticket_cb(ctx.get(),
+                                             SessionTicket::GenerateCallback,
+                                             SessionTicket::DecryptedCallback,
+                                             nullptr),
+              1);
       break;
     }
     case Side::CLIENT: {
@@ -582,11 +614,13 @@ Maybe<TLSContext::Options> TLSContext::Options::From(Environment* env,
   SetOption<TLSContext::Options, &TLSContext::Options::name>(                  \
       env, &options, params, state.name##_string())
 
-  if (!SET(verify_client) || !SET(enable_tls_trace) || !SET(protocol) ||
-      !SET(servername) || !SET(ciphers) || !SET(groups) ||
-      !SET(verify_private_key) || !SET(keylog) ||
-      !SET_VECTOR(crypto::KeyObjectData, keys) || !SET_VECTOR(Store, certs) ||
-      !SET_VECTOR(Store, ca) || !SET_VECTOR(Store, crl)) {
+  if (!SET(verify_client) || !SET(reject_unauthorized) ||
+      !SET(enable_early_data) || !SET(enable_tls_trace) ||
+      !SET(enable_tls_trace) || !SET(protocol) || !SET(servername) ||
+      !SET(ciphers) || !SET(groups) || !SET(verify_private_key) ||
+      !SET(keylog) || !SET_VECTOR(crypto::KeyObjectData, keys) ||
+      !SET_VECTOR(Store, certs) || !SET_VECTOR(Store, ca) ||
+      !SET_VECTOR(Store, crl)) {
     return Nothing<Options>();
   }
 
@@ -603,6 +637,10 @@ std::string TLSContext::Options::ToString() const {
       prefix + "keylog: " + (keylog ? std::string("yes") : std::string("no"));
   res += prefix + "verify client: " +
          (verify_client ? std::string("yes") : std::string("no"));
+  res += prefix + "reject unauthorized: " +
+         (reject_unauthorized ? std::string("yes") : std::string("no"));
+  res += prefix + "enable early data: " +
+         (enable_early_data ? std::string("yes") : std::string("no"));
   res += prefix + "enable_tls_trace: " +
          (enable_tls_trace ? std::string("yes") : std::string("no"));
   res += prefix + "verify private key: " +
@@ -712,8 +750,7 @@ void TLSSession::Initialize(
             reinterpret_cast<unsigned char*>(buf.base), buf.len);
 
         // The early data will just be ignored if it's invalid.
-        if (ssl.setSession(ticket) &&
-            SSL_SESSION_get_max_early_data(ticket.get()) != 0) {
+        if (ossl_context_.set_session_ticket(ticket)) {
           ngtcp2_vec rtp = sessionTicket.transport_params();
           if (ngtcp2_conn_decode_and_set_0rtt_transport_params(
                   *session_, rtp.base, rtp.len) == 0) {
