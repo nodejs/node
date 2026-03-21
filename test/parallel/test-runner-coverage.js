@@ -511,6 +511,26 @@ test('coverage with included and excluded files', skipIfNoInspector, () => {
   assert(!findCoverageFileForPid(result.pid));
 });
 
+test('lcov omits uncovered ignored branches', skipIfNoInspector, () => {
+  const fixture = fixtures.path('test-runner', 'coverage-ignore-next-branch.js');
+  const args = [
+    '--test',
+    '--experimental-test-coverage',
+    '--test-reporter',
+    'lcov',
+    fixture,
+  ];
+  const result = spawnSync(process.execPath, args);
+  const stdout = result.stdout.toString();
+
+  assert.strictEqual(result.stderr.toString(), '');
+  assert.strictEqual(result.status, 0);
+  assert.match(stdout, /SF:test\/fixtures\/test-runner\/coverage-ignore-next-branch\.js/);
+  assert.match(stdout, /BRF:\d+/);
+  assert.match(stdout, /BRH:\d+/);
+  assert.doesNotMatch(stdout, /^BRDA:.*,0$/m);
+});
+
 test('correctly prints the coverage report of files contained in parent directories', skipIfNoInspector, () => {
   let report = [
     '# start of coverage report',
