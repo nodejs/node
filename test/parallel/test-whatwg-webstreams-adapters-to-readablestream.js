@@ -4,6 +4,7 @@
 const common = require('../common');
 
 const assert = require('assert');
+const { once } = require('events');
 
 const {
   newReadableStreamFromStreamReadable,
@@ -11,6 +12,7 @@ const {
 
 const {
   Duplex,
+  PassThrough,
   Readable,
 } = require('stream');
 
@@ -188,11 +190,75 @@ const {
 }
 
 {
-  const readable = new Readable();
-  readable.destroy();
-  const readableStream = newReadableStreamFromStreamReadable(readable);
-  const reader = readableStream.getReader();
-  reader.closed.then(common.mustCall());
+  /**
+   * Runs the same assertion across finalize-before/after and
+   * default/BYOB adapter creation orders.
+   * @param {(readable: Readable) => void | Promise<void>} finalize
+   *   Finalizes the source stream before or after adaptation.
+   * @param {(readAndAssert: () => Promise<void>, reader: ReadableStreamReader) => Promise<void>} postAssert
+   *   Asserts the resulting web stream state for the current case.
+   */
+  function testConfluence(finalize, postAssert) {
+    const cases = [false, true].flatMap((finalizeFirst) => [false, true].map((isBYOB) => ({ finalizeFirst, isBYOB })));
+    Promise.all(cases.map(async (case_) => {
+      try {
+        const { isBYOB } = case_;
+        const readable = new PassThrough();
+        if (case_.finalizeFirst) {
+          await finalize(readable);
+        }
+        /** @type {ReadableStream} */
+        const readableStream = newReadableStreamFromStreamReadable(readable, { type: isBYOB ? 'bytes' : undefined });
+        const reader = readableStream.getReader({ mode: isBYOB ? 'byob' : undefined });
+        if (!case_.finalizeFirst) {
+          await finalize(readable);
+        }
+
+        const readAndAssert = common.mustCall(() => reader.read(isBYOB ? new Uint8Array(1) : undefined).then((result) => {
+          assert.deepStrictEqual(result, { value: isBYOB ? new Uint8Array(0) : undefined, done: true });
+        }));
+        await postAssert(readAndAssert, reader);
+      } catch (cause) {
+        throw new Error(`Case failed: ${JSON.stringify(case_)}`, { cause });
+      }
+    })).then(common.mustCall());
+  }
+  const error = new Error('boom');
+  // Ending the readable without an error => closes the readableStream without an error
+  testConfluence(
+    async (readable) => {
+      readable.resume();
+      readable.end();
+      await once(readable, 'end');
+    },
+    common.mustCall(async (readAndAssert, reader) => {
+      await readAndAssert();
+      await reader.closed;
+    }, 4)
+  );
+  // Prematurely destroying the stream.Readable without an error
+  //   => errors the ReadableStream with a premature close error
+  testConfluence(
+    (readable) => readable.destroy(),
+    common.mustCall(async (readAndAssert, reader) => {
+      const errorPredicate = { code: 'ABORT_ERR' };
+      await assert.rejects(readAndAssert(), errorPredicate);
+      await assert.rejects(reader.closed, errorPredicate);
+    }, 4)
+  );
+  // Destroying the readable with an error => errors the readableStream
+  testConfluence(
+    common.mustCall((readable) => {
+      readable.on('error', common.mustCall((reason) => {
+        assert.strictEqual(reason, error);
+      }));
+      readable.destroy(error);
+    }, 4),
+    common.mustCall(async (readAndAssert, reader) => {
+      await assert.rejects(readAndAssert(), error);
+      await assert.rejects(reader.closed, error);
+    }, 4)
+  );
 }
 
 {
