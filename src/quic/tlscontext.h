@@ -55,6 +55,10 @@ class OSSLContext final {
 
   bool get_early_data_accepted() const;
 
+  // Sets the session ticket for 0-RTT resumption. Returns true if the
+  // ticket was set successfully and the ticket supports early data.
+  bool set_session_ticket(const ncrypto::SSLSessionPointer& ticket);
+
   bool ConfigureServer() const;
   bool ConfigureClient() const;
 
@@ -189,6 +193,21 @@ class TLSContext final : public MemoryRetainer,
     // instructs the server session to request a client auth certificate. This
     // option is only used by the server side.
     bool verify_client = false;
+
+    // When true (the default), client certificates that fail chain
+    // validation are rejected during the handshake. When false, the
+    // handshake completes and the validation result is passed to JS
+    // via the handshake callback for the application to decide.
+    // This option is only used by the server side.
+    bool reject_unauthorized = true;
+
+    // When true (the default), the server accepts 0-RTT early data
+    // from clients with valid session tickets. When false, early data
+    // is disabled and clients must complete a full handshake before
+    // sending application data. Disabling early data prevents replay
+    // attacks at the cost of an additional round trip.
+    // This option is only used by the server side.
+    bool enable_early_data = true;
 
     // When true, enables TLS tracing for the session. This should only be used
     // for debugging.

@@ -452,6 +452,7 @@ ssize_t Session::Application::WriteVStream(PathStorage* path,
   if (stream_data.fin) flags |= NGTCP2_WRITE_STREAM_FLAG_FIN;
   return ngtcp2_conn_writev_stream(*session_,
                                    &path->path,
+                                    // TODO(@jasnell): ECN blocked on libuv
                                    nullptr,
                                    dest,
                                    max_packet_size,
@@ -511,10 +512,13 @@ class DefaultApplication final : public Session::Application {
     stream_data->count = 0;
     stream_data->fin = 0;
     stream_data->stream.reset();
-    stream_data->remaining = 0;
     Debug(&session(), "Default application getting stream data");
     DCHECK_NOT_NULL(stream_data);
     // If the queue is empty, there aren't any streams with data yet
+
+    // If the connection-level flow control window is exhausted,
+    // there is no point in pulling stream data.
+    if (!session().max_data_left()) return 0;
     if (stream_queue_.IsEmpty()) return 0;
 
     const auto get_length = [](auto vec, size_t count) {
@@ -554,9 +558,7 @@ class DefaultApplication final : public Session::Application {
 
           if (count > 0) {
             stream->Schedule(&stream_queue_);
-            stream_data->remaining = get_length(data, count);
           } else {
-            stream_data->remaining = 0;
           }
 
           // Not calling done here because we defer committing
@@ -581,15 +583,6 @@ class DefaultApplication final : public Session::Application {
 
   void ResumeStream(int64_t id) override { ScheduleStream(id); }
 
-  bool ShouldSetFin(const StreamData& stream_data) override {
-    auto const is_empty = [](const ngtcp2_vec* vec, size_t cnt) {
-      size_t i = 0;
-      for (size_t n = 0; n < cnt; n++) i += vec[n].len;
-      return i > 0;
-    };
-
-    return stream_data.stream && is_empty(stream_data, stream_data.count);
-  }
 
   void BlockStream(int64_t id) override {
     if (auto stream = session().FindStream(id)) [[likely]] {
@@ -598,10 +591,9 @@ class DefaultApplication final : public Session::Application {
   }
 
   bool StreamCommit(StreamData* stream_data, size_t datalen) override {
-    if (datalen == 0) return true;
     DCHECK_NOT_NULL(stream_data);
     CHECK(stream_data->stream);
-    stream_data->stream->Commit(datalen);
+    stream_data->stream->Commit(datalen, stream_data->fin);
     return true;
   }
 
@@ -616,11 +608,6 @@ class DefaultApplication final : public Session::Application {
     }
   }
 
-  void UnscheduleStream(int64_t id) {
-    if (auto stream = session().FindStream(id)) [[likely]] {
-      stream->Unschedule();
-    }
-  }
 
   Stream::Queue stream_queue_;
 };

@@ -319,23 +319,33 @@ class Endpoint::UDP::Impl final : public HandleWrap {
                         const uv_buf_t* buf,
                         const sockaddr* addr,
                         unsigned int flags) {
-    // Nothing to do in these cases. Specifically, if the nread
-    // is zero or we've received a partial packet, we're just
-    // going to ignore it.
-    if (nread == 0 || flags & UV_UDP_PARTIAL) return;
-
     auto impl = From(handle);
     DCHECK_NOT_NULL(impl);
     DCHECK_NOT_NULL(impl->endpoint_);
 
+    auto release_buf = [&]() {
+      if (buf->base != nullptr)
+        impl->env()->release_managed_buffer(*buf);
+    };
+
+    // Nothing to do in these cases. Specifically, if the nread
+    // is zero or we have received a partial packet, we are just
+    // going to ignore it.
+    if (nread == 0 || flags & UV_UDP_PARTIAL) {
+      release_buf();
+      return;
+    }
+
     if (nread < 0) {
+      release_buf();
       impl->endpoint_->Destroy(CloseContext::RECEIVE_FAILURE,
                                static_cast<int>(nread));
       return;
     }
 
-    impl->endpoint_->Receive(uv_buf_init(buf->base, static_cast<size_t>(nread)),
-                             SocketAddress(addr));
+    impl->endpoint_->Receive(
+        uv_buf_init(buf->base, static_cast<size_t>(nread)),
+        SocketAddress(addr));
   }
 
   uv_udp_t handle_;
@@ -739,6 +749,7 @@ void Endpoint::Send(const BaseObjectPtr<Packet>& packet) {
     Debug(this, "Sending packet failed with error %d", err);
     packet->Done(err);
     Destroy(CloseContext::SEND_FAILURE, err);
+    return;
   }
   STAT_INCREMENT_N(Stats, bytes_sent, packet->length());
   STAT_INCREMENT(Stats, packets_sent);
@@ -988,7 +999,6 @@ void Endpoint::Destroy(CloseContext context, int status) {
         this, "Destroying endpoint due to \"%s\" with status %d", ctx, status);
   }
 
-  STAT_RECORD_TIMESTAMP(Stats, destroyed_at);
 
   state_->listening = 0;
 
@@ -1007,6 +1017,7 @@ void Endpoint::Destroy(CloseContext context, int status) {
   DCHECK(sessions_.empty());
   token_map_.clear();
   dcid_to_scid_.clear();
+  server_state_.reset();
 
   udp_.Close();
   state_->closing = 0;
@@ -1345,29 +1356,33 @@ void Endpoint::Receive(const uv_buf_t& buf,
           }
           break;
         case NGTCP2_PKT_0RTT:
+          // 0-RTT packets are inherently replayable and could be sent
+          // from a spoofed source address to trigger amplification.
+          // When address validation is enabled, we send a Retry to
+          // force the client to prove it can receive at its claimed
+          // address. This adds a round trip but prevents amplification
+          // attacks. When address validation is disabled (e.g., on
+          // trusted networks), we skip the Retry and allow 0-RTT to
+          // proceed without additional validation.
+          if (options_.validate_address) {
+            Debug(this,
+                  "Sending retry to %s due to 0RTT packet",
+                  remote_address);
+            SendRetry(PathDescriptor{
+                version,
+                dcid,
+                scid,
+                local_address,
+                remote_address,
+            });
+            STAT_INCREMENT(Stats, packets_received);
+            return;
+          }
           Debug(this,
-                "Sending retry to %s due to initial 0RTT packet",
+                "Accepting 0RTT packet from %s without "
+                "address validation",
                 remote_address);
-          // If it's a 0RTT packet, we're always going to perform path
-          // validation no matter what. This is a bit unfortunate since
-          // ORTT is supposed to be, you know, 0RTT, but sending a retry
-          // forces a round trip... but if the remote address is not
-          // validated, there's a possibility that this 0RTT is forged
-          // or otherwise suspicious. Before we can do anything with it,
-          // we have to validate it. Keep in mind that this means the
-          // client needs to respond with a proper initial packet in
-          // order to proceed.
-          // TODO(@jasnell): Validate this further to ensure this is
-          // the correct behavior.
-          SendRetry(PathDescriptor{
-              version,
-              dcid,
-              scid,
-              local_address,
-              remote_address,
-          });
-          STAT_INCREMENT(Stats, packets_received);
-          return;
+          break;
       }
     }
 

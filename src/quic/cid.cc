@@ -85,10 +85,14 @@ const CID CID::kInvalid{};
 // CID::Hash
 
 size_t CID::Hash::operator()(const CID& cid) const {
+  // Uses the Boost hash_combine strategy: XOR each byte with the golden
+  // ratio constant 0x9e3779b9 (derived from the fractional part of the
+  // golden ratio, (sqrt(5)-1)/2 * 2^32) plus bit-shifted accumulator
+  // state. This provides good avalanche properties for short byte
+  // sequences like connection IDs (1-20 bytes).
   size_t hash = 0;
   for (size_t n = 0; n < cid.length(); n++) {
-    hash ^= std::hash<uint8_t>{}(cid.ptr_->data[n] + 0x9e3779b9 + (hash << 6) +
-                                 (hash >> 2));
+    hash ^= cid.ptr_->data[n] + 0x9e3779b9 + (hash << 6) + (hash >> 2);
   }
   return hash;
 }

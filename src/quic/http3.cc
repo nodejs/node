@@ -498,12 +498,11 @@ class Http3ApplicationImpl final : public Session::Application {
           nghttp3_err_infer_quic_app_error_code(err)));
       return false;
     }
+    if (data->stream)
+      data->stream->Commit(datalen, data->fin);
     return true;
   }
 
-  bool ShouldSetFin(const StreamData& data) override {
-    return data.id > -1 && !is_control_stream(data.id) && data.fin == 1;
-  }
 
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(Http3ApplicationImpl)
