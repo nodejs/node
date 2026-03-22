@@ -52,7 +52,7 @@ throwOnCall = false;
 normalValue = 200;
 
 // Give nextTick a chance to fire the uncaughtException
-setImmediate(() => {
+setImmediate(common.mustCall(() => {
   // Second collect - both should work now
   const result2 = consumer.collect();
   assert.strictEqual(result2.length, 2);
@@ -64,4 +64,4 @@ setImmediate(() => {
   assert.strictEqual(normalMetric.dataPoints[0].value, 200);
 
   consumer.close();
-});
+}));

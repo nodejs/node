@@ -1,6 +1,6 @@
 // Flags: --expose-internals
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('node:assert');
 const { AsyncLocalStorage } = require('node:async_hooks');
 const { create, createConsumer, ReservoirSampler } = require('internal/perf/metrics');
@@ -205,7 +205,7 @@ function extractTraceContext(attributes) {
     promises.push(promise);
   }
 
-  Promise.all(promises).then(() => {
+  Promise.all(promises).then(common.mustCall(() => {
     const snapshot = consumer.collect();
     const dataPoints = snapshot[0].dataPoints;
 
@@ -220,5 +220,5 @@ function extractTraceContext(attributes) {
 
     consumer.close();
     metric.close();
-  });
+  }));
 }
