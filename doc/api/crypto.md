@@ -112,8 +112,8 @@ The following table lists the asymmetric key types recognized by the
 
 Asymmetric keys can be represented in several formats. **The recommended
 approach is to import key material into a [`KeyObject`][] once and reuse it**
-for all subsequent operations. A [`KeyObject`][] avoids repeated parsing
-and delivers the best performance.
+for all subsequent operations, as this avoids repeated parsing and delivers
+the best performance.
 
 When a [`KeyObject`][] is not practical - for example, when key material
 arrives in a protocol message and is used only once - most cryptographic
@@ -124,46 +124,31 @@ options accepted by each format.
 
 #### KeyObject
 
-A [`KeyObject`][] is the in-memory representation of a parsed key and is
-**the preferred way to work with keys** in `node:crypto`. It is created by
-[`crypto.createPublicKey()`][], [`crypto.createPrivateKey()`][],
+A [`KeyObject`][] is the in-memory representation of a parsed key. It is
+created by [`crypto.createPublicKey()`][], [`crypto.createPrivateKey()`][],
 [`crypto.createSecretKey()`][], or key generation functions such as
-[`crypto.generateKeyPair()`][].
-
-Because the key material is parsed once at creation time, reusing a
-[`KeyObject`][] across multiple operations avoids repeated parsing and
-delivers the best performance - for example, each Ed25519 signing operation
-with a reused [`KeyObject`][] is over 2× faster than passing a PEM string,
-and the savings compound with every subsequent use of the same [`KeyObject`][].
-Always prefer creating a [`KeyObject`][] up front when the same key is used
-more than once. The first cryptographic operation with a given
+[`crypto.generateKeyPair()`][]. The first cryptographic operation with a given
 [`KeyObject`][] may be slower than subsequent ones because OpenSSL lazily
-initializes internal caches on first use, but it will still generally be faster
-than passing key material in any other format.
+initializes internal caches on first use.
 
 #### PEM and DER
 
 PEM and DER are the traditional encoding formats for asymmetric keys based on
-ASN.1 structures. For private keys, these structures typically carry both the
-private and public key components, so no additional computation is needed
-during import - however, the ASN.1 parsing itself is the main cost.
+ASN.1 structures.
 
 * **PEM** is a text encoding that wraps Base64-encoded DER data between
   header and footer lines (e.g. `-----BEGIN PUBLIC KEY-----`). PEM strings can
-  be passed directly to most cryptographic operations. Public keys typically use
-  the `'spki'` type and private keys typically use `'pkcs8'`.
+  be passed directly to most cryptographic operations.
 * **DER** is the binary encoding of the same ASN.1 structures. When providing
   DER input, the `type` (typically `'spki'` or `'pkcs8'`) must be specified
-  explicitly. DER avoids the Base64 decoding overhead of PEM, and the explicit
-  `type` lets the parser skip type detection, making DER slightly faster to
-  import than PEM.
+  explicitly.
 
 #### JSON Web Key (JWK)
 
 JSON Web Key (JWK) is a JSON-based key representation defined in
-[RFC 7517][]. Instead of wrapping key material in ASN.1 structures, JWK
-encodes each key component as an individual Base64url-encoded value inside a
-JSON object.
+[RFC 7517][]. JWK encodes each key component as an individual Base64url-encoded
+value inside a JSON object. For RSA keys, JWK avoids ASN.1 parsing overhead
+and is the fastest serialized import format.
 
 #### Raw key formats
 
@@ -174,15 +159,12 @@ importing and exporting raw key material without any encoding wrapper.
 See [`keyObject.export()`][], [`crypto.createPublicKey()`][], and
 [`crypto.createPrivateKey()`][] for usage details.
 
-The `'raw-public'` format is generally the fastest way to import a public key
-because no ASN.1 or Base64 decoding is needed. The `'raw-private'` and
-`'raw-seed'` formats, however, are not always faster than PEM, DER, or JWK
-because those formats only contain the private scalar or seed - importing them
-requires mathematically deriving the public key component for the purpose of
-committing the public key to the cryptographic output (e.g. elliptic curve
-point multiplication or seed expansion), which can be expensive depending on
-the key type. Other formats like PEM, DER, or JWK include both private and
-public components, avoiding that computation.
+`'raw-public'` is generally the fastest way to import a public key.
+`'raw-private'` and `'raw-seed'` are not always faster than other formats
+because they only contain the private scalar or seed - importing them requires
+deriving the public key component (e.g. elliptic curve point multiplication or
+seed expansion), which can be expensive. Other formats include both private
+and public components, avoiding that computation.
 
 ### Choosing a key format
 
@@ -203,8 +185,7 @@ or expanding a seed). Which part dominates depends on the key type. For
 example:
 
 * Public keys - `'raw-public'` is the fastest serialized format because the
-  raw format skips all ASN.1 and Base64 decoding. For Ed25519 public key
-  import, `'raw-public'` can be over 2× faster than PEM.
+  raw format skips all ASN.1 and Base64 decoding.
 * EC private keys - `'raw-private'` is faster than PEM or DER because it
   avoids ASN.1 parsing. However, for larger curves (e.g. P-384, P-521) the
   required derivation of the public point from the private scalar becomes
@@ -229,7 +210,7 @@ signing or verification, the import cost is a larger fraction of the total,
 so a faster format like `'raw-public'` or `'raw-private'` can meaningfully
 improve throughput.
 
-If the same key material is used only a few times, it is worth importing it
+Even if the same key material is used only a few times, it is worth importing it
 into a [`KeyObject`][] rather than passing the raw or PEM representation
 repeatedly.
 
@@ -250,174 +231,77 @@ const signature = sign(null, data, privateKey);
 verify(null, data, publicKey, signature);
 ```
 
-Example: Importing a PEM-encoded key into a [`KeyObject`][]:
+Example: Importing keys of various formats into [`KeyObject`][]s:
 
 ```mjs
 import { promisify } from 'node:util';
 const {
-  createPrivateKey, createPublicKey, generateKeyPair, sign, verify,
+  createPrivateKey, createPublicKey, generateKeyPair,
 } = await import('node:crypto');
 
-// PEM-encoded keys, e.g. read from a file or environment variable.
 const generated = await promisify(generateKeyPair)('ed25519');
+
+// PEM
 const privatePem = generated.privateKey.export({ format: 'pem', type: 'pkcs8' });
 const publicPem = generated.publicKey.export({ format: 'pem', type: 'spki' });
+createPrivateKey(privatePem);
+createPublicKey(publicPem);
 
-const privateKey = createPrivateKey(privatePem);
-const publicKey = createPublicKey(publicPem);
-
-const data = new TextEncoder().encode('message to sign');
-const signature = sign(null, data, privateKey);
-verify(null, data, publicKey, signature);
-```
-
-Example: Importing a JWK into a [`KeyObject`][]:
-
-```mjs
-import { promisify } from 'node:util';
-const {
-  createPrivateKey, createPublicKey, generateKeyPair, sign, verify,
-} = await import('node:crypto');
-
-// JWK objects, e.g. from a JSON configuration or API response.
-const generated = await promisify(generateKeyPair)('ed25519');
-const privateJwk = generated.privateKey.export({ format: 'jwk' });
-const publicJwk = generated.publicKey.export({ format: 'jwk' });
-
-const privateKey = createPrivateKey({ key: privateJwk, format: 'jwk' });
-const publicKey = createPublicKey({ key: publicJwk, format: 'jwk' });
-
-const data = new TextEncoder().encode('message to sign');
-const signature = sign(null, data, privateKey);
-verify(null, data, publicKey, signature);
-```
-
-Example: Importing a DER-encoded key into a [`KeyObject`][]:
-
-```mjs
-import { promisify } from 'node:util';
-const {
-  createPrivateKey, createPublicKey, generateKeyPair, sign, verify,
-} = await import('node:crypto');
-
-// DER-encoded keys, e.g. read from binary files or hex/base64url-decoded
-// from environment variables.
-const generated = await promisify(generateKeyPair)('ed25519');
+// DER - requires explicit type
 const privateDer = generated.privateKey.export({ format: 'der', type: 'pkcs8' });
 const publicDer = generated.publicKey.export({ format: 'der', type: 'spki' });
+createPrivateKey({ key: privateDer, format: 'der', type: 'pkcs8' });
+createPublicKey({ key: publicDer, format: 'der', type: 'spki' });
 
-const privateKey = createPrivateKey({
-  key: privateDer,
-  format: 'der',
-  type: 'pkcs8',
-});
-const publicKey = createPublicKey({
-  key: publicDer,
-  format: 'der',
-  type: 'spki',
-});
-
-const data = new TextEncoder().encode('message to sign');
-const signature = sign(null, data, privateKey);
-verify(null, data, publicKey, signature);
-```
-
-Example: Passing PEM strings directly to [`crypto.sign()`][] and
-[`crypto.verify()`][]:
-
-```mjs
-import { promisify } from 'node:util';
-const { generateKeyPair, sign, verify } = await import('node:crypto');
-
-const generated = await promisify(generateKeyPair)('ed25519');
-const privatePem = generated.privateKey.export({ format: 'pem', type: 'pkcs8' });
-const publicPem = generated.publicKey.export({ format: 'pem', type: 'spki' });
-
-// PEM strings can be passed directly without creating a KeyObject first.
-const data = new TextEncoder().encode('message to sign');
-const signature = sign(null, data, privatePem);
-verify(null, data, publicPem, signature);
-```
-
-Example: Passing JWK objects directly to [`crypto.sign()`][] and
-[`crypto.verify()`][]:
-
-```mjs
-import { promisify } from 'node:util';
-const { generateKeyPair, sign, verify } = await import('node:crypto');
-
-const generated = await promisify(generateKeyPair)('ed25519');
+// JWK
 const privateJwk = generated.privateKey.export({ format: 'jwk' });
 const publicJwk = generated.publicKey.export({ format: 'jwk' });
+createPrivateKey({ key: privateJwk, format: 'jwk' });
+createPublicKey({ key: publicJwk, format: 'jwk' });
 
-// JWK objects can be passed directly without creating a KeyObject first.
-const data = new TextEncoder().encode('message to sign');
-const signature = sign(null, data, { key: privateJwk, format: 'jwk' });
-verify(null, data, { key: publicJwk, format: 'jwk' }, signature);
+// Raw
+const rawPriv = generated.privateKey.export({ format: 'raw-private' });
+const rawPub = generated.publicKey.export({ format: 'raw-public' });
+createPrivateKey({ key: rawPriv, format: 'raw-private', asymmetricKeyType: 'ed25519' });
+createPublicKey({ key: rawPub, format: 'raw-public', asymmetricKeyType: 'ed25519' });
 ```
 
-Example: Passing raw key bytes directly to [`crypto.sign()`][] and
-[`crypto.verify()`][]:
+Example: Passing key material directly to [`crypto.sign()`][] and
+[`crypto.verify()`][] without creating a [`KeyObject`][] first:
 
 ```mjs
 import { promisify } from 'node:util';
 const { generateKeyPair, sign, verify } = await import('node:crypto');
 
 const generated = await promisify(generateKeyPair)('ed25519');
-const rawPrivateKey = generated.privateKey.export({ format: 'raw-private' });
-const rawPublicKey = generated.publicKey.export({ format: 'raw-public' });
 
-// Raw key bytes can be passed directly without creating a KeyObject first.
 const data = new TextEncoder().encode('message to sign');
-const signature = sign(null, data, {
-  key: rawPrivateKey,
-  format: 'raw-private',
-  asymmetricKeyType: 'ed25519',
+
+// PEM strings
+const privatePem = generated.privateKey.export({ format: 'pem', type: 'pkcs8' });
+const publicPem = generated.publicKey.export({ format: 'pem', type: 'spki' });
+const sig1 = sign(null, data, privatePem);
+verify(null, data, publicPem, sig1);
+
+// JWK objects
+const privateJwk = generated.privateKey.export({ format: 'jwk' });
+const publicJwk = generated.publicKey.export({ format: 'jwk' });
+const sig2 = sign(null, data, { key: privateJwk, format: 'jwk' });
+verify(null, data, { key: publicJwk, format: 'jwk' }, sig2);
+
+// Raw key bytes
+const rawPriv = generated.privateKey.export({ format: 'raw-private' });
+const rawPub = generated.publicKey.export({ format: 'raw-public' });
+const sig3 = sign(null, data, {
+  key: rawPriv, format: 'raw-private', asymmetricKeyType: 'ed25519',
 });
 verify(null, data, {
-  key: rawPublicKey,
-  format: 'raw-public',
-  asymmetricKeyType: 'ed25519',
-}, signature);
-```
-
-Example: Exporting raw keys and importing them:
-
-```mjs
-import { promisify } from 'node:util';
-const {
-  createPrivateKey, createPublicKey, generateKeyPair, sign, verify,
-} = await import('node:crypto');
-
-const generated = await promisify(generateKeyPair)('ed25519');
-
-// Export the raw public key (32 bytes for Ed25519).
-const rawPublicKey = generated.publicKey.export({ format: 'raw-public' });
-
-// Export the raw private key (32 bytes for Ed25519).
-const rawPrivateKey = generated.privateKey.export({ format: 'raw-private' });
-
-// Import the raw public key.
-const publicKey = createPublicKey({
-  key: rawPublicKey,
-  format: 'raw-public',
-  asymmetricKeyType: 'ed25519',
-});
-
-// Import the raw private key.
-const privateKey = createPrivateKey({
-  key: rawPrivateKey,
-  format: 'raw-private',
-  asymmetricKeyType: 'ed25519',
-});
-
-const data = new TextEncoder().encode('message to sign');
-const signature = sign(null, data, privateKey);
-verify(null, data, publicKey, signature);
+  key: rawPub, format: 'raw-public', asymmetricKeyType: 'ed25519',
+}, sig3);
 ```
 
 Example: For EC keys, the `namedCurve` option is required when importing
-`'raw-public'` keys:
+raw keys:
 
 ```mjs
 import { promisify } from 'node:util';
