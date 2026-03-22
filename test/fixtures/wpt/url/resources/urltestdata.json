@@ -6095,6 +6095,21 @@
     "search": "",
     "hash": ""
   },
+  {
+    "input": "https://0000000000000000000000000000000000000000177.0.0.1",
+    "base": null,
+    "href": "https://127.0.0.1/",
+    "origin": "https://127.0.0.1",
+    "protocol": "https:",
+    "username": "",
+    "password": "",
+    "host": "127.0.0.1",
+    "hostname": "127.0.0.1",
+    "port": "",
+    "pathname": "/",
+    "search": "",
+    "hash": ""
+  },
   "More IPv4 parsing (via https://github.com/jsdom/whatwg-url/issues/92)",
   {
     "input": "https://0x100000000/test",
