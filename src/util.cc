@@ -127,7 +127,7 @@ static void MakeUtf8String(Isolate* isolate,
 
   size_t actual_length =
       simdutf::convert_utf16_to_utf8(const_char16, value_length, target->out());
-  if (actual_length == 0 && value_length > 0) {
+  if (actual_length == 0) {
     actual_length =
         string->WriteUtf8V2(isolate,
                             target->out(),
