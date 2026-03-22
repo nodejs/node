@@ -333,17 +333,5 @@ function run_test(algorithmName) {
       }, "Sign and verify using generated " + vector.algorithmName + " keys.");
   });
 
-  // Returns a copy of the sourceBuffer it is sent.
-  function copyBuffer(sourceBuffer) {
-      var source = new Uint8Array(sourceBuffer);
-      var copy = new Uint8Array(sourceBuffer.byteLength)
-
-      for (var i=0; i<source.byteLength; i++) {
-          copy[i] = source[i];
-      }
-
-      return copy;
-  }
-
   return;
 }

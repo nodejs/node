@@ -1,4 +1,5 @@
 // META: title=WebCryptoAPI: digest() cSHAKE algorithms
+// META: script=../util/helpers.js
 // META: timeout=long
 
 var subtle = crypto.subtle; // Change to test prefixed implementations
@@ -245,17 +246,3 @@ Object.keys(digestedData).forEach(function (alg) {
     });
   });
 });
-
-function equalBuffers(a, b) {
-  if (a.byteLength !== b.byteLength) {
-    return false;
-  }
-  var aBytes = new Uint8Array(a);
-  var bBytes = new Uint8Array(b);
-  for (var i = 0; i < a.byteLength; i++) {
-    if (aBytes[i] !== bBytes[i]) {
-      return false;
-    }
-  }
-  return true;
-}
