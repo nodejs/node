@@ -178,7 +178,12 @@ isBuiltin('wss'); // false
 added:
   - v20.6.0
   - v18.19.0
+deprecated: REPLACEME
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62395
+    description: Documentation-only deprecation (DEP0205). Use
+                 `module.registerHooks()` instead.
   - version:
     - v23.6.1
     - v22.13.1
@@ -193,7 +198,7 @@ changes:
     description: Add support for WHATWG URL instances.
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 0 - Deprecated: Use [`module.registerHooks()`][] instead.
 
 * `specifier` {string|URL} Customization hooks to be registered; this should be
   the same string that would be passed to `import()`, except that if it is
