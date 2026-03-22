@@ -23,10 +23,10 @@ Last update:
 - html/webappapis/microtask-queuing: https://github.com/web-platform-tests/wpt/tree/2c5c3c4c27/html/webappapis/microtask-queuing
 - html/webappapis/structured-clone: https://github.com/web-platform-tests/wpt/tree/47d3fb280c/html/webappapis/structured-clone
 - html/webappapis/timers: https://github.com/web-platform-tests/wpt/tree/5873f2d8f1/html/webappapis/timers
-- interfaces: https://github.com/web-platform-tests/wpt/tree/e1b27be06b/interfaces
+- interfaces: https://github.com/web-platform-tests/wpt/tree/a8392bd021/interfaces
 - performance-timeline: https://github.com/web-platform-tests/wpt/tree/94caab7038/performance-timeline
 - resource-timing: https://github.com/web-platform-tests/wpt/tree/22d38586d0/resource-timing
-- resources: https://github.com/web-platform-tests/wpt/tree/1d2c5fb36a/resources
+- resources: https://github.com/web-platform-tests/wpt/tree/6a2f322376/resources
 - streams: https://github.com/web-platform-tests/wpt/tree/f8f26a372f/streams
 - url: https://github.com/web-platform-tests/wpt/tree/e4a4672e9e/url
 - urlpattern: https://github.com/web-platform-tests/wpt/tree/f07c03cbed/urlpattern
@@ -35,6 +35,7 @@ Last update:
 - wasm/webapi: https://github.com/web-platform-tests/wpt/tree/fd1b23eeaa/wasm/webapi
 - web-locks: https://github.com/web-platform-tests/wpt/tree/10a122a6bc/web-locks
 - WebCryptoAPI: https://github.com/web-platform-tests/wpt/tree/2cb332d710/WebCryptoAPI
+- webidl: https://github.com/web-platform-tests/wpt/tree/63ca529a02/webidl
 - webidl/ecmascript-binding/es-exceptions: https://github.com/web-platform-tests/wpt/tree/2f96fa1996/webidl/ecmascript-binding/es-exceptions
 - webmessaging/broadcastchannel: https://github.com/web-platform-tests/wpt/tree/6495c91853/webmessaging/broadcastchannel
 - webstorage: https://github.com/web-platform-tests/wpt/tree/1d2c5fb36a/webstorage

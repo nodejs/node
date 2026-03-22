@@ -1,0 +1,118 @@
+// GENERATED CONTENT - DO NOT EDIT
+// Content was automatically extracted by Reffy into webref
+// (https://github.com/w3c/webref)
+// Source: Modern Algorithms in the Web Cryptography API (https://wicg.github.io/webcrypto-modern-algos/)
+
+[SecureContext,Exposed=(Window,Worker)]
+partial interface SubtleCrypto {
+  Promise<EncapsulatedKey> encapsulateKey(
+    AlgorithmIdentifier encapsulationAlgorithm,
+    CryptoKey encapsulationKey,
+    AlgorithmIdentifier sharedKeyAlgorithm,
+    boolean extractable,
+    sequence<KeyUsage> keyUsages
+  );
+  Promise<EncapsulatedBits> encapsulateBits(
+    AlgorithmIdentifier encapsulationAlgorithm,
+    CryptoKey encapsulationKey
+  );
+
+  Promise<CryptoKey> decapsulateKey(
+    AlgorithmIdentifier decapsulationAlgorithm,
+    CryptoKey decapsulationKey,
+    BufferSource ciphertext,
+    AlgorithmIdentifier sharedKeyAlgorithm,
+    boolean extractable,
+    sequence<KeyUsage> keyUsages
+  );
+  Promise<ArrayBuffer> decapsulateBits(
+    AlgorithmIdentifier decapsulationAlgorithm,
+    CryptoKey decapsulationKey,
+    BufferSource ciphertext
+  );
+
+  Promise<CryptoKey> getPublicKey(
+    CryptoKey key,
+    sequence<KeyUsage> keyUsages
+  );
+
+  static boolean supports(DOMString operation,
+                   AlgorithmIdentifier algorithm,
+                   optional unsigned long? length = null);
+  static boolean supports(DOMString operation,
+                   AlgorithmIdentifier algorithm,
+                   AlgorithmIdentifier additionalAlgorithm);
+};
+
+enum KeyFormat { "raw-public", "raw-private", "raw-seed", "raw-secret", "raw", "spki", "pkcs8", "jwk" };
+
+enum KeyUsage { "encrypt", "decrypt", "sign", "verify", "deriveKey", "deriveBits", "wrapKey", "unwrapKey", "encapsulateKey", "encapsulateBits", "decapsulateKey", "decapsulateBits" };
+
+dictionary EncapsulatedKey {
+  CryptoKey sharedKey;
+  ArrayBuffer ciphertext;
+};
+
+dictionary EncapsulatedBits {
+  ArrayBuffer sharedKey;
+  ArrayBuffer ciphertext;
+};
+
+partial dictionary JsonWebKey {
+  // The following fields are defined in draft-ietf-cose-dilithium-08
+  DOMString pub;
+  DOMString priv;
+};
+
+dictionary ContextParams : Algorithm {
+  BufferSource context;
+};
+
+dictionary AeadParams : Algorithm {
+  required BufferSource iv;
+  BufferSource additionalData;
+  [EnforceRange] octet tagLength;
+};
+
+dictionary CShakeParams : Algorithm {
+  required [EnforceRange] unsigned long outputLength;
+  BufferSource functionName;
+  BufferSource customization;
+};
+
+dictionary TurboShakeParams : Algorithm {
+  required [EnforceRange] unsigned long outputLength;
+  [EnforceRange] octet domainSeparation;
+};
+
+dictionary KangarooTwelveParams : Algorithm {
+  required [EnforceRange] unsigned long outputLength;
+  BufferSource customization;
+};
+
+dictionary KmacKeyGenParams : Algorithm {
+  [EnforceRange] unsigned long length;
+};
+
+dictionary KmacImportParams : Algorithm {
+  [EnforceRange] unsigned long length;
+};
+
+dictionary KmacKeyAlgorithm : KeyAlgorithm {
+  required unsigned long length;
+};
+
+dictionary KmacParams : Algorithm {
+  required [EnforceRange] unsigned long outputLength;
+  BufferSource customization;
+};
+
+dictionary Argon2Params : Algorithm {
+  required BufferSource nonce;
+  required [EnforceRange] unsigned long parallelism;
+  required [EnforceRange] unsigned long memory;
+  required [EnforceRange] unsigned long passes;
+  [EnforceRange] octet version;
+  BufferSource secretValue;
+  BufferSource associatedData;
+};
