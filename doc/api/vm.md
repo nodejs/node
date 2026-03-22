@@ -1835,10 +1835,10 @@ It does several things at once:
 
 1. Creates a new context.
 2. If `contextObject` is an object, [contextifies][contextified] it with the new context.
-   If  `contextObject` is undefined, creates a new object and [contextifies][contextified] it.
+   If `contextObject` is undefined, creates a new object and [contextifies][contextified] it.
    If `contextObject` is [`vm.constants.DONT_CONTEXTIFY`][], don't [contextify][contextified] anything.
-3. Compiles the code as a`vm.Script`
-4. Runs the compield code within the created context. The code does not have access to the scope in
+3. Compiles the code as a `vm.Script`
+4. Runs the compiled code within the created context. The code does not have access to the scope in
    which this method is called.
 5. Returns the result.
 
