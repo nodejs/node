@@ -249,7 +249,7 @@ if (hasOpenSSL(3, 5)) {
   }
 }
 
-// EC: defaults to compressed, can be switched to uncompressed, both can be imported
+// EC: defaults to uncompressed, can be switched to compressed, both can be imported
 {
   const pubKeyObj = crypto.createPublicKey(
     fixtures.readKey('ec_p256_public.pem', 'ascii'));
@@ -258,8 +258,8 @@ if (hasOpenSSL(3, 5)) {
   const compressed = pubKeyObj.export({ format: 'raw-public', type: 'compressed' });
   const uncompressed = pubKeyObj.export({ format: 'raw-public', type: 'uncompressed' });
 
-  // Default is compressed
-  assert.deepStrictEqual(defaultExport, compressed);
+  // Default is uncompressed
+  assert.deepStrictEqual(defaultExport, uncompressed);
 
   // Compressed starts with 0x02 or 0x03 and is 33 bytes for P-256
   assert.strictEqual(compressed.byteLength, 33);

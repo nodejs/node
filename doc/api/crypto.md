@@ -313,19 +313,19 @@ const generated = await promisify(generateKeyPair)('ec', {
   namedCurve: 'P-256',
 });
 
-// Export the raw EC public key (compressed by default).
+// Export the raw EC public key (uncompressed by default).
 const rawPublicKey = generated.publicKey.export({ format: 'raw-public' });
 
 // The following is equivalent.
-const rawPublicKeyCompressed = generated.publicKey.export({
-  format: 'raw-public',
-  type: 'compressed',
-});
-
-// Export uncompressed point format.
 const rawPublicKeyUncompressed = generated.publicKey.export({
   format: 'raw-public',
   type: 'uncompressed',
+});
+
+// Export compressed point format.
+const rawPublicKeyCompressed = generated.publicKey.export({
+  format: 'raw-public',
+  type: 'compressed',
 });
 
 // Export the raw EC private key.
@@ -2416,7 +2416,7 @@ For public keys, the following encoding options can be used:
   See [asymmetric key types][] for format support.
 * `type` {string} When `format` is `'pem'` or `'der'`, must be `'pkcs1'`
   (RSA only) or `'spki'`. For EC keys with `'raw-public'` format, may be
-  `'compressed'` (default) or `'uncompressed'`. Ignored when `format` is
+  `'uncompressed'` (default) or `'compressed'`. Ignored when `format` is
   `'jwk'`.
 
 For private keys, the following encoding options can be used:
