@@ -197,13 +197,15 @@ const {
    *   Finalizes the source stream before or after adaptation.
    * @param {(readAndAssert: () => Promise<void>, reader: ReadableStreamReader) => Promise<void>} postAssert
    *   Asserts the resulting web stream state for the current case.
+   * @param {() => Readable} [createReadable]
+   *   Creates the source stream for each case.
    */
-  function testConfluence(finalize, postAssert) {
+  function testConfluence(finalize, postAssert, createReadable = () => new PassThrough()) {
     const cases = [false, true].flatMap((finalizeFirst) => [false, true].map((isBYOB) => ({ finalizeFirst, isBYOB })));
     Promise.all(cases.map(async (case_) => {
       try {
         const { isBYOB } = case_;
-        const readable = new PassThrough();
+        const readable = createReadable();
         if (case_.finalizeFirst) {
           await finalize(readable);
         }
@@ -214,9 +216,14 @@ const {
           await finalize(readable);
         }
 
-        const readAndAssert = common.mustCall(() => reader.read(isBYOB ? new Uint8Array(1) : undefined).then((result) => {
-          assert.deepStrictEqual(result, { value: isBYOB ? new Uint8Array(0) : undefined, done: true });
-        }));
+        const readAndAssert = common.mustCall(() => {
+          return reader.read(isBYOB ? new Uint8Array(1) : undefined).then((result) => {
+            assert.deepStrictEqual(result, {
+              value: isBYOB ? new Uint8Array(0) : undefined,
+              done: true,
+            });
+          });
+        });
         await postAssert(readAndAssert, reader);
       } catch (cause) {
         throw new Error(`Case failed: ${JSON.stringify(case_)}`, { cause });
@@ -245,6 +252,24 @@ const {
       await assert.rejects(readAndAssert(), errorPredicate);
       await assert.rejects(reader.closed, errorPredicate);
     }, 4)
+  );
+  // Asynchronously destroyed readable => errors the ReadableStream with a
+  // premature close error regardless of adapter creation order.
+  class AsyncDestroyReadable extends Readable {
+    _read() {}
+
+    _destroy(error, callback) {
+      setImmediate(callback, error);
+    }
+  }
+  testConfluence(
+    (readable) => readable.destroy(),
+    common.mustCall(async (readAndAssert, reader) => {
+      const errorPredicate = { code: 'ABORT_ERR' };
+      await assert.rejects(readAndAssert(), errorPredicate);
+      await assert.rejects(reader.closed, errorPredicate);
+    }, 4),
+    () => new AsyncDestroyReadable()
   );
   // Destroying the readable with an error => errors the readableStream
   testConfluence(
