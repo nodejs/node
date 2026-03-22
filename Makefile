@@ -388,17 +388,15 @@ DOC_KIT ?= tools/doc/node_modules/@nodejs/doc-kit/bin/cli.mjs
 
 node_use_openssl_and_icu = $(call available-node,"-p" \
 			 "process.versions.openssl != undefined && process.versions.icu != undefined")
-test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS) tools/doc/node_modules
+test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS) tools/doc/addon-verify.mjs
 	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
 		echo "Skipping .docbuildstamp (no crypto and/or no ICU)"; \
 	else \
 		$(RM) -r test/addons/??_*/; \
 		$(call available-node, \
-			$(DOC_KIT) generate \
-			-t addon-verify \
-			-i doc/api/addons.md \
-			-o test/addons/ \
-			--type-map doc/type-map.json \
+			tools/doc/addon-verify.mjs \
+			--input doc/api/addons.md \
+			--output test/addons/ \
 		) \
 		[ $$? -eq 0 ] && touch $@; \
 	fi
