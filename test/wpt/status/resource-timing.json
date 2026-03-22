@@ -31,7 +31,17 @@
         "PerformanceResourceTiming interface: resource must inherit property \"firstInterimResponseStart\" with the proper type",
         "PerformanceResourceTiming interface: resource must inherit property \"renderBlockingStatus\" with the proper type",
         "PerformanceResourceTiming interface: resource must inherit property \"contentType\" with the proper type",
-        "PerformanceResourceTiming interface: default toJSON operation on resource"
+        "PerformanceResourceTiming interface: default toJSON operation on resource",
+        "PerformanceResourceTiming interface: attribute workerRouterEvaluationStart",
+        "PerformanceResourceTiming interface: attribute workerCacheLookupStart",
+        "PerformanceResourceTiming interface: attribute workerMatchedRouterSource",
+        "PerformanceResourceTiming interface: attribute workerFinalRouterSource",
+        "PerformanceResourceTiming interface: attribute contentEncoding",
+        "PerformanceResourceTiming interface: resource must inherit property \"workerRouterEvaluationStart\" with the proper type",
+        "PerformanceResourceTiming interface: resource must inherit property \"workerCacheLookupStart\" with the proper type",
+        "PerformanceResourceTiming interface: resource must inherit property \"workerMatchedRouterSource\" with the proper type",
+        "PerformanceResourceTiming interface: resource must inherit property \"workerFinalRouterSource\" with the proper type",
+        "PerformanceResourceTiming interface: resource must inherit property \"contentEncoding\" with the proper type"
       ]
     }
   }

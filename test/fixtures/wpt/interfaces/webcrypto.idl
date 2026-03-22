@@ -1,7 +1,7 @@
 // GENERATED CONTENT - DO NOT EDIT
 // Content was automatically extracted by Reffy into webref
 // (https://github.com/w3c/webref)
-// Source: Web Cryptography API (https://w3c.github.io/webcrypto/)
+// Source: Web Cryptography API Level 2 (https://w3c.github.io/webcrypto/)
 
 partial interface mixin WindowOrWorkerGlobalScope {
   [SameObject] readonly attribute Crypto crypto;
@@ -28,8 +28,6 @@ dictionary KeyAlgorithm {
 
 enum KeyType { "public", "private", "secret" };
 
-enum KeyUsage { "encrypt", "decrypt", "sign", "verify", "deriveKey", "deriveBits", "wrapKey", "unwrapKey" };
-
 [SecureContext,Exposed=(Window,Worker),Serializable]
 interface CryptoKey {
   readonly attribute KeyType type;
@@ -37,8 +35,6 @@ interface CryptoKey {
   readonly attribute object algorithm;
   readonly attribute object usages;
 };
-
-enum KeyFormat { "raw", "spki", "pkcs8", "jwk" };
 
 [SecureContext,Exposed=(Window,Worker)]
 interface SubtleCrypto {

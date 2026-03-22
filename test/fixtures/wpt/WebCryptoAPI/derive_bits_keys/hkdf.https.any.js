@@ -3,6 +3,7 @@
 // META: variant=?1001-2000
 // META: variant=?2001-3000
 // META: variant=?3001-last
+// META: script=../util/helpers.js
 // META: script=/common/subset-tests.js
 // META: script=hkdf_vectors.js
 // META: script=hkdf.js
