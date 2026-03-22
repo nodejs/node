@@ -52,7 +52,7 @@
     "path": "html/webappapis/timers"
   },
   "interfaces": {
-    "commit": "e1b27be06b43787a001b7297c4e0fabdd276560f",
+    "commit": "a8392bd0210378dda13278eeccf2c2602278e214",
     "path": "interfaces"
   },
   "performance-timeline": {
@@ -64,7 +64,7 @@
     "path": "resource-timing"
   },
   "resources": {
-    "commit": "1d2c5fb36a6e477c8f915bde7eca027be6abe792",
+    "commit": "6a2f32237615d7ea9c1eb1e30453066b5555c603",
     "path": "resources"
   },
   "streams": {
@@ -96,7 +96,7 @@
     "path": "web-locks"
   },
   "WebCryptoAPI": {
-    "commit": "0acea989ac21842d6545d16594f1a05491c6076e",
+    "commit": "caebe89c3b243513c4b7e5e8dd2a370e5800bb73",
     "path": "WebCryptoAPI"
   },
   "webidl": {

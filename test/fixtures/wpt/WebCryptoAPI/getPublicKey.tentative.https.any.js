@@ -155,18 +155,6 @@ promise_test(async function(t) {
 // Test with empty usages array
 algorithms.forEach(function(algorithm) {
     promise_test(async function(t) {
-        // Skip X25519 if not supported
-        if (algorithm.name === "X25519") {
-            try {
-                await crypto.subtle.generateKey(algorithm.generateKeyParams, false, algorithm.usages);
-            } catch (e) {
-                if (e.name === "NotSupportedError") {
-                    return;
-                }
-                throw e;
-            }
-        }
-
         const keyPair = await crypto.subtle.generateKey(
             algorithm.generateKeyParams,
             false,
