@@ -687,6 +687,27 @@ describe('forceExit', () => {
       message: /The property 'options\.forceExit' is not supported with watch mode\./
     });
   });
+
+  it('should accept env option and pass it to child processes', async () => {
+    const stream = run({
+      files: [join(testFixtures, 'default-behavior/test/random.cjs')],
+      env: { ...process.env, NODE_TEST_CUSTOM_ENV_VAR: '1' },
+    });
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustCall(1));
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+  });
+
+  it('should reject env option with isolation none', () => {
+    assert.throws(() => run({
+      files: [join(testFixtures, 'default-behavior/test/random.cjs')],
+      isolation: 'none',
+      env: { FOO: 'bar' },
+    }), {
+      code: 'ERR_INVALID_ARG_VALUE',
+    });
+  });
 });
 
 
