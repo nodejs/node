@@ -227,12 +227,9 @@ test('unparseable files degrade gracefully to zero statements', () => {
   // The file uses top-level `using` which is valid at runtime (CJS wrapper)
   // but acorn cannot parse as sourceType:'script'. Statement coverage
   // degrades to 0 total statements while other metrics still work.
-  assert.strictEqual(file.totalStatementCount, 0,
-                     'unparseable file should have 0 statements');
-  assert.strictEqual(file.coveredStatementCount, 0,
-                     'unparseable file should have 0 covered statements');
-  assert.strictEqual(file.coveredStatementPercent, 100,
-                     'unparseable file should degrade to 100% statement coverage');
+  assert.strictEqual(file.totalStatementCount, 0);
+  assert.strictEqual(file.coveredStatementCount, 0);
+  assert.strictEqual(file.coveredStatementPercent, 100);
   assert.ok(Array.isArray(file.statements) && file.statements.length === 0,
             'unparseable file should have empty statements array');
 
