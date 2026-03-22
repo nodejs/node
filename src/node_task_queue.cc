@@ -71,6 +71,10 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
                   "unhandled", unhandledRejections,
                   "handledAfter", rejectionsHandledAfter);
   } else if (event == kPromiseHandlerAddedAfterReject) {
+    // If this notification was triggered by ObservePromise's internal .then()
+    // call, suppress it so the promise remains in pendingUnhandledRejections
+    // and unhandledRejection still fires.
+    if (env->observing_promise()) return;
     value = Undefined(isolate);
     rejectionsHandledAfter++;
     TRACE_COUNTER2(TRACING_CATEGORY_NODE2(promises, rejections),
@@ -156,6 +160,43 @@ static void SetPromiseRejectCallback(
   env->set_promise_reject_callback(args[0].As<Function>());
 }
 
+static void ObservePromise(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsPromise());
+  CHECK(args[1]->IsFunction());
+  CHECK(args[2]->IsFunction());
+
+  Local<Promise> promise = args[0].As<Promise>();
+  Local<Function> on_fulfilled = args[1].As<Function>();
+  Local<Function> on_rejected = args[2].As<Function>();
+
+  bool was_handled = promise->HasHandler();
+
+  // Set flag BEFORE .Then() so that if V8 fires kPromiseHandlerAddedAfterReject
+  // synchronously (because the promise is already rejected), PromiseRejectCallback
+  // suppresses it and the promise stays in pendingUnhandledRejections.
+  env->set_observing_promise(true);
+
+  Local<Promise> derived;
+  if (!promise->Then(env->context(), on_fulfilled, on_rejected)
+           .ToLocal(&derived)) {
+    env->set_observing_promise(false);
+    return;
+  }
+
+  env->set_observing_promise(false);
+
+  // The derived promise from .then() should never itself trigger unhandled
+  // rejection warnings — it's an internal observer chain.
+  derived->MarkAsHandled();
+
+  // Restore the original unhandled state so unhandledRejection still fires.
+  // Only clear if it wasn't already handled by a real handler before we observed.
+  if (!was_handled) {
+    promise->MarkAsUnhandled();
+  }
+}
+
 static void Initialize(Local<Object> target,
                        Local<Value> unused,
                        Local<Context> context,
@@ -181,6 +222,7 @@ static void Initialize(Local<Object> target,
               events).Check();
   SetMethod(
       context, target, "setPromiseRejectCallback", SetPromiseRejectCallback);
+  SetMethod(context, target, "observePromise", ObservePromise);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
@@ -188,6 +230,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetTickCallback);
   registry->Register(RunMicrotasks);
   registry->Register(SetPromiseRejectCallback);
+  registry->Register(ObservePromise);
 }
 
 }  // namespace task_queue

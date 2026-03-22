@@ -701,6 +701,14 @@ bool Environment::source_maps_enabled() const {
   return source_maps_enabled_;
 }
 
+void Environment::set_observing_promise(bool on) {
+  observing_promise_ = on;
+}
+
+bool Environment::observing_promise() const {
+  return observing_promise_;
+}
+
 inline uint64_t Environment::thread_id() const {
   return thread_id_;
 }

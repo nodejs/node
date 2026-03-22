@@ -103,6 +103,11 @@ class V8_EXPORT Promise : public Object {
   void MarkAsHandled();
 
   /**
+   * Marks this promise as unhandled, re-enabling unhandled rejection tracking.
+   */
+  void MarkAsUnhandled();
+
+  /**
    * Marks this promise as silent to prevent pausing the debugger when the
    * promise is rejected.
    */

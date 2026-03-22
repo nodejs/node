@@ -8606,6 +8606,10 @@ void Promise::MarkAsHandled() {
   Utils::OpenDirectHandle(this)->set_has_handler(true);
 }
 
+void Promise::MarkAsUnhandled() {
+  Utils::OpenDirectHandle(this)->set_has_handler(false);
+}
+
 void Promise::MarkAsSilent() {
   Utils::OpenDirectHandle(this)->set_is_silent(true);
 }
