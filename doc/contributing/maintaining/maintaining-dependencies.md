@@ -28,6 +28,7 @@ This a list of all the dependencies:
 * [ngtcp2][]
 * [npm][]
 * [openssl][]
+* [perfetto][]
 * [postject][]
 * [simdjson][]
 * [sqlite][]
@@ -353,6 +354,11 @@ the main openssl/openssl releases with the addition of APIs to support
 the QUIC protocol.
 See [maintaining-openssl][] for more information.
 
+### perfetto
+
+The [perfetto](https://github.com/google/perfetto) dependency is used to
+generate performance traces for Node.js and V8.
+
 ### postject
 
 The [postject](https://github.com/nodejs/postject) dependency is used for the
@@ -427,6 +433,7 @@ according to [RFC 8878](https://datatracker.ietf.org/doc/html/rfc8878).
 [ngtcp2]: #ngtcp2
 [npm]: #npm
 [openssl]: #openssl
+[perfetto]: #perfetto
 [postject]: #postject
 [simdjson]: #simdjson
 [sqlite]: #sqlite
