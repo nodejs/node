@@ -1398,7 +1398,7 @@ IdlInterface.prototype.default_to_json_operation = function() {
         if (I.has_default_to_json_regular_operation()) {
             isDefault = true;
             for (const m of I.members) {
-                if (m.special !== "static" && m.type == "attribute" && I.array.is_json_type(m.idlType)) {
+                if (!m.untested && m.special !== "static" && m.type == "attribute" && I.array.is_json_type(m.idlType)) {
                     map.set(m.name, m.idlType);
                 }
             }

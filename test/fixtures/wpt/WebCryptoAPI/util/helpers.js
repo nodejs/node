@@ -84,23 +84,6 @@ function objectToString(obj) {
     } else {
         return obj.toString();
     }
-
-    var keyValuePairs = [];
-
-    Object.keys(obj).sort().forEach(function(keyName) {
-        var value = obj[keyName];
-        if (typeof value === "object") {
-            value = objectToString(value);
-        } else if (typeof value === "array") {
-            value = "[" + value.map(function(elem){return objectToString(elem);}).join(", ") + "]";
-        } else {
-            value = value.toString();
-        }
-
-        keyValuePairs.push(keyName + ": " + value);
-    });
-
-    return "{" + keyValuePairs.join(", ") + "}";
 }
 
 // Is key a CryptoKey object with correct algorithm, extractable, and usages?
@@ -331,4 +314,80 @@ function hexStringToUint8Array(hexString)
     }
 
     return arrayBuffer;
+}
+
+// Compares two ArrayBuffer or ArrayBufferView objects. If bitCount is
+// omitted, the two values must be the same length and have the same contents
+// in every byte. If bitCount is included, only that leading number of bits
+// have to match.
+function equalBuffers(a, b, bitCount) {
+    var remainder;
+
+    if (typeof bitCount === "undefined" && a.byteLength !== b.byteLength) {
+        return false;
+    }
+
+    var aBytes = new Uint8Array(a);
+    var bBytes = new Uint8Array(b);
+
+    var length = a.byteLength;
+    if (typeof bitCount !== "undefined") {
+        length = Math.floor(bitCount / 8);
+    }
+
+    for (var i=0; i<length; i++) {
+        if (aBytes[i] !== bBytes[i]) {
+            return false;
+        }
+    }
+
+    if (typeof bitCount !== "undefined") {
+        remainder = bitCount % 8;
+        return aBytes[length] >> (8 - remainder) === bBytes[length] >> (8 - remainder);
+    }
+
+    return true;
+}
+
+// Returns a copy of the sourceBuffer it is sent.
+function copyBuffer(sourceBuffer) {
+    var source = new Uint8Array(sourceBuffer);
+    var copy = new Uint8Array(sourceBuffer.byteLength)
+
+    for (var i=0; i<source.byteLength; i++) {
+        copy[i] = source[i];
+    }
+
+    return copy;
+}
+
+// Are two Jwk objects "the same"? That is, does the object returned include
+// matching values for each property that was expected? It's okay if the
+// returned object has extra methods; they aren't checked.
+function equalJwk(expected, got) {
+    var fields = Object.keys(expected);
+    var fieldName;
+
+    for(var i=0; i<fields.length; i++) {
+        fieldName = fields[i];
+        if (!(fieldName in got)) {
+            return false;
+        }
+        if (objectToString(expected[fieldName]) !== objectToString(got[fieldName])) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+// Jwk format wants Base 64 without the typical padding at the end.
+function byteArrayToUnpaddedBase64(byteArray){
+    var binaryString = "";
+    for (var i=0; i<byteArray.byteLength; i++){
+        binaryString += String.fromCharCode(byteArray[i]);
+    }
+    var base64String = btoa(binaryString);
+
+    return base64String.replace(/=/g, "");
 }

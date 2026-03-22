@@ -66,5 +66,20 @@
         "ObservableArray's ownKeys trap"
       ]
     }
+  },
+  "idlharness.any.js": {
+    "fail": {
+      "note": "https://github.com/nodejs/node/pull/62293",
+      "expected": [
+        "QuotaExceededError interface: existence and properties of interface object",
+        "QuotaExceededError interface object length",
+        "QuotaExceededError interface object name",
+        "QuotaExceededError interface: existence and properties of interface prototype object",
+        "QuotaExceededError interface: existence and properties of interface prototype object's \"constructor\" property",
+        "QuotaExceededError interface: existence and properties of interface prototype object's @@unscopables property",
+        "QuotaExceededError interface: attribute quota",
+        "QuotaExceededError interface: attribute requested"
+      ]
+    }
   }
 }

@@ -1,5 +1,6 @@
 // META: title=WebCryptoAPI: encrypt()/decrypt() ChaCha20-Poly1305
 // META: timeout=long
+// META: script=../util/helpers.js
 
 var subtle = crypto.subtle; // Change to test prefixed implementations
 
@@ -119,20 +120,6 @@ var encryptedData = {
     ]),
   },
 };
-
-function equalBuffers(a, b) {
-  if (a.byteLength !== b.byteLength) {
-    return false;
-  }
-  var aBytes = new Uint8Array(a);
-  var bBytes = new Uint8Array(b);
-  for (var i = 0; i < a.byteLength; i++) {
-    if (aBytes[i] !== bBytes[i]) {
-      return false;
-    }
-  }
-  return true;
-}
 
 // Test ChaCha20-Poly1305 encryption/decryption
 var algorithmName = 'ChaCha20-Poly1305';
