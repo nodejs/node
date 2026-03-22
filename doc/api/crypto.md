@@ -238,8 +238,8 @@ repeatedly.
 Example: Reusing a [`KeyObject`][] across sign and verify operations:
 
 ```mjs
+import { promisify } from 'node:util';
 const { generateKeyPair, sign, verify } = await import('node:crypto');
-const { promisify } = await import('node:util');
 
 const { publicKey, privateKey } = await promisify(generateKeyPair)('ed25519');
 
@@ -253,10 +253,10 @@ verify(null, data, publicKey, signature);
 Example: Importing a PEM-encoded key into a [`KeyObject`][]:
 
 ```mjs
+import { promisify } from 'node:util';
 const {
   createPrivateKey, createPublicKey, generateKeyPair, sign, verify,
 } = await import('node:crypto');
-const { promisify } = await import('node:util');
 
 // PEM-encoded keys, e.g. read from a file or environment variable.
 const generated = await promisify(generateKeyPair)('ed25519');
@@ -274,10 +274,10 @@ verify(null, data, publicKey, signature);
 Example: Importing a JWK into a [`KeyObject`][]:
 
 ```mjs
+import { promisify } from 'node:util';
 const {
   createPrivateKey, createPublicKey, generateKeyPair, sign, verify,
 } = await import('node:crypto');
-const { promisify } = await import('node:util');
 
 // JWK objects, e.g. from a JSON configuration or API response.
 const generated = await promisify(generateKeyPair)('ed25519');
@@ -295,10 +295,10 @@ verify(null, data, publicKey, signature);
 Example: Importing a DER-encoded key into a [`KeyObject`][]:
 
 ```mjs
+import { promisify } from 'node:util';
 const {
   createPrivateKey, createPublicKey, generateKeyPair, sign, verify,
 } = await import('node:crypto');
-const { promisify } = await import('node:util');
 
 // DER-encoded keys, e.g. read from binary files or hex/base64url-decoded
 // from environment variables.
@@ -326,8 +326,8 @@ Example: Passing PEM strings directly to [`crypto.sign()`][] and
 [`crypto.verify()`][]:
 
 ```mjs
+import { promisify } from 'node:util';
 const { generateKeyPair, sign, verify } = await import('node:crypto');
-const { promisify } = await import('node:util');
 
 const generated = await promisify(generateKeyPair)('ed25519');
 const privatePem = generated.privateKey.export({ format: 'pem', type: 'pkcs8' });
@@ -343,8 +343,8 @@ Example: Passing JWK objects directly to [`crypto.sign()`][] and
 [`crypto.verify()`][]:
 
 ```mjs
+import { promisify } from 'node:util';
 const { generateKeyPair, sign, verify } = await import('node:crypto');
-const { promisify } = await import('node:util');
 
 const generated = await promisify(generateKeyPair)('ed25519');
 const privateJwk = generated.privateKey.export({ format: 'jwk' });
@@ -360,8 +360,8 @@ Example: Passing raw key bytes directly to [`crypto.sign()`][] and
 [`crypto.verify()`][]:
 
 ```mjs
+import { promisify } from 'node:util';
 const { generateKeyPair, sign, verify } = await import('node:crypto');
-const { promisify } = await import('node:util');
 
 const generated = await promisify(generateKeyPair)('ed25519');
 const rawPrivateKey = generated.privateKey.export({ format: 'raw-private' });
@@ -384,10 +384,10 @@ verify(null, data, {
 Example: Exporting raw keys and importing them:
 
 ```mjs
+import { promisify } from 'node:util';
 const {
   createPrivateKey, createPublicKey, generateKeyPair, sign, verify,
 } = await import('node:crypto');
-const { promisify } = await import('node:util');
 
 const generated = await promisify(generateKeyPair)('ed25519');
 
@@ -420,10 +420,10 @@ Example: For EC keys, the `namedCurve` option is required when importing
 `'raw-public'` keys:
 
 ```mjs
+import { promisify } from 'node:util';
 const {
   createPrivateKey, createPublicKey, generateKeyPair, sign, verify,
 } = await import('node:crypto');
-const { promisify } = await import('node:util');
 
 const generated = await promisify(generateKeyPair)('ec', {
   namedCurve: 'P-256',
@@ -470,10 +470,10 @@ verify('sha256', data, publicKey, signature);
 Example: Exporting raw seeds and importing them:
 
 ```mjs
+import { promisify } from 'node:util';
 const {
   createPrivateKey, decapsulate, encapsulate, generateKeyPair,
 } = await import('node:crypto');
-const { promisify } = await import('node:util');
 
 const generated = await promisify(generateKeyPair)('ml-kem-768');
 
