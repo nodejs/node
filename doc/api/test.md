@@ -275,6 +275,56 @@ it.todo('should do the thing', { expectFailure: true }, () => {
 });
 ```
 
+## Flaky tests
+
+<!-- YAML
+added:
+ - REPLACEME
+-->
+
+This flag causes a test or suite to be re-run a number of times until it
+either passes or has not passed after the final re-try.
+
+When `flaky` is `true`, the test harness re-tries the test up to the default
+number of times (20), inclusive.
+
+When `flaky` is a positive integer, the test harness re-tries the test up to
+the specified number of times, inclusive.
+
+When `flaky` is falsy (the default), the test harness does not re-try the test.
+
+When both a suite and an included test specify the `flaky` flag, the
+test's `flaky` value wins.
+
+```js
+it.flaky('should do something', () => {
+  // This test will be retried up to 20 times if it fails
+});
+
+it('may take several times', { flaky: true }, () => {
+  // Also retries up to 20 times
+});
+
+it('may also take several times', { flaky: 5 }, () => {
+  // Retries up to 5 times
+});
+
+describe.flaky('flaky suite', () => {
+  it('inherits flaky from suite', () => {
+    // Retried up to 20 times (inherited from suite)
+  });
+
+  it('not flaky', { flaky: false }, () => {
+    // Not retried, overrides suite setting
+  });
+});
+```
+
+When a test marked `flaky` passes after retries, the number of re-tries taken
+is reported with that test.
+
+`skip` and `todo` take precedence over `flaky`.
+
 ## `describe()` and `it()` aliases
 
 Suites and tests can also be written using the `describe()` and `it()`
@@ -1649,6 +1699,16 @@ added:
 Shorthand for marking a suite as `only`. This is the same as
 [`suite([name], { only: true }[, fn])`][suite options].
 
+## `suite.flaky([name][, options][, fn])`
+
+<!-- YAML
+added:
+ - REPLACEME
+-->
+
+Shorthand for marking a suite as flaky. This is the same as
+[`suite([name], { flaky: true }[, fn])`][suite options].
+
 ## `test([name][, options][, fn])`
 
 <!-- YAML
@@ -1683,6 +1743,11 @@ changes:
     If `true`, all scheduled asynchronous tests run concurrently within the
     thread. If `false`, only one test runs at a time.
     If unspecified, subtests inherit this value from their parent.
+    **Default:** `false`.
+  * `flaky` {boolean|number} If truthy, the test is re-tried up to the
+    specified number of times (or `20` if `true`) until it passes. If the test
+    passes after retries, the number of retries taken is reported. When both a
+    suite and an included test specify the `flaky` flag, the test's value wins.
     **Default:** `false`.
   * `only` {boolean} If truthy, and the test context is configured to run
     `only` tests, then this test will be run. Otherwise, the test is skipped.
@@ -1755,6 +1820,16 @@ same as [`test([name], { todo: true }[, fn])`][it options].
 Shorthand for marking a test as `only`,
 same as [`test([name], { only: true }[, fn])`][it options].
 
+## `test.flaky([name][, options][, fn])`
+
+<!-- YAML
+added:
+ - REPLACEME
+-->
+
+Shorthand for marking a test as flaky,
+same as [`test([name], { flaky: true }[, fn])`][it options].
+
 ## `describe([name][, options][, fn])`
 
 Alias for [`suite()`][].
@@ -1781,6 +1856,16 @@ added:
 
 Shorthand for marking a suite as `only`. This is the same as
 [`describe([name], { only: true }[, fn])`][describe options].
+
+## `describe.flaky([name][, options][, fn])`
+
+<!-- YAML
+added:
+ - REPLACEME
+-->
+
+Shorthand for marking a suite as flaky. This is the same as
+[`describe([name], { flaky: true }[, fn])`][describe options].
 
 ## `it([name][, options][, fn])`
 
@@ -1820,6 +1905,16 @@ added:
 
 Shorthand for marking a test as `only`,
 same as [`it([name], { only: true }[, fn])`][it options].
+
+## `it.flaky([name][, options][, fn])`
+
+<!-- YAML
+added:
+ - REPLACEME
+-->
+
+Shorthand for marking a test as flaky,
+same as [`it([name], { flaky: true }[, fn])`][it options].
 
 ## `before([fn][, options])`
 
@@ -3342,6 +3437,8 @@ Emitted when a test is enqueued for execution.
   * `testNumber` {number} The ordinal number of the test.
   * `todo` {string|boolean|undefined} Present if [`context.todo`][] is called
   * `skip` {string|boolean|undefined} Present if [`context.skip`][] is called
+  * `flakyRetriedCount` {number|undefined} The number of retries taken for a
+    flaky test. Present when a test is marked as flaky.
 
 Emitted when a test fails.
 This event is guaranteed to be emitted in the same order as the tests are
@@ -3370,6 +3467,8 @@ The corresponding execution ordered event is `'test:complete'`.
   * `testNumber` {number} The ordinal number of the test.
   * `todo` {string|boolean|undefined} Present if [`context.todo`][] is called
   * `skip` {string|boolean|undefined} Present if [`context.skip`][] is called
+  * `flakyRetriedCount` {number|undefined} The number of retries taken for a
+    flaky test. Present when a test is marked as flaky and passed after retries.
 
 Emitted when a test passes.
 This event is guaranteed to be emitted in the same order as the tests are
@@ -3983,6 +4082,9 @@ changes:
     If `false`, it would only run one test at a time.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `null`.
+  * `flaky` {boolean|number} If truthy, the test is re-tried up to the
+    specified number of times (or `20` if `true`) until it passes.
+    **Default:** `false`.
   * `only` {boolean} If truthy, and the test context is configured to run
     `only` tests, then this test will be run. Otherwise, the test is skipped.
     **Default:** `false`.
