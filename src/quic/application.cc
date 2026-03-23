@@ -452,7 +452,7 @@ ssize_t Session::Application::WriteVStream(PathStorage* path,
   if (stream_data.fin) flags |= NGTCP2_WRITE_STREAM_FLAG_FIN;
   return ngtcp2_conn_writev_stream(*session_,
                                    &path->path,
-                                    // TODO(@jasnell): ECN blocked on libuv
+                                   // TODO(@jasnell): ECN blocked on libuv
                                    nullptr,
                                    dest,
                                    max_packet_size,
@@ -583,7 +583,6 @@ class DefaultApplication final : public Session::Application {
 
   void ResumeStream(int64_t id) override { ScheduleStream(id); }
 
-
   void BlockStream(int64_t id) override {
     if (auto stream = session().FindStream(id)) [[likely]] {
       stream->EmitBlocked();
@@ -607,7 +606,6 @@ class DefaultApplication final : public Session::Application {
       stream->Schedule(&stream_queue_);
     }
   }
-
 
   Stream::Queue stream_queue_;
 };

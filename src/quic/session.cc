@@ -475,8 +475,7 @@ Maybe<Session::Options> Session::Options::From(Environment* env,
 
   // Parse the optional NEW_TOKEN for address validation on reconnection.
   Local<Value> token_val;
-  if (params->Get(env->context(), state.token_string())
-          .ToLocal(&token_val) &&
+  if (params->Get(env->context(), state.token_string()).ToLocal(&token_val) &&
       token_val->IsArrayBufferView()) {
     Store token_store;
     if (Store::From(token_val.As<ArrayBufferView>()).To(&token_store)) {
@@ -897,9 +896,8 @@ struct Session::Impl final : public MemoryRetainer {
                                                uint64_t max_streams,
                                                void* user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
-    Debug(session,
-          "Max remote bidi streams increased to %" PRIu64,
-          max_streams);
+    Debug(
+        session, "Max remote bidi streams increased to %" PRIu64, max_streams);
     return NGTCP2_SUCCESS;
   }
 
@@ -1630,11 +1628,14 @@ bool Session::Receive(Store&& store,
   // ngtcp2_conn_read_pkt here, we will need to double check that the
   // session is not destroyed before we try doing anything with it
   // (like updating stats, sending pending data, etc).
-  int err = ngtcp2_conn_read_pkt(
-      *this, &path,
-      // TODO(@jasnell): ECN pkt_info blocked on libuv
-      nullptr,
-      vec.base, vec.len, uv_hrtime());
+  int err =
+      ngtcp2_conn_read_pkt(*this,
+                           &path,
+                           // TODO(@jasnell): ECN pkt_info blocked on libuv
+                           nullptr,
+                           vec.base,
+                           vec.len,
+                           uv_hrtime());
 
   switch (err) {
     case 0: {
@@ -2477,10 +2478,8 @@ void Session::SelectPreferredAddress(PreferredAddress* preferredAddress) {
       auto ipv4 = preferredAddress->ipv4();
       if (ipv4.has_value()) {
         if (ipv4->host[0] == '\0' || ipv4->port == 0) return;
-        CHECK(SocketAddress::New(AF_INET,
-                                 ipv4->host,
-                                 ipv4->port,
-                                 &impl_->remote_address_));
+        CHECK(SocketAddress::New(
+            AF_INET, ipv4->host, ipv4->port, &impl_->remote_address_));
         preferredAddress->Use(ipv4.value());
       }
       break;
@@ -2490,10 +2489,8 @@ void Session::SelectPreferredAddress(PreferredAddress* preferredAddress) {
       auto ipv6 = preferredAddress->ipv6();
       if (ipv6.has_value()) {
         if (ipv6->host[0] == '\0' || ipv6->port == 0) return;
-        CHECK(SocketAddress::New(AF_INET6,
-                                 ipv6->host,
-                                 ipv6->port,
-                                 &impl_->remote_address_));
+        CHECK(SocketAddress::New(
+            AF_INET6, ipv6->host, ipv6->port, &impl_->remote_address_));
         preferredAddress->Use(ipv6.value());
       }
       break;
@@ -2767,16 +2764,14 @@ void Session::EmitNewToken(const uint8_t* token, size_t len) {
   CallbackScope<Session> cb_scope(this);
 
   Local<Value> argv[2];
-  auto buf = Buffer::Copy(
-      env(), reinterpret_cast<const char*>(token), len);
+  auto buf = Buffer::Copy(env(), reinterpret_cast<const char*>(token), len);
   if (!buf.ToLocal(&argv[0])) return;
   argv[1] = SocketAddressBase::Create(
-      env(),
-      std::make_shared<SocketAddress>(remote_address()))->object();
-  MakeCallback(
-      BindingData::Get(env()).session_new_token_callback(),
-      arraysize(argv),
-      argv);
+                env(), std::make_shared<SocketAddress>(remote_address()))
+                ->object();
+  MakeCallback(BindingData::Get(env()).session_new_token_callback(),
+               arraysize(argv),
+               argv);
 }
 
 void Session::EmitStream(const BaseObjectWeakPtr<Stream>& stream) {

@@ -324,8 +324,7 @@ class Endpoint::UDP::Impl final : public HandleWrap {
     DCHECK_NOT_NULL(impl->endpoint_);
 
     auto release_buf = [&]() {
-      if (buf->base != nullptr)
-        impl->env()->release_managed_buffer(*buf);
+      if (buf->base != nullptr) impl->env()->release_managed_buffer(*buf);
     };
 
     // Nothing to do in these cases. Specifically, if the nread
@@ -343,9 +342,8 @@ class Endpoint::UDP::Impl final : public HandleWrap {
       return;
     }
 
-    impl->endpoint_->Receive(
-        uv_buf_init(buf->base, static_cast<size_t>(nread)),
-        SocketAddress(addr));
+    impl->endpoint_->Receive(uv_buf_init(buf->base, static_cast<size_t>(nread)),
+                             SocketAddress(addr));
   }
 
   uv_udp_t handle_;
@@ -999,7 +997,6 @@ void Endpoint::Destroy(CloseContext context, int status) {
         this, "Destroying endpoint due to \"%s\" with status %d", ctx, status);
   }
 
-
   state_->listening = 0;
 
   close_context_ = context;
@@ -1365,9 +1362,8 @@ void Endpoint::Receive(const uv_buf_t& buf,
           // trusted networks), we skip the Retry and allow 0-RTT to
           // proceed without additional validation.
           if (options_.validate_address) {
-            Debug(this,
-                  "Sending retry to %s due to 0RTT packet",
-                  remote_address);
+            Debug(
+                this, "Sending retry to %s due to 0RTT packet", remote_address);
             SendRetry(PathDescriptor{
                 version,
                 dcid,

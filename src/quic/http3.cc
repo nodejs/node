@@ -455,8 +455,8 @@ class Http3ApplicationImpl final : public Session::Application {
   }
 
   void SetStreamPriority(const Stream& stream,
-                        StreamPriority priority,
-                        StreamPriorityFlags flags) override {
+                         StreamPriority priority,
+                         StreamPriorityFlags flags) override {
     nghttp3_pri pri;
     pri.inc = (flags == StreamPriorityFlags::NON_INCREMENTAL) ? 0 : 1;
     switch (priority) {
@@ -471,8 +471,7 @@ class Http3ApplicationImpl final : public Session::Application {
         break;
     }
     if (session().is_server()) {
-      nghttp3_conn_set_server_stream_priority(
-          *this, stream.id(), &pri);
+      nghttp3_conn_set_server_stream_priority(*this, stream.id(), &pri);
     }
     // Client-side priority is set at request submission time via
     // nghttp3_conn_submit_request and is not typically changed
@@ -536,11 +535,9 @@ class Http3ApplicationImpl final : public Session::Application {
           nghttp3_err_infer_quic_app_error_code(err)));
       return false;
     }
-    if (data->stream)
-      data->stream->Commit(datalen, data->fin);
+    if (data->stream) data->stream->Commit(datalen, data->fin);
     return true;
   }
-
 
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(Http3ApplicationImpl)
@@ -724,9 +721,7 @@ class Http3ApplicationImpl final : public Session::Application {
     //
     // This can be called multiple times with a decreasing id as the
     // peer progressively reduces the set of streams it will process.
-    Debug(&session(),
-          "HTTP/3 received GOAWAY (id=%" PRIi64 ")",
-          id);
+    Debug(&session(), "HTTP/3 received GOAWAY (id=%" PRIi64 ")", id);
     session().Close(Session::CloseMethod::GRACEFUL);
   }
 
@@ -799,41 +794,37 @@ class Http3ApplicationImpl final : public Session::Application {
       return 0;
     }
 
-    size_t max_count = std::min(veccnt,
-                                static_cast<size_t>(kMaxVectorCount));
+    size_t max_count = std::min(veccnt, static_cast<size_t>(kMaxVectorCount));
     nghttp3_ssize result = 0;
 
-    auto next = [&](int status,
-                    const ngtcp2_vec* data,
-                    size_t count,
-                    bob::Done done) {
-      switch (status) {
-        case bob::Status::STATUS_BLOCK:
-        case bob::Status::STATUS_WAIT:
-          result = NGHTTP3_ERR_WOULDBLOCK;
-          return;
-        case bob::Status::STATUS_EOS:
-          *pflags |= NGHTTP3_DATA_FLAG_EOF;
-          break;
-      }
-      count = std::min(count, max_count);
-      for (size_t n = 0; n < count; n++) {
-        vec[n].base = data[n].base;
-        vec[n].len = data[n].len;
-      }
-      result = static_cast<nghttp3_ssize>(count);
-    };
+    auto next =
+        [&](int status, const ngtcp2_vec* data, size_t count, bob::Done done) {
+          switch (status) {
+            case bob::Status::STATUS_BLOCK:
+            case bob::Status::STATUS_WAIT:
+              result = NGHTTP3_ERR_WOULDBLOCK;
+              return;
+            case bob::Status::STATUS_EOS:
+              *pflags |= NGHTTP3_DATA_FLAG_EOF;
+              break;
+          }
+          count = std::min(count, max_count);
+          for (size_t n = 0; n < count; n++) {
+            vec[n].base = data[n].base;
+            vec[n].len = data[n].len;
+          }
+          result = static_cast<nghttp3_ssize>(count);
+        };
 
     ngtcp2_vec data[kMaxVectorCount];
     stream->Pull(std::move(next),
-                   bob::Options::OPTIONS_SYNC,
-                   data,
-                   max_count,
-                   max_count);
+                 bob::Options::OPTIONS_SYNC,
+                 data,
+                 max_count,
+                 max_count);
 
     return result;
   }
-
 
   static int on_acked_stream_data(nghttp3_conn* conn,
                                   int64_t stream_id,
