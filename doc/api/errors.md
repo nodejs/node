@@ -2882,6 +2882,13 @@ An attempt was made to call [`stream.pipe()`][] on a [`Writable`][] stream.
 A stream method was called that cannot complete because the stream was
 destroyed using `stream.destroy()`.
 
+<a id="ERR_STREAM_ITER_MISSING_FLAG"></a>
+
+### `ERR_STREAM_ITER_MISSING_FLAG`
+
+A stream/iter API was used without the `--experimental-stream-iter` CLI flag
+enabled.
+
 <a id="ERR_STREAM_NULL_VALUES"></a>
 
 ### `ERR_STREAM_NULL_VALUES`
