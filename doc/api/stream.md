@@ -1998,6 +1998,61 @@ option. In the code example above, data will be in a single chunk if the file
 has less then 64 KiB of data because no `highWaterMark` option is provided to
 [`fs.createReadStream()`][].
 
+##### `readable[Symbol.for('Stream.toAsyncStreamable')]()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* Returns: {AsyncIterable} An `AsyncIterable<Uint8Array[]>` that yields
+  batched chunks from the stream.
+
+When the `--experimental-stream-iter` flag is enabled, `Readable` streams
+implement the [`Stream.toAsyncStreamable`][] protocol, enabling efficient
+consumption by the [`stream/iter`][] API.
+
+This provides a batched async iterator that drains the stream's internal
+buffer into `Uint8Array[]` batches, amortizing the per-chunk Promise overhead
+of the standard `Symbol.asyncIterator` path. For byte-mode streams, chunks
+are yielded directly as `Buffer` instances (which are `Uint8Array` subclasses).
+For object-mode or encoded streams, each chunk is normalized to `Uint8Array`
+before batching.
+
+The returned iterator is tagged as a trusted source, so [`from()`][stream-iter-from]
+passes it through without additional normalization.
+
+```mjs
+import { Readable } from 'node:stream';
+import { text, from } from 'node:stream/iter';
+
+const readable = new Readable({
+  read() { this.push('hello'); this.push(null); },
+});
+
+// Readable is automatically consumed via toAsyncStreamable
+console.log(await text(from(readable))); // 'hello'
+```
+
+```cjs
+const { Readable } = require('node:stream');
+const { text, from } = require('node:stream/iter');
+
+async function run() {
+  const readable = new Readable({
+    read() { this.push('hello'); this.push(null); },
+  });
+
+  console.log(await text(from(readable))); // 'hello'
+}
+
+run().catch(console.error);
+```
+
+Without the `--experimental-stream-iter` flag, calling this method throws
+[`ERR_STREAM_ITER_MISSING_FLAG`][].
+
 ##### `readable[Symbol.asyncDispose]()`
 
 <!-- YAML
@@ -3150,6 +3205,101 @@ Readable.from([
   new Promise((resolve) => setTimeout(resolve('1'), 1500)),
   new Promise((_, reject) => setTimeout(reject(new Error('2')), 1000)), // Unhandled rejection
 ]);
+```
+
+### `stream.Readable.fromStreamIter(source[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `source` {AsyncIterable} An `AsyncIterable<Uint8Array[]>` source, such as
+  the return value of [`pull()`][] or [`from()`][stream-iter-from].
+* `options` {Object}
+  * `highWaterMark` {number} The internal buffer size in bytes before
+    backpressure is applied. **Default:** `65536` (64 KB).
+  * `signal` {AbortSignal} An optional signal that can be used to abort
+    the readable, destroying the stream and cleaning up the source iterator.
+* Returns: {stream.Readable}
+
+Creates a byte-mode {stream.Readable} from an `AsyncIterable<Uint8Array[]>`
+(the native batch format used by the [`stream/iter`][] API). Each
+`Uint8Array` in a yielded batch is pushed as a separate chunk into the
+Readable.
+
+This method requires the `--experimental-stream-iter` CLI flag.
+
+```mjs
+import { Readable } from 'node:stream';
+import { createWriteStream } from 'node:fs';
+import { from, pull } from 'node:stream/iter';
+import { compressGzip } from 'node:zlib/iter';
+
+// Bridge a stream/iter pipeline to a classic Readable
+const source = pull(from('hello world'), compressGzip());
+const readable = Readable.fromStreamIter(source);
+
+readable.pipe(createWriteStream('output.gz'));
+```
+
+```cjs
+const { Readable } = require('node:stream');
+const { createWriteStream } = require('node:fs');
+const { from, pull } = require('node:stream/iter');
+const { compressGzip } = require('node:zlib/iter');
+
+const source = pull(from('hello world'), compressGzip());
+const readable = Readable.fromStreamIter(source);
+
+readable.pipe(createWriteStream('output.gz'));
+```
+
+### `stream.Readable.fromStreamIterSync(source[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `source` {Iterable} An `Iterable<Uint8Array[]>` source, such as the
+  return value of [`pullSync()`][] or [`fromSync()`][].
+* `options` {Object}
+  * `highWaterMark` {number} The internal buffer size in bytes before
+    backpressure is applied. **Default:** `65536` (64 KB).
+* Returns: {stream.Readable}
+
+Creates a byte-mode {stream.Readable} from a synchronous
+`Iterable<Uint8Array[]>` (the native batch format used by the
+[`stream/iter`][] sync API). Each `Uint8Array` in a yielded batch is
+pushed as a separate chunk into the Readable.
+
+The `_read()` method pulls from the iterator synchronously, so data is
+available immediately via `readable.read()` without waiting for async
+callbacks.
+
+This method requires the `--experimental-stream-iter` CLI flag.
+
+```mjs
+import { Readable } from 'node:stream';
+import { fromSync } from 'node:stream/iter';
+
+const source = fromSync('hello world');
+const readable = Readable.fromStreamIterSync(source);
+
+console.log(readable.read().toString()); // 'hello world'
+```
+
+```cjs
+const { Readable } = require('node:stream');
+const { fromSync } = require('node:stream/iter');
+
+const source = fromSync('hello world');
+const readable = Readable.fromStreamIterSync(source);
+
+console.log(readable.read().toString()); // 'hello world'
 ```
 
 ### `stream.Readable.fromWeb(readableStream[, options])`
@@ -4997,17 +5147,22 @@ contain multi-byte characters.
 [`'finish'`]: #event-finish
 [`'readable'`]: #event-readable
 [`Duplex`]: #class-streamduplex
+[`ERR_STREAM_ITER_MISSING_FLAG`]: errors.md#err_stream_iter_missing_flag
 [`EventEmitter`]: events.md#class-eventemitter
 [`Readable`]: #class-streamreadable
+[`Stream.toAsyncStreamable`]: stream_iter.md#streamtoasyncstreamable
 [`Symbol.hasInstance`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/hasInstance
 [`Transform`]: #class-streamtransform
 [`Writable`]: #class-streamwritable
+[`fromSync()`]: stream_iter.md#fromsyncinput
 [`fs.createReadStream()`]: fs.md#fscreatereadstreampath-options
 [`fs.createWriteStream()`]: fs.md#fscreatewritestreampath-options
 [`net.Socket`]: net.md#class-netsocket
 [`process.stderr`]: process.md#processstderr
 [`process.stdin`]: process.md#processstdin
 [`process.stdout`]: process.md#processstdout
+[`pull()`]: stream_iter.md#pullsource-transforms-options
+[`pullSync()`]: stream_iter.md#pullsyncsource-transforms-options
 [`readable._read()`]: #readable_readsize
 [`readable.compose(stream)`]: #readablecomposestream-options
 [`readable.map`]: #readablemapfn-options
@@ -5024,6 +5179,7 @@ contain multi-byte characters.
 [`stream.uncork()`]: #writableuncork
 [`stream.unpipe()`]: #readableunpipedestination
 [`stream.wrap()`]: #readablewrapstream
+[`stream/iter`]: stream_iter.md
 [`writable._final()`]: #writable_finalcallback
 [`writable._write()`]: #writable_writechunk-encoding-callback
 [`writable._writev()`]: #writable_writevchunks-callback
@@ -5052,6 +5208,7 @@ contain multi-byte characters.
 [stream-end]: #writableendchunk-encoding-callback
 [stream-finished]: #streamfinishedstream-options-callback
 [stream-finished-promise]: #streamfinishedstream-options
+[stream-iter-from]: stream_iter.md#frominput
 [stream-pause]: #readablepause
 [stream-pipeline]: #streampipelinesource-transforms-destination-callback
 [stream-pipeline-promise]: #streampipelinesource-transforms-destination-options
