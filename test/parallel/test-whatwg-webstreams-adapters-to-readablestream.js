@@ -308,6 +308,27 @@ const {
 }
 
 {
+  const readable = new PassThrough();
+  const readableStream = newReadableStreamFromStreamReadable(readable, {
+    type: 'bytes',
+  });
+  const reader = readableStream.getReader({ mode: 'byob' });
+
+  (async () => {
+    const readPromise = reader.read(new Uint8Array(8));
+
+    readable.end();
+    await once(readable, 'end');
+
+    assert.deepStrictEqual(await readPromise, {
+      value: new Uint8Array(0),
+      done: true,
+    });
+    await reader.closed;
+  })().then(common.mustCall());
+}
+
+{
   const duplex = new Duplex({ readable: false });
   duplex.destroy();
   const readableStream = newReadableStreamFromStreamReadable(duplex);
