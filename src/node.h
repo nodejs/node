@@ -124,6 +124,8 @@
 
 // Forward-declare libuv loop
 struct uv_loop_s;
+struct napi_module;
+struct ssl_ctx_st;  // Forward declaration of SSL_CTX for OpenSSL.
 
 // Forward-declare these functions now to stop MSVS from becoming
 // terminally confused when it's done in node_internals.h
@@ -1699,6 +1701,20 @@ NODE_DEPRECATED("Use v8::Object::Wrap()",
                 NODE_EXTERN void SetCppgcReference(v8::Isolate* isolate,
                                                    v8::Local<v8::Object> object,
                                                    void* wrappable));
+
+namespace crypto {
+
+// Returns the SSL_CTX* from a SecureContext JS object, as returned by
+// tls.createSecureContext().
+// Returns nullptr if the value is not a SecureContext instance,
+// or if Node.js was built without OpenSSL.
+//
+// The returned pointer is not owned by the caller and must not be freed.
+// It is valid only while the SecureContext JS object remains alive.
+NODE_EXTERN struct ssl_ctx_st* GetSSLCtx(v8::Local<v8::Context> context,
+                                         v8::Local<v8::Value> secure_context);
+
+}  // namespace crypto
 
 }  // namespace node
 
