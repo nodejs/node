@@ -83,9 +83,9 @@ namespace quic {
   V(ResetStream, resetStream, false)                                           \
   V(SetPriority, setPriority, false)                                           \
   V(GetPriority, getPriority, true)                                            \
-  V(GetReader, getReader, false)                                            \
-  V(InitStreamingSource, initStreamingSource, false)                        \
-  V(Write, write, false)                                                    \
+  V(GetReader, getReader, false)                                               \
+  V(InitStreamingSource, initStreamingSource, false)                           \
+  V(Write, write, false)                                                       \
   V(EndWrite, endWrite, false)
 
 // ============================================================================
@@ -149,10 +149,7 @@ namespace {
 // possible (e.g., SharedArrayBuffer-backed or non-detachable).
 // Returns nullptr on failure (error already thrown if allocation failed).
 std::unique_ptr<DataQueue::Entry> CreateEntryFromBuffer(
-    Environment* env,
-    Local<ArrayBuffer> buffer,
-    size_t offset,
-    size_t length) {
+    Environment* env, Local<ArrayBuffer> buffer, size_t offset, size_t length) {
   if (length == 0) return nullptr;
   std::shared_ptr<v8::BackingStore> backing;
   if (buffer->IsDetachable()) {
@@ -1111,8 +1108,8 @@ void Stream::set_outbound(std::shared_ptr<DataQueue> source) {
 void Stream::InitStreaming() {
   auto env = this->env();
   if (outbound_ != nullptr) {
-    return THROW_ERR_INVALID_STATE(env,
-        "Outbound data source is already initialized");
+    return THROW_ERR_INVALID_STATE(
+        env, "Outbound data source is already initialized");
   }
   if (!is_writable()) {
     return THROW_ERR_INVALID_STATE(env, "Stream is not writable");
@@ -1126,8 +1123,7 @@ void Stream::InitStreaming() {
 void Stream::WriteStreamData(const v8::FunctionCallbackInfo<v8::Value>& args) {
   auto env = this->env();
   if (outbound_ == nullptr || !outbound_->is_streaming()) {
-    return THROW_ERR_INVALID_STATE(env,
-        "Streaming source is not initialized");
+    return THROW_ERR_INVALID_STATE(env, "Streaming source is not initialized");
   }
 
   if (!is_writable()) {
@@ -1142,8 +1138,8 @@ void Stream::WriteStreamData(const v8::FunctionCallbackInfo<v8::Value>& args) {
     auto view = value.As<Uint8Array>();
     auto length = view->ByteLength();
     if (length == 0) return true;
-    auto entry = CreateEntryFromBuffer(
-        env, view->Buffer(), view->ByteOffset(), length);
+    auto entry =
+        CreateEntryFromBuffer(env, view->Buffer(), view->ByteOffset(), length);
     if (!entry) {
       return false;
     }
@@ -1461,7 +1457,6 @@ void Stream::Schedule(Queue* queue) {
   Debug(this, "Scheduled");
   if (outbound_ && stream_queue_.IsEmpty()) queue->PushBack(this);
 }
-
 
 }  // namespace quic
 }  // namespace node

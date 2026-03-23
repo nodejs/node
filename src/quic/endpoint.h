@@ -311,7 +311,6 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   // be prevented.
   void CloseGracefully();
 
-
   void PacketDone(int status) override;
 
   void EmitNewSession(const BaseObjectPtr<Session>& session);

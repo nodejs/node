@@ -411,8 +411,7 @@ void Blob::Reader::Pull(const FunctionCallbackInfo<Value>& args) {
       std::move(next), node::bob::OPTIONS_END, nullptr, 0));
 }
 
-void Blob::Reader::SetWakeup(
-    const FunctionCallbackInfo<Value>& args) {
+void Blob::Reader::SetWakeup(const FunctionCallbackInfo<Value>& args) {
   Blob::Reader* reader;
   ASSIGN_OR_RETURN_UNWRAP(&reader, args.This());
   CHECK(args[0]->IsFunction());

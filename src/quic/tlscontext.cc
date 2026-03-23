@@ -89,7 +89,7 @@ void EnableTrace(Environment* env, BIOPointer* bio, SSL* ssl) {
 #endif
 }
 
-template <typename T, typename Opt, std::vector<T> Opt::* member>
+template <typename T, typename Opt, std::vector<T> Opt::*member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -419,16 +419,14 @@ SSLCtxPointer TLSContext::Initialize(Environment* env) {
       }
 
       if (SSL_CTX_set_max_early_data(
-              ctx.get(),
-              options_.enable_early_data ? UINT32_MAX : 0) != 1) {
+              ctx.get(), options_.enable_early_data ? UINT32_MAX : 0) != 1) {
         validation_error_ = "Failed to set max early data";
         return {};
       }
       // ngtcp2 handles replay protection at the QUIC layer,
       // so we disable OpenSSL's built-in anti-replay.
       SSL_CTX_set_options(ctx.get(),
-                          (SSL_OP_ALL &
-                              ~SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS) |
+                          (SSL_OP_ALL & ~SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS) |
                               SSL_OP_SINGLE_ECDH_USE |
                               SSL_OP_CIPHER_SERVER_PREFERENCE |
                               SSL_OP_NO_ANTI_REPLAY);
@@ -453,7 +451,7 @@ SSLCtxPointer TLSContext::Initialize(Environment* env) {
                                              SessionTicket::GenerateCallback,
                                              SessionTicket::DecryptedCallback,
                                              nullptr),
-              1);
+               1);
       break;
     }
     case Side::CLIENT: {
