@@ -593,6 +593,18 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
 }
 
 {
+  const readable = new Readable({
+    read() {}
+  });
+  readable.req = new EE();
+  readable.aborted = true;
+
+  finished(readable, common.mustCall((err) => {
+    assert.strictEqual(err, undefined);
+  }));
+}
+
+{
   const w = new Writable({
     write(chunk, encoding, callback) {
       process.nextTick(callback);
