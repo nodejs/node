@@ -287,6 +287,27 @@ const {
 }
 
 {
+  const readable = new PassThrough();
+  readable.end();
+  readable.destroy();
+
+  (async () => {
+    await new Promise((resolve) => readable.once('close', resolve));
+    assert.strictEqual(readable.listenerCount('error'), 0);
+
+    const readableStream = newReadableStreamFromStreamReadable(readable);
+    // Only one error listener from the adapter should be added
+    assert.strictEqual(readable.listenerCount('error'), 1);
+    newReadableStreamFromStreamReadable(readable);
+    // No duplicate listeners should be added.
+    assert.strictEqual(readable.listenerCount('error'), 1);
+
+    const readResult = await readableStream.getReader().read();
+    assert.deepStrictEqual(readResult, { value: undefined, done: true });
+  })().then(common.mustCall());
+}
+
+{
   const duplex = new Duplex({ readable: false });
   duplex.destroy();
   const readableStream = newReadableStreamFromStreamReadable(duplex);
