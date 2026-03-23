@@ -82,7 +82,6 @@ void PipeWrap::Initialize(Local<Object> target,
   SetProtoMethod(isolate, t, "connect", Connect);
   SetProtoMethod(isolate, t, "open", Open);
   SetProtoMethod(isolate, t, "watchPeerClose", WatchPeerClose);
-  SetProtoMethod(isolate, t, "unwatchPeerClose", UnwatchPeerClose);
 
 #ifdef _WIN32
   SetProtoMethod(isolate, t, "setPendingInstances", SetPendingInstances);
@@ -114,7 +113,6 @@ void PipeWrap::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Connect);
   registry->Register(Open);
   registry->Register(WatchPeerClose);
-  registry->Register(UnwatchPeerClose);
 #ifdef _WIN32
   registry->Register(SetPendingInstances);
 #endif
@@ -227,6 +225,22 @@ void PipeWrap::WatchPeerClose(const FunctionCallbackInfo<Value>& args) {
   PipeWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
 
+  CHECK_GT(args.Length(), 0);
+  CHECK(args[0]->IsBoolean());
+  const bool enable = args[0].As<v8::Boolean>()->Value();
+
+  // UnwatchPeerClose
+  if (!enable) {
+    if (!wrap->peer_close_watching_) {
+      wrap->peer_close_cb_.Reset();
+      return args.GetReturnValue().Set(0);
+    }
+
+    wrap->peer_close_watching_ = false;
+    wrap->peer_close_cb_.Reset();
+    return args.GetReturnValue().Set(uv_read_stop(wrap->stream()));
+  }
+
   if (!wrap->IsAlive()) {
     return args.GetReturnValue().Set(UV_EBADF);
   }
@@ -235,14 +249,14 @@ void PipeWrap::WatchPeerClose(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(0);
   }
 
-  CHECK_GT(args.Length(), 0);
-  CHECK(args[0]->IsFunction());
+  CHECK_GT(args.Length(), 1);
+  CHECK(args[1]->IsFunction());
 
   Environment* env = wrap->env();
   Isolate* isolate = env->isolate();
 
   // Store the JS callback securely so it isn't garbage collected.
-  wrap->peer_close_cb_.Reset(isolate, args[0].As<Function>());
+  wrap->peer_close_cb_.Reset(isolate, args[1].As<Function>());
   wrap->peer_close_watching_ = true;
 
   // Start reading to detect EOF/ECONNRESET from the peer.
@@ -253,21 +267,6 @@ void PipeWrap::WatchPeerClose(const FunctionCallbackInfo<Value>& args) {
     wrap->peer_close_cb_.Reset();
   }
   args.GetReturnValue().Set(err);
-}
-
-void PipeWrap::UnwatchPeerClose(const FunctionCallbackInfo<Value>& args) {
-  PipeWrap* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
-
-  if (!wrap->peer_close_watching_) {
-    wrap->peer_close_cb_.Reset();
-    return args.GetReturnValue().Set(0);
-  }
-
-  // Stop listening and release the JS callback to prevent memory leaks.
-  wrap->peer_close_watching_ = false;
-  wrap->peer_close_cb_.Reset();
-  args.GetReturnValue().Set(uv_read_stop(wrap->stream()));
 }
 
 void PipeWrap::PeerCloseAlloc(uv_handle_t* handle,

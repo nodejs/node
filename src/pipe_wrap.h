@@ -66,7 +66,6 @@ class PipeWrap : public ConnectionWrap<PipeWrap, uv_pipe_t> {
   static void Connect(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void WatchPeerClose(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void UnwatchPeerClose(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void PeerCloseAlloc(uv_handle_t* handle,
                              size_t suggested_size,
                              uv_buf_t* buf);
