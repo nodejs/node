@@ -46,6 +46,8 @@ struct HashConfig final : public MemoryRetainer {
   ByteSource in;
   const EVP_MD* digest;
   unsigned int length;
+  ByteSource function_name;
+  ByteSource customization;
 
   HashConfig() = default;
 

@@ -12,6 +12,10 @@
 #endif
 
 #include <cstdio>
+#if OPENSSL_WITH_CSHAKE_PARAMS
+#include <openssl/core_names.h>
+#include <openssl/params.h>
+#endif
 
 namespace node {
 
@@ -117,6 +121,22 @@ MaybeCachedMD FetchAndMaybeCacheMD(Environment* env, const char* search_name) {
 
   return {explicit_md, implicit_md, static_cast<int32_t>(id)};
 }
+
+#if OPENSSL_WITH_CSHAKE_PARAMS
+const EVP_MD* FetchAndMaybeCacheExplicitMD(Environment* env, const char* name) {
+  for (const auto& cached_md : env->evp_md_cache) {
+    if (EVP_MD_is_a(cached_md.get(), name)) {
+      return cached_md.get();
+    }
+  }
+
+  EVP_MD* explicit_md = EVP_MD_fetch(nullptr, name, nullptr);
+  if (explicit_md == nullptr) return nullptr;
+
+  env->evp_md_cache.emplace_back(explicit_md);
+  return explicit_md;
+}
+#endif  // OPENSSL_WITH_CSHAKE_PARAMS
 
 void SaveSupportedHashAlgorithmsAndCacheMD(const EVP_MD* md,
                                            const char* from,
@@ -500,7 +520,9 @@ HashConfig::HashConfig(HashConfig&& other) noexcept
     : mode(other.mode),
       in(std::move(other.in)),
       digest(other.digest),
-      length(other.length) {}
+      length(other.length),
+      function_name(std::move(other.function_name)),
+      customization(std::move(other.customization)) {}
 
 HashConfig& HashConfig::operator=(HashConfig&& other) noexcept {
   if (&other == this) return *this;
@@ -510,7 +532,11 @@ HashConfig& HashConfig::operator=(HashConfig&& other) noexcept {
 
 void HashConfig::MemoryInfo(MemoryTracker* tracker) const {
   // If the Job is sync, then the HashConfig does not own the data.
-  if (IsCryptoJobAsync(mode)) tracker->TrackFieldWithSize("in", in.size());
+  if (IsCryptoJobAsync(mode)) {
+    tracker->TrackFieldWithSize("in", in.size());
+    tracker->TrackFieldWithSize("function_name", function_name.size());
+    tracker->TrackFieldWithSize("customization", customization.size());
+  }
 }
 
 MaybeLocal<Value> HashTraits::EncodeOutput(Environment* env,
@@ -558,6 +584,39 @@ Maybe<void> HashTraits::AdditionalConfig(
     }
   }
 
+  // Optional cSHAKE parameters: functionName and customization
+  if (args.Length() > static_cast<int>(offset + 3) &&
+      !args[offset + 3]->IsUndefined()) {
+    ArrayBufferOrViewContents<char> fn(args[offset + 3]);
+    params->function_name =
+        IsCryptoJobAsync(mode) ? fn.ToCopy() : fn.ToByteSource();
+  }
+  if (args.Length() > static_cast<int>(offset + 4) &&
+      !args[offset + 4]->IsUndefined()) {
+    ArrayBufferOrViewContents<char> cs(args[offset + 4]);
+    params->customization =
+        IsCryptoJobAsync(mode) ? cs.ToCopy() : cs.ToByteSource();
+  }
+
+#if OPENSSL_WITH_CSHAKE_PARAMS
+  const bool has_cshake_params =
+      params->function_name.size() > 0 || params->customization.size() > 0;
+  if (has_cshake_params) {
+    // OpenSSL 4 exposes cSHAKE as a distinct algorithm from SHAKE; switch
+    // to the CSHAKE-* variant and let the environment cache own the fetch.
+    if (EVP_MD_is_a(params->digest, "SHAKE128")) {
+      params->digest = FetchAndMaybeCacheExplicitMD(env, "CSHAKE-128");
+    } else if (EVP_MD_is_a(params->digest, "SHAKE256")) {
+      params->digest = FetchAndMaybeCacheExplicitMD(env, "CSHAKE-256");
+    } else {
+      // The JS layer only exposes function-name/customization for cSHAKE;
+      // fail defensively rather than silently ignoring them on a digest
+      // that does not honor these parameters.
+      params->digest = nullptr;
+    }
+  }
+#endif  // OPENSSL_WITH_CSHAKE_PARAMS
+
   return JustVoid();
 }
 
@@ -568,8 +627,41 @@ bool HashTraits::DeriveBits(Environment* env,
                             CryptoErrorStore* errors) {
   auto ctx = EVPMDCtxPointer::New();
 
-  if (!ctx.digestInit(params.digest) || !ctx.digestUpdate(params.in))
-      [[unlikely]] {
+#if OPENSSL_WITH_CSHAKE_PARAMS
+  const bool has_cshake_params =
+      params.function_name.size() > 0 || params.customization.size() > 0;
+#endif  // OPENSSL_WITH_CSHAKE_PARAMS
+
+  if (params.digest == nullptr || !ctx.digestInit(params.digest)) [[unlikely]] {
+    return false;
+  }
+
+#if OPENSSL_WITH_CSHAKE_PARAMS
+  // cSHAKE parameters must be set after digestInit but before digestUpdate.
+  if (has_cshake_params) {
+    // At most two params plus terminator.
+    OSSL_PARAM ossl_params[3];
+    int idx = 0;
+    if (params.function_name.size() > 0) {
+      ossl_params[idx++] = OSSL_PARAM_construct_utf8_string(
+          OSSL_DIGEST_PARAM_FUNCTION_NAME,
+          const_cast<char*>(params.function_name.data<char>()),
+          params.function_name.size());
+    }
+    if (params.customization.size() > 0) {
+      ossl_params[idx++] = OSSL_PARAM_construct_utf8_string(
+          OSSL_DIGEST_PARAM_CUSTOMIZATION,
+          const_cast<char*>(params.customization.data<char>()),
+          params.customization.size());
+    }
+    ossl_params[idx] = OSSL_PARAM_construct_end();
+    if (EVP_MD_CTX_set_params(ctx.get(), ossl_params) != 1) [[unlikely]] {
+      return false;
+    }
+  }
+#endif  // OPENSSL_WITH_CSHAKE_PARAMS
+
+  if (!ctx.digestUpdate(params.in)) [[unlikely]] {
     return false;
   }
 

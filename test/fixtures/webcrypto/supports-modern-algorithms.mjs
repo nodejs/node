@@ -9,6 +9,7 @@ const shake128 = crypto.getHashes().includes('shake128');
 const shake256 = crypto.getHashes().includes('shake256');
 const ocb = hasOpenSSL(3);
 const kmac = hasOpenSSL(3);
+const cshake = hasOpenSSL(4);
 
 const { subtle } = globalThis.crypto;
 const X25519 = await subtle.generateKey('X25519', false, ['deriveBits', 'deriveKey']);
@@ -18,14 +19,34 @@ export const vectors = {
     [false, 'cSHAKE128'],
     [shake128, { name: 'cSHAKE128', outputLength: 128 }],
     [shake128, { name: 'cSHAKE128', outputLength: 128, functionName: Buffer.alloc(0), customization: Buffer.alloc(0) }],
-    [false, { name: 'cSHAKE128', outputLength: 128, functionName: Buffer.alloc(1) }],
-    [false, { name: 'cSHAKE128', outputLength: 128, customization: Buffer.alloc(1) }],
+    [cshake, { name: 'cSHAKE128', outputLength: 128, functionName: Buffer.alloc(1) }],
+    [cshake, { name: 'cSHAKE128', outputLength: 128, functionName: Buffer.from('KMAC') }],
+    [cshake, { name: 'cSHAKE128', outputLength: 128, functionName: Buffer.from('TupleHash') }],
+    [cshake, { name: 'cSHAKE128', outputLength: 128, functionName: Buffer.from('ParallelHash') }],
+    // Ideally this would be `false` but validating that in JS would introduce
+    // unnecessary complexity; OpenSSL rejects unsupported names at operation
+    // time with an OperationError and this is still in spec behaviour.
+    [cshake, { name: 'cSHAKE128', outputLength: 128, functionName: Buffer.from('Unsupported') }],
+    [cshake, { name: 'cSHAKE128', outputLength: 128, customization: Buffer.alloc(1) }],
+    [cshake, { name: 'cSHAKE128', outputLength: 128, customization: Buffer.alloc(512) }],
+    [false, { name: 'cSHAKE128', outputLength: 128, customization: Buffer.alloc(513) }],
+    [cshake, { name: 'cSHAKE128', outputLength: 128, functionName: Buffer.from('KMAC'), customization: Buffer.alloc(512) }],
     [false, { name: 'cSHAKE128', outputLength: 127 }],
     [false, 'cSHAKE256'],
     [shake256, { name: 'cSHAKE256', outputLength: 256 }],
     [shake256, { name: 'cSHAKE256', outputLength: 256, functionName: Buffer.alloc(0), customization: Buffer.alloc(0) }],
-    [false, { name: 'cSHAKE256', outputLength: 256, functionName: Buffer.alloc(1) }],
-    [false, { name: 'cSHAKE256', outputLength: 256, customization: Buffer.alloc(1) }],
+    [cshake, { name: 'cSHAKE256', outputLength: 256, functionName: Buffer.alloc(1) }],
+    [cshake, { name: 'cSHAKE256', outputLength: 256, functionName: Buffer.from('KMAC') }],
+    [cshake, { name: 'cSHAKE256', outputLength: 256, functionName: Buffer.from('TupleHash') }],
+    [cshake, { name: 'cSHAKE256', outputLength: 256, functionName: Buffer.from('ParallelHash') }],
+    // Ideally this would be `false` but validating that in JS would introduce
+    // unnecessary complexity; OpenSSL rejects unsupported names at operation
+    // time with an OperationError and this is still in spec behaviour.
+    [cshake, { name: 'cSHAKE256', outputLength: 256, functionName: Buffer.from('Unsupported') }],
+    [cshake, { name: 'cSHAKE256', outputLength: 256, customization: Buffer.alloc(1) }],
+    [cshake, { name: 'cSHAKE256', outputLength: 256, customization: Buffer.alloc(512) }],
+    [false, { name: 'cSHAKE256', outputLength: 256, customization: Buffer.alloc(513) }],
+    [cshake, { name: 'cSHAKE256', outputLength: 256, functionName: Buffer.from('KMAC'), customization: Buffer.alloc(512) }],
     [false, { name: 'cSHAKE256', outputLength: 255 }],
     [false, 'TurboSHAKE128'],
     [true, { name: 'TurboSHAKE128', outputLength: 128 }],
