@@ -155,9 +155,9 @@ struct Session::Application::StreamData final {
   BaseObjectPtr<Stream> stream;
 
   static_assert(sizeof(ngtcp2_vec) == sizeof(nghttp3_vec) &&
-                alignof(ngtcp2_vec) == alignof(nghttp3_vec) &&
-                offsetof(ngtcp2_vec, base) == offsetof(nghttp3_vec, base) &&
-                offsetof(ngtcp2_vec, len) == offsetof(nghttp3_vec, len),
+                    alignof(ngtcp2_vec) == alignof(nghttp3_vec) &&
+                    offsetof(ngtcp2_vec, base) == offsetof(nghttp3_vec, base) &&
+                    offsetof(ngtcp2_vec, len) == offsetof(nghttp3_vec, len),
                 "ngtcp2_vec and nghttp3_vec must have identical layout");
   inline operator nghttp3_vec*() {
     return reinterpret_cast<nghttp3_vec*>(data);

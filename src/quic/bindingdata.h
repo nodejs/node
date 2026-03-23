@@ -43,7 +43,7 @@ class Packet;
   V(session_datagram_status, SessionDatagramStatus)                            \
   V(session_handshake, SessionHandshake)                                       \
   V(session_new, SessionNew)                                                   \
-  V(session_new_token, SessionNewToken)                                       \
+  V(session_new_token, SessionNewToken)                                        \
   V(session_path_validation, SessionPathValidation)                            \
   V(session_ticket, SessionTicket)                                             \
   V(session_version_negotiation, SessionVersionNegotiation)                    \
