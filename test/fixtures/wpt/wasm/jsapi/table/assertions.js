@@ -11,6 +11,7 @@ function assert_equal_to_array(table, expected, message) {
   assert_throws_js(RangeError, () => table.get(expected.length + 1),
                    `${message}: table.get(${expected.length + 1} of ${expected.length})`);
 }
+globalThis.assert_equal_to_array = assert_equal_to_array;
 
 function assert_Table(actual, expected) {
   assert_equals(Object.getPrototypeOf(actual), WebAssembly.Table.prototype,
@@ -22,3 +23,4 @@ function assert_Table(actual, expected) {
     assert_equals(actual.get(i), null, `actual.get(${i})`);
   }
 }
+globalThis.assert_Table = assert_Table;

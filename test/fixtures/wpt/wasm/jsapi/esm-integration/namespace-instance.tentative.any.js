@@ -4,6 +4,10 @@ promise_test(async () => {
   const wasmNamespace = await import("./resources/mutable-global-export.wasm");
   const instance = WebAssembly.namespaceInstance(wasmNamespace);
 
+  const wasmNamespace2 = await import("./resources/mutable-global-export.wasm");
+  const instance2 = WebAssembly.namespaceInstance(wasmNamespace2);
+  assert_equals(instance, instance2);
+
   assert_true(instance instanceof WebAssembly.Instance);
 
   wasmNamespace.setGlobal(999);
