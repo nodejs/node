@@ -238,6 +238,18 @@ process.has('fs.read', 'custom-require.js'); // true
 process.has('fs.read', 'custom-require-2.js'); // true
 ```
 
+### `--allow-fs-vfs`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+When using the [Permission Model][], the virtual file system (`node:vfs`)
+cannot be used by default. Pass `--allow-fs-vfs` to allow VFS usage
+when permissions are enabled.
+
 ### `--allow-fs-write`
 
 <!-- YAML
@@ -3576,6 +3588,7 @@ one is included in the list below.
 * `--allow-addons`
 * `--allow-child-process`
 * `--allow-fs-read`
+* `--allow-fs-vfs`
 * `--allow-fs-write`
 * `--allow-inspector`
 * `--allow-net`

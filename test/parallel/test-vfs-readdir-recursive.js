@@ -36,13 +36,19 @@ const vfs = require('node:vfs');
     withFileTypes: true,
   });
   const names = entries.map((e) => e.name).sort();
-  assert.deepStrictEqual(names, ['a.txt', 'sub', 'sub/b.txt']);
+  // Dirent.name is just the basename; parentPath has the full directory
+  assert.deepStrictEqual(names, ['a.txt', 'b.txt', 'sub']);
 
   // Verify types
   const fileEntry = entries.find((e) => e.name === 'a.txt');
   assert.strictEqual(fileEntry.isFile(), true);
   const dirEntry = entries.find((e) => e.name === 'sub');
   assert.strictEqual(dirEntry.isDirectory(), true);
+  // Nested file has correct parentPath
+  const nestedEntry = entries.find(
+    (e) => e.name === 'b.txt' && e.parentPath === '/mnt/sub',
+  );
+  assert.ok(nestedEntry, 'Expected nested b.txt with parentPath /mnt/sub');
 
   myVfs.unmount();
 }

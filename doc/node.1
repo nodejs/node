@@ -178,6 +178,11 @@ Paths delimited by comma (\fB,\fR) are no longer allowed.
 When passing a single flag with a comma a warning will be displayed.
 Examples can be found in the File System Permissions documentation.
 .
+.It Fl -allow-fs-vfs
+When using the Permission Model, the virtual file system (\fBnode:vfs\fR)
+cannot be used by default. Pass \fB--allow-fs-vfs\fR to allow VFS usage
+when permissions are enabled.
+.
 .It Fl -allow-inspector
 When using the Permission Model, the process will not be able to connect
 through inspector protocol.
@@ -1808,6 +1813,8 @@ one is included in the list below.
 \fB--allow-child-process\fR
 .It
 \fB--allow-fs-read\fR
+.It
+\fB--allow-fs-vfs\fR
 .It
 \fB--allow-fs-write\fR
 .It
