@@ -979,6 +979,94 @@ added: v12.3.0
 
 Getter for the property `objectMode` of a given `Writable` stream.
 
+##### `writable.toStreamIterWriter([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `options` {Object}
+  * `backpressure` {string} Backpressure policy. One of `'strict'` (default),
+    `'block'`, or `'drop-newest'`. See below for details.
+* Returns: {Object} A [`stream/iter` Writer][stream-iter-writer] adapter.
+
+When the `--experimental-stream-iter` flag is enabled, returns an adapter
+object that conforms to the [`stream/iter`][] Writer interface, allowing the
+`Writable` to be used as a destination in the iterable streams API.
+
+Since all writes on a classic `stream.Writable` are fundamentally
+asynchronous, the synchronous methods (`writeSync`, `writevSync`, `endSync`)
+always return `false` or `-1`, deferring to the async path. The per-write
+`options.signal` parameter from the Writer interface is also ignored; classic
+`stream.Writable` has no per-write abort signal support, so cancellation
+should be handled at the pipeline level.
+
+**Backpressure policies:**
+
+* `'strict'` (default) — writes are rejected with `ERR_INVALID_STATE` when
+  the buffer is full (`writableLength >= writableHighWaterMark`). This catches
+  callers that ignore backpressure.
+* `'block'` — writes wait for the `'drain'` event when the buffer is full.
+  This matches classic `stream.Writable` behavior and is the recommended
+  policy when using [`pipeTo()`][stream-iter-pipeto].
+* `'drop-newest'` — writes are silently discarded when the buffer is full.
+  The data is not written to the underlying resource, but `writer.end()`
+  still reports the total bytes (including dropped bytes) for consistency
+  with the Writer spec.
+* `'drop-oldest'` — **not supported**. Classic `stream.Writable` does not
+  provide an API to evict already-buffered data without risking partial
+  eviction of atomic `writev()` batches. Passing this value throws
+  `ERR_INVALID_ARG_VALUE`.
+
+The adapter maps:
+
+* `writer.write(chunk)` — calls `writable.write(chunk)`, subject to the
+  backpressure policy.
+* `writer.writev(chunks)` — corks the writable, writes all chunks, then
+  uncorks. Subject to the backpressure policy.
+* `writer.end()` — calls `writable.end()` and resolves with total bytes
+  written when the `'finish'` event fires.
+* `writer.fail(reason)` — calls `writable.destroy(reason)`.
+* `writer.desiredSize` — returns the available buffer space
+  (`writableHighWaterMark - writableLength`), or `null` if the stream
+  is destroyed or finished.
+
+```mjs
+import { Writable } from 'node:stream';
+import { from, pipeTo } from 'node:stream/iter';
+
+const chunks = [];
+const writable = new Writable({
+  write(chunk, encoding, cb) { chunks.push(chunk); cb(); },
+});
+
+// Use 'block' policy with pipeTo for classic backpressure behavior
+await pipeTo(from('hello world'),
+             writable.toStreamIterWriter({ backpressure: 'block' }));
+```
+
+```cjs
+const { Writable } = require('node:stream');
+const { from, pipeTo } = require('node:stream/iter');
+
+async function run() {
+  const chunks = [];
+  const writable = new Writable({
+    write(chunk, encoding, cb) { chunks.push(chunk); cb(); },
+  });
+
+  await pipeTo(from('hello world'),
+               writable.toStreamIterWriter({ backpressure: 'block' }));
+}
+
+run().catch(console.error);
+```
+
+Without the `--experimental-stream-iter` flag, calling this method throws
+[`ERR_STREAM_ITER_MISSING_FLAG`][].
+
 ##### `writable[Symbol.asyncDispose]()`
 
 <!-- YAML
@@ -3375,6 +3463,62 @@ changes:
     `'bytes'` or undefined.
 * Returns: {ReadableStream}
 
+### `stream.Writable.fromStreamIter(writer)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `writer` {Object} A [`stream/iter`][] Writer. Only the `write()` method is
+  required; `end()`, `fail()`, `writeSync()`, `writevSync()`, `endSync()`,
+  and `writev()` are optional.
+* Returns: {stream.Writable}
+
+When the `--experimental-stream-iter` flag is enabled, creates a classic
+`stream.Writable` backed by a [`stream/iter` Writer][stream-iter-writer].
+
+Each `_write()` / `_writev()` call attempts the Writer's synchronous method
+first (`writeSync` / `writevSync`), falling back to the async method if the
+sync path returns `false`. Similarly, `_final()` tries `endSync()` before
+`end()`. When the sync path succeeds, the callback is deferred via
+`queueMicrotask` to preserve the async resolution contract that Writable
+internals expect.
+
+* `_write(chunk, encoding, cb)` — tries `writer.writeSync(bytes)`, falls
+  back to `await writer.write(bytes)`.
+* `_writev(entries, cb)` — tries `writer.writevSync(chunks)`, falls
+  back to `await writer.writev(chunks)`. Only defined if `writer.writev`
+  exists.
+* `_final(cb)` — tries `writer.endSync()`, falls back to
+  `await writer.end()`.
+* `_destroy(err, cb)` — calls `writer.fail(err)`.
+
+```mjs
+import { Writable } from 'node:stream';
+import { push, from, pipeTo } from 'node:stream/iter';
+
+const { writer, readable } = push();
+const writable = Writable.fromStreamIter(writer);
+
+writable.write('hello');
+writable.end();
+```
+
+```cjs
+const { Writable } = require('node:stream');
+const { push, from, pipeTo } = require('node:stream/iter');
+
+const { writer, readable } = push();
+const writable = Writable.fromStreamIter(writer);
+
+writable.write('hello');
+writable.end();
+```
+
+This method requires the `--experimental-stream-iter` CLI flag.
+
 ### `stream.Writable.fromWeb(writableStream[, options])`
 
 <!-- YAML
@@ -5209,6 +5353,8 @@ contain multi-byte characters.
 [stream-finished]: #streamfinishedstream-options-callback
 [stream-finished-promise]: #streamfinishedstream-options
 [stream-iter-from]: stream_iter.md#frominput
+[stream-iter-pipeto]: stream_iter.md#pipetosource-transforms-writer
+[stream-iter-writer]: stream_iter.md#writer-interface
 [stream-pause]: #readablepause
 [stream-pipeline]: #streampipelinesource-transforms-destination-callback
 [stream-pipeline-promise]: #streampipelinesource-transforms-destination-options
