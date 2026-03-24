@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
@@ -15,6 +16,7 @@ const EE = require('events');
 const fs = require('fs');
 const { promisify } = require('util');
 const http = require('http');
+const { kEosNodeSynchronousCallback } = require('internal/streams/end-of-stream');
 
 {
   const rs = new Readable({
@@ -98,21 +100,17 @@ const http = require('http');
   const signal = AbortSignal.abort();
 
   const rs = Readable.from((function* () {})());
-  finished(rs, { signal }, common.mustCall((err) => {
+  const cleanup = finished(rs, { signal }, common.mustCall((err) => {
     assert.strictEqual(err.name, 'AbortError');
+    cleanup();
   }));
-}
-
-{
-  // Check pre-cancelled when eos() must resolve from the signal path.
-  const signal = AbortSignal.abort();
-
-  const rs = new Readable({
-    read() {}
-  });
-  finished(rs, { signal }, common.mustCall((err) => {
+  const unset = Symbol('unset');
+  let cleanup2 = unset;
+  cleanup2 = finished(rs, { signal, [kEosNodeSynchronousCallback]: true }, common.mustCall((err) => {
     assert.strictEqual(err.name, 'AbortError');
+    assert.strictEqual(cleanup2, unset);
   }));
+  cleanup2();
 }
 
 {
