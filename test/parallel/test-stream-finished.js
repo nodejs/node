@@ -95,10 +95,21 @@ const http = require('http');
 
 {
   // Check pre-cancelled
-  const signal = new EventTarget();
-  signal.aborted = true;
+  const signal = AbortSignal.abort();
 
   const rs = Readable.from((function* () {})());
+  finished(rs, { signal }, common.mustCall((err) => {
+    assert.strictEqual(err.name, 'AbortError');
+  }));
+}
+
+{
+  // Check pre-cancelled when eos() must resolve from the signal path.
+  const signal = AbortSignal.abort();
+
+  const rs = new Readable({
+    read() {}
+  });
   finished(rs, { signal }, common.mustCall((err) => {
     assert.strictEqual(err.name, 'AbortError');
   }));
@@ -160,8 +171,7 @@ const http = require('http');
   // Promisified pre-aborted works
   const finishedPromise = promisify(finished);
   async function run() {
-    const signal = new EventTarget();
-    signal.aborted = true;
+    const signal = AbortSignal.abort();
     const rs = Readable.from((function* () {})());
     await finishedPromise(rs, { signal });
   }
