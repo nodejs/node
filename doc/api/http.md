@@ -2298,8 +2298,8 @@ added: v0.7.5
 When true, the Date header will be automatically generated and sent in
 the response if it is not already present in the headers. Defaults to true.
 
-This should only be disabled for testing; HTTP requires the Date header
-in responses.
+This should only be disabled for testing; the Date header is required in
+most HTTP responses (see [RFC 9110 Section 6.6.1][] for details).
 
 ### `response.setHeader(name, value)`
 
@@ -4555,6 +4555,7 @@ const agent2 = new http.Agent({ proxyEnv: process.env });
 
 [Built-in Proxy Support]: #built-in-proxy-support
 [RFC 8187]: https://www.rfc-editor.org/rfc/rfc8187.txt
+[RFC 9110 Section 6.6.1]: https://www.rfc-editor.org/rfc/rfc9110#section-6.6.1
 [`'ERR_HTTP_CONTENT_LENGTH_MISMATCH'`]: errors.md#err_http_content_length_mismatch
 [`'checkContinue'`]: #event-checkcontinue
 [`'finish'`]: #event-finish
