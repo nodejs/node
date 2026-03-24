@@ -603,14 +603,25 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
 }
 
 {
-  const readable = new Readable({
-    read() {}
-  });
-  readable.req = new EE();
-  readable.aborted = true;
-
-  finished(readable, common.mustCall((err) => {
-    assert.strictEqual(err, undefined);
+  let serverRes;
+  const server = http.createServer(common.mustCall((req, res) => {
+    serverRes = res;
+    res.write('hello');
+  })).listen(0, common.mustCall(function() {
+    http.get({ port: this.address().port }, common.mustCall((res) => {
+      res.on('aborted', common.mustCall(() => {
+        finished(res, common.mustCall((err) => {
+          assert.strictEqual(err.code, 'ECONNRESET');
+          assert.strictEqual(err.message, 'aborted');
+          server.close();
+        }));
+      }));
+      res.on('error', common.expectsError({
+        code: 'ECONNRESET',
+        message: 'aborted',
+      }));
+      serverRes.destroy();
+    })).on('error', common.mustNotCall());
   }));
 }
 
