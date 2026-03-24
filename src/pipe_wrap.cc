@@ -233,20 +233,21 @@ void PipeWrap::WatchPeerClose(const FunctionCallbackInfo<Value>& args) {
   if (!enable) {
     if (!wrap->peer_close_watching_) {
       wrap->peer_close_cb_.Reset();
-      return args.GetReturnValue().Set(0);
+      return;
     }
 
     wrap->peer_close_watching_ = false;
     wrap->peer_close_cb_.Reset();
-    return args.GetReturnValue().Set(uv_read_stop(wrap->stream()));
+    uv_read_stop(wrap->stream());
+    return;
   }
 
   if (!wrap->IsAlive()) {
-    return args.GetReturnValue().Set(UV_EBADF);
+    return;
   }
 
   if (wrap->peer_close_watching_) {
-    return args.GetReturnValue().Set(0);
+    return;
   }
 
   CHECK_GT(args.Length(), 1);
@@ -266,7 +267,6 @@ void PipeWrap::WatchPeerClose(const FunctionCallbackInfo<Value>& args) {
     wrap->peer_close_watching_ = false;
     wrap->peer_close_cb_.Reset();
   }
-  args.GetReturnValue().Set(err);
 }
 
 void PipeWrap::PeerCloseAlloc(uv_handle_t* handle,
