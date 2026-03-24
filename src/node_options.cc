@@ -663,6 +663,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             false,
             OptionNamespaces::kPermissionNamespace);
+  AddOption("--allow-fs-vfs",
+            "allow use of virtual filesystem when any permissions are set",
+            &EnvironmentOptions::allow_fs_vfs,
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kPermissionNamespace);
   AddOption("--allow-child-process",
             "allow use of child process when any permissions are set",
             &EnvironmentOptions::allow_child_process,
