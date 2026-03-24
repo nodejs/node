@@ -54,6 +54,10 @@
 
 #include "ares_inet_net_pton.h"
 
+#ifndef IF_TYPE_SOFTWARE_LOOPBACK
+#define IF_TYPE_SOFTWARE_LOOPBACK 24
+#endif
+
 #if defined(USE_WINSOCK)
 
 #  define WIN_NS_9X     "System\\CurrentControlSet\\Services\\VxD\\MSTCP"
@@ -366,6 +370,9 @@ static ares_bool_t get_DNS_Windows(char **outptr)
 
   for (ipaaEntry = ipaa; ipaaEntry; ipaaEntry = ipaaEntry->Next) {
     if (ipaaEntry->OperStatus != IfOperStatusUp) {
+      continue;
+    }
+    if (ipaaEntry->IfType == IF_TYPE_SOFTWARE_LOOPBACK) {
       continue;
     }
 
