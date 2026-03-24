@@ -1452,7 +1452,9 @@ def get_cargo_version(cargo):
   except OSError:
     error('''No acceptable cargo found!
 
-       Please make sure you have cargo installed on your system.''')
+       Please make sure you have cargo installed on your system and/or
+       consider adjusting the CARGO environment variable if you have installed
+       it in a non-standard prefix.''')
 
   with proc:
     cargo_ret = to_utf8(proc.communicate()[0])
@@ -1540,8 +1542,9 @@ def check_compiler(o):
     # Minimum cargo and rustc versions should match values in BUILDING.md.
     min_cargo_ver_tuple = (1, 82)
     min_rustc_ver_tuple = (1, 82)
-    cargo_ver = get_cargo_version('cargo')
-    print_verbose(f'Detected cargo: {cargo_ver}')
+    cargo = os.environ.get('CARGO', 'cargo')
+    cargo_ver = get_cargo_version(cargo)
+    print_verbose(f'Detected cargo (CARGO={cargo}): {cargo_ver}')
     cargo_ver_tuple = tuple(map(int, cargo_ver.split('.')))
     if cargo_ver_tuple < min_cargo_ver_tuple:
       warn(f'cargo {cargo_ver} too old, need cargo {".".join(map(str, min_cargo_ver_tuple))}')
@@ -2750,6 +2753,11 @@ if flavor == 'win' and python.lower().endswith('.exe'):
 # Always set 'python' variable, otherwise environments that only have python3
 # will fail to run python scripts.
 gyp_args += ['-Dpython=' + python]
+
+if options.v8_enable_temporal_support and not options.shared_temporal_capi:
+  cargo = os.environ.get('CARGO')
+  if cargo:
+    gyp_args += ['-Dcargo=' + cargo]
 
 if options.use_ninja:
   gyp_args += ['-f', 'ninja-' + flavor]
