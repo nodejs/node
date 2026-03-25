@@ -623,7 +623,7 @@ if errorlevel 1 goto exit
 
 :install-doctools
 REM only install if building doc OR testing doctool OR building addons
-if not defined doc if not defined build_addons (
+if not defined doc if not defined build_addons if not defined lint_md (
   echo.%test_args% | findstr doctool 1>nul
   if errorlevel 1 goto :skip-install-doctools
 )
@@ -773,7 +773,7 @@ goto lint-js-build
 goto lint-js-build
 
 :lint-js-build
-if not defined lint_js_build if not defined lint_js if not defined lint_js_fix goto lint-md-build
+if not defined lint_js_build if not defined lint_js if not defined lint_js_fix goto lint-js
 %npm_exe% --prefix tools\eslint ci
 
 :lint-js
@@ -788,15 +788,11 @@ if not defined lint_js_fix goto lint-md
 if not exist tools\eslint\node_modules\eslint goto no-lint
 echo running lint-js-fix
 %node_exe% tools\eslint\node_modules\eslint\bin\eslint.js --cache --max-warnings=0 --report-unused-disable-directives --rule "@stylistic/js/linebreak-style: 0" eslint.config.mjs benchmark doc lib test tools --fix
-goto lint-md-build
-
-:lint-md-build
-if not defined lint_md if not defined format_md goto lint-md
-%npm_exe% --prefix tools\lint-md ci
+goto lint-md
 
 :lint-md
 if not defined lint_md goto format-md
-if not exist tools\lint-md\node_modules goto no-lint
+if not exist tools\doc\node_modules goto no-lint
 echo Running Markdown linter on docs...
 SETLOCAL ENABLEDELAYEDEXPANSION
 set lint_md_files=
@@ -810,13 +806,13 @@ for /D %%D IN (doc\*) do (
     )
   )
 )
-%node_exe% tools\lint-md\lint-md.mjs %lint_md_files%
+%node_exe% tools\doc\lint-md.mjs %lint_md_files%
 ENDLOCAL
 goto format-md
 
 :format-md
 if not defined format_md goto exit
-if not exist tools\lint-md\node_modules goto no-lint
+if not exist tools\doc\node_modules goto no-lint
 echo Running Markdown formatter on docs...
 SETLOCAL ENABLEDELAYEDEXPANSION
 set lint_md_files=
@@ -830,7 +826,7 @@ for /D %%D IN (doc\*) do (
     )
   )
 )
-%node_exe% tools\lint-md\lint-md.mjs --format %lint_md_files%
+%node_exe% tools\doc\lint-md.mjs --format %lint_md_files%
 ENDLOCAL
 
 :no-lint
@@ -845,7 +841,7 @@ set exit_code=1
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-doc/test-js-native-api/test-node-api/test-internet/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [clang-cl] [ccache path-to-ccache] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [nonpm] [ltcg] [licensetf] [sign] [x64/arm64] [vs2022/vs2026] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-md] [lint-md-build] [format-md] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
+echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-doc/test-js-native-api/test-node-api/test-internet/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [clang-cl] [ccache path-to-ccache] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [nonpm] [ltcg] [licensetf] [sign] [x64/arm64] [vs2022/vs2026] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-md] [format-md] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
 echo Examples:
 echo   vcbuild.bat                          : builds release build
 echo   vcbuild.bat debug                    : builds debug build

@@ -1039,7 +1039,7 @@ changes:
     description: The elements of `list` can now be `Uint8Array`s.
 -->
 
-* `list` {Buffer\[] | Uint8Array\[]} List of `Buffer` or {Uint8Array}
+* `list` {Buffer\[]|Uint8Array\[]} List of `Buffer` or {Uint8Array}
   instances to concatenate.
 * `totalLength` {integer} Total length of the `Buffer` instances in `list`
   when concatenated.
@@ -5288,7 +5288,7 @@ added:
   - v18.15.0
 -->
 
-* `input` {Buffer | ArrayBuffer | TypedArray} The input to validate.
+* `input` {Buffer|ArrayBuffer|TypedArray} The input to validate.
 * Returns: {boolean}
 
 This function returns `true` if `input` contains only valid ASCII-encoded data,
@@ -5304,7 +5304,7 @@ added:
   - v18.14.0
 -->
 
-* `input` {Buffer | ArrayBuffer | TypedArray} The input to validate.
+* `input` {Buffer|ArrayBuffer|TypedArray} The input to validate.
 * Returns: {boolean}
 
 This function returns `true` if `input` contains only valid UTF-8-encoded data,

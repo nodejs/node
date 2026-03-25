@@ -762,7 +762,7 @@ Instantiate a new empty `URLPattern` object.
 #### `new URLPattern(string[, baseURL][, options])`
 
 * `string` {string} A URL string
-* `baseURL` {string | undefined} A base URL string
+* `baseURL` {string|undefined} A base URL string
 * `options` {Object} Options
 
 Parse the `string` as a URL, and use it to instantiate a new
@@ -778,7 +778,7 @@ The constructor can throw a `TypeError` to indicate parsing failure.
 #### `new URLPattern(obj[, baseURL][, options])`
 
 * `obj` {Object} An input pattern
-* `baseURL` {string | undefined} A base URL string
+* `baseURL` {string|undefined} A base URL string
 * `options` {Object} Options
 
 Parse the `Object` as an input pattern, and use it to instantiate a new
@@ -794,8 +794,8 @@ The constructor can throw a `TypeError` to indicate parsing failure.
 
 #### `urlPattern.exec(input[, baseURL])`
 
-* `input` {string | Object} A URL or URL parts
-* `baseURL` {string | undefined} A base URL string
+* `input` {string|Object} A URL or URL parts
+* `baseURL` {string|undefined} A base URL string
 
 Input can be a string or an object providing the individual URL parts. The
 object members can be any of `protocol`, `username`, `password`, `hostname`,
@@ -828,8 +828,8 @@ console.log(myPattern.exec('https://nodejs.org/docs/latest/api/dns.html'));
 
 #### `urlPattern.test(input[, baseURL])`
 
-* `input` {string | Object} A URL or URL parts
-* `baseURL` {string | undefined} A base URL string
+* `input` {string|Object} A URL or URL parts
+* `baseURL` {string|undefined} A base URL string
 
 Input can be a string or an object providing the individual URL parts. The
 object members can be any of `protocol`, `username`, `password`, `hostname`,
@@ -1075,7 +1075,7 @@ myURL.searchParams.forEach((value, name, searchParams) => {
 #### `urlSearchParams.get(name)`
 
 * `name` {string}
-* Returns: {string | null} A string or `null` if there is no name-value pair
+* Returns: {string|null} A string or `null` if there is no name-value pair
   with the given `name`.
 
 Returns the value of the first name-value pair whose name is `name`. If there
@@ -1318,7 +1318,7 @@ changes:
                  determine how to parse the `path` argument.
 -->
 
-* `url` {URL | string} The file URL string or URL object to convert to a path.
+* `url` {URL|string} The file URL string or URL object to convert to a path.
 * `options` {Object}
   * `windows` {boolean|undefined} `true` if the `path` should be
     return as a windows filepath, `false` for posix, and
@@ -1383,7 +1383,7 @@ added:
  - v22.18.0
 -->
 
-* `url` {URL | string} The file URL string or URL object to convert to a path.
+* `url` {URL|string} The file URL string or URL object to convert to a path.
 * `options` {Object}
   * `windows` {boolean|undefined} `true` if the `path` should be
     return as a windows filepath, `false` for posix, and
