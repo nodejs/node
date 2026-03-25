@@ -826,6 +826,16 @@ Set the default value of `order` in [`dns.lookup()`][] and
 The default is `verbatim` and [`dns.setDefaultResultOrder()`][] have higher
 priority than `--dns-result-order`.
 
+### `--enable-eval`
+
+<!-- YAML
+added: v26.0.0
+-->
+
+Enables the use of `eval()` and `new Function()`. By default, these are disabled
+for security reasons to prevent arbitrary code execution vulnerabilities. This
+does not affect the Node.js `node:vm` module.
+
 ### `--enable-fips`
 
 <!-- YAML
