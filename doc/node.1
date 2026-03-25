@@ -140,13 +140,15 @@ When using the Permission Model, the process will not be able to use
 \fBnode:ffi\fR by default.
 Attempts to use FFI APIs will throw an \fBERR_ACCESS_DENIED\fR exception unless
 the user explicitly passes the \fB--allow-ffi\fR flag when starting Node.js.
+The \fBnode:ffi\fR module also requires the \fB--experimental-ffi\fR flag and
+is only available in builds with FFI support.
 Example:
 .Bd -literal
 const { DynamicLibrary } = require('node:ffi');
 const lib = new DynamicLibrary('mylib.so');
 .Ed
 .Bd -literal
-$ node --permission --experimental-ffi --allow-fs-read=* index.js
+$ node --permission --experimental-ffi index.js
 Error: Access to this API has been restricted. Use --allow-ffi to manage permissions.
     at node:internal/main/run_main_module:17:47 {
   code: 'ERR_ACCESS_DENIED',
@@ -717,6 +719,7 @@ Enable exposition of EventSource Web API on the global scope.
 .
 .It Fl -experimental-ffi
 Enable the experimental \fBnode:ffi\fR module.
+This flag is only available in builds with FFI support.
 .
 .It Fl -experimental-import-meta-resolve
 Enable experimental \fBimport.meta.resolve()\fR parent URL support, which allows

@@ -25,6 +25,20 @@ const { spawnSync } = require('node:child_process');
 
 {
   const { stderr, status, signal } = spawnSync(process.execPath, [
+    '--no-experimental-ffi',
+    '-e',
+    '',
+  ], {
+    encoding: 'utf8',
+  });
+
+  assert.match(stderr, /--no-experimental-ffi/);
+  assert.notStrictEqual(status, 0);
+  assert.strictEqual(signal, null);
+}
+
+{
+  const { stderr, status, signal } = spawnSync(process.execPath, [
     '--permission',
     '--allow-ffi',
     '-e',
@@ -54,8 +68,9 @@ const { spawnSync } = require('node:child_process');
 {
   const { stdout, status, signal } = spawnSync(process.execPath, [
     '--permission',
+    '--expose-internals',
     '-p',
-    'JSON.stringify(process.permission.availableFlags())',
+    'JSON.stringify(require("internal/process/permission").availableFlags())',
   ], {
     encoding: 'utf8',
   });

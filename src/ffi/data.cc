@@ -1,6 +1,8 @@
 #if HAVE_FFI
 
+#include "data.h"
 #include "base_object-inl.h"
+#include "node_errors.h"
 #include "v8.h"
 
 #include <cmath>
@@ -130,6 +132,44 @@ bool GetValidatedUnsignedInt(Environment* env,
   return true;
 }
 
+bool ValidatePointerSpan(Environment* env,
+                         uintptr_t raw_ptr,
+                         size_t offset,
+                         size_t length,
+                         const char* error_message) {
+  if (offset > std::numeric_limits<uintptr_t>::max() - raw_ptr) {
+    env->ThrowRangeError(error_message);
+    return false;
+  }
+
+  uintptr_t start = raw_ptr + offset;
+  if (length > 0 &&
+      length - 1 > std::numeric_limits<uintptr_t>::max() - start) {
+    env->ThrowRangeError(error_message);
+    return false;
+  }
+
+  return true;
+}
+
+bool ValidateBufferLength(Environment* env, size_t len) {
+  if (len > Buffer::kMaxLength) {
+    env->isolate()->ThrowException(ERR_BUFFER_TOO_LARGE(env->isolate()));
+    return false;
+  }
+
+  return true;
+}
+
+bool ValidateStringLength(Environment* env, size_t len) {
+  if (len > static_cast<size_t>(String::kMaxLength)) {
+    env->isolate()->ThrowException(ERR_STRING_TOO_LONG(env->isolate()));
+    return false;
+  }
+
+  return true;
+}
+
 bool GetValidatedPointerAndOffset(Environment* env,
                                   const FunctionCallbackInfo<Value>& args,
                                   uint8_t** ptr,
@@ -152,9 +192,12 @@ bool GetValidatedPointerAndOffset(Environment* env,
     }
   }
 
-  if (*offset > std::numeric_limits<uintptr_t>::max() - raw_ptr) {
-    env->ThrowRangeError(
-        "The pointer and offset exceed the platform address range");
+  if (!ValidatePointerSpan(
+          env,
+          raw_ptr,
+          *offset,
+          1,
+          "The pointer and offset exceed the platform address range")) {
     return false;
   }
 
@@ -187,9 +230,12 @@ bool GetValidatedPointerValueAndOffset(Environment* env,
     return false;
   }
 
-  if (*offset > std::numeric_limits<uintptr_t>::max() - raw_ptr) {
-    env->ThrowRangeError(
-        "The pointer and offset exceed the platform address range");
+  if (!ValidatePointerSpan(
+          env,
+          raw_ptr,
+          *offset,
+          1,
+          "The pointer and offset exceed the platform address range")) {
     return false;
   }
 
@@ -213,6 +259,16 @@ void GetValue(const FunctionCallbackInfo<Value>& args) {
   size_t offset;
 
   if (!GetValidatedPointerAndOffset(env, args, &ptr, &offset)) {
+    return;
+  }
+
+  uintptr_t raw_ptr = reinterpret_cast<uintptr_t>(ptr);
+  if (!ValidatePointerSpan(
+          env,
+          raw_ptr,
+          offset,
+          sizeof(T),
+          "The accessed range exceeds the platform address range")) {
     return;
   }
 
@@ -243,6 +299,16 @@ void SetValue(const FunctionCallbackInfo<Value>& args) {
   size_t offset;
 
   if (!GetValidatedPointerValueAndOffset(env, args, &ptr, &value, &offset)) {
+    return;
+  }
+
+  uintptr_t raw_ptr = reinterpret_cast<uintptr_t>(ptr);
+  if (!ValidatePointerSpan(
+          env,
+          raw_ptr,
+          offset,
+          sizeof(T),
+          "The accessed range exceeds the platform address range")) {
     return;
   }
 
@@ -453,9 +519,18 @@ void ToString(const FunctionCallbackInfo<Value>& args) {
   }
 
   const char* str = reinterpret_cast<const char*>(ptr);
-  args.GetReturnValue().Set(
-      String::NewFromUtf8(isolate, str, NewStringType::kNormal)
-          .ToLocalChecked());
+  size_t len = std::strlen(str);
+  if (!ValidateStringLength(env, len)) {
+    return;
+  }
+
+  Local<String> out;
+  if (!String::NewFromUtf8(isolate, str, NewStringType::kNormal)
+           .ToLocal(&out)) {
+    return;
+  }
+
+  args.GetReturnValue().Set(out);
 }
 
 void ToBuffer(const FunctionCallbackInfo<Value>& args) {
@@ -488,18 +563,35 @@ void ToBuffer(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  if (!ValidatePointerSpan(
+          env,
+          ptr,
+          0,
+          len,
+          "The pointer and length exceed the platform address range")) {
+    return;
+  }
+
+  if (!ValidateBufferLength(env, len)) {
+    return;
+  }
+
   Local<Object> buf;
   if (args.Length() < 3 || args[2]->IsUndefined() ||
       args[2]->BooleanValue(isolate)) {
-    buf = Buffer::Copy(env, reinterpret_cast<char*>(ptr), len).ToLocalChecked();
+    if (!Buffer::Copy(env, reinterpret_cast<char*>(ptr), len).ToLocal(&buf)) {
+      return;
+    }
   } else {
-    buf = Buffer::New(
-              env,
-              reinterpret_cast<char*>(ptr),
-              len,
-              [](char* data, void* hint) {},
-              nullptr)
-              .ToLocalChecked();
+    if (!Buffer::New(
+             env,
+             reinterpret_cast<char*>(ptr),
+             len,
+             [](char* data, void* hint) {},
+             nullptr)
+             .ToLocal(&buf)) {
+      return;
+    }
   }
 
   args.GetReturnValue().Set(buf);
@@ -528,6 +620,19 @@ void ToArrayBuffer(const FunctionCallbackInfo<Value>& args) {
 
   if (ptr == 0 && len > 0) {
     env->ThrowError("Cannot create an ArrayBuffer from a null pointer");
+    return;
+  }
+
+  if (!ValidatePointerSpan(
+          env,
+          ptr,
+          0,
+          len,
+          "The pointer and length exceed the platform address range")) {
+    return;
+  }
+
+  if (!ValidateBufferLength(env, len)) {
     return;
   }
 

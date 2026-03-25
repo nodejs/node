@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import argparse
+import os
+import platform
 import sys
 from pathlib import Path
 
@@ -156,7 +158,7 @@ def render_fficonfig(os_name, target_arch):
 
 def generate_headers(output_dir, target_arch, os_name):
     base_dir = Path(__file__).resolve().parent
-    output_dir = Path(output_dir)
+    output_dir = Path(str(output_dir).strip().strip('"'))
     output_dir.mkdir(parents=True, exist_ok=True)
 
     target, target_dir = get_target(os_name, target_arch)
@@ -175,15 +177,62 @@ def generate_headers(output_dir, target_arch, os_name):
         encoding='utf-8')
 
 
+def detect_os_name():
+    if sys.platform.startswith('win'):
+        return 'win'
+    if sys.platform == 'darwin':
+        return 'mac'
+    if sys.platform.startswith('linux'):
+        return 'linux'
+    if sys.platform.startswith('freebsd'):
+        return 'freebsd'
+    raise ValueError(f'Unsupported host platform {sys.platform!r}')
+
+
+def detect_target_arch():
+    candidates = [
+        os.environ.get('TARGET_ARCH'),
+        os.environ.get('npm_config_arch'),
+        os.environ.get('VSCMD_ARG_TGT_ARCH'),
+        os.environ.get('Platform'),
+        os.environ.get('PROCESSOR_ARCHITECTURE'),
+        platform.machine(),
+    ]
+
+    aliases = {
+        'amd64': 'x64',
+        'x86_64': 'x64',
+        'x64': 'x64',
+        'win32': 'x64',
+        'i386': 'x86',
+        'i686': 'x86',
+        'x86': 'x86',
+        'arm64': 'arm64',
+        'aarch64': 'arm64',
+        'arm': 'arm',
+    }
+
+    for candidate in candidates:
+        if not candidate:
+            continue
+        normalized = aliases.get(candidate.lower())
+        if normalized is not None:
+            return normalized
+
+    raise ValueError('Unable to determine target architecture for libffi headers')
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description='Generate libffi headers')
     parser.add_argument('--output-dir', required=True)
-    parser.add_argument('--target-arch', required=True)
-    parser.add_argument('--os', required=True)
+    parser.add_argument('--target-arch')
+    parser.add_argument('--os')
     args = parser.parse_args(argv)
 
     try:
-        generate_headers(args.output_dir, args.target_arch, args.os)
+        generate_headers(args.output_dir,
+                         args.target_arch or detect_target_arch(),
+                         args.os or detect_os_name())
     except Exception as exc:  # pylint: disable=broad-except
         print(exc, file=sys.stderr)
         return 1

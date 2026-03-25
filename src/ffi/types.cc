@@ -1,12 +1,15 @@
 #if HAVE_FFI
 
+#include "types.h"
 #include "base_object-inl.h"
+#include "data.h"
 #include "ffi.h"
 #include "node_ffi.h"
 #include "v8.h"
 
 #include <climits>
 #include <cmath>
+#include <cstring>
 #include <limits>
 
 using v8::Array;
@@ -27,6 +30,18 @@ using v8::Value;
 namespace node {
 
 namespace ffi {
+
+bool ThrowIfContainsNullBytes(Environment* env,
+                              const Utf8Value& value,
+                              const std::string& label) {
+  if (value.length() != 0 &&
+      std::memchr(*value, '\0', value.length()) != nullptr) {
+    env->ThrowTypeError((label + " must not contain null bytes").c_str());
+    return true;
+  }
+
+  return false;
+}
 
 bool IsFFINarrowSignedInteger(ffi_type* type) {
   return type == &ffi_type_sint8 || type == &ffi_type_sint16;
@@ -159,7 +174,11 @@ bool ParseFunctionSignature(Environment* env,
       return false;
     }
 
-    node::Utf8Value return_type_str(isolate, return_type_val);
+    Utf8Value return_type_str(isolate, return_type_val);
+    if (ThrowIfContainsNullBytes(
+            env, return_type_str, "Return value type of function " + name)) {
+      return false;
+    }
     if (!ToFFIType(env, *return_type_str, return_type)) {
       return false;
     }
@@ -196,7 +215,13 @@ bool ParseFunctionSignature(Environment* env,
         return false;
       }
 
-      node::Utf8Value arg_str(isolate, arg);
+      Utf8Value arg_str(isolate, arg);
+      if (ThrowIfContainsNullBytes(
+              env,
+              arg_str,
+              "Argument " + std::to_string(i) + " of function " + name)) {
+        return false;
+      }
       ffi_type* arg_type;
       if (!ToFFIType(env, *arg_str, &arg_type)) {
         return false;
@@ -388,6 +413,10 @@ uint8_t ToFFIArgument(Environment* env,
       // the call
       return 2;
     } else if (arg->IsArrayBufferView()) {
+      // Pointer-like ArrayBufferView arguments borrow backing-store memory
+      // without pinning. Resizing, transferring, detaching, or otherwise
+      // invalidating that backing store during the active FFI call is
+      // unsupported and dangerous.
       Local<ArrayBufferView> view = arg.As<ArrayBufferView>();
       std::shared_ptr<BackingStore> store = view->Buffer()->GetBackingStore();
 
@@ -405,6 +434,10 @@ uint8_t ToFFIArgument(Environment* env,
       *static_cast<uint64_t*>(ret) =
           reinterpret_cast<uint64_t>(static_cast<char*>(data) + offset);
     } else if (arg->IsArrayBuffer()) {
+      // Pointer-like ArrayBuffer arguments borrow backing-store memory without
+      // pinning. Resizing, transferring, detaching, or otherwise invalidating
+      // that backing store during the active FFI call is unsupported and
+      // dangerous.
       Local<ArrayBuffer> buffer = arg.As<ArrayBuffer>();
       std::shared_ptr<BackingStore> store = buffer->GetBackingStore();
 
@@ -621,7 +654,9 @@ bool ToFFIReturnValue(Local<Value> result, ffi_type* type, void* ret) {
   } else if (type == &ffi_type_pointer) {
     bool lossless;
 
-    if (result->IsBigInt()) {
+    if (result->IsNull() || result->IsUndefined()) {
+      *static_cast<uint64_t*>(ret) = reinterpret_cast<uint64_t>(nullptr);
+    } else if (result->IsBigInt()) {
       uint64_t pointer = result.As<BigInt>()->Uint64Value(&lossless);
       if (!lossless || pointer > static_cast<uint64_t>(
                                      std::numeric_limits<uintptr_t>::max())) {

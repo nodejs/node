@@ -1,112 +1,64 @@
 // Flags: --permission --experimental-ffi --allow-fs-read=*
 'use strict';
-const { skipIfFFIMissing } = require('../common');
-skipIfFFIMissing();
+const common = require('../common');
+const assert = require('node:assert');
+const { test } = require('node:test');
 
-const test = require('node:test');
+common.skipIfFFIMissing();
+
 const ffi = require('node:ffi');
-const { libraryPath } = require('./ffi-test-common');
 
-test('permission.has("ffi") should be false without --allow-ffi', (t) => {
-  t.assert.strictEqual(process.permission.has('ffi'), false);
+const dummyLibraryPath = 'ffi-permission-test-library';
+const denied = {
+  code: 'ERR_ACCESS_DENIED',
+  permission: 'FFI',
+  message: /Access to this API has been restricted\. Use --allow-ffi to manage permissions\./,
+};
+
+test('process.permission reports ffi denied by default', () => {
+  assert.strictEqual(process.permission.has('ffi'), false);
 });
 
-test('dlopen() is denied without permission', (t) => {
-  t.assert.throws(() => {
-    ffi.dlopen(libraryPath, {});
-  }, {
-    code: 'ERR_ACCESS_DENIED',
-    permission: 'FFI',
-    message: /Access to this API has been restricted\. Use --allow-ffi to manage permissions\./,
-  });
+test('permission model blocks dynamic library access', () => {
+  assert.throws(() => {
+    ffi.dlopen(dummyLibraryPath, {});
+  }, denied);
+
+  assert.throws(() => {
+    new ffi.DynamicLibrary(dummyLibraryPath);
+  }, denied);
 });
 
-test('dlclose() is denied without permission', (t) => {
-  t.assert.throws(() => {
-    ffi.dlclose({ close() {} });
-  }, {
-    code: 'ERR_ACCESS_DENIED',
-    permission: 'FFI',
-    message: /Access to this API has been restricted\. Use --allow-ffi to manage permissions\./,
-  });
-});
-
-test('DynamicLibrary() is denied without permission', (t) => {
-  t.assert.throws(() => {
-    new ffi.DynamicLibrary(libraryPath);
-  }, {
-    code: 'ERR_ACCESS_DENIED',
-    permission: 'FFI',
-    message: /Access to this API has been restricted\. Use --allow-ffi to manage permissions\./,
-  });
-});
-
-test('toBuffer() is denied without permission', (t) => {
-  t.assert.throws(() => {
+test('permission model blocks ffi memory and helper APIs', () => {
+  assert.throws(() => {
     ffi.toBuffer(1n, 4);
-  }, {
-    code: 'ERR_ACCESS_DENIED',
-    permission: 'FFI',
-    message: /Access to this API has been restricted\. Use --allow-ffi to manage permissions\./,
-  });
-});
+  }, denied);
 
-test('toArrayBuffer() is denied without permission', (t) => {
-  t.assert.throws(() => {
+  assert.throws(() => {
     ffi.toArrayBuffer(1n, 4);
-  }, {
-    code: 'ERR_ACCESS_DENIED',
-    permission: 'FFI',
-    message: /Access to this API has been restricted\. Use --allow-ffi to manage permissions\./,
-  });
-});
+  }, denied);
 
-test('getInt32() is denied without permission', (t) => {
-  t.assert.throws(() => {
+  assert.throws(() => {
     ffi.getInt32(1n);
-  }, {
-    code: 'ERR_ACCESS_DENIED',
-    permission: 'FFI',
-    message: /Access to this API has been restricted\. Use --allow-ffi to manage permissions\./,
-  });
-});
+  }, denied);
 
-test('setInt32() is denied without permission', (t) => {
-  t.assert.throws(() => {
+  assert.throws(() => {
     ffi.setInt32(1n, 0, 1);
-  }, {
-    code: 'ERR_ACCESS_DENIED',
-    permission: 'FFI',
-    message: /Access to this API has been restricted\. Use --allow-ffi to manage permissions\./,
-  });
-});
+  }, denied);
 
-test('exportString() with explicit size is denied without permission', (t) => {
-  t.assert.throws(() => {
+  assert.throws(() => {
     ffi.exportString('hello', 1n, 8);
-  }, {
-    code: 'ERR_ACCESS_DENIED',
-    permission: 'FFI',
-    message: /Access to this API has been restricted\. Use --allow-ffi to manage permissions\./,
-  });
-});
+  }, denied);
 
-test('exportString() with auto size is denied without permission', (t) => {
-  t.assert.throws(() => {
+  assert.throws(() => {
     ffi.exportString('hello', 1n, 0);
-  }, {
-    code: 'ERR_ACCESS_DENIED',
-    permission: 'FFI',
-    message: /Access to this API has been restricted\. Use --allow-ffi to manage permissions\./,
-  });
-});
+  }, denied);
 
-test('exportBuffer() is denied without permission', (t) => {
-  t.assert.throws(() => {
+  assert.throws(() => {
     ffi.exportBuffer(Buffer.alloc(0), 1n, 0);
-  }, {
-    code: 'ERR_ACCESS_DENIED',
-    permission: 'FFI',
-    message: /Access to this API has been restricted\. Use --allow-ffi to manage permissions\./,
-  });
+  }, denied);
+
+  assert.throws(() => {
+    ffi.dlclose({ close() {} });
+  }, denied);
 });

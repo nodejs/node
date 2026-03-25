@@ -4,6 +4,8 @@
 #include <cstring>
 #include "base_object-inl.h"
 #include "env-inl.h"
+#include "ffi/data.h"
+#include "ffi/types.h"
 #include "node_errors.h"
 
 namespace node {
@@ -23,6 +25,7 @@ using v8::Local;
 using v8::LocalVector;
 using v8::MaybeLocal;
 using v8::NewStringType;
+using v8::Null;
 using v8::Object;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
@@ -80,9 +83,9 @@ void DynamicLibrary::Close() {
   callbacks_.clear();
 }
 
-bool DynamicLibrary::FindOrCreateSymbol(Environment* env,
-                                        const std::string& name,
-                                        void** ret) {
+bool DynamicLibrary::ResolveSymbol(Environment* env,
+                                   const std::string& name,
+                                   void** ret) {
   if (handle_ == nullptr) {
     env->ThrowError("Library is closed");
     return false;
@@ -91,30 +94,33 @@ bool DynamicLibrary::FindOrCreateSymbol(Environment* env,
   auto existing = symbols_.find(name);
   void* ptr;
 
-  if (existing == symbols_.end()) {
+  if (existing != symbols_.end()) {
+    ptr = existing->second;
+  } else {
     if (uv_dlsym(&lib_, name.c_str(), &ptr) != 0) {
       std::string msg = std::string("dlsym failed: ") + uv_dlerror(&lib_);
       env->ThrowError(msg.c_str());
       return false;
     }
-
-    symbols_.emplace(name, ptr);
-  } else {
-    ptr = existing->second;
   }
 
   *ret = ptr;
   return true;
 }
 
-bool DynamicLibrary::FindOrCreateFunction(Environment* env,
-                                          const std::string& name,
-                                          Local<Object> signature,
-                                          std::shared_ptr<FFIFunction>* ret) {
+bool DynamicLibrary::PrepareFunction(Environment* env,
+                                     const std::string& name,
+                                     Local<Object> signature,
+                                     std::shared_ptr<FFIFunction>* ret,
+                                     bool* should_cache_symbol,
+                                     bool* should_cache_function) {
   std::shared_ptr<FFIFunction> fn;
   auto existing = functions_.find(name);
   ffi_type* return_type = &ffi_type_void;
   std::vector<ffi_type*> args;
+
+  *should_cache_symbol = false;
+  *should_cache_function = false;
 
   if (!ParseFunctionSignature(env, name, signature, &return_type, &args)) {
     return false;
@@ -123,12 +129,17 @@ bool DynamicLibrary::FindOrCreateFunction(Environment* env,
   if (existing == functions_.end()) {
     void* ptr;
 
-    if (!FindOrCreateSymbol(env, name, &ptr)) {
+    if (!ResolveSymbol(env, name, &ptr)) {
       return false;
     }
 
-    fn = std::make_shared<FFIFunction>(FFIFunction{
-        .closed = false, .ptr = ptr, .args = args, .return_type = return_type});
+    *should_cache_symbol = symbols_.find(name) == symbols_.end();
+
+    fn = std::make_shared<FFIFunction>(FFIFunction{.closed = false,
+                                                   .ptr = ptr,
+                                                   .cif = {},
+                                                   .args = args,
+                                                   .return_type = return_type});
 
     ffi_status status = ffi_prep_cif(&fn->cif,
                                      FFI_DEFAULT_ABI,
@@ -153,7 +164,7 @@ bool DynamicLibrary::FindOrCreateFunction(Environment* env,
       return false;
     }
 
-    functions_.emplace(name, fn);
+    *should_cache_function = true;
   } else {
     fn = existing->second;
 
@@ -223,6 +234,9 @@ void DynamicLibrary::New(const FunctionCallbackInfo<Value>& args) {
 
   DynamicLibrary* lib = new DynamicLibrary(env, args.This());
   Utf8Value filename(env->isolate(), args[0]);
+  if (ThrowIfContainsNullBytes(env, filename, "Library path")) {
+    return;
+  }
   lib->path_ = std::string(*filename);
 
   // Open the library
@@ -237,6 +251,8 @@ void DynamicLibrary::New(const FunctionCallbackInfo<Value>& args) {
 
 void DynamicLibrary::Close(const FunctionCallbackInfo<Value>& args) {
   DynamicLibrary* lib = Unwrap<DynamicLibrary>(args.This());
+  // Closing a library from one of its active callbacks is unsupported and
+  // dangerous. Callbacks must return before the owning library is closed.
   lib->Close();
 }
 
@@ -285,6 +301,10 @@ void DynamicLibrary::InvokeFunction(const FunctionCallbackInfo<Value>& args) {
         return;
       }
 
+      if (ThrowIfContainsNullBytes(env, str, "Argument " + std::to_string(i))) {
+        return;
+      }
+
       strings.push_back(*str);
       values[i] = reinterpret_cast<uint64_t>(strings.back().c_str());
       ffi_args[i] = &values[i];
@@ -312,6 +332,10 @@ void DynamicLibrary::InvokeCallback(ffi_cif* cif,
                                     void* user_data) {
   FFICallback* cb = static_cast<FFICallback*>(user_data);
 
+  // It is unsupported and dangerous for a callback to unregister itself or
+  // close its owning library while executing. The current invocation must
+  // return before teardown APIs are used.
+
   if (cb->owner->handle_ == nullptr || cb->ptr == nullptr) {
     if (ret != nullptr && cb->return_type->size > 0) {
       std::memset(ret, 0, GetFFIReturnValueStorageSize(cb->return_type));
@@ -327,7 +351,7 @@ void DynamicLibrary::InvokeCallback(ffi_cif* cif,
 
   if (cb->fn.IsEmpty()) {
     if (ret != nullptr && cb->return_type->size > 0) {
-      std::memset(ret, 0, cb->return_type->size);
+      std::memset(ret, 0, GetFFIReturnValueStorageSize(cb->return_type));
     }
     return;
   }
@@ -400,11 +424,28 @@ void DynamicLibrary::GetFunction(const FunctionCallbackInfo<Value>& args) {
 
   DynamicLibrary* lib = Unwrap<DynamicLibrary>(args.This());
   Utf8Value name(isolate, args[0]);
+  if (ThrowIfContainsNullBytes(env, name, "Function name")) {
+    return;
+  }
   std::shared_ptr<FFIFunction> fn;
+  bool should_cache_symbol;
+  bool should_cache_function;
 
   Local<Object> signature = args[1].As<Object>();
-  if (!lib->FindOrCreateFunction(env, *name, signature, &fn)) {
+  if (!lib->PrepareFunction(env,
+                            *name,
+                            signature,
+                            &fn,
+                            &should_cache_symbol,
+                            &should_cache_function)) {
     return;
+  }
+
+  if (should_cache_symbol) {
+    lib->symbols_.emplace(*name, fn->ptr);
+  }
+  if (should_cache_function) {
+    lib->functions_.emplace(*name, fn);
   }
 
   Local<Function> ret = lib->CreateFunction(env, *name, fn);
@@ -423,6 +464,9 @@ void DynamicLibrary::GetFunctions(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Object> functions = Object::New(isolate);
+  if (!functions->SetPrototypeV2(context, Null(isolate)).FromMaybe(false)) {
+    return;
+  }
 
   if (args.Length() > 0) {
     if (!args[0]->IsObject() || args[0]->IsArray()) {
@@ -436,6 +480,9 @@ void DynamicLibrary::GetFunctions(const FunctionCallbackInfo<Value>& args) {
       return;
     }
 
+    std::vector<ResolvedFunction> pending;
+    pending.reserve(keys->Length());
+
     for (uint32_t i = 0; i < keys->Length(); i++) {
       Local<Value> key;
       Local<Value> signature;
@@ -445,6 +492,9 @@ void DynamicLibrary::GetFunctions(const FunctionCallbackInfo<Value>& args) {
       }
 
       Utf8Value name(isolate, key);
+      if (ThrowIfContainsNullBytes(env, name, "Function name")) {
+        return;
+      }
 
       if (!signatures->Get(env->context(), key).ToLocal(&signature)) {
         return;
@@ -458,16 +508,43 @@ void DynamicLibrary::GetFunctions(const FunctionCallbackInfo<Value>& args) {
       }
 
       std::shared_ptr<FFIFunction> fn;
+      bool should_cache_symbol;
+      bool should_cache_function;
 
       Local<Object> signature_object = signature.As<Object>();
-      if (!lib->FindOrCreateFunction(env, *name, signature_object, &fn)) {
+      if (!lib->PrepareFunction(env,
+                                *name,
+                                signature_object,
+                                &fn,
+                                &should_cache_symbol,
+                                &should_cache_function)) {
         return;
       }
 
-      Local<Function> ret = lib->CreateFunction(env, *name, fn);
+      pending.push_back(ResolvedFunction{
+          .name = *name,
+          .fn = fn,
+          .should_cache_symbol = should_cache_symbol,
+          .should_cache_function = should_cache_function,
+      });
+    }
+
+    for (const auto& item : pending) {
+      if (item.should_cache_symbol) {
+        lib->symbols_.emplace(item.name, item.fn->ptr);
+      }
+      if (item.should_cache_function) {
+        lib->functions_.emplace(item.name, item.fn);
+      }
+    }
+
+    for (const auto& item : pending) {
+      Local<Function> ret = lib->CreateFunction(env, item.name, item.fn);
+
       functions
           ->Set(context,
-                String::NewFromUtf8(isolate, *name, NewStringType::kNormal)
+                String::NewFromUtf8(
+                    isolate, item.name.c_str(), NewStringType::kNormal)
                     .ToLocalChecked(),
                 ret)
           .Check();
@@ -500,11 +577,16 @@ void DynamicLibrary::GetSymbol(const FunctionCallbackInfo<Value>& args) {
 
   DynamicLibrary* lib = Unwrap<DynamicLibrary>(args.This());
   Utf8Value name(isolate, args[0]);
-  void* ptr;
-
-  if (!lib->FindOrCreateSymbol(env, *name, &ptr)) {
+  if (ThrowIfContainsNullBytes(env, name, "Symbol name")) {
     return;
   }
+  void* ptr;
+
+  if (!lib->ResolveSymbol(env, *name, &ptr)) {
+    return;
+  }
+
+  lib->symbols_.emplace(*name, ptr);
 
   args.GetReturnValue().Set(BigInt::NewFromUnsigned(
       isolate, static_cast<uint64_t>(reinterpret_cast<uintptr_t>(ptr))));
@@ -522,6 +604,9 @@ void DynamicLibrary::GetSymbols(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Object> symbols = Object::New(isolate);
+  if (!symbols->SetPrototypeV2(context, Null(isolate)).FromMaybe(false)) {
+    return;
+  }
   for (const auto& entry : lib->symbols_) {
     symbols
         ->Set(context,
@@ -587,6 +672,9 @@ void DynamicLibrary::RegisterCallback(const FunctionCallbackInfo<Value>& args) {
                                   .env = env,
                                   .thread_id = std::this_thread::get_id(),
                                   .fn = Global<Function>(isolate, fn),
+                                  .closure = nullptr,
+                                  .ptr = nullptr,
+                                  .cif = {},
                                   .args = std::move(callback_args),
                                   .return_type = return_type};
 
@@ -685,7 +773,8 @@ void DynamicLibrary::UnregisterCallback(
   // This releases the callback trampoline immediately. If foreign code still
   // retains and invokes the pointer afterwards, the behavior is undefined, not
   // allowed, and dangerous: it can crash the process, produce incorrect
-  // output, or corrupt memory.
+  // output, or corrupt memory. Unregistering a callback while it is currently
+  // executing is also unsupported and dangerous.
   lib->callbacks_.erase(existing);
 }
 

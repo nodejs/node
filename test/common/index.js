@@ -985,6 +985,7 @@ const common = {
   hasQuic,
   hasInspector,
   hasSQLite,
+  hasFFI,
   hasLocalStorage,
   invalidArgTypeHelper,
   isAlive,

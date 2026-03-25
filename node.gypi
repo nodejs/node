@@ -456,6 +456,11 @@
     }, {
       'defines': [ 'HAVE_FFI=0' ]
     }],
+    [ 'node_shared_ffi=="true"', {
+      'defines': [ 'NODE_SHARED_FFI=1' ],
+    }, {
+      'defines': [ 'NODE_SHARED_FFI=0' ]
+    }],
     [ 'node_use_quic=="true"', {
       'defines': [ 'HAVE_QUIC=1' ],
       'conditions': [

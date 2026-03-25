@@ -221,6 +221,8 @@ void reset_counter(void) {
 // Callback operations.
 
 typedef int32_t (*IntCallback)(int32_t);
+typedef int8_t (*Int8Callback)(int8_t);
+typedef const char* (*PointerCallback)(void);
 typedef void (*VoidCallback)(void);
 typedef void (*StringCallback)(const char*);
 typedef int32_t (*BinaryIntCallback)(int32_t, int32_t);
@@ -231,6 +233,22 @@ int32_t call_int_callback(IntCallback callback, int32_t value) {
   }
 
   return callback(value);
+}
+
+int8_t call_int8_callback(Int8Callback callback, int8_t value) {
+  if (!callback) {
+    return 0;
+  }
+
+  return callback(value);
+}
+
+int32_t call_pointer_callback_is_null(PointerCallback callback) {
+  if (!callback) {
+    return 1;
+  }
+
+  return callback() == NULL;
 }
 
 void call_void_callback(VoidCallback callback) {

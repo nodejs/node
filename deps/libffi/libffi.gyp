@@ -6,6 +6,7 @@
       'src/java_raw_api.c',
       'src/prep_cif.c',
       'src/raw_api.c',
+      'src/tramp.c',
       'src/types.c',
     ],
     'libffi_defines%': [],
@@ -18,10 +19,6 @@
           'variables': {
             'libffi_arch_sources': [
               'src/x86/ffiw64.c',
-              'src/x86/win64_intel.S',
-            ],
-            'libffi_defines': [
-              'LIBFFI_HIDE_BASIC_TYPES',
             ],
           },
         }],
@@ -31,9 +28,6 @@
               'src/arm/ffi.c',
               'src/arm/sysv_msvc_arm32.S',
             ],
-            'libffi_defines': [
-              'LIBFFI_HIDE_BASIC_TYPES',
-            ],
           },
         }],
         ['target_arch == "arm64"', {
@@ -41,9 +35,6 @@
             'libffi_arch_sources': [
               'src/aarch64/ffi.c',
               'src/aarch64/win64_armasm.S',
-            ],
-            'libffi_defines': [
-              'LIBFFI_HIDE_BASIC_TYPES',
             ],
           },
         }],
@@ -54,8 +45,10 @@
         ['target_arch == "x64"', {
           'variables': {
             'libffi_arch_sources': [
+              'src/x86/ffiw64.c',
               'src/x86/ffi64.c',
               'src/x86/unix64.S',
+              'src/x86/win64.S',
             ],
           },
         }],
@@ -82,8 +75,10 @@
         ['target_arch == "x64"', {
           'variables': {
             'libffi_arch_sources': [
+              'src/x86/ffiw64.c',
               'src/x86/ffi64.c',
               'src/x86/unix64.S',
+              'src/x86/win64.S',
             ],
           },
         }],
@@ -107,7 +102,7 @@
         'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES',
       },
       'defines': [
-        'FFI_BUILDING',
+        'FFI_STATIC_BUILD',
         '<@(libffi_defines)',
       ],
       'include_dirs': [
@@ -136,11 +131,45 @@
           'action': [
             '<(python)',
             'generate-headers.py',
-            '--output-dir=<(INTERMEDIATE_DIR)',
-            '--target-arch=<(target_arch)',
-            '--os=<(OS)',
+            '--output-dir',
+            '<(INTERMEDIATE_DIR)',
           ],
         },
+      ],
+      'conditions': [
+        ['OS == "win" and target_arch == "x64"', {
+          'actions': [
+            {
+              'action_name': 'preprocess_win64_intel_asm',
+              'process_outputs_as_sources': 1,
+              'inputs': [
+                'preprocess_asm.py',
+                'include/ffi_cfi.h',
+                'src/x86/asmnames.h',
+                'src/x86/win64_intel.S',
+                '<(INTERMEDIATE_DIR)/ffi.h',
+                '<(INTERMEDIATE_DIR)/fficonfig.h',
+              ],
+              'outputs': [
+                '<(INTERMEDIATE_DIR)/win64_intel.asm',
+              ],
+              'action': [
+                '<(python)',
+                'preprocess_asm.py',
+                '--input',
+                'src/x86/win64_intel.S',
+                '--output',
+                '<@(_outputs)',
+                '--include-dir',
+                'include',
+                '--include-dir',
+                'src/x86',
+                '--define',
+                'FFI_STATIC_BUILD',
+              ],
+            },
+          ],
+        }],
       ],
       'direct_dependent_settings': {
         'include_dirs': [
@@ -148,7 +177,7 @@
           '<(INTERMEDIATE_DIR)',
         ],
         'defines': [
-          'FFI_BUILDING',
+          'FFI_STATIC_BUILD',
         ],
       },
     },

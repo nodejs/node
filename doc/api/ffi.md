@@ -30,8 +30,18 @@ const ffi = require('node:ffi');
 This module is only available under the `node:` scheme in builds with FFI
 support and is gated by the `--experimental-ffi` flag.
 
-When using the [Permission Model][], FFI APIs are restricted unless the
-[`--allow-ffi`][] flag is provided.
+Bundled libffi support currently targets:
+
+* macOS on `arm64` and `x64`
+* Windows on `arm64` and `x64`
+* FreeBSD on `arm`, `arm64`, and `x64`
+* Linux on `arm`, `arm64`, and `x64`
+
+Other targets require building Node.js against a shared libffi with
+`--shared-ffi`. The unofficial GN build does not support `node:ffi`.
+
+When using the [Permission Model][], FFI APIs are
+restricted unless the [`--allow-ffi`][] flag is provided.
 
 ## Overview
 
@@ -68,6 +78,16 @@ Supported type names:
 
 Pointer-like types (`pointer`, `string`, `buffer`, `arraybuffer`, and
 `function`) are all passed through the native layer as pointers.
+
+When `Buffer`, `ArrayBuffer`, or typed array values are passed as pointer-like
+arguments, Node.js borrows a raw pointer to their backing memory for the
+duration of the native call. The caller must ensure that backing store remains
+valid and stable for the entire call.
+
+It is unsupported and dangerous to resize, transfer, detach, or otherwise
+invalidate that backing store while the native call is active, including
+through reentrant JavaScript such as FFI callbacks. Doing so may crash the
+process, produce incorrect output, or corrupt memory.
 
 The `char` type follows the platform C ABI. On platforms where plain C `char`
 is signed it behaves like `i8`; otherwise it behaves like `u8`.
@@ -220,6 +240,10 @@ behavior, is not allowed, and is dangerous: it can crash the process, produce
 incorrect output, or corrupt memory. Native code must stop using callback
 addresses before the library is closed or before the callback is unregistered.
 
+Calling `library.close()` from one of the library's active callbacks is
+unsupported and dangerous. The callback must return before the library is
+closed.
+
 ### `library.getFunction(name, signature)`
 
 * `name` {string}
@@ -301,12 +325,22 @@ Callbacks are subject to the following restrictions:
 * They must not throw exceptions.
 * They must not return promises.
 * They must return a value compatible with the declared result type.
+* They must not call `library.close()` on their owning library while running.
+* They must not unregister themselves while running.
+
+Closing the owning library or unregistering the currently executing callback
+from inside the callback is unsupported and dangerous. Doing so may crash the
+process, produce incorrect output, or corrupt memory.
 
 ### `library.unregisterCallback(pointer)`
 
 * `pointer` {bigint}
 
 Releases a callback previously created with `library.registerCallback()`.
+
+Calling `library.unregisterCallback(pointer)` for a callback that is currently
+executing is unsupported and dangerous. The callback must return before it is
+unregistered.
 
 After `library.unregisterCallback(pointer)` returns, invoking that callback
 pointer from native code has undefined behavior, is not allowed, and is
@@ -476,7 +510,8 @@ When `copy` is `false`, the returned `ArrayBuffer` references the original
 native memory directly.
 
 The same lifetime and bounds requirements described for
-[`ffi.toBuffer()`][] apply here. With `copy: false`, the
+[`ffi.toBuffer(pointer, length, copy)`][] apply
+here. With `copy: false`, the
 returned `ArrayBuffer` is a zero-copy view of foreign memory and is only safe
 while that memory remains allocated, unchanged in layout, and valid for the
 entire exposed range.
@@ -492,10 +527,12 @@ added: REPLACEME
 * `length` {number}
 * `encoding` {string} **Default:** `'utf8'`.
 
-Copies a JavaScript string into native memory and appends a trailing NUL byte
-when space is available.
+Copies a JavaScript string into native memory and appends a trailing NUL
+terminator.
 
-If `length` is too small, the string is truncated to fit.
+`length` must be large enough to hold the full encoded string plus the trailing
+NUL terminator. For UTF-16 and UCS-2 encodings, the trailing terminator uses
+two zero bytes.
 
 `pointer` must refer to writable native memory with at least `length` bytes of
 available storage. This function does not allocate memory on its own.
@@ -514,8 +551,7 @@ added: REPLACEME
 
 Copies bytes from a `Buffer` into native memory.
 
-If `length` is smaller than `buffer.length`, only the first `length` bytes are
-copied.
+`length` must be at least `buffer.length`.
 
 `pointer` must refer to writable native memory with at least `length` bytes of
 available storage. This function does not allocate memory on its own.
@@ -545,4 +581,4 @@ and keep callback and pointer lifetimes explicit on the native side.
 
 [Permission Model]: permissions.md#permission-model
 [`--allow-ffi`]: cli.md#--allow-ffi
-[`ffi.toBuffer()`]: #ffitobufferpointer-length-copy
+[`ffi.toBuffer(pointer, length, copy)`]: #ffitobufferpointer-length-copy

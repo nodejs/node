@@ -2217,7 +2217,7 @@ def bundled_ffi_supported(os_name, target_arch):
     'freebsd': {'arm', 'arm64', 'x64'},
     'linux': {'arm', 'arm64', 'x64'},
     'mac': {'arm64', 'x64'},
-    'win': {'arm', 'arm64', 'x64'},
+    'win': {'arm64', 'x64'},
   }
 
   if target_arch == 'x86':

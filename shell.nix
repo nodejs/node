@@ -16,6 +16,7 @@
   withLief ? true,
   withQuic ? false,
   withSQLite ? true,
+  withFFI ? true,
   withSSL ? true,
   withTemporal ? false,
   sharedLibDeps ? (
@@ -25,6 +26,7 @@
         withLief
         withQuic
         withSQLite
+        withFFI
         withSSL
         withTemporal
         ;
@@ -105,6 +107,7 @@ pkgs.mkShell {
     ++ pkgs.lib.optional (!withLief) "--without-lief"
     ++ pkgs.lib.optional withQuic "--experimental-quic"
     ++ pkgs.lib.optional (!withSQLite) "--without-sqlite"
+    ++ pkgs.lib.optional (!withFFI) "--without-ffi"
     ++ pkgs.lib.optional (!withSSL) "--without-ssl"
     ++ pkgs.lib.optional loadJSBuiltinsDynamically "--node-builtin-modules-path=${builtins.toString ./.}"
     ++ pkgs.lib.optional (useSeparateDerivationForV8 != false) "--without-bundled-v8"

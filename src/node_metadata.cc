@@ -15,6 +15,9 @@
 #include "quic/guard.h"
 #include "sqlite3.h"
 #endif  // HAVE_SQLITE
+#if HAVE_FFI
+#include "ffi.h"
+#endif  // HAVE_FFI
 #include "undici_version.h"
 #include "util.h"
 #include "uv.h"
@@ -51,10 +54,6 @@
 #if HAVE_LIEF
 #include "LIEF/version.h"
 #endif
-
-#if HAVE_FFI
-#include "ffi.h"
-#endif  // HAVE_FFI
 
 namespace node {
 
