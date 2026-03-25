@@ -596,10 +596,11 @@ implementations in several ways:
   [CORS][]. Node.js does not send preflight requests or validate
   `Access-Control-Allow-Origin` headers, since server-side requests do
   not have an origin. All cross-origin requests are allowed by default.
-* **No forbidden headers.** The [Fetch Standard][] forbids setting
+* **Fewer forbidden headers.** The [Fetch Standard][] forbids setting
   certain headers (such as `Cookie`, `Host`, and `Origin`) in browser
-  contexts. Node.js removes these restrictions, allowing full control
-  over all request headers.
+  contexts. Node.js removes most of these restrictions (for example,
+  `Cookie` and `Origin` can be set freely), but some headers such as
+  `Host` remain restricted for security reasons.
 * **`Response` accepts async iterables.** `new Response(body)` accepts
   async iterables as the `body` argument. This is a Node.js extension
   not present in the Fetch Standard.
