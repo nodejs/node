@@ -46,14 +46,14 @@ const { exports: { get0, get1, get2, get3, set } } =
   new WebAssembly.Instance(new WebAssembly.Module(wasmBytes));
 
 // Test 1: v128.const initializer lanes are read back correctly.
-assert.strictEqual(get0(), 1, 'v128.const lane 0 should be 1');
-assert.strictEqual(get1(), 2, 'v128.const lane 1 should be 2');
-assert.strictEqual(get2(), 3, 'v128.const lane 2 should be 3');
-assert.strictEqual(get3(), 4, 'v128.const lane 3 should be 4');
+assert.strictEqual(get0(), 1);
+assert.strictEqual(get1(), 2);
+assert.strictEqual(get2(), 3);
+assert.strictEqual(get3(), 4);
 
 // Test 2: replace_lane -> global.set -> global.get -> extract_lane round-trip.
 set(10, 20, 30, 40);
-assert.strictEqual(get0(), 10, 'after set, lane 0 should be 10');
-assert.strictEqual(get1(), 20, 'after set, lane 1 should be 20');
-assert.strictEqual(get2(), 30, 'after set, lane 2 should be 30');
-assert.strictEqual(get3(), 40, 'after set, lane 3 should be 40');
+assert.strictEqual(get0(), 10);
+assert.strictEqual(get1(), 20);
+assert.strictEqual(get2(), 30);
+assert.strictEqual(get3(), 40);
