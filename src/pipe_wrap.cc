@@ -223,7 +223,6 @@ void PipeWrap::WatchPeerClose(const FunctionCallbackInfo<Value>& args) {
   CHECK_GT(args.Length(), 0);
   CHECK(args[0]->IsBoolean());
   const bool enable = args[0].As<v8::Boolean>()->Value();
-  
   Environment* env = wrap->env();
   Isolate* isolate = env->isolate();
   v8::HandleScope handle_scope(isolate);
@@ -232,7 +231,9 @@ void PipeWrap::WatchPeerClose(const FunctionCallbackInfo<Value>& args) {
 
   // UnwatchPeerClose
   if (!enable) {
-    if (obj->GetInternalField(kPeerCloseCallbackField).As<Value>()->IsUndefined()) {
+    if (obj->GetInternalField(kPeerCloseCallbackField)
+            .As<Value>()
+            ->IsUndefined()) {
       return;
     }
 
@@ -244,8 +245,9 @@ void PipeWrap::WatchPeerClose(const FunctionCallbackInfo<Value>& args) {
   if (!wrap->IsAlive()) {
     return;
   }
-
-  if (!obj->GetInternalField(kPeerCloseCallbackField).As<Value>()->IsUndefined()) {
+  if (!obj->GetInternalField(kPeerCloseCallbackField)
+           .As<Value>()
+           ->IsUndefined()) {
     return;
   }
 
@@ -296,11 +298,13 @@ void PipeWrap::PeerCloseRead(uv_stream_t* stream,
   Local<Object> obj = wrap->object();
 
   // Check if callback is set
-  if (obj->GetInternalField(kPeerCloseCallbackField).As<Value>()->IsUndefined()) {
+  if (obj->GetInternalField(kPeerCloseCallbackField)
+          .As<Value>()
+          ->IsUndefined()) {
     return;
   }
-
-  Local<Value> cb_value = obj->GetInternalField(kPeerCloseCallbackField).As<Value>();
+  Local<Value> cb_value =
+      obj->GetInternalField(kPeerCloseCallbackField).As<Value>();
   Local<Function> cb = cb_value.As<Function>();
   // Reset before calling to prevent re-entrancy issues
   obj->SetInternalField(kPeerCloseCallbackField, v8::Undefined(isolate));
