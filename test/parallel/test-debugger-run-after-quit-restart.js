@@ -41,7 +41,7 @@ const path = require('path');
     .then(() => {
       assert.match(cli.output, /Use `run` to start the app again/);
     })
-    .then(() => cli.stepCommand('run'))
+    .then(() => cli.command('run'))
     .then(() => cli.waitForInitialBreak())
     .then(() => cli.waitForPrompt())
     .then(() => {
@@ -71,7 +71,7 @@ const path = require('path');
     .then(() => {
       assert.match(cli.output, /Use `run` to start the app again/);
     })
-    .then(() => cli.stepCommand('run'))
+    .then(() => cli.command('run'))
     .then(() => cli.waitForInitialBreak())
     .then(() => cli.waitForPrompt())
     .then(() => {
