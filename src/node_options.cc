@@ -1206,6 +1206,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
 
 PerIsolateOptionsParser::PerIsolateOptionsParser(
   const EnvironmentOptionsParser& eop) {
+  AddOption("--enable-eval",
+            "explicitly enable eval() and Function() "
+            "(disabled by default for security)",
+            &PerIsolateOptions::enable_eval,
+            kAllowedInEnvvar);
   AddOption("--track-heap-objects",
             "track heap object allocations for heap snapshots",
             &PerIsolateOptions::track_heap_objects,

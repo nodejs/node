@@ -287,6 +287,7 @@ class PerIsolateOptions : public Options {
   PerIsolateOptions(PerIsolateOptions&&) = default;
 
   std::shared_ptr<EnvironmentOptions> per_env { new EnvironmentOptions() };
+  bool enable_eval = false;
   bool track_heap_objects = false;
   bool report_uncaught_exception = false;
   bool report_on_signal = false;
