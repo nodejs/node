@@ -53,11 +53,8 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
 
   Environment* env = Environment::GetCurrent(isolate);
 
-  if (env == nullptr || !env->can_call_into_js()) return;
-
-  // multipleResolves was removed in v25 (PR #58707).  Skip all work for
-  // these events to avoid OOM in tight Promise.race() loops (#51452).
-  if (event == kPromiseResolveAfterResolved ||
+  if (env == nullptr || !env->can_call_into_js() ||
+      event == kPromiseResolveAfterResolved ||
       event == kPromiseRejectAfterResolved) {
     return;
   }
