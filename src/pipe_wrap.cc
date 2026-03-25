@@ -162,11 +162,6 @@ PipeWrap::PipeWrap(Environment* env,
                    // Suggestion: uv_pipe_init() returns void.
 }
 
-PipeWrap::~PipeWrap() {
-  peer_close_watching_ = false;
-  peer_close_cb_.Reset();
-}
-
 void PipeWrap::Bind(const FunctionCallbackInfo<Value>& args) {
   PipeWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
@@ -228,16 +223,20 @@ void PipeWrap::WatchPeerClose(const FunctionCallbackInfo<Value>& args) {
   CHECK_GT(args.Length(), 0);
   CHECK(args[0]->IsBoolean());
   const bool enable = args[0].As<v8::Boolean>()->Value();
+  
+  Environment* env = wrap->env();
+  Isolate* isolate = env->isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Context::Scope context_scope(env->context());
+  Local<Object> obj = wrap->object();
 
   // UnwatchPeerClose
   if (!enable) {
-    if (!wrap->peer_close_watching_) {
-      wrap->peer_close_cb_.Reset();
+    if (obj->GetInternalField(kPeerCloseCallbackField).As<Value>()->IsUndefined()) {
       return;
     }
 
-    wrap->peer_close_watching_ = false;
-    wrap->peer_close_cb_.Reset();
+    obj->SetInternalField(kPeerCloseCallbackField, v8::Undefined(isolate));
     uv_read_stop(wrap->stream());
     return;
   }
@@ -246,26 +245,21 @@ void PipeWrap::WatchPeerClose(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  if (wrap->peer_close_watching_) {
+  if (!obj->GetInternalField(kPeerCloseCallbackField).As<Value>()->IsUndefined()) {
     return;
   }
 
   CHECK_GT(args.Length(), 1);
   CHECK(args[1]->IsFunction());
 
-  Environment* env = wrap->env();
-  Isolate* isolate = env->isolate();
-
-  // Store the JS callback securely so it isn't garbage collected.
-  wrap->peer_close_cb_.Reset(isolate, args[1].As<Function>());
-  wrap->peer_close_watching_ = true;
+  // Store the JS callback in an internal field.
+  obj->SetInternalField(kPeerCloseCallbackField, args[1]);
 
   // Start reading to detect EOF/ECONNRESET from the peer.
   // We use our custom allocator and reader, ignoring actual data.
   int err = uv_read_start(wrap->stream(), PeerCloseAlloc, PeerCloseRead);
   if (err != 0) {
-    wrap->peer_close_watching_ = false;
-    wrap->peer_close_cb_.Reset();
+    obj->SetInternalField(kPeerCloseCallbackField, v8::Undefined(isolate));
   }
 }
 
@@ -282,7 +276,7 @@ void PipeWrap::PeerCloseRead(uv_stream_t* stream,
                              ssize_t nread,
                              const uv_buf_t* buf) {
   PipeWrap* wrap = static_cast<PipeWrap*>(stream->data);
-  if (wrap == nullptr || !wrap->peer_close_watching_) return;
+  if (wrap == nullptr) return;
 
   // Ignore actual data reads or EAGAIN (0). We only watch for disconnects.
   if (nread > 0 || nread == 0) return;
@@ -291,22 +285,25 @@ void PipeWrap::PeerCloseRead(uv_stream_t* stream,
   if (nread != UV_EOF && nread != UV_ECONNRESET) return;
 
   // Peer has closed the connection. Stop reading immediately.
-  wrap->peer_close_watching_ = false;
   uv_read_stop(stream);
 
-  if (wrap->peer_close_cb_.IsEmpty()) return;
   Environment* env = wrap->env();
   Isolate* isolate = env->isolate();
 
   // Set up V8 context and handles to safely execute the JS callback.
   v8::HandleScope handle_scope(isolate);
   v8::Context::Scope context_scope(env->context());
-  Local<Function> cb = wrap->peer_close_cb_.Get(isolate);
-  // Reset before calling to prevent re-entrancy issues
-  wrap->peer_close_cb_.Reset();
+  Local<Object> obj = wrap->object();
 
-  errors::TryCatchScope try_catch(env);
-  try_catch.SetVerbose(true);
+  // Check if callback is set
+  if (obj->GetInternalField(kPeerCloseCallbackField).As<Value>()->IsUndefined()) {
+    return;
+  }
+
+  Local<Value> cb_value = obj->GetInternalField(kPeerCloseCallbackField).As<Value>();
+  Local<Function> cb = cb_value.As<Function>();
+  // Reset before calling to prevent re-entrancy issues
+  obj->SetInternalField(kPeerCloseCallbackField, v8::Undefined(isolate));
 
   // MakeCallback properly tracks AsyncHooks context and flushes microtasks.
   wrap->MakeCallback(cb, 0, nullptr);

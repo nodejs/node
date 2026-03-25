@@ -40,6 +40,11 @@ class PipeWrap : public ConnectionWrap<PipeWrap, uv_pipe_t> {
     IPC
   };
 
+  enum InternalFields {
+    kPeerCloseCallbackField = LibuvStreamWrap::kInternalFieldCount,
+    kInternalFieldCount
+  };
+
   static v8::MaybeLocal<v8::Object> Instantiate(Environment* env,
                                                 AsyncWrap* parent,
                                                 SocketType type);
@@ -54,7 +59,6 @@ class PipeWrap : public ConnectionWrap<PipeWrap, uv_pipe_t> {
   SET_SELF_SIZE(PipeWrap)
 
  private:
-  ~PipeWrap() override;
   PipeWrap(Environment* env,
            v8::Local<v8::Object> object,
            ProviderType provider,
@@ -78,9 +82,6 @@ class PipeWrap : public ConnectionWrap<PipeWrap, uv_pipe_t> {
       const v8::FunctionCallbackInfo<v8::Value>& args);
 #endif
   static void Fchmod(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  bool peer_close_watching_ = false;
-  v8::Global<v8::Function> peer_close_cb_;
 };
 
 
