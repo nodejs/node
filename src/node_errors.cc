@@ -659,8 +659,7 @@ v8::ModifyCodeGenerationFromStringsResult ModifyCodeGenerationFromStrings(
 
   Local<Value> allow_code_gen = context->GetEmbedderData(
       ContextEmbedderIndex::kAllowCodeGenerationFromStrings);
-  bool codegen_allowed =
-      allow_code_gen->IsUndefined() || allow_code_gen->IsTrue();
+  bool codegen_allowed = allow_code_gen->IsTrue();
   return {
       codegen_allowed,
       {},

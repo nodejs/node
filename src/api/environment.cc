@@ -822,7 +822,8 @@ Maybe<void> InitializeContextRuntime(Local<Context> context) {
   // The `IsCodeGenerationFromStringsAllowed` can be refreshed by V8 according
   // to the runtime flags, propagate the value to the embedder data.
   bool is_code_generation_from_strings_allowed =
-      context->IsCodeGenerationFromStringsAllowed();
+      context->IsCodeGenerationFromStringsAllowed() &&
+      per_process::cli_options->per_isolate->enable_eval;
   context->AllowCodeGenerationFromStrings(false);
   context->SetEmbedderData(
       ContextEmbedderIndex::kAllowCodeGenerationFromStrings,
@@ -923,7 +924,7 @@ Maybe<void> InitializeMainContextForSnapshot(Local<Context> context) {
   context->SetEmbedderData(ContextEmbedderIndex::kAllowWasmCodeGeneration,
                            True(isolate));
   context->SetEmbedderData(
-      ContextEmbedderIndex::kAllowCodeGenerationFromStrings, True(isolate));
+      ContextEmbedderIndex::kAllowCodeGenerationFromStrings, False(isolate));
 
   if (InitializeBaseContextForSnapshot(context).IsNothing()) {
     return Nothing<void>();
