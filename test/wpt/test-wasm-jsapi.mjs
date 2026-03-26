@@ -18,14 +18,5 @@ if (supportsSimd) {
   const runner = new WPTRunner('wasm/jsapi');
   runner.setFlags(['--experimental-wasm-modules']);
 
-  // v128 SIMD globals are broken on s390x due to a V8 big-endian bug.
-  if (process.arch === 's390x') {
-    for (const spec of runner.specs) {
-      if (spec.filename === 'esm-integration/mutable-global-sharing.tentative.any.js') {
-        spec.skipReasons.push('v128 SIMD globals broken on s390x due to V8 big-endian bug');
-      }
-    }
-  }
-
   runner.runJsTests();
 }

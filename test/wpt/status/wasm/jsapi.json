@@ -12,6 +12,9 @@
       ]
     }
   },
+  "esm-integration/mutable-global-sharing.tentative.any.js": {
+    "skip": "v128 SIMD globals broken on big-endian platforms due to a V8 bug"
+  },
   "esm-integration/v128-tdz.tentative.any.js": {
     "skip": "v128 undefined Wasm bindings not yet supported in V8"
   },
