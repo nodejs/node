@@ -132,6 +132,10 @@ Pay special attention to pull requests for dependencies which have not
 been automatically generated and follow the guidance in
 [Maintaining Dependencies](https://github.com/nodejs/node/blob/main/doc/contributing/maintaining/maintaining-dependencies.md#updating-dependencies).
 
+The project does not accept commits containing LLM-generated content. See the
+[policy on LLM-generated contributions][] for the full policy and the process
+for raising concerns during review.
+
 In some cases, it might be necessary to summon a GitHub team to a pull request
 for review by @-mention.
 See [Who to CC in the issue tracker](#who-to-cc-in-the-issue-tracker).
@@ -1057,6 +1061,7 @@ need to be attached anymore, as only important bugfixes will be included.
 [macos]: https://github.com/orgs/nodejs/teams/platform-macos
 [node-core-utils-credentials]: https://github.com/nodejs/node-core-utils#setting-up-credentials
 [node-core-utils-issues]: https://github.com/nodejs/node-core-utils/issues
+[policy on LLM-generated contributions]: ai-contributions.md
 [ppc]: https://github.com/orgs/nodejs/teams/platform-ppc
 [s390]: https://github.com/orgs/nodejs/teams/platform-s390
 [smartos]: https://github.com/orgs/nodejs/teams/platform-smartos

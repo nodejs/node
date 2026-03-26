@@ -19,6 +19,7 @@ works.
 * [Code of Conduct](#code-of-conduct)
 * [Issues](#issues)
 * [Pull Requests](#pull-requests)
+* [Policy on LLM-generated contributions](#policy-on-llm-generated-contributions)
 * [Developer's Certificate of Origin 1.1](#developers-certificate-of-origin-11)
 
 ## [Code of Conduct](./doc/contributing/code-of-conduct.md)
@@ -46,6 +47,13 @@ dependencies, and tools contained in the `nodejs/node` repository.
 * [The Process of Making Changes](./doc/contributing/pull-requests.md#the-process-of-making-changes)
 * [Reviewing Pull Requests](./doc/contributing/pull-requests.md#reviewing-pull-requests)
 * [Notes](./doc/contributing/pull-requests.md#notes)
+
+## [Policy on LLM-generated contributions](./doc/contributing/ai-contributions.md)
+
+Do not submit commits containing content written in whole or in part by a
+large language model (LLM) or AI code-generation tool.
+
+See the [full policy on LLM-generated contributions](./doc/contributing/ai-contributions.md).
 
 ## Developer's Certificate of Origin 1.1
 
