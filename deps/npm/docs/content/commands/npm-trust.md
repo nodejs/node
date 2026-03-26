@@ -6,10 +6,6 @@ description: Manage trusted publishing relationships between packages and CI/CD 
 
 ### Synopsis
 
-```bash
-
-```
-
 Note: This command is unaware of workspaces.
 
 ### Prerequisites
