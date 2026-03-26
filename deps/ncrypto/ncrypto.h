@@ -1578,8 +1578,9 @@ int NoPasswordCallback(char* buf, int size, int rwflag, void* u);
 
 int PasswordCallback(char* buf, int size, int rwflag, void* u);
 
-bool SafeX509SubjectAltNamePrint(const BIOPointer& out, X509_EXTENSION* ext);
-bool SafeX509InfoAccessPrint(const BIOPointer& out, X509_EXTENSION* ext);
+bool SafeX509SubjectAltNamePrint(const BIOPointer& out,
+                                 const X509_EXTENSION* ext);
+bool SafeX509InfoAccessPrint(const BIOPointer& out, const X509_EXTENSION* ext);
 
 // ============================================================================
 // SPKAC

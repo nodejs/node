@@ -777,11 +777,15 @@ bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
     // Note that the preferred name syntax (see RFCs 5280 and 1034) with
     // wildcards is a subset of what we consider "safe", so spec-compliant DNS
     // names will never need to be escaped.
-    PrintAltName(out, reinterpret_cast<const char*>(name->data), name->length);
+    PrintAltName(out,
+                 reinterpret_cast<const char*>(ASN1_STRING_get0_data(name)),
+                 ASN1_STRING_length(name));
   } else if (gen->type == GEN_EMAIL) {
     ASN1_IA5STRING* name = gen->d.rfc822Name;
     BIO_write(out.get(), "email:", 6);
-    PrintAltName(out, reinterpret_cast<const char*>(name->data), name->length);
+    PrintAltName(out,
+                 reinterpret_cast<const char*>(ASN1_STRING_get0_data(name)),
+                 ASN1_STRING_length(name));
   } else if (gen->type == GEN_URI) {
     ASN1_IA5STRING* name = gen->d.uniformResourceIdentifier;
     BIO_write(out.get(), "URI:", 4);
@@ -789,7 +793,9 @@ bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
     // with a few exceptions, most notably URIs that contains commas (see
     // RFC 2396). In other words, most legitimate URIs will not require
     // escaping.
-    PrintAltName(out, reinterpret_cast<const char*>(name->data), name->length);
+    PrintAltName(out,
+                 reinterpret_cast<const char*>(ASN1_STRING_get0_data(name)),
+                 ASN1_STRING_length(name));
   } else if (gen->type == GEN_DIRNAME) {
     // Earlier versions of Node.js used X509_NAME_oneline to print the X509_NAME
     // object. The format was non standard and should be avoided. The use of
@@ -822,17 +828,18 @@ bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
   } else if (gen->type == GEN_IPADD) {
     BIO_printf(out.get(), "IP Address:");
     const ASN1_OCTET_STRING* ip = gen->d.ip;
-    const unsigned char* b = ip->data;
-    if (ip->length == 4) {
+    const unsigned char* b = ASN1_STRING_get0_data(ip);
+    int ip_len = ASN1_STRING_length(ip);
+    if (ip_len == 4) {
       BIO_printf(out.get(), "%d.%d.%d.%d", b[0], b[1], b[2], b[3]);
-    } else if (ip->length == 16) {
+    } else if (ip_len == 16) {
       for (unsigned int j = 0; j < 8; j++) {
         uint16_t pair = (b[2 * j] << 8) | b[2 * j + 1];
         BIO_printf(out.get(), (j == 0) ? "%X" : ":%X", pair);
       }
     } else {
 #if OPENSSL_VERSION_MAJOR >= 3
-      BIO_printf(out.get(), "<invalid length=%d>", ip->length);
+      BIO_printf(out.get(), "<invalid length=%d>", ip_len);
 #else
       BIO_printf(out.get(), "<invalid>");
 #endif
@@ -882,15 +889,15 @@ bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
       if (unicode) {
         auto name = gen->d.otherName->value->value.utf8string;
         PrintAltName(out,
-                     reinterpret_cast<const char*>(name->data),
-                     name->length,
+                     reinterpret_cast<const char*>(ASN1_STRING_get0_data(name)),
+                     ASN1_STRING_length(name),
                      AltNameOption::UTF8,
                      prefix);
       } else {
         auto name = gen->d.otherName->value->value.ia5string;
         PrintAltName(out,
-                     reinterpret_cast<const char*>(name->data),
-                     name->length,
+                     reinterpret_cast<const char*>(ASN1_STRING_get0_data(name)),
+                     ASN1_STRING_length(name),
                      AltNameOption::NONE,
                      prefix);
       }
@@ -911,11 +918,14 @@ bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
 }
 }  // namespace
 
-bool SafeX509SubjectAltNamePrint(const BIOPointer& out, X509_EXTENSION* ext) {
-  auto ret = OBJ_obj2nid(X509_EXTENSION_get_object(ext));
+bool SafeX509SubjectAltNamePrint(const BIOPointer& out,
+                                 const X509_EXTENSION* ext) {
+  // const_cast needed for OpenSSL < 4.0 which lacks const-correctness
+  auto* mext = const_cast<X509_EXTENSION*>(ext);
+  auto ret = OBJ_obj2nid(X509_EXTENSION_get_object(mext));
   if (ret != NID_subject_alt_name) return false;
 
-  GENERAL_NAMES* names = static_cast<GENERAL_NAMES*>(X509V3_EXT_d2i(ext));
+  GENERAL_NAMES* names = static_cast<GENERAL_NAMES*>(X509V3_EXT_d2i(mext));
   if (names == nullptr) return false;
 
   bool ok = true;
@@ -934,12 +944,14 @@ bool SafeX509SubjectAltNamePrint(const BIOPointer& out, X509_EXTENSION* ext) {
   return ok;
 }
 
-bool SafeX509InfoAccessPrint(const BIOPointer& out, X509_EXTENSION* ext) {
-  auto ret = OBJ_obj2nid(X509_EXTENSION_get_object(ext));
+bool SafeX509InfoAccessPrint(const BIOPointer& out, const X509_EXTENSION* ext) {
+  // const_cast needed for OpenSSL < 4.0 which lacks const-correctness
+  auto* mext = const_cast<X509_EXTENSION*>(ext);
+  auto ret = OBJ_obj2nid(X509_EXTENSION_get_object(mext));
   if (ret != NID_info_access) return false;
 
   AUTHORITY_INFO_ACCESS* descs =
-      static_cast<AUTHORITY_INFO_ACCESS*>(X509V3_EXT_d2i(ext));
+      static_cast<AUTHORITY_INFO_ACCESS*>(X509V3_EXT_d2i(mext));
   if (descs == nullptr) return false;
 
   bool ok = true;
@@ -1083,7 +1095,7 @@ BIOPointer X509View::getValidFrom() const {
   if (cert_ == nullptr) return {};
   BIOPointer bio(BIO_new(BIO_s_mem()));
   if (!bio) return {};
-  ASN1_TIME_print(bio.get(), X509_get_notBefore(cert_));
+  ASN1_TIME_print(bio.get(), X509_get0_notBefore(cert_));
   return bio;
 }
 
@@ -1092,7 +1104,7 @@ BIOPointer X509View::getValidTo() const {
   if (cert_ == nullptr) return {};
   BIOPointer bio(BIO_new(BIO_s_mem()));
   if (!bio) return {};
-  ASN1_TIME_print(bio.get(), X509_get_notAfter(cert_));
+  ASN1_TIME_print(bio.get(), X509_get0_notAfter(cert_));
   return bio;
 }
 
@@ -4643,12 +4655,12 @@ bool X509Name::Iterator::operator!=(const Iterator& other) const {
 std::pair<std::string, std::string> X509Name::Iterator::operator*() const {
   if (loc_ == name_.total_) return {{}, {}};
 
-  X509_NAME_ENTRY* entry = X509_NAME_get_entry(name_, loc_);
+  const X509_NAME_ENTRY* entry = X509_NAME_get_entry(name_, loc_);
   if (entry == nullptr) [[unlikely]]
     return {{}, {}};
 
-  ASN1_OBJECT* name = X509_NAME_ENTRY_get_object(entry);
-  ASN1_STRING* value = X509_NAME_ENTRY_get_data(entry);
+  const ASN1_OBJECT* name = X509_NAME_ENTRY_get_object(entry);
+  const ASN1_STRING* value = X509_NAME_ENTRY_get_data(entry);
 
   if (name == nullptr || value == nullptr) [[unlikely]] {
     return {{}, {}};
