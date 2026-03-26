@@ -1940,6 +1940,24 @@ def configure_node(o):
   o['variables']['enable_pgo_generate'] = b(options.enable_pgo_generate)
   o['variables']['enable_pgo_use']      = b(options.enable_pgo_use)
 
+  if flavor == 'win' and (options.enable_pgo_generate or options.enable_pgo_use):
+    lib_suffix = 'aarch64' if target_arch == 'arm64' else 'x86_64'
+    lib_name = f'clang_rt.profile-{lib_suffix}.lib'
+    msvc_dir = target_arch  # 'x64' or 'arm64'
+
+    vc_tools_dir = os.environ.get('VCToolsInstallDir', '')
+    if vc_tools_dir:
+      clang_profile_lib = os.path.join(vc_tools_dir, 'lib', msvc_dir, lib_name)
+      if os.path.isfile(clang_profile_lib):
+        o['variables']['clang_profile_lib'] = clang_profile_lib
+      else:
+        raise Exception(
+          f'PGO profile runtime library not found at {clang_profile_lib}. '
+          'Ensure the ClangCL toolset is installed.')
+    else:
+      raise Exception(
+        'VCToolsInstallDir not set. Run from a Visual Studio command prompt.')
+
   if flavor != 'win' and options.enable_thin_lto:
     raise Exception(
       'Use --enable-lto instead.')
