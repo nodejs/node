@@ -82,8 +82,9 @@ connect({
 }, common.mustCall((err, pair, cleanup) => {
   assert.strictEqual(pair.server.err.code,
                      'ERR_SSL_PEER_DID_NOT_RETURN_A_CERTIFICATE');
-  const expectedErr = hasOpenSSL(3, 2) ?
-    'ERR_SSL_SSL/TLS_ALERT_HANDSHAKE_FAILURE' : 'ERR_SSL_SSLV3_ALERT_HANDSHAKE_FAILURE';
+  const expectedErr = hasOpenSSL(4, 0) ?
+    'ERR_SSL_TLS_ALERT_HANDSHAKE_FAILURE' : hasOpenSSL(3, 2) ?
+      'ERR_SSL_SSL/TLS_ALERT_HANDSHAKE_FAILURE' : 'ERR_SSL_SSLV3_ALERT_HANDSHAKE_FAILURE';
   assert.strictEqual(pair.client.err.code,
                      expectedErr);
   return cleanup();
