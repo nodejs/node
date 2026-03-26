@@ -10,8 +10,8 @@
 Do not submit commits containing code, documentation, or other content
 written in whole or in part by a large language model (LLM), AI
 code-generation tool, or similar technology. This includes cases where an
-LLM produced a draft that the contributor then edited. Contributors must be
-the sole human authors of the changes they submit.
+LLM produced a draft that the contributor then edited. All authorship of
+submitted changes must be human.
 
 ## Scope
 
@@ -70,8 +70,6 @@ with the Node.js license. Contributors certify their submissions under the
 [Developer's Certificate of Origin 1.1][DCO], which requires that the
 contribution was created by them and that they have the right to submit it.
 It is not clear how anyone can honestly certify that for LLM output.
-
-This policy can be revisited if the legal situation or the tools change.
 
 [Code of Conduct]: https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md
 [DCO]: ../../CONTRIBUTING.md#developers-certificate-of-origin-11
