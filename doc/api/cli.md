@@ -1277,6 +1277,16 @@ added:
 
 Enable experimental support for storage inspection
 
+### `--experimental-stream-iter`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Enable the experimental [`node:stream/iter`][] module.
+
 ### `--experimental-test-coverage`
 
 <!-- YAML
@@ -3612,6 +3622,7 @@ one is included in the list below.
 * `--experimental-require-module`
 * `--experimental-shadow-realm`
 * `--experimental-specifier-resolution`
+* `--experimental-stream-iter`
 * `--experimental-test-isolation`
 * `--experimental-top-level-await`
 * `--experimental-vm-modules`
@@ -4251,6 +4262,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`import` specifier]: esm.md#import-specifiers
 [`net.getDefaultAutoSelectFamilyAttemptTimeout()`]: net.md#netgetdefaultautoselectfamilyattempttimeout
 [`node:sqlite`]: sqlite.md
+[`node:stream/iter`]: stream_iter.md
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
 [`tls.DEFAULT_MAX_VERSION`]: tls.md#tlsdefault_max_version
 [`tls.DEFAULT_MIN_VERSION`]: tls.md#tlsdefault_min_version
