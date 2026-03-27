@@ -8,6 +8,7 @@ const rpj = require('read-package-json-fast')
 const binLinks = require('bin-links')
 const runScript = require('@npmcli/run-script')
 const { callLimit: promiseCallLimit } = require('promise-call-limit')
+const promiseRetry = require('promise-retry')
 const { resolve } = require('node:path')
 const { isNodeGypPackage, defaultGypInstallScript } = require('@npmcli/node-gyp')
 const { log, time } = require('proc-log')
@@ -384,7 +385,6 @@ module.exports = cls => class Builder extends cls {
     const timeEnd = time.start(`build:link:${node.location}`)
 
     // On Windows, antivirus/indexer can transiently lock files, causing EPERM/EACCES/EBUSY on the rename inside write-file-atomic (used by bin-links/fix-bin.js), so, retry with backoff.
-    const promiseRetry = require('promise-retry')
     const p = promiseRetry((retry) => binLinks({
       pkg: node.package,
       path: node.path,
