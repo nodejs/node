@@ -170,6 +170,23 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   assert.strictEqual(derivedPublicKey.asymmetricKeyType, 'rsa');
   assert.strictEqual(derivedPublicKey.symmetricKeySize, undefined);
 
+  // The private key should not be extractable from the derived public key.
+  assert.throws(() => derivedPublicKey.export({ format: 'pem', type: 'pkcs8' }),
+                { code: 'ERR_INVALID_ARG_VALUE' });
+  assert.throws(() => derivedPublicKey.export({ format: 'der', type: 'pkcs8' }),
+                { code: 'ERR_INVALID_ARG_VALUE' });
+  // JWK export should only contain public components, no 'd'.
+  {
+    const jwkExport = derivedPublicKey.export({ format: 'jwk' });
+    assert.strictEqual(jwkExport.kty, 'RSA');
+    assert.strictEqual(jwkExport.d, undefined);
+    assert.strictEqual(jwkExport.dp, undefined);
+    assert.strictEqual(jwkExport.dq, undefined);
+    assert.strictEqual(jwkExport.qi, undefined);
+    assert.strictEqual(jwkExport.p, undefined);
+    assert.strictEqual(jwkExport.q, undefined);
+  }
+
   const publicKeyFromJwk = createPublicKey({ key: publicJwk, format: 'jwk' });
   assert.strictEqual(publicKeyFromJwk.type, 'public');
   assert.strictEqual(publicKeyFromJwk.toString(), '[object KeyObject]');
@@ -415,6 +432,33 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
         key.export({ format: 'jwk' }), jwk);
     }
   }
+
+  // Raw format round-trip
+  {
+    const privKey = createPrivateKey(info.private);
+    const pubKey = createPublicKey(info.public);
+
+    const rawPriv = privKey.export({ format: 'raw-private' });
+    const rawPub = pubKey.export({ format: 'raw-public' });
+    assert(Buffer.isBuffer(rawPriv));
+    assert(Buffer.isBuffer(rawPub));
+
+    const importedPriv = createPrivateKey({
+      key: rawPriv, format: 'raw-private', asymmetricKeyType: keyType,
+    });
+    assert.strictEqual(importedPriv.type, 'private');
+    assert.strictEqual(importedPriv.asymmetricKeyType, keyType);
+    assert.deepStrictEqual(
+      importedPriv.export({ format: 'raw-private' }), rawPriv);
+
+    const importedPub = createPublicKey({
+      key: rawPub, format: 'raw-public', asymmetricKeyType: keyType,
+    });
+    assert.strictEqual(importedPub.type, 'public');
+    assert.strictEqual(importedPub.asymmetricKeyType, keyType);
+    assert.deepStrictEqual(
+      importedPub.export({ format: 'raw-public' }), rawPub);
+  }
 });
 
 [
@@ -506,7 +550,46 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
       delete jwk.d;
       assert.deepStrictEqual(
         key.export({ format: 'jwk' }), jwk);
+
+      // Private key material must not be extractable from a derived public key.
+      assert.throws(() => key.export({ format: 'pem', type: 'pkcs8' }),
+                    { code: 'ERR_INVALID_ARG_VALUE' });
+      assert.throws(() => key.export({ format: 'pem', type: 'sec1' }),
+                    { code: 'ERR_INVALID_ARG_VALUE' });
+      assert.throws(() => key.export({ format: 'der', type: 'pkcs8' }),
+                    { code: 'ERR_INVALID_ARG_VALUE' });
+      assert.throws(() => key.export({ format: 'der', type: 'sec1' }),
+                    { code: 'ERR_INVALID_ARG_VALUE' });
     }
+  }
+
+  // Raw format round-trip
+  {
+    const privKey = createPrivateKey(info.private);
+    const pubKey = createPublicKey(info.public);
+
+    const rawPriv = privKey.export({ format: 'raw-private' });
+    const rawPub = pubKey.export({ format: 'raw-public' });
+    assert(Buffer.isBuffer(rawPriv));
+    assert(Buffer.isBuffer(rawPub));
+
+    const importedPriv = createPrivateKey({
+      key: rawPriv, format: 'raw-private',
+      asymmetricKeyType: keyType, namedCurve,
+    });
+    assert.strictEqual(importedPriv.type, 'private');
+    assert.strictEqual(importedPriv.asymmetricKeyType, keyType);
+    assert.deepStrictEqual(
+      importedPriv.export({ format: 'raw-private' }), rawPriv);
+
+    const importedPub = createPublicKey({
+      key: rawPub, format: 'raw-public',
+      asymmetricKeyType: keyType, namedCurve,
+    });
+    assert.strictEqual(importedPub.type, 'public');
+    assert.strictEqual(importedPub.asymmetricKeyType, keyType);
+    assert.deepStrictEqual(
+      importedPub.export({ format: 'raw-public' }), rawPub);
   }
 });
 

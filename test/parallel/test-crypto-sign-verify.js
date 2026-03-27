@@ -422,16 +422,19 @@ assert.throws(
   { private: fixtures.readKey('ed25519_private.pem', 'ascii'),
     public: fixtures.readKey('ed25519_public.pem', 'ascii'),
     algo: null,
-    sigLen: 64 },
+    sigLen: 64,
+    raw: true },
   { private: fixtures.readKey('ed448_private.pem', 'ascii'),
     public: fixtures.readKey('ed448_public.pem', 'ascii'),
     algo: null,
     supportsContext: true,
-    sigLen: 114 },
+    sigLen: 114,
+    raw: true },
   { private: fixtures.readKey('rsa_private_2048.pem', 'ascii'),
     public: fixtures.readKey('rsa_public_2048.pem', 'ascii'),
     algo: 'sha1',
-    sigLen: 256 },
+    sigLen: 256,
+    raw: false },
 ].forEach((pair) => {
   const algo = pair.algo;
 
@@ -456,6 +459,29 @@ assert.throws(
 
     assert.strictEqual(crypto.verify(algo, data, privKeyObj, sig), true);
     assert.strictEqual(crypto.verify(algo, data, pubKeyObj, sig), true);
+  }
+
+  if (pair.raw) {
+    const data = Buffer.from('Hello world');
+    const privKeyObj = crypto.createPrivateKey(pair.private);
+    const pubKeyObj = crypto.createPublicKey(pair.public);
+    const { asymmetricKeyType } = privKeyObj;
+    const rawPrivate = {
+      key: privKeyObj.export({ format: 'raw-private' }),
+      format: 'raw-private',
+      asymmetricKeyType,
+    };
+    const rawPublic = {
+      key: pubKeyObj.export({ format: 'raw-public' }),
+      format: 'raw-public',
+      asymmetricKeyType,
+    };
+
+    const sig = crypto.sign(algo, data, rawPrivate);
+    assert.strictEqual(sig.length, pair.sigLen);
+
+    assert.strictEqual(crypto.verify(algo, data, rawPrivate, sig), true);
+    assert.strictEqual(crypto.verify(algo, data, rawPublic, sig), true);
   }
 
   {
