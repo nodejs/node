@@ -17,7 +17,7 @@ set "CI_NATIVE_SUITES=%NATIVE_SUITES% benchmark"
 set "CI_JS_SUITES=%JS_SUITES% pummel"
 set CI_DOC=doctool
 @rem Same as the test-ci target in Makefile
-set "common_test_suites=%JS_SUITES% %NATIVE_SUITES%&set build_addons=1&set build_js_native_api_tests=1&set build_node_api_tests=1"
+set "common_test_suites=%JS_SUITES% %NATIVE_SUITES%&set build_addons=1&set build_js_native_api_tests=1&set build_node_api_tests=1&set build_ffi_tests=1"
 
 @rem Process arguments.
 set config=Release
@@ -62,6 +62,7 @@ set dll=
 set enable_static=
 set build_js_native_api_tests=
 set build_node_api_tests=
+set build_ffi_tests=
 set test_node_inspect=
 set test_check_deopts=
 set v8_test_options=
@@ -107,11 +108,12 @@ if /i "%1"=="v8temporal"    set v8temporal=1&goto arg-ok
 if /i "%1"=="v8windbg"      set v8windbg=1&goto arg-ok
 if /i "%1"=="licensertf"    set licensertf=1&goto arg-ok
 if /i "%1"=="test"          set test_args=%test_args% %common_test_suites%&set lint_cpp=1&set lint_js=1&set lint_md=1&goto arg-ok
-if /i "%1"=="test-ci-native" set test_args=%test_args% %test_ci_args% -p tap --logfile test.tap %CI_NATIVE_SUITES% %CI_DOC%&set build_addons=1&set build_js_native_api_tests=1&set build_node_api_tests=1&set cctest_args=%cctest_args% --gtest_output=xml:cctest.junit.xml&goto arg-ok
-if /i "%1"=="test-ci-js"    set test_args=%test_args% %test_ci_args% -p tap --logfile test.tap %CI_JS_SUITES%&set no_cctest=1&goto arg-ok
+if /i "%1"=="test-ci-native" set test_args=%test_args% %test_ci_args% -p tap --logfile test.tap %CI_NATIVE_SUITES% %CI_DOC%&set build_addons=1&set build_js_native_api_tests=1&set build_node_api_tests=1&set build_ffi_tests=1&set cctest_args=%cctest_args% --gtest_output=xml:cctest.junit.xml&goto arg-ok
+if /i "%1"=="test-ci-js"    set test_args=%test_args% %test_ci_args% -p tap --logfile test.tap %CI_JS_SUITES%&set build_ffi_tests=1&set no_cctest=1&goto arg-ok
 if /i "%1"=="build-addons"   set build_addons=1&goto arg-ok
 if /i "%1"=="build-js-native-api-tests"   set build_js_native_api_tests=1&goto arg-ok
 if /i "%1"=="build-node-api-tests"   set build_node_api_tests=1&goto arg-ok
+if /i "%1"=="build-ffi-tests"   set build_ffi_tests=1&goto arg-ok
 if /i "%1"=="test-addons"   set test_args=%test_args% addons&set build_addons=1&goto arg-ok
 if /i "%1"=="test-doc"      set test_args=%test_args% %CI_DOC%&set doc=1&&set lint_js=1&set lint_md=1&goto arg-ok
 if /i "%1"=="test-js-native-api"   set test_args=%test_args% js-native-api&set build_js_native_api_tests=1&goto arg-ok
@@ -712,10 +714,10 @@ endlocal
 goto build-node-api-tests
 
 :build-node-api-tests
-if not defined build_node_api_tests goto run-tests
+if not defined build_node_api_tests goto build-ffi-tests
 if not exist "%node_exe%" (
   echo Failed to find node.exe
-  goto run-tests
+  goto build-ffi-tests
 )
 echo Building node-api
 :: clear
@@ -725,6 +727,19 @@ for /d %%F in (test\node-api\??_*) do (
 :: building node-api
 setlocal
 python "%~dp0tools\build_addons.py" "%~dp0test\node-api" --config %config%
+if errorlevel 1 exit /b 1
+endlocal
+goto build-ffi-tests
+
+:build-ffi-tests
+if not defined build_ffi_tests goto run-tests
+if not exist "%node_exe%" (
+  echo Failed to find node.exe
+  goto run-tests
+)
+echo Building ffi tests
+setlocal
+python "%~dp0tools\build_addons.py" "%~dp0test\ffi" --config %config%
 if errorlevel 1 exit /b 1
 endlocal
 goto run-tests
@@ -860,7 +875,7 @@ set exit_code=1
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-doc/test-js-native-api/test-node-api/test-internet/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [clang-cl] [ccache path-to-ccache] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [nonpm] [ltcg] [licensetf] [sign] [x64/arm64] [vs2022/vs2026] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-md] [lint-md-build] [format-md] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
+echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-doc/test-js-native-api/test-node-api/test-internet/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [build-addons/build-js-native-api-tests/build-node-api-tests/build-ffi-tests] [ignore-flaky] [static/dll] [noprojgen] [projgen] [clang-cl] [ccache path-to-ccache] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [nonpm] [ltcg] [licensetf] [sign] [x64/arm64] [vs2022/vs2026] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-md] [lint-md-build] [format-md] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
 echo Examples:
 echo   vcbuild.bat                          : builds release build
 echo   vcbuild.bat debug                    : builds debug build
