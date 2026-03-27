@@ -1505,7 +1505,11 @@ void Environment::RequestInterruptFromV8() {
 
 void Environment::ScheduleTimer(int64_t duration_ms) {
   if (started_cleanup_) return;
-  uv_timer_start(timer_handle(), RunTimers, duration_ms, 0);
+  // Add 1ms to compensate for libuv's uv_now() truncating sub-millisecond
+  // time. Without this, timers can fire up to 1ms before the requested
+  // delay when measured with high-resolution clocks (process.hrtime(),
+  // Date.now()). See: https://github.com/nodejs/node/issues/26578
+  uv_timer_start(timer_handle(), RunTimers, duration_ms + 1, 0);
 }
 
 void Environment::ToggleTimerRef(bool ref) {
