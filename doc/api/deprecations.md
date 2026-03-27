@@ -10,6 +10,8 @@ Node.js APIs might be deprecated for any of the following reasons:
 * An improved alternative API is available.
 * Breaking changes to the API are expected in a future major release.
 
+Deprecated features are subject to [semantic versioning][] rules.
+
 Node.js uses four kinds of deprecations:
 
 * Documentation-only
@@ -4679,6 +4681,7 @@ deprecated and will throw an error in a future version.
 [legacy URL API]: url.md#legacy-url-api
 [legacy `urlObject`]: url.md#legacy-urlobject
 [permission model]: permissions.md#permission-model
+[semantic versioning]: https://semver.org/
 [static methods of `crypto.Certificate()`]: crypto.md#class-certificate
 [subpath exports]: packages.md#subpath-exports
 [subpath imports]: packages.md#subpath-imports
