@@ -590,6 +590,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_sqlite,
             kAllowedInEnvvar,
             HAVE_SQLITE);
+  AddOption("--experimental-stream-iter",
+            "experimental iterable streams API (node:stream/iter)",
+            &EnvironmentOptions::experimental_stream_iter,
+            kAllowedInEnvvar);
   AddOption("--experimental-quic",
 #ifndef OPENSSL_NO_QUIC
             "experimental QUIC support",
