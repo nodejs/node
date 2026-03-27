@@ -276,6 +276,13 @@ Node.js makes no guarantees about the exact timing of when callbacks will fire,
 nor of their ordering. The callback will be called as close as possible to the
 time specified.
 
+Timer delays are tracked with millisecond precision internally. When measured
+with sub-millisecond clocks such as `process.hrtime()`, `process.hrtime.bigint()`,
+or `performance.now()`, callbacks may appear to fire up to 1 ms earlier than the
+requested delay due to rounding at the millisecond boundary. This is most
+noticeable when timers are used together with `setImmediate()` or other I/O,
+which can affect when the internal time is updated.
+
 When `delay` is larger than `2147483647` or less than `1` or `NaN`, the `delay`
 will be set to `1`. Non-integer delays are truncated to an integer.
 
