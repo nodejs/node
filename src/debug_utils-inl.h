@@ -62,6 +62,26 @@ struct ToStringHelper {
   static std::string Convert(const std::string& value) { return value; }
   static std::string_view Convert(std::string_view value) { return value; }
   static std::string Convert(bool value) { return value ? "true" : "false"; }
+
+  static std::string Convert(v8::Local<v8::Value> value) {
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();
+    v8::TryCatch scope(isolate);
+    if (value->IsSymbol()) {
+      Utf8Value utf8_value(isolate,
+                           value.As<v8::Symbol>()->Description(isolate));
+      return SPrintF("<Symbol: %s>", utf8_value.ToString());
+    }
+    if (value->IsString()) {
+      Utf8Value utf8_value(isolate, value);
+      return SPrintF("\"%s\"", utf8_value.ToString());
+    }
+    Utf8Value utf8_value(isolate, value);
+    if (scope.HasCaught()) {
+      return "<Unable to stringify v8::Value>";
+    }
+    return utf8_value.ToString();
+  }
+
   template <unsigned BASE_BITS,
             typename T,
             typename = std::enable_if_t<std::is_integral_v<T>>>
