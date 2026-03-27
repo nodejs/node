@@ -4517,6 +4517,20 @@ Type: Documentation-only
 Passing a non-extractable [`CryptoKey`][] to [`KeyObject.from()`][] is
 deprecated and will throw an error in a future version.
 
+### DEP0205: `CRLF` constant from `_http_common`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62464
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+The `CRLF` constant exported from the internal `_http_common` module is
+deprecated. Use the string `'\r\n'` directly instead.
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
