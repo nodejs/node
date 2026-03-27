@@ -80,8 +80,7 @@ class BindingData : public SnapshotableObject {
   AliasedFloat64Array statfs_field_array;
   AliasedBigInt64Array statfs_field_bigint_array;
 
-  std::vector<BaseObjectPtr<FileHandleReadWrap>>
-      file_handle_read_wrap_freelist;
+  std::vector<BaseObjectPtr<FileHandleReadWrap>> file_handle_read_wrap_freelist;
 
   SERIALIZABLE_OBJECT_METHODS()
   SET_BINDING_ID(fs_binding_data)
@@ -146,7 +145,8 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
                    const char* data,
                    size_t len,
                    enum encoding encoding);
-  inline FSReqBuffer& Init(const char* syscall, size_t len,
+  inline FSReqBuffer& Init(const char* syscall,
+                           size_t len,
                            enum encoding encoding);
 
   virtual void Reject(v8::Local<v8::Value> reject) = 0;
@@ -240,8 +240,7 @@ inline v8::Local<v8::Value> FillGlobalStatFsArray(BindingData* binding_data,
 template <typename AliasedBufferT>
 class FSReqPromise final : public FSReqBase {
  public:
-  static inline FSReqPromise* New(BindingData* binding_data,
-                                  bool use_bigint);
+  static inline FSReqPromise* New(BindingData* binding_data, bool use_bigint);
   inline ~FSReqPromise() override;
 
   inline void Reject(v8::Local<v8::Value> reject) override;
@@ -344,6 +343,9 @@ class FileHandle final : public AsyncWrap, public StreamBase {
   // Will asynchronously close the FD and return a Promise that will
   // be resolved once closing is complete.
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  // Synchronously closes the FD. Throws on error.
+  static void CloseSync(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   // Releases ownership of the FD.
   static void ReleaseFD(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -499,19 +501,27 @@ inline FSReqBase* GetReqWrap(const v8::FunctionCallbackInfo<v8::Value>& args,
 
 // Returns nullptr if the operation fails from the start.
 template <typename Func, typename... Args>
-inline FSReqBase* AsyncDestCall(Environment* env, FSReqBase* req_wrap,
+inline FSReqBase* AsyncDestCall(Environment* env,
+                                FSReqBase* req_wrap,
                                 const v8::FunctionCallbackInfo<v8::Value>& args,
-                                const char* syscall, const char* dest,
-                                size_t len, enum encoding enc, uv_fs_cb after,
-                                Func fn, Args... fn_args);
+                                const char* syscall,
+                                const char* dest,
+                                size_t len,
+                                enum encoding enc,
+                                uv_fs_cb after,
+                                Func fn,
+                                Args... fn_args);
 
 // Returns nullptr if the operation fails from the start.
 template <typename Func, typename... Args>
 inline FSReqBase* AsyncCall(Environment* env,
                             FSReqBase* req_wrap,
                             const v8::FunctionCallbackInfo<v8::Value>& args,
-                            const char* syscall, enum encoding enc,
-                            uv_fs_cb after, Func fn, Args... fn_args);
+                            const char* syscall,
+                            enum encoding enc,
+                            uv_fs_cb after,
+                            Func fn,
+                            Args... fn_args);
 
 // Template counterpart of SYNC_CALL, except that it only puts
 // the error number and the syscall in the context instead of
