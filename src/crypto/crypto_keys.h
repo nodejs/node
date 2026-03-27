@@ -170,11 +170,15 @@ class KeyObjectHandle : public BaseObject {
 
   static void Export(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-#if OPENSSL_WITH_PQC
-  static void InitPqcRaw(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RawPublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RawPrivateKey(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ExportECPublicRaw(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ExportECPrivateRaw(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void InitECPrivateRaw(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void InitPqcRaw(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RawSeed(const v8::FunctionCallbackInfo<v8::Value>& args);
-#endif
 
   v8::MaybeLocal<v8::Value> ExportSecretKey() const;
   v8::MaybeLocal<v8::Value> ExportPublicKey(
