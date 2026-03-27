@@ -40,6 +40,7 @@
 * [Modules: Packages](packages.md)
 * [Modules: TypeScript](typescript.md)
 * [Net](net.md)
+* [Iterable Streams API](stream_iter.md)
 * [OS](os.md)
 * [Path](path.md)
 * [Performance hooks](perf_hooks.md)
@@ -69,6 +70,7 @@
 * [Web Streams API](webstreams.md)
 * [Worker threads](worker_threads.md)
 * [Zlib](zlib.md)
+* [Zlib Iterable Compression](zlib_iter.md)
 
 <hr class="line"/>
 
