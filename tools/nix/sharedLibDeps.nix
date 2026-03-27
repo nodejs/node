@@ -5,6 +5,7 @@
   withSQLite ? true,
   withSSL ? true,
   withTemporal ? false,
+  opensslVersion ? "3.5",
 }:
 {
   inherit (pkgs)
@@ -46,22 +47,53 @@
 // (pkgs.lib.optionalAttrs withSQLite {
   inherit (pkgs) sqlite;
 })
-// (pkgs.lib.optionalAttrs withSSL (
+// (pkgs.lib.optionalAttrs (withSSL && opensslVersion != null) (
   let
-    version = "3.5.5";
+    opensslVersions = {
+      "1.1" = {
+        base = pkgs.openssl_1_1;
+        version = "1.1.1w";
+        hash = "sha256-zzCYlQy02FOtlcCEHx+cbT3BAtzPys1SHZOSUgi3asg=";
+        configureFlags = [ "no-tests" ];
+      };
+      "3.0" = {
+        base = pkgs.openssl_3;
+        version = "3.0.19";
+        hash = "sha256-+lpBQ7iq4YvlPvLzyvKaLgdHQwuLx00y2IM1uUq2MHI=";
+        configureFlags = [ "no-tests" ];
+      };
+      "3.5" = {
+        base = pkgs.openssl_3_5;
+        version = "3.5.5";
+        hash = "sha256-soyRUyqLZaH5g7TCi3SIF05KAQCOKc6Oab14nyi8Kok=";
+        configureFlags = [
+          "no-docs"
+          "no-tests"
+        ];
+      };
+      "3.6" = {
+        base = pkgs.openssl_3_6;
+        version = "3.6.1";
+        hash = "sha256-sb/tzVson/Iq7ofJ1gD1FXZ+v0X3cWjLbWTyMfUYqC4=";
+        configureFlags = [
+          "no-docs"
+          "no-tests"
+        ];
+      };
+    };
+    selected =
+      opensslVersions.${opensslVersion}
+        or (throw "Unsupported opensslVersion: ${opensslVersion}. Use \"1.1\", \"3.0\", \"3.5\", \"3.6\", or null for bundled.");
   in
   {
-    openssl = pkgs.openssl_3_6.overrideAttrs (old: {
-      inherit version;
+    openssl = selected.base.overrideAttrs (old: {
+      version = selected.version;
       src = pkgs.fetchurl {
-        url = builtins.replaceStrings [ old.version ] [ version ] old.src.url;
-        hash = "sha256-soyRUyqLZaH5g7TCi3SIF05KAQCOKc6Oab14nyi8Kok=";
+        url = builtins.replaceStrings [ old.version ] [ selected.version ] old.src.url;
+        hash = selected.hash;
       };
       doCheck = false;
-      configureFlags = (old.configureFlags or [ ]) ++ [
-        "no-docs"
-        "no-tests"
-      ];
+      configureFlags = (old.configureFlags or [ ]) ++ selected.configureFlags;
       outputs = [
         "bin"
         "out"

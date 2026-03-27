@@ -18,6 +18,7 @@
   withSQLite ? true,
   withSSL ? true,
   withTemporal ? false,
+  opensslVersion ? "3.5", # "1.1", "3.0", "3.5", "3.6", or null for bundled
   sharedLibDeps ?
     let
       d = import ./tools/nix/sharedLibDeps.nix {
@@ -28,6 +29,7 @@
           withSQLite
           withSSL
           withTemporal
+          opensslVersion
           ;
       };
     in
