@@ -134,15 +134,17 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
         "internal/tls/wrap", "internal/tls/secure-context",
         "internal/http2/core", "internal/http2/compat",
         "internal/streams/lazy_transform",
-#endif           // !HAVE_OPENSSL
+#endif  // !HAVE_OPENSSL
 #ifndef OPENSSL_NO_QUIC
         "internal/quic/quic", "internal/quic/symbols", "internal/quic/stats",
         "internal/quic/state",
-#endif             // !OPENSSL_NO_QUIC
-        "quic",    // Experimental.
-        "sqlite",  // Experimental.
-        "sys",     // Deprecated.
-        "wasi",    // Experimental.
+#endif                  // !OPENSSL_NO_QUIC
+        "quic",         // Experimental.
+        "sqlite",       // Experimental.
+        "stream/iter",  // Experimental.
+        "zlib/iter",    // Experimental.
+        "sys",          // Deprecated.
+        "wasi",         // Experimental.
 #if !HAVE_SQLITE
         "internal/webstorage",  // Experimental.
 #endif
