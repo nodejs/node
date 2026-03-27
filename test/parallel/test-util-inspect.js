@@ -1615,6 +1615,36 @@ if (typeof Symbol !== 'undefined') {
   assert.strictEqual(twoLines, "{\n  foo: 'abc',\n  bar: 'xyz'\n}");
 }
 
+{
+  const obj = {
+    a: {
+      b: {
+        c: {
+          d: 1,
+        },
+      },
+    },
+  };
+
+  assert.strictEqual(
+    util.inspect(obj, { breakLength: Infinity, depth: Infinity }),
+    '{ a: { b: { c: { d: 1 } } } }',
+  );
+  assert.strictEqual(
+    util.inspect(obj, { breakLength: Infinity, depth: null }),
+    '{ a: { b: { c: { d: 1 } } } }',
+  );
+  assert.strictEqual(
+    util.inspect(obj, { breakLength: Infinity, depth: Infinity, compact: 3 }),
+    '{ a: { b: { c: { d: 1 } } } }',
+  );
+
+  assert.strictEqual(
+    util.inspect(obj, { breakLength: Infinity, depth: Infinity, compact: 1 }),
+    '{\n  a: {\n    b: {\n      c: { d: 1 }\n    }\n  }\n}',
+  );
+}
+
 // util.inspect.defaultOptions tests.
 {
   const arr = new Array(101).fill();
@@ -1631,6 +1661,12 @@ if (typeof Symbol !== 'undefined') {
   assert.doesNotMatch(util.inspect(obj), /Object/);
   util.inspect.defaultOptions.depth = oldOptions.depth;
   assert.match(util.inspect(obj), /Object/);
+  util.inspect.defaultOptions.compact = 1;
+  assert.strictEqual(
+    util.inspect(obj, { breakLength: Infinity, depth: Infinity }),
+    '{\n  a: {\n    a: {\n      a: { a: 1 }\n    }\n  }\n}',
+  );
+  util.inspect.defaultOptions.compact = oldOptions.compact;
   assert.strictEqual(
     JSON.stringify(util.inspect.defaultOptions),
     JSON.stringify(oldOptions)
