@@ -40,7 +40,17 @@ void ConstantExpressionInterface::S128Const(FullDecoder* decoder,
                                             const Simd128Immediate& imm,
                                             Value* result) {
   if (!generate_value()) return;
+#if V8_TARGET_BIG_ENDIAN
+  // Globals are not little endian enforced, they use native byte order and we
+  // need to reverse the bytes on big endian platforms.
+  uint8_t value[kSimd128Size];
+  for (int i = 0; i < kSimd128Size; i++) {
+    value[i] = imm.value[kSimd128Size - 1 - i];
+  }
+  result->runtime_value = WasmValue(value, kWasmS128);
+#else
   result->runtime_value = WasmValue(imm.value, kWasmS128);
+#endif
 }
 
 void ConstantExpressionInterface::UnOp(FullDecoder* decoder, WasmOpcode opcode,
