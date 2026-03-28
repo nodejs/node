@@ -2715,6 +2715,8 @@ ES modules. When `require()` encounters an ES module that contains top-level
 added: REPLACEME
 -->
 
+> Stability: 1 - Experimental.
+
 An attempt was made to `require()` an [ES Module][] while another `import()` call
 was already in progress to load it asynchronously.
 
