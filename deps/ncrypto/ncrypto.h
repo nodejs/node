@@ -855,6 +855,9 @@ class EVPKeyPointer final {
     DER,
     PEM,
     JWK,
+    RAW_PUBLIC,
+    RAW_PRIVATE,
+    RAW_SEED,
   };
 
   enum class PKParseError { NOT_RECOGNIZED, NEED_PASSPHRASE, FAILED };
@@ -864,6 +867,7 @@ class EVPKeyPointer final {
     bool output_key_object = false;
     PKFormatType format = PKFormatType::DER;
     PKEncodingType type = PKEncodingType::PKCS8;
+    int ec_point_form = POINT_CONVERSION_UNCOMPRESSED;
     AsymmetricKeyEncodingConfig() = default;
     AsymmetricKeyEncodingConfig(bool output_key_object,
                                 PKFormatType format,
