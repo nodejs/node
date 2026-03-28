@@ -761,8 +761,8 @@ method is intercepted in its synchronous, callback, and/or promise form.
 * `fdatasyncSync()`, `fdatasync()` (no-op for VFS file descriptors)
 * `fsyncSync()`, `fsync()` (no-op for VFS file descriptors)
 
-Virtual file descriptors use values starting at 10000 to avoid conflicts with
-real file descriptors.
+Virtual file descriptors use a bitmask (`0x40000000`) to avoid conflicts with
+real file descriptors while remaining valid positive integers.
 
 **Stream operations**:
 
