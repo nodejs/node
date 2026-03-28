@@ -472,7 +472,8 @@ Maybe<void> TurboShakeTraits::AdditionalConfig(
 bool TurboShakeTraits::DeriveBits(Environment* env,
                                   const TurboShakeConfig& params,
                                   ByteSource* out,
-                                  CryptoJobMode mode) {
+                                  CryptoJobMode mode,
+                                  CryptoErrorStore* errors) {
   CHECK_GT(params.output_length, 0);
   char* buf = MallocOpenSSL<char>(params.output_length);
 
@@ -585,7 +586,8 @@ Maybe<void> KangarooTwelveTraits::AdditionalConfig(
 bool KangarooTwelveTraits::DeriveBits(Environment* env,
                                       const KangarooTwelveConfig& params,
                                       ByteSource* out,
-                                      CryptoJobMode mode) {
+                                      CryptoJobMode mode,
+                                      CryptoErrorStore* errors) {
   CHECK_GT(params.output_length, 0);
   char* buf = MallocOpenSSL<char>(params.output_length);
 

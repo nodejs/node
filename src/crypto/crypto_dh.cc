@@ -504,16 +504,11 @@ MaybeLocal<Value> DHBitsTraits::EncodeOutput(Environment* env,
 bool DHBitsTraits::DeriveBits(Environment* env,
                               const DHBitsConfig& params,
                               ByteSource* out,
-                              CryptoJobMode mode) {
+                              CryptoJobMode mode,
+                              CryptoErrorStore* errors) {
   auto dp = DHPointer::stateless(params.private_key.GetAsymmetricKey(),
                                  params.public_key.GetAsymmetricKey());
   if (!dp) {
-    bool can_throw = mode == CryptoJobMode::kCryptoJobSync;
-
-    if (can_throw) {
-      unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
-      if (err) ThrowCryptoError(env, err, "diffieHellman failed");
-    }
     return false;
   }
 

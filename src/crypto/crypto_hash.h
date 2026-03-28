@@ -73,7 +73,8 @@ struct HashTraits final {
   static bool DeriveBits(Environment* env,
                          const HashConfig& params,
                          ByteSource* out,
-                         CryptoJobMode mode);
+                         CryptoJobMode mode,
+                         CryptoErrorStore* errors);
 
   static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
                                                 const HashConfig& params,

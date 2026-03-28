@@ -42,7 +42,8 @@ struct TurboShakeTraits final {
   static bool DeriveBits(Environment* env,
                          const TurboShakeConfig& params,
                          ByteSource* out,
-                         CryptoJobMode mode);
+                         CryptoJobMode mode,
+                         CryptoErrorStore* errors);
 
   static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
                                                 const TurboShakeConfig& params,
@@ -86,7 +87,8 @@ struct KangarooTwelveTraits final {
   static bool DeriveBits(Environment* env,
                          const KangarooTwelveConfig& params,
                          ByteSource* out,
-                         CryptoJobMode mode);
+                         CryptoJobMode mode,
+                         CryptoErrorStore* errors);
 
   static v8::MaybeLocal<v8::Value> EncodeOutput(
       Environment* env, const KangarooTwelveConfig& params, ByteSource* out);

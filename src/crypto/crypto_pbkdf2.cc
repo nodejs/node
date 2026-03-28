@@ -113,7 +113,8 @@ Maybe<void> PBKDF2Traits::AdditionalConfig(
 bool PBKDF2Traits::DeriveBits(Environment* env,
                               const PBKDF2Config& params,
                               ByteSource* out,
-                              CryptoJobMode mode) {
+                              CryptoJobMode mode,
+                              CryptoErrorStore* errors) {
   // Both pass and salt may be zero length here.
   auto dp = ncrypto::pbkdf2(params.digest,
                             ncrypto::Buffer<const char>{
@@ -127,7 +128,10 @@ bool PBKDF2Traits::DeriveBits(Environment* env,
                             params.iterations,
                             params.length);
 
-  if (!dp) return false;
+  if (!dp) {
+    errors->Insert(NodeCryptoError::PBKDF2_FAILED);
+    return false;
+  }
   DCHECK(!dp.isSecure());
   *out = ByteSource::Allocated(dp.release());
   return true;
