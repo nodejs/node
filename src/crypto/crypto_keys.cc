@@ -66,7 +66,16 @@ Maybe<EVPKeyPointer::AsymmetricKeyEncodingConfig> GetKeyFormatAndTypeFromJs(
     config.format = static_cast<EVPKeyPointer::PKFormatType>(
         args[*offset].As<Int32>()->Value());
 
-    if (args[*offset + 1]->IsInt32()) {
+    if (config.format == EVPKeyPointer::PKFormatType::RAW_PUBLIC ||
+        config.format == EVPKeyPointer::PKFormatType::RAW_PRIVATE ||
+        config.format == EVPKeyPointer::PKFormatType::RAW_SEED) {
+      // Raw formats use the type slot for ec_point_form (int) or null.
+      if (args[*offset + 1]->IsInt32()) {
+        config.ec_point_form = args[*offset + 1].As<Int32>()->Value();
+      } else {
+        CHECK(args[*offset + 1]->IsNullOrUndefined());
+      }
+    } else if (args[*offset + 1]->IsInt32()) {
       config.type = static_cast<EVPKeyPointer::PKEncodingType>(
           args[*offset + 1].As<Int32>()->Value());
     } else {
@@ -329,6 +338,54 @@ bool KeyObjectData::ToEncodedPublicKey(
     *out = Object::New(env->isolate());
     return ExportJWKInner(
         env, addRefWithType(KeyType::kKeyTypePublic), *out, false);
+  } else if (config.format == EVPKeyPointer::PKFormatType::RAW_PUBLIC) {
+    Mutex::ScopedLock lock(mutex());
+    const auto& pkey = GetAsymmetricKey();
+    if (pkey.id() == EVP_PKEY_EC) {
+      const EC_KEY* ec_key = pkey;
+      CHECK_NOT_NULL(ec_key);
+      auto form = static_cast<point_conversion_form_t>(config.ec_point_form);
+      const auto group = ECKeyPointer::GetGroup(ec_key);
+      const auto point = ECKeyPointer::GetPublicKey(ec_key);
+      return ECPointToBuffer(env, group, point, form).ToLocal(out);
+    }
+    switch (pkey.id()) {
+      case EVP_PKEY_ED25519:
+      case EVP_PKEY_ED448:
+      case EVP_PKEY_X25519:
+      case EVP_PKEY_X448:
+#if OPENSSL_WITH_PQC
+      case EVP_PKEY_ML_DSA_44:
+      case EVP_PKEY_ML_DSA_65:
+      case EVP_PKEY_ML_DSA_87:
+      case EVP_PKEY_ML_KEM_512:
+      case EVP_PKEY_ML_KEM_768:
+      case EVP_PKEY_ML_KEM_1024:
+      case EVP_PKEY_SLH_DSA_SHA2_128F:
+      case EVP_PKEY_SLH_DSA_SHA2_128S:
+      case EVP_PKEY_SLH_DSA_SHA2_192F:
+      case EVP_PKEY_SLH_DSA_SHA2_192S:
+      case EVP_PKEY_SLH_DSA_SHA2_256F:
+      case EVP_PKEY_SLH_DSA_SHA2_256S:
+      case EVP_PKEY_SLH_DSA_SHAKE_128F:
+      case EVP_PKEY_SLH_DSA_SHAKE_128S:
+      case EVP_PKEY_SLH_DSA_SHAKE_192F:
+      case EVP_PKEY_SLH_DSA_SHAKE_192S:
+      case EVP_PKEY_SLH_DSA_SHAKE_256F:
+      case EVP_PKEY_SLH_DSA_SHAKE_256S:
+#endif
+        break;
+      default:
+        THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+        return false;
+    }
+    auto raw_data = pkey.rawPublicKey();
+    if (!raw_data) {
+      THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to get raw public key");
+      return false;
+    }
+    return Buffer::Copy(env, raw_data.get<const char>(), raw_data.size())
+        .ToLocal(out);
   }
 
   return WritePublicKey(env, GetAsymmetricKey(), config).ToLocal(out);
@@ -347,6 +404,86 @@ bool KeyObjectData::ToEncodedPrivateKey(
     *out = Object::New(env->isolate());
     return ExportJWKInner(
         env, addRefWithType(KeyType::kKeyTypePrivate), *out, false);
+  } else if (config.format == EVPKeyPointer::PKFormatType::RAW_PRIVATE) {
+    Mutex::ScopedLock lock(mutex());
+    const auto& pkey = GetAsymmetricKey();
+    if (pkey.id() == EVP_PKEY_EC) {
+      const EC_KEY* ec_key = pkey;
+      CHECK_NOT_NULL(ec_key);
+      const BIGNUM* private_key = ECKeyPointer::GetPrivateKey(ec_key);
+      CHECK_NOT_NULL(private_key);
+      const auto group = ECKeyPointer::GetGroup(ec_key);
+      auto order = BignumPointer::New();
+      CHECK(order);
+      CHECK(EC_GROUP_get_order(group, order.get(), nullptr));
+      auto buf = BignumPointer::EncodePadded(private_key, order.byteLength());
+      if (!buf) {
+        THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                          "Failed to export EC private key");
+        return false;
+      }
+      return Buffer::Copy(env, buf.get<const char>(), buf.size()).ToLocal(out);
+    }
+    switch (pkey.id()) {
+      case EVP_PKEY_ED25519:
+      case EVP_PKEY_ED448:
+      case EVP_PKEY_X25519:
+      case EVP_PKEY_X448:
+#if OPENSSL_WITH_PQC
+      case EVP_PKEY_SLH_DSA_SHA2_128F:
+      case EVP_PKEY_SLH_DSA_SHA2_128S:
+      case EVP_PKEY_SLH_DSA_SHA2_192F:
+      case EVP_PKEY_SLH_DSA_SHA2_192S:
+      case EVP_PKEY_SLH_DSA_SHA2_256F:
+      case EVP_PKEY_SLH_DSA_SHA2_256S:
+      case EVP_PKEY_SLH_DSA_SHAKE_128F:
+      case EVP_PKEY_SLH_DSA_SHAKE_128S:
+      case EVP_PKEY_SLH_DSA_SHAKE_192F:
+      case EVP_PKEY_SLH_DSA_SHAKE_192S:
+      case EVP_PKEY_SLH_DSA_SHAKE_256F:
+      case EVP_PKEY_SLH_DSA_SHAKE_256S:
+#endif
+        break;
+      default:
+        THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+        return false;
+    }
+    auto raw_data = pkey.rawPrivateKey();
+    if (!raw_data) {
+      THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to get raw private key");
+      return false;
+    }
+    return Buffer::Copy(env, raw_data.get<const char>(), raw_data.size())
+        .ToLocal(out);
+  } else if (config.format == EVPKeyPointer::PKFormatType::RAW_SEED) {
+    Mutex::ScopedLock lock(mutex());
+    const auto& pkey = GetAsymmetricKey();
+    switch (pkey.id()) {
+#if OPENSSL_WITH_PQC
+      case EVP_PKEY_ML_DSA_44:
+      case EVP_PKEY_ML_DSA_65:
+      case EVP_PKEY_ML_DSA_87:
+      case EVP_PKEY_ML_KEM_512:
+      case EVP_PKEY_ML_KEM_768:
+      case EVP_PKEY_ML_KEM_1024:
+        break;
+#endif
+      default:
+        THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+        return false;
+    }
+#if OPENSSL_WITH_PQC
+    auto raw_data = pkey.rawSeed();
+    if (!raw_data) {
+      THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to get raw seed");
+      return false;
+    }
+    return Buffer::Copy(env, raw_data.get<const char>(), raw_data.size())
+        .ToLocal(out);
+#else
+    THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+    return false;
+#endif
   }
 
   return WritePrivateKey(env, GetAsymmetricKey(), config).ToLocal(out);
@@ -367,6 +504,14 @@ KeyObjectData::GetPrivateKeyEncodingFromJs(
   if (config.output_key_object) {
     if (context != kKeyContextInput)
       (*offset)++;
+  } else if (config.format == EVPKeyPointer::PKFormatType::RAW_PRIVATE ||
+             config.format == EVPKeyPointer::PKFormatType::RAW_SEED) {
+    // Raw formats don't support encryption. Still consume the arg offsets.
+    if (context != kKeyContextInput) {
+      CHECK(args[*offset]->IsNullOrUndefined());
+      (*offset)++;
+    }
+    CHECK(args[*offset]->IsNullOrUndefined());
   } else {
     bool needs_passphrase = false;
     if (context != kKeyContextInput) {
@@ -1557,6 +1702,12 @@ void Initialize(Environment* env, Local<Object> target) {
       static_cast<int>(EVPKeyPointer::PKFormatType::PEM);
   constexpr int kKeyFormatJWK =
       static_cast<int>(EVPKeyPointer::PKFormatType::JWK);
+  constexpr int kKeyFormatRawPublic =
+      static_cast<int>(EVPKeyPointer::PKFormatType::RAW_PUBLIC);
+  constexpr int kKeyFormatRawPrivate =
+      static_cast<int>(EVPKeyPointer::PKFormatType::RAW_PRIVATE);
+  constexpr int kKeyFormatRawSeed =
+      static_cast<int>(EVPKeyPointer::PKFormatType::RAW_SEED);
 
   constexpr auto kSigEncDER = DSASigEnc::DER;
   constexpr auto kSigEncP1363 = DSASigEnc::P1363;
@@ -1596,6 +1747,9 @@ void Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, kKeyFormatDER);
   NODE_DEFINE_CONSTANT(target, kKeyFormatPEM);
   NODE_DEFINE_CONSTANT(target, kKeyFormatJWK);
+  NODE_DEFINE_CONSTANT(target, kKeyFormatRawPublic);
+  NODE_DEFINE_CONSTANT(target, kKeyFormatRawPrivate);
+  NODE_DEFINE_CONSTANT(target, kKeyFormatRawSeed);
   NODE_DEFINE_CONSTANT(target, kKeyTypeSecret);
   NODE_DEFINE_CONSTANT(target, kKeyTypePublic);
   NODE_DEFINE_CONSTANT(target, kKeyTypePrivate);
