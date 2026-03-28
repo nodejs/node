@@ -1,0 +1,47 @@
+name: DCO sign-off check
+
+on: [pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  check-dco:
+    runs-on: ubuntu-slim
+    steps:
+      - name: Compute number of commits in the PR
+        id: nb-of-commits
+        run: |
+          echo "plusOne=$((${{ github.event.pull_request.commits }} + 1))" >> $GITHUB_OUTPUT
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: ${{ steps.nb-of-commits.outputs.plusOne }}
+          persist-credentials: false
+      - run: git reset HEAD^2
+      - name: Check commits for Signed-off-by
+        run: |
+          STATUS=0
+          COMMITS=$(git log --format='%H' -n ${{ github.event.pull_request.commits }})
+          for SHA in $COMMITS; do
+            MESSAGE=$(git log --format='%B' -n 1 "$SHA")
+            if ! echo "$MESSAGE" | grep -qP '^Signed-off-by: .+ <[^@]+@[^@]+\.[^@]+>'; then
+              SUBJECT=$(git log --format='%s' -n 1 "$SHA")
+              SIGNOFF=$(echo "$MESSAGE" | grep -P '^Signed-off-by: ' || true)
+              if [ -z "$SIGNOFF" ]; then
+                echo "::error::Commit ${SHA:0:12} is missing a 'Signed-off-by' trailer. Subject: $SUBJECT"
+              else
+                echo "::error::Commit ${SHA:0:12} has a 'Signed-off-by' trailer with an invalid email address. Subject: $SUBJECT"
+              fi
+              STATUS=1
+            fi
+          done
+          if [ "$STATUS" != "0" ]; then
+            echo
+            echo "All commits must contain a Signed-off-by trailer to indicate"
+            echo "agreement with the Developer Certificate of Origin (DCO)."
+            echo "Use 'git commit -s' to add it automatically."
+            echo
+            echo "Note: The Signed-off-by attestation must be made by a human author."
+            echo "Bots and AI agents are not permitted to sign off on commits."
+            exit 1
+          fi
