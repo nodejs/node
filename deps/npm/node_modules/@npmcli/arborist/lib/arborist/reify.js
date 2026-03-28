@@ -117,9 +117,11 @@ module.exports = cls => class Reifier extends cls {
       // of Node/Link trees
       log.warn('reify', 'The "linked" install strategy is EXPERIMENTAL and may contain bugs.')
       this.idealTree = await this.createIsolatedTree()
-      this.#linkedActualForDiff = this.#buildLinkedActualForDiff(
-        this.idealTree, this.actualTree
-      )
+      if (this.actualTree) {
+        this.#linkedActualForDiff = this.#buildLinkedActualForDiff(
+          this.idealTree, this.actualTree
+        )
+      }
     }
     await this[_diffTrees]()
     await this.#reifyPackages()
@@ -813,6 +815,10 @@ module.exports = cls => class Reifier extends cls {
     // Synthetic entries ensure the diff compares matching resolved/integrity values (e.g. workspace links have resolved=undefined in the ideal tree but resolved="file:../packages/..." in the actual tree).
     for (const child of idealTree.children.values()) {
       if (combined.has(child.path) || !existsSync(child.path)) {
+        continue
+      }
+      // Skip store links whose ideal realpath doesn't exist on disk yet — the store hash changed and the symlink needs recreating via ADD.
+      if (child.isLink && child.resolved?.startsWith('file:.store/') && !existsSync(child.realpath)) {
         continue
       }
       let entry
