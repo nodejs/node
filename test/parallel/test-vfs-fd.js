@@ -10,7 +10,7 @@ const vfs = require('node:vfs');
   myVfs.writeFileSync('/file.txt', 'hello world');
 
   const fd = myVfs.openSync('/file.txt');
-  assert.ok(fd >= 10000, 'VFS fd should be >= 10000');
+  assert.ok((fd & 0x40000000) !== 0, 'VFS fd should have bit 30 set');
   myVfs.closeSync(fd);
 }
 
@@ -151,7 +151,7 @@ const vfs = require('node:vfs');
 
   myVfs.open('/async-file.txt', common.mustCall((err, fd) => {
     assert.strictEqual(err, null);
-    assert.ok(fd >= 10000);
+    assert.ok((fd & 0x40000000) !== 0);
 
     myVfs.close(fd, common.mustCall((err) => {
       assert.strictEqual(err, null);
@@ -275,8 +275,8 @@ const vfs = require('node:vfs');
   const fd2 = vfs2.openSync('/file2.txt');
 
   // Both should get valid fds
-  assert.ok(fd1 >= 10000);
-  assert.ok(fd2 >= 10000);
+  assert.ok((fd1 & 0x40000000) !== 0);
+  assert.ok((fd2 & 0x40000000) !== 0);
 
   // Read from fd1 using vfs1
   const buf1 = Buffer.alloc(8);

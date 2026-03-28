@@ -197,7 +197,7 @@ function createMountedVfs() {
 
   // Open for reading
   const fd = fs.openSync(path.join(mountPoint, 'src/hello.txt'), 'r');
-  assert.ok(fd >= 10000); // VFS FDs start at 10000
+  assert.ok((fd & 0x40000000) !== 0);
 
   // fstat
   const stats = fs.fstatSync(fd);
@@ -220,7 +220,7 @@ function createMountedVfs() {
   const { myVfs, mountPoint } = createMountedVfs();
 
   const fd = fs.openSync(path.join(mountPoint, 'src/writeme.txt'), 'w');
-  assert.ok(fd >= 10000);
+  assert.ok((fd & 0x40000000) !== 0);
 
   const data = Buffer.from('written via fd');
   const bytesWritten = fs.writeSync(fd, data, 0, data.length, 0);
@@ -377,7 +377,7 @@ function createMountedVfs() {
   const { myVfs, mountPoint } = createMountedVfs();
   fs.open(path.join(mountPoint, 'src/hello.txt'), 'r', common.mustCall((err, fd) => {
     assert.strictEqual(err, null);
-    assert.ok(fd >= 10000);
+    assert.ok((fd & 0x40000000) !== 0);
 
     fs.fstat(fd, common.mustCall((err2, stats) => {
       assert.strictEqual(err2, null);
@@ -694,7 +694,7 @@ function createMountedVfs() {
   const { myVfs, mountPoint } = createMountedVfs();
   const stream = fs.createReadStream(path.join(mountPoint, 'src/hello.txt'));
   stream.on('open', common.mustCall((fd) => {
-    assert.ok(fd >= 10000);
+    assert.ok((fd & 0x40000000) !== 0);
   }));
   stream.on('end', common.mustCall(() => {
     myVfs.unmount();
@@ -709,7 +709,7 @@ function createMountedVfs() {
   const stream = fs.createWriteStream(filePath);
   assert.strictEqual(stream.path, filePath);
   stream.on('open', common.mustCall((fd) => {
-    assert.ok(fd >= 10000);
+    assert.ok((fd & 0x40000000) !== 0);
   }));
   stream.end('done', common.mustCall(() => {
     myVfs.unmount();
@@ -1590,7 +1590,7 @@ function createMountedVfs() {
   const { myVfs, mountPoint } = createMountedVfs();
   const fileUrl = new URL('file://' + path.join(mountPoint, 'src/hello.txt'));
   const fd = fs.openSync(fileUrl, 'r');
-  assert.ok(fd >= 10000);
+  assert.ok((fd & 0x40000000) !== 0);
   fs.closeSync(fd);
   myVfs.unmount();
 }

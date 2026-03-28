@@ -13,7 +13,7 @@ const vfs = require('node:vfs');
   let data = '';
 
   stream.on('open', common.mustCall((fd) => {
-    assert.ok(fd >= 10000);
+    assert.ok((fd & 0x40000000) !== 0);
   }));
 
   stream.on('ready', common.mustCall());

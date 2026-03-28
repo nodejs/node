@@ -33,7 +33,7 @@ assert.throws(
 // Valid flags should still work
 {
   const fd = fs.openSync('/mnt/file.txt', 'r');
-  assert.ok(fd >= 10000);
+  assert.ok((fd & 0x40000000) !== 0);
   fs.closeSync(fd);
 }
 

@@ -380,7 +380,7 @@ const { VirtualFileHandle } = require('internal/vfs/file_handle');
 
   const stream = myVfs.createWriteStream('/ws-mount/ws-test.txt');
   stream.on('open', common.mustCall((fd) => {
-    assert.ok(fd >= 10000);
+    assert.ok((fd & 0x40000000) !== 0);
   }));
   stream.on('ready', common.mustCall());
   stream.write('hello ', common.mustCall());

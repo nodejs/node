@@ -286,7 +286,7 @@ const vfs = require('node:vfs');
   myVfs.writeFileSync('/handle-test.txt', 'hello world');
 
   const fd = myVfs.openSync('/handle-test.txt', 'r');
-  assert.ok(fd >= 10000);
+  assert.ok((fd & 0x40000000) !== 0);
   const handle = require('internal/vfs/fd').getVirtualFd(fd);
 
   // Read via file handle
