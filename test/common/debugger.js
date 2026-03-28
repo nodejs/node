@@ -180,10 +180,14 @@ function startCLI(args, flags = [], spawnOpts = {}, opts = { randomPort: true })
     },
 
     quit() {
-      return new Promise((resolve) => {
-        child.stdin.end();
-        child.on('close', resolve);
+      const { promise, resolve } = Promise.withResolvers();
+      child.stdin.end();
+      const t = setTimeout(() => child.kill('SIGKILL'), TIMEOUT);
+      child.on('close', (code) => {
+        clearTimeout(t);
+        resolve(code);
       });
+      return promise;
     },
   };
 }
