@@ -449,31 +449,38 @@ export class LRUCache {
         this.#setItemTTL = (index, ttl, start = this.#perf.now()) => {
             starts[index] = ttl !== 0 ? start : 0;
             ttls[index] = ttl;
-            // clear out the purge timer if we're setting TTL to 0, and
-            // previously had a ttl purge timer running, so it doesn't
-            // fire unnecessarily.
-            if (purgeTimers?.[index]) {
-                clearTimeout(purgeTimers[index]);
-                purgeTimers[index] = undefined;
-            }
-            if (ttl !== 0 && purgeTimers) {
-                const t = setTimeout(() => {
-                    if (this.#isStale(index)) {
-                        this.#delete(this.#keyList[index], 'expire');
-                    }
-                }, ttl + 1);
-                // unref() not supported on all platforms
-                /* c8 ignore start */
-                if (t.unref) {
-                    t.unref();
-                }
-                /* c8 ignore stop */
-                purgeTimers[index] = t;
-            }
+            setPurgetTimer(index, ttl);
         };
         this.#updateItemAge = index => {
             starts[index] = ttls[index] !== 0 ? this.#perf.now() : 0;
+            setPurgetTimer(index, ttls[index]);
         };
+        // clear out the purge timer if we're setting TTL to 0, and
+        // previously had a ttl purge timer running, so it doesn't
+        // fire unnecessarily. Don't need to do this if we're not doing
+        // autopurge.
+        const setPurgetTimer = !this.ttlAutopurge ?
+            () => { }
+            : (index, ttl) => {
+                if (purgeTimers?.[index]) {
+                    clearTimeout(purgeTimers[index]);
+                    purgeTimers[index] = undefined;
+                }
+                if (ttl && ttl !== 0 && purgeTimers) {
+                    const t = setTimeout(() => {
+                        if (this.#isStale(index)) {
+                            this.#delete(this.#keyList[index], 'expire');
+                        }
+                    }, ttl + 1);
+                    // unref() not supported on all platforms
+                    /* c8 ignore start */
+                    if (t.unref) {
+                        t.unref();
+                    }
+                    /* c8 ignore stop */
+                    purgeTimers[index] = t;
+                }
+            };
         this.#statusTTL = (status, index) => {
             if (ttls[index]) {
                 const ttl = ttls[index];
@@ -1216,8 +1223,7 @@ export class LRUCache {
             if (this.#valList[index] === p) {
                 // if we allow stale on fetch rejections, then we need to ensure that
                 // the stale value is not removed from the cache when the fetch fails.
-                const del = !noDelete ||
-                    !proceed && bf.__staleWhileFetching === undefined;
+                const del = !noDelete || (!proceed && bf.__staleWhileFetching === undefined);
                 if (del) {
                     this.#delete(k, 'fetch');
                 }
