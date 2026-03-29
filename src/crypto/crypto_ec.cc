@@ -690,14 +690,95 @@ bool ExportJWKEdKey(Environment* env,
       target->Set(env->context(), env->jwk_kty_string(), env->jwk_okp_string())
           .IsNothing());
 }
+KeyObjectData ImportJWKEdKey(Environment* env, Local<Object> jwk) {
+  Local<Value> crv_value;
+  Local<Value> x_value;
+  Local<Value> d_value;
 
-KeyObjectData ImportJWKEcKey(Environment* env,
-                             Local<Object> jwk,
-                             const FunctionCallbackInfo<Value>& args,
-                             unsigned int offset) {
-  CHECK(args[offset]->IsString());  // curve name
-  Utf8Value curve(env->isolate(), args[offset].As<String>());
+  if (!jwk->Get(env->context(), env->jwk_crv_string()).ToLocal(&crv_value) ||
+      !jwk->Get(env->context(), env->jwk_x_string()).ToLocal(&x_value) ||
+      !jwk->Get(env->context(), env->jwk_d_string()).ToLocal(&d_value)) {
+    return {};
+  }
 
+  if (!crv_value->IsString() || !x_value->IsString() ||
+      (!d_value->IsUndefined() && !d_value->IsString())) {
+    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK OKP key");
+    return {};
+  }
+
+  Utf8Value crv(env->isolate(), crv_value.As<String>());
+
+  static constexpr struct {
+    const char* name;
+    int nid;
+  } kCurveToNid[] = {
+      {"Ed25519", EVP_PKEY_ED25519},
+      {"Ed448", EVP_PKEY_ED448},
+      {"X25519", EVP_PKEY_X25519},
+      {"X448", EVP_PKEY_X448},
+  };
+
+  int id = NID_undef;
+  for (const auto& entry : kCurveToNid) {
+    if (strcmp(*crv, entry.name) == 0) {
+      id = entry.nid;
+      break;
+    }
+  }
+
+  if (id == NID_undef) {
+    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK OKP key");
+    return {};
+  }
+
+  KeyType type = d_value->IsString() ? kKeyTypePrivate : kKeyTypePublic;
+
+  ByteSource raw;
+  if (type == kKeyTypePrivate) {
+    raw = ByteSource::FromEncodedString(env, d_value.As<String>());
+  } else {
+    raw = ByteSource::FromEncodedString(env, x_value.As<String>());
+  }
+
+  typedef EVPKeyPointer (*new_key_fn)(
+      int, const ncrypto::Buffer<const unsigned char>&);
+  new_key_fn fn = type == kKeyTypePrivate ? EVPKeyPointer::NewRawPrivate
+                                          : EVPKeyPointer::NewRawPublic;
+
+  auto pkey = fn(id,
+                 ncrypto::Buffer<const unsigned char>{
+                     .data = raw.data<const unsigned char>(),
+                     .len = raw.size(),
+                 });
+  if (!pkey) {
+    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK OKP key");
+    return {};
+  }
+
+  // When importing a private key, verify that the JWK's x field matches
+  // the public key derived from the private key.
+  if (type == kKeyTypePrivate && x_value->IsString()) {
+    ByteSource x = ByteSource::FromEncodedString(env, x_value.As<String>());
+    auto derived_pub = pkey.rawPublicKey();
+    if (!derived_pub || derived_pub.size() != x.size() ||
+        CRYPTO_memcmp(derived_pub.get(), x.data(), x.size()) != 0) {
+      THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK OKP key");
+      return {};
+    }
+  }
+
+  return KeyObjectData::CreateAsymmetric(type, std::move(pkey));
+}
+KeyObjectData ImportJWKEcKey(Environment* env, Local<Object> jwk) {
+  Local<Value> crv_value;
+  if (!jwk->Get(env->context(), env->jwk_crv_string()).ToLocal(&crv_value) ||
+      !crv_value->IsString()) {
+    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK EC key");
+    return {};
+  }
+
+  Utf8Value curve(env->isolate(), crv_value.As<String>());
   int nid = Ec::GetCurveIdFromName(*curve);
   if (nid == NID_undef) {  // Unknown curve
     THROW_ERR_CRYPTO_INVALID_CURVE(env);
@@ -732,6 +813,8 @@ KeyObjectData ImportJWKEcKey(Environment* env,
   ByteSource x = ByteSource::FromEncodedString(env, x_value.As<String>());
   ByteSource y = ByteSource::FromEncodedString(env, y_value.As<String>());
 
+  // setPublicKeyRaw validates the point is on the curve. For h=1 curves
+  // (P-256/P-384/P-521), this skips EC_KEY_check_key for efficiency.
   if (!ec.setPublicKeyRaw(x.ToBN(), y.ToBN())) {
     THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK EC key");
     return {};
@@ -740,6 +823,11 @@ KeyObjectData ImportJWKEcKey(Environment* env,
   if (type == kKeyTypePrivate) {
     ByteSource d = ByteSource::FromEncodedString(env, d_value.As<String>());
     if (!ec.setPrivateKey(d.ToBN())) {
+      THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK EC key");
+      return {};
+    }
+    // Verify that the public point matches the private scalar (d*G == (x,y)).
+    if (!ec.checkKey()) {
       THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK EC key");
       return {};
     }
