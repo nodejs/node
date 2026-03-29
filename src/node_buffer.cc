@@ -585,26 +585,17 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-void CopyImpl(Local<Value> source_obj,
-              Local<Value> target_obj,
-              const uint32_t target_start,
-              const uint32_t source_start,
-              const uint32_t to_copy) {
-  ArrayBufferViewContents<char> source(source_obj);
-  SPREAD_BUFFER_ARG(target_obj, target);
-
-  memmove(target_data + target_start, source.data() + source_start, to_copy);
-}
-
 // Assume caller has properly validated args.
 void SlowCopy(const FunctionCallbackInfo<Value>& args) {
-  Local<Value> source_obj = args[0];
-  Local<Value> target_obj = args[1];
   const uint32_t target_start = args[2].As<Uint32>()->Value();
   const uint32_t source_start = args[3].As<Uint32>()->Value();
   const uint32_t to_copy = args[4].As<Uint32>()->Value();
 
-  CopyImpl(source_obj, target_obj, target_start, source_start, to_copy);
+  ArrayBufferView::FastCopy(ArrayBufferView::Cast(*args[0]),
+                            source_start,
+                            ArrayBufferView::Cast(*args[1]),
+                            target_start,
+                            to_copy);
 
   args.GetReturnValue().Set(to_copy);
 }
@@ -618,10 +609,12 @@ uint32_t FastCopy(Local<Value> receiver,
                   uint32_t to_copy,
                   // NOLINTNEXTLINE(runtime/references)
                   FastApiCallbackOptions& options) {
-  HandleScope scope(options.isolate);
-
-  CopyImpl(source_obj, target_obj, target_start, source_start, to_copy);
-
+  TRACK_V8_FAST_API_CALL("buffer.copy");
+  ArrayBufferView::FastCopy(ArrayBufferView::Cast(*source_obj),
+                            source_start,
+                            ArrayBufferView::Cast(*target_obj),
+                            target_start,
+                            to_copy);
   return to_copy;
 }
 

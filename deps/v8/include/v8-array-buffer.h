@@ -456,6 +456,17 @@ class V8_EXPORT ArrayBufferView : public Object {
    */
   bool HasBuffer() const;
 
+  /**
+   * Copies |count| bytes from |source| starting at |source_start| into
+   * |target| starting at |target_start| using memmove semantics. Unlike
+   * CopyContents, this method handles both source and destination, supports
+   * byte offsets, and requires no HandleScope. Behaviour is undefined
+   * if either view is detached or if the range exceeds the view bounds.
+   */
+  static void FastCopy(const ArrayBufferView* source, size_t source_start,
+                       ArrayBufferView* target, size_t target_start,
+                       size_t count);
+
   V8_INLINE static ArrayBufferView* Cast(Value* value) {
 #ifdef V8_ENABLE_CHECKS
     CheckCast(value);

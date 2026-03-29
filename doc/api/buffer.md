@@ -1767,9 +1767,14 @@ added: v0.1.90
 Copies data from a region of `buf` to a region in `target`, even if the `target`
 memory region overlaps with `buf`.
 
-[`TypedArray.prototype.set()`][] performs the same operation, and is available
-for all TypedArrays, including Node.js `Buffer`s, although it takes
-different function arguments.
+[`TypedArray.prototype.set()`][] performs a similar operation and is available
+for all TypedArrays, including Node.js `Buffer`s, although it takes different
+function arguments. It differs from `buf.copy()` in two ways:
+
+1. If either buffer is detached, it throws a `TypeError` instead of performing
+   a no-op.
+2. If either buffer is backed by a [`SharedArrayBuffer`][], it performs a
+   slower copy based on a stricter memory model.
 
 ```mjs
 import { Buffer } from 'node:buffer';
@@ -5588,6 +5593,7 @@ introducing security vulnerabilities into an application.
 [`ERR_OUT_OF_RANGE`]: errors.md#err_out_of_range
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`Number.MAX_SAFE_INTEGER`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER
+[`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
 [`String.prototype.indexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/indexOf
 [`String.prototype.lastIndexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/lastIndexOf
 [`String.prototype.length`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/length

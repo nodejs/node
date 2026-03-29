@@ -9044,6 +9044,39 @@ size_t v8::ArrayBufferView::CopyContents(void* dest, size_t byte_length) {
   return bytes_to_copy;
 }
 
+// static
+void v8::ArrayBufferView::FastCopy(const ArrayBufferView* source,
+                                    size_t source_start,
+                                    ArrayBufferView* target,
+                                    size_t target_start, size_t count) {
+  i::DisallowGarbageCollection no_gc;
+  auto src = Utils::OpenDirectHandle(source);
+  auto dst = Utils::OpenDirectHandle(target);
+
+  if (V8_UNLIKELY(src->IsDetachedOrOutOfBounds() ||
+                  dst->IsDetachedOrOutOfBounds())) {
+    return;
+  }
+
+  char* src_data;
+  if (V8_LIKELY(i::IsJSTypedArray(*src))) {
+    src_data = reinterpret_cast<char*>(i::Cast<i::JSTypedArray>(*src)->DataPtr());
+  } else {
+    src_data = reinterpret_cast<char*>(
+        i::Cast<i::JSDataViewOrRabGsabDataView>(*src)->data_pointer());
+  }
+
+  char* dst_data;
+  if (V8_LIKELY(i::IsJSTypedArray(*dst))) {
+    dst_data = reinterpret_cast<char*>(i::Cast<i::JSTypedArray>(*dst)->DataPtr());
+  } else {
+    dst_data = reinterpret_cast<char*>(
+        i::Cast<i::JSDataViewOrRabGsabDataView>(*dst)->data_pointer());
+  }
+
+  memmove(dst_data + target_start, src_data + source_start, count);
+}
+
 v8::MemorySpan<uint8_t> v8::ArrayBufferView::GetContents(
     v8::MemorySpan<uint8_t> storage) {
   internal::DisallowGarbageCollection no_gc;
