@@ -47,7 +47,7 @@ for pr in "$@"; do
 
   # Skip PR if it has only one approval and was created less than 7 days ago
   pr_meta=$(gh pr view "$pr" --json reviews,createdAt)
-  approvals=$(echo "$pr_meta" | jq '[.reviews[] | select(.state == "APPROVED")] | unique_by(.author.login) | length')
+  approvals=$(echo "$pr_meta" | jq '[.reviews[] | select(.state == "APPROVED" and .authorAssociation == "MEMBER")] | unique_by(.author.login) | length')
   created_at=$(echo "$pr_meta" | jq -r '.createdAt')
   created_epoch=$(date -d "$created_at" +%s)
   seven_days_ago=$(date -d "7 days ago" +%s)
