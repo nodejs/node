@@ -772,3 +772,26 @@ for (const test of TEST_CASES) {
     decipher.final();
   }, /Unsupported state or unable to authenticate data/);
 }
+
+// Refs: https://github.com/nodejs/node/issues/62342
+{
+  const key = crypto.randomBytes(16);
+  const nonce = crypto.randomBytes(13);
+
+  const cipher = crypto.createCipheriv('aes-128-ccm', key, nonce, {
+    authTagLength: 16,
+  });
+  cipher.setAAD(Buffer.alloc(0), { plaintextLength: 0 });
+  cipher.update(new DataView(new ArrayBuffer(0)));
+  cipher.final();
+  const tag = cipher.getAuthTag();
+  assert.strictEqual(tag.length, 16);
+
+  const decipher = crypto.createDecipheriv('aes-128-ccm', key, nonce, {
+    authTagLength: 16,
+  });
+  decipher.setAuthTag(tag);
+  decipher.setAAD(Buffer.alloc(0), { plaintextLength: 0 });
+  decipher.update(new DataView(new ArrayBuffer(0)));
+  decipher.final();
+}
