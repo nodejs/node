@@ -22,7 +22,7 @@ using v8::Value;
 CallbackScope::CallbackScope(Isolate* isolate,
                              Local<Object> object,
                              async_context async_context)
-  : CallbackScope(Environment::GetCurrent(isolate), object, async_context) {}
+    : CallbackScope(Environment::GetCurrent(isolate), object, async_context) {}
 
 CallbackScope::CallbackScope(Environment* env,
                              Local<Object> object,
@@ -52,8 +52,7 @@ CallbackScope::CallbackScope(Environment* env,
 }
 
 CallbackScope::~CallbackScope() {
-  if (try_catch_.HasCaught())
-    private_->MarkAsFailed();
+  if (try_catch_.HasCaught()) private_->MarkAsFailed();
   delete private_;
 }
 
@@ -86,7 +85,15 @@ InternalCallbackScope::InternalCallbackScope(
   } else {
     object = std::get<Global<Object>*>(object_arg);
   }
-  std::visit([](auto* ptr) { CHECK_NOT_NULL(ptr); }, object);
+  // Global<Object>* may be null when no resource object was created
+  // (e.g., coroutine tasks when async_hooks are not active).
+  // push_async_context already handles the null case by skipping the
+  // native_execution_async_resources_ store.
+  if (auto* gptr = std::get_if<Global<Object>*>(&object)) {
+    CHECK_IMPLIES(*gptr != nullptr, !(*gptr)->IsEmpty());
+  } else {
+    std::visit([](auto* ptr) { CHECK_NOT_NULL(ptr); }, object);
+  }
 
   env->PushAsyncCallbackScope();
 
@@ -217,8 +224,7 @@ MaybeLocal<Value> InternalMakeCallback(Environment* env,
                                        Local<Value> context_frame) {
   CHECK(!recv.IsEmpty());
 #ifdef DEBUG
-  for (int i = 0; i < argc; i++)
-    CHECK(!argv[i].IsEmpty());
+  for (int i = 0; i < argc; i++) CHECK(!argv[i].IsEmpty());
 #endif
 
   Local<Function> hook_cb = env->async_hooks_callback_trampoline();
@@ -231,8 +237,9 @@ MaybeLocal<Value> InternalMakeCallback(Environment* env,
     flags = InternalCallbackScope::kSkipAsyncHooks;
     use_async_hooks_trampoline =
         async_hooks->fields()[AsyncHooks::kBefore] +
-        async_hooks->fields()[AsyncHooks::kAfter] +
-        async_hooks->fields()[AsyncHooks::kUsesExecutionAsyncResource] > 0;
+            async_hooks->fields()[AsyncHooks::kAfter] +
+            async_hooks->fields()[AsyncHooks::kUsesExecutionAsyncResource] >
+        0;
   }
 
   InternalCallbackScope scope(

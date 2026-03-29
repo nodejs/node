@@ -39,6 +39,7 @@ namespace node {
   V(FILEHANDLE)                                                                \
   V(FILEHANDLECLOSEREQ)                                                        \
   V(BLOBREADER)                                                                \
+  V(COROREADFILE)                                                              \
   V(FSEVENTWRAP)                                                               \
   V(FSREQCALLBACK)                                                             \
   V(FSREQPROMISE)                                                              \
@@ -124,11 +125,10 @@ class AsyncWrap : public BaseObject {
   };
 
   enum ProviderType {
-#define V(PROVIDER)                                                           \
-    PROVIDER_ ## PROVIDER,
+#define V(PROVIDER) PROVIDER_##PROVIDER,
     NODE_ASYNC_PROVIDER_TYPES(V)
 #undef V
-    PROVIDERS_LENGTH,
+        PROVIDERS_LENGTH,
   };
 
   AsyncWrap(Environment* env,
@@ -171,9 +171,9 @@ class AsyncWrap : public BaseObject {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetProviderType(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void QueueDestroyAsyncId(
-    const v8::FunctionCallbackInfo<v8::Value>& args);
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetCallbackTrampoline(
-    const v8::FunctionCallbackInfo<v8::Value>& args);
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void EmitAsyncInit(Environment* env,
                             v8::Local<v8::Object> object,
@@ -212,22 +212,16 @@ class AsyncWrap : public BaseObject {
                                          int argc,
                                          v8::Local<v8::Value>* argv);
   inline v8::MaybeLocal<v8::Value> MakeCallback(
-      const v8::Local<v8::Symbol> symbol,
-      int argc,
-      v8::Local<v8::Value>* argv);
+      const v8::Local<v8::Symbol> symbol, int argc, v8::Local<v8::Value>* argv);
   inline v8::MaybeLocal<v8::Value> MakeCallback(
-      const v8::Local<v8::String> symbol,
-      int argc,
-      v8::Local<v8::Value>* argv);
+      const v8::Local<v8::String> symbol, int argc, v8::Local<v8::Value>* argv);
   inline v8::MaybeLocal<v8::Value> MakeCallback(
-      const v8::Local<v8::Name> symbol,
-      int argc,
-      v8::Local<v8::Value>* argv);
+      const v8::Local<v8::Name> symbol, int argc, v8::Local<v8::Value>* argv);
 
   virtual std::string diagnostic_name() const;
   const char* MemoryInfoName() const override;
 
-  static void WeakCallback(const v8::WeakCallbackInfo<DestroyParam> &info);
+  static void WeakCallback(const v8::WeakCallbackInfo<DestroyParam>& info);
 
   // Returns the object that 'owns' an async wrap. For example, for a
   // TCP connection handle, this is the corresponding net.Socket.

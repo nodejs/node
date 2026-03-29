@@ -43,6 +43,11 @@
 #include "uv.h"
 #include "v8-fast-api-calls.h"
 
+#include "coro/uv_awaitable.h"
+#include "coro/uv_promise.h"
+#include "coro/uv_task.h"
+#include "coro/uv_tracked_task.h"
+
 #include <errno.h>
 #include <cerrno>
 #include <cstdio>
@@ -4099,6 +4104,138 @@ void BindingData::Deserialize(Local<Context> context,
   CHECK_NOT_NULL(binding);
 }
 
+// ===========================================================================
+// Coroutine-based fs bindings (proof of concept)
+//
+// These demonstrate how C++20 coroutines can replace the
+// ReqWrap+callback pattern with sequential async code.
+// ===========================================================================
+
+// coroAccess(path, mode) → Promise<undefined>
+// Equivalent to the promise path of access(), but implemented as a coroutine.
+// Uses UvTrackedTask for full async_hooks + AsyncLocalStorage integration.
+static coro::UvTrackedTask<void, AsyncWrap::PROVIDER_FSREQPROMISE>
+CoroAccessImpl(Environment* env,
+               v8::Global<Promise::Resolver> resolver,
+               std::string path,
+               int mode) {
+  ssize_t result =
+      co_await coro::UvFs(env->event_loop(), uv_fs_access, path.c_str(), mode);
+  if (result < 0) {
+    coro::RejectPromiseWithUVError(
+        env, resolver, result, "access", path.c_str());
+  } else {
+    coro::ResolvePromiseUndefined(env, resolver);
+  }
+}
+
+static void CoroAccess(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_GE(args.Length(), 2);
+
+  BufferValue path(env->isolate(), args[0]);
+  CHECK_NOT_NULL(*path);
+  ToNamespacedPath(env, &path);
+
+  int mode;
+  if (!GetValidFileMode(env, args[1], UV_FS_ACCESS).To(&mode)) return;
+
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
+
+  coro::CoroDispatch(
+      env, args, CoroAccessImpl, std::string(*path, path.length()), mode);
+}
+
+// coroReadFileBytes(path) → Promise<Buffer>
+// Multi-step coroutine: open → stat → read → close, all sequential.
+// This is the kind of operation that's painful with callbacks but
+// trivial with coroutines.
+static coro::UvTrackedTask<void, AsyncWrap::PROVIDER_COROREADFILE>
+CoroReadFileBytesImpl(Environment* env,
+                      v8::Global<Promise::Resolver> resolver,
+                      std::string path) {
+  // 1. Open the file
+  ssize_t fd = co_await coro::UvFs(
+      env->event_loop(), uv_fs_open, path.c_str(), O_RDONLY, 0);
+  if (fd < 0) {
+    coro::RejectPromiseWithUVError(env, resolver, fd, "open", path.c_str());
+    co_return;
+  }
+
+  // 2. Stat to get file size
+  auto [stat_err, stat] = co_await coro::UvFsStat(
+      env->event_loop(), uv_fs_fstat, static_cast<uv_file>(fd));
+  if (stat_err < 0) {
+    co_await coro::UvFs(
+        env->event_loop(), uv_fs_close, static_cast<uv_file>(fd));
+    coro::RejectPromiseWithUVError(
+        env, resolver, stat_err, "fstat", path.c_str());
+    co_return;
+  }
+
+  size_t file_size = static_cast<size_t>(stat.st_size);
+
+  // 3. Allocate buffer and read
+  std::vector<char> data(file_size);
+  size_t total_read = 0;
+
+  while (total_read < file_size) {
+    uv_buf_t buf =
+        uv_buf_init(data.data() + total_read, file_size - total_read);
+    ssize_t nread = co_await coro::UvFs(env->event_loop(),
+                                        uv_fs_read,
+                                        static_cast<uv_file>(fd),
+                                        &buf,
+                                        1,
+                                        static_cast<int64_t>(total_read));
+    if (nread < 0) {
+      co_await coro::UvFs(
+          env->event_loop(), uv_fs_close, static_cast<uv_file>(fd));
+      coro::RejectPromiseWithUVError(
+          env, resolver, nread, "read", path.c_str());
+      co_return;
+    }
+    if (nread == 0) break;  // EOF
+    total_read += nread;
+  }
+
+  // 4. Close the file
+  co_await coro::UvFs(env->event_loop(), uv_fs_close, static_cast<uv_file>(fd));
+
+  // 5. Create a Buffer and resolve the promise.
+  // The InternalCallbackScope from on_resume() provides the HandleScope.
+  // Microtask and nextTick draining happens in on_suspend() via Close().
+  {
+    MaybeLocal<Object> maybe_buf = Buffer::Copy(env, data.data(), total_read);
+    Local<Object> buf;
+    if (maybe_buf.ToLocal(&buf)) {
+      coro::ResolvePromise(env, resolver, buf);
+    } else {
+      auto msg = String::NewFromUtf8Literal(env->isolate(),
+                                            "Failed to allocate buffer");
+      auto err = v8::Exception::Error(msg);
+      auto local_resolver = resolver.Get(env->isolate());
+      USE(local_resolver->Reject(env->context(), err));
+    }
+  }
+}
+
+static void CoroReadFileBytes(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_GE(args.Length(), 1);
+
+  BufferValue path(env->isolate(), args[0]);
+  CHECK_NOT_NULL(*path);
+  ToNamespacedPath(env, &path);
+
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
+
+  coro::CoroDispatch(
+      env, args, CoroReadFileBytesImpl, std::string(*path, path.length()));
+}
+
 bool BindingData::PrepareForSerialization(Local<Context> context,
                                           v8::SnapshotCreator* creator) {
   CHECK(file_handle_read_wrap_freelist.empty());
@@ -4193,6 +4330,10 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "cpSyncCheckPaths", CpSyncCheckPaths);
   SetMethod(isolate, target, "cpSyncOverrideFile", CpSyncOverrideFile);
   SetMethod(isolate, target, "cpSyncCopyDir", CpSyncCopyDir);
+
+  // Coroutine-based fs bindings (proof of concept)
+  SetMethod(isolate, target, "coroAccess", CoroAccess);
+  SetMethod(isolate, target, "coroReadFileBytes", CoroReadFileBytes);
 
   StatWatcher::CreatePerIsolateProperties(isolate_data, target);
   BindingData::CreatePerIsolateProperties(isolate_data, target);
@@ -4318,6 +4459,10 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
   registry->Register(Mkdtemp);
   registry->Register(NewFSReqCallback);
+
+  // Coroutine-based fs bindings (proof of concept)
+  registry->Register(CoroAccess);
+  registry->Register(CoroReadFileBytes);
 
   registry->Register(FileHandle::New);
   registry->Register(FileHandle::Close);
