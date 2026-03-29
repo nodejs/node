@@ -194,21 +194,11 @@ void uv__threadpool_cleanup(void) {
 static void init_threads(void) {
   uv_thread_options_t config;
   unsigned int i;
-  size_t buflen;
-  char buf[16];
   const char* val;
-  int err;
-
   uv_sem_t sem;
 
   nthreads = ARRAY_SIZE(default_threads);
-
-  buflen = ARRAY_SIZE(buf);
-  err = uv_os_getenv("UV_THREADPOOL_SIZE", buf, &buflen);
-  val = NULL;
-  if (err == 0)
-    val = buf;
-  
+  val = getenv("UV_THREADPOOL_SIZE");
   if (val != NULL)
     nthreads = atoi(val);
   if (nthreads == 0)

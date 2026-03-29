@@ -155,3 +155,10 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
 
   return 0;
 }
+
+
+/* TODO(bnoordhuis) share with linux.c */
+void uv_free_interface_addresses(uv_interface_address_t* addresses,
+                                 int count) {
+  uv__free(addresses);
+}

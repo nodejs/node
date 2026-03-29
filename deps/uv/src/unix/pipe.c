@@ -170,8 +170,9 @@ int uv__pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb) {
     return UV__ERR(errno);
 
   handle->connection_cb = cb;
-  uv__io_cb_set(&handle->io_watcher, UV__SERVER_IO);
-  return uv__io_start(handle->loop, &handle->io_watcher, POLLIN);
+  handle->io_watcher.cb = uv__server_io;
+  uv__io_start(handle->loop, &handle->io_watcher, POLLIN);
+  return 0;
 }
 
 

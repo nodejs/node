@@ -121,20 +121,12 @@ uint64_t uv_get_total_memory(void) {
 
 
 uint64_t uv_get_constrained_memory(void) {
-  return uv__get_rlimit_max_memory();
+  return 0;  /* Memory constraints are unknown. */
 }
 
 
 uint64_t uv_get_available_memory(void) {
-  vm_statistics_data_t info;
-  mach_msg_type_number_t count = sizeof(info) / sizeof(integer_t);
-
-  if (host_statistics(mach_host_self(), HOST_VM_INFO,
-                      (host_info_t)&info, &count) != KERN_SUCCESS) {
-    return 0;
-  }
-
-  return ((uint64_t) info.free_count + (uint64_t) info.inactive_count + (uint64_t) info.purgeable_count) * sysconf(_SC_PAGESIZE);
+  return uv_get_free_memory();
 }
 
 

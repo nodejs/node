@@ -89,7 +89,9 @@ int uv__getaddrinfo_translate_error(int sys_err) {
   }
   assert(!"unknown EAI_* error code");
   abort();
+#ifndef __SUNPRO_C
   return 0;  /* Pacify compiler. */
+#endif
 }
 
 
@@ -107,9 +109,7 @@ static void uv__getaddrinfo_done(struct uv__work* w, int status) {
   uv_getaddrinfo_t* req;
 
   req = container_of(w, uv_getaddrinfo_t, work_req);
-
-  if (req->loop != NULL)
-    uv__req_unregister(req->loop);
+  uv__req_unregister(req->loop);
 
   /* See initialization in uv_getaddrinfo(). */
   if (req->hints)
@@ -151,8 +151,6 @@ int uv_getaddrinfo(uv_loop_t* loop,
 
   if (req == NULL || (hostname == NULL && service == NULL))
     return UV_EINVAL;
-  if (loop == NULL && cb != NULL)
-    return UV_EINVAL;
 
   /* FIXME(bnoordhuis) IDNA does not seem to work z/OS,
    * probably because it uses EBCDIC rather than ASCII.
@@ -179,10 +177,7 @@ int uv_getaddrinfo(uv_loop_t* loop,
   if (buf == NULL)
     return UV_ENOMEM;
 
-  UV_REQ_INIT(req, UV_GETADDRINFO);
-  if (loop != NULL)
-    uv__req_register(loop);
-
+  uv__req_init(loop, req, UV_GETADDRINFO);
   req->loop = loop;
   req->cb = cb;
   req->addrinfo = NULL;

@@ -48,6 +48,8 @@
 #define EV_OOBAND  EV_FLAG1
 #endif
 
+static void uv__fs_event(uv_loop_t* loop, uv__io_t* w, unsigned int fflags);
+
 
 int uv__kqueue_init(uv_loop_t* loop) {
   loop->backend_fd = kqueue();
@@ -202,7 +204,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       fflags = 0;
       op = EV_ADD;
 
-      if (UV__FS_EVENT == uv__io_cb_get(w)) {
+      if (w->cb == uv__fs_event) {
         filter = EVFILT_VNODE;
         fflags = NOTE_ATTRIB | NOTE_WRITE  | NOTE_RENAME
                | NOTE_DELETE | NOTE_EXTEND | NOTE_REVOKE;
@@ -261,25 +263,47 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   }
 
   for (;; nevents = 0) {
+    /* Only need to set the provider_entry_time if timeout != 0. The function
+     * will return early if the loop isn't configured with UV_METRICS_IDLE_TIME.
+     */
+    if (timeout != 0)
+      uv__metrics_set_provider_entry_time(loop);
+
     if (timeout != -1) {
       spec.tv_sec = timeout / 1000;
       spec.tv_nsec = (timeout % 1000) * 1000000;
     }
 
-    uv__io_poll_prepare(loop, pset, timeout);
+    if (pset != NULL)
+      pthread_sigmask(SIG_BLOCK, pset, NULL);
+
+    /* Store the current timeout in a location that's globally accessible so
+     * other locations like uv__work_done() can determine whether the queue
+     * of events in the callback were waiting when poll was called.
+     */
+    lfields->current_timeout = timeout;
+
     nfds = kevent(loop->backend_fd,
                   events,
                   nevents,
                   events,
                   ARRAY_SIZE(events),
                   timeout == -1 ? NULL : &spec);
-    uv__io_poll_check(loop, pset);
 
     if (nfds == -1)
       assert(errno == EINTR);
     else if (nfds == 0)
       /* Unlimited timeout should only return with events or signal. */
       assert(timeout != -1);
+
+    if (pset != NULL)
+      pthread_sigmask(SIG_UNBLOCK, pset, NULL);
+
+    /* Update loop->time unconditionally. It's tempting to skip the update when
+     * timeout == 0 (i.e. non-blocking poll) but there is no guarantee that the
+     * operating system didn't reschedule our process while in the syscall.
+     */
+    uv__update_time(loop);
 
     if (nfds == 0 || nfds == -1) {
       /* If kqueue is empty or interrupted, we might still have children ready
@@ -342,7 +366,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         w = &loop->async_io_watcher;
         assert(fd == w->fd);
         uv__metrics_update_idle_time(loop);
-        uv__io_cb(loop, w, w->events);
+        w->cb(loop, w, w->events);
         nevents++;
         continue;
       }
@@ -352,7 +376,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         assert(w->events == POLLIN);
         assert(w->pevents == POLLIN);
         uv__metrics_update_idle_time(loop);
-        uv__io_cb(loop, w, ev->fflags); /* XXX always uv__fs_event() */
+        w->cb(loop, w, ev->fflags); /* XXX always uv__fs_event() */
         nevents++;
         continue;
       }
@@ -396,7 +420,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         have_signals = 1;
       } else {
         uv__metrics_update_idle_time(loop);
-        uv__io_cb(loop, w, revents);
+        w->cb(loop, w, revents);
       }
 
       nevents++;
@@ -416,7 +440,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
     if (have_signals != 0) {
       uv__metrics_update_idle_time(loop);
-      uv__signal_event(loop, &loop->signal_io_watcher, POLLIN);
+      loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher, POLLIN);
     }
 
     loop->watchers[loop->nwatchers] = NULL;
@@ -472,7 +496,7 @@ void uv__platform_invalidate_fd(uv_loop_t* loop, int fd) {
 }
 
 
-void uv__fs_event(uv_loop_t* loop, uv__io_t* w, unsigned int fflags) {
+static void uv__fs_event(uv_loop_t* loop, uv__io_t* w, unsigned int fflags) {
   uv_fs_event_t* handle;
   struct kevent ev;
   int events;
@@ -598,7 +622,7 @@ fallback:
 
   r = uv__io_init_start(handle->loop,
                         &handle->event_watcher,
-                        UV__FS_EVENT,
+                        uv__fs_event,
                         fd,
                         POLLIN);
 

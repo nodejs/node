@@ -28,14 +28,6 @@
 #include <sys/memmsg.h>
 #include <sys/syspage.h>
 #include <sys/procfs.h>
-#include <time.h>
-#include <stdlib.h>
-#include <inttypes.h>
-#if __QNX__ >= 800
-#define cpuinfo_val cpuinfo
-#else
-#define cpuinfo_val new_cpuinfo
-#endif
 
 static void
 get_mem_info(uint64_t* totalmem, uint64_t* freemem) {
@@ -75,50 +67,24 @@ int uv_exepath(char* buffer, size_t* size) {
 }
 
 
-static uint64_t uv__read_pidin_info(const char* what) {
-  uint64_t rc;
-  char* p;
-  char buf[2048];
-
-  FILE* fp = popen("pidin info", "r");
-  if (fp == NULL)
-    return 0;
-
-  size_t sz = fread(buf, 1, sizeof(buf) - 1, fp);
-  buf[sz] = '\0';
-
-  pclose(fp);
-
-  p = strstr(buf, what);
-  if (p == NULL)
-    return 0;
-
-  p += strlen(what);
-
-  rc = 0;
-  sscanf(p, "%" PRIu64 " MB", &rc);
-
-  return rc * 1024 * 1024;
-}
-
 uint64_t uv_get_free_memory(void) {
+  uint64_t totalmem;
   uint64_t freemem;
-
-  freemem = uv__read_pidin_info("FreeMem:");
+  get_mem_info(&totalmem, &freemem);
   return freemem;
 }
 
 
 uint64_t uv_get_total_memory(void) {
   uint64_t totalmem;
-
-  totalmem = uv__read_pidin_info("MB/");
+  uint64_t freemem;
+  get_mem_info(&totalmem, &freemem);
   return totalmem;
 }
 
 
 uint64_t uv_get_constrained_memory(void) {
-  return uv__get_rlimit_max_memory();
+  return 0;
 }
 
 
@@ -147,17 +113,15 @@ int uv_resident_set_memory(size_t* rss) {
 
 
 int uv_uptime(double* uptime) {
-  struct timespec ts;
-  if(clock_gettime(CLOCK_MONOTONIC, &ts))
-    return UV__ERR(errno);
-  *uptime = (double)ts.tv_sec;
+  struct qtime_entry* qtime = _SYSPAGE_ENTRY(_syspage_ptr, qtime);
+  *uptime = (qtime->nsec / 1000000000.0);
   return 0;
 }
 
 
 int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   struct cpuinfo_entry* cpuinfo =
-    (struct cpuinfo_entry*)_SYSPAGE_ENTRY(_syspage_ptr, cpuinfo_val);
+    (struct cpuinfo_entry*)_SYSPAGE_ENTRY(_syspage_ptr, new_cpuinfo);
   size_t cpuinfo_size = _SYSPAGE_ELEMENT_SIZE(_syspage_ptr, cpuinfo);
   struct strings_entry* strings = _SYSPAGE_ENTRY(_syspage_ptr, strings);
   int num_cpus = _syspage_ptr->num_cpu;

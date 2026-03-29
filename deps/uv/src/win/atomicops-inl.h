@@ -19,41 +19,43 @@
  * IN THE SOFTWARE.
  */
 
+#ifndef UV_WIN_ATOMICOPS_INL_H_
+#define UV_WIN_ATOMICOPS_INL_H_
+
 #include "uv.h"
-#include "task.h"
-
-#include <stdio.h>
-#include <stdlib.h>
+#include "internal.h"
 
 
-TEST_IMPL(tcp_flags) {
-  uv_loop_t* loop;
-  uv_tcp_t handle;
-  int r;
+/* Atomic set operation on char */
+#ifdef _MSC_VER /* MSVC */
 
-  loop = uv_default_loop();
+/* _InterlockedOr8 is supported by MSVC on x32 and x64. It is slightly less
+ * efficient than InterlockedExchange, but InterlockedExchange8 does not exist,
+ * and interlocked operations on larger targets might require the target to be
+ * aligned. */
+#pragma intrinsic(_InterlockedOr8)
 
-  /* Use _ex to make sure the socket is created. */
-  r = uv_tcp_init_ex(loop, &handle, AF_INET);
-  ASSERT_OK(r);
-
-  r = uv_tcp_nodelay(&handle, 1);
-  ASSERT_OK(r);
-
-  r = uv_tcp_keepalive(&handle, 1, 60);
-  ASSERT_OK(r);
-
-  r = uv_tcp_keepalive(&handle, 0, 0);
-  ASSERT_OK(r);
-
-  r = uv_tcp_keepalive(&handle, 1, 0);
-  ASSERT_EQ(r, UV_EINVAL);
-
-  uv_close((uv_handle_t*)&handle, NULL);
-
-  r = uv_run(loop, UV_RUN_DEFAULT);
-  ASSERT_OK(r);
-
-  MAKE_VALGRIND_HAPPY(loop);
-  return 0;
+static char INLINE uv__atomic_exchange_set(char volatile* target) {
+  return _InterlockedOr8(target, 1);
 }
+
+#else /* GCC, Clang in mingw mode */
+
+static inline char uv__atomic_exchange_set(char volatile* target) {
+#if defined(__i386__) || defined(__x86_64__)
+  /* Mingw-32 version, hopefully this works for 64-bit gcc as well. */
+  const char one = 1;
+  char old_value;
+  __asm__ __volatile__ ("lock xchgb %0, %1\n\t"
+                        : "=r"(old_value), "=m"(*target)
+                        : "0"(one), "m"(*target)
+                        : "memory");
+  return old_value;
+#else
+  return __sync_fetch_and_or(target, 1);
+#endif
+}
+
+#endif
+
+#endif /* UV_WIN_ATOMICOPS_INL_H_ */

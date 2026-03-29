@@ -21,7 +21,6 @@
 
 #include "uv.h"
 #include "task.h"
-#include <string.h>
 
 #ifdef _WIN32
 # define putenv _putenv
@@ -103,7 +102,6 @@ static int known_broken(uv_req_t* req) {
     case UV_FS_FDATASYNC:
     case UV_FS_FSTAT:
     case UV_FS_FSYNC:
-    case UV_FS_FTRUNCATE:
     case UV_FS_LINK:
     case UV_FS_LSTAT:
     case UV_FS_MKDIR:
@@ -219,7 +217,6 @@ TEST_IMPL(threadpool_cancel_getaddrinfo) {
   r = uv_getaddrinfo(loop, reqs + 2, getaddrinfo_cb, "fail", "fail", NULL);
   ASSERT_OK(r);
 
-  memset(&hints, 0, sizeof(hints));
   r = uv_getaddrinfo(loop, reqs + 3, getaddrinfo_cb, "fail", NULL, &hints);
   ASSERT_OK(r);
 
@@ -316,7 +313,7 @@ TEST_IMPL(threadpool_cancel_work) {
 }
 
 
-TEST_FS_IMPL(threadpool_cancel_fs) {
+TEST_IMPL(threadpool_cancel_fs) {
   struct cancel_info ci;
   uv_fs_t reqs[26];
   uv_loop_t* loop;

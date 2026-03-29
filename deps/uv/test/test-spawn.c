@@ -1678,10 +1678,7 @@ TEST_IMPL(spawn_fs_open) {
 #ifdef _WIN32
   const char dev_null[] = "NUL";
   HMODULE kernelbase_module;
-  union {
-    FARPROC proc;
-    sCompareObjectHandles pCompareObjectHandles; /* Windows >= 10 */
-  } u;
+  sCompareObjectHandles pCompareObjectHandles; /* function introduced in Windows 10 */
 #else
   const char dev_null[] = "/dev/null";
 #endif
@@ -1704,10 +1701,12 @@ TEST_IMPL(spawn_fs_open) {
 #ifdef _WIN32
   ASSERT_NE(0, DuplicateHandle(GetCurrentProcess(), fd, GetCurrentProcess(), &dup_fd,
                                0, /* inherit */ TRUE, DUPLICATE_SAME_ACCESS));
-  kernelbase_module = GetModuleHandleW(L"kernelbase.dll");
-  u.proc = GetProcAddress(kernelbase_module, "CompareObjectHandles");
-  if (u.pCompareObjectHandles != NULL)
-    ASSERT_EQ(TRUE, u.pCompareObjectHandles(fd, dup_fd));
+  kernelbase_module = GetModuleHandleA("kernelbase.dll");
+  pCompareObjectHandles = (sCompareObjectHandles)
+      GetProcAddress(kernelbase_module, "CompareObjectHandles");
+  ASSERT_NE(pCompareObjectHandles == NULL ||
+            pCompareObjectHandles(fd, dup_fd),
+            0);
 #else
   dup_fd = dup(fd);
 #endif
