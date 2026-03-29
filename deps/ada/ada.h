@@ -1,4 +1,4 @@
-/* auto-generated on 2026-02-23 21:29:24 -0500. Do not edit! */
+/* auto-generated on 2026-03-23 17:52:13 -0400. Do not edit! */
 /* begin file include/ada.h */
 /**
  * @file ada.h
@@ -6458,6 +6458,39 @@ constexpr std::string_view is_special_list[] = {"http", " ",   "https", "ws",
                                                 "ftp",  "wss", "file",  " "};
 // for use with get_special_port
 constexpr uint16_t special_ports[] = {80, 0, 443, 80, 21, 443, 0, 0};
+
+// @private
+// convert a string_view to a 64-bit integer key for fast comparison
+constexpr uint64_t make_key(std::string_view sv) {
+  uint64_t val = 0;
+  for (size_t i = 0; i < sv.size(); i++)
+    val |= (uint64_t)(uint8_t)sv[i] << (i * 8);
+  return val;
+}
+// precomputed keys for the special schemes, indexed by a hash of the input
+// string
+constexpr uint64_t scheme_keys[] = {
+    make_key("http"),   // 0: HTTP
+    0,                  // 1: sentinel
+    make_key("https"),  // 2: HTTPS
+    make_key("ws"),     // 3: WS
+    make_key("ftp"),    // 4: FTP
+    make_key("wss"),    // 5: WSS
+    make_key("file"),   // 6: FILE
+    0,                  // 7: sentinel
+};
+
+// @private
+// branchless load of up to 5 characters into a uint64_t, padding with zeros if
+// n < 5
+inline uint64_t branchless_load5(const char *p, size_t n) {
+  uint64_t input = (uint8_t)p[0];
+  input |= ((uint64_t)(uint8_t)p[n > 1] << 8) & (0 - (uint64_t)(n > 1));
+  input |= ((uint64_t)(uint8_t)p[(n > 2) * 2] << 16) & (0 - (uint64_t)(n > 2));
+  input |= ((uint64_t)(uint8_t)p[(n > 3) * 3] << 24) & (0 - (uint64_t)(n > 3));
+  input |= ((uint64_t)(uint8_t)p[(n > 4) * 4] << 32) & (0 - (uint64_t)(n > 4));
+  return input;
+}
 }  // namespace details
 
 /****
@@ -6498,7 +6531,9 @@ constexpr uint16_t get_special_port(std::string_view scheme) noexcept {
   }
   int hash_value = (2 * scheme.size() + (unsigned)(scheme[0])) & 7;
   const std::string_view target = details::is_special_list[hash_value];
-  if ((target[0] == scheme[0]) && (target.substr(1) == scheme.substr(1))) {
+  if (scheme.size() == target.size() &&
+      details::branchless_load5(scheme.data(), scheme.size()) ==
+          details::scheme_keys[hash_value]) {
     return details::special_ports[hash_value];
   } else {
     return 0;
@@ -6513,7 +6548,9 @@ constexpr ada::scheme::type get_scheme_type(std::string_view scheme) noexcept {
   }
   int hash_value = (2 * scheme.size() + (unsigned)(scheme[0])) & 7;
   const std::string_view target = details::is_special_list[hash_value];
-  if ((target[0] == scheme[0]) && (target.substr(1) == scheme.substr(1))) {
+  if (scheme.size() == target.size() &&
+      details::branchless_load5(scheme.data(), scheme.size()) ==
+          details::scheme_keys[hash_value]) {
     return ada::scheme::type(hash_value);
   } else {
     return ada::scheme::NOT_SPECIAL;
@@ -9368,7 +9405,8 @@ inline void url_search_params::remove(const std::string_view key,
 }
 
 inline void url_search_params::sort() {
-  // We rely on the fact that the content is valid UTF-8.
+  // Keys are expected to be valid UTF-8, but percent_decode can produce
+  // arbitrary byte sequences. Handle truncated/invalid sequences gracefully.
   std::ranges::stable_sort(params, [](const key_value_pair &lhs,
                                       const key_value_pair &rhs) {
     size_t i = 0, j = 0;
@@ -9382,18 +9420,15 @@ inline void url_search_params::sort() {
         low_surrogate1 = 0;
       } else {
         uint8_t c1 = uint8_t(lhs.first[i]);
-        if (c1 <= 0x7F) {
-          codePoint1 = c1;
-          i++;
-        } else if (c1 <= 0xDF) {
+        if (c1 > 0x7F && c1 <= 0xDF && i + 1 < lhs.first.size()) {
           codePoint1 = ((c1 & 0x1F) << 6) | (uint8_t(lhs.first[i + 1]) & 0x3F);
           i += 2;
-        } else if (c1 <= 0xEF) {
+        } else if (c1 > 0xDF && c1 <= 0xEF && i + 2 < lhs.first.size()) {
           codePoint1 = ((c1 & 0x0F) << 12) |
                        ((uint8_t(lhs.first[i + 1]) & 0x3F) << 6) |
                        (uint8_t(lhs.first[i + 2]) & 0x3F);
           i += 3;
-        } else {
+        } else if (c1 > 0xEF && c1 <= 0xF7 && i + 3 < lhs.first.size()) {
           codePoint1 = ((c1 & 0x07) << 18) |
                        ((uint8_t(lhs.first[i + 1]) & 0x3F) << 12) |
                        ((uint8_t(lhs.first[i + 2]) & 0x3F) << 6) |
@@ -9404,6 +9439,10 @@ inline void url_search_params::sort() {
           uint16_t high_surrogate = uint16_t(0xD800 + (codePoint1 >> 10));
           low_surrogate1 = uint16_t(0xDC00 + (codePoint1 & 0x3FF));
           codePoint1 = high_surrogate;
+        } else {
+          // ASCII (c1 <= 0x7F) or truncated/invalid UTF-8: treat as raw byte
+          codePoint1 = c1;
+          i++;
         }
       }
 
@@ -9412,18 +9451,15 @@ inline void url_search_params::sort() {
         low_surrogate2 = 0;
       } else {
         uint8_t c2 = uint8_t(rhs.first[j]);
-        if (c2 <= 0x7F) {
-          codePoint2 = c2;
-          j++;
-        } else if (c2 <= 0xDF) {
+        if (c2 > 0x7F && c2 <= 0xDF && j + 1 < rhs.first.size()) {
           codePoint2 = ((c2 & 0x1F) << 6) | (uint8_t(rhs.first[j + 1]) & 0x3F);
           j += 2;
-        } else if (c2 <= 0xEF) {
+        } else if (c2 > 0xDF && c2 <= 0xEF && j + 2 < rhs.first.size()) {
           codePoint2 = ((c2 & 0x0F) << 12) |
                        ((uint8_t(rhs.first[j + 1]) & 0x3F) << 6) |
                        (uint8_t(rhs.first[j + 2]) & 0x3F);
           j += 3;
-        } else {
+        } else if (c2 > 0xEF && c2 <= 0xF7 && j + 3 < rhs.first.size()) {
           codePoint2 = ((c2 & 0x07) << 18) |
                        ((uint8_t(rhs.first[j + 1]) & 0x3F) << 12) |
                        ((uint8_t(rhs.first[j + 2]) & 0x3F) << 6) |
@@ -9433,6 +9469,10 @@ inline void url_search_params::sort() {
           uint16_t high_surrogate = uint16_t(0xD800 + (codePoint2 >> 10));
           low_surrogate2 = uint16_t(0xDC00 + (codePoint2 & 0x3FF));
           codePoint2 = high_surrogate;
+        } else {
+          // ASCII (c2 <= 0x7F) or truncated/invalid UTF-8: treat as raw byte
+          codePoint2 = c2;
+          j++;
         }
       }
 
@@ -11228,14 +11268,14 @@ constructor_string_parser<regex_provider>::parse(std::string_view input) {
 #ifndef ADA_ADA_VERSION_H
 #define ADA_ADA_VERSION_H
 
-#define ADA_VERSION "3.4.3"
+#define ADA_VERSION "3.4.4"
 
 namespace ada {
 
 enum {
   ADA_VERSION_MAJOR = 3,
   ADA_VERSION_MINOR = 4,
-  ADA_VERSION_REVISION = 3,
+  ADA_VERSION_REVISION = 4,
 };
 
 }  // namespace ada
