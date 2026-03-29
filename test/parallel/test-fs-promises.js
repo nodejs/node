@@ -94,6 +94,7 @@ function verifyStatFsObject(stat, isBigint = false) {
   assert.strictEqual(typeof stat.bavail, valueType);
   assert.strictEqual(typeof stat.files, valueType);
   assert.strictEqual(typeof stat.ffree, valueType);
+  assert.strictEqual(typeof stat.frsize, valueType);
 }
 
 async function getHandle(dest) {

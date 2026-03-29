@@ -158,6 +158,7 @@ void FillStatFsArray(AliasedBufferBase<NativeT, V8T>* fields,
   SET_FIELD(kBAvail, s->f_bavail);
   SET_FIELD(kFiles, s->f_files);
   SET_FIELD(kFFree, s->f_ffree);
+  SET_FIELD(kFrSize, s->f_frsize);
 
 #undef SET_FIELD
 }
