@@ -171,7 +171,7 @@ function assertWritableStreamEventuallyAborted(ws, writer, {
 {
   /** @member {import('internal/webstreams/readablestream').ReadableStreamDefaultController} */
   let controller;
-  let pullPromiseWithResolvers = Promise.withResolvers();
+  const pullPromiseWithResolvers = Promise.withResolvers();
   const rs = new ReadableStream({
     start(c) { controller = c; },
     pull() { return pullPromiseWithResolvers.promise; },
