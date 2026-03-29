@@ -13,6 +13,43 @@ capabilities for Node.js applications. It uses `diagnostics_channel` internally
 to dispatch log events to consumers, allowing multiple consumers to receive
 logs independently.
 
+## Why `node:logger` instead of `console`
+
+The built-in `console.log()` and related `console` APIs are designed for
+simple text output and debugging during development. They write directly to
+stdout/stderr as unstructured text, provide no log levels beyond
+`log`/`warn`/`error`/`debug`, and offer no mechanism for routing logs to
+different destinations or filtering by severity in production environments.
+
+`node:logger` addresses these limitations with capabilities that production
+applications typically require:
+
+* **Structured output**: Log records are emitted as structured objects (e.g.,
+  JSON) rather than plain text, making them machine-parseable and compatible
+  with log aggregation systems like Elasticsearch, Datadog, and Splunk.
+* **Log levels with filtering**: Six severity levels (`trace` through `fatal`)
+  with numeric ordering allow fine-grained control over which logs are emitted.
+  Both loggers and consumers can set independent minimum levels, so debug logs
+  can be written to a file without appearing on the console.
+* **Producer-consumer separation via `diagnostics_channel`**: Loggers (producers)
+  and consumers are decoupled through `diagnostics_channel`. Application code
+  logs without knowing where logs go; consumers decide the destination (stdout,
+  files, network). Multiple consumers can process the same log records
+  independently.
+* **Child loggers with context propagation**: `logger.child()` creates loggers
+  that automatically include inherited context fields (e.g., `requestId`,
+  `service`) in every log record, eliminating the need to manually pass context
+  through call chains.
+* **Serializers and the `serialize` symbol**: Custom serializers and the
+  `[serialize]()` symbol ensure sensitive data (passwords, tokens) is excluded
+  from logs and complex objects are reduced to loggable representations without
+  manual transformation at each call site.
+* **Zero-cost level checks**: `logger.debug.enabled` allows skipping expensive
+  computation when a level is disabled, something `console` does not support.
+* **No third-party dependency required**: `node:logger` provides structured
+  logging out of the box, removing the need for userland loggers like pino
+  or winston for common use cases.
+
 ```mjs
 import { Logger, JSONConsumer } from 'node:logger';
 
