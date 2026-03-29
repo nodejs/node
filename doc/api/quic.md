@@ -519,7 +519,7 @@ added: v23.8.0
 
 Sends an unreliable datagram to the remote peer, returning the datagram ID.
 If the datagram payload is specified as an `ArrayBufferView`, then ownership of
-that view will be transfered to the underlying stream.
+that view will be transferred to the underlying stream.
 
 ### `session.stats`
 
