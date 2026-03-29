@@ -149,7 +149,8 @@ server.listen(0, common.mustCall(() => {
 function checkListeners(socket) {
   const callback = common.mustCall(() => {
     if (!socket.destroyed) {
-      assert.strictEqual(socket.listenerCount('data'), 0);
+      // Sockets have freeSocketDataGuard while in the free pool.
+      assert.strictEqual(socket.listenerCount('data'), 1);
       assert.strictEqual(socket.listenerCount('drain'), 0);
       // Sockets have freeSocketErrorListener.
       assert.strictEqual(socket.listenerCount('error'), 1);
