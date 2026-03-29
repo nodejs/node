@@ -435,6 +435,12 @@
       }],
       ['v8_disable_write_barriers==1', {
         'defines': ['V8_DISABLE_WRITE_BARRIERS',],
+      }, {
+        'configurations': {
+          'Debug': {
+            'defines': ['V8_VERIFY_WRITE_BARRIERS'],
+          },
+        },
       }],
       ['v8_enable_atomic_object_field_writes==1', {
         'defines': ['V8_ATOMIC_OBJECT_FIELD_WRITES',],
