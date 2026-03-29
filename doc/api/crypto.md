@@ -2255,12 +2255,20 @@ be listed in the `transferList` argument.
 
 <!-- YAML
 added: v15.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62453
+    description: Passing a non-extractable CryptoKey as `key` is deprecated.
 -->
 
 * `key` {CryptoKey}
 * Returns: {KeyObject}
 
-Example: Converting a `CryptoKey` instance to a `KeyObject`:
+Returns the underlying {KeyObject} of a {CryptoKey}. The returned {KeyObject}
+does not retain any of the restrictions imposed by the Web Crypto API on the
+original {CryptoKey}, such as the allowed key usages, the algorithm or hash
+algorithm bindings, and the extractability flag. In particular, the underlying
+key material of the returned {KeyObject} can always be exported.
 
 ```mjs
 const { KeyObject } = await import('node:crypto');
@@ -3522,6 +3530,9 @@ operations. The specific constants currently defined are described in
 <!-- YAML
 added: v0.1.94
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62453
+    description: Passing a CryptoKey as `key` is deprecated.
   - version:
     - v17.9.0
     - v16.17.0
@@ -3596,6 +3607,9 @@ given IV will be.
 <!-- YAML
 added: v0.1.94
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62453
+    description: Passing a CryptoKey as `key` is deprecated.
   - version:
     - v17.9.0
     - v16.17.0
@@ -3819,6 +3833,9 @@ input.on('readable', () => {
 <!-- YAML
 added: v0.1.94
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62453
+    description: Passing a CryptoKey as `key` is deprecated.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35093
     description: The key can also be an ArrayBuffer or CryptoKey. The
@@ -3910,6 +3927,9 @@ input.on('readable', () => {
 added: v11.6.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62453
+    description: Passing a CryptoKey as `key` is deprecated.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/62240
     description: Added support for `'raw-private'` and `'raw-seed'`
                  formats.
@@ -3957,6 +3977,9 @@ of the passphrase is limited to 1024 bytes.
 <!-- YAML
 added: v11.6.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62453
+    description: Passing a CryptoKey as `key` is deprecated.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/62240
     description: Added support for `'raw-public'` format.
