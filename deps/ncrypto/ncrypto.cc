@@ -3538,8 +3538,38 @@ bool ECKeyPointer::setPublicKey(const ECPointPointer& pub) {
 bool ECKeyPointer::setPublicKeyRaw(const BignumPointer& x,
                                    const BignumPointer& y) {
   if (!key_) return false;
-  return EC_KEY_set_public_key_affine_coordinates(
-             key_.get(), x.get(), y.get()) == 1;
+  const EC_GROUP* group = EC_KEY_get0_group(key_.get());
+  if (group == nullptr) return false;
+
+  // For curves with cofactor h=1, use EC_POINT_oct2point +
+  // EC_KEY_set_public_key instead of EC_KEY_set_public_key_affine_coordinates.
+  // The latter internally calls EC_KEY_check_key() which performs a scalar
+  // multiplication (n*Q) for order validation — redundant when h=1 since every
+  // on-curve point already has order n. EC_POINT_oct2point validates the point
+  // is on the curve, which is sufficient. For curves with h!=1, fall back to
+  // the full check.
+  auto cofactor = BignumPointer::New();
+  if (!cofactor || !EC_GROUP_get_cofactor(group, cofactor.get(), nullptr) ||
+      !cofactor.isOne()) {
+    return EC_KEY_set_public_key_affine_coordinates(
+               key_.get(), x.get(), y.get()) == 1;
+  }
+
+  // Field element byte length: ceil(degree_bits / 8).
+  size_t field_len = (EC_GROUP_get_degree(group) + 7) / 8;
+  // Build an uncompressed point: 0x04 || x || y, each padded to field_len.
+  size_t uncompressed_len = 1 + 2 * field_len;
+  auto buf = DataPointer::Alloc(uncompressed_len);
+  if (!buf) return false;
+  unsigned char* ptr = static_cast<unsigned char*>(buf.get());
+  ptr[0] = POINT_CONVERSION_UNCOMPRESSED;
+  x.encodePaddedInto(ptr + 1, field_len);
+  y.encodePaddedInto(ptr + 1 + field_len, field_len);
+
+  auto point = ECPointPointer::New(group);
+  if (!point) return false;
+  if (!point.setFromBuffer({ptr, uncompressed_len}, group)) return false;
+  return EC_KEY_set_public_key(key_.get(), point.get()) == 1;
 }
 
 bool ECKeyPointer::setPrivateKey(const BignumPointer& priv) {
