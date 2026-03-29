@@ -45,6 +45,17 @@ for pr in "$@"; do
     continue
   fi
 
+  # Skip PR if it has only one approval and was created less than 7 days ago
+  pr_meta=$(gh pr view "$pr" --json reviews,createdAt)
+  approvals=$(echo "$pr_meta" | jq '[.reviews[] | select(.state == "APPROVED")] | unique_by(.author.login) | length')
+  created_at=$(echo "$pr_meta" | jq -r '.createdAt')
+  created_epoch=$(date -d "$created_at" +%s)
+  seven_days_ago=$(date -d "7 days ago" +%s)
+  if [ "$approvals" -le 1 ] && [ "$created_epoch" -gt "$seven_days_ago" ]; then
+    echo "pr ${pr} skipped, only one approval and created less than 7 days ago"
+    continue
+  fi
+
   # Delete the commit queue label
   gh pr edit "$pr" --remove-label "$COMMIT_QUEUE_LABEL"
 
