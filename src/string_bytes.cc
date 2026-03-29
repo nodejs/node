@@ -550,14 +550,15 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
   MaybeLocal<String> val;
 
   switch (encoding) {
-    case BUFFER: {
-      auto maybe_buf = Buffer::Copy(isolate, buf, buflen);
-      Local<v8::Object> buf;
-      if (!maybe_buf.ToLocal(&buf)) {
-        isolate->ThrowException(node::ERR_MEMORY_ALLOCATION_FAILED(isolate));
+    case BUFFER:
+      {
+        auto maybe_buf = Buffer::Copy(isolate, buf, buflen);
+        Local<v8::Object> buf;
+        if (!maybe_buf.ToLocal(&buf)) {
+          isolate->ThrowException(node::ERR_MEMORY_ALLOCATION_FAILED(isolate));
+        }
+        return buf;
       }
-      return buf;
-    }
 
     case ASCII:
       buflen = keep_buflen_in_range(buflen);
