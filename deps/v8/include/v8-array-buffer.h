@@ -462,8 +462,8 @@ class V8_EXPORT ArrayBufferView : public Object {
    * CopyContents, this method handles both source and destination, supports
    * byte offsets, and requires no HandleScope.
    */
-  static void FastCopy(const ArrayBufferView* source, size_t source_start,
-                       ArrayBufferView* target, size_t target_start,
+  static void FastCopy(Local<ArrayBufferView> source, size_t source_start,
+                       Local<ArrayBufferView> target, size_t target_start,
                        size_t count);
 
   V8_INLINE static ArrayBufferView* Cast(Value* value) {

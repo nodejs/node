@@ -591,9 +591,9 @@ void SlowCopy(const FunctionCallbackInfo<Value>& args) {
   const uint32_t source_start = args[3].As<Uint32>()->Value();
   const uint32_t to_copy = args[4].As<Uint32>()->Value();
 
-  ArrayBufferView::FastCopy(ArrayBufferView::Cast(*args[0]),
+  ArrayBufferView::FastCopy(args[0].As<ArrayBufferView>(),
                             source_start,
-                            ArrayBufferView::Cast(*args[1]),
+                            args[1].As<ArrayBufferView>(),
                             target_start,
                             to_copy);
 
@@ -610,9 +610,9 @@ uint32_t FastCopy(Local<Value> receiver,
                   // NOLINTNEXTLINE(runtime/references)
                   FastApiCallbackOptions& options) {
   TRACK_V8_FAST_API_CALL("buffer.copy");
-  ArrayBufferView::FastCopy(ArrayBufferView::Cast(*source_obj),
+  ArrayBufferView::FastCopy(source_obj.As<ArrayBufferView>(),
                             source_start,
-                            ArrayBufferView::Cast(*target_obj),
+                            target_obj.As<ArrayBufferView>(),
                             target_start,
                             to_copy);
   return to_copy;

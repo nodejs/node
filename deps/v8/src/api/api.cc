@@ -9045,13 +9045,13 @@ size_t v8::ArrayBufferView::CopyContents(void* dest, size_t byte_length) {
 }
 
 // static
-void v8::ArrayBufferView::FastCopy(const ArrayBufferView* source,
+void v8::ArrayBufferView::FastCopy(Local<ArrayBufferView> source,
                                     size_t source_start,
-                                    ArrayBufferView* target,
+                                    Local<ArrayBufferView> target,
                                     size_t target_start, size_t count) {
   i::DisallowGarbageCollection no_gc;
-  auto src = Utils::OpenDirectHandle(source);
-  auto dst = Utils::OpenDirectHandle(target);
+  auto src = Utils::OpenDirectHandle(*source);
+  auto dst = Utils::OpenDirectHandle(*target);
 
   if (V8_UNLIKELY(src->IsDetachedOrOutOfBounds() ||
                   dst->IsDetachedOrOutOfBounds())) {
