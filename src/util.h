@@ -390,6 +390,14 @@ constexpr size_t strsize(const T (&)[N]) {
   return N - 1;
 }
 
+// A type that has a valid std::char_traits specialization, as required by
+// std::basic_string and std::basic_string_view.
+template <typename T>
+concept standard_char_type =
+    std::is_same_v<T, char> || std::is_same_v<T, wchar_t> ||
+    std::is_same_v<T, char8_t> || std::is_same_v<T, char16_t> ||
+    std::is_same_v<T, char32_t>;
+
 // Allocates an array of member type T. For up to kStackStorageSize items,
 // the stack is used, otherwise malloc().
 template <typename T, size_t kStackStorageSize = 1024>
@@ -503,8 +511,12 @@ class MaybeStackBuffer {
       free(buf_);
   }
 
-  inline std::basic_string<T> ToString() const { return {out(), length()}; }
-  inline std::basic_string_view<T> ToStringView() const {
+  template <standard_char_type U = T>
+  inline std::basic_string<U> ToString() const {
+    return {out(), length()};
+  }
+  template <standard_char_type U = T>
+  inline std::basic_string_view<U> ToStringView() const {
     return {out(), length()};
   }
   // This can only be used if the buffer contains path data in UTF8
