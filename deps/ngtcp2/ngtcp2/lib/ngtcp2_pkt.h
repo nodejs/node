@@ -340,13 +340,9 @@ typedef struct ngtcp2_datagram {
   uint64_t dgram_id;
   /* datacnt is the number of elements that data contains. */
   size_t datacnt;
-  /* data is a pointer to ngtcp2_vec array that stores data. */
+  /* data is a pointer to ngtcp2_vec array that stores data.  If
+     datacnt == 0, this field may be NULL.*/
   ngtcp2_vec *data;
-  /* rdata is conveniently embedded to ngtcp2_datagram, so that data
-     field can just point to the address of this field to store a
-     single vector which is the case when DATAGRAM is received from a
-     remote endpoint. */
-  ngtcp2_vec rdata[1];
 } ngtcp2_datagram;
 
 typedef union ngtcp2_frame {
@@ -457,7 +453,7 @@ ngtcp2_ssize ngtcp2_pkt_encode_hd_short(uint8_t *out, size_t outlen,
  */
 typedef struct ngtcp2_frame_decoder {
   union {
-    ngtcp2_vec stream_data;
+    ngtcp2_vec data;
     ngtcp2_ack_range ack_ranges[NGTCP2_MAX_ACK_RANGES];
   } buf;
 } ngtcp2_frame_decoder;
