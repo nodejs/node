@@ -199,13 +199,17 @@ class GeneratedCode {
     return fn(args...);
 #else
     // AIX ABI requires function descriptors (FD).  Artificially create a pseudo
-    // FD to ensure correct dispatch to generated code.  The 'volatile'
-    // declaration is required to avoid the compiler from not observing the
-    // alias of the pseudo FD to the function pointer, and hence, optimizing the
-    // pseudo FD declaration/initialization away.
-    volatile Address function_desc[] = {reinterpret_cast<Address>(fn_ptr_), 0,
-                                        0};
-    Signature* fn = reinterpret_cast<Signature*>(function_desc);
+    // FD to ensure correct dispatch to generated code.
+    void* function_desc[3];
+    Signature* fn;
+    asm("std %1, 0(%2)\n\t"
+        "li 0, 0\n\t"
+        "std 0, 8(%2)\n\t"
+        "std 0, 16(%2)\n\t"
+        "mr %0, %2\n\t"
+        : "=r"(fn)
+        : "r"(fn_ptr_), "r"(function_desc)
+        : "memory", "0");
     return fn(args...);
 #endif  // V8_OS_ZOS
 #else
