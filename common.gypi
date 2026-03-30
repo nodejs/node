@@ -591,6 +591,18 @@
           '-maix64',
         ],
         'conditions': [
+          [ 'clang==1', {
+            'cflags': [
+              '-fno-integrated-as',
+              '-fno-xl-pragma-pack',
+              '-mcpu=power9',
+            ],
+            'cflags_cc': [
+              '-fno-integrated-as',
+              '-fno-xl-pragma-pack',
+              '-mcpu=power9',
+            ],
+          }],
           [ '"<(aix_variant_name)"=="OS400"', {            # a.k.a. `IBM i`
             'ldflags': [
               '-Wl,-blibpath:/QOpenSys/pkgs/lib:/QOpenSys/usr/lib',
