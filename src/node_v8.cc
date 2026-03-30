@@ -40,7 +40,6 @@ using v8::CpuProfile;
 using v8::CpuProfilingResult;
 using v8::CpuProfilingStatus;
 using v8::DictionaryTemplate;
-using v8::DontDelete;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
@@ -54,8 +53,6 @@ using v8::LocalVector;
 using v8::MaybeLocal;
 using v8::Number;
 using v8::Object;
-using v8::PropertyAttribute;
-using v8::ReadOnly;
 using v8::ScriptCompiler;
 using v8::String;
 using v8::Uint32;
@@ -772,52 +769,24 @@ void Initialize(Local<Object> target,
   SetMethod(context, target, "stopCpuProfile", StopCpuProfile);
   SetMethod(context, target, "startHeapProfile", StartHeapProfile);
   SetMethod(context, target, "stopHeapProfile", StopHeapProfile);
-  const PropertyAttribute sampling_flag_attributes =
-      static_cast<PropertyAttribute>(ReadOnly | DontDelete);
-  target
-      ->DefineOwnProperty(
-          context,
-          FIXED_ONE_BYTE_STRING(env->isolate(), "kSamplingNoFlags"),
-          Uint32::NewFromUnsigned(
-              env->isolate(),
-              static_cast<uint32_t>(
-                  v8::HeapProfiler::SamplingFlags::kSamplingNoFlags)),
-          sampling_flag_attributes)
-      .Check();
-  target
-      ->DefineOwnProperty(
-          context,
-          FIXED_ONE_BYTE_STRING(env->isolate(), "kSamplingForceGC"),
-          Uint32::NewFromUnsigned(
-              env->isolate(),
-              static_cast<uint32_t>(
-                  v8::HeapProfiler::SamplingFlags::kSamplingForceGC)),
-          sampling_flag_attributes)
-      .Check();
-  target
-      ->DefineOwnProperty(
-          context,
-          FIXED_ONE_BYTE_STRING(env->isolate(),
-                                "kSamplingIncludeObjectsCollectedByMajorGC"),
-          Uint32::NewFromUnsigned(
-              env->isolate(),
-              static_cast<uint32_t>(
-                  v8::HeapProfiler::SamplingFlags::
-                      kSamplingIncludeObjectsCollectedByMajorGC)),
-          sampling_flag_attributes)
-      .Check();
-  target
-      ->DefineOwnProperty(
-          context,
-          FIXED_ONE_BYTE_STRING(env->isolate(),
-                                "kSamplingIncludeObjectsCollectedByMinorGC"),
-          Uint32::NewFromUnsigned(
-              env->isolate(),
-              static_cast<uint32_t>(
-                  v8::HeapProfiler::SamplingFlags::
-                      kSamplingIncludeObjectsCollectedByMinorGC)),
-          sampling_flag_attributes)
-      .Check();
+
+  {
+    constexpr uint32_t kSamplingNoFlags = static_cast<uint32_t>(
+        v8::HeapProfiler::SamplingFlags::kSamplingNoFlags);
+    constexpr uint32_t kSamplingForceGC = static_cast<uint32_t>(
+        v8::HeapProfiler::SamplingFlags::kSamplingForceGC);
+    constexpr uint32_t kSamplingIncludeObjectsCollectedByMajorGC =
+        static_cast<uint32_t>(v8::HeapProfiler::SamplingFlags::
+                                  kSamplingIncludeObjectsCollectedByMajorGC);
+    constexpr uint32_t kSamplingIncludeObjectsCollectedByMinorGC =
+        static_cast<uint32_t>(v8::HeapProfiler::SamplingFlags::
+                                  kSamplingIncludeObjectsCollectedByMinorGC);
+
+    NODE_DEFINE_CONSTANT(target, kSamplingNoFlags);
+    NODE_DEFINE_CONSTANT(target, kSamplingForceGC);
+    NODE_DEFINE_CONSTANT(target, kSamplingIncludeObjectsCollectedByMajorGC);
+    NODE_DEFINE_CONSTANT(target, kSamplingIncludeObjectsCollectedByMinorGC);
+  }
 
   // Export symbols used by v8.isStringOneByteRepresentation()
   SetFastMethodNoSideEffect(context,
