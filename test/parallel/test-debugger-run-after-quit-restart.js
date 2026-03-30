@@ -63,6 +63,8 @@ const path = require('path');
       );
     })
     .then(() => cli.command('restart'))
+    .then(() => cli.waitFor(/Debugger attached\./))
+    .then(() => cli.waitForPrompt())
     .then(() => cli.waitForInitialBreak())
     .then(() => {
       assert.deepStrictEqual(
