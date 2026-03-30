@@ -55,11 +55,11 @@ using v8::MaybeLocal;
 using v8::Number;
 using v8::Object;
 using v8::PropertyAttribute;
+using v8::ReadOnly;
 using v8::ScriptCompiler;
 using v8::String;
 using v8::Uint32;
 using v8::V8;
-using v8::ReadOnly;
 using v8::Value;
 
 #define HEAP_STATISTICS_PROPERTIES(V)                                          \
