@@ -1589,13 +1589,14 @@ DirectHandle<InterceptorInfo> Factory::NewInterceptorInfo(
 }
 
 DirectHandle<ErrorStackData> Factory::NewErrorStackData(
-    DirectHandle<UnionOf<JSAny, FixedArray>> call_site_infos_or_formatted_stack,
+    DirectHandle<UnionOf<JSAny, FixedArray>>
+        raw_data_for_call_site_infos_or_formatted_stack,
     DirectHandle<StackTraceInfo> stack_trace) {
   Tagged<ErrorStackData> error_stack_data = NewStructInternal<ErrorStackData>(
       ERROR_STACK_DATA_TYPE, AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
-  error_stack_data->set_call_site_infos_or_formatted_stack(
-      *call_site_infos_or_formatted_stack, SKIP_WRITE_BARRIER);
+  error_stack_data->set_raw_data_for_call_site_infos_or_formatted_stack(
+      *raw_data_for_call_site_infos_or_formatted_stack, SKIP_WRITE_BARRIER);
   error_stack_data->set_stack_trace(*stack_trace, SKIP_WRITE_BARRIER);
   return direct_handle(error_stack_data, isolate());
 }

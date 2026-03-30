@@ -17,6 +17,36 @@
 
 namespace v8::internal {
 
+// static
+DirectHandle<CallSiteInfo> CallSiteInfo::ConstructFromRawData(
+    Isolate* isolate, DirectHandle<FixedArray> frames, int index) {
+  int base_index = index * Fields::kCount;
+  DirectHandle<Object> receiver(frames->get(base_index + Fields::kReceiver),
+                                isolate);
+  DirectHandle<Object> function(frames->get(base_index + Fields::kFunction),
+                                isolate);
+  DirectHandle<Object> code_obj(frames->get(base_index + Fields::kCode),
+                                isolate);
+  DirectHandle<Union<Code, BytecodeArray, Undefined>> resolved_code;
+  if (IsCodeWrapper(*code_obj)) {
+    resolved_code = handle(Cast<CodeWrapper>(code_obj)->code(isolate), isolate);
+  } else if (IsBytecodeWrapper(*code_obj)) {
+    resolved_code =
+        handle(Cast<BytecodeWrapper>(code_obj)->bytecode(isolate), isolate);
+  } else if (IsUndefined(*code_obj)) {
+    resolved_code = isolate->factory()->undefined_value();
+  } else {
+    UNREACHABLE();
+  }
+
+  int offset = Smi::ToInt(frames->get(base_index + Fields::kOffset));
+  int flags = Smi::ToInt(frames->get(base_index + Fields::kFlags));
+
+  return isolate->factory()->NewCallSiteInfo(
+      Cast<JSAny>(receiver), Cast<UnionOf<Smi, JSFunction>>(function),
+      resolved_code, offset, flags, isolate->factory()->empty_fixed_array());
+}
+
 bool CallSiteInfo::IsPromiseAll() const {
   if (!IsAsync()) return false;
   Tagged<JSFunction> fun = Cast<JSFunction>(function());

@@ -80,6 +80,13 @@ V8_OBJECT class CallSiteInfo : public StructLayout {
   // Used to signal that the requested field is unknown.
   static constexpr int kUnknown = kNoSourcePosition;
 
+  // For delayed CallSiteInfo creation (storing the raw data for several
+  // CallSiteInfos in a FixedArray).
+  enum Fields { kCode = 0, kReceiver, kFunction, kOffset, kFlags, kCount };
+
+  static DirectHandle<CallSiteInfo> ConstructFromRawData(
+      Isolate* isolate, DirectHandle<FixedArray> frames, int index);
+
   V8_EXPORT_PRIVATE static int GetLineNumber(DirectHandle<CallSiteInfo> info);
   V8_EXPORT_PRIVATE static int GetColumnNumber(DirectHandle<CallSiteInfo> info);
 

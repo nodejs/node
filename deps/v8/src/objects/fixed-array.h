@@ -259,6 +259,12 @@ V8_OBJECT class FixedArray
   V8_EXPORT_PRIVATE static HandleType<FixedArray> SetAndGrow(
       Isolate* isolate, HandleType<FixedArray> array, int index,
       DirectHandle<Object> value);
+  template <template <typename> typename HandleType>
+    requires(
+        std::is_convertible_v<HandleType<FixedArray>, DirectHandle<FixedArray>>)
+  V8_EXPORT_PRIVATE static HandleType<FixedArray> SetAndGrow(
+      Isolate* isolate, HandleType<FixedArray> array, int index,
+      Tagged<Smi> value);
 
   // Right-trim the array.
   // Invariant: 0 < new_length <= length()
@@ -289,6 +295,13 @@ V8_OBJECT class FixedArray
   static constexpr int kMaxRegularLength = FixedArray::kMaxRegularCapacity;
 
  private:
+  template <template <typename> typename HandleType>
+    requires(
+        std::is_convertible_v<HandleType<FixedArray>, DirectHandle<FixedArray>>)
+  static HandleType<FixedArray> Grow(Isolate* isolate,
+                                     HandleType<FixedArray> array,
+                                     int index);
+
   inline static Handle<FixedArray> Resize(
       Isolate* isolate, DirectHandle<FixedArray> xs, int new_capacity,
       AllocationType allocation = AllocationType::kYoung,
