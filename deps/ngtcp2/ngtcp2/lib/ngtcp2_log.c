@@ -146,33 +146,22 @@ static const char *strapperrorcode(uint64_t app_error_code) {
   return "(unknown)";
 }
 
-static const char *strpkttype_long(uint8_t type) {
-  switch (type) {
+static const char *strpkttype(const ngtcp2_pkt_hd *hd) {
+  switch (hd->type) {
   case NGTCP2_PKT_INITIAL:
     return "Initial";
-  case NGTCP2_PKT_RETRY:
-    return "Retry";
-  case NGTCP2_PKT_HANDSHAKE:
-    return "Handshake";
   case NGTCP2_PKT_0RTT:
     return "0RTT";
-  default:
-    return "(unknown)";
-  }
-}
-
-static const char *strpkttype(const ngtcp2_pkt_hd *hd) {
-  if (hd->flags & NGTCP2_PKT_FLAG_LONG_FORM) {
-    return strpkttype_long(hd->type);
-  }
-
-  switch (hd->type) {
+  case NGTCP2_PKT_HANDSHAKE:
+    return "Handshake";
+  case NGTCP2_PKT_RETRY:
+    return "Retry";
+  case NGTCP2_PKT_1RTT:
+    return "1RTT";
   case NGTCP2_PKT_VERSION_NEGOTIATION:
     return "VN";
   case NGTCP2_PKT_STATELESS_RESET:
     return "SR";
-  case NGTCP2_PKT_1RTT:
-    return "1RTT";
   default:
     return "(unknown)";
   }
@@ -266,7 +255,7 @@ static void log_fr_connection_close(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
     log, NGTCP2_LOG_EVENT_FRM,
     NGTCP2_LOG_PKT " CONNECTION_CLOSE(0x%02" PRIx64 ") error_code=%s(0x%" PRIx64
                    ") "
-                   "frame_type=%" PRIx64 " reason_len=%zu reason=[%s]",
+                   "frame_type=0x%" PRIx64 " reason_len=%zu reason=[%s]",
     NGTCP2_LOG_PKT_HD_FIELDS(dir), fr->type,
     fr->type == NGTCP2_FRAME_CONNECTION_CLOSE ? strerrorcode(fr->error_code)
                                               : strapperrorcode(fr->error_code),
@@ -764,12 +753,6 @@ void ngtcp2_log_rx_pkt_hd(ngtcp2_log *log, const ngtcp2_pkt_hd *hd) {
 
 void ngtcp2_log_tx_pkt_hd(ngtcp2_log *log, const ngtcp2_pkt_hd *hd) {
   log_pkt_hd(log, hd, "tx");
-}
-
-void ngtcp2_log_tx_cancel(ngtcp2_log *log, const ngtcp2_pkt_hd *hd) {
-  ngtcp2_log_infof(log, NGTCP2_LOG_EVENT_PKT,
-                   "cancel tx pkn=%" PRId64 " type=%s", hd->pkt_num,
-                   strpkttype(hd));
 }
 
 uint64_t ngtcp2_log_timestamp(const ngtcp2_log *log) {
