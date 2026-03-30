@@ -204,6 +204,8 @@ A good commit message should describe what changed and why.
    Bot generated commits are exempt from this requirement. If a commit has
    multiple authors, the `Signed-off-by` line should be added for each author;
    and at least one should match the author information in the commit metadata.
+   This rule does not apply to dependency updates (e.g. cherry-picks), release
+   commits, or backport commits.
 
 Sample complete commit message:
 
