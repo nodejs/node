@@ -4230,6 +4230,45 @@ added:
 
 Can be used to abort test subtasks when the test has been aborted.
 
+### `context.passed`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean}
+
+Indicates whether the suite and all of its subtests have passed.
+
+### `context.attempt`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number}
+
+The current attempt number of the suite. Used in conjunction with the
+`--test-rerun-failures` option to determine the attempt number of the current
+run.
+
+### `context.diagnostic(message)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `message` {string} A diagnostic message to output.
+
+Output a diagnostic message. This is typically used for logging information
+about the current suite or its tests.
+
+```js
+test.describe('my suite', (suite) => {
+  suite.diagnostic('Suite diagnostic message');
+});
+```
+
 [TAP]: https://testanything.org/
 [`--experimental-test-coverage`]: cli.md#--experimental-test-coverage
 [`--experimental-test-module-mocks`]: cli.md#--experimental-test-module-mocks
