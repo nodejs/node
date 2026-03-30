@@ -223,28 +223,21 @@ static const ngtcp2_vec vec_pkt_type_stateless_reset =
 static const ngtcp2_vec vec_pkt_type_unknown = ngtcp2_make_vec_lit("unknown");
 
 static const ngtcp2_vec *qlog_pkt_type(const ngtcp2_pkt_hd *hd) {
-  if (hd->flags & NGTCP2_PKT_FLAG_LONG_FORM) {
-    switch (hd->type) {
-    case NGTCP2_PKT_INITIAL:
-      return &vec_pkt_type_initial;
-    case NGTCP2_PKT_HANDSHAKE:
-      return &vec_pkt_type_handshake;
-    case NGTCP2_PKT_0RTT:
-      return &vec_pkt_type_0rtt;
-    case NGTCP2_PKT_RETRY:
-      return &vec_pkt_type_retry;
-    default:
-      return &vec_pkt_type_unknown;
-    }
-  }
-
   switch (hd->type) {
+  case NGTCP2_PKT_INITIAL:
+    return &vec_pkt_type_initial;
+  case NGTCP2_PKT_0RTT:
+    return &vec_pkt_type_0rtt;
+  case NGTCP2_PKT_HANDSHAKE:
+    return &vec_pkt_type_handshake;
+  case NGTCP2_PKT_RETRY:
+    return &vec_pkt_type_retry;
+  case NGTCP2_PKT_1RTT:
+    return &vec_pkt_type_1rtt;
   case NGTCP2_PKT_VERSION_NEGOTIATION:
     return &vec_pkt_type_version_negotiation;
   case NGTCP2_PKT_STATELESS_RESET:
     return &vec_pkt_type_stateless_reset;
-  case NGTCP2_PKT_1RTT:
-    return &vec_pkt_type_1rtt;
   default:
     return &vec_pkt_type_unknown;
   }

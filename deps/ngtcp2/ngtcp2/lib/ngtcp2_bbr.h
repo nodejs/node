@@ -107,6 +107,7 @@ typedef struct ngtcp2_cc_bbr {
   uint64_t cwnd_gain_h;
 
   /* Backup for spurious losses */
+  ngtcp2_bbr_state undo_state;
   uint64_t undo_bw_shortterm;
   uint64_t undo_inflight_shortterm;
   uint64_t undo_inflight_longterm;

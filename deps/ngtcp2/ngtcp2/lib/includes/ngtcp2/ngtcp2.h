@@ -1281,7 +1281,7 @@ typedef struct ngtcp2_sockaddr_in {
 } ngtcp2_sockaddr_in;
 
 typedef struct ngtcp2_in6_addr {
-  uint8_t in6_addr[16];
+  uint8_t s6_addr[16];
 } ngtcp2_in6_addr;
 
 typedef struct ngtcp2_sockaddr_in6 {
@@ -1866,8 +1866,8 @@ typedef struct ngtcp2_settings {
   uint64_t max_stream_window;
   /**
    * :member:`ack_thresh` is the minimum number of the received ACK
-   * eliciting packets that trigger the immediate acknowledgement from
-   * the local endpoint.
+   * eliciting packets that triggers the immediate acknowledgement
+   * from the local endpoint.
    */
   size_t ack_thresh;
   /**
