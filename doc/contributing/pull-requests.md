@@ -199,6 +199,14 @@ A good commit message should describe what changed and why.
    contain an explanation about the reason of the breaking change, which
    situation would trigger the breaking change, and what is the exact change.
 
+6. Your commit must contain the `Signed-off-by` line with your name and email
+   address as an acknowledgement that you agree to the [Developer Certificate of Origin][].
+   Bot generated commits are exempt from this requirement. If a commit has
+   multiple authors, the `Signed-off-by` line should be added for each author;
+   and at least one should match the author information in the commit metadata.
+   This rule does not apply to dependency updates (e.g. cherry-picks), release
+   commits, or backport commits.
+
 Sample complete commit message:
 
 ```text
@@ -210,6 +218,7 @@ less.
 
 Fixes: https://github.com/nodejs/node/issues/1337
 Refs: https://eslint.org/docs/rules/space-in-parens.html
+Signed-off-by: J. Random User <j.random.user@example.com>
 ```
 
 If you are new to contributing to Node.js, please try to do your best at
@@ -594,6 +603,7 @@ More than one subsystem may be valid for any particular issue or pull request.
 [Building guide]: ../../BUILDING.md
 [CI (Continuous Integration) test run]: #continuous-integration-testing
 [Code of Conduct]: https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md
+[Developer Certificate of Origin]: ../../CONTRIBUTING.md#developers-certificate-of-origin-11
 [Onboarding guide]: ../../onboarding.md
 [approved]: #getting-approvals-for-your-pull-request
 [benchmark results]: writing-and-running-benchmarks.md
