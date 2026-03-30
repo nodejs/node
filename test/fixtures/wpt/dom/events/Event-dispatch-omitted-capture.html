@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>EventTarget.addEventListener: capture argument omitted</title>
+<link rel="help" href="https://dom.spec.whatwg.org/#dom-eventtarget-addeventlistener">
+<link rel="help" href="https://dom.spec.whatwg.org/#concept-event-dispatch">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<table id="table" border="1" style="display: none">
+    <tbody id="table-body">
+    <tr id="table-row">
+        <td id="table-cell">Shady Grove</td>
+        <td>Aeolian</td>
+    </tr>
+    <tr id="parent">
+        <td id="target">Over the river, Charlie</td>
+        <td>Dorian</td>
+    </tr>
+    </tbody>
+</table>
+<script>
+test(function() {
+    var event_type = "foo";
+    var target = document.getElementById("target");
+    var targets = [
+        target,
+        document.getElementById("parent"),
+        document.getElementById("table-body"),
+        document.getElementById("table"),
+        document.body,
+        document.documentElement,
+        document,
+        window
+    ];
+    var phases = [
+        Event.AT_TARGET,
+        Event.BUBBLING_PHASE,
+        Event.BUBBLING_PHASE,
+        Event.BUBBLING_PHASE,
+        Event.BUBBLING_PHASE,
+        Event.BUBBLING_PHASE,
+        Event.BUBBLING_PHASE,
+        Event.BUBBLING_PHASE
+    ];
+
+    var actual_targets = [], actual_phases = [];
+    var test_event = function(evt) {
+        actual_targets.push(evt.currentTarget);
+        actual_phases.push(evt.eventPhase);
+    }
+
+    for (var i = 0; i < targets.length; i++) {
+        targets[i].addEventListener(event_type, test_event);
+    }
+
+    var evt = document.createEvent("Event");
+    evt.initEvent(event_type, true, true);
+
+    target.dispatchEvent(evt);
+
+    for (var i = 0; i < targets.length; i++) {
+        targets[i].removeEventListener(event_type, test_event);
+    }
+
+    target.dispatchEvent(evt);
+
+    assert_array_equals(actual_targets, targets, "targets");
+    assert_array_equals(actual_phases, phases, "phases");
+}, "EventTarget.addEventListener with the capture argument omitted");
+</script>

@@ -1,0 +1,95 @@
+.TH "NPM-CACHE" "1" "February 2026" "NPM@11.11.0" ""
+.SH "NAME"
+\fBnpm-cache\fR - Manipulates packages cache
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm cache add <package-spec>
+npm cache clean \[lB]<key>\[rB]
+npm cache ls \[lB]<name>@<version>\[rB]
+npm cache verify
+npm cache npx ls
+npm cache npx rm \[lB]<key>...\[rB]
+npm cache npx info <key>...
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces.
+.SS "Description"
+.P
+Used to add, list, or clean the \fBnpm cache\fR folder. Also used to view info about entries in the \fBnpm exec\fR (aka \fBnpx\fR) cache folder.
+.SS "\fBnpm cache\fR"
+.RS 0
+.IP \(bu 4
+add: Add the specified packages to the local cache. This command is primarily intended to be used internally by npm, but it can provide a way to add data to the local installation cache explicitly.
+.IP \(bu 4
+clean: Delete a single entry or all entries out of the cache folder. Note that this is typically unnecessary, as npm's cache is self-healing and resistant to data corruption issues.
+.IP \(bu 4
+ls: List given entries or all entries in the local cache.
+.IP \(bu 4
+verify: Verify the contents of the cache folder, garbage collecting any unneeded data, and verifying the integrity of the cache index and all cached data.
+.RE 0
+
+.SS "\fBnpm cache npx\fR"
+.RS 0
+.IP \(bu 4
+ls: List all entries in the npx cache.
+.IP \(bu 4
+rm: Remove given entries or all entries from the npx cache.
+.IP \(bu 4
+info: Get detailed information about given entries in the npx cache.
+.RE 0
+
+.SS "Details"
+.P
+npm stores cache data in an opaque directory within the configured \fBcache\fR, named \fB_cacache\fR. This directory is a \fB\[rs]fBcacache\[rs]fR\fR \fI\(lahttp://npm.im/cacache\(ra\fR-based content-addressable cache that stores all http request data as well as other package-related data. This directory is primarily accessed through \fBpacote\fR, the library responsible for all package fetching as of npm@5.
+.P
+All data that passes through the cache is fully verified for integrity on both insertion and extraction. Cache corruption will either trigger an error, or signal to \fBpacote\fR that the data must be refetched, which it will do automatically. For this reason, it should never be necessary to clear the cache for any reason other than reclaiming disk space, thus why \fBclean\fR now requires \fB--force\fR to run.
+.P
+There is currently no method exposed through npm to inspect or directly manage the contents of this cache. In order to access it, \fBcacache\fR must be used directly.
+.P
+npm will not remove data by itself: the cache will grow as new packages are installed.
+.SS "A note about the cache's design"
+.P
+The npm cache is strictly a cache: it should not be relied upon as a persistent and reliable data store for package data. npm makes no guarantee that a previously-cached piece of data will be available later, and will automatically delete corrupted contents. The primary guarantee that the cache makes is that, if it does return data, that data will be exactly the data that was inserted.
+.P
+To run an offline verification of existing cache contents, use \fBnpm cache verify\fR.
+.SS "Configuration"
+.SS "\fBcache\fR"
+.RS 0
+.IP \(bu 4
+Default: Windows: \fB%LocalAppData%\[rs]npm-cache\fR, Posix: \fB~/.npm\fR
+.IP \(bu 4
+Type: Path
+.RE 0
+
+.P
+The location of npm's cache directory.
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help "package spec"
+.IP \(bu 4
+npm help folders
+.IP \(bu 4
+npm help config
+.IP \(bu 4
+npm help npmrc
+.IP \(bu 4
+npm help install
+.IP \(bu 4
+npm help publish
+.IP \(bu 4
+npm help pack
+.IP \(bu 4
+npm help exec
+.IP \(bu 4
+https://npm.im/cacache
+.IP \(bu 4
+https://npm.im/pacote
+.IP \(bu 4
+https://npm.im/@npmcli/arborist
+.IP \(bu 4
+https://npm.im/make-fetch-happen
+.RE 0

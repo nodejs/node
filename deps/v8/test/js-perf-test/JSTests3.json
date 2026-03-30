@@ -1,0 +1,499 @@
+{
+  "owners": ["jarin@chromium.org", "mvstanton@chromium.org"],
+  "name": "JSTests",
+  "run_count": 3,
+  "run_count_arm": 1,
+  "run_count_arm64": 1,
+  "timeout": 120,
+  "timeout_arm64": 240,
+  "units": "score",
+  "total": true,
+  "resources": ["base.js"],
+  "tests": [
+    {
+      "name": "ClassFields",
+      "path": ["ClassFields"],
+      "flags": ["--allow-natives-syntax"],
+      "resources": [ "evaluate-class.js", "initialize-instance.js", "classes.js" ],
+      "tests": [
+        {
+          "name": "EvaluateClassOpt",
+          "test_flags": [ "evaluate-class", "opt" ],
+          "main": "run.js",
+          "results_regexp": "^%s\\-ClassFields\\(Score\\): (.+)$",
+          "tests": [
+            {"name": "EvaluateSinglePublicFieldClassOpt"},
+            {"name": "EvaluateMultiPublicFieldClassOpt"},
+            {"name": "EvaluateSinglePrivateFieldClassOpt"},
+            {"name": "EvaluateMultiPrivateFieldClassOpt"},
+            {"name": "EvaluateSinglePrivateMethodClassOpt"},
+            {"name": "EvaluateMultiPrivateMethodClassOpt"},
+            {"name": "EvaluateSingleComputedFieldClassOpt"},
+            {"name": "EvaluateMultiComputedFieldClassOpt"}
+          ]
+        },
+        {
+          "name": "EvaluateClassNoOpt",
+          "test_flags": [ "evaluate-class", "noopt" ],
+          "main": "run.js",
+          "results_regexp": "^%s\\-ClassFields\\(Score\\): (.+)$",
+          "tests": [
+            {"name": "EvaluateSinglePublicFieldClassNoOpt"},
+            {"name": "EvaluateMultiPublicFieldClassNoOpt"},
+            {"name": "EvaluateSinglePrivateFieldClassNoOpt"},
+            {"name": "EvaluateMultiPrivateFieldClassNoOpt"},
+            {"name": "EvaluateSinglePrivateMethodClassNoOpt"},
+            {"name": "EvaluateMultiPrivateMethodClassNoOpt"},
+            {"name": "EvaluateSingleComputedFieldClassNoOpt"},
+            {"name": "EvaluateMultiComputedFieldClassNoOpt"}
+          ]
+        },
+        {
+          "name": "InitializeClassOpt",
+          "test_flags": [ "initialize-instance", "opt" ],
+          "main": "run.js",
+          "results_regexp": "^%s\\-ClassFields\\(Score\\): (.+)$",
+          "tests": [
+            {"name": "InitializeSinglePublicFieldClassOpt"},
+            {"name": "InitializeMultiPublicFieldClassOpt"},
+            {"name": "InitializeSinglePrivateFieldClassOpt"},
+            {"name": "InitializeMultiPrivateFieldClassOpt"},
+            {"name": "InitializeSinglePrivateMethodClassOpt"},
+            {"name": "InitializeMultiPrivateMethodClassOpt"},
+            {"name": "InitializeSingleComputedFieldClassOpt"},
+            {"name": "InitializeMultiComputedFieldClassOpt"}
+          ]
+        },
+        {
+          "name": "InitializeClassNoOpt",
+          "test_flags": [ "initialize-instance", "noopt" ],
+          "main": "run.js",
+          "results_regexp": "^%s\\-ClassFields\\(Score\\): (.+)$",
+          "tests": [
+            {"name": "InitializeSinglePublicFieldClassNoOpt"},
+            {"name": "InitializeMultiPublicFieldClassNoOpt"},
+            {"name": "InitializeSinglePrivateFieldClassNoOpt"},
+            {"name": "InitializeMultiPrivateFieldClassNoOpt"},
+            {"name": "InitializeSinglePrivateMethodClassNoOpt"},
+            {"name": "InitializeMultiPrivateMethodClassNoOpt"},
+            {"name": "InitializeSingleComputedFieldClassNoOpt"},
+            {"name": "InitializeMultiComputedFieldClassNoOpt"}
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ArrayLiteralInitialSpreadSmallDoubleHoley",
+      "path": ["ArrayLiteralInitialSpreadSmallDoubleHoley"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-ArrayLiteralInitialSpreadSmallDoubleHoley\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Spread"},
+        {"name": "ForLength"},
+        {"name": "ForLengthEmpty"},
+        {"name": "Slice"},
+        {"name": "Slice0"},
+        {"name": "ConcatReceive"},
+        {"name": "ConcatArg"},
+        {"name": "ForOfPush"},
+        {"name": "MapId"}
+      ]
+    },
+    {
+      "name": "Strings",
+      "path": ["Strings"],
+      "run_count": 1,
+      "timeout": 240,
+      "timeout_arm": 420,
+      "units": "score",
+      "tests": [
+        {
+          "name": "StringFunctions",
+          "main": "run.js",
+          "resources": [ "harmony-string.js" ],
+          "test_flags": [ "harmony-string" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "StringRepeat"},
+            {"name": "StringStartsWith"},
+            {"name": "StringEndsWith"},
+            {"name": "StringIncludes"},
+            {"name": "StringFromCodePoint"},
+            {"name": "StringCodePointAt"},
+            {"name": "StringCodePointAtSum"}
+          ]
+        },
+        {
+          "name": "StringIndexOf",
+          "main": "run.js",
+          "resources": [ "string-indexof.js" ],
+          "test_flags": [ "string-indexof" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "StringIndexOfConstant"},
+            {"name": "StringIndexOfNonConstant"}
+          ]
+        },
+        {
+          "name": "StringSplit",
+          "main": "run.js",
+          "resources": [ "string-split.js" ],
+          "test_flags": [ "string-split" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "ShortSubjectEmptySeparator"},
+            {"name": "LongSubjectEmptySeparator"},
+            {"name": "ShortTwoBytesSubjectEmptySeparator"},
+            {"name": "LongTwoBytesSubjectEmptySeparator"},
+            {"name": "ShortSubject"},
+            {"name": "LongSubject"},
+            {"name": "ShortTwoBytesSubject"},
+            {"name": "LongTwoBytesSubject"}
+          ]
+        },
+        {
+          "name": "StringAt",
+          "main": "run.js",
+          "resources": [ "string-stringat.js" ],
+          "test_flags": [ "string-stringat" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "StringCharCodeAtConstant"},
+            {"name": "StringCharCodeAtNonConstant"},
+            {"name": "StringCharCodeAtConstantInbounds"},
+            {"name": "StringCharCodeAtNonConstantInbounds"},
+            {"name": "StringCodePointAtConstant"},
+            {"name": "StringCodePointAtNonConstant"},
+            {"name": "StringCodePointAtConstantInbounds"},
+            {"name": "StringCodePointAtNonConstantInbounds"}
+          ]
+        },
+        {
+          "name": "StringAtComparison",
+          "main": "run.js",
+          "resources": [ "string-stringat-comp.js" ],
+          "test_flags": [ "string-stringat-comp" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "charCodeAt_const"},
+            {"name": "charCodeAt_both"},
+            {"name": "charAt_const"},
+            {"name": "charAt_never"},
+            {"name": "charAt_both"},
+            {"name": "stringIndex_const"}
+          ]
+        },
+        {
+          "name": "StringNormalize",
+          "main": "run.js",
+          "resources": [ "string-normalize.js" ],
+          "test_flags": [ "string-normalize" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "StringNormalize"},
+            {"name": "StringNormalizeNFD"},
+            {"name": "StringNormalizeNFKC"},
+            {"name": "StringNormalizeNFKD"}
+          ]
+        },
+        {
+          "name": "StringLocaleCompare",
+          "main": "run.js",
+          "resources": [ "string-localeCompare.js" ],
+          "test_flags": [ "string-localeCompare" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "StringLocaleCompare"}
+          ]
+        },
+        {
+          "name": "StringToLocaleCase",
+          "main": "run.js",
+          "resources": [ "string-toLocaleCase.js" ],
+          "test_flags": [ "string-toLocaleCase" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "StringToLocaleLowerCase"},
+            {"name": "StringToLocaleUpperCase"},
+            {"name": "StringToLocaleLowerCaseTR"},
+            {"name": "StringToLocaleUpperCaseTR"}
+          ]
+        },
+        {
+          "name": "StringMatchAll",
+          "main": "run.js",
+          "resources": [ "string-matchall.js" ],
+          "test_flags": [ "string-matchall" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "StringMatchAllBuiltinRegExpIteratorCreation"},
+            {"name": "StringMatchAllBuiltinStringIteratorCreation"},
+            {"name": "StringMatchAllBuiltinString"},
+            {"name": "StringMatchAllManualString"},
+            {"name": "StringMatchAllBuiltinRegExp"},
+            {"name": "StringMatchAllManualRegExp"},
+            {"name": "StringMatchAllBuiltinZeroWidth"},
+            {"name": "StringMatchAllBuiltinZeroWidthUnicode"}
+          ]
+        },
+        {
+          "name": "StringStartsEndsWithComparison",
+          "main": "run.js",
+          "resources": [ "string-startsendswith-comp.js" ],
+          "test_flags": [ "string-startsendswith-comp" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "startsWith"},
+            {"name": "startsIndex"},
+            {"name": "endsWith"},
+            {"name": "endsIndex"}
+          ]
+        },
+        {
+          "name": "StringStartsWith",
+          "main": "run.js",
+          "resources": [ "string-startswith.js" ],
+          "test_flags": [ "string-startswith" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "flags": [ "--allow-natives-syntax" ],
+          "tests": [
+            {"name": "DirectStringsDirectSearch"},
+            {"name": "ConsStringsDirectSearch"},
+            {"name": "DirectStringsConsSearch"},
+            {"name": "ConsStringsConsSearch"}
+          ]
+        },
+        {
+          "name": "StringSubstring",
+          "main": "run.js",
+          "resources": [ "string-substring.js" ],
+          "test_flags": [ "string-substring" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "StringDropFirstSlice"},
+            {"name": "StringDropFirstSubstr"},
+            {"name": "StringDropFirstSubstring"},
+            {"name": "StringTakeFirstSlice"},
+            {"name": "StringTakeFirstSubstr"},
+            {"name": "StringTakeFirstSubstring"},
+            {"name": "StringDropLastSlice"},
+            {"name": "StringDropLastSubstr"},
+            {"name": "StringDropLastSubstring"},
+            {"name": "StringTakeLastSlice"},
+            {"name": "StringTakeLastSubstr"},
+            {"name": "StringTakeLastSubstring"}
+          ]
+        }
+      ]
+    },
+    {
+      "name": "BytecodeHandlers",
+      "path": ["BytecodeHandlers"],
+      "flags": [ "--max-opt=0" ],
+      "tests": [
+        {
+          "name": "Compare",
+          "main": "run.js",
+          "resources": [ "compare.js" ],
+          "test_flags": [ "compare" ],
+          "results_regexp": "^%s\\-BytecodeHandler\\(Score\\): (.+)$",
+          "tests": [
+            {"name": "Smi-StrictEquals-True"},
+            {"name": "Smi-StrictEquals-False"},
+            {"name": "Number-StrictEquals-True"},
+            {"name": "Number-StrictEquals-False"},
+            {"name": "String-StrictEquals-True"},
+            {"name": "String-StrictEquals-False"},
+            {"name": "SmiString-StrictEquals"},
+            {"name": "Boolean-StrictEquals"},
+            {"name": "Smi-Equals-True"},
+            {"name": "Smi-Equals-False"},
+            {"name": "Number-Equals-True"},
+            {"name": "Number-Equals-False"},
+            {"name": "String-Equals-True"},
+            {"name": "String-Equals-False"},
+            {"name": "ObjectNull-Equals"},
+            {"name": "SmiString-Equals"},
+            {"name": "Smi-RelationalCompare"},
+            {"name": "Number-RelationalCompare"},
+            {"name": "String-RelationalCompare"},
+            {"name": "SmiString-RelationalCompare"}
+          ]
+        },
+        {
+          "name": "StringConcat",
+          "main": "run.js",
+          "resources": [ "string-concat.js" ],
+          "test_flags": [ "string-concat" ],
+          "results_regexp": "^%s\\-BytecodeHandler\\(Score\\): (.+)$",
+          "tests": [
+            {"name": "ShortString-StringConcat-2"},
+            {"name": "ShortString-StringConcat-3"},
+            {"name": "ShortString-StringConcat-5"},
+            {"name": "ShortString-StringConcat-10"},
+            {"name": "LongString-StringConcat-2"},
+            {"name": "LongString-StringConcat-3"},
+            {"name": "LongString-StringConcat-5"},
+            {"name": "LongString-StringConcat-10"},
+            {"name": "NumberString-StringConcat-2"},
+            {"name": "NumberString-StringConcat-3"},
+            {"name": "NumberString-StringConcat-5"},
+            {"name": "NumberString-StringConcat-10"}
+          ]
+        },
+        {
+          "name": "Arithmetic",
+          "main": "run.js",
+          "resources": [ "arithmetic.js" ],
+          "test_flags": [ "arithmetic" ],
+          "results_regexp": "^%s\\-BytecodeHandler\\(Score\\): (.+)$",
+          "timeout": 240,
+          "tests": [
+            {"name": "Smi-Add"},
+            {"name": "Number-Add"},
+            {"name": "Number-Oddball-Add"},
+            {"name": "String-Add"},
+            {"name": "Object-Add"},
+            {"name": "Number-String-Add"},
+            {"name": "Smi-Sub"},
+            {"name": "Number-Sub"},
+            {"name": "Number-Oddball-Sub"},
+            {"name": "Object-Sub"},
+            {"name": "Smi-Mul"},
+            {"name": "Number-Mul"},
+            {"name": "Number-Oddball-Mul"},
+            {"name": "Object-Mul"},
+            {"name": "Smi-Div"},
+            {"name": "Number-Div"},
+            {"name": "Number-Oddball-Div"},
+            {"name": "Object-Div"},
+            {"name": "Smi-Mod"},
+            {"name": "Number-Mod"},
+            {"name": "Number-Oddball-Mod"},
+            {"name": "Object-Mod"},
+            {"name": "Smi-Constant-Add"},
+            {"name": "Smi-Constant-Sub"},
+            {"name": "Smi-Constant-Mul"},
+            {"name": "Smi-Constant-Div"},
+            {"name": "Smi-Constant-Mod"},
+            {"name": "Smi-Increment"},
+            {"name": "Number-Increment"},
+            {"name": "Smi-Decrement"},
+            {"name": "Number-Decrement"}
+          ]
+        },
+        {
+          "name": "Bitwise",
+          "main": "run.js",
+          "resources": [ "bitwise.js" ],
+          "test_flags": [ "bitwise" ],
+          "results_regexp": "^%s\\-BytecodeHandler\\(Score\\): (.+)$",
+          "tests": [
+            {"name": "Smi-Or"},
+            {"name": "Number-Or"},
+            {"name": "Smi-Xor"},
+            {"name": "Number-Xor"},
+            {"name": "Smi-And"},
+            {"name": "Number-And"},
+            {"name": "Smi-Constant-Or"},
+            {"name": "Smi-Constant-Xor"},
+            {"name": "Smi-Constant-And"},
+            {"name": "Smi-ShiftLeft"},
+            {"name": "Number-ShiftLeft"},
+            {"name": "Smi-ShiftRight"},
+            {"name": "Number-ShiftRight"},
+            {"name": "Smi-ShiftRightLogical"},
+            {"name": "Number-ShiftRightLogical"},
+            {"name": "Smi-Constant-ShiftLeft"},
+            {"name": "Smi-Constant-ShiftRight"},
+            {"name": "Smi-Constant-ShiftRightLogical"}
+          ]
+        },
+        {
+          "name": "GetNamedProperty",
+          "main": "run.js",
+          "resources": [ "GetNamedProperty.js" ],
+          "test_flags": [ "GetNamedProperty" ],
+          "results_regexp": "^%s\\-BytecodeHandler\\(Score\\): (.+)$",
+          "tests": [
+            {"name": "Smi-Value"},
+            {"name": "Prototype-Chain-Value"}
+          ]
+        },
+        {
+          "name": "GetKeyedProperty",
+          "main": "run.js",
+          "resources": [ "GetKeyedProperty.js" ],
+          "test_flags": [ "GetKeyedProperty" ],
+          "results_regexp": "^%s\\-BytecodeHandler\\(Score\\): (.+)$",
+          "tests": [
+            {"name": "Object-Lookup-String-Constant"},
+            {"name": "Object-Lookup-Index-Number"},
+            {"name": "Object-Lookup-Index-String"}
+          ]
+        },
+        {
+          "name": "LdaGlobal",
+          "main": "run.js",
+          "resources": [ "LdaGlobal.js" ],
+          "test_flags": [ "LdaGlobal" ],
+          "results_regexp": "^%s\\-BytecodeHandler\\(Score\\): (.+)$",
+          "tests": [
+            {"name": "LoadGlobal"},
+            {"name": "LoadGlobalInsideTypeof"}
+          ]
+        }
+      ]
+    },
+    {
+      "name": "InterpreterEntryTrampoline",
+      "path": ["InterpreterEntryTrampoline"],
+      "flags": ["--max-opt=0"],
+      "tests": [
+        {
+          "name": "Arguments",
+          "main": "run.js",
+          "resources": [ "arguments.js" ],
+          "test_flags": [ "arguments" ],
+          "results_regexp": "^%s\\-InterpreterEntryTrampoline\\(Score\\): (.+)$",
+          "tests": [
+            {"name": "Calls-No-Argument"},
+            {"name": "Calls-One-Argument"},
+            {"name": "Calls-Six-Arguments"},
+            {"name": "Calls-With-Receiver"}
+          ]
+        },
+        {
+          "name": "Locals",
+          "main": "run.js",
+          "resources": [ "locals.js" ],
+          "test_flags": [ "locals" ],
+          "results_regexp": "^%s\\-InterpreterEntryTrampoline\\(Score\\): (.+)$",
+          "tests": [
+            {"name": "Calls-No-Argument"},
+            {"name": "Calls-No-Argument-1-Local"},
+            {"name": "Calls-No-Argument-2-Locals"},
+            {"name": "Calls-No-Argument-3-Locals"},
+            {"name": "Calls-No-Argument-4-Locals"},
+            {"name": "Calls-No-Argument-5-Locals"},
+            {"name": "Calls-No-Argument-10-Locals"},
+            {"name": "Calls-No-Argument-100-Locals"}
+          ]
+        }
+      ]
+    }
+  ]
+}

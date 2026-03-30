@@ -1,0 +1,31 @@
+Tests Debugger.continueToLocation
+Paused on debugger statement
+Paused after continueToLocation
+Stopped on line 8, expected 8, requested 8, (0-based numbers).
+Control parameter 'step' calculation result: 1, expected: 1
+SUCCESS
+Paused on debugger statement
+Paused after continueToLocation
+Stopped on line 8, expected 8, requested 8, (0-based numbers).
+Control parameter 'step' calculation result: 1, expected: 1
+SUCCESS
+Paused on debugger statement
+Paused after continueToLocation
+Stopped on line 17, expected 17, requested 12, (0-based numbers).
+Control parameter 'step' calculation result: 6, expected: 6
+SUCCESS
+Paused on debugger statement
+Paused after continueToLocation
+Stopped on line 17, expected 17, requested 13, (0-based numbers).
+Control parameter 'step' calculation result: 6, expected: 6
+SUCCESS
+Paused on debugger statement
+Paused after continueToLocation
+Stopped on line 17, expected 17, requested 17, (0-based numbers).
+Control parameter 'step' calculation result: 6, expected: 6
+SUCCESS
+Paused on debugger statement
+Paused after continueToLocation
+Stopped on line 17, expected 17, requested 17, (0-based numbers).
+Control parameter 'step' calculation result: 6, expected: 6
+SUCCESS

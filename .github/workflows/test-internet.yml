@@ -1,0 +1,72 @@
+name: Test internet
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: 5 0 * * *
+
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - .github/workflows/test-internet.yml
+      - test/internet/**
+      - internal/dns/**
+      - lib/dns.js
+      - lib/net.js
+  push:
+    branches:
+      - main
+      - canary
+      - v[0-9]+.x-staging
+      - v[0-9]+.x
+    paths:
+      - .github/workflows/test-internet.yml
+      - test/internet/**
+      - internal/dns/**
+      - lib/dns.js
+      - lib/net.js
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.14'
+  FLAKY_TESTS: keep_retrying
+  CLANG_VERSION: '19'
+  CC: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} clang-19
+  CXX: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} clang++-19
+  SCCACHE_GHA_ENABLED: ${{ github.base_ref == 'main' || github.ref_name == 'main' }}
+  SCCACHE_IDLE_TIMEOUT: '0'
+
+permissions:
+  contents: read
+
+jobs:
+  test-internet:
+    if: github.event_name == 'schedule' && github.repository == 'nodejs/node' || github.event.pull_request.draft == false
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Install Clang ${{ env.CLANG_VERSION }}
+        uses: ./.github/actions/install-clang
+        with:
+          clang-version: ${{ env.CLANG_VERSION }}
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          allow-prereleases: true
+      - name: Set up sccache
+        if: github.base_ref == 'main' || github.ref_name == 'main'
+        uses: Mozilla-Actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad  # v0.0.9
+        with:
+          version: v0.12.0
+      - name: Environment Information
+        run: npx envinfo
+      - name: Build
+        run: make build-ci -j4 V=1 CONFIG_FLAGS="--error-on-warn"
+      - name: Test Internet
+        run: make test-internet -j4 V=1;

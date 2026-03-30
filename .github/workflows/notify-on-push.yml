@@ -1,0 +1,58 @@
+on:
+  push:
+    branches:
+      - main
+
+name: Notify on Push
+permissions:
+  contents: read
+
+jobs:
+  notifyOnForcePush:
+    name: Notify on Force Push on `main`
+    if: github.repository == 'nodejs/node' && github.event.forced
+    # cannot use ubuntu-slim here because rtCamp/action-slack-notify is dockerized
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Slack Notification
+        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661  # 2.3.3
+        env:
+          SLACK_COLOR: '#DE512A'
+          SLACK_ICON: https://github.com/nodejs.png?size=48
+          SLACK_TITLE: ${{ github.actor }} force-pushed to ${{ github.ref }}
+          SLACK_MESSAGE: |
+            <!here> A commit was force-pushed to <https://github.com/${{ github.repository }}/tree/${{ github.ref_name }}|${{ github.repository }}@${{ github.ref_name }}> by <https://github.com/${{ github.actor }}|${{ github.actor }}>
+
+            Before: <https://github.com/${{ github.repository }}/commit/${{ github.event.before }}|${{ github.event.before }}>
+            After: <https://github.com/${{ github.repository }}/commit/${{ github.event.after }}|${{ github.event.after }}>
+          SLACK_USERNAME: nodejs-bot
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  validateCommitMessage:
+    name: Notify on Push on `main` with invalid message
+    if: github.repository == 'nodejs/node'
+    # cannot use ubuntu-slim here because rtCamp/action-slack-notify is dockerized
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Check commit message
+        id: commit-check
+        run: npx -q core-validate-commit "$COMMIT"
+        env:
+          COMMIT: ${{ github.event.after }}
+      - name: Slack Notification
+        if: ${{ failure() && steps.commit-check.conclusion == 'failure' }}
+        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661  # 2.3.3
+        env:
+          SLACK_COLOR: '#DE512A'
+          SLACK_ICON: https://github.com/nodejs.png?size=48
+          SLACK_TITLE: Invalid commit was pushed to ${{ github.ref }}
+          SLACK_MESSAGE: |
+            <!here> A commit with an invalid message was pushed to <https://github.com/${{ github.repository }}/tree/${{ github.ref_name }}|${{ github.repository }}@${{ github.ref_name }}> by <https://github.com/${{ github.actor }}|${{ github.actor }}>.
+
+            Before: <https://github.com/${{ github.repository }}/commit/${{ github.event.before }}|${{ github.event.before }}>
+            After: <https://github.com/${{ github.repository }}/commit/${{ github.event.after }}|${{ github.event.after }}>
+          SLACK_USERNAME: nodejs-bot
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}

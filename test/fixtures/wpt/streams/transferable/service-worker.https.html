@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/service-workers/service-worker/resources/test-helpers.sub.js"></script>
+<script>
+'use strict';
+
+const kServiceWorkerUrl = 'resources/service-worker.js';
+const kIframeUrl = 'resources/service-worker-iframe.html';
+
+// A dummy test so that we can use the test-helpers.sub.js functions
+const test = async_test('service-worker');
+
+async function registerAndStart() {
+  const reg = await service_worker_unregister_and_register(
+    test, kServiceWorkerUrl, kIframeUrl);
+  await wait_for_state(test, reg.installing, 'activated');
+  const iframe = await with_iframe(kIframeUrl);
+  fetch_tests_from_window(iframe.contentWindow);
+  add_completion_callback(() => iframe.remove());
+  iframe.contentWindow.postMessage('explicit trigger', '*');
+  return service_worker_unregister_and_done(test, kIframeUrl);
+}
+
+onload = registerAndStart;
+
+</script>

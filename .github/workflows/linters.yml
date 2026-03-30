@@ -1,0 +1,280 @@
+name: Linters
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches:
+      - main
+      - v[0-9]+.x-staging
+      - v[0-9]+.x
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.14'
+  NODE_VERSION: lts/*
+
+permissions:
+  contents: read
+
+jobs:
+  lint-addon-docs:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238  # v6.2.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Environment Information
+        run: npx envinfo
+      - name: Lint addon docs
+        run: NODE=$(command -v node) make lint-addon-docs
+  lint-cpp:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          allow-prereleases: true
+      - name: Environment Information
+        run: npx envinfo
+      - name: Lint C/C++ files
+        run: make lint-cpp
+  format-cpp:
+    if: ${{ github.event.pull_request && github.event.pull_request.draft == false && github.base_ref == github.event.repository.default_branch }}
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238  # v6.2.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          allow-prereleases: true
+      - name: Environment Information
+        run: npx envinfo
+      - name: Format C/C++ files
+        run: |
+          make format-cpp-build
+          # The `make format-cpp` error code is intentionally ignored here
+          # because it is irrelevant. We already check if the formatter produced
+          # a diff in the next line.
+          # Refs: https://github.com/nodejs/node/pull/42764
+          CLANG_FORMAT_START="$(git merge-base HEAD refs/remotes/origin/$GITHUB_BASE_REF)" \
+            make format-cpp || true
+          git --no-pager diff --exit-code && EXIT_CODE="$?" || EXIT_CODE="$?"
+          if [ "$EXIT_CODE" != "0" ]
+          then
+            echo
+            echo 'ERROR: Please run:'
+            echo
+            echo "  CLANG_FORMAT_START="$\(git merge-base HEAD ${GITHUB_BASE_REF}\)" make format-cpp"
+            echo
+            echo 'to format the commits in your branch.'
+            exit "$EXIT_CODE"
+          fi
+  lint-js-and-md:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238  # v6.2.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Environment Information
+        run: npx envinfo
+      - name: Lint JavaScript files
+        run: |
+          set +e
+          NODE=$(command -v node) make lint-js
+          EXIT_CODE="$?"
+          if [ "$EXIT_CODE" != "0" ]; then
+            echo
+            echo 'ERROR: The JavaScript lint validation failed (the errors are logged above).'
+            echo '       Please fix the lint errors.'
+            if NODE=$(command -v node) make lint-js-fix > /dev/null 2>&1; then
+              echo '       Run:'
+              echo '          make lint-js-fix'
+              echo '       to fix the lint issues.'
+              git --no-pager diff
+            elif git diff --quiet --exit-code; then
+              echo '       None of the issue is auto-fixable, so manual fixes for'
+              echo '       all of the issues are required.'
+            else
+              echo '       Run:'
+              echo '          make lint-js-fix'
+              echo '       to fix the auto-fixable lint issues.'
+              echo '       Note that some manual fixes are also required.'
+            fi
+            echo
+            exit "$EXIT_CODE"
+          fi
+      - name: Get release version numbers
+        if: ${{ github.event.pull_request && github.event.pull_request.base.ref == github.event.pull_request.base.repo.default_branch }}
+        id: get-released-versions
+        run: ./tools/lint-md/list-released-versions-from-changelogs.mjs >> $GITHUB_OUTPUT
+      - name: Lint markdown files
+        run: |
+          echo "::add-matcher::.github/workflows/remark-lint-problem-matcher.json"
+          NODE=$(command -v node) make lint-md
+        env:
+          NODE_RELEASED_VERSIONS: ${{ steps.get-released-versions.outputs.NODE_RELEASED_VERSIONS }}
+  lint-nix:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: '*.nix'
+          sparse-checkout-cone-mode: false
+      - uses: cachix/install-nix-action@2126ae7fc54c9df00dd18f7f18754393182c73cd  # v31.9.1
+      - name: Lint Nix files
+        run: |
+          nix-shell -I nixpkgs=./tools/nix/pkgs.nix -p 'nixfmt-tree' --run '
+            treefmt --quiet --ci
+          ' || git --no-pager diff --exit-code
+
+  lint-py:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /Makefile
+            /benchmark/
+            /doc/
+            /lib/
+            /src/node_version.h
+            /tools/
+            pyproject.toml
+            *.py
+          sparse-checkout-cone-mode: false
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          allow-prereleases: true
+      - name: Environment Information
+        run: npx envinfo
+      - name: Lint Python
+        run: |
+          make lint-py-build
+          make lint-py
+  lint-yaml:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /Makefile
+            /tools/pip/
+            *.yml
+            *.yaml
+          sparse-checkout-cone-mode: false
+      - name: Use Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          allow-prereleases: true
+      - name: Environment Information
+        run: npx envinfo
+      - name: Lint YAML
+        run: |
+          make lint-yaml-build || true
+          make lint-yaml
+
+  lint-sh:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /tools/lint-sh.mjs
+            *.sh
+          sparse-checkout-cone-mode: false
+      - run: shellcheck -V
+      - name: Lint Shell scripts
+        run: tools/lint-sh.mjs .
+  lint-codeowners:
+    if: github.event.pull_request.draft == false
+    # cannot use ubuntu-slim here because mszostok/codeowners-validator is dockerized
+    # cannot use ubuntu-24.04-arm here because the docker image is x86 only
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: mszostok/codeowners-validator@7f3f5e28c6d7b8dfae5731e54ce2272ca384592f
+        with:
+          checks: files,duppatterns
+  lint-pr-url:
+    if: ${{ github.event.pull_request }}
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+          sparse-checkout: |
+            /tools/lint-pr-url.mjs
+            /doc/api/
+          sparse-checkout-cone-mode: false
+      # GH Actions squashes all PR commits, HEAD^ refers to the base branch.
+      - run: git diff HEAD^ HEAD -G"pr-url:" -- "*.md" | ./tools/lint-pr-url.mjs ${{ github.event.pull_request.html_url }}
+  lint-readme:
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            README.md
+            /tools/lint-readme-lists.mjs
+          sparse-checkout-cone-mode: false
+      - name: Get team members if possible
+        if: ${{ (github.event.pull_request && github.event.pull_request.base.ref == github.event.pull_request.base.repo.default_branch) || github.event.ref == github.event.repository.default_branch }}
+        id: team_members
+        run: |
+          get_list_members() {
+            TEAM="$1"
+            QUOTE='"'
+            gh api "/orgs/nodejs/teams/$TEAM/members" -X GET -f per_page=100 --jq "map(.login) | ${QUOTE}${TEAM}=\(tojson)${QUOTE}"
+          }
+          [ -z "$GITHUB_TOKEN" ] || (
+            get_list_members "collaborators"
+            get_list_members "issue-triage"
+            get_list_members "tsc"
+          ) >> "$GITHUB_OUTPUT"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+      - run: tools/lint-readme-lists.mjs "$TEAMS"
+        env:
+          TEAMS: ${{ tojson(steps.team_members.outputs) }}

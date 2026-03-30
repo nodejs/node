@@ -1,0 +1,136 @@
+.TH "NPM-TRUST" "1" "February 2026" "NPM@11.11.0" ""
+.SH "NAME"
+\fBnpm-trust\fR - Manage trusted publishing relationships between packages and CI/CD providers
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm trust
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces.
+.SS "Prerequisites"
+.P
+Before using npm trust commands, ensure the following requirements are met:
+.RS 0
+.IP \(bu 4
+\fBnpm version\fR: \fBnpm@11.10.0\fR or above is required. Use \fBnpm install -g npm@^11.10.0\fR to update if needed.
+.IP \(bu 4
+\fBWrite permissions on the package\fR: You must have write access to the package you're configuring.
+.IP \(bu 4
+\fB2FA enabled on account\fR: Two-factor authentication must be enabled at the account level. Even if it's not currently enabled, you must enable it to use trust commands.
+.IP \(bu 4
+\fBSupported authentication methods\fR: Granular Access Tokens (GAT) with the bypass 2FA option are not supported. Legacy basic auth (username and password) credentials will not work for trust commands or endpoints.
+.IP \(bu 4
+\fBPackage must exist\fR: The package you're configuring must already exist on the npm registry.
+.RE 0
+
+.SS "Description"
+.P
+Configure trust relationships between npm packages and CI/CD providers using OpenID Connect (OIDC). This is the command-line equivalent of managing trusted publisher configurations on the npm website.
+.P
+For a comprehensive overview of trusted publishing, see the \fBnpm trusted publishers documentation\fR \fI\(lahttps://docs.npmjs.com/trusted-publishers\(ra\fR.
+.P
+The \fB\[lB]package\[rB]\fR argument specifies the package name. If omitted, npm will use the name from the \fBpackage.json\fR in the current directory.
+.P
+Each trust relationship has its own set of configuration options and flags based on the OIDC claims provided by that provider. OIDC claims come from the CI/CD provider and include information such as repository name, workflow file, or environment. Since each provider's claims differ, the available flags and configuration keys are not universal\[em]npm matches the claims supported by each provider's OIDC configuration. For specific details on which claims and flags are supported for a given provider, use \fBnpm trust <provider> --help\fR.
+.P
+The required options depend on the CI/CD provider you're configuring. Detailed information about each option is available in the \fBmanaging trusted publisher configurations\fR \fI\(lahttps://docs.npmjs.com/trusted-publishers#managing-trusted-publisher-configurations\(ra\fR section of the npm documentation. If a provider is repository-based and the option is not provided, npm will use the \fBrepository.url\fR field from your \fBpackage.json\fR, if available.
+.P
+Currently, the registry only supports one configuration per package. If you attempt to create a new trust relationship when one already exists, it will result in an error. To replace an existing configuration:
+.RS 0
+.IP 1. 4
+Use \fBnpm trust list \[lB]package\[rB]\fR to view the ID of the existing trusted publisher
+.IP 2. 4
+Use \fBnpm trust revoke --id <id> \[lB]package\[rB]\fR to remove the existing configuration
+.IP 3. 4
+Then create your new trust relationship
+.RE 0
+
+.SS "Bulk Usage"
+.P
+For maintainers managing a large number of packages, you can configure trusted publishing in bulk using bash scripting. Create a loop that iterates through package names and their corresponding configuration details, executing the \fBnpm trust <provider>\fR command with the \fB--yes\fR flag for each package.
+.P
+The first request will require two-factor authentication. During two-factor authentication, you'll see an option on the npm website to skip two-factor authentication for the next 5 minutes. Enabling this option will allow subsequent \fBnpm trust <provider>\fR commands to proceed without two-factor authentication, streamlining the bulk configuration process.
+.P
+We recommend adding a 2-second sleep between each call to avoid rate limiting. With this approach, you can configure approximately 80 packages within the 5-minute two-factor authentication skip window.
+.SS "Configuration"
+.SS "\fBnpm trust github\fR"
+.P
+Create a trusted relationship between a package and GitHub Actions
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm trust github \[lB]package\[rB] --file \[lB]--repo|--repository\[rB] \[lB]--env|--environment\[rB] \[lB]-y|--yes\[rB]
+.fi
+.RE
+.SS "Flags"
+.P
+| Flag | Default | Type | Description | | --- | --- | --- | --- | | \fB--file\fR | null | String (required) | Name of workflow file within a repositories .GitHub folder (must end in yaml, yml) | | \fB--repository\fR, \fB--repo\fR | null | String | Name of the repository in the format owner/repo | | \fB--environment\fR, \fB--env\fR | null | String | CI environment name | | \fB--dry-run\fR | false | Boolean | Indicates that you don't want npm to make any changes and that it should only report what it would have done. This can be passed into any of the commands that modify your local installation, eg, \fBinstall\fR, \fBupdate\fR, \fBdedupe\fR, \fBuninstall\fR, as well as \fBpack\fR and \fBpublish\fR. Note: This is NOT honored by other network related commands, eg \fBdist-tags\fR, \fBowner\fR, etc. | | \fB--json\fR | false | Boolean | Whether or not to output JSON data, rather than the normal output. * In \fBnpm pkg set\fR it enables parsing set values with JSON.parse() before saving them to your \fBpackage.json\fR. Not supported by all npm commands. | | \fB--registry\fR | "https://registry.npmjs.org/" | URL | The base URL of the npm registry. | | \fB--yes\fR, \fB-y\fR | null | null or Boolean | Automatically answer "yes" to any prompts that npm might print on the command line. |
+.SS "\fBnpm trust gitlab\fR"
+.P
+Create a trusted relationship between a package and GitLab CI/CD
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm trust gitlab \[lB]package\[rB] --file \[lB]--project|--repo|--repository\[rB] \[lB]--env|--environment\[rB] \[lB]-y|--yes\[rB]
+.fi
+.RE
+.SS "Flags"
+.P
+| Flag | Default | Type | Description | | --- | --- | --- | --- | | \fB--file\fR | null | String (required) | Name of pipeline file (e.g., .gitlab-ci.yml) | | \fB--project\fR | null | String | Name of the project in the format group/project or group/subgroup/project | | \fB--environment\fR, \fB--env\fR | null | String | CI environment name | | \fB--dry-run\fR | false | Boolean | Indicates that you don't want npm to make any changes and that it should only report what it would have done. This can be passed into any of the commands that modify your local installation, eg, \fBinstall\fR, \fBupdate\fR, \fBdedupe\fR, \fBuninstall\fR, as well as \fBpack\fR and \fBpublish\fR. Note: This is NOT honored by other network related commands, eg \fBdist-tags\fR, \fBowner\fR, etc. | | \fB--json\fR | false | Boolean | Whether or not to output JSON data, rather than the normal output. * In \fBnpm pkg set\fR it enables parsing set values with JSON.parse() before saving them to your \fBpackage.json\fR. Not supported by all npm commands. | | \fB--registry\fR | "https://registry.npmjs.org/" | URL | The base URL of the npm registry. | | \fB--yes\fR, \fB-y\fR | null | null or Boolean | Automatically answer "yes" to any prompts that npm might print on the command line. |
+.SS "\fBnpm trust circleci\fR"
+.P
+Create a trusted relationship between a package and CircleCI
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm trust circleci \[lB]package\[rB] --org-id <uuid> --project-id <uuid> --pipeline-definition-id <uuid> --vcs-origin <origin> \[lB]--context-id <uuid>...\[rB] \[lB]-y|--yes\[rB]
+.fi
+.RE
+.SS "Flags"
+.P
+| Flag | Default | Type | Description | | --- | --- | --- | --- | | \fB--org-id\fR | null | String (required) | CircleCI organization UUID | | \fB--project-id\fR | null | String (required) | CircleCI project UUID | | \fB--pipeline-definition-id\fR | null | String (required) | CircleCI pipeline definition UUID | | \fB--vcs-origin\fR | null | String (required) | CircleCI repository origin in format 'provider/owner/repo' | | \fB--context-id\fR | null | null or String (can be set multiple times) | CircleCI context UUID to match | | \fB--dry-run\fR | false | Boolean | Indicates that you don't want npm to make any changes and that it should only report what it would have done. This can be passed into any of the commands that modify your local installation, eg, \fBinstall\fR, \fBupdate\fR, \fBdedupe\fR, \fBuninstall\fR, as well as \fBpack\fR and \fBpublish\fR. Note: This is NOT honored by other network related commands, eg \fBdist-tags\fR, \fBowner\fR, etc. | | \fB--json\fR | false | Boolean | Whether or not to output JSON data, rather than the normal output. * In \fBnpm pkg set\fR it enables parsing set values with JSON.parse() before saving them to your \fBpackage.json\fR. Not supported by all npm commands. | | \fB--registry\fR | "https://registry.npmjs.org/" | URL | The base URL of the npm registry. | | \fB--yes\fR, \fB-y\fR | null | null or Boolean | Automatically answer "yes" to any prompts that npm might print on the command line. |
+.SS "\fBnpm trust list\fR"
+.P
+List trusted relationships for a package
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm trust list \[lB]package\[rB]
+.fi
+.RE
+.SS "Flags"
+.P
+| Flag | Default | Type | Description | | --- | --- | --- | --- | | \fB--json\fR | false | Boolean | Whether or not to output JSON data, rather than the normal output. * In \fBnpm pkg set\fR it enables parsing set values with JSON.parse() before saving them to your \fBpackage.json\fR. Not supported by all npm commands. | | \fB--registry\fR | "https://registry.npmjs.org/" | URL | The base URL of the npm registry. |
+.SS "\fBnpm trust revoke\fR"
+.P
+Revoke a trusted relationship for a package
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm trust revoke \[lB]package\[rB] --id=<trust-id>
+.fi
+.RE
+.SS "Flags"
+.P
+| Flag | Default | Type | Description | | --- | --- | --- | --- | | \fB--id\fR | null | String (required) | ID of the trusted relationship to revoke | | \fB--dry-run\fR | false | Boolean | Indicates that you don't want npm to make any changes and that it should only report what it would have done. This can be passed into any of the commands that modify your local installation, eg, \fBinstall\fR, \fBupdate\fR, \fBdedupe\fR, \fBuninstall\fR, as well as \fBpack\fR and \fBpublish\fR. Note: This is NOT honored by other network related commands, eg \fBdist-tags\fR, \fBowner\fR, etc. | | \fB--registry\fR | "https://registry.npmjs.org/" | URL | The base URL of the npm registry. |
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help publish
+.IP \(bu 4
+npm help token
+.IP \(bu 4
+npm help access
+.IP \(bu 4
+npm help config
+.IP \(bu 4
+npm help registry
+.RE 0

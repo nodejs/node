@@ -1,0 +1,195 @@
+.TH ".NPMRC" "5" "February 2026" "NPM@11.11.0" ""
+.SH "NAME"
+\fB.npmrc\fR - The npm config files
+.SS "Description"
+.P
+npm gets its config settings from the command line, environment variables, and \fBnpmrc\fR files.
+.P
+The \fBnpm config\fR command can be used to update and edit the contents of the user and global npmrc files.
+.P
+For a list of available configuration options, see npm help config.
+.SS "Files"
+.P
+The four relevant files are:
+.RS 0
+.IP \(bu 4
+per-project config file (\fB/path/to/my/project/.npmrc\fR)
+.IP \(bu 4
+per-user config file (\fB~/.npmrc\fR)
+.IP \(bu 4
+global config file (\fB$PREFIX/etc/npmrc\fR)
+.IP \(bu 4
+npm builtin config file (\fB/path/to/npm/npmrc\fR)
+.RE 0
+
+.P
+All npm config files are an ini-formatted list of \fBkey = value\fR parameters. Environment variables can be replaced using \fB${VARIABLE_NAME}\fR. By default if the variable is not defined, it is left unreplaced. By adding \fB?\fR after variable name they can be forced to evaluate to an empty string instead. For example:
+.P
+.RS 2
+.nf
+cache = ${HOME}/.npm-packages
+node-options = "${NODE_OPTIONS?} --use-system-ca"
+.fi
+.RE
+.P
+Each of these files is loaded, and config options are resolved in priority order. For example, a setting in the userconfig file would override the setting in the globalconfig file.
+.P
+Array values are specified by adding "\[lB]\[rB]" after the key name. For example:
+.P
+.RS 2
+.nf
+key\[lB]\[rB] = "first value"
+key\[lB]\[rB] = "second value"
+.fi
+.RE
+.SS "Comments"
+.P
+Lines in \fB.npmrc\fR files are interpreted as comments when they begin with a \fB;\fR or \fB#\fR character. \fB.npmrc\fR files are parsed by \fBnpm/ini\fR \fI\(lahttps://github.com/npm/ini\(ra\fR, which specifies this comment syntax.
+.P
+For example:
+.P
+.RS 2
+.nf
+# last modified: 01 Jan 2016
+; Set a new registry for a scoped package
+@myscope:registry=https://mycustomregistry.example.org
+.fi
+.RE
+.SS "Per-project config file"
+.P
+When working locally in a project, a \fB.npmrc\fR file in the root of the project (ie, a sibling of \fBnode_modules\fR and \fBpackage.json\fR) will set config values specific to this project.
+.P
+Note that this only applies to the root of the project that you're running npm in. It has no effect when your module is published. For example, you can't publish a module that forces itself to install globally, or in a different location.
+.P
+Additionally, this file is not read in global mode, such as when running \fBnpm install -g\fR.
+.SS "Per-user config file"
+.P
+\fB$HOME/.npmrc\fR (or the \fBuserconfig\fR param, if set in the environment or on the command line)
+.SS "Global config file"
+.P
+\fB$PREFIX/etc/npmrc\fR (or the \fBglobalconfig\fR param, if set above): This file is an ini-file formatted list of \fBkey = value\fR parameters. Environment variables can be replaced as above.
+.SS "Built-in config file"
+.P
+\fBpath/to/npm/itself/npmrc\fR
+.P
+This is an unchangeable "builtin" configuration file that npm keeps consistent across updates. Set fields in here using the \fB./configure\fR script that comes with npm. This is primarily for distribution maintainers to override default configs in a standard and consistent manner.
+.SS "Auth related configuration"
+.P
+The settings \fB_auth\fR, \fB_authToken\fR, \fBusername\fR, \fB_password\fR, \fBcertfile\fR, and \fBkeyfile\fR must all be scoped to a specific registry. This ensures that \fBnpm\fR will never send credentials to the wrong host.
+.P
+The full list is:
+.RS 0
+.IP \(bu 4
+\fB_auth\fR (base64 authentication string)
+.IP \(bu 4
+\fB_authToken\fR (authentication token)
+.IP \(bu 4
+\fBusername\fR
+.IP \(bu 4
+\fB_password\fR
+.IP \(bu 4
+\fBemail\fR
+.IP \(bu 4
+\fBcafile\fR (path to certificate authority file)
+.IP \(bu 4
+\fBcertfile\fR (path to certificate file)
+.IP \(bu 4
+\fBkeyfile\fR (path to key file)
+.RE 0
+
+.P
+In order to scope these values, they must be prefixed by a URI fragment. If the credential is meant for any request to a registry on a single host, the scope may look like \fB//registry.npmjs.org/:\fR. If it must be scoped to a specific path on the host that path may also be provided, such as \fB//my-custom-registry.org/unique/path:\fR.
+.SS "Unsupported Custom Configuration Keys"
+.P
+Starting in npm v11.2.0, npm warns when unknown configuration keys are defined in \fB.npmrc\fR. In a future major version of npm, these unknown keys may no longer be accepted.
+.P
+Only configuration keys that npm officially supports are recognized. Custom keys intended for third-party tools (for example, \fBelectron-builder\fR) should not be placed in \fB.npmrc\fR.
+.P
+If you need package-level configuration for use in scripts, use the \fBconfig\fR field in your \fBpackage.json\fR instead:
+.P
+.RS 2
+.nf
+{
+  "name": "my-package",
+  "config": {
+    "mirror": "https://example.com/"
+  }
+}
+
+.fi
+.RE
+.P
+Values defined in \fBpackage.json#config\fR are exposed to scripts as environment variables prefixed with \fBnpm_package_config_\fR. For example:
+.P
+.RS 2
+.nf
+npm_package_config_mirror
+.fi
+.RE
+.P
+If you need to pass arguments to a script command, use \fB--\fR to separate npm arguments from script arguments:
+.P
+.RS 2
+.nf
+npm run build -- --customFlag
+.fi
+.RE
+.P
+Using environment variables is also recommended for cross-platform configuration instead of defining unsupported keys in \fB.npmrc\fR.
+.P
+.RS 2
+.nf
+; bad config
+_authToken=MYTOKEN
+
+; good config
+@myorg:registry=https://somewhere-else.com/myorg
+@another:registry=https://somewhere-else.com/another
+//registry.npmjs.org/:_authToken=MYTOKEN
+
+; would apply to both @myorg and @another
+//somewhere-else.com/:_authToken=MYTOKEN
+
+; would apply only to @myorg
+//somewhere-else.com/myorg/:_authToken=MYTOKEN1
+
+; would apply only to @another
+//somewhere-else.com/another/:_authToken=MYTOKEN2
+.fi
+.RE
+.SS "Custom / third-party config keys"
+.P
+npm only recognizes its own npm help "configuration options". If your \fB.npmrc\fR contains keys that are not part of npm's config definitions (for example, \fBelectron_mirror\fR or \fBsass_binary_site\fR), npm will emit a warning:
+.P
+.RS 2
+.nf
+warn Unknown user config "electron_mirror".
+This will stop working in the next major version of npm.
+.fi
+.RE
+.P
+These keys were historically tolerated but are not officially supported. A future major version of npm will treat unknown top-level keys as errors.
+.P
+Some tools (such as \fB@electron/get\fR or \fBnode-sass\fR) read their own configuration from environment variables or from \fB.npmrc\fR by convention. You can set these values as environment variables instead:
+.P
+.RS 2
+.nf
+export ELECTRON_MIRROR="https://mirrorexample.npmjs.org/mirrors/electron/"
+export ELECTRON_CUSTOM_DIR="{{ version }}"
+.fi
+.RE
+.P
+Environment variables are the most portable approach and work regardless of \fB.npmrc\fR format.
+.SS "See also"
+.RS 0
+.IP \(bu 4
+npm help folders
+.IP \(bu 4
+npm help config
+.IP \(bu 4
+npm help config
+.IP \(bu 4
+\fBpackage.json\fR \fI\(la/configuring-npm/package-json\(ra\fR
+.IP \(bu 4
+npm help npm
+.RE 0

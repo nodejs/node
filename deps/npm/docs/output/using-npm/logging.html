@@ -1,0 +1,284 @@
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
+<title>Logging</title>
+<style>
+body {
+    background-color: #ffffff;
+    color: #24292e;
+
+    margin: 0;
+
+    line-height: 1.5;
+
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}
+#rainbar {
+    height: 10px;
+    background-image: linear-gradient(139deg, #fb8817, #ff4b01, #c12127, #e02aff);
+}
+
+a {
+    text-decoration: none;
+    color: #0366d6;
+}
+a:hover {
+    text-decoration: underline;
+}
+
+pre {
+    margin: 1em 0px;
+    padding: 1em;
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+
+    display: block;
+    overflow: auto;
+
+    white-space: pre;
+
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+code {
+    font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 85%;
+    padding: 0.2em 0.4em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+pre > code {
+    padding: 0;
+    background-color: inherit;
+    color: inherit;
+}
+h1, h2, h3 {
+    font-weight: 600;
+}
+
+#logobar {
+    background-color: #333333;
+    margin: 0 auto;
+    padding: 1em 4em;
+}
+#logobar .logo {
+    float: left;
+}
+#logobar .title {
+    font-weight: 600;
+    color: #dddddd;
+    float: left;
+    margin: 5px 0 0 1em;
+}
+#logobar:after {
+    content: "";
+    display: block;
+    clear: both;
+}
+
+#content {
+    margin: 0 auto;
+    padding: 0 4em;
+}
+
+#table_of_contents > h2 {
+    font-size: 1.17em;
+}
+#table_of_contents ul:first-child {
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+    padding: 1em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+#table_of_contents ul {
+    list-style-type: none;
+    padding-left: 1.5em;
+}
+#table_of_contents li {
+    font-size: 0.9em;
+}
+#table_of_contents li a {
+    color: #000000;
+}
+
+header.title {
+    border-bottom: solid 1px #e1e4e8;
+}
+header.title > h1 {
+    margin-bottom: 0.25em;
+}
+header.title > .description {
+    display: block;
+    margin-bottom: 0.5em;
+    line-height: 1;
+}
+
+header.title .version {
+    font-size: 0.8em;
+    color: #666666;
+}
+
+footer#edit {
+    border-top: solid 1px #e1e4e8;
+    margin: 3em 0 4em 0;
+    padding-top: 2em;
+}
+
+table {
+    width: 100%;
+    margin: 1em 0;
+    border-radius: 6px;
+    border: 1px solid #e1e4e8;
+    overflow: hidden;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+table thead {
+    background-color: #f6f8fa;
+}
+
+table tbody {
+    background-color: #ffffff;
+}
+
+table th,
+table td {
+    padding: 0.75em;
+    text-align: left;
+    border-right: 1px solid #e1e4e8;
+    border-bottom: 1px solid #e1e4e8;
+}
+
+table th:last-child,
+table td:last-child {
+    border-right: none;
+}
+
+table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+table th {
+    font-weight: 600;
+    background-color: #f6f8fa;
+}
+
+table code {
+    white-space: nowrap;
+}
+
+</style>
+</head>
+<body>
+<div id="banner">
+<div id="rainbar"></div>
+<div id="logobar">
+<svg class="logo" role="img" height="32" width="32" viewBox="0 0 700 700">
+<polygon fill="#cb0000" points="0,700 700,700 700,0 0,0"></polygon>
+<polygon fill="#ffffff" points="150,550 350,550 350,250 450,250 450,550 550,550 550,150 150,150"></polygon>
+</svg>
+<div class="title">
+npm command-line interface
+</div>
+</div>
+</div>
+
+<section id="content">
+<header class="title">
+<h1 id="----logging----11110">
+    <span>Logging</span>
+    <span class="version">@11.11.0</span>
+</h1>
+<span class="description">Why, What &amp; How we Log</span>
+</header>
+
+<section id="table_of_contents">
+<h2 id="table-of-contents">Table of contents</h2>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#setting-log-file-location">Setting Log File Location</a></li><li><a href="#setting-log-levels">Setting Log Levels</a></li><ul><li><a href="#loglevel"><code>loglevel</code></a></li><ul><li><a href="#aliases">Aliases</a></li></ul><li><a href="#foreground-scripts"><code>foreground-scripts</code></a></li></ul><li><a href="#timing-information">Timing Information</a></li><li><a href="#registry-response-headers">Registry Response Headers</a></li><ul><li><a href="#npm-notice"><code>npm-notice</code></a></li></ul><li><a href="#logs-and-sensitive-information">Logs and Sensitive Information</a></li><li><a href="#see-also">See also</a></li></ul></div>
+</section>
+
+<div id="_content"><h3 id="description">Description</h3>
+<p>The <code>npm</code> CLI has various mechanisms for showing different levels of information back to end-users for certain commands, configurations &amp; environments.</p>
+<h3 id="setting-log-file-location">Setting Log File Location</h3>
+<p>All logs are written to a debug log, with the path to that file printed if the execution of a command fails.</p>
+<p>The default location of the logs directory is a directory named <code>_logs</code> inside the npm cache.
+This can be changed with the <code>logs-dir</code> config option.</p>
+<p>For example, if you wanted to write all your logs to the current working directory, you could run: <code>npm install --logs-dir=.</code>.
+This is especially helpful in debugging a specific <code>npm</code> issue as you can run a command multiple times with different config values and then diff all the log files.</p>
+<p>Log files will be removed from the <code>logs-dir</code> when the number of log files exceeds <code>logs-max</code>, with the oldest logs being deleted first.</p>
+<p>To turn off logs completely set <code>--logs-max=0</code>.</p>
+<h3 id="setting-log-levels">Setting Log Levels</h3>
+<h4 id="loglevel"><code>loglevel</code></h4>
+<p><code>loglevel</code> is a global argument/config that can be set to determine the type of information to be displayed.</p>
+<p>The default value of <code>loglevel</code> is <code>"notice"</code> but there are several levels/types of logs available, including:</p>
+<ul>
+<li><code>"silent"</code></li>
+<li><code>"error"</code></li>
+<li><code>"warn"</code></li>
+<li><code>"notice"</code></li>
+<li><code>"http"</code></li>
+<li><code>"info"</code></li>
+<li><code>"verbose"</code></li>
+<li><code>"silly"</code></li>
+</ul>
+<p>All logs pertaining to a level preceding the current setting will be shown.</p>
+<h5 id="aliases">Aliases</h5>
+<p>The log levels listed above have various corresponding aliases, including:</p>
+<ul>
+<li><code>-d</code>: <code>--loglevel info</code></li>
+<li><code>--dd</code>: <code>--loglevel verbose</code></li>
+<li><code>--verbose</code>: <code>--loglevel verbose</code></li>
+<li><code>--ddd</code>: <code>--loglevel silly</code></li>
+<li><code>-q</code>: <code>--loglevel warn</code></li>
+<li><code>--quiet</code>: <code>--loglevel warn</code></li>
+<li><code>-s</code>: <code>--loglevel silent</code></li>
+<li><code>--silent</code>: <code>--loglevel silent</code></li>
+</ul>
+<h4 id="foreground-scripts"><code>foreground-scripts</code></h4>
+<p>The <code>npm</code> CLI began hiding the output of lifecycle scripts for <code>npm install</code> as of <code>v7</code>.
+Notably, this means you will not see logs/output from packages that may be using "install scripts" to display information back to you or from your own project's scripts defined in <code>package.json</code>.
+If you'd like to change this behavior &amp; log this output you can set <code>foreground-scripts</code> to <code>true</code>.</p>
+<h3 id="timing-information">Timing Information</h3>
+<p>The <a href="../using-npm/config#timing.html"><code>--timing</code> config</a> can be set which does a few things:</p>
+<ol>
+<li>Always shows the full path to the debug log regardless of command exit status</li>
+<li>Write timing information to a process specific timing file in the cache or <code>logs-dir</code></li>
+<li>Output timing information to the terminal</li>
+</ol>
+<p>This file contains a <code>timers</code> object where the keys are an identifier for the portion of the process being timed and the value is the number of milliseconds it took to complete.</p>
+<p>Sometimes it is helpful to get timing information without outputting anything to the terminal.
+For example, the performance might be affected by writing to the terminal.
+In this case you can use
+<code>--timing --silent</code> which will still write the timing file, but not output anything to the terminal while running.</p>
+<h3 id="registry-response-headers">Registry Response Headers</h3>
+<h4 id="npm-notice"><code>npm-notice</code></h4>
+<p>The <code>npm</code> CLI reads from &amp; logs any <code>npm-notice</code> headers that are returned from the configured registry.
+This mechanism can be used by third-party registries to provide useful information when network-dependent requests occur.</p>
+<p>This header is not cached, and will not be logged if the request is served from the cache.</p>
+<h3 id="logs-and-sensitive-information">Logs and Sensitive Information</h3>
+<p>The <code>npm</code> CLI makes a best effort to redact the following from terminal output and log files:</p>
+<ul>
+<li>Passwords inside basic auth URLs</li>
+<li>npm tokens</li>
+</ul>
+<p>However, this behavior should not be relied on to keep all possible sensitive information redacted.
+If you are concerned about secrets in your log file or terminal output, you can use <code>--loglevel=silent</code> and <code>--logs-max=0</code> to ensure no logs are written to your terminal or filesystem.</p>
+<h3 id="see-also">See also</h3>
+<ul>
+<li><a href="../using-npm/config.html">config</a></li>
+</ul></div>
+
+<footer id="edit">
+<a href="https://github.com/npm/cli/edit/latest/docs/lib/content/using-npm/logging.md">
+<svg role="img" viewBox="0 0 16 16" width="16" height="16" fill="currentcolor" style="vertical-align: text-bottom; margin-right: 0.3em;">
+<path fill-rule="evenodd" d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25a1.75 1.75 0 01.445-.758l8.61-8.61zm1.414 1.06a.25.25 0 00-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 000-.354l-1.086-1.086zM11.189 6.25L9.75 4.81l-6.286 6.287a.25.25 0 00-.064.108l-.558 1.953 1.953-.558a.249.249 0 00.108-.064l6.286-6.286z"></path>
+</svg>
+Edit this page on GitHub
+</a>
+</footer>
+</section>
+
+
+
+</body></html>

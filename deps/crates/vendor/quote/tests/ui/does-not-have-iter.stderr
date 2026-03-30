@@ -1,0 +1,13 @@
+error[E0277]: repetition contains no interpolated value that is an iterator
+ --> tests/ui/does-not-have-iter.rs:4:5
+  |
+4 |     quote!(#(a b)*);
+  |     ^^^^^^^^^^^^^^^ none of the values interpolated inside this repetition are iterable
+  |
+help: the trait `CheckHasIterator<true>` is not implemented for `HasIterator<false>`
+      but it is implemented for `HasIterator<true>`
+ --> src/runtime.rs
+  |
+  | impl CheckHasIterator<true> for HasIterator<true> {}
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  = note: this error originates in the macro `$crate::quote_token_with_context` which comes from the expansion of the macro `quote` (in Nightly builds, run with -Z macro-backtrace for more info)

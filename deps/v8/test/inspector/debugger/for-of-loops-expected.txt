@@ -1,0 +1,584 @@
+Tests breakable locations in for-of loops.
+
+Running test: testBreakLocations
+
+function getIterable() {
+  |_|return {
+    [Symbol.iterator]() {
+      |_|return {
+        i: 0,
+        next() {
+          if (this.|_|i < 1) {
+            |_|return { value: this.i++, done: false };|R|
+          }
+          |_|return { value: undefined, done: true };|R|
+        }
+      };|R|
+    }
+  };|R|
+}
+function testFunction() {
+  var obj = |_|{a : 1};
+  var arr = |_|[1];
+  var all = |_|[];
+  for (var |_|k in |_|arr) { all.|C|push(k); }
+  for (var |_|k of |_|arr) { all.|C|push(k); }
+  for (var |_|k in |_|obj) { all.|C|push(k); }
+  for (let |_|k in |_|arr) { all.|C|push(k); }
+  for (let |_|k of |_|arr) { all.|C|push(k); }
+  for (let |_|k in |_|obj) { all.|C|push(k); }
+
+  var iterable = |C|getIterable();
+  for (var |_|k of |_|iterable) { all.|C|push(k); }
+  |_|iterable.i = 0;
+  for (let |_|k of |_|iterable) { all.|C|push(k); }
+|R|}
+
+
+Running test: testStepInto
+(anonymous) (expr.js:0:0)
+
+
+testFunction (test.js:17:12)
+(anonymous) (expr.js:0:0)
+function testFunction() {
+  var obj = #{a : 1};
+  var arr = [1];
+
+testFunction (test.js:18:12)
+(anonymous) (expr.js:0:0)
+  var obj = {a : 1};
+  var arr = #[1];
+  var all = [];
+
+testFunction (test.js:19:12)
+(anonymous) (expr.js:0:0)
+  var arr = [1];
+  var all = #[];
+  for (var k in arr) { all.push(k); }
+
+testFunction (test.js:20:16)
+(anonymous) (expr.js:0:0)
+  var all = [];
+  for (var k in #arr) { all.push(k); }
+  for (var k of arr) { all.push(k); }
+
+testFunction (test.js:20:11)
+(anonymous) (expr.js:0:0)
+  var all = [];
+  for (var #k in arr) { all.push(k); }
+  for (var k of arr) { all.push(k); }
+
+testFunction (test.js:20:27)
+(anonymous) (expr.js:0:0)
+  var all = [];
+  for (var k in arr) { all.#push(k); }
+  for (var k of arr) { all.push(k); }
+
+testFunction (test.js:21:16)
+(anonymous) (expr.js:0:0)
+  for (var k in arr) { all.push(k); }
+  for (var k of #arr) { all.push(k); }
+  for (var k in obj) { all.push(k); }
+
+testFunction (test.js:21:11)
+(anonymous) (expr.js:0:0)
+  for (var k in arr) { all.push(k); }
+  for (var #k of arr) { all.push(k); }
+  for (var k in obj) { all.push(k); }
+
+testFunction (test.js:21:27)
+(anonymous) (expr.js:0:0)
+  for (var k in arr) { all.push(k); }
+  for (var k of arr) { all.#push(k); }
+  for (var k in obj) { all.push(k); }
+
+testFunction (test.js:22:16)
+(anonymous) (expr.js:0:0)
+  for (var k of arr) { all.push(k); }
+  for (var k in #obj) { all.push(k); }
+  for (let k in arr) { all.push(k); }
+
+testFunction (test.js:22:11)
+(anonymous) (expr.js:0:0)
+  for (var k of arr) { all.push(k); }
+  for (var #k in obj) { all.push(k); }
+  for (let k in arr) { all.push(k); }
+
+testFunction (test.js:22:27)
+(anonymous) (expr.js:0:0)
+  for (var k of arr) { all.push(k); }
+  for (var k in obj) { all.#push(k); }
+  for (let k in arr) { all.push(k); }
+
+testFunction (test.js:23:16)
+(anonymous) (expr.js:0:0)
+  for (var k in obj) { all.push(k); }
+  for (let k in #arr) { all.push(k); }
+  for (let k of arr) { all.push(k); }
+
+testFunction (test.js:23:11)
+(anonymous) (expr.js:0:0)
+  for (var k in obj) { all.push(k); }
+  for (let #k in arr) { all.push(k); }
+  for (let k of arr) { all.push(k); }
+
+testFunction (test.js:23:27)
+(anonymous) (expr.js:0:0)
+  for (var k in obj) { all.push(k); }
+  for (let k in arr) { all.#push(k); }
+  for (let k of arr) { all.push(k); }
+
+testFunction (test.js:24:16)
+(anonymous) (expr.js:0:0)
+  for (let k in arr) { all.push(k); }
+  for (let k of #arr) { all.push(k); }
+  for (let k in obj) { all.push(k); }
+
+testFunction (test.js:24:11)
+(anonymous) (expr.js:0:0)
+  for (let k in arr) { all.push(k); }
+  for (let #k of arr) { all.push(k); }
+  for (let k in obj) { all.push(k); }
+
+testFunction (test.js:24:27)
+(anonymous) (expr.js:0:0)
+  for (let k in arr) { all.push(k); }
+  for (let k of arr) { all.#push(k); }
+  for (let k in obj) { all.push(k); }
+
+testFunction (test.js:25:16)
+(anonymous) (expr.js:0:0)
+  for (let k of arr) { all.push(k); }
+  for (let k in #obj) { all.push(k); }
+
+
+testFunction (test.js:25:11)
+(anonymous) (expr.js:0:0)
+  for (let k of arr) { all.push(k); }
+  for (let #k in obj) { all.push(k); }
+
+
+testFunction (test.js:25:27)
+(anonymous) (expr.js:0:0)
+  for (let k of arr) { all.push(k); }
+  for (let k in obj) { all.#push(k); }
+
+
+testFunction (test.js:27:17)
+(anonymous) (expr.js:0:0)
+
+  var iterable = #getIterable();
+  for (var k of iterable) { all.push(k); }
+
+getIterable (test.js:2:2)
+testFunction (test.js:27:17)
+(anonymous) (expr.js:0:0)
+function getIterable() {
+  #return {
+    [Symbol.iterator]() {
+
+getIterable (test.js:14:4)
+testFunction (test.js:27:17)
+(anonymous) (expr.js:0:0)
+    }
+  };#
+}
+
+testFunction (test.js:28:16)
+(anonymous) (expr.js:0:0)
+  var iterable = getIterable();
+  for (var k of #iterable) { all.push(k); }
+  iterable.i = 0;
+
+[Symbol.iterator] (test.js:4:6)
+testFunction (test.js:28:16)
+(anonymous) (expr.js:0:0)
+    [Symbol.iterator]() {
+      #return {
+        i: 0,
+
+[Symbol.iterator] (test.js:12:8)
+testFunction (test.js:28:16)
+(anonymous) (expr.js:0:0)
+        }
+      };#
+    }
+
+next (test.js:7:19)
+testFunction (test.js:28:11)
+(anonymous) (expr.js:0:0)
+        next() {
+          if (this.#i < 1) {
+            return { value: this.i++, done: false };
+
+next (test.js:8:12)
+testFunction (test.js:28:11)
+(anonymous) (expr.js:0:0)
+          if (this.i < 1) {
+            #return { value: this.i++, done: false };
+          }
+
+next (test.js:8:52)
+testFunction (test.js:28:11)
+(anonymous) (expr.js:0:0)
+          if (this.i < 1) {
+            return { value: this.i++, done: false };#
+          }
+
+testFunction (test.js:28:11)
+(anonymous) (expr.js:0:0)
+  var iterable = getIterable();
+  for (var #k of iterable) { all.push(k); }
+  iterable.i = 0;
+
+testFunction (test.js:28:32)
+(anonymous) (expr.js:0:0)
+  var iterable = getIterable();
+  for (var k of iterable) { all.#push(k); }
+  iterable.i = 0;
+
+next (test.js:7:19)
+testFunction (test.js:28:11)
+(anonymous) (expr.js:0:0)
+        next() {
+          if (this.#i < 1) {
+            return { value: this.i++, done: false };
+
+next (test.js:10:10)
+testFunction (test.js:28:11)
+(anonymous) (expr.js:0:0)
+          }
+          #return { value: undefined, done: true };
+        }
+
+next (test.js:10:50)
+testFunction (test.js:28:11)
+(anonymous) (expr.js:0:0)
+          }
+          return { value: undefined, done: true };#
+        }
+
+testFunction (test.js:29:2)
+(anonymous) (expr.js:0:0)
+  for (var k of iterable) { all.push(k); }
+  #iterable.i = 0;
+  for (let k of iterable) { all.push(k); }
+
+testFunction (test.js:30:16)
+(anonymous) (expr.js:0:0)
+  iterable.i = 0;
+  for (let k of #iterable) { all.push(k); }
+}
+
+[Symbol.iterator] (test.js:4:6)
+testFunction (test.js:30:16)
+(anonymous) (expr.js:0:0)
+    [Symbol.iterator]() {
+      #return {
+        i: 0,
+
+[Symbol.iterator] (test.js:12:8)
+testFunction (test.js:30:16)
+(anonymous) (expr.js:0:0)
+        }
+      };#
+    }
+
+next (test.js:7:19)
+testFunction (test.js:30:11)
+(anonymous) (expr.js:0:0)
+        next() {
+          if (this.#i < 1) {
+            return { value: this.i++, done: false };
+
+next (test.js:8:12)
+testFunction (test.js:30:11)
+(anonymous) (expr.js:0:0)
+          if (this.i < 1) {
+            #return { value: this.i++, done: false };
+          }
+
+next (test.js:8:52)
+testFunction (test.js:30:11)
+(anonymous) (expr.js:0:0)
+          if (this.i < 1) {
+            return { value: this.i++, done: false };#
+          }
+
+testFunction (test.js:30:11)
+(anonymous) (expr.js:0:0)
+  iterable.i = 0;
+  for (let #k of iterable) { all.push(k); }
+}
+
+testFunction (test.js:30:32)
+(anonymous) (expr.js:0:0)
+  iterable.i = 0;
+  for (let k of iterable) { all.#push(k); }
+}
+
+next (test.js:7:19)
+testFunction (test.js:30:11)
+(anonymous) (expr.js:0:0)
+        next() {
+          if (this.#i < 1) {
+            return { value: this.i++, done: false };
+
+next (test.js:10:10)
+testFunction (test.js:30:11)
+(anonymous) (expr.js:0:0)
+          }
+          #return { value: undefined, done: true };
+        }
+
+next (test.js:10:50)
+testFunction (test.js:30:11)
+(anonymous) (expr.js:0:0)
+          }
+          return { value: undefined, done: true };#
+        }
+
+testFunction (test.js:31:0)
+(anonymous) (expr.js:0:0)
+  for (let k of iterable) { all.push(k); }
+#}
+
+(anonymous) (expr.js:0:35)
+
+
+
+Running test: testStepOver
+testFunction (test.js:17:12)
+(anonymous) (expr.js:0:0)
+function testFunction() {
+  var obj = #{a : 1};
+  var arr = [1];
+
+testFunction (test.js:18:12)
+(anonymous) (expr.js:0:0)
+  var obj = {a : 1};
+  var arr = #[1];
+  var all = [];
+
+testFunction (test.js:19:12)
+(anonymous) (expr.js:0:0)
+  var arr = [1];
+  var all = #[];
+  for (var k in arr) { all.push(k); }
+
+testFunction (test.js:20:16)
+(anonymous) (expr.js:0:0)
+  var all = [];
+  for (var k in #arr) { all.push(k); }
+  for (var k of arr) { all.push(k); }
+
+testFunction (test.js:20:11)
+(anonymous) (expr.js:0:0)
+  var all = [];
+  for (var #k in arr) { all.push(k); }
+  for (var k of arr) { all.push(k); }
+
+testFunction (test.js:20:27)
+(anonymous) (expr.js:0:0)
+  var all = [];
+  for (var k in arr) { all.#push(k); }
+  for (var k of arr) { all.push(k); }
+
+testFunction (test.js:21:16)
+(anonymous) (expr.js:0:0)
+  for (var k in arr) { all.push(k); }
+  for (var k of #arr) { all.push(k); }
+  for (var k in obj) { all.push(k); }
+
+testFunction (test.js:21:11)
+(anonymous) (expr.js:0:0)
+  for (var k in arr) { all.push(k); }
+  for (var #k of arr) { all.push(k); }
+  for (var k in obj) { all.push(k); }
+
+testFunction (test.js:21:27)
+(anonymous) (expr.js:0:0)
+  for (var k in arr) { all.push(k); }
+  for (var k of arr) { all.#push(k); }
+  for (var k in obj) { all.push(k); }
+
+testFunction (test.js:22:16)
+(anonymous) (expr.js:0:0)
+  for (var k of arr) { all.push(k); }
+  for (var k in #obj) { all.push(k); }
+  for (let k in arr) { all.push(k); }
+
+testFunction (test.js:22:11)
+(anonymous) (expr.js:0:0)
+  for (var k of arr) { all.push(k); }
+  for (var #k in obj) { all.push(k); }
+  for (let k in arr) { all.push(k); }
+
+testFunction (test.js:22:27)
+(anonymous) (expr.js:0:0)
+  for (var k of arr) { all.push(k); }
+  for (var k in obj) { all.#push(k); }
+  for (let k in arr) { all.push(k); }
+
+testFunction (test.js:23:16)
+(anonymous) (expr.js:0:0)
+  for (var k in obj) { all.push(k); }
+  for (let k in #arr) { all.push(k); }
+  for (let k of arr) { all.push(k); }
+
+testFunction (test.js:23:11)
+(anonymous) (expr.js:0:0)
+  for (var k in obj) { all.push(k); }
+  for (let #k in arr) { all.push(k); }
+  for (let k of arr) { all.push(k); }
+
+testFunction (test.js:23:27)
+(anonymous) (expr.js:0:0)
+  for (var k in obj) { all.push(k); }
+  for (let k in arr) { all.#push(k); }
+  for (let k of arr) { all.push(k); }
+
+testFunction (test.js:24:16)
+(anonymous) (expr.js:0:0)
+  for (let k in arr) { all.push(k); }
+  for (let k of #arr) { all.push(k); }
+  for (let k in obj) { all.push(k); }
+
+testFunction (test.js:24:11)
+(anonymous) (expr.js:0:0)
+  for (let k in arr) { all.push(k); }
+  for (let #k of arr) { all.push(k); }
+  for (let k in obj) { all.push(k); }
+
+testFunction (test.js:24:27)
+(anonymous) (expr.js:0:0)
+  for (let k in arr) { all.push(k); }
+  for (let k of arr) { all.#push(k); }
+  for (let k in obj) { all.push(k); }
+
+testFunction (test.js:25:16)
+(anonymous) (expr.js:0:0)
+  for (let k of arr) { all.push(k); }
+  for (let k in #obj) { all.push(k); }
+
+
+testFunction (test.js:25:11)
+(anonymous) (expr.js:0:0)
+  for (let k of arr) { all.push(k); }
+  for (let #k in obj) { all.push(k); }
+
+
+testFunction (test.js:25:27)
+(anonymous) (expr.js:0:0)
+  for (let k of arr) { all.push(k); }
+  for (let k in obj) { all.#push(k); }
+
+
+testFunction (test.js:27:17)
+(anonymous) (expr.js:0:0)
+
+  var iterable = #getIterable();
+  for (var k of iterable) { all.push(k); }
+
+testFunction (test.js:28:16)
+(anonymous) (expr.js:0:0)
+  var iterable = getIterable();
+  for (var k of #iterable) { all.push(k); }
+  iterable.i = 0;
+
+testFunction (test.js:28:11)
+(anonymous) (expr.js:0:0)
+  var iterable = getIterable();
+  for (var #k of iterable) { all.push(k); }
+  iterable.i = 0;
+
+testFunction (test.js:28:32)
+(anonymous) (expr.js:0:0)
+  var iterable = getIterable();
+  for (var k of iterable) { all.#push(k); }
+  iterable.i = 0;
+
+testFunction (test.js:29:2)
+(anonymous) (expr.js:0:0)
+  for (var k of iterable) { all.push(k); }
+  #iterable.i = 0;
+  for (let k of iterable) { all.push(k); }
+
+testFunction (test.js:30:16)
+(anonymous) (expr.js:0:0)
+  iterable.i = 0;
+  for (let k of #iterable) { all.push(k); }
+}
+
+testFunction (test.js:30:11)
+(anonymous) (expr.js:0:0)
+  iterable.i = 0;
+  for (let #k of iterable) { all.push(k); }
+}
+
+testFunction (test.js:30:32)
+(anonymous) (expr.js:0:0)
+  iterable.i = 0;
+  for (let k of iterable) { all.#push(k); }
+}
+
+testFunction (test.js:31:0)
+(anonymous) (expr.js:0:0)
+  for (let k of iterable) { all.push(k); }
+#}
+
+
+Running test: testStepIntoAfterBreakpoint
+testFunction (test.js:28:11)
+(anonymous) (expr.js:0:0)
+  var iterable = getIterable();
+  for (var #k of iterable) { all.push(k); }
+  iterable.i = 0;
+
+testFunction (test.js:28:32)
+(anonymous) (expr.js:0:0)
+  var iterable = getIterable();
+  for (var k of iterable) { all.#push(k); }
+  iterable.i = 0;
+
+
+Running test: testSetBreakpoint
+Setting breakpoint at test.js:28:0
+  var iterable = getIterable();
+  for (var k of #iterable) { all.push(k); }
+  iterable.i = 0;
+
+Setting breakpoint at test.js:28:11
+  var iterable = getIterable();
+  for (var #k of iterable) { all.push(k); }
+  iterable.i = 0;
+
+Setting breakpoint at test.js:28:16
+  var iterable = getIterable();
+  for (var k of #iterable) { all.push(k); }
+  iterable.i = 0;
+
+Setting breakpoint at test.js:28:28
+  var iterable = getIterable();
+  for (var k of iterable) { all.#push(k); }
+  iterable.i = 0;
+
+
+Running test: testSetBreakpointWhileInNext
+Forcing sparkplug compilation
+Setting breakpoint in next method body
+next (test.js:8:12)
+testFunction (test.js:28:11)
+(anonymous) (expr.js:1:8)
+Setting breakpoint in loop body while paused in next method
+          if (this.i < 1) {
+            #return { value: this.i++, done: false };
+          }
+
+testFunction (test.js:28:32)
+(anonymous) (expr.js:1:8)
+  var iterable = getIterable();
+  for (var k of iterable) { all.#push(k); }
+  iterable.i = 0;
+

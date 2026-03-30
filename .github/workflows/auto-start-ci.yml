@@ -1,0 +1,74 @@
+name: Auto Start CI
+
+on:
+  schedule:
+    # Runs every five minutes (fastest the scheduler can run). Five minutes is
+    # optimistic, it can take longer to run.
+    # To understand why `schedule` is used instead of other events, refer to
+    # ./doc/contributing/commit-queue.md
+    - cron: '*/5 * * * *'
+
+concurrency: ${{ github.workflow }}
+
+env:
+  NODE_VERSION: lts/*
+
+permissions:
+  contents: read
+
+jobs:
+  get-prs-for-ci:
+    permissions:
+      pull-requests: read
+    if: github.repository == 'nodejs/node'
+    runs-on: ubuntu-slim
+    outputs:
+      numbers: ${{ steps.get_prs_for_ci.outputs.numbers }}
+    steps:
+      - name: Get Pull Requests
+        id: get_prs_for_ci
+        run: >
+          numbers=$(gh pr list \
+                  --repo ${{ github.repository }} \
+                  --label 'request-ci' \
+                  --json 'number' \
+                  -t '{{ range . }}{{ .number }} {{ end }}' \
+                  --limit 5)
+          echo "numbers=$numbers" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  start-ci:
+    permissions:
+      contents: read
+      pull-requests: write
+    needs: get-prs-for-ci
+    if: needs.get-prs-for-ci.outputs.numbers != ''
+    runs-on: ubuntu-slim
+    steps:
+      - name: Install Node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238  # v6.2.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install @node-core/utils
+        run: npm install -g @node-core/utils
+
+      - name: Setup @node-core/utils
+        run: |
+          ncu-config set username "$USERNAME"
+          ncu-config set token "$GH_TOKEN"
+          ncu-config set jenkins_token "$JENKINS_TOKEN"
+          ncu-config set owner "$GITHUB_REPOSITORY_OWNER"
+          ncu-config set repo "$(echo "$GITHUB_REPOSITORY" | cut -d/ -f2)"
+        env:
+          USERNAME: ${{ secrets.JENKINS_USER }}
+          GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+          JENKINS_TOKEN: ${{ secrets.JENKINS_TOKEN }}
+
+      - name: Start the CI
+        run: |
+          curl -fsSL "https://github.com/${GITHUB_REPOSITORY}/raw/${GITHUB_SHA}/tools/actions/start-ci.sh" \
+          | sh -s -- ${{ needs.get-prs-for-ci.outputs.numbers }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}

@@ -1,0 +1,82 @@
+{
+  "name": "cacache",
+  "version": "20.0.3",
+  "cache-version": {
+    "content": "2",
+    "index": "5"
+  },
+  "description": "Fast, fault-tolerant, cross-platform, disk-based, data-agnostic, content-addressable cache.",
+  "main": "lib/index.js",
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "scripts": {
+    "test": "tap",
+    "snap": "tap",
+    "coverage": "tap",
+    "test-docker": "docker run -it --rm --name pacotest -v \"$PWD\":/tmp -w /tmp node:latest npm test",
+    "lint": "npm run eslint",
+    "npmclilint": "npmcli-lint",
+    "lintfix": "npm run eslint -- --fix",
+    "postsnap": "npm run lintfix --",
+    "postlint": "template-oss-check",
+    "posttest": "npm run lint",
+    "template-oss-apply": "template-oss-apply --force",
+    "eslint": "eslint \"**/*.{js,cjs,ts,mjs,jsx,tsx}\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/cacache.git"
+  },
+  "keywords": [
+    "cache",
+    "caching",
+    "content-addressable",
+    "sri",
+    "sri hash",
+    "subresource integrity",
+    "cache",
+    "storage",
+    "store",
+    "file store",
+    "filesystem",
+    "disk cache",
+    "disk storage"
+  ],
+  "license": "ISC",
+  "dependencies": {
+    "@npmcli/fs": "^5.0.0",
+    "fs-minipass": "^3.0.0",
+    "glob": "^13.0.0",
+    "lru-cache": "^11.1.0",
+    "minipass": "^7.0.3",
+    "minipass-collect": "^2.0.1",
+    "minipass-flush": "^1.0.5",
+    "minipass-pipeline": "^1.2.4",
+    "p-map": "^7.0.2",
+    "ssri": "^13.0.0",
+    "unique-filename": "^5.0.0"
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^6.0.1",
+    "@npmcli/template-oss": "4.28.0",
+    "tap": "^16.0.0"
+  },
+  "engines": {
+    "node": "^20.17.0 || >=22.9.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "windowsCI": false,
+    "version": "4.28.0",
+    "publish": "true"
+  },
+  "author": "GitHub Inc.",
+  "tap": {
+    "nyc-arg": [
+      "--exclude",
+      "tap-snapshots/**"
+    ]
+  }
+}

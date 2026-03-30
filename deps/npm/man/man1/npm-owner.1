@@ -1,0 +1,110 @@
+.TH "NPM-OWNER" "1" "February 2026" "NPM@11.11.0" ""
+.SH "NAME"
+\fBnpm-owner\fR - Manage package owners
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm owner add <user> <package-spec>
+npm owner rm <user> <package-spec>
+npm owner ls <package-spec>
+
+alias: author
+.fi
+.RE
+.SS "Description"
+.P
+Manage ownership of published packages.
+.RS 0
+.IP \(bu 4
+ls: List all the users who have access to modify a package and push new versions. Handy when you need to know who to bug for help.
+.IP \(bu 4
+add: Add a new user as a maintainer of a package. This user is enabled to modify metadata, publish new versions, and add other owners.
+.IP \(bu 4
+rm: Remove a user from the package owner list. This immediately revokes their privileges.
+.RE 0
+
+.P
+Note that there is only one level of access. Either you can modify a package, or you can't. Future versions may contain more fine-grained access levels, but that is not implemented at this time.
+.P
+If you have two-factor authentication enabled with \fBauth-and-writes\fR (see npm help npm-profile) then you'll need to go through a second factor flow when changing ownership or include an otp on the command line with \fB--otp\fR.
+.SS "Configuration"
+.SS "\fBregistry\fR"
+.RS 0
+.IP \(bu 4
+Default: "https://registry.npmjs.org/"
+.IP \(bu 4
+Type: URL
+.RE 0
+
+.P
+The base URL of the npm registry.
+.SS "\fBotp\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or String
+.RE 0
+
+.P
+This is a one-time password from a two-factor authenticator. It's needed when publishing or changing package permissions with \fBnpm access\fR.
+.P
+If not set, and a registry response fails with a challenge for a one-time password, npm will prompt on the command line for one.
+.SS "\fBworkspace\fR"
+.RS 0
+.IP \(bu 4
+Default:
+.IP \(bu 4
+Type: String (can be set multiple times)
+.RE 0
+
+.P
+Enable running a command in the context of the configured workspaces of the current project while filtering by running only the workspaces defined by this configuration option.
+.P
+Valid values for the \fBworkspace\fR config are either:
+.RS 0
+.IP \(bu 4
+Workspace names
+.IP \(bu 4
+Path to a workspace directory
+.IP \(bu 4
+Path to a parent workspace directory (will result in selecting all workspaces within that folder)
+.RE 0
+
+.P
+When set for the \fBnpm init\fR command, this may be set to the folder of a workspace which does not yet exist, to create the folder and set it up as a brand new workspace within the project.
+.P
+This value is not exported to the environment for child processes.
+.SS "\fBworkspaces\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or Boolean
+.RE 0
+
+.P
+Set to true to run the command in the context of \fBall\fR configured workspaces.
+.P
+Explicitly setting this to false will cause commands like \fBinstall\fR to ignore workspaces altogether. When not set explicitly:
+.RS 0
+.IP \(bu 4
+Commands that operate on the \fBnode_modules\fR tree (install, update, etc.) will link workspaces into the \fBnode_modules\fR folder. - Commands that do other things (test, exec, publish, etc.) will operate on the root project, \fIunless\fR one or more workspaces are specified in the \fBworkspace\fR config.
+.RE 0
+
+.P
+This value is not exported to the environment for child processes.
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help "package spec"
+.IP \(bu 4
+npm help profile
+.IP \(bu 4
+npm help publish
+.IP \(bu 4
+npm help registry
+.IP \(bu 4
+npm help adduser
+.RE 0

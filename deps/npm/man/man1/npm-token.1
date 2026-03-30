@@ -1,0 +1,200 @@
+.TH "NPM-TOKEN" "1" "February 2026" "NPM@11.11.0" ""
+.SH "NAME"
+\fBnpm-token\fR - Manage your authentication tokens
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm token list
+npm token revoke <id|token>
+npm token create
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces.
+.SS "Description"
+.P
+This lets you list, create and revoke authentication tokens.
+.SS "Listing tokens"
+.P
+When listing tokens, an abbreviated token will be displayed. For security purposes the full token is not displayed.
+.SS "Generating tokens"
+.P
+When generating tokens, you will be prompted you for your password and, if you have two-factor authentication enabled, an otp.
+.P
+Please refer to the \fBdocs website\fR \fI\(lahttps://docs.npmjs.com/creating-and-viewing-access-tokens\(ra\fR for more information on generating tokens for CI/CD.
+.SS "Revoking tokens"
+.P
+When revoking a token, you can use the full token (e.g. what you get back from \fBnpm token create\fR, or as can be found in an \fB.npmrc\fR file), or a truncated id. If the given truncated id is not distinct enough to differentiate between multiple existing tokens, you will need to use enough of the id to allow npm to distinguish between them. Full token ids can be found on the \fBnpm website\fR \fI\(lahttps://www.npmjs.com\(ra\fR, or in the \fB--parseable\fR or \fB--json\fR output of \fBnpm token list\fR. This command will NOT accept the truncated token found in the normal \fBnpm token list\fR output.
+.P
+A revoked token will immediately be removed from the registry and you will no longer be able to use it.
+.SS "Configuration"
+.SS "\fBname\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or String
+.RE 0
+
+.P
+When creating a Granular Access Token with \fBnpm token create\fR, this sets the name/description for the token.
+.SS "\fBtoken-description\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or String
+.RE 0
+
+.P
+Description text for the token when using \fBnpm token create\fR.
+.SS "\fBexpires\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or Number
+.RE 0
+
+.P
+When creating a Granular Access Token with \fBnpm token create\fR, this sets the expiration in days. If not specified, the server will determine the default expiration.
+.SS "\fBpackages\fR"
+.RS 0
+.IP \(bu 4
+Default:
+.IP \(bu 4
+Type: null or String (can be set multiple times)
+.RE 0
+
+.P
+When creating a Granular Access Token with \fBnpm token create\fR, this limits the token access to specific packages.
+.SS "\fBpackages-all\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+When creating a Granular Access Token with \fBnpm token create\fR, grants the token access to all packages instead of limiting to specific packages.
+.SS "\fBscopes\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or String (can be set multiple times)
+.RE 0
+
+.P
+When creating a Granular Access Token with \fBnpm token create\fR, this limits the token access to specific scopes. Provide a scope name (with or without @ prefix).
+.SS "\fBorgs\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or String (can be set multiple times)
+.RE 0
+
+.P
+When creating a Granular Access Token with \fBnpm token create\fR, this limits the token access to specific organizations.
+.SS "\fBpackages-and-scopes-permission\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null, "read-only", "read-write", or "no-access"
+.RE 0
+
+.P
+When creating a Granular Access Token with \fBnpm token create\fR, sets the permission level for packages and scopes. Options are "read-only", "read-write", or "no-access".
+.SS "\fBorgs-permission\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null, "read-only", "read-write", or "no-access"
+.RE 0
+
+.P
+When creating a Granular Access Token with \fBnpm token create\fR, sets the permission level for organizations. Options are "read-only", "read-write", or "no-access".
+.SS "\fBcidr\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or String (can be set multiple times)
+.RE 0
+
+.P
+This is a list of CIDR address to be used when configuring limited access tokens with the \fBnpm token create\fR command.
+.SS "\fBbypass-2fa\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+When creating a Granular Access Token with \fBnpm token create\fR, setting this to true will allow the token to bypass two-factor authentication. This is useful for automation and CI/CD workflows.
+.SS "\fBpassword\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or String
+.RE 0
+
+.P
+Password for authentication. Can be provided via command line when creating tokens, though it's generally safer to be prompted for it.
+.SS "\fBregistry\fR"
+.RS 0
+.IP \(bu 4
+Default: "https://registry.npmjs.org/"
+.IP \(bu 4
+Type: URL
+.RE 0
+
+.P
+The base URL of the npm registry.
+.SS "\fBotp\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or String
+.RE 0
+
+.P
+This is a one-time password from a two-factor authenticator. It's needed when publishing or changing package permissions with \fBnpm access\fR.
+.P
+If not set, and a registry response fails with a challenge for a one-time password, npm will prompt on the command line for one.
+.SS "\fBread-only\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+This is used to mark a token as unable to publish when configuring limited access tokens with the \fBnpm token create\fR command.
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help adduser
+.IP \(bu 4
+npm help registry
+.IP \(bu 4
+npm help config
+.IP \(bu 4
+npm help npmrc
+.IP \(bu 4
+npm help owner
+.IP \(bu 4
+npm help whoami
+.IP \(bu 4
+npm help profile
+.RE 0

@@ -1,0 +1,6 @@
+---
+source: core/src/hir/type_context.rs
+expression: output
+---
+Lowering error in Foo: Struct "Foo" cannot have any lifetimes if it is marked as ABI compatible.
+Lowering error in Foo: Cannot construct a slice of "Foo" with non-primitive, non-struct field "z"

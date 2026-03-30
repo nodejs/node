@@ -1,0 +1,33 @@
+prefix addons
+
+# To mark a test as flaky, list the test name in the appropriate section
+# below, without ".js", followed by ": PASS,FLAKY". Example:
+# sample-test                        : PASS,FLAKY
+
+[true] # This section applies to all platforms
+
+[$arch==arm]
+# https://github.com/nodejs/node/issues/30786
+openssl-binding/test: PASS,FLAKY
+
+[$system==ibmi]
+openssl-binding/test: SKIP
+openssl-providers/test-default-only-config: SKIP
+openssl-providers/test-legacy-provider-config: SKIP
+openssl-providers/test-legacy-provider-inactive-config: SKIP
+openssl-providers/test-legacy-provider-option: SKIP
+openssl-providers/test-no-legacy-provider-option: SKIP
+zlib-binding/test: SKIP
+# https://github.com/nodejs/node/issues/34410
+register-signal-handler/test: PASS,FLAKY
+
+[$system==aix]
+# https://github.com/nodejs/node/issues/60494
+stringbytes-external-exceed-max/test-stringbytes-external-at-max: PASS,FLAKY
+stringbytes-external-exceed-max/test-stringbytes-external-exceed-max: PASS,FLAKY
+stringbytes-external-exceed-max/test-stringbytes-external-exceed-max-by-1-hex: PASS,FLAKY
+stringbytes-external-exceed-max/test-stringbytes-external-exceed-max-by-1-utf8: PASS,FLAKY
+stringbytes-external-exceed-max/test-stringbytes-external-exceed-max-by-1-base64: PASS,FLAKY
+stringbytes-external-exceed-max/test-stringbytes-external-exceed-max-by-2: PASS,FLAKY
+stringbytes-external-exceed-max/test-stringbytes-external-exceed-max-by-1-ascii: PASS,FLAKY
+stringbytes-external-exceed-max/test-stringbytes-external-exceed-max-by-1-binary: PASS,FLAKY

@@ -1,0 +1,12 @@
+{
+  "path": ["."],
+  "owners": ["username@chromium.org"],
+  "flags": [],
+  "main": "run.js",
+  "run_count": 2,
+  "results_regexp": "^%s: (.+)$",
+  "tests": [
+    {"name": "Richards"},
+    {"name": "DeltaBlue"}
+  ]
+}

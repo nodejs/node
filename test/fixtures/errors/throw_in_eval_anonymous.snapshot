@@ -1,0 +1,8 @@
+<anonymous_script>:3
+  throw new Error('error in anonymous script');
+  ^
+
+Error: error in anonymous script
+    at eval (eval at <anonymous> (<project-root>/test/fixtures/errors/throw_in_eval_anonymous.js:5:1), <anonymous>:3:9)
+
+Node.js <node-version>

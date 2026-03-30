@@ -1,0 +1,467 @@
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
+<title>npm-init</title>
+<style>
+body {
+    background-color: #ffffff;
+    color: #24292e;
+
+    margin: 0;
+
+    line-height: 1.5;
+
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}
+#rainbar {
+    height: 10px;
+    background-image: linear-gradient(139deg, #fb8817, #ff4b01, #c12127, #e02aff);
+}
+
+a {
+    text-decoration: none;
+    color: #0366d6;
+}
+a:hover {
+    text-decoration: underline;
+}
+
+pre {
+    margin: 1em 0px;
+    padding: 1em;
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+
+    display: block;
+    overflow: auto;
+
+    white-space: pre;
+
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+code {
+    font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 85%;
+    padding: 0.2em 0.4em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+pre > code {
+    padding: 0;
+    background-color: inherit;
+    color: inherit;
+}
+h1, h2, h3 {
+    font-weight: 600;
+}
+
+#logobar {
+    background-color: #333333;
+    margin: 0 auto;
+    padding: 1em 4em;
+}
+#logobar .logo {
+    float: left;
+}
+#logobar .title {
+    font-weight: 600;
+    color: #dddddd;
+    float: left;
+    margin: 5px 0 0 1em;
+}
+#logobar:after {
+    content: "";
+    display: block;
+    clear: both;
+}
+
+#content {
+    margin: 0 auto;
+    padding: 0 4em;
+}
+
+#table_of_contents > h2 {
+    font-size: 1.17em;
+}
+#table_of_contents ul:first-child {
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+    padding: 1em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+#table_of_contents ul {
+    list-style-type: none;
+    padding-left: 1.5em;
+}
+#table_of_contents li {
+    font-size: 0.9em;
+}
+#table_of_contents li a {
+    color: #000000;
+}
+
+header.title {
+    border-bottom: solid 1px #e1e4e8;
+}
+header.title > h1 {
+    margin-bottom: 0.25em;
+}
+header.title > .description {
+    display: block;
+    margin-bottom: 0.5em;
+    line-height: 1;
+}
+
+header.title .version {
+    font-size: 0.8em;
+    color: #666666;
+}
+
+footer#edit {
+    border-top: solid 1px #e1e4e8;
+    margin: 3em 0 4em 0;
+    padding-top: 2em;
+}
+
+table {
+    width: 100%;
+    margin: 1em 0;
+    border-radius: 6px;
+    border: 1px solid #e1e4e8;
+    overflow: hidden;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+table thead {
+    background-color: #f6f8fa;
+}
+
+table tbody {
+    background-color: #ffffff;
+}
+
+table th,
+table td {
+    padding: 0.75em;
+    text-align: left;
+    border-right: 1px solid #e1e4e8;
+    border-bottom: 1px solid #e1e4e8;
+}
+
+table th:last-child,
+table td:last-child {
+    border-right: none;
+}
+
+table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+table th {
+    font-weight: 600;
+    background-color: #f6f8fa;
+}
+
+table code {
+    white-space: nowrap;
+}
+
+</style>
+</head>
+<body>
+<div id="banner">
+<div id="rainbar"></div>
+<div id="logobar">
+<svg class="logo" role="img" height="32" width="32" viewBox="0 0 700 700">
+<polygon fill="#cb0000" points="0,700 700,700 700,0 0,0"></polygon>
+<polygon fill="#ffffff" points="150,550 350,550 350,250 450,250 450,550 550,550 550,150 150,150"></polygon>
+</svg>
+<div class="title">
+npm command-line interface
+</div>
+</div>
+</div>
+
+<section id="content">
+<header class="title">
+<h1 id="----npm-init----11110">
+    <span>npm-init</span>
+    <span class="version">@11.11.0</span>
+</h1>
+<span class="description">Create a package.json file</span>
+</header>
+
+<section id="table_of_contents">
+<h2 id="table-of-contents">Table of contents</h2>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><ul><li><a href="#forwarding-additional-options">Forwarding additional options</a></li></ul><li><a href="#examples">Examples</a></li><li><a href="#workspaces-support">Workspaces support</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#init-author-name"><code>init-author-name</code></a></li><li><a href="#init-author-url"><code>init-author-url</code></a></li><li><a href="#init-license"><code>init-license</code></a></li><li><a href="#init-module"><code>init-module</code></a></li><li><a href="#init-type"><code>init-type</code></a></li><li><a href="#init-version"><code>init-version</code></a></li><li><a href="#init-private"><code>init-private</code></a></li><li><a href="#yes"><code>yes</code></a></li><li><a href="#force"><code>force</code></a></li><li><a href="#scope"><code>scope</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#workspaces-update"><code>workspaces-update</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+</section>
+
+<div id="_content"><h3 id="synopsis">Synopsis</h3>
+<pre><code class="language-bash">npm init &lt;package-spec&gt; (same as `npx create-&lt;package-spec&gt;`)
+npm init &lt;@scope&gt; (same as `npx &lt;@scope&gt;/create`)
+
+aliases: create, innit
+</code></pre>
+<h3 id="description">Description</h3>
+<p><code>npm init &lt;initializer&gt;</code> can be used to set up a new or existing npm package.</p>
+<p><code>initializer</code> in this case is an npm package named <code>create-&lt;initializer&gt;</code>,
+which will be installed by <a href="../commands/npm-exec.html"><code>npm-exec</code></a>, and then have its main bin executed -- presumably creating or updating <code>package.json</code> and running any other initialization-related operations.</p>
+<p>The init command is transformed to a corresponding <code>npm exec</code> operation as follows:</p>
+<ul>
+<li><code>npm init foo</code> -&gt; <code>npm exec create-foo</code></li>
+<li><code>npm init @usr/foo</code> -&gt; <code>npm exec @usr/create-foo</code></li>
+<li><code>npm init @usr</code> -&gt; <code>npm exec @usr/create</code></li>
+<li><code>npm init @usr@2.0.0</code> -&gt; <code>npm exec @usr/create@2.0.0</code></li>
+<li><code>npm init @usr/foo@2.0.0</code> -&gt; <code>npm exec @usr/create-foo@2.0.0</code></li>
+</ul>
+<p>If the initializer is omitted (by just calling <code>npm init</code>), init will fall back to legacy init behavior.
+It will ask you a bunch of questions, and then write a package.json for you.
+It will attempt to make reasonable guesses based on existing fields, dependencies, and options selected.
+It is strictly additive, so it will keep any fields and values that were already set.
+You can also use <code>-y</code>/<code>--yes</code> to skip the questionnaire altogether.
+If you pass <code>--scope</code>, it will create a scoped package.</p>
+<p><em>Note:</em> if a user already has the <code>create-&lt;initializer&gt;</code> package globally installed, that will be what <code>npm init</code> uses.
+If you want npm to use the latest version, or another specific version you must specify it:</p>
+<ul>
+<li><code>npm init foo@latest</code> # fetches and runs the latest <code>create-foo</code> from the registry</li>
+<li><code>npm init foo@1.2.3</code> #  runs <code>create-foo@1.2.3</code> specifically</li>
+</ul>
+<h4 id="forwarding-additional-options">Forwarding additional options</h4>
+<p>Any additional options will be passed directly to the command, so <code>npm init foo -- --hello</code> will map to <code>npm exec -- create-foo --hello</code>.</p>
+<p>To better illustrate how options are forwarded, here's a more evolved example showing options passed to both the <strong>npm cli</strong> and a create package, both following commands are equivalent:</p>
+<ul>
+<li><code>npm init foo -y --registry=&lt;url&gt; -- --hello -a</code></li>
+<li><code>npm exec -y --registry=&lt;url&gt; -- create-foo --hello -a</code></li>
+</ul>
+<h3 id="examples">Examples</h3>
+<p>Create a new React-based project using <a href="https://npm.im/create-react-app"><code>create-react-app</code></a>:</p>
+<pre><code class="language-bash">$ npm init react-app ./my-react-app
+</code></pre>
+<p>Create a new <code>esm</code>-compatible package using <a href="https://npm.im/create-esm"><code>create-esm</code></a>:</p>
+<pre><code class="language-bash">$ mkdir my-esm-lib &amp;&amp; cd my-esm-lib
+$ npm init esm --yes
+</code></pre>
+<p>Generate a plain old package.json using legacy init:</p>
+<pre><code class="language-bash">$ mkdir my-npm-pkg &amp;&amp; cd my-npm-pkg
+$ git init
+$ npm init
+</code></pre>
+<p>Generate it without having it ask any questions:</p>
+<pre><code class="language-bash">$ npm init -y
+</code></pre>
+<p>Set the private flag to <code>true</code> in package.json:</p>
+<pre><code class="language-bash">$ npm init --init-private -y
+</code></pre>
+<h3 id="workspaces-support">Workspaces support</h3>
+<p>It's possible to create a new workspace within your project by using the <code>workspace</code> config option.
+When using <code>npm init -w &lt;dir&gt;</code> the cli will create the folders and boilerplate expected while also adding a reference to your project <code>package.json</code> <code>"workspaces": []</code> property in order to make sure that new generated <strong>workspace</strong> is properly set up as such.</p>
+<p>Given a project with no workspaces, e.g:</p>
+<pre><code>.
++-- package.json
+</code></pre>
+<p>You may generate a new workspace using the legacy init:</p>
+<pre><code class="language-bash">$ npm init -w packages/a
+</code></pre>
+<p>That will generate a new folder and <code>package.json</code> file, while also updating your top-level <code>package.json</code> to add the reference to this new workspace:</p>
+<pre><code>.
++-- package.json
+`-- packages
+   `-- a
+       `-- package.json
+</code></pre>
+<p>The workspaces init also supports the <code>npm init &lt;initializer&gt; -w &lt;dir&gt;</code> syntax, following the same set of rules explained earlier in the initial
+<strong>Description</strong> section of this page.
+Similar to the previous example of creating a new React-based project using <a href="https://npm.im/create-react-app"><code>create-react-app</code></a>, the following syntax will make sure to create the new react app as a nested <strong>workspace</strong> within your project and configure your <code>package.json</code> to recognize it as such:</p>
+<pre><code class="language-bash">npm init -w packages/my-react-app react-app .
+</code></pre>
+<p>This will make sure to generate your react app as expected, one important consideration to have in mind is that <code>npm exec</code> is going to be run in the context of the newly created folder for that workspace, and that's the reason why in this example the initializer uses the initializer name followed with a dot to represent the current directory in that context, e.g: <code>react-app .</code>:</p>
+<pre><code>.
++-- package.json
+`-- packages
+   +-- a
+   |   `-- package.json
+   `-- my-react-app
+       +-- README
+       +-- package.json
+       `-- ...
+</code></pre>
+<h3 id="configuration">Configuration</h3>
+<h4 id="init-author-name"><code>init-author-name</code></h4>
+<ul>
+<li>Default: ""</li>
+<li>Type: String</li>
+</ul>
+<p>The value <code>npm init</code> should use by default for the package author's name.</p>
+<h4 id="init-author-url"><code>init-author-url</code></h4>
+<ul>
+<li>Default: ""</li>
+<li>Type: "" or URL</li>
+</ul>
+<p>The value <code>npm init</code> should use by default for the package author's
+homepage.</p>
+<h4 id="init-license"><code>init-license</code></h4>
+<ul>
+<li>Default: "ISC"</li>
+<li>Type: String</li>
+</ul>
+<p>The value <code>npm init</code> should use by default for the package license.</p>
+<h4 id="init-module"><code>init-module</code></h4>
+<ul>
+<li>Default: "~/.npm-init.js"</li>
+<li>Type: Path</li>
+</ul>
+<p>A module that will be loaded by the <code>npm init</code> command. See the
+documentation for the
+<a href="https://github.com/npm/init-package-json">init-package-json</a> module for
+more information, or <a href="../commands/npm-init.html">npm init</a>.</p>
+<h4 id="init-type"><code>init-type</code></h4>
+<ul>
+<li>Default: "commonjs"</li>
+<li>Type: String</li>
+</ul>
+<p>The value that <code>npm init</code> should use by default for the package.json type
+field.</p>
+<h4 id="init-version"><code>init-version</code></h4>
+<ul>
+<li>Default: "1.0.0"</li>
+<li>Type: SemVer string</li>
+</ul>
+<p>The value that <code>npm init</code> should use by default for the package version
+number, if not already set in package.json.</p>
+<h4 id="init-private"><code>init-private</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>The value <code>npm init</code> should use by default for the package's private flag.</p>
+<h4 id="yes"><code>yes</code></h4>
+<ul>
+<li>Default: null</li>
+<li>Type: null or Boolean</li>
+</ul>
+<p>Automatically answer "yes" to any prompts that npm might print on the
+command line.</p>
+<h4 id="force"><code>force</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Removes various protections against unfortunate side effects, common
+mistakes, unnecessary performance degradation, and malicious input.</p>
+<ul>
+<li>Allow clobbering non-npm files in global installs.</li>
+<li>Allow the <code>npm version</code> command to work on an unclean git repository.</li>
+<li>Allow deleting the cache folder with <code>npm cache clean</code>.</li>
+<li>Allow installing packages that have an <code>engines</code> declaration requiring a
+different version of npm.</li>
+<li>Allow installing packages that have an <code>engines</code> declaration requiring a
+different version of <code>node</code>, even if <code>--engine-strict</code> is enabled.</li>
+<li>Allow <code>npm audit fix</code> to install modules outside your stated dependency
+range (including SemVer-major changes).</li>
+<li>Allow unpublishing all versions of a published package.</li>
+<li>Allow conflicting peerDependencies to be installed in the root project.</li>
+<li>Implicitly set <code>--yes</code> during <code>npm init</code>.</li>
+<li>Allow clobbering existing values in <code>npm pkg</code></li>
+<li>Allow unpublishing of entire packages (not just a single version).</li>
+</ul>
+<p>If you don't have a clear idea of what you want to do, it is strongly
+recommended that you do not use this option!</p>
+<h4 id="scope"><code>scope</code></h4>
+<ul>
+<li>Default: the scope of the current project, if any, or ""</li>
+<li>Type: String</li>
+</ul>
+<p>Associate an operation with a scope for a scoped registry.</p>
+<p>Useful when logging in to or out of a private registry:</p>
+<pre><code># log in, linking the scope to the custom registry
+npm login --scope=@mycorp --registry=https://registry.mycorp.com
+
+# log out, removing the link and the auth token
+npm logout --scope=@mycorp
+</code></pre>
+<p>This will cause <code>@mycorp</code> to be mapped to the registry for future
+installation of packages specified according to the pattern
+<code>@mycorp/package</code>.</p>
+<p>This will also cause <code>npm init</code> to create a scoped package.</p>
+<pre><code># accept all defaults, and create a package named "@foo/whatever",
+# instead of just named "whatever"
+npm init --scope=@foo --yes
+</code></pre>
+<h4 id="workspace"><code>workspace</code></h4>
+<ul>
+<li>Default:</li>
+<li>Type: String (can be set multiple times)</li>
+</ul>
+<p>Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option.</p>
+<p>Valid values for the <code>workspace</code> config are either:</p>
+<ul>
+<li>Workspace names</li>
+<li>Path to a workspace directory</li>
+<li>Path to a parent workspace directory (will result in selecting all
+workspaces within that folder)</li>
+</ul>
+<p>When set for the <code>npm init</code> command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<h4 id="workspaces"><code>workspaces</code></h4>
+<ul>
+<li>Default: null</li>
+<li>Type: null or Boolean</li>
+</ul>
+<p>Set to true to run the command in the context of <strong>all</strong> configured
+workspaces.</p>
+<p>Explicitly setting this to false will cause commands like <code>install</code> to
+ignore workspaces altogether. When not set explicitly:</p>
+<ul>
+<li>Commands that operate on the <code>node_modules</code> tree (install, update, etc.)
+will link workspaces into the <code>node_modules</code> folder. - Commands that do
+other things (test, exec, publish, etc.) will operate on the root project,
+<em>unless</em> one or more workspaces are specified in the <code>workspace</code> config.</li>
+</ul>
+<p>This value is not exported to the environment for child processes.</p>
+<h4 id="workspaces-update"><code>workspaces-update</code></h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If set to true, the npm cli will run an update after operations that may
+possibly change the workspaces installed to the <code>node_modules</code> folder.</p>
+<h4 id="include-workspace-root"><code>include-workspace-root</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Include the workspace root when workspaces are enabled for a command.</p>
+<p>When false, specifying individual workspaces via the <code>workspace</code> config, or
+all workspaces via the <code>workspaces</code> flag, will cause npm to operate only on
+the specified workspaces, and not on the root project.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<h3 id="see-also">See Also</h3>
+<ul>
+<li><a href="../using-npm/package-spec.html">package spec</a></li>
+<li><a href="http://npm.im/init-package-json">init-package-json module</a></li>
+<li><a href="../configuring-npm/package-json.html">package.json</a></li>
+<li><a href="../commands/npm-version.html">npm version</a></li>
+<li><a href="../using-npm/scope.html">npm scope</a></li>
+<li><a href="../commands/npm-exec.html">npm exec</a></li>
+<li><a href="../using-npm/workspaces.html">npm workspaces</a></li>
+</ul></div>
+
+<footer id="edit">
+<a href="https://github.com/npm/cli/edit/latest/docs/lib/content/commands/npm-init.md">
+<svg role="img" viewBox="0 0 16 16" width="16" height="16" fill="currentcolor" style="vertical-align: text-bottom; margin-right: 0.3em;">
+<path fill-rule="evenodd" d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25a1.75 1.75 0 01.445-.758l8.61-8.61zm1.414 1.06a.25.25 0 00-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 000-.354l-1.086-1.086zM11.189 6.25L9.75 4.81l-6.286 6.287a.25.25 0 00-.064.108l-.558 1.953 1.953-.558a.249.249 0 00.108-.064l6.286-6.286z"></path>
+</svg>
+Edit this page on GitHub
+</a>
+</footer>
+</section>
+
+
+
+</body></html>

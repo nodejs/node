@@ -1,0 +1,52 @@
+{
+  "name": "node-gyp",
+  "description": "Node.js native addon build tool",
+  "license": "MIT",
+  "keywords": [
+    "native",
+    "addon",
+    "module",
+    "c",
+    "c++",
+    "bindings",
+    "gyp"
+  ],
+  "version": "12.2.0",
+  "installVersion": 11,
+  "author": "Nathan Rajlich <nathan@tootallnate.net> (http://tootallnate.net)",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/nodejs/node-gyp.git"
+  },
+  "preferGlobal": true,
+  "bin": "./bin/node-gyp.js",
+  "main": "./lib/node-gyp.js",
+  "dependencies": {
+    "env-paths": "^2.2.0",
+    "exponential-backoff": "^3.1.1",
+    "graceful-fs": "^4.2.6",
+    "make-fetch-happen": "^15.0.0",
+    "nopt": "^9.0.0",
+    "proc-log": "^6.0.0",
+    "semver": "^7.3.5",
+    "tar": "^7.5.4",
+    "tinyglobby": "^0.2.12",
+    "which": "^6.0.0"
+  },
+  "engines": {
+    "node": "^20.17.0 || >=22.9.0"
+  },
+  "devDependencies": {
+    "bindings": "^1.5.0",
+    "cross-env": "^10.1.0",
+    "eslint": "^9.39.1",
+    "mocha": "^11.7.5",
+    "nan": "^2.23.1",
+    "neostandard": "^0.12.2",
+    "require-inject": "^1.4.4"
+  },
+  "scripts": {
+    "lint": "eslint \"*/*.js\" \"test/**/*.js\" \".github/**/*.js\"",
+    "test": "cross-env NODE_GYP_NULL_LOGGER=true mocha --timeout 30000 test/test-download.js test/test-*"
+  }
+}

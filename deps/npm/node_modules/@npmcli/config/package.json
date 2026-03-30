@@ -1,0 +1,57 @@
+{
+  "name": "@npmcli/config",
+  "version": "10.7.1",
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "main": "lib/index.js",
+  "description": "Configuration management for the npm cli",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/cli.git",
+    "directory": "workspaces/config"
+  },
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "scripts": {
+    "test": "tap",
+    "snap": "tap",
+    "lint": "npm run eslint",
+    "postlint": "template-oss-check",
+    "lintfix": "npm run eslint -- --fix",
+    "posttest": "npm run lint",
+    "template-oss-apply": "template-oss-apply --force",
+    "eslint": "eslint \"**/*.{js,cjs,ts,mjs,jsx,tsx}\""
+  },
+  "tap": {
+    "nyc-arg": [
+      "--exclude",
+      "tap-snapshots/**"
+    ]
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^5.0.1",
+    "@npmcli/mock-globals": "^1.0.0",
+    "@npmcli/template-oss": "4.29.0",
+    "tap": "^16.3.8"
+  },
+  "dependencies": {
+    "@npmcli/map-workspaces": "^5.0.0",
+    "@npmcli/package-json": "^7.0.0",
+    "ci-info": "^4.0.0",
+    "ini": "^6.0.0",
+    "nopt": "^9.0.0",
+    "proc-log": "^6.0.0",
+    "semver": "^7.3.5",
+    "walk-up-path": "^4.0.0"
+  },
+  "engines": {
+    "node": "^20.17.0 || >=22.9.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "4.29.0",
+    "content": "../../scripts/template-oss/index.js"
+  }
+}

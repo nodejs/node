@@ -1,0 +1,20 @@
+<project-root>/test/fixtures/errors/error_aggregateTwoErrors.js:15
+throw aggregateTwoErrors(err, originalError);
+^
+
+AggregateError: original
+    at Object.<anonymous> (<project-root>/test/fixtures/errors/error_aggregateTwoErrors.js:15:7) {
+  code: 'ERR0',
+  [errors]: [
+    Error: original
+        at Object.<anonymous> (<project-root>/test/fixtures/errors/error_aggregateTwoErrors.js:9:23) {
+      code: 'ERR0'
+    },
+    Error: second error
+        at Object.<anonymous> (<project-root>/test/fixtures/errors/error_aggregateTwoErrors.js:10:13) {
+      code: 'ERR1'
+    }
+  ]
+}
+
+Node.js <node-version>

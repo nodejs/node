@@ -1,0 +1,234 @@
+.TH "NPM-RUN" "1" "February 2026" "NPM@11.11.0" ""
+.SH "NAME"
+\fBnpm-run\fR - Run arbitrary package scripts
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm run <command> \[lB]-- <args>\[rB]
+
+aliases: run-script, rum, urn
+.fi
+.RE
+.SS "Description"
+.P
+This runs an arbitrary command from a package's \fB"scripts"\fR object. If no \fB"command"\fR is provided, it will list the available scripts.
+.P
+\fBrun\[lB]-script\[rB]\fR is used by the test, start, restart, and stop commands, but can be called directly, as well. When the scripts in the package are printed out, they're separated into lifecycle (test, start, restart) and directly-run scripts.
+.P
+Any positional arguments are passed to the specified script. Use \fB--\fR to pass \fB-\fR-prefixed flags and options which would otherwise be parsed by npm.
+.P
+For example:
+.P
+.RS 2
+.nf
+npm run test -- --grep="pattern"
+.fi
+.RE
+.P
+The arguments will only be passed to the script specified after \fBnpm run\fR and not to any \fBpre\fR or \fBpost\fR script.
+.P
+The \fBenv\fR script is a special built-in command that can be used to list environment variables that will be available to the script at runtime. If an "env" command is defined in your package, it will take precedence over the built-in.
+.P
+In addition to the shell's pre-existing \fBPATH\fR, \fBnpm run\fR adds \fBnode_modules/.bin\fR to the \fBPATH\fR provided to scripts. Any binaries provided by locally-installed dependencies can be used without the \fBnode_modules/.bin\fR prefix. For example, if there is a \fBdevDependency\fR on \fBtap\fR in your package, you should write:
+.P
+.RS 2
+.nf
+"scripts": {"test": "tap test/*.js"}
+.fi
+.RE
+.P
+instead of
+.P
+.RS 2
+.nf
+"scripts": {"test": "node_modules/.bin/tap test/*.js"}
+.fi
+.RE
+.P
+The actual shell your script is run within is platform dependent. By default, on Unix-like systems it is the \fB/bin/sh\fR command, on Windows it is \fBcmd.exe\fR. The actual shell referred to by \fB/bin/sh\fR also depends on the system. You can customize the shell with the \fB\[rs]fBscript-shell\[rs]fR config\fR \fI\(la/using-npm/config#script-shell\(ra\fR.
+.P
+Scripts are run from the root of the package folder, regardless of what the current working directory is when \fBnpm run\fR is called. If you want your script to use different behavior based on what subdirectory you're in, you can use the \fBINIT_CWD\fR environment variable, which holds the full path you were in when you ran \fBnpm run\fR.
+.P
+\fBnpm run\fR sets the \fBNODE\fR environment variable to the \fBnode\fR executable with which \fBnpm\fR is executed.
+.P
+If you try to run a script without having a \fBnode_modules\fR directory and it fails, you will be given a warning to run \fBnpm install\fR, just in case you've forgotten.
+.SS "Workspaces support"
+.P
+You may use the \fB\[rs]fBworkspace\[rs]fR\fR \fI\(la/using-npm/config#workspace\(ra\fR or \fB\[rs]fBworkspaces\[rs]fR\fR \fI\(la/using-npm/config#workspaces\(ra\fR configs in order to run an arbitrary command from a package's \fB"scripts"\fR object in the context of the specified workspaces. If no \fB"command"\fR is provided, it will list the available scripts for each of these configured workspaces.
+.P
+Given a project with configured workspaces, e.g:
+.P
+.RS 2
+.nf
+.
++-- package.json
+`-- packages
+   +-- a
+   |   `-- package.json
+   +-- b
+   |   `-- package.json
+   `-- c
+       `-- package.json
+.fi
+.RE
+.P
+Assuming the workspace configuration is properly set up at the root level \fBpackage.json\fR file. e.g:
+.P
+.RS 2
+.nf
+{
+    "workspaces": \[lB] "./packages/*" \[rB]
+}
+.fi
+.RE
+.P
+And that each of the configured workspaces has a configured \fBtest\fR script, we can run tests in all of them using the \fB\[rs]fBworkspaces\[rs]fR config\fR \fI\(la/using-npm/config#workspaces\(ra\fR:
+.P
+.RS 2
+.nf
+npm test --workspaces
+.fi
+.RE
+.SS "Filtering workspaces"
+.P
+It's also possible to run a script in a single workspace using the \fBworkspace\fR config along with a name or directory path:
+.P
+.RS 2
+.nf
+npm test --workspace=a
+.fi
+.RE
+.P
+The \fBworkspace\fR config can also be specified multiple times in order to run a specific script in the context of multiple workspaces. When defining values for the \fBworkspace\fR config in the command line, it also possible to use \fB-w\fR as a shorthand, e.g:
+.P
+.RS 2
+.nf
+npm test -w a -w b
+.fi
+.RE
+.P
+This last command will run \fBtest\fR in both \fB./packages/a\fR and \fB./packages/b\fR packages.
+.SS "Configuration"
+.SS "\fBworkspace\fR"
+.RS 0
+.IP \(bu 4
+Default:
+.IP \(bu 4
+Type: String (can be set multiple times)
+.RE 0
+
+.P
+Enable running a command in the context of the configured workspaces of the current project while filtering by running only the workspaces defined by this configuration option.
+.P
+Valid values for the \fBworkspace\fR config are either:
+.RS 0
+.IP \(bu 4
+Workspace names
+.IP \(bu 4
+Path to a workspace directory
+.IP \(bu 4
+Path to a parent workspace directory (will result in selecting all workspaces within that folder)
+.RE 0
+
+.P
+When set for the \fBnpm init\fR command, this may be set to the folder of a workspace which does not yet exist, to create the folder and set it up as a brand new workspace within the project.
+.P
+This value is not exported to the environment for child processes.
+.SS "\fBworkspaces\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or Boolean
+.RE 0
+
+.P
+Set to true to run the command in the context of \fBall\fR configured workspaces.
+.P
+Explicitly setting this to false will cause commands like \fBinstall\fR to ignore workspaces altogether. When not set explicitly:
+.RS 0
+.IP \(bu 4
+Commands that operate on the \fBnode_modules\fR tree (install, update, etc.) will link workspaces into the \fBnode_modules\fR folder. - Commands that do other things (test, exec, publish, etc.) will operate on the root project, \fIunless\fR one or more workspaces are specified in the \fBworkspace\fR config.
+.RE 0
+
+.P
+This value is not exported to the environment for child processes.
+.SS "\fBinclude-workspace-root\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Include the workspace root when workspaces are enabled for a command.
+.P
+When false, specifying individual workspaces via the \fBworkspace\fR config, or all workspaces via the \fBworkspaces\fR flag, will cause npm to operate only on the specified workspaces, and not on the root project.
+.P
+This value is not exported to the environment for child processes.
+.SS "\fBif-present\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+If true, npm will not exit with an error code when \fBrun\fR is invoked for a script that isn't defined in the \fBscripts\fR section of \fBpackage.json\fR. This option can be used when it's desirable to optionally run a script when it's present and fail if the script fails. This is useful, for example, when running scripts that may only apply for some builds in an otherwise generic CI setup.
+.P
+This value is not exported to the environment for child processes.
+.SS "\fBignore-scripts\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+If true, npm does not run scripts specified in package.json files.
+.P
+Note that commands explicitly intended to run a particular script, such as \fBnpm start\fR, \fBnpm stop\fR, \fBnpm restart\fR, \fBnpm test\fR, and \fBnpm run\fR will still run their intended script if \fBignore-scripts\fR is set, but they will \fInot\fR run any pre- or post-scripts.
+.SS "\fBforeground-scripts\fR"
+.RS 0
+.IP \(bu 4
+Default: \fBfalse\fR unless when using \fBnpm pack\fR or \fBnpm publish\fR where it defaults to \fBtrue\fR
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Run all build scripts (ie, \fBpreinstall\fR, \fBinstall\fR, and \fBpostinstall\fR) scripts for installed packages in the foreground process, sharing standard input, output, and error with the main npm process.
+.P
+Note that this will generally make installs run slower, and be much noisier, but can be useful for debugging.
+.SS "\fBscript-shell\fR"
+.RS 0
+.IP \(bu 4
+Default: '/bin/sh' on POSIX systems, 'cmd.exe' on Windows
+.IP \(bu 4
+Type: null or String
+.RE 0
+
+.P
+The shell to use for scripts run with the \fBnpm exec\fR, \fBnpm run\fR and \fBnpm
+init <package-spec>\fR commands.
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help scripts
+.IP \(bu 4
+npm help test
+.IP \(bu 4
+npm help start
+.IP \(bu 4
+npm help restart
+.IP \(bu 4
+npm help stop
+.IP \(bu 4
+npm help config
+.IP \(bu 4
+npm help workspaces
+.RE 0

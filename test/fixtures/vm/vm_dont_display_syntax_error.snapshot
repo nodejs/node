@@ -1,0 +1,11 @@
+beginning
+middle
+test.vm:1
+var 5;
+    ^
+
+SyntaxError: Unexpected number
+    at <node-internal-frames>
+    at Object.<anonymous> (<project-root>/test/fixtures/vm/vm_dont_display_syntax_error.js:41:4)
+
+Node.js <node-version>

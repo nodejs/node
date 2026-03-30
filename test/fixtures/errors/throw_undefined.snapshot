@@ -1,0 +1,8 @@
+
+<project-root>/test/fixtures/errors/throw_undefined.js:26
+throw undefined;
+^
+undefined
+(Use `<node-exe> --trace-uncaught ...` to show where the exception was thrown)
+
+Node.js <node-version>
