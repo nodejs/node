@@ -1800,10 +1800,9 @@ def configure_library(lib, output, pkgname=None):
       output['libraries'] += [pkg_libpath]
 
     default_libs = getattr(options, shared_lib + '_libname')
-    default_libs = [f'-l{l}' for l in default_libs.split(',')]
 
     if default_libs:
-      output['libraries'] += default_libs
+      output['libraries'] += [f'-l{l}' for l in default_libs.split(',')]
     elif pkg_libs:
       output['libraries'] += pkg_libs.split()
 
