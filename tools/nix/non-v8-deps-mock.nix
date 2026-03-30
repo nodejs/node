@@ -30,7 +30,7 @@ let
   };
 in
 symlinkJoin (finalAttrs: {
-  name = "non-v8-deps-mock";
+  pname = "non-v8-deps-mock";
   version = "0.0.0-mock";
 
   nativeBuildInputs = [ validatePkgConfig ];
