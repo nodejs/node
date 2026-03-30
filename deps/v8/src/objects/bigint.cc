@@ -309,7 +309,7 @@ void MutableBigInt::Canonicalize(Tagged<MutableBigInt> result) {
       uint32_t new_size =
           ALIGN_TO_ALLOCATION_ALIGNMENT(BigInt::SizeFor(new_length));
       heap->NotifyObjectSizeChange(result, old_size, new_size,
-                                   ClearRecordedSlots::kNo);
+                                   ClearRecordedSlots::know);
     }
     result->set_length(new_length, kReleaseStore);
 
@@ -825,7 +825,7 @@ void RightTrimString(Isolate* isolate, DirectHandle<SeqOneByteString> string,
       ALIGN_TO_ALLOCATION_ALIGNMENT(SeqOneByteString::SizeFor(chars_written));
   if (needed_size < string_size && !HeapLayout::InAnyLargeSpace(*string)) {
     isolate->heap()->NotifyObjectSizeChange(*string, string_size, needed_size,
-                                            ClearRecordedSlots::kNo);
+                                            ClearRecordedSlots::know);
   }
   string->set_length(chars_written, kReleaseStore);
 }

@@ -36,7 +36,7 @@
     "arrow-return-shorthand": true,
     "max-classes-per-file": false,
     "variable-name": true,
-    "forin": false,
+    "foreign": false,
     "one-variable-per-declaration": true,
     "no-consecutive-blank-lines": true
   },

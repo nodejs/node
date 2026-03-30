@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Ensure normalization involving a proto tansition works.
+// Ensure normalization involving a proto transition works.
 
 const p = {};
 function f8(x) {

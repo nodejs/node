@@ -263,22 +263,22 @@ fn make_ule_struct_impl(
     name: &Ident,
     ule_name: &Ident,
     input: &DeriveInput,
-    struc: &DataStruct,
+    struct: &DataStruct,
     attrs: &ZeroVecAttrs,
 ) -> TokenStream2 {
-    if struc.fields.iter().next().is_none() {
+    if struct.fields.iter().next().is_none() {
         return Error::new(
             input.span(),
             "#[make_ule] must be applied to a non-empty struct",
         )
         .to_compile_error();
     }
-    let sized_fields = FieldInfo::make_list(struc.fields.iter());
+    let sized_fields = FieldInfo::make_list(struct.fields.iter());
     let field_inits = crate::ule::make_ule_fields(&sized_fields);
-    let field_inits = utils::wrap_field_inits(&field_inits, &struc.fields);
+    let field_inits = utils::wrap_field_inits(&field_inits, &struct.fields);
 
-    let semi = utils::semi_for(&struc.fields);
-    let repr_attr = utils::repr_for(&struc.fields);
+    let semi = utils::semi_for(&struct.fields);
+    let repr_attr = utils::repr_for(&struct.fields);
     let vis = &input.vis;
 
     let doc = format!("[`ULE`](zerovec::ule::ULE) type for [`{name}`]");
@@ -296,7 +296,7 @@ fn make_ule_struct_impl(
     let mut as_ule_conversions = vec![];
     let mut from_ule_conversions = vec![];
 
-    for (i, field) in struc.fields.iter().enumerate() {
+    for (i, field) in struct.fields.iter().enumerate() {
         let ty = &field.ty;
         let i = syn::Index::from(i);
         if let Some(ref ident) = field.ident {
@@ -312,8 +312,8 @@ fn make_ule_struct_impl(
         };
     }
 
-    let as_ule_conversions = utils::wrap_field_inits(&as_ule_conversions, &struc.fields);
-    let from_ule_conversions = utils::wrap_field_inits(&from_ule_conversions, &struc.fields);
+    let as_ule_conversions = utils::wrap_field_inits(&as_ule_conversions, &struct.fields);
+    let from_ule_conversions = utils::wrap_field_inits(&from_ule_conversions, &struct.fields);
     let asule_impl = quote!(
         impl zerovec::ule::AsULE for #name {
             type ULE = #ule_name;

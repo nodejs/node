@@ -30,7 +30,7 @@ class V8_EXPORT_PRIVATE EtwIsolateCaptureStateMonitor {
 
  private:
   // Must be held prior to calling WaitFor.
-  // Also used to sychronize access when reading/writing the isolate_count_.
+  // Also used to synchronize access when reading/writing the isolate_count_.
   base::Mutex* mutex_;
   size_t pending_isolate_count_;
   base::ConditionVariable isolates_ready_cv_;

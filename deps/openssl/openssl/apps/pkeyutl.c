@@ -113,7 +113,7 @@ const OPTIONS pkeyutl_options[] = {
     { "in", OPT_IN, '<', "Input file - default stdin" },
     { "inkey", OPT_INKEY, 's', "Input key, by default private key" },
     { "pubin", OPT_PUBIN, '-', "Input key is a public key" },
-    { "passin", OPT_PASSIN, 's', "Input file pass phrase source" },
+    { "passing", OPT_PASSIN, 's', "Input file pass phrase source" },
     { "peerkey", OPT_PEERKEY, 's', "Peer key file used in key derivation" },
     { "peerform", OPT_PEERFORM, 'E', "Peer key format (DER/PEM/P12/ENGINE)" },
     { "certin", OPT_CERTIN, '-', "Input is a cert with a public key" },
@@ -408,10 +408,10 @@ int pkeyutl_main(int argc, char **argv)
 
         for (i = 0; i < num; i++) {
             char *opt = sk_OPENSSL_STRING_value(pkeyopts_passin, i);
-            char *passin = strchr(opt, ':');
+            char *passing = strchr(opt, ':');
             char *passwd;
 
-            if (passin == NULL) {
+            if (passing == NULL) {
                 /* Get password interactively */
                 char passwd_buf[4096];
                 int r;
@@ -433,12 +433,12 @@ int pkeyutl_main(int argc, char **argv)
                 }
             } else {
                 /*
-                 * Get password as a passin argument: First split option name
+                 * Get password as a passing argument: First split option name
                  * and passphrase argument into two strings
                  */
-                *passin = 0;
-                passin++;
-                if (app_passwd(passin, NULL, &passwd, NULL) == 0) {
+                *passing = 0;
+                passing++;
+                if (app_passwd(passing, NULL, &passwd, NULL) == 0) {
                     BIO_printf(bio_err, "failed to get '%s'\n", opt);
                     goto end;
                 }
@@ -641,7 +641,7 @@ static EVP_PKEY *get_pkey(const char *kdfalg,
     char *passinarg, int pkey_op, ENGINE *e)
 {
     EVP_PKEY *pkey = NULL;
-    char *passin = NULL;
+    char *passing = NULL;
     X509 *x;
 
     if (((pkey_op == EVP_PKEY_OP_SIGN) || (pkey_op == EVP_PKEY_OP_DECRYPT)
@@ -650,13 +650,13 @@ static EVP_PKEY *get_pkey(const char *kdfalg,
         BIO_printf(bio_err, "A private key is needed for this operation\n");
         return NULL;
     }
-    if (!app_passwd(passinarg, NULL, &passin, NULL)) {
+    if (!app_passwd(passinarg, NULL, &passing, NULL)) {
         BIO_printf(bio_err, "Error getting password\n");
         return NULL;
     }
     switch (key_type) {
     case KEY_PRIVKEY:
-        pkey = load_key(keyfile, keyform, 0, passin, e, "private key");
+        pkey = load_key(keyfile, keyform, 0, passing, e, "private key");
         break;
 
     case KEY_PUBKEY:
@@ -674,7 +674,7 @@ static EVP_PKEY *get_pkey(const char *kdfalg,
     case KEY_NONE:
         break;
     }
-    OPENSSL_free(passin);
+    OPENSSL_free(passing);
     return pkey;
 }
 

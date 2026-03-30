@@ -527,7 +527,7 @@ bool LiveRange::ShouldBeAllocatedBefore(const LiveRange* other) const {
   LifetimePosition other_start = other->Start();
   if (start == other_start) {
     // Prefer register that has a controlflow hint to make sure it gets
-    // allocated first. This allows the control flow aware alloction to
+    // allocated first. This allows the control flow aware allocation to
     // just put ranges back into the queue without other ranges interfering.
     if (controlflow_hint() < other->controlflow_hint()) {
       return true;
@@ -2235,7 +2235,7 @@ void LiveRangeBuilder::ProcessInstructions(const InstructionBlock* block,
         // When the value is moved to a register to meet input constraints,
         // we should consider this value use similar as a register use in the
         // backward spilling heuristics, even though this value use is not
-        // register benefical at the AllocateBlockedReg stage.
+        // register beneficial at the AllocateBlockedReg stage.
         if (to.IsAnyRegister() ||
             (to.IsUnallocated() &&
              UnallocatedOperand::cast(&to)->HasRegisterPolicy())) {
@@ -2507,7 +2507,7 @@ void LiveRangeBuilder::Verify() const {
       DCHECK(NextIntervalStartsInDifferentBlocks(*interval, *next_interval));
 
       for (++interval; interval != current->intervals().end(); ++interval) {
-        // Except for the first interval, the other intevals must start at
+        // Except for the first interval, the other intervals must start at
         // a block boundary, otherwise data wouldn't flow to them.
         // You might trigger this CHECK if your SSA is not valid. For instance,
         // if the inputs of a Phi node are in the wrong order.
@@ -3156,7 +3156,7 @@ void LinearScanAllocator::ReloadLiveRanges(
           AddToUnhandled(to_resurrect);
         } else {
           // Assign the preassigned register if we know. Otherwise, nothing to
-          // do as already in unhandeled.
+          // do as already in unhandled.
           if (reg != kUnassignedRegister) {
             auto erased_cnt = unhandled_live_ranges().erase(to_resurrect);
             DCHECK_EQ(erased_cnt, 1);
@@ -4572,7 +4572,7 @@ void LinearScanAllocator::SpillBetweenUntil(LiveRange* range,
     // However, if we have no choice, split right where asked.
     LifetimePosition third_part_end =
         std::max(split_start, end.PrevStart().End());
-    // Instead of spliting right after or even before the block boundary,
+    // Instead of splitting right after or even before the block boundary,
     // split on the boumndary to avoid extra moves.
     if (data()->IsBlockBoundary(end.Start())) {
       third_part_end = std::max(split_start, end.Start());

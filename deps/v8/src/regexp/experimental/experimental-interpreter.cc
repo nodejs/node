@@ -295,7 +295,7 @@ class NfaInterpreter {
   // to use when iterating over the bytecode in the constructor.
   //
   // In the first case (caputreless lookbehinds), the interpreter will run each
-  // lookbehinds in a thread, in parrallel to the main expression, and those
+  // lookbehinds in a thread, in parallel to the main expression, and those
   // threads will write into the `lookbehind_table_` when they find a match.
   //
   // In the second case, before running the main expression, the interpreter
@@ -433,7 +433,7 @@ class NfaInterpreter {
       }
     }
 
-    // Iniitializes the lookaround truth table and required allocators.
+    // Initializes the lookaround truth table and required allocators.
     if (only_captureless_lookbehinds_) {
       lookbehind_table_.emplace(lookarounds_.length(), zone_);
       lookbehind_table_->AddBlock(false, lookarounds_.length(), zone_);
@@ -1065,7 +1065,7 @@ class NfaInterpreter {
               return RegExp::kInternalRegExpSuccess;
             }
 
-            // Store the match informations for positive lookarounds.
+            // Store the match information for positive lookarounds.
             if (inst.payload.lookaround.is_positive() &&
                 !only_captureless_lookbehinds_) {
               GetLookaroundClockArray(t)[inst.payload.lookaround.index()] =
@@ -1163,7 +1163,7 @@ class NfaInterpreter {
     DCHECK(v8_flags.experimental_regexp_engine_capture_group_opt);
 
     // Copmputes an approximation of the total current memory usage of the
-    // intepreter. It is based only on the threads' consumption, since the rest
+    // interpreter. It is based only on the threads' consumption, since the rest
     // is negligible in comparison.
     uint64_t approx = (blocked_threads_.length() + active_threads_.length()) *
                       memory_consumption_per_thread_;

@@ -113,7 +113,7 @@ void InitBuffer(Tagged<T>* buffer, size_t length, MachineType type) {
   const size_t kBufferSize = sizeof(Tagged<T>) * length;
 
   // Tagged field loads require values to be properly tagged because of
-  // pointer decompression that may be happenning during load.
+  // pointer decompression that may be happening during load.
   Isolate* isolate = CcTest::InitIsolateOnce();
   Tagged<Smi>* smi_view = reinterpret_cast<Tagged<Smi>*>(&buffer[0]);
   if (type.IsTaggedSigned()) {

@@ -9,7 +9,7 @@ ABOUT
                 http://lists.schmorp.de/cgi-bin/mailman/listinfo/libev
    Library Documentation: http://pod.tst.eu/http://cvs.schmorp.de/libev/ev.pod
 
-   Libev is modelled (very losely) after libevent and the Event perl
+   Libev is modelled (very loosely) after libevent and the Event perl
    module, but is faster, scales better and is more correct, and also more
    featureful. And also smaller. Yay.
 

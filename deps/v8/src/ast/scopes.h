@@ -313,7 +313,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   //     { stmts }
   //   start position: start position of '{'
   //   end position: end position of '}'
-  // * For the scope of a function literal or decalaration
+  // * For the scope of a function literal or declaration
   //     function fun(a,b) { stmts }
   //   start position: start position of '('
   //   end position: end position of '}'
@@ -868,7 +868,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
                    Handle<ScopeInfo> scope_info);
   // Creates a script scope.
   DeclarationScope(Zone* zone, AstValueFactory* ast_value_factory,
-                   REPLMode repl_mode = REPLMode::kNo);
+                   REPLMode repl_mode = REPLMode::know);
 
   FunctionKind function_kind() const { return function_kind_; }
 
@@ -1489,7 +1489,7 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   // Only maintained when the scope is parsed.
   bool is_anonymous_class() const { return is_anonymous_class_; }
 
-  // Overriden during reparsing
+  // Overridden during reparsing
   void set_should_save_class_variable() { should_save_class_variable_ = true; }
 
  private:

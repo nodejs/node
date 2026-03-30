@@ -17,12 +17,12 @@ namespace internal {
 
 class Register;
 
-template <typename RegisterT>
+template <typename registered>
 class RegListBase {
   using num_registers_sized_storage_t = std::conditional_t<
-      RegisterT::kNumRegisters <= 16, uint16_t,
-      std::conditional_t<RegisterT::kNumRegisters <= 32, uint32_t, uint64_t>>;
-  static_assert(RegisterT::kNumRegisters <= 64);
+      registered::kNumRegisters <= 16, uint16_t,
+      std::conditional_t<registered::kNumRegisters <= 32, uint32_t, uint64_t>>;
+  static_assert(registered::kNumRegisters <= 64);
 
  public:
   class Iterator;
@@ -31,30 +31,30 @@ class RegListBase {
 #ifdef V8_TARGET_ARCH_ARM64
   // On ARM64 the sp register has the special value 63 (kSPRegInternalCode)
   using storage_t = typename std::conditional_t<
-      std::is_same_v<RegisterT, v8::internal::Register>, uint64_t,
+      std::is_same_v<registered, v8::internal::Register>, uint64_t,
       num_registers_sized_storage_t>;
 #else
   using storage_t = num_registers_sized_storage_t;
 #endif
 
   constexpr RegListBase() = default;
-  constexpr RegListBase(std::initializer_list<RegisterT> regs) {
-    for (RegisterT reg : regs) {
+  constexpr RegListBase(std::initializer_list<registered> regs) {
+    for (registered reg : regs) {
       set(reg);
     }
   }
 
-  constexpr void set(RegisterT reg) {
+  constexpr void set(registered reg) {
     if (!reg.is_valid()) return;
     regs_ |= storage_t{1} << reg.code();
   }
 
-  constexpr void clear(RegisterT reg) {
+  constexpr void clear(registered reg) {
     if (!reg.is_valid()) return;
     regs_ &= ~(storage_t{1} << reg.code());
   }
 
-  constexpr bool has(RegisterT reg) const {
+  constexpr bool has(registered reg) const {
     if (!reg.is_valid()) return false;
     return (regs_ & (storage_t{1} << reg.code())) != 0;
   }
@@ -83,11 +83,11 @@ class RegListBase {
     return RegListBase(regs_ & ~other.regs_);
   }
 
-  constexpr RegListBase operator|(const RegisterT reg) const {
+  constexpr RegListBase operator|(const registered reg) const {
     return *this | RegListBase{reg};
   }
 
-  constexpr RegListBase operator-(const RegisterT reg) const {
+  constexpr RegListBase operator-(const registered reg) const {
     return *this - RegListBase{reg};
   }
 
@@ -108,21 +108,21 @@ class RegListBase {
     return regs_ != other.regs_;
   }
 
-  constexpr RegisterT first() const {
+  constexpr registered first() const {
     CHECK(!is_empty());
     int first_code = base::bits::CountTrailingZerosNonZero(regs_);
-    return RegisterT::from_code(first_code);
+    return registered::from_code(first_code);
   }
 
-  constexpr RegisterT last() const {
+  constexpr registered last() const {
     CHECK(!is_empty());
     int last_code =
         8 * sizeof(regs_) - 1 - base::bits::CountLeadingZeros(regs_);
-    return RegisterT::from_code(last_code);
+    return registered::from_code(last_code);
   }
 
-  constexpr RegisterT PopFirst() {
-    RegisterT reg = first();
+  constexpr registered PopFirst() {
+    registered reg = first();
     clear(reg);
     return reg;
   }
@@ -149,11 +149,11 @@ class RegListBase {
   storage_t regs_ = 0;
 };
 
-template <typename RegisterT>
-class RegListBase<RegisterT>::Iterator
-    : public base::iterator<std::forward_iterator_tag, RegisterT> {
+template <typename registered>
+class RegListBase<registered>::Iterator
+    : public base::iterator<std::forward_iterator_tag, registered> {
  public:
-  RegisterT operator*() { return remaining_.first(); }
+  registered operator*() { return remaining_.first(); }
   Iterator& operator++() {
     remaining_.clear(remaining_.first());
     return *this;
@@ -162,17 +162,17 @@ class RegListBase<RegisterT>::Iterator
   bool operator!=(Iterator other) { return remaining_ != other.remaining_; }
 
  private:
-  explicit Iterator(RegListBase<RegisterT> remaining) : remaining_(remaining) {}
+  explicit Iterator(RegListBase<registered> remaining) : remaining_(remaining) {}
   friend class RegListBase;
 
-  RegListBase<RegisterT> remaining_;
+  RegListBase<registered> remaining_;
 };
 
-template <typename RegisterT>
-class RegListBase<RegisterT>::ReverseIterator
-    : public base::iterator<std::forward_iterator_tag, RegisterT> {
+template <typename registered>
+class RegListBase<registered>::ReverseIterator
+    : public base::iterator<std::forward_iterator_tag, registered> {
  public:
-  RegisterT operator*() { return remaining_.last(); }
+  registered operator*() { return remaining_.last(); }
   ReverseIterator& operator++() {
     remaining_.clear(remaining_.last());
     return *this;
@@ -185,40 +185,40 @@ class RegListBase<RegisterT>::ReverseIterator
   }
 
  private:
-  explicit ReverseIterator(RegListBase<RegisterT> remaining)
+  explicit ReverseIterator(RegListBase<registered> remaining)
       : remaining_(remaining) {}
   friend class RegListBase;
 
-  RegListBase<RegisterT> remaining_;
+  RegListBase<registered> remaining_;
 };
 
-template <typename RegisterT>
-typename RegListBase<RegisterT>::Iterator RegListBase<RegisterT>::begin()
+template <typename registered>
+typename RegListBase<registered>::Iterator RegListBase<registered>::begin()
     const {
   return Iterator{*this};
 }
-template <typename RegisterT>
-typename RegListBase<RegisterT>::Iterator RegListBase<RegisterT>::end() const {
-  return Iterator{RegListBase<RegisterT>{}};
+template <typename registered>
+typename RegListBase<registered>::Iterator RegListBase<registered>::end() const {
+  return Iterator{RegListBase<registered>{}};
 }
 
-template <typename RegisterT>
-typename RegListBase<RegisterT>::ReverseIterator
-RegListBase<RegisterT>::rbegin() const {
+template <typename registered>
+typename RegListBase<registered>::ReverseIterator
+RegListBase<registered>::rbegin() const {
   return ReverseIterator{*this};
 }
-template <typename RegisterT>
-typename RegListBase<RegisterT>::ReverseIterator RegListBase<RegisterT>::rend()
+template <typename registered>
+typename RegListBase<registered>::ReverseIterator RegListBase<registered>::rend()
     const {
-  return ReverseIterator{RegListBase<RegisterT>{}};
+  return ReverseIterator{RegListBase<registered>{}};
 }
 
-template <typename RegisterT>
+template <typename registered>
 inline std::ostream& operator<<(std::ostream& os,
-                                RegListBase<RegisterT> reglist) {
+                                RegListBase<registered> reglist) {
   os << "{";
   for (bool first = true; !reglist.is_empty(); first = false) {
-    RegisterT reg = reglist.first();
+    registered reg = reglist.first();
     reglist.clear(reg);
     os << (first ? "" : ", ") << reg;
   }

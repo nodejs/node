@@ -199,7 +199,7 @@ class V8_NODISCARD ScopedLoggerInitializer {
             printf("%s\n", log_.at(i).c_str());
           }
           printf("%zu\n", current);
-          FATAL("%s, ... %p apperead twice:\n    %s", search_term.c_str(),
+          FATAL("%s, ... %p appeared twice:\n    %s", search_term.c_str(),
                 reinterpret_cast<void*>(address), current_line.c_str());
         }
       }
@@ -1043,7 +1043,7 @@ TEST_F(LogMapsCodeTest, LogMapsDetailsCode) {
       instances.push(create(i));
     };
 
-    // Modifying some protoypes.
+    // Modifying some prototypes.
     Array.prototype.helper = () => 1;
     [1,2,3].helper();
   )";

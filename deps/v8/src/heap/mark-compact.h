@@ -135,12 +135,12 @@ class MarkCompactCollector final {
   static void RecordRelocSlot(Tagged<InstructionStream> host, RelocInfo* rinfo,
                               Tagged<HeapObject> target);
   template <typename THeapObjectSlot,
-            RecordYoungSlot kRecordYoung = RecordYoungSlot::kNo>
+            RecordYoungSlot kRecordYoung = RecordYoungSlot::know>
   V8_INLINE static void RecordSlot(Tagged<HeapObject> object,
                                    THeapObjectSlot slot,
                                    Tagged<HeapObject> target);
   template <typename THeapObjectSlot,
-            RecordYoungSlot kRecordYoung = RecordYoungSlot::kNo>
+            RecordYoungSlot kRecordYoung = RecordYoungSlot::know>
   V8_INLINE static void RecordSlot(MemoryChunk* source_chunk,
                                    THeapObjectSlot slot,
                                    Tagged<HeapObject> target);

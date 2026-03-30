@@ -18,7 +18,7 @@ class Sandbox;
 
 // This is just a collection of common compression scheme related functions.
 // Each pointer compression cage then has its own compression scheme, which
-// mainly differes in the cage base address they use.
+// mainly differs in the cage base address they use.
 template <typename Cage>
 class V8HeapCompressionSchemeImpl {
  public:

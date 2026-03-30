@@ -473,7 +473,7 @@ MaybeStackVector<UnitPreference> UnitPreferences::getPreferencesFor(StringPiece 
     const UnitPreferenceMetadata *m = metadata_[idx];
         
     if (isLocaleSystem) {
-        // if the locale ID specifies a measurment system, check if ALL of the units we got back
+        // if the locale ID specifies a measurement system, check if ALL of the units we got back
         // are members of that system (or are "metric_adjacent", which we consider to match all
         // the systems)
         bool unitsMatchSystem = true;

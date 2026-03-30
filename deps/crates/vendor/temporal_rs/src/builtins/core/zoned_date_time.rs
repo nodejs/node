@@ -520,7 +520,7 @@ impl ZonedDateTime {
         provider: &impl TimeZoneProvider,
     ) -> TemporalResult<Duration> {
         // NOTE: for order of operations, this should be asserted prior to this point
-        // by any engine implementors, but asserting out of caution.
+        // by any engine implementers, but asserting out of caution.
         if self.calendar != other.calendar {
             return Err(TemporalError::range().with_enum(ErrorMessage::CalendarMismatch));
         }
@@ -1392,7 +1392,7 @@ impl ZonedDateTime {
         Ok(ixdtf_string)
     }
 
-    // TODO: Should IANA Identifier be prechecked or allow potentially invalid IANA Identifer values here?
+    // TODO: Should IANA Identifier be prechecked or allow potentially invalid IANA Identifier values here?
     pub fn from_utf8_with_provider(
         source: &[u8],
         disambiguation: Disambiguation,

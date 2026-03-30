@@ -1482,7 +1482,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   } else {
     DCHECK_EQ(mode, InterpreterEntryTrampolineMode::kForProfiling);
     // Both versions must be the same up to this point otherwise the builtins
-    // will not be interchangable.
+    // will not be interchangeable.
     CHECK_EQ(
         masm->isolate()->heap()->interpreter_entry_return_pc_offset().value(),
         masm->pc_offset());
@@ -4401,7 +4401,7 @@ void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm, Register argc_input,
     __ Mov(kCArgRegs[0], ER::isolate_address());
     __ Mov(kCArgRegs[1], kOldSPRegister);
     __ CallCFunction(ER::wasm_switch_to_the_central_stack(), 2,
-                     SetIsolateDataSlots::kNo);
+                     SetIsolateDataSlots::know);
     __ Mov(central_stack_sp, kReturnRegister0);
     __ Pop(padreg, argv_input, target_input, argc_input);
   }
@@ -4435,7 +4435,7 @@ void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm) {
     __ Push(kReturnRegister0, kReturnRegister1);
     __ Mov(kCArgRegs[0], ER::isolate_address());
     __ CallCFunction(ER::wasm_switch_from_the_central_stack(), 1,
-                     SetIsolateDataSlots::kNo);
+                     SetIsolateDataSlots::know);
     __ Pop(kReturnRegister1, kReturnRegister0);
   }
 
@@ -4589,7 +4589,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ Mov(x1, 0);  // argv.
     __ Mov(x2, ER::isolate_address());
     __ CallCFunction(ER::Create(Runtime::kUnwindAndFindExceptionHandler), 3,
-                     SetIsolateDataSlots::kNo);
+                     SetIsolateDataSlots::know);
   }
 
   // Retrieve the handler context, SP and FP.
@@ -5063,10 +5063,10 @@ void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {
 
 namespace {
 
-template <typename RegisterT>
+template <typename registered>
 void CopyRegListToFrame(MacroAssembler* masm, const Register& dst,
                         int dst_offset, const CPURegList& reg_list,
-                        const RegisterT& temp0, const RegisterT& temp1,
+                        const registered& temp0, const registered& temp1,
                         int src_offset = 0) {
   ASM_CODE_COMMENT(masm);
   DCHECK_EQ(reg_list.Count() % 2, 0);

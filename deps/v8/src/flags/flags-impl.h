@@ -202,7 +202,7 @@ struct Flag {
 
   // {change_flag} indicates if we're going to change the flag value.
   // Returns an updated value for {change_flag}, which is changed to false if a
-  // weak implication is being ignored beause a flag is already set by a normal
+  // weak implication is being ignored because a flag is already set by a normal
   // implication or from the command-line.
   bool CheckFlagChange(SetBy new_set_by, bool change_flag,
                        const char* implied_by = nullptr);

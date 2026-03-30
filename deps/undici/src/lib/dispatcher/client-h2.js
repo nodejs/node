@@ -593,7 +593,7 @@ function writeH2 (client, request) {
   // Sending a payload body on a request that does not
   // expect it can cause undefined behavior on some
   // servers and corrupt connection state. Do not
-  // re-use the connection for further requests.
+  // reuse the connection for further requests.
 
   const expectsPayload = (
     method === 'PUT' ||

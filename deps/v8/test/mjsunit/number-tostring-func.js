@@ -235,7 +235,7 @@ assertEquals("0", (0.00001).toFixed());
 assertEquals("1", 0.5.toFixed(0), "0.5.toFixed(0)");
 assertEquals("-1", (-0.5).toFixed(0), "(-0.5).toFixed(0)");
 assertEquals("1.3", 1.25.toFixed(1), "1.25.toFixed(1)");
-// This is bizare, but Spidermonkey and KJS behave the same.
+// This is bizarre, but Spidermonkey and KJS behave the same.
 assertEquals("234.2040", (234.20405).toFixed(4), "234.2040.toFixed(4)");
 assertEquals("234.2041", (234.2040506).toFixed(4));
 

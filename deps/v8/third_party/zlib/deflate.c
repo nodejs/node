@@ -544,7 +544,7 @@ int ZEXPORT deflateInit2_(z_streamp strm, int level, int method,
         deflateEnd (strm);
         return Z_MEM_ERROR;
     }
-    /* Avoid use of unitialized values in the window, see crbug.com/1137613 and
+    /* Avoid use of uninitialized values in the window, see crbug.com/1137613 and
      * crbug.com/1144420 */
     zmemzero(s->window, (s->w_size + WINDOW_PADDING) * (2 * sizeof(Byte)));
     /* Avoid use of uninitialized value, see:

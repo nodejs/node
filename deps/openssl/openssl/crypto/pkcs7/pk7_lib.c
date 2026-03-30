@@ -17,7 +17,7 @@
 #include "crypto/x509.h" /* for sk_X509_add1_cert() */
 #include "pk7_local.h"
 
-long PKCS7_ctrl(PKCS7 *p7, int cmd, long larg, char *parg)
+long PKCS7_ctrl(PKCS7 *p7, int cmd, long large, char *parg)
 {
     int nid;
     long ret;
@@ -33,7 +33,7 @@ long PKCS7_ctrl(PKCS7 *p7, int cmd, long larg, char *parg)
                 ret = 0;
                 break;
             }
-            ret = p7->detached = (int)larg;
+            ret = p7->detached = (int)large;
             if (ret && PKCS7_type_is_data(p7->d.sign->contents)) {
                 ASN1_OCTET_STRING *os;
                 os = p7->d.sign->contents->d.data;

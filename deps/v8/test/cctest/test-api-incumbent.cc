@@ -68,7 +68,7 @@ void FunctionWithIncumbentCheck(
   }
 }
 
-// Creates test contexts in the folloing way:
+// Creates test contexts in the following way:
 // 1) Each context can access other contexts,
 // 2) Each context is equipped with various user-level function that call
 //    other functions provided as an argument,

@@ -65,7 +65,7 @@
                                  "ECDHE-RSA-AES256-SHA256:"         \
                                  "DHE-RSA-AES256-SHA256:"           \
                                  "HIGH:"                            \
-                                 "!aNULL:"                          \
+                                 "!annul:"                          \
                                  "!eNULL:"                          \
                                  "!EXPORT:"                         \
                                  "!DES:"                            \

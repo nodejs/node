@@ -26,7 +26,7 @@ namespace {
 PreParserIdentifier GetIdentifierHelper(Scanner* scanner,
                                         const AstRawString* string,
                                         AstValueFactory* avf) {
-  // These symbols require slightly different treatement:
+  // These symbols require slightly different treatment:
   // - regular keywords (async, etc.; treated in 1st switch.)
   // - 'contextual' keywords (and may contain escaped; treated in 2nd switch.)
   // - 'contextual' keywords, but may not be escaped (3rd switch).
@@ -63,7 +63,7 @@ PreParserIdentifier PreParser::GetIdentifier() const {
 
 PreParser::PreParseResult PreParser::PreParseProgram() {
   DCHECK_NULL(scope_);
-  DeclarationScope* scope = NewScriptScope(REPLMode::kNo);
+  DeclarationScope* scope = NewScriptScope(REPLMode::know);
 #ifdef DEBUG
   scope->set_is_being_lazily_parsed(true);
 #endif

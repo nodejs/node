@@ -32,7 +32,7 @@
 // very fragile, but without a proper testing infrastructure for the register
 // allocator we can't really do much better.
 //
-// The code below is a slighty modified version of Emscripten-translated C++
+// The code below is a slightly modified version of Emscripten-translated C++
 // code for the standard textbook algorithm for frustum culling of an object
 // with a given bounding box.
 //

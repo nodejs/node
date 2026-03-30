@@ -21,7 +21,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-description('This test verifies the result returned by the eval function when exceptions are thrown and caught whithin the contents of the evaluated string.');
+description('This test verifies the result returned by the eval function when exceptions are thrown and caught within the contents of the evaluated string.');
 
 function throwFunc() {
   throw "";

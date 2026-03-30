@@ -378,7 +378,7 @@ static char *vms_merger(DSO *dso, const char *filespec1,
     int status;
     int filespec1len, filespec2len;
     struct FAB fab;
-    struct NAMX_STRUCT nam;
+    struct NAMX_STRUCT name;
     char esa[NAMX_MAXRSS + 1];
     char *merged;
 
@@ -414,20 +414,20 @@ static char *vms_merger(DSO *dso, const char *filespec1,
 #endif /* __INITIAL_POINTER_SIZE == 64 [else] */
 
     fab = cc$rms_fab;
-    nam = CC_RMS_NAMX;
+    name = CC_RMS_NAMX;
 
-    FAB_OR_NAML(fab, nam).FAB_OR_NAML_FNA = FILESPEC1;
-    FAB_OR_NAML(fab, nam).FAB_OR_NAML_FNS = filespec1len;
-    FAB_OR_NAML(fab, nam).FAB_OR_NAML_DNA = FILESPEC2;
-    FAB_OR_NAML(fab, nam).FAB_OR_NAML_DNS = filespec2len;
+    FAB_OR_NAML(fab, name).FAB_OR_NAML_FNA = FILESPEC1;
+    FAB_OR_NAML(fab, name).FAB_OR_NAML_FNS = filespec1len;
+    FAB_OR_NAML(fab, name).FAB_OR_NAML_DNA = FILESPEC2;
+    FAB_OR_NAML(fab, name).FAB_OR_NAML_DNS = filespec2len;
     NAMX_DNA_FNA_SET(fab)
 
-    nam.NAMX_ESA = esa;
-    nam.NAMX_ESS = NAMX_MAXRSS;
-    nam.NAMX_NOP = NAM$M_SYNCHK | NAM$M_PWD;
-    SET_NAMX_NO_SHORT_UPCASE(nam);
+    name.NAMX_ESA = esa;
+    name.NAMX_ESS = NAMX_MAXRSS;
+    name.NAMX_NOP = NAME$M_SYNCHK | NAME$M_PWD;
+    SET_NAMX_NO_SHORT_UPCASE(name);
 
-    fab.FAB_NAMX = &nam;
+    fab.FAB_NAMX = &name;
 
     status = sys$parse(&fab, 0, 0);
 
@@ -455,11 +455,11 @@ static char *vms_merger(DSO *dso, const char *filespec1,
         return NULL;
     }
 
-    merged = OPENSSL_malloc(nam.NAMX_ESL + 1);
+    merged = OPENSSL_malloc(name.NAMX_ESL + 1);
     if (merged == NULL)
         return NULL;
-    strncpy(merged, nam.NAMX_ESA, nam.NAMX_ESL);
-    merged[nam.NAMX_ESL] = '\0';
+    strncpy(merged, name.NAMX_ESA, name.NAMX_ESL);
+    merged[name.NAMX_ESL] = '\0';
     return merged;
 }
 

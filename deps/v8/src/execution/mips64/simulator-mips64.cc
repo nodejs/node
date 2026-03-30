@@ -1855,7 +1855,7 @@ void Simulator::TraceMemWr(int64_t addr, T value) {
   }
 }
 
-// TODO(plind): sign-extend and zero-extend not implmented properly
+// TODO(plind): sign-extend and zero-extend not implemented properly
 // on all the ReadXX functions, I don't think re-interpret cast does it.
 int32_t Simulator::ReadW(int64_t addr, Instruction* instr, TraceType t) {
   if (addr >= 0 && addr < 0x400) {
@@ -2693,7 +2693,7 @@ void Simulator::IncreaseStopCounter(uint64_t code) {
   if ((watched_stops_[code].count & ~(1 << 31)) == 0x7FFFFFFF) {
     PrintF("Stop counter for code %" PRId64
            "  has overflowed.\n"
-           "Enabling this code and reseting the counter to 0.\n",
+           "Enabling this code and resetting the counter to 0.\n",
            code);
     watched_stops_[code].count = 0;
     EnableStop(code);
@@ -4320,7 +4320,7 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
     case BREAK:
       do_interrupt = true;
       break;
-    case TGE:
+    case THE:
       do_interrupt = rs() >= rt();
       break;
     case TGEU:
@@ -4335,7 +4335,7 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
     case TEQ:
       do_interrupt = rs() == rt();
       break;
-    case TNE:
+    case THE:
       do_interrupt = rs() != rt();
       break;
     case SYNC:
@@ -4536,7 +4536,7 @@ void Simulator::DecodeTypeRegisterSPECIAL3() {
           alu_out = static_cast<int32_t>(output);
           break;
         }
-        case SEH: {
+        case SHE: {
           uint16_t input = static_cast<uint16_t>(rt());
           uint32_t output = input;
           uint32_t mask = 0x00008000;
@@ -6006,7 +6006,7 @@ void Simulator::DecodeTypeMsa3RF() {
 #define FEXDO_DF(source, dst)                                        \
   do {                                                               \
     element = source;                                                \
-    aSign = element >> 31;                                           \
+    assign = element >> 31;                                           \
     aExp = element >> 23 & 0xFF;                                     \
     aFrac = element & 0x007FFFFF;                                    \
     if (aExp == 0xFF) {                                              \
@@ -6016,10 +6016,10 @@ void Simulator::DecodeTypeMsa3RF() {
         break;                                                       \
       }                                                              \
       /* Infinity */                                                 \
-      dst = PACK_FLOAT16(aSign, 0x1F, 0);                            \
+      dst = PACK_FLOAT16(assign, 0x1F, 0);                            \
       break;                                                         \
     } else if (aExp == 0 && aFrac == 0) {                            \
-      dst = PACK_FLOAT16(aSign, 0, 0);                               \
+      dst = PACK_FLOAT16(assign, 0, 0);                               \
       break;                                                         \
     } else {                                                         \
       int maxexp = 29;                                               \
@@ -6046,10 +6046,10 @@ void Simulator::DecodeTypeMsa3RF() {
           }                                                          \
           break;                                                     \
         case kRoundToPlusInf:                                        \
-          increment = aSign ? 0 : mask;                              \
+          increment = assign ? 0 : mask;                              \
           break;                                                     \
         case kRoundToMinusInf:                                       \
-          increment = aSign ? mask : 0;                              \
+          increment = assign ? mask : 0;                              \
           break;                                                     \
         case kRoundToZero:                                           \
           increment = 0;                                             \
@@ -6057,7 +6057,7 @@ void Simulator::DecodeTypeMsa3RF() {
       }                                                              \
       rounding_bumps_exp = (aFrac + increment >= 0x01000000);        \
       if (aExp > maxexp || (aExp == maxexp && rounding_bumps_exp)) { \
-        dst = PACK_FLOAT16(aSign, 0x1F, 0);                          \
+        dst = PACK_FLOAT16(assign, 0x1F, 0);                          \
         break;                                                       \
       }                                                              \
       aFrac += increment;                                            \
@@ -6066,21 +6066,21 @@ void Simulator::DecodeTypeMsa3RF() {
         aExp++;                                                      \
       }                                                              \
       if (aExp < -10) {                                              \
-        dst = PACK_FLOAT16(aSign, 0, 0);                             \
+        dst = PACK_FLOAT16(assign, 0, 0);                             \
         break;                                                       \
       }                                                              \
       if (aExp < 0) {                                                \
         aFrac >>= -aExp;                                             \
         aExp = 0;                                                    \
       }                                                              \
-      dst = PACK_FLOAT16(aSign, aExp, aFrac >> 13);                  \
+      dst = PACK_FLOAT16(assign, aExp, aFrac >> 13);                  \
     }                                                                \
   } while (0);
       switch (DecodeMsaDataFormat()) {
         case MSA_HALF:
           for (int i = 0; i < kMSALanesWord; i++) {
             uint_fast32_t element;
-            uint_fast32_t aSign, aFrac;
+            uint_fast32_t assign, aFrac;
             int_fast32_t aExp;
             FEXDO_DF(ws.uw[i], wd.uh[i + kMSALanesHalf / 2])
             FEXDO_DF(wt.uw[i], wd.uh[i])
@@ -6587,30 +6587,30 @@ T_int Msa2RFInstrHelper2(uint32_t opcode, T_reg ws, int i) {
   static_cast<uint32_t>(((sign) << 31) + ((exp) << 23) + (frac))
 #define FEXUP_DF(src_index)                                                    \
   uint_fast16_t element = ws.uh[src_index];                                    \
-  uint_fast32_t aSign, aFrac;                                                  \
+  uint_fast32_t assign, aFrac;                                                  \
   int_fast32_t aExp;                                                           \
-  aSign = EXTRACT_FLOAT16_SIGN(element);                                       \
+  assign = EXTRACT_FLOAT16_SIGN(element);                                       \
   aExp = EXTRACT_FLOAT16_EXP(element);                                         \
   aFrac = EXTRACT_FLOAT16_FRAC(element);                                       \
   if (V8_LIKELY(aExp && aExp != 0x1F)) {                                       \
-    return PACK_FLOAT32(aSign, aExp + 0x70, aFrac << 13);                      \
+    return PACK_FLOAT32(assign, aExp + 0x70, aFrac << 13);                      \
   } else if (aExp == 0x1F) {                                                   \
     if (aFrac) {                                                               \
       return base::bit_cast<int32_t>(std::numeric_limits<float>::quiet_NaN()); \
     } else {                                                                   \
       return base::bit_cast<uint32_t>(                                         \
                  std::numeric_limits<float>::infinity()) |                     \
-             static_cast<uint32_t>(aSign) << 31;                               \
+             static_cast<uint32_t>(assign) << 31;                               \
     }                                                                          \
   } else {                                                                     \
     if (aFrac == 0) {                                                          \
-      return PACK_FLOAT32(aSign, 0, 0);                                        \
+      return PACK_FLOAT32(assign, 0, 0);                                        \
     } else {                                                                   \
       int_fast16_t shiftCount =                                                \
           base::bits::CountLeadingZeros32(static_cast<uint32_t>(aFrac)) - 21;  \
       aFrac <<= shiftCount;                                                    \
       aExp = -shiftCount;                                                      \
-      return PACK_FLOAT32(aSign, aExp + 0x70, aFrac << 13);                    \
+      return PACK_FLOAT32(assign, aExp + 0x70, aFrac << 13);                    \
     }                                                                          \
   }
     case FEXUPL:
@@ -6881,13 +6881,13 @@ void Simulator::DecodeTypeImmediate() {
           get_msa_register(wt_reg(), &wt);
           BranchHelper_MSA(wt.d[0] == 0 && wt.d[1] == 0);
         } break;
-#define BZ_DF(witdh, lanes)          \
+#define BZ_DF(width, lanes)          \
   {                                  \
     msa_reg_t wt;                    \
     get_msa_register(wt_reg(), &wt); \
     int i;                           \
     for (i = 0; i < lanes; ++i) {    \
-      if (wt.witdh[i] == 0) {        \
+      if (wt.width[i] == 0) {        \
         break;                       \
       }                              \
     }                                \
@@ -6911,13 +6911,13 @@ void Simulator::DecodeTypeImmediate() {
           get_msa_register(wt_reg(), &wt);
           BranchHelper_MSA(wt.d[0] != 0 || wt.d[1] != 0);
         } break;
-#define BNZ_DF(witdh, lanes)         \
+#define BNZ_DF(width, lanes)         \
   {                                  \
     msa_reg_t wt;                    \
     get_msa_register(wt_reg(), &wt); \
     int i;                           \
     for (i = 0; i < lanes; ++i) {    \
-      if (wt.witdh[i] == 0) {        \
+      if (wt.width[i] == 0) {        \
         break;                       \
       }                              \
     }                                \

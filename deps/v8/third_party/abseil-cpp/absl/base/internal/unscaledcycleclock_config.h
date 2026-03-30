@@ -31,7 +31,7 @@
 // The following platforms often disable access to the hardware
 // counter (through a sandbox) even if the underlying hardware has a
 // usable counter. The CycleTimer interface also requires a *scaled*
-// CycleClock that runs at atleast 1 MHz. We've found some Android
+// CycleClock that runs at at least 1 MHz. We've found some Android
 // ARM64 devices where this is not the case, so we disable it by
 // default on Android ARM64.
 #if defined(__APPLE__) || \

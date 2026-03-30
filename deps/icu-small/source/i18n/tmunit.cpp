@@ -25,7 +25,7 @@ UOBJECT_DEFINE_RTTI_IMPLEMENTATION(TimeUnit)
  * the creatInstance() returns a const TimeUnit*).
  * But the constraint is TimeUnit is a data member of Measure.
  * But Measure (which is an existing API) does not expect it's "unit" member
- * as singleton. Meaure takes ownership of the "unit" member.
+ * as singleton. Measure takes ownership of the "unit" member.
  * In its constructor, it does not take a const "unit" pointer.
  * Also, Measure can clone and destruct the "unit" pointer.
  * In order to preserve the old behavior and let Measure handle singleton "unit",  

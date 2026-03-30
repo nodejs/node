@@ -69,7 +69,7 @@ AssemblerOptions AssemblerOptions::Default(Isolate* isolate) {
   // the simulator. While the final cross-compiled V8 will not have a simulator.
 
   // So here we enable simulator specific code if not generating the snapshot or
-  // if we are but we are targetting the simulator *only*.
+  // if we are but we are targeting the simulator *only*.
   options.enable_simulator_code = !serializer || v8_flags.target_is_simulator;
 #endif
 

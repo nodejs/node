@@ -893,7 +893,7 @@ constexpr bool CanTriggerGC(T... properties) {
 // The list of all inline intrinsics only.
 #define FOR_EACH_INLINE_INTRINSIC(I) FOR_EACH_INTRINSIC_IMPL(NOTHING, I)
 
-#define F(name, nargs, ressize, ...)                            \
+#define F(name, nargs, resize, ...)                            \
   Address Runtime_##name(int args_length, Address* args_object, \
                          Isolate* isolate);
 FOR_EACH_INTRINSIC_RETURN_OBJECT(F)
@@ -905,8 +905,8 @@ FOR_EACH_INTRINSIC_RETURN_OBJECT(F)
 class Runtime : public AllStatic {
  public:
   enum FunctionId : int32_t {
-#define F(name, nargs, ressize, ...) k##name,
-#define I(name, nargs, ressize, ...) kInline##name,
+#define F(name, nargs, resize, ...) k##name,
+#define I(name, nargs, resize, ...) kInline##name,
     FOR_EACH_INTRINSIC(F) FOR_EACH_INLINE_INTRINSIC(I)
 #undef I
 #undef F
@@ -1037,7 +1037,7 @@ class Runtime : public AllStatic {
   // We don't put `can_trigger_gc` in Function, because we need to have static
   // access to this information in the RUNTIME_FUNCTION macro.
   static constexpr bool kCanTriggerGC[] = {
-#define F(name, nargs, ressize, ...) detail::CanTriggerGC(__VA_ARGS__),
+#define F(name, nargs, resize, ...) detail::CanTriggerGC(__VA_ARGS__),
       FOR_EACH_INTRINSIC(F) FOR_EACH_INLINE_INTRINSIC(F)};
 #undef F
 };

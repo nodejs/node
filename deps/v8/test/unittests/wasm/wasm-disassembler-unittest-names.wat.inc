@@ -1,7 +1,7 @@
 ;; expected = R"---(;; This is a polyglot C++/WAT file.
 ;; Comment lines are ignored and not expected in the disassembler output.
 (module
-  ;; TODO(jkummerow): This type name is missing from the disassembler ouput.
+  ;; TODO(jkummerow): This type name is missing from the disassembler output.
   ;; (type $type_with_name (;0;) (func (param f32)))
   (global $imported_global_with_name (;0;) (import "env" "imported_global") i32)
   (func $imported_function_with_name (;0;) (import "env" "imported_function"))

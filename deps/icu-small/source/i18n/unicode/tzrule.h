@@ -687,7 +687,7 @@ public:
      * @param result    Receives the start time at the index
      * @return  true if the index is within the valid range and
      *          and the result is set.  When false, the output
-     *          parameger "result" is unchanged.
+     *          parameter "result" is unchanged.
      * @stable ICU 3.8
      */
     UBool getStartTimeAt(int32_t index, UDate& result) const;

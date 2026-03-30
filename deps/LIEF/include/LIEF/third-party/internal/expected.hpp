@@ -217,7 +217,7 @@ unexpected<typename std::decay<E>::type> make_unexpected(E &&e) {
 struct unexpect_t {
   unexpect_t() = default;
 };
-static constexpr unexpect_t unexpect{};
+static constexpr unexpect_t unexpected{};
 
 namespace detail {
 template <typename E>
@@ -1589,7 +1589,7 @@ public:
             detail::enable_if_t<!std::is_convertible<const G &, E>::value> * =
                 nullptr>
   explicit constexpr expected(const unexpected<G> &e)
-      : impl_base(unexpect, e.value()),
+      : impl_base(unexpected, e.value()),
         ctor_base(detail::default_constructor_tag{}) {}
 
   template <
@@ -1598,7 +1598,7 @@ public:
           nullptr,
       detail::enable_if_t<std::is_convertible<const G &, E>::value> * = nullptr>
   constexpr expected(unexpected<G> const &e)
-      : impl_base(unexpect, e.value()),
+      : impl_base(unexpected, e.value()),
         ctor_base(detail::default_constructor_tag{}) {}
 
   template <
@@ -1607,7 +1607,7 @@ public:
       detail::enable_if_t<!std::is_convertible<G &&, E>::value> * = nullptr>
   explicit constexpr expected(unexpected<G> &&e) noexcept(
       std::is_nothrow_constructible<E, G &&>::value)
-      : impl_base(unexpect, std::move(e.value())),
+      : impl_base(unexpected, std::move(e.value())),
         ctor_base(detail::default_constructor_tag{}) {}
 
   template <
@@ -1616,14 +1616,14 @@ public:
       detail::enable_if_t<std::is_convertible<G &&, E>::value> * = nullptr>
   constexpr expected(unexpected<G> &&e) noexcept(
       std::is_nothrow_constructible<E, G &&>::value)
-      : impl_base(unexpect, std::move(e.value())),
+      : impl_base(unexpected, std::move(e.value())),
         ctor_base(detail::default_constructor_tag{}) {}
 
   template <class... Args,
             detail::enable_if_t<std::is_constructible<E, Args &&...>::value> * =
                 nullptr>
   constexpr explicit expected(unexpect_t, Args &&...args)
-      : impl_base(unexpect, std::forward<Args>(args)...),
+      : impl_base(unexpected, std::forward<Args>(args)...),
         ctor_base(detail::default_constructor_tag{}) {}
 
   template <class U, class... Args,
@@ -1631,7 +1631,7 @@ public:
                 E, std::initializer_list<U> &, Args &&...>::value> * = nullptr>
   constexpr explicit expected(unexpect_t, std::initializer_list<U> il,
                               Args &&...args)
-      : impl_base(unexpect, il, std::forward<Args>(args)...),
+      : impl_base(unexpected, il, std::forward<Args>(args)...),
         ctor_base(detail::default_constructor_tag{}) {}
 
   template <class U, class G,
@@ -2095,7 +2095,7 @@ constexpr auto and_then_impl(Exp &&exp, F &&f) {
 
   return exp.has_value()
              ? detail::invoke(std::forward<F>(f), *std::forward<Exp>(exp))
-             : Ret(unexpect, std::forward<Exp>(exp).error());
+             : Ret(unexpected, std::forward<Exp>(exp).error());
 }
 
 template <class Exp, class F,
@@ -2105,7 +2105,7 @@ constexpr auto and_then_impl(Exp &&exp, F &&f) {
   static_assert(detail::is_expected<Ret>::value, "F must return an expected");
 
   return exp.has_value() ? detail::invoke(std::forward<F>(f))
-                         : Ret(unexpect, std::forward<Exp>(exp).error());
+                         : Ret(unexpected, std::forward<Exp>(exp).error());
 }
 #else
 template <class> struct TC;
@@ -2118,7 +2118,7 @@ auto and_then_impl(Exp &&exp, F &&f) -> Ret {
 
   return exp.has_value()
              ? detail::invoke(std::forward<F>(f), *std::forward<Exp>(exp))
-             : Ret(unexpect, std::forward<Exp>(exp).error());
+             : Ret(unexpected, std::forward<Exp>(exp).error());
 }
 
 template <class Exp, class F,
@@ -2128,7 +2128,7 @@ constexpr auto and_then_impl(Exp &&exp, F &&f) -> Ret {
   static_assert(detail::is_expected<Ret>::value, "F must return an expected");
 
   return exp.has_value() ? detail::invoke(std::forward<F>(f))
-                         : Ret(unexpect, std::forward<Exp>(exp).error());
+                         : Ret(unexpected, std::forward<Exp>(exp).error());
 }
 #endif
 
@@ -2142,7 +2142,7 @@ constexpr auto expected_map_impl(Exp &&exp, F &&f) {
   using result = ret_t<Exp, detail::decay_t<Ret>>;
   return exp.has_value() ? result(detail::invoke(std::forward<F>(f),
                                                  *std::forward<Exp>(exp)))
-                         : result(unexpect, std::forward<Exp>(exp).error());
+                         : result(unexpected, std::forward<Exp>(exp).error());
 }
 
 template <class Exp, class F,
@@ -2157,7 +2157,7 @@ auto expected_map_impl(Exp &&exp, F &&f) {
     return result();
   }
 
-  return result(unexpect, std::forward<Exp>(exp).error());
+  return result(unexpected, std::forward<Exp>(exp).error());
 }
 
 template <class Exp, class F,
@@ -2167,7 +2167,7 @@ template <class Exp, class F,
 constexpr auto expected_map_impl(Exp &&exp, F &&f) {
   using result = ret_t<Exp, detail::decay_t<Ret>>;
   return exp.has_value() ? result(detail::invoke(std::forward<F>(f)))
-                         : result(unexpect, std::forward<Exp>(exp).error());
+                         : result(unexpected, std::forward<Exp>(exp).error());
 }
 
 template <class Exp, class F,
@@ -2181,7 +2181,7 @@ auto expected_map_impl(Exp &&exp, F &&f) {
     return result();
   }
 
-  return result(unexpect, std::forward<Exp>(exp).error());
+  return result(unexpected, std::forward<Exp>(exp).error());
 }
 #else
 template <class Exp, class F,
@@ -2196,7 +2196,7 @@ constexpr auto expected_map_impl(Exp &&exp, F &&f)
 
   return exp.has_value() ? result(detail::invoke(std::forward<F>(f),
                                                  *std::forward<Exp>(exp)))
-                         : result(unexpect, std::forward<Exp>(exp).error());
+                         : result(unexpected, std::forward<Exp>(exp).error());
 }
 
 template <class Exp, class F,
@@ -2224,7 +2224,7 @@ constexpr auto expected_map_impl(Exp &&exp, F &&f)
   using result = ret_t<Exp, detail::decay_t<Ret>>;
 
   return exp.has_value() ? result(detail::invoke(std::forward<F>(f)))
-                         : result(unexpect, std::forward<Exp>(exp).error());
+                         : result(unexpected, std::forward<Exp>(exp).error());
 }
 
 template <class Exp, class F,
@@ -2253,7 +2253,7 @@ constexpr auto map_error_impl(Exp &&exp, F &&f) {
   using result = expected<exp_t<Exp>, detail::decay_t<Ret>>;
   return exp.has_value()
              ? result(*std::forward<Exp>(exp))
-             : result(unexpect, detail::invoke(std::forward<F>(f),
+             : result(unexpected, detail::invoke(std::forward<F>(f),
                                                std::forward<Exp>(exp).error()));
 }
 template <class Exp, class F,
@@ -2268,7 +2268,7 @@ auto map_error_impl(Exp &&exp, F &&f) {
   }
 
   detail::invoke(std::forward<F>(f), std::forward<Exp>(exp).error());
-  return result(unexpect, monostate{});
+  return result(unexpected, monostate{});
 }
 template <class Exp, class F,
           detail::enable_if_t<std::is_void<exp_t<Exp>>::value> * = nullptr,
@@ -2279,7 +2279,7 @@ constexpr auto map_error_impl(Exp &&exp, F &&f) {
   using result = expected<exp_t<Exp>, detail::decay_t<Ret>>;
   return exp.has_value()
              ? result()
-             : result(unexpect, detail::invoke(std::forward<F>(f),
+             : result(unexpected, detail::invoke(std::forward<F>(f),
                                                std::forward<Exp>(exp).error()));
 }
 template <class Exp, class F,
@@ -2294,7 +2294,7 @@ auto map_error_impl(Exp &&exp, F &&f) {
   }
 
   detail::invoke(std::forward<F>(f), std::forward<Exp>(exp).error());
-  return result(unexpect, monostate{});
+  return result(unexpected, monostate{});
 }
 #else
 template <class Exp, class F,
@@ -2308,7 +2308,7 @@ constexpr auto map_error_impl(Exp &&exp, F &&f)
 
   return exp.has_value()
              ? result(*std::forward<Exp>(exp))
-             : result(unexpect, detail::invoke(std::forward<F>(f),
+             : result(unexpected, detail::invoke(std::forward<F>(f),
                                                std::forward<Exp>(exp).error()));
 }
 
@@ -2324,7 +2324,7 @@ auto map_error_impl(Exp &&exp, F &&f) -> expected<exp_t<Exp>, monostate> {
   }
 
   detail::invoke(std::forward<F>(f), std::forward<Exp>(exp).error());
-  return result(unexpect, monostate{});
+  return result(unexpected, monostate{});
 }
 
 template <class Exp, class F,
@@ -2338,7 +2338,7 @@ constexpr auto map_error_impl(Exp &&exp, F &&f)
 
   return exp.has_value()
              ? result()
-             : result(unexpect, detail::invoke(std::forward<F>(f),
+             : result(unexpected, detail::invoke(std::forward<F>(f),
                                                std::forward<Exp>(exp).error()));
 }
 
@@ -2354,7 +2354,7 @@ auto map_error_impl(Exp &&exp, F &&f) -> expected<exp_t<Exp>, monostate> {
   }
 
   detail::invoke(std::forward<F>(f), std::forward<Exp>(exp).error());
-  return result(unexpect, monostate{});
+  return result(unexpected, monostate{});
 }
 #endif
 

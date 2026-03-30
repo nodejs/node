@@ -32,7 +32,7 @@ struct sub_framework_command;
 }
 
 /// Class that represents the SubFramework command.
-/// Accodring to the Mach-O ``loader.h`` documentation:
+/// According to the Mach-O ``loader.h`` documentation:
 ///
 ///
 /// > A dynamically linked shared library may be a subframework of an umbrella

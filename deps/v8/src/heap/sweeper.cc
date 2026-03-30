@@ -1187,12 +1187,12 @@ void Sweeper::RawSweep(PageMetadata* p,
   }
 
   // Phase 2: Free the non-live memory and clean-up the regular remembered set
-  // entires.
+  // entries.
 
   // Liveness and freeing statistics.
   size_t live_bytes = 0;
 
-  // Promoted pages have no interesting remebered sets yet.
+  // Promoted pages have no interesting remembered sets yet.
   bool record_free_ranges = (p->typed_slot_set<OLD_TO_NEW>() != nullptr ||
                              p->typed_slot_set<OLD_TO_OLD>() != nullptr ||
                              p->typed_slot_set<OLD_TO_SHARED>() != nullptr) ||

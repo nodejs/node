@@ -158,7 +158,7 @@ class LIEF_API ResourcesManager : public Object {
     return get_node_type(TYPE::VERSION) != nullptr;
   }
 
-  /// Return a list of verison info (`VS_VERSIONINFO`).
+  /// Return a list of version info (`VS_VERSIONINFO`).
   std::vector<ResourceVersion> version() const;
 
   /// `true` if resources contain a LIEF::PE::ResourceIcon

@@ -14337,7 +14337,7 @@ TEST(printf_no_preserve) {
 }
 
 TEST(blr_lr) {
-  // A simple test to check that the simulator correcty handle "blr lr".
+  // A simple test to check that the simulator correctly handle "blr lr".
   INIT_V8();
   SETUP();
 

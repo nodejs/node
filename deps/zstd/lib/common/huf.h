@@ -94,7 +94,7 @@ typedef enum {
      */
     HUF_flags_preferRepeat = (1 << 2),
     /**
-     * If set: Sample the input and check if the sample is uncompressible, if it is then don't attempt to compress.
+     * If set: Sample the input and check if the sample is incompressible, if it is then don't attempt to compress.
      * If unset: Always histogram the entire input.
      */
     HUF_flags_suspectUncompressible = (1 << 3),

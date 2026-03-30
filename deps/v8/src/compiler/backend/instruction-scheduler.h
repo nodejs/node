@@ -102,7 +102,7 @@ class InstructionScheduler final : public ZoneObject {
   };
 
   // Keep track of all nodes ready to be scheduled (i.e. all their dependencies
-  // have been scheduled. Note that this class is inteded to be extended by
+  // have been scheduled. Note that this class is intended to be extended by
   // concrete implementation of the scheduling queue which define the policy
   // to pop node from the queue.
   class SchedulingQueue {

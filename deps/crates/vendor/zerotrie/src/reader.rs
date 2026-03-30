@@ -110,7 +110,7 @@
 //!
 //! The _offset table_ encodes the range of the remaining buffer containing the trie reachable
 //! from the byte matched in the branch node. Both types of branch nodes include an offset
-//! table followig the key lookup. Given the index `i` from the first step, the range
+//! table following the key lookup. Given the index `i` from the first step, the range
 //! `[s_i, s_(i+1))` brackets the next step in the trie.
 //!
 //! Offset tables utilize the `W` parameter stored in the branch head node. The special case

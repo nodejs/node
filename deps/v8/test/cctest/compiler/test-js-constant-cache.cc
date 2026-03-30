@@ -137,7 +137,7 @@ TEST(OneConstant2) {
 }
 
 
-TEST(Canonicalizations) {
+TEST(Canonicalization) {
   JSConstantCacheTester T;
 
   CHECK_EQ(T.ZeroConstant(), T.ZeroConstant());

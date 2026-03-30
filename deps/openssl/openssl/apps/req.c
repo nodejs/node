@@ -189,7 +189,7 @@ const OPTIONS req_options[] = {
     { "keyform", OPT_KEYFORM, 'f', "Key file format (ENGINE, other values ignored)" },
     { "pubkey", OPT_PUBKEY, '-', "Output public key" },
     { "keyout", OPT_KEYOUT, '>', "File to write private key to" },
-    { "passin", OPT_PASSIN, 's', "Private key and certificate password source" },
+    { "passing", OPT_PASSIN, 's', "Private key and certificate password source" },
     { "passout", OPT_PASSOUT, 's', "Output file pass phrase source" },
     { "newkey", OPT_NEWKEY, 's',
         "Generate new key with [<alg>:]<nbits> or <alg>[:<file>] or param:<file>" },
@@ -298,7 +298,7 @@ int req_main(int argc, char **argv)
     const char *infile = NULL, *CAfile = NULL, *CAkeyfile = NULL;
     char *outfile = NULL, *keyfile = NULL, *digest = NULL;
     char *keyalgstr = NULL, *p, *prog, *passargin = NULL, *passargout = NULL;
-    char *passin = NULL, *passout = NULL;
+    char *passing = NULL, *passout = NULL;
     char *nofree_passin = NULL, *nofree_passout = NULL;
     char *subj = NULL;
     X509_NAME *fsubj = NULL;
@@ -568,7 +568,7 @@ int req_main(int argc, char **argv)
                 "Warning: Will read cert request from stdin since no -in option is given\n");
     }
 
-    if (!app_passwd(passargin, passargout, &passin, &passout)) {
+    if (!app_passwd(passargin, passargout, &passing, &passout)) {
         BIO_printf(bio_err, "Error getting passwords\n");
         goto end;
     }
@@ -642,8 +642,8 @@ int req_main(int argc, char **argv)
         }
     }
 
-    if (passin == NULL)
-        passin = nofree_passin = app_conf_try_string(req_conf, section, "input_password");
+    if (passing == NULL)
+        passing = nofree_passin = app_conf_try_string(req_conf, section, "input_password");
 
     if (passout == NULL)
         passout = nofree_passout = app_conf_try_string(req_conf, section, "output_password");
@@ -661,7 +661,7 @@ int req_main(int argc, char **argv)
     }
 
     if (keyfile != NULL) {
-        pkey = load_key(keyfile, keyform, 0, passin, e, "private key");
+        pkey = load_key(keyfile, keyform, 0, passing, e, "private key");
         if (pkey == NULL)
             goto end;
         app_RAND_load_conf(req_conf, section);
@@ -798,7 +798,7 @@ int req_main(int argc, char **argv)
                 "Warning: Ignoring -CAkey option since no -CA option is given\n");
         } else {
             if ((CAkey = load_key(CAkeyfile, FORMAT_UNDEF,
-                     0, passin, e,
+                     0, passing, e,
                      CAkeyfile != CAfile
                          ? "issuer private key from -CAkey arg"
                          : "issuer private key from -CA arg"))
@@ -807,7 +807,7 @@ int req_main(int argc, char **argv)
         }
     }
     if (CAfile != NULL) {
-        if ((CAcert = load_cert_pass(CAfile, FORMAT_UNDEF, 1, passin,
+        if ((CAcert = load_cert_pass(CAfile, FORMAT_UNDEF, 1, passing,
                  "issuer cert from -CA arg"))
             == NULL)
             goto end;
@@ -1101,8 +1101,8 @@ end:
     EVP_PKEY_free(CAkey);
     ASN1_INTEGER_free(serial);
     release_engine(e);
-    if (passin != nofree_passin)
-        OPENSSL_free(passin);
+    if (passing != nofree_passin)
+        OPENSSL_free(passing);
     if (passout != nofree_passout)
         OPENSSL_free(passout);
     return ret;

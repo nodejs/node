@@ -469,7 +469,7 @@ my ($s0,$s1,$t0,$t1,$t2,$t3,$a0,$a1,$a2,$a3)=map("r$_",(0,5,6,8..12,14,15));
 my ($x0,$x1)=("r3","r4");	# zaps $ctx and $inp
 
 sub ROUND_00_15_ppc32 {
-my ($i,	$ahi,$alo,$bhi,$blo,$chi,$clo,$dhi,$dlo,
+my ($i,	$ahi,$also,$bhi,$blo,$chi,$clo,$dhi,$dlo,
 	$ehi,$elo,$fhi,$flo,$ghi,$glo,$hhi,$hlo)=@_;
 
 $code.=<<___;
@@ -503,34 +503,34 @@ $code.=<<___;
 	xor	$s1,$s1,$t1
 	insrwi	$t2,$elo,$Sigma1[2]-32,0
 	insrwi	$t3,$ehi,$Sigma1[2]-32,0
-	 xor	$a0,$alo,$blo			; a^b, b^c in next round
+	 xor	$a0,$also,$blo			; a^b, b^c in next round
 	 adde	$hhi,$hhi,$a1
 	 xor	$a1,$ahi,$bhi
 	xor	$s0,$s0,$t2			; Sigma1(e)
 	xor	$s1,$s1,$t3
 
-	srwi	$t0,$alo,$Sigma0[0]
+	srwi	$t0,$also,$Sigma0[0]
 	 and	$a2,$a2,$a0
 	 addc	$hlo,$hlo,$s0			; h+=Sigma1(e)
 	 and	$a3,$a3,$a1
 	srwi	$t1,$ahi,$Sigma0[0]
 	srwi	$s0,$ahi,$Sigma0[1]-32
 	 adde	$hhi,$hhi,$s1
-	srwi	$s1,$alo,$Sigma0[1]-32
+	srwi	$s1,$also,$Sigma0[1]-32
 	insrwi	$t0,$ahi,$Sigma0[0],0
-	insrwi	$t1,$alo,$Sigma0[0],0
+	insrwi	$t1,$also,$Sigma0[0],0
 	 xor	$a2,$a2,$blo			; Maj(a,b,c)
 	 addc	$dlo,$dlo,$hlo			; d+=h
 	 xor	$a3,$a3,$bhi
-	insrwi	$s0,$alo,$Sigma0[1]-32,0
+	insrwi	$s0,$also,$Sigma0[1]-32,0
 	insrwi	$s1,$ahi,$Sigma0[1]-32,0
 	 adde	$dhi,$dhi,$hhi
 	srwi	$t2,$ahi,$Sigma0[2]-32
-	srwi	$t3,$alo,$Sigma0[2]-32
+	srwi	$t3,$also,$Sigma0[2]-32
 	xor	$s0,$s0,$t0
 	 addc	$hlo,$hlo,$a2			; h+=Maj(a,b,c)
 	xor	$s1,$s1,$t1
-	insrwi	$t2,$alo,$Sigma0[2]-32,0
+	insrwi	$t2,$also,$Sigma0[2]-32,0
 	insrwi	$t3,$ahi,$Sigma0[2]-32,0
 	 adde	$hhi,$hhi,$a3
 ___
@@ -564,7 +564,7 @@ $code.=<<___ if ($i==15);
 ___
 }
 sub ROUND_16_xx_ppc32 {
-my ($i,	$ahi,$alo,$bhi,$blo,$chi,$clo,$dhi,$dlo,
+my ($i,	$ahi,$also,$bhi,$blo,$chi,$clo,$dhi,$dlo,
 	$ehi,$elo,$fhi,$flo,$ghi,$glo,$hhi,$hlo)=@_;
 
 $code.=<<___;

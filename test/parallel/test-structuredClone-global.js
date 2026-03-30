@@ -41,17 +41,17 @@ for (const StreamClass of [ReadableStream, WritableStream, TransformStream]) {
   assert.ok(extendedTransfer instanceof StreamClass);
 }
 
-for (const Transferrable of [File, Blob]) {
-  const a2 = Transferrable === File ? '' : {};
-  const original = new Transferrable([], a2);
+for (const Transferable of [File, Blob]) {
+  const a2 = Transferable === File ? '' : {};
+  const original = new Transferable([], a2);
   const transfer = structuredClone(original);
-  assert.strictEqual(Object.getPrototypeOf(transfer), Transferrable.prototype);
-  assert.ok(transfer instanceof Transferrable);
+  assert.strictEqual(Object.getPrototypeOf(transfer), Transferable.prototype);
+  assert.ok(transfer instanceof Transferable);
 
-  const extendedOriginal = new (class extends Transferrable {})([], a2);
+  const extendedOriginal = new (class extends Transferable {})([], a2);
   const extendedTransfer = structuredClone(extendedOriginal);
-  assert.strictEqual(Object.getPrototypeOf(extendedTransfer), Transferrable.prototype);
-  assert.ok(extendedTransfer instanceof Transferrable);
+  assert.strictEqual(Object.getPrototypeOf(extendedTransfer), Transferable.prototype);
+  assert.ok(extendedTransfer instanceof Transferable);
 }
 
 // Transfer can be iterable

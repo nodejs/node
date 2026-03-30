@@ -166,7 +166,7 @@ parameter count: 3
 bytecode array length: 14
 bytecodes: [
   /*   19 S> */ B(Ldar), R(arg1),
-  /*   25 E> */ B(TestIn), R(arg0), U8(0),
+  /*   25 E> */ B(testing), R(arg0), U8(0),
                 B(JumpIfFalse), U8(7),
   /*   33 S> */ B(Wide), B(LdaSmi), I16(200),
   /*   44 S> */ B(Return),
@@ -414,7 +414,7 @@ bytecodes: [
   /*  174 S> */ B(LdaSmi), I8(1),
   /*  183 S> */ B(Return),
   /*  188 S> */ B(Ldar), R(arg1),
-  /*  194 E> */ B(TestIn), R(arg0), U8(6),
+  /*  194 E> */ B(testing), R(arg0), U8(6),
                 B(JumpIfFalse), U8(5),
   /*  202 S> */ B(LdaSmi), I8(1),
   /*  211 S> */ B(Return),

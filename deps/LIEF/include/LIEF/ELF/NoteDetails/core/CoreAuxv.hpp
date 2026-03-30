@@ -114,7 +114,7 @@ class LIEF_API CoreAuxv : public Note {
 
 LIEF_API const char* to_string(CoreAuxv::TYPE type);
 
-} // namepsace ELF
+} // namespace ELF
 } // namespace LIEF
 
 #endif

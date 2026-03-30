@@ -1049,7 +1049,7 @@ static UDataMemory *doLoadFromCommonData(UBool isICUData, const char * /*pkgName
     /* try to get common data.  The loop is for platforms such as the 390 that do
      *  not initially load the full set of ICU data.  If the lookup of an ICU data item
      *  fails, the full (but slower to load) set is loaded, the and the loop repeats,
-     *  trying the lookup again.  Once the full set of ICU data is loaded, the loop wont
+     *  trying the lookup again.  Once the full set of ICU data is loaded, the loop won't
      *  repeat because the full set will be checked the first time through.
      *
      *  The loop also handles the fallback to a .dat file if the application linked
@@ -1121,7 +1121,7 @@ static UBool isTimeZoneFile(const char *name, const char *type) {
  *    to the udata implementation, and are never seen directly by users.
  *
  *    The UDataMemory objects returned to users will have the address of some desired
- *    data within the mapped region, but they wont have the mapping info itself, and thus
+ *    data within the mapped region, but they won't have the mapping info itself, and thus
  *    won't cause anything to be removed from memory when they are closed.
  *
  *  For individual data files, the UDataMemory returned to the user holds the

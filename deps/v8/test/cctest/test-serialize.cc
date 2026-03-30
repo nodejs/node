@@ -215,14 +215,14 @@ StartupBlobs Serialize(v8::Isolate* isolate) {
   SharedHeapSerializer shared_space_serializer(
       i_isolate, Snapshot::kDefaultSerializerFlags);
 
-  StartupSerializer ser(i_isolate, Snapshot::kDefaultSerializerFlags,
+  StartupSerializer set(i_isolate, Snapshot::kDefaultSerializerFlags,
                         &shared_space_serializer);
-  ser.SerializeStrongReferences(no_gc);
+  set.SerializeStrongReferences(no_gc);
 
-  ser.SerializeWeakReferencesAndDeferred();
+  set.SerializeWeakReferencesAndDeferred();
 
   shared_space_serializer.FinalizeSerialization();
-  SnapshotData startup_snapshot(&ser);
+  SnapshotData startup_snapshot(&set);
   SnapshotData read_only_snapshot(&read_only_serializer);
   SnapshotData shared_space_snapshot(&shared_space_serializer);
   return {WritePayload(startup_snapshot.RawData()),
@@ -3593,7 +3593,7 @@ v8::Intercepted NamedPropertyGetterForSerialization(
     info.GetReturnValue().Set(v8_num(2016));
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 void AccessorForSerialization(v8::Local<v8::Name> property,
@@ -5637,9 +5637,9 @@ UNINITIALIZED_TEST(ClassFieldsReferenceClassVariable) {
       v8::Context::Scope context_scope(context);
       CompileRun(
           "class PrivateFieldClass {"
-          "  #consturctor = PrivateFieldClass;"
+          "  #constructor = PrivateFieldClass;"
           "  func() {"
-          "    return this.#consturctor;"
+          "    return this.#constructor;"
           "  }"
           "}"
           "class PublicFieldClass {"
@@ -6359,9 +6359,9 @@ TEST(CachedModuleScriptFunctionHostDefinedOption) {
             .ToLocalChecked();
     mod->InstantiateModule(env.local(), UnexpectedModuleResolveCallback)
         .Check();
-    v8::Local<v8::Value> evaluted = mod->Evaluate(env.local()).ToLocalChecked();
+    v8::Local<v8::Value> evaluated = mod->Evaluate(env.local()).ToLocalChecked();
     CHECK(evaluted->IsPromise());
-    CHECK_EQ(evaluted.As<v8::Promise>()->State(),
+    CHECK_EQ(evaluated.As<v8::Promise>()->State(),
              v8::Promise::PromiseState::kFulfilled);
     v8::Local<v8::Value> result =
         env.local()->Global()->Get(env.local(), v8_str("foo")).ToLocalChecked();

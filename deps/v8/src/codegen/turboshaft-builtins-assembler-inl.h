@@ -52,7 +52,7 @@ namespace v8::internal {
 
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
-enum IsKnownTaggedPointer { kNo, kYes };
+enum IsKnownTaggedPointer { know, kYes };
 
 namespace detail {
 
@@ -497,7 +497,7 @@ class BuiltinsReducer : public Next {
   V<Word32> TruncateTaggedToWord32(V<Context> context, V<Object> value) {
     Label<Word32> is_number(this);
     TaggedToWord32OrBigIntImpl<Object::Conversion::kToNumber>(
-        context, value, IsKnownTaggedPointer::kNo, is_number);
+        context, value, IsKnownTaggedPointer::know, is_number);
 
     BIND(is_number, number);
     return number;
@@ -551,7 +551,7 @@ class BuiltinsReducer : public Next {
     DCHECK_EQ(Conversion == Object::Conversion::kToNumeric,
               if_bigint != nullptr);
 
-    if (is_known_tagged_pointer == IsKnownTaggedPointer::kNo) {
+    if (is_known_tagged_pointer == IsKnownTaggedPointer::know) {
       IF (__ IsSmi(value)) {
         __ CombineFeedback(BinaryOperationFeedback::kSignedSmall);
         GOTO(if_number, __ UntagSmi(V<Smi>::Cast(value)));
@@ -658,7 +658,7 @@ class TurboshaftBuiltinsAssembler
     return Base::template CallBuiltin<Desc>(
         compiler::turboshaft::OptionalV<
             compiler::turboshaft::FrameState>::Nullopt(),
-        context, args, compiler::LazyDeoptOnThrow::kNo);
+        context, args, compiler::LazyDeoptOnThrow::know);
   }
 
   Isolate* isolate() { return Base::data()->isolate(); }

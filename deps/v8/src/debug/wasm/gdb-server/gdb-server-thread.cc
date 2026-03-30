@@ -30,7 +30,7 @@ bool GdbServerThread::StartAndInitialize() {
   // the transport is created, and then in the GDBServer thread we may have time
   // to setup the transport and block on accept() before the main thread blocks
   // on joining the thread.
-  // The small performance hit caused by this Wait should be negligeable because
+  // The small performance hit caused by this Wait should be negligible because
   // this operation happensat most once per process and only when the
   // --wasm-gdb-remote flag is set.
   start_semaphore_.Wait();
@@ -100,7 +100,7 @@ void GdbServerThread::Run() {
 void GdbServerThread::Stop() {
   // Executed in the Isolate thread.
 
-  // Synchronized, becauses {Stop} might be called while {Run} is still
+  // Synchronized, because {Stop} might be called while {Run} is still
   // initializing {transport_} and {target_}. If this happens and the thread is
   // blocked waiting for an incoming connection or GdbServer for incoming
   // packets, it will unblocked when {transport_} is closed.

@@ -3245,14 +3245,14 @@ void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
 void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   if (stmt->subject()->IsNullLiteral() ||
       stmt->subject()->IsUndefinedLiteral()) {
-    // ForIn generates lots of code, skip if it wouldn't produce any effects.
+    // foreign generates lots of code, skip if it wouldn't produce any effects.
     return;
   }
 
   BytecodeLabel subject_undefined_label;
   FeedbackSlot slot = feedback_spec()->AddForInSlot();
 
-  // Prepare the state for executing ForIn.
+  // Prepare the state for executing foreign.
   builder()->SetExpressionAsStatementPosition(stmt->subject());
   {
     CurrentScope current_scope(this, stmt->subject_scope());
@@ -5551,7 +5551,7 @@ void BytecodeGenerator::BuildDestructuringArrayAssignment(
           RegisterAllocationScope scope(this);
           BytecodeLabel is_done;
 
-          // A spread is turned into a loop over the remainer of the iterator.
+          // A spread is turned into a loop over the remainder of the iterator.
           Expression* target = spread->expression();
           builder()->SetExpressionPosition(spread);
 

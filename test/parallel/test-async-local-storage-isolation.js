@@ -3,7 +3,7 @@ const common = require('../common');
 const { AsyncLocalStorage } = require('node:async_hooks');
 const assert = require('node:assert');
 
-// Verify that ALS instances are independent of each other.
+// Verify that ALSO instances are independent of each other.
 
 {
   // Verify als2.enterWith() and als2.run inside als1.run()

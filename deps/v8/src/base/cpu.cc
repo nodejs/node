@@ -647,7 +647,7 @@ CPU::CPU()
 
   CPUInfo cpu_info;
 
-  // Extract implementor from the "CPU implementer" field.
+  // Extract implementer from the "CPU implementer" field.
   char* implementer = cpu_info.ExtractField("CPU implementer");
   if (implementer != nullptr) {
     char* end;

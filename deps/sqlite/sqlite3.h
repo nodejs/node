@@ -2601,7 +2601,7 @@ struct sqlite3_mem_methods {
 ** the ability of the [ATTACH DATABASE] SQL command to create a new database
 ** file if the database filed named in the ATTACH command does not already
 ** exist.  This ability of ATTACH to create a new database is enabled by
-** default.  Applications can disable or reenable the ability for ATTACH to
+** default.  Applications can disable or re-enable the ability for ATTACH to
 ** create new database files using this DBCONFIG option.<p>
 ** This option takes two arguments which are an integer and a pointer
 ** to an integer.  The first argument is 1, 0, or -1 to enable, disable, or
@@ -2616,7 +2616,7 @@ struct sqlite3_mem_methods {
 ** <dd>The SQLITE_DBCONFIG_ENABLE_ATTACH_WRITE option enables or disables the
 ** ability of the [ATTACH DATABASE] SQL command to open a database for writing.
 ** This capability is enabled by default.  Applications can disable or
-** reenable this capability using the current DBCONFIG option.  If
+** re-enable this capability using the current DBCONFIG option.  If
 ** this capability is disabled, the [ATTACH] command will still work,
 ** but the database will be opened read-only.  If this option is disabled,
 ** then the ability to create a new database using [ATTACH] is also disabled,
@@ -2635,7 +2635,7 @@ struct sqlite3_mem_methods {
 ** <dt>SQLITE_DBCONFIG_ENABLE_COMMENTS</dt>
 ** <dd>The SQLITE_DBCONFIG_ENABLE_COMMENTS option enables or disables the
 ** ability to include comments in SQL text.  Comments are enabled by default.
-** An application can disable or reenable comments in SQL text using this
+** An application can disable or re-enable comments in SQL text using this
 ** DBCONFIG option.<p>
 ** This option takes two arguments which are an integer and a pointer
 ** to an integer.  The first argument is 1, 0, or -1 to enable, disable, or
@@ -4234,7 +4234,7 @@ SQLITE_API int sqlite3_error_offset(sqlite3 *db);
 **
 ** The error code and message set by this routine remains in effect until
 ** they are changed, either by another call to this routine or until they are
-** changed to by SQLite itself to reflect the result of some subsquent
+** changed to by SQLite itself to reflect the result of some subsequent
 ** API call.
 **
 ** This function is intended for use by SQLite extensions or wrappers.  The
@@ -9340,7 +9340,7 @@ struct sqlite3_pcache_page {
 ** will only use a createFlag of 2 after a prior call with a createFlag of 1
 ** failed.)^  In between the xFetch() calls, SQLite may
 ** attempt to unpin one or more cache pages by spilling the content of
-** pinned pages to disk and synching the operating system disk cache.
+** pinned pages to disk and syncing the operating system disk cache.
 **
 ** [[the xUnpin() page cache method]]
 ** ^xUnpin() is called by SQLite with a pointer to a currently pinned page
@@ -10464,7 +10464,7 @@ SQLITE_API int sqlite3_vtab_in_next(sqlite3_value *pVal, sqlite3_value **ppOut);
 ** right-hand operand is not known, then *V is set to a NULL pointer.
 ** ^The sqlite3_vtab_rhs_value(P,J,V) interface returns SQLITE_OK if
 ** and only if *V is set to a value.  ^The sqlite3_vtab_rhs_value(P,J,V)
-** inteface returns SQLITE_NOTFOUND if the right-hand side of the J-th
+** interface returns SQLITE_NOTFOUND if the right-hand side of the J-th
 ** constraint is not available.  ^The sqlite3_vtab_rhs_value() interface
 ** can return a result code other than SQLITE_OK or SQLITE_NOTFOUND if
 ** something goes wrong.

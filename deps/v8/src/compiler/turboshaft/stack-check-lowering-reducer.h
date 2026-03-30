@@ -47,7 +47,7 @@ class StackCheckLoweringReducer : public Next {
                     limit, StackCheckKind::kJSFunctionEntry))) {
           __ template CallRuntime<runtime::StackGuardWithGap>(
               frame_state.value(), context, {.gap = __ StackCheckOffset()},
-              LazyDeoptOnThrow::kNo);
+              LazyDeoptOnThrow::know);
         }
         break;
       }
@@ -72,7 +72,7 @@ class StackCheckLoweringReducer : public Next {
 
         IF_NOT (LIKELY(__ Word32Equal(limit, 0))) {
           __ template CallRuntime<runtime::HandleNoHeapWritesInterrupts>(
-              frame_state.value(), context, {}, LazyDeoptOnThrow::kNo);
+              frame_state.value(), context, {}, LazyDeoptOnThrow::know);
         }
         break;
       }
@@ -93,8 +93,8 @@ class StackCheckLoweringReducer : public Next {
             Operator::kNoProperties,              // properties
             StubCallMode::kCallWasmRuntimeStub);  // stub call mode
     const TSCallDescriptor* ts_call_descriptor =
-        TSCallDescriptor::Create(call_descriptor, compiler::CanThrow::kNo,
-                                 LazyDeoptOnThrow::kNo, __ graph_zone());
+        TSCallDescriptor::Create(call_descriptor, compiler::CanThrow::know,
+                                 LazyDeoptOnThrow::know, __ graph_zone());
 
     if (kind == WasmStackCheckOp::Kind::kFunctionEntry) {
       // As an optimization, skip stack checks in leaf functions. Rely on

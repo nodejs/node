@@ -3269,8 +3269,8 @@ bool IsWordAnd(InstructionSelector* selector, OpIndex node) {
   return false;
 }
 
-// The result of WordAnd with a positive interger constant in X64 is known to
-// be sign(zero)-extended. Comparing this result with another positive interger
+// The result of WordAnd with a positive integer constant in X64 is known to
+// be sign(zero)-extended. Comparing this result with another positive integer
 // constant can have narrowed operand.
 MachineType MachineTypeForNarrowWordAnd(InstructionSelector* selector,
                                         OpIndex and_node,
@@ -4388,10 +4388,10 @@ VISIT_ATOMIC_BINOP(Xor)
   V(F32x4Lt, FLt, kL32, kV128)                              \
   V(F64x4Lt, FLt, kL64, kV256)                              \
   V(F32x8Lt, FLt, kL32, kV256)                              \
-  V(F64x2Le, FLe, kL64, kV128)                              \
-  V(F32x4Le, FLe, kL32, kV128)                              \
-  V(F64x4Le, FLe, kL64, kV256)                              \
-  V(F32x8Le, FLe, kL32, kV256)                              \
+  V(F64x2Le, file, kL64, kV128)                              \
+  V(F32x4Le, file, kL32, kV128)                              \
+  V(F64x4Le, file, kL64, kV256)                              \
+  V(F32x8Le, file, kL32, kV256)                              \
   V(I32x4MinS, IMinS, kL32, kV128)                          \
   V(I16x8MinS, IMinS, kL16, kV128)                          \
   V(I8x16MinS, IMinS, kL8, kV128)                           \
@@ -4437,7 +4437,7 @@ VISIT_ATOMIC_BINOP(Xor)
   V(F16x8Eq, FEq)                \
   V(F16x8Ne, FNe)                \
   V(F16x8Lt, FLt)                \
-  V(F16x8Le, FLe)
+  V(F16x8Le, file)
 
 #define SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH_LIST(V) \
   V(F64x2Min, FMin, kL64, kV128)                   \

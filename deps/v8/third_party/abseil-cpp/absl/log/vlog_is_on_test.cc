@@ -134,7 +134,7 @@ TEST_F(VLogIsOnTest,
   // This should enable VLOG level 3 in this file.
   absl::SetVLogLevel("vlog*", 3);
   // This should not change the VLOG level in this file. The pattern does not
-  // match this file and it is less generic than the previous patter "vlog*".
+  // match this file and it is less generic than the previous pattern "vlog*".
   // Therefore, it does not disable VLOG level 3 in this file.
   absl::SetVLogLevel("vlog_is_on_some_other_test*", -1);
   absl::ScopedMockLog log(absl::MockLogDefault::kDisallowUnexpected);

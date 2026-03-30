@@ -76,7 +76,7 @@ bool RedZones::TryRemove(base::AddressRegion needle) {
       continue;
     }
     // We have an overlap. We cannot partially free the red zone here but
-    // have to return all of it and then conditonally re-add ranges
+    // have to return all of it and then conditionally re-add ranges
     // manually. This is necessary as we still want the non-removed parts to
     // be unavailable for allocation.
     CHECK_EQ(0, overlap.size() % allocate_page_size);
@@ -238,7 +238,7 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
               reinterpret_cast<void*>(candidate_cage.region().end()));
         // Allocation succeeded, check if it's in the preferred range.
         if (preferred_region.contains(candidate_cage.region())) break;
-        // This allocation is not the one we are searhing for.
+        // This allocation is not the one we are searching for.
         candidate_cage.Free();
       }
       if (step == 0) break;
@@ -419,7 +419,7 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
 // regions:
 // a) [builtins - kMaxPCRelativeDistance, builtins + kMaxPCRelativeDistance)
 // b) [RoundDown(builtins, 4GB), RoundUp(builtins, 4GB)) in order to ensure
-// Requirement (a) is there to avoid remaping of embedded builtins into
+// Requirement (a) is there to avoid remapping of embedded builtins into
 // the code for architectures where PC-relative jump/call distance is big
 // enough.
 // Requirement (b) is aiming at helping CPU branch predictors in general and

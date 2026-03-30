@@ -142,7 +142,7 @@ TEST_F(AssemblerX64Test, AssemblerX64CmpbOperation) {
   auto buffer = AllocateAssemblerBuffer();
   Assembler masm(AssemblerOptions{}, buffer->CreateView());
 
-  // Assemble a function that compare argument byte returing 1 if equal else 0.
+  // Assemble a function that compare argument byte returning 1 if equal else 0.
   // On Windows, it compares rcx with rdx which does not require REX prefix;
   // on Linux, it compares rdi with rsi which requires REX prefix.
 
@@ -320,7 +320,7 @@ TEST_F(AssemblerX64Test, AssemblerX64testbwqOperation) {
   __ testw(r11, r12);
   __ j(zero, &bad);
 
-  // Test sign-extended imediate tests
+  // Test sign-extended immediate tests
   __ movq(r11, Immediate(2));
   __ shlq(r11, Immediate(32));
   __ testq(r11, Immediate(-1));

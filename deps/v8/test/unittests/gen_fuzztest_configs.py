@@ -82,10 +82,10 @@ def fuzz_test_to_file_name(test):
   fuzztest_name = re.sub(r'\.', ' ', fuzztest_name)
   fuzztest_name = re.sub('([A-Z]+)', r' \1', fuzztest_name)
   fuzztest_name = re.sub('([A-Z][a-z]+)', r' \1', fuzztest_name)
-  splitted = fuzztest_name.split()
-  splitted = map(str.lower, splitted)
-  splitted = filter(bool, splitted)
-  return 'v8_' + '_'.join(splitted) + '_fuzztest'
+  split = fuzztest_name.split()
+  split = map(str.lower, split)
+  split = filter(bool, split)
+  return 'v8_' + '_'.join(split) + '_fuzztest'
 
 
 def create_wrapper(file_name, template, test=''):

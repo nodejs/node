@@ -183,7 +183,7 @@ impl Calendar {
             .map_err(|_| TemporalError::range().with_message("unknown calendar"))?;
         let calendar_kind = match AnyCalendarKind::try_from(algorithm) {
             Ok(c) => c,
-            // Handle `islamic` calendar idenitifier.
+            // Handle `islamic` calendar identifier.
             //
             // This should be updated depending on `icu_calendar` support and
             // intl-era-monthcode.

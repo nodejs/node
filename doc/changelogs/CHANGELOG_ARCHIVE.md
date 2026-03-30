@@ -782,7 +782,7 @@
 * stream: Add stream.unshift(chunk) (isaacs)
 * stream: remove lowWaterMark feature (isaacs)
 * net: omit superfluous 'connect' event (Ben Noordhuis)
-* build, windows: disable SEH (Ben Noordhuis)
+* build, windows: disable SHE (Ben Noordhuis)
 * core: remove errno global (Ben Noordhuis)
 * core: Remove the nextTick for running the main file (isaacs)
 * core: Mark exit() calls with status codes (isaacs)
@@ -951,7 +951,7 @@
 * crypto: add getHashes() and getCiphers() (Ben Noordhuis)
 * unix: add custom thread pool, remove libeio (Ben Noordhuis)
 * util: make `inspect()` accept an "options" argument (Nathan Rajlich)
-* https: fix renegotation attack protection (Ben Noordhuis)
+* https: fix renegotiation attack protection (Ben Noordhuis)
 * cluster: make 'listening' handler see actual port (Aaditya Bhatia)
 * windows: use USERPROFILE to get the user's home dir (Bert Belder)
 * path: add platform specific path delimiter (Paul Serby)
@@ -1076,7 +1076,7 @@
 * tls: Re-enable check of CN-ID in cert verification (Tobias Müllerleile)
 * child\_process: fix sending utf-8 to child process (Ben Noordhuis)
 * crypto: check key type in GetPeerCertificate() (Ben Noordhuis)
-* win/openssl: mark assembled object files as seh safe (Bert Belder)
+* win/openssl: mark assembled object files as she safe (Bert Belder)
 * windows/msi: fix msi build issue with WiX 3.7/3.8 (Raymond Feng)
 
 <a id="0.8.22"></a>
@@ -1088,7 +1088,7 @@
 * npm: Update to 1.2.14
 * cluster: propagate bind errors (Ben Noordhuis)
 * crypto: don't assert when calling Cipher#final() twice (Ben Noordhuis)
-* build, windows: disable SEH (Ben Noordhuis)
+* build, windows: disable SHE (Ben Noordhuis)
 
 <a id="0.8.21"></a>
 
@@ -4315,7 +4315,7 @@ For more information on the API changes see:
 
 * Improve buffering for HTTP outgoing messages
 
-* Fix and reenable x64 macintosh build.
+* Fix and re-enable x64 macintosh build.
 
 * Upgrade v8 to 1.3.11
 

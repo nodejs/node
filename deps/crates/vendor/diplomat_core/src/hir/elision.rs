@@ -60,7 +60,7 @@
 //! 2. Lowering lifetimes of other params.
 //! 3. Lowering lifetimes of the output.
 //!
-//! Although each stage fundementally lowers lifetimes, they behave differently
+//! Although each stage fundamentally lowers lifetimes, they behave differently
 //! when lowering elided lifetimes. Naturally, this module represents each stage
 //! as a state in a state machine.
 //!

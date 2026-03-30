@@ -721,7 +721,7 @@ void LockManager::ReleaseLockAndProcessQueue(Environment* env,
               .IsNothing())
         return;
     } else {
-      // Propagate fulfilment
+      // Propagate fulfillment
       if (lock->released_promise()
               ->Resolve(context, callback_result)
               .IsNothing())

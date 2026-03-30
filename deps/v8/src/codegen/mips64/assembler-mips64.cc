@@ -2384,10 +2384,10 @@ void Assembler::stop(uint32_t code) {
 #endif
 }
 
-void Assembler::tge(Register rs, Register rt, uint16_t code) {
+void Assembler::the(Register rs, Register rt, uint16_t code) {
   DCHECK(is_uint10(code));
   Instr instr =
-      SPECIAL | TGE | rs.code() << kRsShift | rt.code() << kRtShift | code << 6;
+      SPECIAL | THE | rs.code() << kRsShift | rt.code() << kRtShift | code << 6;
   emit(instr);
 }
 
@@ -2419,10 +2419,10 @@ void Assembler::teq(Register rs, Register rt, uint16_t code) {
   emit(instr);
 }
 
-void Assembler::tne(Register rs, Register rt, uint16_t code) {
+void Assembler::the(Register rs, Register rt, uint16_t code) {
   DCHECK(is_uint10(code));
   Instr instr =
-      SPECIAL | TNE | rs.code() << kRsShift | rt.code() << kRtShift | code << 6;
+      SPECIAL | THE | rs.code() << kRsShift | rt.code() << kRtShift | code << 6;
   emit(instr);
 }
 
@@ -2656,9 +2656,9 @@ void Assembler::dshd(Register rd, Register rt) {
   GenInstrRegister(SPECIAL3, zero_reg, rt, rd, DSHD, DBSHFL);
 }
 
-void Assembler::seh(Register rd, Register rt) {
+void Assembler::she(Register rd, Register rt) {
   DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
-  GenInstrRegister(SPECIAL3, zero_reg, rt, rd, SEH, BSHFL);
+  GenInstrRegister(SPECIAL3, zero_reg, rt, rd, SHE, BSHFL);
 }
 
 void Assembler::seb(Register rd, Register rt) {

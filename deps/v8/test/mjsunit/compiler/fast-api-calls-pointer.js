@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// This file excercises basic fast API calls and enables fuzzing of this
+// This file exercises basic fast API calls and enables fuzzing of this
 // functionality.
 
 // Flags: --turbo-fast-api-calls --expose-fast-api --allow-natives-syntax --turbofan
@@ -60,7 +60,7 @@ assertIsExternal(external_a_slow_clone);
 // Slow call that returns the same pointer from a new `External::New()`
 // will still create a new / different object.
 // Note that we cannot use `assertEquals(external_a_slow, external_a_slow_clone)`
-// as it's a deep equality comparison and will return true for all empty object comparsions.
+// as it's a deep equality comparison and will return true for all empty object comparisons.
 assertFalse(external_a_slow === external_a_slow_clone);
 
 %PrepareFunctionForOptimization(pass_pointer);
@@ -88,7 +88,7 @@ const alsoInternallyPointer = new Uint8Array();
 assertThrows(() => pass_pointer(emptyObject));
 assertThrows(() => pass_pointer(alsoInternallyPointer));
 
-// Show off deep equality comparsions between various External objects and
+// Show off deep equality comparisons between various External objects and
 // the empty object to show that all Externals work properly as objects.
 assertEquals(external_a_slow, external_a_fast_passed);
 assertEquals(external_a_fast_passed, emptyObject);

@@ -55,12 +55,12 @@ for (let s of map.keys()){
 // Unicode version 11.0.0
 // https://unicode.org/Public/10.0.0/ucd/ScriptExtensions.txt
 
-// Script_Extension=Beng
-f(/(?=\P{sc=Beng})\p{scx=Beng}/u, "\u{e52ee}");
-f(/(?=\P{sc=Beng})\p{scx=Beng}/u, "\u{78b48}");
-f(/(?=\P{sc=Beng})\p{scx=Beng}/u, "\u{59987}");
-f(/(?=\P{sc=Beng})\p{scx=Beng}/u, "\u{d18a8}");
-f(/(?=\P{sc=Beng})\p{scx=Beng}/u, "\u{2b84e}");
+// Script_Extension=Being
+f(/(?=\P{sc=Being})\p{scx=Being}/u, "\u{e52ee}");
+f(/(?=\P{sc=Being})\p{scx=Being}/u, "\u{78b48}");
+f(/(?=\P{sc=Being})\p{scx=Being}/u, "\u{59987}");
+f(/(?=\P{sc=Being})\p{scx=Being}/u, "\u{d18a8}");
+f(/(?=\P{sc=Being})\p{scx=Being}/u, "\u{2b84e}");
 // Script_Extension=Deva
 f(/(?=\P{sc=Deva})\p{scx=Deva}/u, "\u{757f8}");
 f(/(?=\P{sc=Deva})\p{scx=Deva}/u, "\u{2cb44}");

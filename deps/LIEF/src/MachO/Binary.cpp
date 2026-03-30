@@ -1673,7 +1673,7 @@ LoadCommand* Binary::add(const SegmentCommand& segment) {
 }
 
 size_t Binary::add_cached_segment(SegmentCommand& segment) {
-  // The new segement should be put **before** the __LINKEDIT segment
+  // The new segment should be put **before** the __LINKEDIT segment
   const auto it_linkedit = std::find_if(std::begin(segments_), std::end(segments_),
       [] (SegmentCommand* cmd) { return cmd->name() == "__LINKEDIT"; });
 
@@ -2578,7 +2578,7 @@ bool Binary::can_cache_segment(const SegmentCommand& segment) {
   if (segment.name() == "__TEXT") {
     // In some cases (c.f. <samples>/MachO/issue_1130.macho)
     // the __TEXT segment can have a file_size set to 0 while it is logically
-    // revelant to cache it
+    // relevant to cache it
     return true;
   }
 

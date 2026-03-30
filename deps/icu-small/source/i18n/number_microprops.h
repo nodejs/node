@@ -161,7 +161,7 @@ struct MicroProps : public MicroPropsGenerator {
      * For the "safe" invocation of this function, micros must not be *this,
      * such that a copy of the base instance is made. For the "unsafe" path,
      * this function can be used only once, because the base MicroProps instance
-     * will be modified and thus not be available for re-use.
+     * will be modified and thus not be available for reuse.
      *
      * @param quantity The quantity for consideration and optional mutation.
      * @param micros The MicroProps instance to populate. If this parameter is

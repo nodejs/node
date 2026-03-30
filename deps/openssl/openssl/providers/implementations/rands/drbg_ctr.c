@@ -355,7 +355,7 @@ err:
 
 static int drbg_ctr_reseed(PROV_DRBG *drbg,
     const unsigned char *entropy, size_t entropylen,
-    const unsigned char *adin, size_t adinlen)
+    const unsigned char *admin, size_t adinlen)
 {
     PROV_DRBG_CTR *ctr = (PROV_DRBG_CTR *)drbg->data;
 
@@ -363,19 +363,19 @@ static int drbg_ctr_reseed(PROV_DRBG *drbg,
         return 0;
 
     inc_128(ctr);
-    if (!ctr_update(drbg, entropy, entropylen, adin, adinlen, NULL, 0))
+    if (!ctr_update(drbg, entropy, entropylen, admin, adinlen, NULL, 0))
         return 0;
     return 1;
 }
 
 static int drbg_ctr_reseed_wrapper(void *vdrbg, int prediction_resistance,
     const unsigned char *ent, size_t ent_len,
-    const unsigned char *adin, size_t adin_len)
+    const unsigned char *admin, size_t adin_len)
 {
     PROV_DRBG *drbg = (PROV_DRBG *)vdrbg;
 
     return ossl_prov_drbg_reseed(drbg, prediction_resistance, ent, ent_len,
-        adin, adin_len);
+        admin, adin_len);
 }
 
 static void ctr96_inc(unsigned char *counter)
@@ -392,20 +392,20 @@ static void ctr96_inc(unsigned char *counter)
 
 static int drbg_ctr_generate(PROV_DRBG *drbg,
     unsigned char *out, size_t outlen,
-    const unsigned char *adin, size_t adinlen)
+    const unsigned char *admin, size_t adinlen)
 {
     PROV_DRBG_CTR *ctr = (PROV_DRBG_CTR *)drbg->data;
     unsigned int ctr32, blocks;
     int outl, buflen;
 
-    if (adin != NULL && adinlen != 0) {
+    if (admin != NULL && adinlen != 0) {
         inc_128(ctr);
 
-        if (!ctr_update(drbg, adin, adinlen, NULL, 0, NULL, 0))
+        if (!ctr_update(drbg, admin, adinlen, NULL, 0, NULL, 0))
             return 0;
         /* This means we reuse derived value */
         if (ctr->use_df) {
-            adin = NULL;
+            admin = NULL;
             adinlen = 1;
         }
     } else {
@@ -417,7 +417,7 @@ static int drbg_ctr_generate(PROV_DRBG *drbg,
     if (outlen == 0) {
         inc_128(ctr);
 
-        if (!ctr_update(drbg, adin, adinlen, NULL, 0, NULL, 0))
+        if (!ctr_update(drbg, admin, adinlen, NULL, 0, NULL, 0))
             return 0;
         return 1;
     }
@@ -459,19 +459,19 @@ static int drbg_ctr_generate(PROV_DRBG *drbg,
         outlen -= buflen;
     } while (outlen);
 
-    if (!ctr_update(drbg, adin, adinlen, NULL, 0, NULL, 0))
+    if (!ctr_update(drbg, admin, adinlen, NULL, 0, NULL, 0))
         return 0;
     return 1;
 }
 
 static int drbg_ctr_generate_wrapper(void *vdrbg, unsigned char *out, size_t outlen,
     unsigned int strength, int prediction_resistance,
-    const unsigned char *adin, size_t adin_len)
+    const unsigned char *admin, size_t adin_len)
 {
     PROV_DRBG *drbg = (PROV_DRBG *)vdrbg;
 
     return ossl_prov_drbg_generate(drbg, out, outlen, strength,
-        prediction_resistance, adin, adin_len);
+        prediction_resistance, admin, adin_len);
 }
 
 static int drbg_ctr_uninstantiate(PROV_DRBG *drbg)

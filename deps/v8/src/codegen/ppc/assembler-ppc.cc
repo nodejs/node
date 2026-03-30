@@ -909,7 +909,7 @@ void Assembler::cmpwi(Register src1, const Operand& src2, CRegister cr) {
   DCHECK(cr.code() >= 0 && cr.code() <= 7);
   imm16 &= kImm16Mask;
 
-  // For cmpwi against 0, save postition and cr for later examination
+  // For cmpwi against 0, save position and cr for later examination
   // of potential optimization.
   if (imm16 == 0 && pos > 0 && last_bound_pos_ != pos) {
     optimizable_cmpi_pos_ = pos;

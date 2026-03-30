@@ -234,7 +234,7 @@ def main():
     else:
       process = subprocess.Popen(cmd, pass_fds=pass_fds)
       if not wait_for_process_timeout(process):
-        log(f"QUITING d8 processes after {options.timeout}s timeout")
+        log(f"QUITTING d8 processes after {options.timeout}s timeout")
       current_process = psutil.Process()
       children = current_process.children(recursive=True)
       for child in children:

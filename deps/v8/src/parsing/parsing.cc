@@ -29,7 +29,7 @@ void MaybeReportStatistics(ParseInfo* info, DirectHandle<Script> script,
     case ReportStatisticsMode::kYes:
       parser->UpdateStatistics(isolate, script);
       break;
-    case ReportStatisticsMode::kNo:
+    case ReportStatisticsMode::know:
       break;
   }
 }

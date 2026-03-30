@@ -725,7 +725,7 @@ DateIntervalFormat::create(const Locale& locale,
  *    For example, it has interval patterns on skeleton "dMy" and "hm",
  *    but it does not have interval patterns on skeleton "dMyhm".
  *
- *    The rule to genearte interval patterns for both date and time skeleton are
+ *    The rule to generate interval patterns for both date and time skeleton are
  *    1) when the year, month, or day differs, concatenate the two original
  *    expressions with a separator between,
  *    For example, interval pattern from "Jan 10, 2007 10:10 am"

@@ -562,7 +562,7 @@ V8_DECLARE_ONCE(init_trap_handlers_once);
 // arises, the V8 exception filter intercepts the exception and checks whether
 // it originates from Wasm code.
 // The Wasm interpreter reuses the same logic, and
-// WasmInterpreter::HandleWasmTrap is called by the SEH exception handler to
+// WasmInterpreter::HandleWasmTrap is called by the SHE exception handler to
 // check whether the access violation was caused by an interpreter instruction
 // handler. It is necessary that these handlers are Wasm builtins for two
 // reasons:
@@ -653,7 +653,7 @@ WasmInterpreter::WasmInterpreter(
   // need to use explicit bound checks; memory guard pages only work with 32-bit
   // memories. This could be implemented by allocating a different dispatch
   // table for each instance (probably in the WasmInterpreterRuntime object) and
-  // patching the entries of Load/Store instructions with bultin handlers only
+  // patching the entries of Load/Store instructions with builtin handlers only
   // for instances related to modules that have 32-bit memories. 64-bit memories
   // are not supported yet by DrumBrake.
   base::CallOnce(&init_instruction_table_once, &InitInstructionTableOnce,
@@ -13157,7 +13157,7 @@ bool WasmBytecodeGenerator::TryCompactInstructionHandler(
       reinterpret_cast<InstructionHandler*>(code_.data() + last_instr_offset_);
   InstructionHandler prev_instr_handler = *prev_instr_addr;
   if (func_id == k_s2s_CopySlot32 && prev_instr_handler == k_s2s_CopySlot32) {
-    // Tranforms:
+    // Transforms:
     //  [CopySlot32: InstrId][from: slot_offset_t][to: slot_offset_t]
     // into:
     //  [CopySlot32x2: InstrId][from0: slot_offset_t][to0: slot_offset_t][from1:

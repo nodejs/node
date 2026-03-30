@@ -143,7 +143,7 @@ union uv__sockaddr {
 # define UV__POLLRDHUP POLLRDHUP
 #elif defined(__QNX__)
 /* On QNX, POLLRDHUP is not available and the 0x2000 workaround
- * leads to undefined bahavior.
+ * leads to undefined behavior.
  */
 # define UV__POLLRDHUP 0
 #else

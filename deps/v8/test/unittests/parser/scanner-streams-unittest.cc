@@ -645,7 +645,7 @@ TEST_F(ScannerStreamsTest, CharacterStreams) {
 TEST_F(ScannerStreamsTest, Regress651333) {
   const uint8_t bytes[] =
       "A\xf1"
-      "ad";  // Anad, with n == n-with-tilde.
+      "ad";  // And, with n == n-with-tilde.
   const uint16_t unicode[] = {65, 65533, 97, 100};
 
   // Run the test for all sub-strings 0..N of bytes, to make sure we hit the

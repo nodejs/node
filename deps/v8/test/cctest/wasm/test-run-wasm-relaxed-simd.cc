@@ -427,7 +427,7 @@ WASM_EXEC_TEST(I16x8RelaxedQ15MulRS) {
       // INT16_MIN, we could do something specific to test for x64/ARM behavior
       // but predictably other supported V8 platforms will have to test specific
       // behavior in that case, given that the lowering is fairly
-      // straighforward, and occurence of this in higher level programs is rare,
+      // straightforward, and occurrence of this in higher level programs is rare,
       // this is okay to skip.
       if (x == INT16_MIN && y == INT16_MIN) break;
       r.Call(x, y);

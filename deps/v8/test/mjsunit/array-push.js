@@ -69,7 +69,7 @@
   }
 })();
 
-// Excerises various pushes to the array at the end of new space.
+// Exercises various pushes to the array at the end of new space.
 (function() {
   var a = undefined;
   for (var i = 0; i < 7; i++) {

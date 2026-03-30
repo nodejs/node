@@ -321,7 +321,7 @@
 //! results in a no-op for that annotation.
 //!
 //! Unless the user’s application has a specific reason to bypass action on an annotation,
-//! such as, custom unknown key handling or superceding a calendar based on it’s critical
+//! such as, custom unknown key handling or superseding a calendar based on it’s critical
 //! flag, it is recommended to return the annotation value.
 //!
 //! ##### Handler Example

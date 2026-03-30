@@ -7121,17 +7121,17 @@ Genesis::Genesis(Isolate* isolate,
 
 // Support for thread preemption.
 
-// Reserve space for statics needing saving and restoring.
+// Reserve space for statistics needing saving and restoring.
 int Bootstrapper::ArchiveSpacePerThread() { return sizeof(NestingCounterType); }
 
-// Archive statics that are thread-local.
+// Archive statistics that are thread-local.
 char* Bootstrapper::ArchiveState(char* to) {
   *reinterpret_cast<NestingCounterType*>(to) = nesting_;
   nesting_ = 0;
   return to + sizeof(NestingCounterType);
 }
 
-// Restore statics that are thread-local.
+// Restore statistics that are thread-local.
 char* Bootstrapper::RestoreState(char* from) {
   nesting_ = *reinterpret_cast<NestingCounterType*>(from);
   return from + sizeof(NestingCounterType);

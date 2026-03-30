@@ -48,7 +48,7 @@ TEST(VLQBASE64, DecodeOneSegment) {
   TestVLQBase64Decode("kt:", {{2, std::numeric_limits<int32_t>::min()}});
   TestVLQBase64Decode("k^C", {{1, std::numeric_limits<int32_t>::min()}});
 
-  // Imcomplete string.
+  // Incomplete string.
   TestVLQBase64Decode("kth4yp", {{6, std::numeric_limits<int32_t>::min()}});
 
   // Interpretable strings.

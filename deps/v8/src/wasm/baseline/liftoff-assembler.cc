@@ -362,7 +362,7 @@ AssemblerOptions DefaultLiftoffOptions() {
 
 LiftoffAssembler::LiftoffAssembler(Zone* zone,
                                    std::unique_ptr<AssemblerBuffer> buffer)
-    : MacroAssembler(zone, DefaultLiftoffOptions(), CodeObjectRequired::kNo,
+    : MacroAssembler(zone, DefaultLiftoffOptions(), CodeObjectRequired::know,
                      std::move(buffer)),
       cache_state_(zone) {
   set_abort_hard(true);  // Avoid calls to Abort.
@@ -715,7 +715,7 @@ void PrepareStackTransfers(const ValueKindSig* sig,
     const int num_lowered_params = is_gp_pair ? 2 : 1;
     const VarState& slot = slots[param];
     DCHECK(CompatibleStackSlotTypes(slot.kind(), kind));
-    // Process both halfs of a register pair separately, because they are passed
+    // Process both halves of a register pair separately, because they are passed
     // as separate parameters. One or both of them could end up on the stack.
     for (int lowered_idx = 0; lowered_idx < num_lowered_params; ++lowered_idx) {
       const RegPairHalf half =

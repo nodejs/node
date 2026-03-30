@@ -158,8 +158,8 @@ impl serde::Serialize for CodePointInversionList<'_> {
         S: serde::Serializer,
     {
         if serializer.is_human_readable() {
-            use serde::ser::Error;
-            use serde::ser::SerializeSeq;
+            use serde::set::Error;
+            use serde::set::SerializeSeq;
             let mut seq = serializer.serialize_seq(Some(self.inv_list.len() / 2))?;
             for range in self.iter_ranges() {
                 let start = UnicodeCodePoint::from_u32(*range.start()).map_err(S::Error::custom)?;

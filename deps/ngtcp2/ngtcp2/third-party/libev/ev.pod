@@ -778,7 +778,7 @@ C<EVFLAG_FORKCHECK>) in the child before resuming or calling C<ev_run>.
 In addition, if you want to reuse a loop (via this function or
 C<EVFLAG_FORKCHECK>), you I<also> have to ignore C<SIGPIPE>.
 
-Again, you I<have> to call it on I<any> loop that you want to re-use after
+Again, you I<have> to call it on I<any> loop that you want to reuse after
 a fork, I<even if you do not plan to use the loop in the parent>. This is
 because some kernel interfaces *cough* I<kqueue> *cough* do funny things
 during fork.
@@ -2059,7 +2059,7 @@ will again do the right thing (for example, time out immediately :).
 This technique is slightly more complex, but in most cases where the
 time-out is unlikely to be triggered, much more efficient.
 
-=item 4. Wee, just use a double-linked list for your timeouts.
+=item 4. We, just use a double-linked list for your timeouts.
 
 If there is not one request, but many thousands (millions...), all
 employing some kind of timeout with the same timeout value, then one can
@@ -4269,7 +4269,7 @@ method.
 For C<ev::embed> watchers this method is called C<set_embed>, to avoid
 clashing with the C<set (loop)> method.
 
-For C<ev::io> watchers there is an additional C<set> method that acepts a
+For C<ev::io> watchers there is an additional C<set> method that accepts a
 new event mask only, and internally calls C<ev_io_modfify>.
 
 =item w->start ()
@@ -4981,7 +4981,7 @@ doesn't support the required declaration syntax.
 
 =item EV_AVOID_STDIO
 
-If this is set to C<1> at compiletime, then libev will avoid using stdio
+If this is set to C<1> at compile time, then libev will avoid using stdio
 functions (printf, scanf, perror etc.). This will increase the code size
 somewhat, but if your program doesn't otherwise depend on stdio and your
 libc allows it, this avoids linking in the stdio library which is quite

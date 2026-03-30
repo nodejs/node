@@ -161,7 +161,7 @@ my $label_count = 0;
 # ; This implementation follows the convention: for non-leaf functions (they
 # ; must call PROLOG) %rbp is used as a frame pointer, and has fixed offset from
 # ; the function entry: $GP_STORAGE + [8 bytes alignment (Windows only)].  This
-# ; helps to facilitate SEH handlers writing.
+# ; helps to facilitate SHE handlers writing.
 #
 # ; Leaf functions here do not use more than 4 input arguments.
 if ($win64) {
@@ -366,12 +366,12 @@ ___
   }
   $code .= <<___;
     # ; %rbp contains stack pointer right after GP regs pushed at stack + [8
-    # ; bytes of alignment (Windows only)].  It serves as a frame pointer in SEH
+    # ; bytes of alignment (Windows only)].  It serves as a frame pointer in SHE
     # ; handlers. The requirement for a frame pointer is that its offset from
     # ; RSP shall be multiple of 16, and not exceed 240 bytes. The frame pointer
     # ; itself seems to be reasonable to use here, because later we do 64-byte stack
     # ; alignment which gives us non-determinate offsets and complicates writing
-    # ; SEH handlers.
+    # ; SHE handlers.
     #
     # ; It also serves as an anchor for retrieving stack arguments on both Linux
     # ; and Windows.
@@ -448,7 +448,7 @@ ___
 
   if ($win64) {
 
-    # Forming valid epilog for SEH with use of frame pointer.
+    # Forming valid epilog for SHE with use of frame pointer.
     # https://docs.microsoft.com/en-us/cpp/build/prolog-and-epilog?view=msvc-160#epilog-code
     $code .= "lea      8(%rbp),%rsp\n";
   } else {
@@ -4725,7 +4725,7 @@ ___
 
 if ($win64) {
 
-  # Add unwind metadata for SEH.
+  # Add unwind metadata for SHE.
 
   # See https://docs.microsoft.com/en-us/cpp/build/exception-handling-x64?view=msvc-160
   my $UWOP_PUSH_NONVOL = 0;

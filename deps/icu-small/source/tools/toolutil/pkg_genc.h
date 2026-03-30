@@ -52,7 +52,7 @@
 #define USE_SINGLE_CCODE_FILE
 #endif
 
-/* Need to fix the file seperator character when using MinGW. */
+/* Need to fix the file separator character when using MinGW. */
 #if defined(WINDOWS_WITH_GNUC) || defined(USING_CYGWIN)
 #define PKGDATA_FILE_SEP_STRING "/"
 #else

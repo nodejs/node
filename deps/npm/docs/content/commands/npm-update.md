@@ -9,7 +9,7 @@ description: Update packages
 ```bash
 npm update [<pkg>...]
 
-aliases: up, upgrade, udpate
+aliases: up, upgrade, update
 ```
 
 ### Description

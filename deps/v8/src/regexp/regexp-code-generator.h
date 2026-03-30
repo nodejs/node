@@ -52,7 +52,7 @@ class RegExpCodeGenerator final {
   template <typename Operands>
   auto GetArgumentValuesAsTuple();
 
-  // Visit all bytecodes before any code is emmited.
+  // Visit all bytecodes before any code is emitted.
   // Allocates labels for all jump targets to support forward jumps.
   void PreVisitBytecodes();
   void VisitBytecodes();

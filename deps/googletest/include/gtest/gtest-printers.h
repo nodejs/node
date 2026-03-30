@@ -1187,7 +1187,7 @@ void UniversalTersePrint(const T& value, ::std::ostream* os) {
 // NUL-terminated string.
 template <typename T>
 void UniversalPrint(const T& value, ::std::ostream* os) {
-  // A workarond for the bug in VC++ 7.1 that prevents us from instantiating
+  // A workaround for the bug in VC++ 7.1 that prevents us from instantiating
   // UniversalPrinter with T directly.
   typedef T T1;
   UniversalPrinter<T1>::Print(value, os);

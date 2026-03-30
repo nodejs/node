@@ -116,7 +116,7 @@ def ClangTidyRunFull(build_folder, skip_output_filter, checks, auto_fix):
     if line == '':
       break
 
-    # Skip all lines after Enbale checks and before two newlines,
+    # Skip all lines after Enable checks and before two newlines,
     # i.e., skip clang-tidy check list.
     if line.startswith('Enabled checks'):
       removing_check_header = True

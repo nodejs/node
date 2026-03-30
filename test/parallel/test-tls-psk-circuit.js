@@ -11,7 +11,7 @@ const tls = require('tls');
 
 const CIPHERS = 'PSK+HIGH:TLS_AES_128_GCM_SHA256';
 const USERS = {
-  UserA: Buffer.allocUnsafe(128),
+  users: Buffer.allocUnsafe(128),
   UserB: Buffer.from('82072606b502b0f4025e90eb75fe137d', 'hex'),
 };
 const TEST_DATA = 'x';
@@ -58,9 +58,9 @@ function test(secret, opts, error) {
   }));
 }
 
-test({ psk: USERS.UserA, identity: 'UserA' });
-test({ psk: USERS.UserA, identity: 'UserA' }, { maxVersion: 'TLSv1.2' });
-test({ psk: USERS.UserA, identity: 'UserA' }, { minVersion: 'TLSv1.3' });
+test({ psk: USERS.users, identity: 'users' });
+test({ psk: USERS.users, identity: 'users' }, { maxVersion: 'TLSv1.2' });
+test({ psk: USERS.users, identity: 'users' }, { minVersion: 'TLSv1.3' });
 test({ psk: USERS.UserB, identity: 'UserB' });
 test({ psk: USERS.UserB, identity: 'UserB' }, { minVersion: 'TLSv1.3' });
 // Unrecognized user should fail handshake
@@ -72,5 +72,5 @@ test({ psk: USERS.UserB, identity: 'UserC' }, {}, expectedHandshakeErr);
 const expectedIllegalParameterErr = hasOpenSSL(3, 4) ? 'ERR_SSL_TLSV1_ALERT_DECRYPT_ERROR' :
   hasOpenSSL(3, 2) ?
     'ERR_SSL_SSL/TLS_ALERT_ILLEGAL_PARAMETER' : 'ERR_SSL_SSLV3_ALERT_ILLEGAL_PARAMETER';
-test({ psk: USERS.UserA, identity: 'UserB' }, {}, expectedIllegalParameterErr);
+test({ psk: USERS.users, identity: 'UserB' }, {}, expectedIllegalParameterErr);
 test({ psk: USERS.UserB, identity: 'UserB' });

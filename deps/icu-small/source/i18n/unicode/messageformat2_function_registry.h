@@ -247,7 +247,7 @@ namespace message2 {
              * that were previously registered. The builder cannot be used after this call.
              * The `build()` method is destructive to avoid the need for a deep copy of the
              * `FormatterFactory` and `SelectorFactory` objects (this would be necessary because
-             * `FormatterFactory` can have mutable state), which in turn would require implementors
+             * `FormatterFactory` can have mutable state), which in turn would require implementers
              * of those interfaces to implement a `clone()` method.
              *
              * @return The new MFFunctionRegistry

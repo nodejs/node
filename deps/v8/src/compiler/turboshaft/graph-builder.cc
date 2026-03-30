@@ -1367,7 +1367,7 @@ OpIndex GraphBuilder::Process(
       return OpIndex::Invalid();
     }
     case IrOpcode::kProtectedStore:
-      // We don't mark ProtectedStores as initialzing even when inside regions,
+      // We don't mark ProtectedStores as initializing even when inside regions,
       // since we don't store-store eliminate them because they have a raw base.
       __ Store(Map(node->InputAt(0)), Map(node->InputAt(1)),
                Map(node->InputAt(2)), StoreOp::Kind::Protected(),
@@ -1433,9 +1433,9 @@ OpIndex GraphBuilder::Process(
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
       CanThrow can_throw =
-          op->HasProperty(Operator::kNoThrow) ? CanThrow::kNo : CanThrow::kYes;
+          op->HasProperty(Operator::kNoThrow) ? CanThrow::know : CanThrow::kYes;
       const TSCallDescriptor* ts_descriptor = TSCallDescriptor::Create(
-          call_descriptor, can_throw, LazyDeoptOnThrow::kNo, graph_zone,
+          call_descriptor, can_throw, LazyDeoptOnThrow::know, graph_zone,
           wasm_call_parameters);
 
       base::SmallVector<OpIndex, 16> arguments;
@@ -1495,9 +1495,9 @@ OpIndex GraphBuilder::Process(
       }
 
       CanThrow can_throw =
-          op->HasProperty(Operator::kNoThrow) ? CanThrow::kNo : CanThrow::kYes;
+          op->HasProperty(Operator::kNoThrow) ? CanThrow::know : CanThrow::kYes;
       const TSCallDescriptor* ts_descriptor = TSCallDescriptor::Create(
-          call_descriptor, can_throw, LazyDeoptOnThrow::kNo, graph_zone);
+          call_descriptor, can_throw, LazyDeoptOnThrow::know, graph_zone);
 
       __ TailCall(callee, base::VectorOf(arguments), ts_descriptor);
       return OpIndex::Invalid();
@@ -2365,7 +2365,7 @@ OpIndex GraphBuilder::Process(
         V<Object> fallback_result = V<Object>::Cast(__ Call(
             slow_call_callee, frame_state, base::VectorOf(slow_call_arguments),
             TSCallDescriptor::Create(params.descriptor(), CanThrow::kYes,
-                                     LazyDeoptOnThrow::kNo, __ graph_zone())));
+                                     LazyDeoptOnThrow::know, __ graph_zone())));
 
         convert_fallback_return(
             result, parameters->c_signature()->GetInt64Representation(),

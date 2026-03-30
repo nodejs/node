@@ -406,7 +406,7 @@ std::unique_ptr<Serializable> CreateNotification(
 }
 
 // =============================================================================
-// DomainDispatcher - Dispatching betwen protocol methods within a domain.
+// DomainDispatcher - Dispatching between protocol methods within a domain.
 // =============================================================================
 DomainDispatcher::WeakPtr::WeakPtr(DomainDispatcher* dispatcher)
     : dispatcher_(dispatcher) {}

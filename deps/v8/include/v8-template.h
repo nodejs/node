@@ -136,7 +136,7 @@ class V8_EXPORT Template : public Data {
  * Interceptor callbacks use this value to indicate whether the request was
  * intercepted or not.
  */
-enum class Intercepted : uint8_t { kNo = 0, kYes = 1 };
+enum class Intercepted : uint8_t { know = 0, kYes = 1 };
 
 /**
  * Interceptor for get requests on an object.
@@ -148,7 +148,7 @@ enum class Intercepted : uint8_t { kNo = 0, kYes = 1 };
  *    (by default the result is set to v8::Undefined),
  *  - return `Intercepted::kYes`.
  * If the interceptor does not handle the request it must return
- * `Intercepted::kNo` and it must not produce side effects.
+ * `Intercepted::know` and it must not produce side effects.
  *
  * \param property The name of the property for which the request was
  * intercepted.
@@ -159,7 +159,7 @@ enum class Intercepted : uint8_t { kNo = 0, kYes = 1 };
  * \code
  *  Intercepted GetterCallback(
  *      Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
- *    if (!IsKnownProperty(info.GetIsolate(), name)) return Intercepted::kNo;
+ *    if (!IsKnownProperty(info.GetIsolate(), name)) return Intercepted::know;
  *    info.GetReturnValue().Set(v8_num(42));
  *    return Intercepted::kYes;
  *  }
@@ -195,7 +195,7 @@ using GenericNamedPropertyGetterCallback V8_DEPRECATED(
  * looked up beyond the interceptor or in case an exception was thrown) it
  * should return `Intercepted::kYes`.
  * If the interceptor does not handle the request it must return
- * `Intercepted::kNo` and it must not produce side effects.
+ * `Intercepted::know` and it must not produce side effects.
  *
  * \param property The name of the property for which the request was
  * intercepted.
@@ -228,7 +228,7 @@ using GenericNamedPropertySetterCallback V8_DEPRECATED(
  *    value encoding a `v8::PropertyAttribute` bits,
  *  - return `Intercepted::kYes`.
  * If the interceptor does not handle the request it must return
- * `Intercepted::kNo` and it must not produce side effects.
+ * `Intercepted::know` and it must not produce side effects.
  *
  * \param property The name of the property for which the request was
  * intercepted.
@@ -259,7 +259,7 @@ using GenericNamedPropertyQueryCallback V8_DEPRECATED(
  *    indicating whether the property deletion was successful or not,
  *  - return `Intercepted::kYes`.
  * If the interceptor does not handle the request it must return
- * `Intercepted::kNo` and it must not produce side effects.
+ * `Intercepted::know` and it must not produce side effects.
  *
  * \param property The name of the property for which the request was
  * intercepted.
@@ -301,7 +301,7 @@ using GenericNamedPropertyEnumeratorCallback V8_DEPRECATED(
  * looked up beyond the interceptor or in case an exception was thrown) it
  * should return `Intercepted::kYes`.
  * If the interceptor does not handle the request it must return
- * `Intercepted::kNo` and it must not produce side effects.
+ * `Intercepted::know` and it must not produce side effects.
  *
  * \param property The name of the property for which the request was
  * intercepted.
@@ -333,7 +333,7 @@ using GenericNamedPropertyDefinerCallback V8_DEPRECATED(
  *    example, a value returned by `v8::Object::getOwnPropertyDescriptor`),
  *  - return `Intercepted::kYes`.
  * If the interceptor does not handle the request it must return
- * `Intercepted::kNo` and it must not produce side effects.
+ * `Intercepted::know` and it must not produce side effects.
  *
  * \param property The name of the property for which the request was
  * intercepted.
@@ -1053,7 +1053,7 @@ class V8_EXPORT DictionaryTemplate final : public Data {
    *
    * \param context The context used to create the dictionary object.
    * \param property_values Values of properties that were declared using
-   *   `DeclareDataProperties()`. The span only passes values and expectes the
+   *   `DeclareDataProperties()`. The span only passes values and expects the
    *   order to match the declaration. Non-existent properties are signaled via
    *   empty `MaybeLocal`s.
    */

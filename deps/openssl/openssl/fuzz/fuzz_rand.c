@@ -58,7 +58,7 @@ static int fuzz_rand_generate(ossl_unused void *vdrbg,
     unsigned char *out, size_t outlen,
     ossl_unused unsigned int strength,
     ossl_unused int prediction_resistance,
-    ossl_unused const unsigned char *adin,
+    ossl_unused const unsigned char *admin,
     ossl_unused size_t adinlen)
 {
     unsigned char val = 1;

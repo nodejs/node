@@ -2,7 +2,7 @@
 // 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018 Python Software Foundation;
 // All Rights Reserved
 
-// This file implements a stable, adapative merge sort variant called TimSort.
+// This file implements a stable, adaptive merge sort variant called TimSort.
 //
 // It was first implemented in python and this Torque implementation
 // is based on the current version:
@@ -450,10 +450,10 @@ transitioning builtin Copy(
   dcheck(dstPos <= target.length - length);
 
   // TODO(szuend): Investigate whether this builtin should be replaced
-  //               by CopyElements/MoveElements for perfomance.
+  //               by CopyElements/MoveElements for performance.
 
   // source and target might be the same array. To avoid overwriting
-  // values in the case of overlaping ranges, elements are copied from
+  // values in the case of overlapping ranges, elements are copied from
   // the back when srcPos < dstPos.
   if (srcPos < dstPos) {
     let srcIdx: Smi = srcPos + length - 1;
@@ -845,7 +845,7 @@ transitioning builtin GallopRight(
 
     if (offset > maxOfs) offset = maxOfs;
 
-    // Translate back to positive offests relative to base.
+    // Translate back to positive offsets relative to base.
     lastOfs = lastOfs + hint;
     offset = offset + hint;
   }
@@ -1222,7 +1222,7 @@ transitioning macro MergeForceCollapse(context: Context, sortState: SortState):
     void {
   const pendingRuns: FixedArray = sortState.pendingRuns;
 
-  // Reload the stack size becuase MergeAt might change it.
+  // Reload the stack size because MergeAt might change it.
   while (GetPendingRunsSize(sortState) > 1) {
     let n: Smi = GetPendingRunsSize(sortState) - 2;
 

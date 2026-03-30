@@ -45,13 +45,13 @@ static ASN1_INTEGER *create_nonce(int bits);
 
 /* Reply related functions. */
 static int reply_command(CONF *conf, const char *section, const char *engine,
-    const char *queryfile, const char *passin, const char *inkey,
+    const char *queryfile, const char *passing, const char *inkey,
     const EVP_MD *md, const char *signer, const char *chain,
     const char *policy, const char *in, int token_in,
     const char *out, int token_out, int text);
 static TS_RESP *read_PKCS7(BIO *in_bio);
 static TS_RESP *create_response(CONF *conf, const char *section, const char *engine,
-    const char *queryfile, const char *passin,
+    const char *queryfile, const char *passing,
     const char *inkey, const EVP_MD *md, const char *signer,
     const char *chain, const char *policy);
 static ASN1_INTEGER *serial_cb(TS_RESP_CTX *ctx, void *data);
@@ -124,7 +124,7 @@ const OPTIONS ts_options[] = {
     { "untrusted", OPT_UNTRUSTED, '<', "Extra untrusted certs" },
     { "token_in", OPT_TOKEN_IN, '-', "Input is a PKCS#7 file" },
     { "token_out", OPT_TOKEN_OUT, '-', "Output is a PKCS#7 file" },
-    { "passin", OPT_PASSIN, 's', "Input file pass phrase source" },
+    { "passing", OPT_PASSIN, 's', "Input file pass phrase source" },
     { "", OPT_MD, '-', "Any supported digest" },
 
     OPT_SECTION("Query"),
@@ -186,7 +186,7 @@ int ts_main(int argc, char **argv)
     char **helpp;
     char *password = NULL;
     char *data = NULL, *digest = NULL, *policy = NULL;
-    char *in = NULL, *out = NULL, *queryfile = NULL, *passin = NULL;
+    char *in = NULL, *out = NULL, *queryfile = NULL, *passing = NULL;
     char *inkey = NULL, *signer = NULL, *chain = NULL, *CApath = NULL;
     char *CAstore = NULL;
     EVP_MD *md = NULL;
@@ -274,7 +274,7 @@ int ts_main(int argc, char **argv)
             queryfile = opt_arg();
             break;
         case OPT_PASSIN:
-            passin = opt_arg();
+            passing = opt_arg();
             break;
         case OPT_INKEY:
             inkey = opt_arg();
@@ -324,7 +324,7 @@ int ts_main(int argc, char **argv)
 
     if (!opt_md(digestname, &md))
         goto opthelp;
-    if (mode == OPT_REPLY && passin && !app_passwd(passin, NULL, &password, NULL)) {
+    if (mode == OPT_REPLY && passing && !app_passwd(passing, NULL, &password, NULL)) {
         BIO_printf(bio_err, "Error getting password.\n");
         goto end;
     }
@@ -609,7 +609,7 @@ err:
  */
 
 static int reply_command(CONF *conf, const char *section, const char *engine,
-    const char *queryfile, const char *passin, const char *inkey,
+    const char *queryfile, const char *passing, const char *inkey,
     const EVP_MD *md, const char *signer, const char *chain,
     const char *policy, const char *in, int token_in,
     const char *out, int token_out, int text)
@@ -632,7 +632,7 @@ static int reply_command(CONF *conf, const char *section, const char *engine,
         }
     } else {
         response = create_response(conf, section, engine, queryfile,
-            passin, inkey, md, signer, chain, policy);
+            passing, inkey, md, signer, chain, policy);
         if (response != NULL)
             BIO_printf(bio_err, "Response has been generated.\n");
         else
@@ -717,7 +717,7 @@ end:
 }
 
 static TS_RESP *create_response(CONF *conf, const char *section, const char *engine,
-    const char *queryfile, const char *passin,
+    const char *queryfile, const char *passing,
     const char *inkey, const EVP_MD *md, const char *signer,
     const char *chain, const char *policy)
 {
@@ -742,7 +742,7 @@ static TS_RESP *create_response(CONF *conf, const char *section, const char *eng
         goto end;
     if (!TS_CONF_set_certs(conf, section, chain, resp_ctx))
         goto end;
-    if (!TS_CONF_set_signer_key(conf, section, inkey, passin, resp_ctx))
+    if (!TS_CONF_set_signer_key(conf, section, inkey, passing, resp_ctx))
         goto end;
 
     if (md) {

@@ -839,7 +839,7 @@ class Tagged : public detail::BaseForTagged<T>::type {
 // Specialized Tagged<T> for cleared weak values. This is only used, in
 // practice, for conversions from Tagged<ClearedWeakValue> to a
 // Tagged<MaybeWeak<T>>, where subtyping rules mean that this works for
-// aribitrary T.
+// arbitrary T.
 template <>
 class Tagged<ClearedWeakValue> : public WeakTaggedBase {
  public:

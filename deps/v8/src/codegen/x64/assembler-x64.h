@@ -2769,7 +2769,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // record reloc info for current pc_
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
 
-  // Arithmetics
+  // Arithmetic
   void emit_add(Register dst, Register src, int size) {
     arithmetic_op(0x03, dst, src, size);
   }

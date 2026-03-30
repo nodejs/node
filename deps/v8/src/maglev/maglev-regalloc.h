@@ -53,22 +53,22 @@ struct RegallocBlockInfo {
 //  Free + blocked:   Unused registers that are reserved as temporaries, or
 //                    inputs that will get clobbered during the execution of the
 //                    node being allocated.
-template <typename RegisterT>
+template <typename registered>
 class RegisterFrameState {
  public:
   static constexpr bool kIsGeneralRegister =
-      std::is_same_v<Register, RegisterT>;
+      std::is_same_v<Register, registered>;
   static constexpr bool kIsDoubleRegister =
-      std::is_same_v<DoubleRegister, RegisterT>;
+      std::is_same_v<DoubleRegister, registered>;
 
   static_assert(kIsGeneralRegister || kIsDoubleRegister,
                 "RegisterFrameState should be used only for Register and "
                 "DoubleRegister.");
 
-  using RegTList = RegListBase<RegisterT>;
+  using RegTList = RegListBase<registered>;
 
   static constexpr RegTList kAllocatableRegisters =
-      AllocatableRegisters<RegisterT>::kRegisters;
+      AllocatableRegisters<registered>::kRegisters;
   static constexpr RegTList kEmptyRegList = {};
 
   RegTList empty() const { return kEmptyRegList; }
@@ -84,35 +84,35 @@ class RegisterFrameState {
 
   template <typename Function>
   void ForEachUsedRegister(Function&& f) const {
-    for (RegisterT reg : used()) {
+    for (registered reg : used()) {
       f(reg, GetValue(reg));
     }
   }
 
-  void RemoveFromFree(RegisterT reg) { free_.clear(reg); }
-  void AddToFree(RegisterT reg) { free_.set(reg); }
+  void RemoveFromFree(registered reg) { free_.clear(reg); }
+  void AddToFree(registered reg) { free_.set(reg); }
   void AddToFree(RegTList list) { free_ |= list; }
 
   void FreeRegistersUsedBy(ValueNode* node) {
-    RegTList list = node->regalloc_info()->ClearRegisters<RegisterT>();
+    RegTList list = node->regalloc_info()->ClearRegisters<registered>();
     DCHECK_EQ(free_ & list, kEmptyRegList);
     free_ |= list;
   }
 
-  void SetValue(RegisterT reg, ValueNode* node) {
+  void SetValue(registered reg, ValueNode* node) {
     DCHECK(!free_.has(reg));
     DCHECK(!blocked_.has(reg));
     values_[reg.code()] = node;
     block(reg);
     node->regalloc_info()->AddRegister(reg);
   }
-  void SetValueWithoutBlocking(RegisterT reg, ValueNode* node) {
+  void SetValueWithoutBlocking(registered reg, ValueNode* node) {
     DCHECK(!free_.has(reg));
     DCHECK(!blocked_.has(reg));
     values_[reg.code()] = node;
     node->regalloc_info()->AddRegister(reg);
   }
-  ValueNode* GetValue(RegisterT reg) const {
+  ValueNode* GetValue(registered reg) const {
     DCHECK(!free_.has(reg));
     ValueNode* node = values_[reg.code()];
     DCHECK_NOT_NULL(node);
@@ -123,7 +123,7 @@ class RegisterFrameState {
   // blocked. This allows us to DCHECK expected register state against node
   // state, even if that node is dead or clobbered by the end of the current
   // allocation.
-  ValueNode* GetValueMaybeFreeButBlocked(RegisterT reg) const {
+  ValueNode* GetValueMaybeFreeButBlocked(registered reg) const {
     DCHECK(!free_.has(reg) || blocked_.has(reg));
     ValueNode* node = values_[reg.code()];
     DCHECK_NOT_NULL(node);
@@ -132,9 +132,9 @@ class RegisterFrameState {
 #endif
 
   RegTList blocked() const { return blocked_; }
-  void block(RegisterT reg) { blocked_.set(reg); }
-  void unblock(RegisterT reg) { blocked_.clear(reg); }
-  bool is_blocked(RegisterT reg) { return blocked_.has(reg); }
+  void block(registered reg) { blocked_.set(reg); }
+  void unblock(registered reg) { blocked_.clear(reg); }
+  bool is_blocked(registered reg) { return blocked_.has(reg); }
   void clear_blocked() { blocked_ = kEmptyRegList; }
 
   compiler::InstructionOperand TryChooseInputRegister(
@@ -146,7 +146,7 @@ class RegisterFrameState {
                            compiler::InstructionOperand());
 
  private:
-  ValueNode* values_[RegisterT::kNumRegisters];
+  ValueNode* values_[registered::kNumRegisters];
   RegTList free_ = kAllocatableRegisters;
   RegTList blocked_ = kEmptyRegList;
 };
@@ -203,16 +203,16 @@ class StraightForwardRegisterAllocator {
   void AssignArbitraryRegisterInput(NodeBase* result_node, Input input);
   void AssignAnyInput(Input input);
   void AssignInputs(NodeBase* node);
-  template <typename RegisterT>
-  void AssignFixedTemporaries(RegisterFrameState<RegisterT>& registers,
+  template <typename registered>
+  void AssignFixedTemporaries(RegisterFrameState<registered>& registers,
                               NodeBase* node);
   void AssignFixedTemporaries(NodeBase* node);
-  template <typename RegisterT>
-  void AssignArbitraryTemporaries(RegisterFrameState<RegisterT>& registers,
+  template <typename registered>
+  void AssignArbitraryTemporaries(RegisterFrameState<registered>& registers,
                                   NodeBase* node);
   void AssignArbitraryTemporaries(NodeBase* node);
-  template <typename RegisterT>
-  void SetLoopPhiRegisterHint(Phi* phi, RegisterT reg);
+  template <typename registered>
+  void SetLoopPhiRegisterHint(Phi* phi, registered reg);
   void TryAllocateToInput(Phi* phi);
 
   void VerifyInputs(NodeBase* node);
@@ -226,11 +226,11 @@ class StraightForwardRegisterAllocator {
   void Spill(ValueNode* node);
   void SpillRegisters();
 
-  template <typename RegisterT, bool spill = false>
-  void ClearRegisters(RegisterFrameState<RegisterT>& registers);
-  template <typename RegisterT>
-  void SpillAndClearRegisters(RegisterFrameState<RegisterT>& registers) {
-    ClearRegisters<RegisterT, true>(registers);
+  template <typename registered, bool spill = false>
+  void ClearRegisters(RegisterFrameState<registered>& registers);
+  template <typename registered>
+  void SpillAndClearRegisters(RegisterFrameState<registered>& registers) {
+    ClearRegisters<registered, true>(registers);
   }
   void ClearRegisters();
   void SpillAndClearRegisters();
@@ -238,32 +238,32 @@ class StraightForwardRegisterAllocator {
   void SaveRegisterSnapshot(NodeBase* node);
 
   void FreeRegistersUsedBy(ValueNode* node);
-  template <typename RegisterT>
-  RegisterT FreeUnblockedRegister(
-      RegListBase<RegisterT> reserved = RegListBase<RegisterT>());
-  template <typename RegisterT>
-  RegisterT PickRegisterToFree(RegListBase<RegisterT> reserved);
+  template <typename registered>
+  registered FreeUnblockedRegister(
+      RegListBase<registered> reserved = RegListBase<registered>());
+  template <typename registered>
+  registered PickRegisterToFree(RegListBase<registered> reserved);
 
-  template <typename RegisterT>
-  RegisterFrameState<RegisterT>& GetRegisterFrameState() {
-    if constexpr (std::is_same_v<RegisterT, Register>) {
+  template <typename registered>
+  RegisterFrameState<registered>& GetRegisterFrameState() {
+    if constexpr (std::is_same_v<registered, Register>) {
       return general_registers_;
     } else {
       return double_registers_;
     }
   }
 
-  template <typename RegisterT>
-  void DropRegisterValueAtEnd(RegisterT reg, bool force_spill = false);
+  template <typename registered>
+  void DropRegisterValueAtEnd(registered reg, bool force_spill = false);
   bool IsCurrentNodeLastUseOf(ValueNode* node);
-  template <typename RegisterT>
+  template <typename registered>
   void EnsureFreeRegisterAtEnd(const compiler::InstructionOperand& hint =
                                    compiler::InstructionOperand());
   compiler::AllocatedOperand AllocateRegisterAtEnd(ValueNode* node);
 
-  template <typename RegisterT>
-  void DropRegisterValue(RegisterFrameState<RegisterT>& registers,
-                         RegisterT reg, bool force_spill = false);
+  template <typename registered>
+  void DropRegisterValue(RegisterFrameState<registered>& registers,
+                         registered reg, bool force_spill = false);
   void DropRegisterValue(Register reg);
   void DropRegisterValue(DoubleRegister reg);
 
@@ -271,9 +271,9 @@ class StraightForwardRegisterAllocator {
       ValueNode* node, const compiler::InstructionOperand& hint =
                            compiler::InstructionOperand());
 
-  template <typename RegisterT>
+  template <typename registered>
   compiler::AllocatedOperand ForceAllocate(
-      RegisterFrameState<RegisterT>& registers, RegisterT reg, ValueNode* node);
+      RegisterFrameState<registered>& registers, registered reg, ValueNode* node);
   compiler::AllocatedOperand ForceAllocate(Register reg, ValueNode* node);
   compiler::AllocatedOperand ForceAllocate(DoubleRegister reg, ValueNode* node);
   compiler::AllocatedOperand ForceAllocate(ConstInput input, ValueNode* node);
@@ -293,9 +293,9 @@ class StraightForwardRegisterAllocator {
   bool AllUsedRegistersLiveAt(BasicBlock* target);
 #endif
 
-  template <typename RegisterT>
+  template <typename registered>
   void HoistLoopReloads(BasicBlock* target,
-                        RegisterFrameState<RegisterT>& registers);
+                        RegisterFrameState<registered>& registers);
   void HoistLoopSpills(BasicBlock* target);
   void InitializeBranchTargetRegisterValues(ControlNode* source,
                                             BasicBlock* target);

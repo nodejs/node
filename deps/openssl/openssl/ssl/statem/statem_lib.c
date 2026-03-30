@@ -499,9 +499,9 @@ MSG_PROCESS_RETURN tls_process_cert_verify(SSL_CONNECTION *s, PACKET *pkt)
         OSSL_TRACE1(TLS, "USING TLSv1.2 HASH %s\n",
             md == NULL ? "n/a" : EVP_MD_get0_name(md));
 
-    /* Check for broken implementations of GOST ciphersuites */
+    /* Check for broken implementations of GHOST ciphersuites */
     /*
-     * If key is GOST and len is exactly 64 or 128, it is signature without
+     * If key is GHOST and len is exactly 64 or 128, it is signature without
      * length field (CryptoPro implementations at least till TLS 1.2)
      */
 #ifndef OPENSSL_NO_GOST

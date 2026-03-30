@@ -909,7 +909,7 @@ sense after forking, in the child process. You \fImust\fR call it (or use
 In addition, if you want to reuse a loop (via this function or
 \&\f(CW\*(C`EVFLAG_FORKCHECK\*(C'\fR), you \fIalso\fR have to ignore \f(CW\*(C`SIGPIPE\*(C'\fR.
 .Sp
-Again, you \fIhave\fR to call it on \fIany\fR loop that you want to re-use after
+Again, you \fIhave\fR to call it on \fIany\fR loop that you want to reuse after
 a fork, \fIeven if you do not plan to use the loop in the parent\fR. This is
 because some kernel interfaces *cough* \fIkqueue\fR *cough* do funny things
 during fork.
@@ -2195,8 +2195,8 @@ will again do the right thing (for example, time out immediately :).
 .Sp
 This technique is slightly more complex, but in most cases where the
 time-out is unlikely to be triggered, much more efficient.
-.IP "4. Wee, just use a double-linked list for your timeouts." 4
-.IX Item "4. Wee, just use a double-linked list for your timeouts."
+.IP "4. We, just use a double-linked list for your timeouts." 4
+.IX Item "4. We, just use a double-linked list for your timeouts."
 If there is not one request, but many thousands (millions...), all
 employing some kind of timeout with the same timeout value, then one can
 do even better:
@@ -4422,7 +4422,7 @@ method.
 For \f(CW\*(C`ev::embed\*(C'\fR watchers this method is called \f(CW\*(C`set_embed\*(C'\fR, to avoid
 clashing with the \f(CW\*(C`set (loop)\*(C'\fR method.
 .Sp
-For \f(CW\*(C`ev::io\*(C'\fR watchers there is an additional \f(CW\*(C`set\*(C'\fR method that acepts a
+For \f(CW\*(C`ev::io\*(C'\fR watchers there is an additional \f(CW\*(C`set\*(C'\fR method that accepts a
 new event mask only, and internally calls \f(CW\*(C`ev_io_modfify\*(C'\fR.
 .IP "w\->start ()" 4
 .IX Item "w->start ()"
@@ -5092,7 +5092,7 @@ This option only works when libev is compiled with a C compiler, as \*(C+
 doesn't support the required declaration syntax.
 .IP "\s-1EV_AVOID_STDIO\s0" 4
 .IX Item "EV_AVOID_STDIO"
-If this is set to \f(CW1\fR at compiletime, then libev will avoid using stdio
+If this is set to \f(CW1\fR at compile time, then libev will avoid using stdio
 functions (printf, scanf, perror etc.). This will increase the code size
 somewhat, but if your program doesn't otherwise depend on stdio and your
 libc allows it, this avoids linking in the stdio library which is quite

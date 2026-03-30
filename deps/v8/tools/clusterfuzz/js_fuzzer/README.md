@@ -11,7 +11,7 @@ ClusterFuzz, so we use [pkg](https://github.com/zeit/pkg) to create a self
 contained binary) out of this.
 
 ## Prereqs
-You need to intall nodejs and npm. Run `npm install` in this directory.
+You need to install nodejs and npm. Run `npm install` in this directory.
 
 ## Fuzzing DB
 This fuzzer requires a fuzzing DB. To build one, get the latest `web_tests.zip`

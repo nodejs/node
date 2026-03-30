@@ -103,7 +103,7 @@ static int certify(X509 **xret, const char *infile, int informat,
     int verbose, unsigned long certopt, unsigned long nameopt,
     int default_op, int ext_copy, int selfsign, unsigned long dateopt);
 static int certify_cert(X509 **xret, const char *infile, int certformat,
-    const char *passin, EVP_PKEY *pkey, X509 *x509,
+    const char *passing, EVP_PKEY *pkey, X509 *x509,
     const char *dgst,
     STACK_OF(OPENSSL_STRING) *sigopts,
     STACK_OF(OPENSSL_STRING) *vfyopts,
@@ -265,7 +265,7 @@ const OPTIONS ca_options[] = {
     { "keyfile", OPT_KEYFILE, 's', "The CA private key" },
     { "keyform", OPT_KEYFORM, 'f',
         "Private key file format (ENGINE, other values ignored)" },
-    { "passin", OPT_PASSIN, 's', "Key and cert input file pass phrase source" },
+    { "passing", OPT_PASSIN, 's', "Key and cert input file pass phrase source" },
     { "key", OPT_KEY, 's',
         "Key to decrypt the private key or cert files if encrypted. Better use -passin" },
     { "cert", OPT_CERT, '<', "The CA cert" },
@@ -330,7 +330,7 @@ int ca_main(int argc, char **argv)
     unsigned long dateopt = ASN1_DTFLGS_RFC822;
     const char *infile = NULL, *spkac_file = NULL, *ss_cert_file = NULL;
     const char *extensions = NULL, *extfile = NULL, *passinarg = NULL;
-    char *passin = NULL;
+    char *passing = NULL;
     char *outdir = NULL, *outfile = NULL, *rev_arg = NULL, *ser_status = NULL;
     const char *serialfile = NULL, *subj = NULL;
     char *prog, *startdate = NULL, *enddate = NULL;
@@ -444,7 +444,7 @@ int ca_main(int argc, char **argv)
                 goto end;
             break;
         case OPT_KEY:
-            passin = opt_arg();
+            passing = opt_arg();
             break;
         case OPT_CERT:
             certfile = opt_arg();
@@ -629,15 +629,15 @@ end_of_options:
         && (keyfile = lookup_conf(conf, section, ENV_PRIVATE_KEY)) == NULL)
         goto end;
 
-    if (passin == NULL) {
+    if (passing == NULL) {
         free_passin = 1;
-        if (!app_passwd(passinarg, NULL, &passin, NULL)) {
+        if (!app_passwd(passinarg, NULL, &passing, NULL)) {
             BIO_printf(bio_err, "Error getting password\n");
             goto end;
         }
     }
-    pkey = load_key(keyfile, keyformat, 0, passin, e, "CA private key");
-    cleanse(passin);
+    pkey = load_key(keyfile, keyformat, 0, passing, e, "CA private key");
+    cleanse(passing);
     if (pkey == NULL)
         /* load_key() has already printed an appropriate message */
         goto end;
@@ -649,7 +649,7 @@ end_of_options:
             && (certfile = lookup_conf(conf, section, ENV_CERTIFICATE)) == NULL)
             goto end;
 
-        x509 = load_cert_pass(certfile, certformat, 1, passin, "CA certificate");
+        x509 = load_cert_pass(certfile, certformat, 1, passing, "CA certificate");
         if (x509 == NULL)
             goto end;
 
@@ -990,7 +990,7 @@ end_of_options:
         }
         if (ss_cert_file != NULL) {
             total++;
-            j = certify_cert(&x, ss_cert_file, certformat, passin, pkey,
+            j = certify_cert(&x, ss_cert_file, certformat, passing, pkey,
                 x509, dgst, sigopts, vfyopts, attribs,
                 db, serial, subj, chtype, multirdn, email_dn,
                 startdate, enddate, days, batch, extensions,
@@ -1315,7 +1315,7 @@ end_of_options:
         } else {
             X509 *revcert;
 
-            revcert = load_cert_pass(infile, informat, 1, passin,
+            revcert = load_cert_pass(infile, informat, 1, passing,
                 "certificate to be revoked");
             if (revcert == NULL)
                 goto end;
@@ -1345,9 +1345,9 @@ end:
     BIO_free_all(in);
     OSSL_STACK_OF_X509_free(cert_sk);
 
-    cleanse(passin);
+    cleanse(passing);
     if (free_passin)
-        OPENSSL_free(passin);
+        OPENSSL_free(passing);
     BN_free(serial);
     BN_free(crlnumber);
     free_index(db);
@@ -1429,7 +1429,7 @@ end:
 }
 
 static int certify_cert(X509 **xret, const char *infile, int certformat,
-    const char *passin, EVP_PKEY *pkey, X509 *x509,
+    const char *passing, EVP_PKEY *pkey, X509 *x509,
     const char *dgst,
     STACK_OF(OPENSSL_STRING) *sigopts,
     STACK_OF(OPENSSL_STRING) *vfyopts,
@@ -1445,7 +1445,7 @@ static int certify_cert(X509 **xret, const char *infile, int certformat,
     EVP_PKEY *pktmp = NULL;
     int ok = -1, i;
 
-    if ((template_cert = load_cert_pass(infile, certformat, 1, passin,
+    if ((template_cert = load_cert_pass(infile, certformat, 1, passing,
              "template certificate"))
         == NULL)
         goto end;
@@ -1501,7 +1501,7 @@ static int do_body(X509 **xret, EVP_PKEY *pkey, X509 *x509,
     ASN1_STRING *str, *str2;
     ASN1_OBJECT *obj;
     X509 *ret = NULL;
-    X509_NAME_ENTRY *ne, *tne;
+    X509_NAME_ENTRY *ne, *the;
     EVP_PKEY *pktmp;
     int ok = -1, i, j, last, nid;
     const char *p;
@@ -1605,29 +1605,29 @@ static int do_body(X509 **xret, EVP_PKEY *pkey, X509 *x509,
             if (j < 0) {
                 if (last != -1)
                     break;
-                tne = NULL;
+                the = NULL;
             } else {
-                tne = X509_NAME_get_entry(name, j);
+                the = X509_NAME_get_entry(name, j);
             }
             last = j;
 
             /* depending on the 'policy', decide what to do. */
             if (strcmp(cv->value, "optional") == 0) {
-                if (tne != NULL)
-                    push = tne;
+                if (the != NULL)
+                    push = the;
             } else if (strcmp(cv->value, "supplied") == 0) {
-                if (tne == NULL) {
+                if (the == NULL) {
                     BIO_printf(bio_err,
                         "The %s field needed to be supplied and was missing\n",
                         cv->name);
                     goto end;
                 } else {
-                    push = tne;
+                    push = the;
                 }
             } else if (strcmp(cv->value, "match") == 0) {
                 int last2;
 
-                if (tne == NULL) {
+                if (the == NULL) {
                     BIO_printf(bio_err,
                         "The mandatory %s field was missing\n",
                         cv->name);
@@ -1647,7 +1647,7 @@ static int do_body(X509 **xret, EVP_PKEY *pkey, X509 *x509,
                 }
                 if (j >= 0) {
                     push = X509_NAME_get_entry(CAname, j);
-                    str = X509_NAME_ENTRY_get_data(tne);
+                    str = X509_NAME_ENTRY_get_data(the);
                     str2 = X509_NAME_ENTRY_get_data(push);
                     last2 = j;
                     if (ASN1_STRING_cmp(str, str2) != 0)

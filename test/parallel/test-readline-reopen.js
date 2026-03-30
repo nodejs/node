@@ -1,7 +1,7 @@
 'use strict';
 
 // Regression test for https://github.com/nodejs/node/issues/13557
-// Tests that multiple subsequent readline instances can re-use an input stream.
+// Tests that multiple subsequent readline instances can reuse an input stream.
 
 const common = require('../common');
 const assert = require('assert');

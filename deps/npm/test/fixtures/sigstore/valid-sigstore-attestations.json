@@ -25,7 +25,7 @@
                 "keyId": "wNI9atQGlz+VWfO6LRygH4QUfY/8W4RFwiT5i5WRgB0="
               },
               "kindVersion": {
-                "kind": "intoto",
+                "kind": "into",
                 "version": "0.0.2"
               },
               "integratedTime": "1675965360",
@@ -65,7 +65,7 @@
                 "keyId": "wNI9atQGlz+VWfO6LRygH4QUfY/8W4RFwiT5i5WRgB0="
               },
               "kindVersion": {
-                "kind": "intoto",
+                "kind": "into",
                 "version": "0.0.2"
               },
               "integratedTime": "1675965362",

@@ -93,7 +93,7 @@ test('AbortSignal.abort() creates an already aborted signal', () => {
   assert.ok(signal.aborted);
 });
 
-test('AbortController properties and methods valiate the receiver', () => {
+test('AbortController properties and methods validate the receiver', () => {
   const acSignalGet = Object.getOwnPropertyDescriptor(
     AbortController.prototype,
     'signal'

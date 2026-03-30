@@ -18,7 +18,7 @@ namespace v8::internal::compiler::turboshaft {
 //   - VariableReducer can introduce phi nodes for call target constants, which
 //     have to be reduced in order for instruction selection to detect the call
 //     target. So we have to run RequiredOptimizationReducer at least once after
-//     every occurence of VariableReducer.
+//     every occurrence of VariableReducer.
 //   - Loop peeling/unrolling can introduce phi nodes for RttCanons, which have
 //     to be reduced to aid `WasmGCTypedOptimizationReducer` resolve type
 //     indices corresponding to RttCanons.

@@ -765,7 +765,7 @@ JSNativeContextSpecialization::InferHasInPrototypeChain(
         break;
       }
       map = map_prototype.map(broker());
-      // TODO(v8:11457) Support dictionary mode protoypes here.
+      // TODO(v8:11457) Support dictionary mode prototypes here.
       if (!map.is_stable() || map.is_dictionary_map()) {
         return kMayBeInPrototypeChain;
       }
@@ -3051,7 +3051,7 @@ JSNativeContextSpecialization::BuildPropertyLoad(
 JSNativeContextSpecialization::ValueEffectControl
 JSNativeContextSpecialization::BuildPropertyTest(
     Node* effect, Node* control, PropertyAccessInfo const& access_info) {
-  // TODO(v8:11457) Support property tests for dictionary mode protoypes.
+  // TODO(v8:11457) Support property tests for dictionary mode prototypes.
   DCHECK(!access_info.HasDictionaryHolder());
 
   // Determine actual holder and perform prototype chain checks.

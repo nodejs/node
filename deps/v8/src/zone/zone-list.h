@@ -68,7 +68,7 @@ class ZoneList final : public ZoneObject {
     // We don't have a Zone object, so we'll have to drop the data_ array.
     // If this assert ever fails, consider calling Clear(Zone*) or
     // DropAndClear() before the move assignment to make it explicit what's
-    // happenning with the lvalue.
+    // happening with the lvalue.
     DCHECK_NULL(data_);
     data_ = other.data_;
     capacity_ = other.capacity_;

@@ -37,8 +37,8 @@ void ulocbld_setLocale(ULocaleBuilder* builder, const char* locale, int32_t leng
         if (length >= ULOC_FULLNAME_CAPACITY) {
             l.setToBogus();
         } else {
-            // locale is not null termined but Locale API require one.
-            // Create a null termined version in buf.
+            // locale is not null terminated but Locale API require one.
+            // Create a null terminated version in buf.
             char buf[ULOC_FULLNAME_CAPACITY];
             uprv_memcpy(buf, locale, length);
             buf[length] = '\0';

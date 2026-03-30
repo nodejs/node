@@ -257,7 +257,7 @@ impl<T: VarULE + ?Sized, F: VarZeroVecFormat> VarZeroVecOwned<T, F> {
     ///
     /// ## Safety
     /// - `index` must be a valid index, or, if `shift_type == ShiftType::Insert`, `index == self.len()` is allowed.
-    /// - `new_size` musn't result in the data segment growing larger than `F::Index::MAX_VALUE`.
+    /// - `new_size` mustn't result in the data segment growing larger than `F::Index::MAX_VALUE`.
     unsafe fn shift(&mut self, index: usize, new_size: usize, shift_type: ShiftType) -> &mut [u8] {
         // The format of the encoded data is:
         //  - four bytes of "len"

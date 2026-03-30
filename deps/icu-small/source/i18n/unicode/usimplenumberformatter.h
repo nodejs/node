@@ -200,7 +200,7 @@ usnumf_openForLocaleAndGroupingStrategy(
 /**
  * Formats a number using this SimpleNumberFormatter.
  *
- * The USimpleNumber is cleared after calling this function. It can be re-used via
+ * The USimpleNumber is cleared after calling this function. It can be reused via
  * usnum_setToInt64.
  *
  * @stable ICU 73

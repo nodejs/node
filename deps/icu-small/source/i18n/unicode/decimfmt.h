@@ -253,7 +253,7 @@ class NumberParserImpl;
  *     <td>Yes
  *     <td>Multiply by 1000 and show as per mille
  *   <tr valign=top>
- *     <td><code>\htmlonly&curren;\endhtmlonly</code> (<code>\\u00A4</code>)
+ *     <td><code>\htmlonly&current;\endhtmlonly</code> (<code>\\u00A4</code>)
  *     <td>Prefix or suffix
  *     <td>No
  *     <td>Currency sign, replaced by currency symbol.  If

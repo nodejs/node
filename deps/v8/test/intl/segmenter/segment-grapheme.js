@@ -8,7 +8,7 @@ for (const text of [
     " Hello world! ",  // English with space before/after
     " Hello world? Foo bar!", // English
     "Jedovatou mambu objevila žena v zahrádkářské kolonii.", // Czech
-    "Việt Nam: Nhất thể hóa sẽ khác Trung Quốc?",  // Vietnamese
+    "Việt Name: Nhất thể hóa sẽ khác Trung Quốc?",  // Vietnamese
     "Σοβαρές ενστάσεις Κομισιόν για τον προϋπολογισμό της Ιταλίας", // Greek
     "Решение Индии о покупке российских С-400 расценили как вызов США",  // Russian
     "הרופא שהציל נשים והנערה ששועבדה ע",  // Hebrew,

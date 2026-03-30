@@ -87,9 +87,9 @@ public:
     SOCKET fd() const { return socket_; }
 
     void send(const char *data, size_t n_bytes) {
-        socklen_t tolen = sizeof(struct sockaddr);
+        socklen_t token = sizeof(struct sockaddr);
         if (::sendto(socket_, data, static_cast<int>(n_bytes), 0, (struct sockaddr *)&addr_,
-                     tolen) == -1) {
+                     token) == -1) {
             throw_spdlog_ex("sendto(2) failed", errno);
         }
     }

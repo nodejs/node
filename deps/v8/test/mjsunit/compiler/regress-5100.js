@@ -10,7 +10,7 @@ a["false"] = "false";
 a["null"] = "null";
 a["undefined"] = "undefined";
 
-// Ensure we don't accidentially truncate true when used to index arrays.
+// Ensure we don't accidentally truncate true when used to index arrays.
 (function() {
   function f(x) { return a[x]; }
 
@@ -21,7 +21,7 @@ a["undefined"] = "undefined";
   assertEquals("true", f(true));
 })();
 
-// Ensure we don't accidentially truncate false when used to index arrays.
+// Ensure we don't accidentally truncate false when used to index arrays.
 (function() {
   function f( x) { return a[x]; }
 
@@ -32,7 +32,7 @@ a["undefined"] = "undefined";
   assertEquals("false", f(false));
 })();
 
-// Ensure we don't accidentially truncate null when used to index arrays.
+// Ensure we don't accidentally truncate null when used to index arrays.
 (function() {
   function f( x) { return a[x]; }
 
@@ -43,7 +43,7 @@ a["undefined"] = "undefined";
   assertEquals("null", f(null));
 })();
 
-// Ensure we don't accidentially truncate undefined when used to index arrays.
+// Ensure we don't accidentally truncate undefined when used to index arrays.
 (function() {
   function f( x) { return a[x]; }
 

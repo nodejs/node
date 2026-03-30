@@ -26,7 +26,7 @@ class Session;
 // and queries to the Wasm engine, and send back GDB-remote packets.
 class Target {
  public:
-  // Contruct a Target object.
+  // Construct a Target object.
   explicit Target(GdbServer* gdb_server);
   Target(const Target&) = delete;
   Target& operator=(const Target&) = delete;
@@ -80,7 +80,7 @@ class Target {
     Detach,    // Request to detach from the debugger.
     Kill       // Request to terminate the debuggee process.
   };
-  // This function always succeedes, since all errors are reported as an error
+  // This function always succeeds, since all errors are reported as an error
   // string "Exx" where xx is a two digit number.
   // The return value indicates if the target can resume execution or it is
   // still paused.

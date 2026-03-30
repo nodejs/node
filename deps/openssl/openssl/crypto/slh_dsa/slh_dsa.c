@@ -313,7 +313,7 @@ int ossl_slh_dsa_verify(SLH_DSA_HASH_CTX *slh_ctx,
 
 /*
  * See FIPS 205 Algorithm 2 toInt(X, n)
- * OPENSSL_load_u64_be() cant be used here as the |in_len| may be < 8
+ * OPENSSL_load_u64_be() can't be used here as the |in_len| may be < 8
  */
 static uint64_t bytes_to_u64_be(const uint8_t *in, size_t in_len)
 {

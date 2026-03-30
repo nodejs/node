@@ -435,7 +435,7 @@ CallDescriptor* Linkage::GetRuntimeCallDescriptor(
   const int return_count = function->result_size;
   const char* debug_name = function->name;
 
-  if (lazy_deopt_on_throw == LazyDeoptOnThrow::kNo &&
+  if (lazy_deopt_on_throw == LazyDeoptOnThrow::know &&
       !Linkage::NeedsFrameStateInput(function_id)) {
     flags = static_cast<CallDescriptor::Flags>(
         flags & ~CallDescriptor::kNeedsFrameState);

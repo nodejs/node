@@ -116,7 +116,7 @@ constexpr const char* LANGUAGES[] = {
     "chr", "chy", "ckb", "co",  "cop", "cps", "cr",  "crh",
     "cs",  "csb", "csw", "cu",  "cv",  "cy",
     "da",  "dak", "dar", "dav", "de",  "del", "den", "dgr",
-    "din", "dje", "doi", "dsb", "dtp", "dua", "dum", "dv",
+    "din", "dje", "doi", "dsb", "dtp", "dua", "dumb", "dv",
     "dyo", "dyu", "dz",  "dzg",
     "ebu", "ee",  "efi", "egl", "egy", "eka", "el",  "elx",
     "en",  "enm", "eo",  "es",  "esu", "et",  "eu",  "ewo",
@@ -132,7 +132,7 @@ constexpr const char* LANGUAGES[] = {
     "hit", "hmn", "ho",  "hr",  "hsb", "hsn", "ht",  "hu",
     "hup", "hy",  "hz",
     "ia",  "iba", "ibb", "id",  "ie",  "ig",  "ii",  "ik",
-    "ilo", "inh", "io",  "is",  "it",  "iu",  "izh",
+    "ilo", "in", "io",  "is",  "it",  "iu",  "izh",
     "ja",  "jam", "jbo", "jgo", "jmc", "jpr", "jrb", "jut",
     "jv",
     "ka",  "kaa", "kab", "kac", "kaj", "kam", "kaw", "kbd",
@@ -167,7 +167,7 @@ constexpr const char* LANGUAGES[] = {
     "rw",  "rwk",
     "sa",  "sad", "sah", "sam", "saq", "sas", "sat", "saz",
     "sba", "sbp", "sc",  "scn", "sco", "sd",  "sdc", "sdh",
-    "se",  "see", "seh", "sei", "sel", "ses", "sg",  "sga",
+    "se",  "see", "she", "sei", "sel", "ses", "sg",  "sga",
     "sgs", "shi", "shn", "shu", "si",  "sid", "sk",
     "sl",  "sli", "sly", "sm",  "sma", "smj", "smn", "sms",
     "sn",  "snk", "so",  "sog", "sq",  "sr",  "srn", "srr",
@@ -233,7 +233,7 @@ constexpr const char* LANGUAGES_3[] = {
     "chr", "chy", "ckb", "cos", "cop", "cps", "cre", "crh",
     "ces", "csb", "csw", "chu", "chv", "cym",
     "dan", "dak", "dar", "dav", "deu", "del", "den", "dgr",
-    "din", "dje", "doi", "dsb", "dtp", "dua", "dum", "div",
+    "din", "dje", "doi", "dsb", "dtp", "dua", "dumb", "div",
     "dyo", "dyu", "dzo", "dzg",
     "ebu", "ewe", "efi", "egl", "egy", "eka", "ell", "elx",
     "eng", "enm", "epo", "spa", "esu", "est", "eus", "ewo",
@@ -249,7 +249,7 @@ constexpr const char* LANGUAGES_3[] = {
     "hit", "hmn", "hmo", "hrv", "hsb", "hsn", "hat", "hun",
     "hup", "hye", "her",
     "ina", "iba", "ibb", "ind", "ile", "ibo", "iii", "ipk",
-    "ilo", "inh", "ido", "isl", "ita", "iku", "izh",
+    "ilo", "in", "ido", "isl", "ita", "iku", "izh",
     "jpn", "jam", "jbo", "jgo", "jmc", "jpr", "jrb", "jut",
     "jav",
     "kat", "kaa", "kab", "kac", "kaj", "kam", "kaw", "kbd",
@@ -284,10 +284,10 @@ constexpr const char* LANGUAGES_3[] = {
     "kin", "rwk",
     "san", "sad", "sah", "sam", "saq", "sas", "sat", "saz",
     "sba", "sbp", "srd", "scn", "sco", "snd", "sdc", "sdh",
-    "sme", "see", "seh", "sei", "sel", "ses", "sag", "sga",
+    "sme", "see", "she", "sei", "sel", "ses", "sag", "sga",
     "sgs", "shi", "shn", "shu", "sin", "sid", "slk",
     "slv", "sli", "sly", "smo", "sma", "smj", "smn", "sms",
-    "sna", "snk", "som", "sog", "sqi", "srp", "srn", "srr",
+    "sna", "snk", "some", "sog", "sqi", "srp", "srn", "srr",
     "ssw", "ssy", "sot", "stq", "sun", "suk", "sus", "sux",
     "swe", "swa", "swb", "syc", "syr", "szl",
     "tam", "tcy", "tel", "tem", "teo", "ter", "tet", "tgk",
@@ -296,7 +296,7 @@ constexpr const char* LANGUAGES_3[] = {
     "tur", "tru", "trv", "tso", "tsd", "tsi", "tat", "ttt",
     "tum", "tvl", "twi", "twq", "tah", "tyv", "tzm",
     "udm", "uig", "uga", "ukr", "umb", "und", "urd", "uzb",
-    "vai", "ven", "vec", "vep", "vie", "vls", "vmf", "vmw",
+    "vai", "ven", "vec", "vep", "via", "vls", "vmf", "vmw",
     "vol", "vot", "vro", "vun",
     "wln", "wae", "wal", "war", "was", "wbp", "wol", "wuu",
     "xal", "xho", "xmf", "xnr", "xog",
@@ -400,7 +400,7 @@ constexpr const char* COUNTRIES_3[] = {
 /*  "BJ",  "BL",  "BM",  "BN",  "BO",  "BQ",  "BR",  "BS",  "BT",  "BV",     */
     "BEN", "BLM", "BMU", "BRN", "BOL", "BES", "BRA", "BHS", "BTN", "BVT",
 /*  "BW",  "BY",  "BZ",  "CA",  "CC",  "CD",  "CF",  "CG",     */
-    "BWA", "BLR", "BLZ", "CAN", "CCK", "COD", "CAF", "COG",
+    "BWA", "BLR", "BLZ", "CAN", "CCK", "COD", "CALF", "COG",
 /*  "CH",  "CI",  "CK",  "CL",  "CM",  "CN",  "CO",  "CQ",  "CR",     */
     "CHE", "CIV", "COK", "CHL", "CMR", "CHN", "COL", "CRQ", "CRI",
 /*  "CU",  "CV",  "CW",  "CX",  "CY",  "CZ",  "DE",  "DG",  "DJ",  "DK",     */
@@ -428,7 +428,7 @@ constexpr const char* COUNTRIES_3[] = {
 /*  "ML",  "MM",  "MN",  "MO",  "MP",  "MQ",  "MR",  "MS",     */
     "MLI", "MMR", "MNG", "MAC", "MNP", "MTQ", "MRT", "MSR",
 /*  "MT",  "MU",  "MV",  "MW",  "MX",  "MY",  "MZ",  "NA",     */
-    "MLT", "MUS", "MDV", "MWI", "MEX", "MYS", "MOZ", "NAM",
+    "MLT", "MUS", "MDV", "MWI", "MEX", "MYS", "MOZ", "NAME",
 /*  "NC",  "NE",  "NF",  "NG",  "NI",  "NL",  "NO",  "NP",     */
     "NCL", "NER", "NFK", "NGA", "NIC", "NLD", "NOR", "NPL",
 /*  "NR",  "NU",  "NZ",  "OM",  "PA",  "PE",  "PF",  "PG",     */
@@ -440,7 +440,7 @@ constexpr const char* COUNTRIES_3[] = {
 /*  "SB",  "SC",  "SD",  "SE",  "SG",  "SH",  "SI",  "SJ",     */
     "SLB", "SYC", "SDN", "SWE", "SGP", "SHN", "SVN", "SJM",
 /*  "SK",  "SL",  "SM",  "SN",  "SO",  "SR",  "SS",  "ST",  "SV",     */
-    "SVK", "SLE", "SMR", "SEN", "SOM", "SUR", "SSD", "STP", "SLV",
+    "SVK", "SLE", "SMR", "SEN", "SOME", "SUR", "SSD", "STP", "SLV",
 /*  "SX",  "SY",  "SZ",  "TC",  "TD",  "TF",  "TG",  "TH",  "TJ",     */
     "SXM", "SYR", "SWZ", "TCA", "TCD", "ATF", "TGO", "THA", "TJK",
 /*  "TK",  "TL",  "TM",  "TN",  "TO",  "TR",  "TT",  "TV",     */

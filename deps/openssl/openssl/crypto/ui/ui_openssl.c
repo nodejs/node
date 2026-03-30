@@ -686,9 +686,9 @@ static int noecho_fgets(char *buf, int size, FILE *tty)
      * flushing the console appears to do the trick.
      */
     {
-        HANDLE inh;
-        inh = GetStdHandle(STD_INPUT_HANDLE);
-        FlushConsoleInputBuffer(inh);
+        HANDLE in;
+        in = GetStdHandle(STD_INPUT_HANDLE);
+        FlushConsoleInputBuffer(in);
     }
 #endif
     return strlen(buf);

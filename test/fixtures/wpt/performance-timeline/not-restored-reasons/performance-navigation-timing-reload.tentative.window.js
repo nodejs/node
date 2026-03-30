@@ -39,7 +39,7 @@ promise_test(async t => {
     location.reload();
   }, []);
 
-  // Becauase of the reload, notRestoredReasons is reset.
+  // Because of the reload, notRestoredReasons is reset.
   const navigation_entry = await rc1.executeScript(() => {
     return performance.getEntriesByType('navigation')[0];
   });

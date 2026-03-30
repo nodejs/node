@@ -40,7 +40,7 @@ stalls and timeouts may occur.  The callback \fBmust not\fP call
 any advantage of this use-case.
 
 This is considered an optimization, especially when using TLS-based connections
-which add additional overhead to the data stream.  Due to the asyncronous nature
+which add additional overhead to the data stream.  Due to the asynchronous nature
 of c-ares, there is no way to identify when a caller may be finished enqueuing
 queries via any of the possible public API calls such as
 \fBares_getaddrinfo(3)\fP or \fBares_search_dnsrec(3)\fP, so this is an

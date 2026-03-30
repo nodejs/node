@@ -1060,7 +1060,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ StoreU64(kScratchReg,
                     MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
         __ mtlr(r0);
-        set_isolate_data_slots = SetIsolateDataSlots::kNo;
+        set_isolate_data_slots = SetIsolateDataSlots::know;
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
       int pc_offset;
@@ -3678,7 +3678,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     MachineRepresentation rep = LocationOperand::cast(source)->representation();
     if (rep == MachineRepresentation::kSimd128) {
       if (destination->IsSimd128Register()) {
-        __ vor(g.ToSimd128Register(destination), g.ToSimd128Register(source),
+        __ for(g.ToSimd128Register(destination), g.ToSimd128Register(source),
                g.ToSimd128Register(source));
       } else {
         DCHECK(destination->IsSimd128StackSlot());
@@ -3736,7 +3736,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
   }
 }
 
-// Swaping contents in source and destination.
+// Swapping contents in source and destination.
 // source and destination could be:
 //   Register,
 //   FloatRegister,

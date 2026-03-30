@@ -227,12 +227,12 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   void JumpIfTaggedEqual(TNode<Object> lhs, TNode<Object> rhs,
                          TNode<IntPtrT> jump_offset);
 
-  // Jump forward relative to the current bytecode by offest specified in
+  // Jump forward relative to the current bytecode by offset specified in
   // operand |operand_index| if the word values |lhs| and |rhs| are equal.
   void JumpIfTaggedEqual(TNode<Object> lhs, TNode<Object> rhs,
                          int operand_index);
 
-  // Jump forward relative to the current bytecode by offest specified from the
+  // Jump forward relative to the current bytecode by offset specified from the
   // constant pool if the word values |lhs| and |rhs| are equal.
   // The constant's index is specified in operand |operand_index|.
   void JumpIfTaggedEqualConstant(TNode<Object> lhs, TNode<Object> rhs,
@@ -243,12 +243,12 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   void JumpIfTaggedNotEqual(TNode<Object> lhs, TNode<Object> rhs,
                             TNode<IntPtrT> jump_offset);
 
-  // Jump forward relative to the current bytecode by offest specified in
+  // Jump forward relative to the current bytecode by offset specified in
   // operand |operand_index| if the word values |lhs| and |rhs| are not equal.
   void JumpIfTaggedNotEqual(TNode<Object> lhs, TNode<Object> rhs,
                             int operand_index);
 
-  // Jump forward relative to the current bytecode by offest specified from the
+  // Jump forward relative to the current bytecode by offset specified from the
   // constant pool if the word values |lhs| and |rhs| are not equal.
   // The constant's index is specified in operand |operand_index|.
   void JumpIfTaggedNotEqualConstant(TNode<Object> lhs, TNode<Object> rhs,
@@ -412,13 +412,13 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // JumpIfTaggedNotEqual.
   void JumpConditional(TNode<BoolT> condition, TNode<IntPtrT> jump_offset);
 
-  // Jump forward relative to the current bytecode by offest specified in
+  // Jump forward relative to the current bytecode by offset specified in
   // operand |operand_index| if the |condition| is true. Helper function for
   // JumpIfTaggedEqual and JumpIfTaggedNotEqual.
   void JumpConditionalByImmediateOperand(TNode<BoolT> condition,
                                          int operand_index);
 
-  // Jump forward relative to the current bytecode by offest specified from the
+  // Jump forward relative to the current bytecode by offset specified from the
   // constant pool if the |condition| is true. The constant's index is specified
   // in operand |operand_index|. Helper function for JumpIfTaggedEqualConstant
   // and JumpIfTaggedNotEqualConstant.

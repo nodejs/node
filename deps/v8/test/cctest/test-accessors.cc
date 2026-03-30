@@ -718,7 +718,7 @@ namespace {
 v8::Intercepted EmptyGenericGetter(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 void OneProperty(Local<Name> name,

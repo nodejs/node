@@ -14,7 +14,7 @@ void CrossHeapRememberedSet::RememberReferenceIfNeeded(
     Isolate& isolate, Tagged<CppHeapPointerWrapperObjectT> host_obj,
     void* cppgc_object) {
   DCHECK_NOT_NULL(cppgc_object);
-  // Any in-cage pointer must point to a vaild, not freed cppgc object.
+  // Any in-cage pointer must point to a valid, not freed cppgc object.
   auto* page =
       cppgc::internal::BasePage::FromInnerAddress(&heap_base_, cppgc_object);
   // TODO(v8:13475): Better filter with on-cage check.

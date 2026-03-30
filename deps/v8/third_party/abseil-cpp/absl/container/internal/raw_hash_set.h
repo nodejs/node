@@ -128,7 +128,7 @@
 // The `H2` bits ensure when we compare a slot to an object with `==`, we are
 // likely to have actually found the object.  That is, the chance is low that
 // `==` is called and returns `false`.  Thus, when we search for an object, we
-// are unlikely to call `==` many times.  This likelyhood can be analyzed as
+// are unlikely to call `==` many times.  This likelihood can be analyzed as
 // follows (assuming that H2 is a random enough hash function).
 //
 // Let's assume that there are `k` "wrong" objects that must be examined in a

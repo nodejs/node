@@ -174,7 +174,7 @@ static SSL_CIPHER tls13_ciphers[] = {
  *      EC
  *      PSK
  *      SRP (within that: RSA EC PSK)
- *      Cipher families: Chacha/poly, Camellia, Gost, IDEA, SEED
+ *      Cipher families: Chacha/poly, Camellia, Ghost, IDEA, SEED
  *      Weak ciphers
  */
 static SSL_CIPHER ssl3_ciphers[] = {
@@ -3951,7 +3951,7 @@ static char *srp_password_from_info_cb(SSL *s, void *arg)
 
 static int ssl3_set_req_cert_type(CERT *c, const unsigned char *p, size_t len);
 
-long ssl3_ctrl(SSL *s, int cmd, long larg, void *parg)
+long ssl3_ctrl(SSL *s, int cmd, long large, void *parg)
 {
     int ret = 0;
     SSL_CONNECTION *sc = SSL_CONNECTION_FROM_SSL(s);
@@ -3999,7 +3999,7 @@ long ssl3_ctrl(SSL *s, int cmd, long larg, void *parg)
     }
 #endif
     case SSL_CTRL_SET_DH_AUTO:
-        sc->cert->dh_tmp_auto = larg;
+        sc->cert->dh_tmp_auto = large;
         return 1;
 #if !defined(OPENSSL_NO_DEPRECATED_3_0)
     case SSL_CTRL_SET_TMP_ECDH: {
@@ -4025,7 +4025,7 @@ long ssl3_ctrl(SSL *s, int cmd, long larg, void *parg)
          * make ABI-breaking changes, we may want to make use of this API
          * an error on server SSLs.
          */
-        if (larg == TLSEXT_NAMETYPE_host_name) {
+        if (large == TLSEXT_NAMETYPE_host_name) {
             size_t len;
 
             OPENSSL_free(sc->ext.hostname);
@@ -4058,7 +4058,7 @@ long ssl3_ctrl(SSL *s, int cmd, long larg, void *parg)
         break;
 
     case SSL_CTRL_SET_TLSEXT_STATUS_REQ_TYPE:
-        sc->ext.status_type = larg;
+        sc->ext.status_type = large;
         ret = 1;
         break;
 
@@ -4092,18 +4092,18 @@ long ssl3_ctrl(SSL *s, int cmd, long larg, void *parg)
     case SSL_CTRL_SET_TLSEXT_STATUS_REQ_OCSP_RESP:
         OPENSSL_free(sc->ext.ocsp.resp);
         sc->ext.ocsp.resp = parg;
-        sc->ext.ocsp.resp_len = larg;
+        sc->ext.ocsp.resp_len = large;
         ret = 1;
         break;
 
     case SSL_CTRL_CHAIN:
-        if (larg)
+        if (large)
             return ssl_cert_set1_chain(sc, NULL, (STACK_OF(X509) *)parg);
         else
             return ssl_cert_set0_chain(sc, NULL, (STACK_OF(X509) *)parg);
 
     case SSL_CTRL_CHAIN_CERT:
-        if (larg)
+        if (large)
             return ssl_cert_add1_chain_cert(sc, NULL, (X509 *)parg);
         else
             return ssl_cert_add0_chain_cert(sc, NULL, (X509 *)parg);
@@ -4117,7 +4117,7 @@ long ssl3_ctrl(SSL *s, int cmd, long larg, void *parg)
         return ssl_cert_select_current(sc->cert, (X509 *)parg);
 
     case SSL_CTRL_SET_CURRENT_CERT:
-        if (larg == SSL_CERT_SET_SERVER) {
+        if (large == SSL_CERT_SET_SERVER) {
             const SSL_CIPHER *cipher;
             if (!sc->server)
                 return 0;
@@ -4135,7 +4135,7 @@ long ssl3_ctrl(SSL *s, int cmd, long larg, void *parg)
             sc->cert->key = sc->s3.tmp.cert;
             return 1;
         }
-        return ssl_cert_set_current(sc->cert, larg);
+        return ssl_cert_set_current(sc->cert, large);
 
     case SSL_CTRL_GET_GROUPS: {
         uint16_t *clist;
@@ -4169,7 +4169,7 @@ long ssl3_ctrl(SSL *s, int cmd, long larg, void *parg)
             &sc->ext.keyshares_len,
             &sc->ext.tuples,
             &sc->ext.tuples_len,
-            parg, larg);
+            parg, large);
 
     case SSL_CTRL_SET_GROUPS_LIST:
         return tls1_set_groups_list(s->ctx,
@@ -4182,9 +4182,9 @@ long ssl3_ctrl(SSL *s, int cmd, long larg, void *parg)
             parg);
 
     case SSL_CTRL_GET_SHARED_GROUP: {
-        uint16_t id = tls1_shared_group(sc, larg);
+        uint16_t id = tls1_shared_group(sc, large);
 
-        if (larg != -1)
+        if (large != -1)
             return tls1_group_id2nid(id, 1);
         return id;
     }
@@ -4199,13 +4199,13 @@ long ssl3_ctrl(SSL *s, int cmd, long larg, void *parg)
         break;
     }
     case SSL_CTRL_SET_SIGALGS:
-        return tls1_set_sigalgs(sc->cert, parg, larg, 0);
+        return tls1_set_sigalgs(sc->cert, parg, large, 0);
 
     case SSL_CTRL_SET_SIGALGS_LIST:
         return tls1_set_sigalgs_list(s->ctx, sc->cert, parg, 0);
 
     case SSL_CTRL_SET_CLIENT_SIGALGS:
-        return tls1_set_sigalgs(sc->cert, parg, larg, 1);
+        return tls1_set_sigalgs(sc->cert, parg, large, 1);
 
     case SSL_CTRL_SET_CLIENT_SIGALGS_LIST:
         return tls1_set_sigalgs_list(s->ctx, sc->cert, parg, 1);
@@ -4222,16 +4222,16 @@ long ssl3_ctrl(SSL *s, int cmd, long larg, void *parg)
     case SSL_CTRL_SET_CLIENT_CERT_TYPES:
         if (!sc->server)
             return 0;
-        return ssl3_set_req_cert_type(sc->cert, parg, larg);
+        return ssl3_set_req_cert_type(sc->cert, parg, large);
 
     case SSL_CTRL_BUILD_CERT_CHAIN:
-        return ssl_build_cert_chain(sc, NULL, larg);
+        return ssl_build_cert_chain(sc, NULL, large);
 
     case SSL_CTRL_SET_VERIFY_CERT_STORE:
-        return ssl_cert_set_cert_store(sc->cert, parg, 0, larg);
+        return ssl_cert_set_cert_store(sc->cert, parg, 0, large);
 
     case SSL_CTRL_SET_CHAIN_CERT_STORE:
-        return ssl_cert_set_cert_store(sc->cert, parg, 1, larg);
+        return ssl_cert_set_cert_store(sc->cert, parg, 1, large);
 
     case SSL_CTRL_GET_VERIFY_CERT_STORE:
         return ssl_cert_get_cert_store(sc->cert, parg, 0);
@@ -4346,7 +4346,7 @@ long ssl3_callback_ctrl(SSL *s, int cmd, void (*fp)(void))
     return ret;
 }
 
-long ssl3_ctx_ctrl(SSL_CTX *ctx, int cmd, long larg, void *parg)
+long ssl3_ctx_ctrl(SSL_CTX *ctx, int cmd, long large, void *parg)
 {
     switch (cmd) {
 #if !defined(OPENSSL_NO_DEPRECATED_3_0)
@@ -4373,7 +4373,7 @@ long ssl3_ctx_ctrl(SSL_CTX *ctx, int cmd, long larg, void *parg)
     }
 #endif
     case SSL_CTRL_SET_DH_AUTO:
-        ctx->cert->dh_tmp_auto = larg;
+        ctx->cert->dh_tmp_auto = large;
         return 1;
 #if !defined(OPENSSL_NO_DEPRECATED_3_0)
     case SSL_CTRL_SET_TMP_ECDH: {
@@ -4399,7 +4399,7 @@ long ssl3_ctx_ctrl(SSL_CTX *ctx, int cmd, long larg, void *parg)
         long tick_keylen = (sizeof(ctx->ext.tick_key_name) + sizeof(ctx->ext.secure->tick_hmac_key) + sizeof(ctx->ext.secure->tick_aes_key));
         if (keys == NULL)
             return tick_keylen;
-        if (larg != tick_keylen) {
+        if (large != tick_keylen) {
             ERR_raise(ERR_LIB_SSL, SSL_R_INVALID_TICKET_KEYS_LENGTH);
             return 0;
         }
@@ -4429,7 +4429,7 @@ long ssl3_ctx_ctrl(SSL_CTX *ctx, int cmd, long larg, void *parg)
         return ctx->ext.status_type;
 
     case SSL_CTRL_SET_TLSEXT_STATUS_REQ_TYPE:
-        ctx->ext.status_type = larg;
+        ctx->ext.status_type = large;
         break;
 
     case SSL_CTRL_SET_TLSEXT_STATUS_REQ_CB_ARG:
@@ -4475,7 +4475,7 @@ long ssl3_ctx_ctrl(SSL_CTX *ctx, int cmd, long larg, void *parg)
         break;
 
     case SSL_CTRL_SET_TLS_EXT_SRP_STRENGTH:
-        ctx->srp_ctx.strength = larg;
+        ctx->srp_ctx.strength = large;
         break;
 #endif
 
@@ -4486,7 +4486,7 @@ long ssl3_ctx_ctrl(SSL_CTX *ctx, int cmd, long larg, void *parg)
             &ctx->ext.keyshares_len,
             &ctx->ext.tuples,
             &ctx->ext.tuples_len,
-            parg, larg);
+            parg, large);
 
     case SSL_CTRL_SET_GROUPS_LIST:
         return tls1_set_groups_list(ctx,
@@ -4502,31 +4502,31 @@ long ssl3_ctx_ctrl(SSL_CTX *ctx, int cmd, long larg, void *parg)
         return tls1_get0_implemented_groups(ctx->min_proto_version,
             ctx->max_proto_version,
             ctx->group_list,
-            ctx->group_list_len, larg, parg);
+            ctx->group_list_len, large, parg);
 
     case SSL_CTRL_SET_SIGALGS:
-        return tls1_set_sigalgs(ctx->cert, parg, larg, 0);
+        return tls1_set_sigalgs(ctx->cert, parg, large, 0);
 
     case SSL_CTRL_SET_SIGALGS_LIST:
         return tls1_set_sigalgs_list(ctx, ctx->cert, parg, 0);
 
     case SSL_CTRL_SET_CLIENT_SIGALGS:
-        return tls1_set_sigalgs(ctx->cert, parg, larg, 1);
+        return tls1_set_sigalgs(ctx->cert, parg, large, 1);
 
     case SSL_CTRL_SET_CLIENT_SIGALGS_LIST:
         return tls1_set_sigalgs_list(ctx, ctx->cert, parg, 1);
 
     case SSL_CTRL_SET_CLIENT_CERT_TYPES:
-        return ssl3_set_req_cert_type(ctx->cert, parg, larg);
+        return ssl3_set_req_cert_type(ctx->cert, parg, large);
 
     case SSL_CTRL_BUILD_CERT_CHAIN:
-        return ssl_build_cert_chain(NULL, ctx, larg);
+        return ssl_build_cert_chain(NULL, ctx, large);
 
     case SSL_CTRL_SET_VERIFY_CERT_STORE:
-        return ssl_cert_set_cert_store(ctx->cert, parg, 0, larg);
+        return ssl_cert_set_cert_store(ctx->cert, parg, 0, large);
 
     case SSL_CTRL_SET_CHAIN_CERT_STORE:
-        return ssl_cert_set_cert_store(ctx->cert, parg, 1, larg);
+        return ssl_cert_set_cert_store(ctx->cert, parg, 1, large);
 
     case SSL_CTRL_GET_VERIFY_CERT_STORE:
         return ssl_cert_get_cert_store(ctx->cert, parg, 0);
@@ -4549,7 +4549,7 @@ long ssl3_ctx_ctrl(SSL_CTX *ctx, int cmd, long larg, void *parg)
         break;
 
     case SSL_CTRL_GET_EXTRA_CHAIN_CERTS:
-        if (ctx->extra_certs == NULL && larg == 0)
+        if (ctx->extra_certs == NULL && large == 0)
             *(STACK_OF(X509) **)parg = ctx->cert->key->chain;
         else
             *(STACK_OF(X509) **)parg = ctx->extra_certs;
@@ -4561,13 +4561,13 @@ long ssl3_ctx_ctrl(SSL_CTX *ctx, int cmd, long larg, void *parg)
         break;
 
     case SSL_CTRL_CHAIN:
-        if (larg)
+        if (large)
             return ssl_cert_set1_chain(NULL, ctx, (STACK_OF(X509) *)parg);
         else
             return ssl_cert_set0_chain(NULL, ctx, (STACK_OF(X509) *)parg);
 
     case SSL_CTRL_CHAIN_CERT:
-        if (larg)
+        if (large)
             return ssl_cert_add1_chain_cert(NULL, ctx, (X509 *)parg);
         else
             return ssl_cert_add0_chain_cert(NULL, ctx, (X509 *)parg);
@@ -4580,7 +4580,7 @@ long ssl3_ctx_ctrl(SSL_CTX *ctx, int cmd, long larg, void *parg)
         return ssl_cert_select_current(ctx->cert, (X509 *)parg);
 
     case SSL_CTRL_SET_CURRENT_CERT:
-        return ssl_cert_set_current(ctx->cert, larg);
+        return ssl_cert_set_current(ctx->cert, large);
 
     default:
         return 0;

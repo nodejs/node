@@ -98,7 +98,7 @@ gcm_init_rv64i_zvkb_zvbc:
     @{[vslidedown_vi $V3, $V3, 1]}   # vslidedown.vi v3, v3, 1
 
     @{[vmv_v_i $V0, 2]}              # vmv.v.i v0, 2
-    @{[vor_vv_v0t $V1, $V1, $V4]}    # vor.vv v1, v1, v4, v0.t
+    @{[vor_vv_v0t $V1, $V1, $V4]}    # for.vv v1, v1, v4, v0.t
 
     # Need to set the mask to 3, if the carry bit is set.
     @{[vmv_v_v $V0, $V3]}            # vmv.v.v v0, v3

@@ -148,7 +148,7 @@ bool Packet::GetNumberSep(uint64_t* val, char* sep) {
     // Add this nibble.
     out = (out << 4) + nib;
 
-    // Get the next character (if availible)
+    // Get the next character (if available)
     ch = 0;
     if (!GetRawChar(&ch)) {
       break;

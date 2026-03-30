@@ -194,7 +194,7 @@ static int ssl_write_ecjpake_kkpp_ext(mbedtls_ssl_context *ssl,
         memcpy(ssl->handshake->ecjpake_cache, p + 2, kkpp_len);
         ssl->handshake->ecjpake_cache_len = kkpp_len;
     } else {
-        MBEDTLS_SSL_DEBUG_MSG(3, ("re-using cached ecjpake parameters"));
+        MBEDTLS_SSL_DEBUG_MSG(3, ("reusing cached ecjpake parameters"));
 
         kkpp_len = ssl->handshake->ecjpake_cache_len;
         MBEDTLS_SSL_CHK_BUF_PTR(p + 2, end, kkpp_len);
@@ -2024,7 +2024,7 @@ static int ssl_get_ecdh_params_from_cert(mbedtls_ssl_context *ssl)
 
     tls_id = mbedtls_ssl_get_tls_id_from_ecp_group_id(grp_id);
     if (tls_id == 0) {
-        MBEDTLS_SSL_DEBUG_MSG(1, ("ECC group %u not suported",
+        MBEDTLS_SSL_DEBUG_MSG(1, ("ECC group %u not supported",
                                   grp_id));
         return MBEDTLS_ERR_SSL_ILLEGAL_PARAMETER;
     }

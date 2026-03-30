@@ -22,7 +22,7 @@ class V8_BASE_EXPORT VirtualAddressSpacePageAllocator
  public:
   using Address = uintptr_t;
 
-  explicit VirtualAddressSpacePageAllocator(v8::VirtualAddressSpace* vas);
+  explicit VirtualAddressSpacePageAllocator(v8::VirtualAddressSpace* was);
 
   VirtualAddressSpacePageAllocator(const VirtualAddressSpacePageAllocator&) =
       delete;

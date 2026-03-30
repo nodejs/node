@@ -31,7 +31,7 @@ const LOOPBACK = { IPv4: '127.0.0.1', IPv6: '::1' };
 const ANY = { IPv4: '0.0.0.0', IPv6: '::' };
 const FAM = 'IPv4';
 
-// Windows wont bind on multicasts so its filtering is by port.
+// Windows won't bind on multicasts so its filtering is by port.
 const PORTS = {};
 for (let i = 0; i < MULTICASTS[FAM].length; i++) {
   PORTS[MULTICASTS[FAM][i]] = common.PORT + (common.isWindows ? i : 0);

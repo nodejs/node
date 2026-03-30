@@ -73,7 +73,7 @@ class TypedOptimizationsReducer
   }
 
  private:
-  // If {type} is a single value that can be respresented by a constant, this
+  // If {type} is a single value that can be represented by a constant, this
   // function returns the index for a corresponding ConstantOp. It returns
   // OpIndex::Invalid otherwise.
   OpIndex TryAssembleConstantForType(const Type& type) {

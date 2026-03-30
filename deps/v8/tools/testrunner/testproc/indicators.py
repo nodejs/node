@@ -183,7 +183,7 @@ class CIProgressIndicator(VerboseProgressIndicator):
     self._output_feedback()
 
   def _output_feedback(self):
-    """Reduced the verbosity leads to getting killed by an ouput timeout.
+    """Reduced the verbosity leads to getting killed by an output timeout.
     We ensure output every minute.
     """
     if self._ensure_delay(60):

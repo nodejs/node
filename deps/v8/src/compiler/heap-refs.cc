@@ -1581,7 +1581,7 @@ int BytecodeArrayRef::handler_table_size() const {
     return MakeRef(broker, Cast<result>(object()->name())); \
   }
 
-// Macros for definining a const getter that, depending on the data kind,
+// Macros for defining a const getter that, depending on the data kind,
 // either looks into the heap or into the serialized data.
 #define BIMODAL_ACCESSOR(holder, result, name)                   \
   result##Ref holder##Ref::name(JSHeapBroker* broker) const {    \

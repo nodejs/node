@@ -232,7 +232,7 @@ struct WasmElemSegment {
     DCHECK_NE(status, kStatusActive);
   }
 
-  // Default constructor. Constucts an invalid segment.
+  // Default constructor. Constructs an invalid segment.
   WasmElemSegment()
       : status(kStatusActive),
         shared(false),

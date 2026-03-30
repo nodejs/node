@@ -43,7 +43,7 @@ var regexp01d = /[1-3\s5]+/.exec("-123 54");
 shouldBe('regexp01d.toString()', '"123 5"');
 var regexp01e = /[1-35\s5]+/.exec("-123 54");
 shouldBe('regexp01e.toString()', '"123 5"');
-// hyphens are normal charaters if a range is not fully specified.
+// hyphens are normal characters if a range is not fully specified.
 var regexp01f = /[-3]+/.exec("2-34");
 shouldBe('regexp01f.toString()', '"-3"');
 var regexp01g = /[2-]+/.exec("12-3");

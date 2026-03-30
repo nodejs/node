@@ -61,7 +61,7 @@ function test4() {
     // effect..
     shouldBeOfType('test4.(1)', arguments, 'object');
     var arguments = 4;
-    // .. but the assignment shoud just happen
+    // .. but the assignment should just happen
     shouldBeOfType('test4.(2)', arguments, 'number');
 }
 

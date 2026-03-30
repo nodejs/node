@@ -2052,7 +2052,7 @@ TEST(Btree, ExtractDoesntCauseExtraMoves) {
 #endif
 
   using Set = absl::btree_set<MovableOnlyInstance>;
-  std::array<std::function<void(Set &)>, 3> extracters = {
+  std::array<std::function<void(Set &)>, 3> extractors = {
       [](Set &s) { auto node = s.extract(s.begin()); },
       [](Set &s) { auto ret = s.extract_and_get_next(s.begin()); },
       [](Set &s) { auto node = s.extract(MovableOnlyInstance(0)); }};
@@ -2063,7 +2063,7 @@ TEST(Btree, ExtractDoesntCauseExtraMoves) {
     s.insert(MovableOnlyInstance(0));
     tracker.ResetCopiesMovesSwaps();
 
-    extracters[i](s);
+    extractors[i](s);
     // We expect to see exactly 1 move: from the original slot into the
     // extracted node.
     EXPECT_EQ(tracker.copies(), 0) << i;

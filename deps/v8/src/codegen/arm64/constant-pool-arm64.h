@@ -137,9 +137,9 @@ class ConstantPool {
   // Class for scoping postponing the constant pool generation.
   class V8_EXPORT_PRIVATE V8_NODISCARD BlockScope {
    public:
-    // BlockScope immediatelly emits the pool if necessary to ensure that
+    // BlockScope immediately emits the pool if necessary to ensure that
     // during the block scope at least {margin} bytes can be emitted without
-    // pool emission becomming necessary.
+    // pool emission becoming necessary.
     explicit BlockScope(Assembler* pool, size_t margin = 0);
     BlockScope(Assembler* pool, PoolEmissionCheck);
     ~BlockScope();

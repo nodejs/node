@@ -159,7 +159,7 @@ class GitRecipesMixin(object):
     for line in self.Git("status -s -b -uno", **kwargs).strip().splitlines():
       match = re.match(r"^## (.+)", line)
       if match: return match.group(1)
-    raise Exception("Couldn't find curent branch.")  # pragma: no cover
+    raise Exception("Couldn't find current branch.")  # pragma: no cover
 
   @Strip
   def GitLog(self, n=0, format="", grep="", git_hash="", parent_hash="",

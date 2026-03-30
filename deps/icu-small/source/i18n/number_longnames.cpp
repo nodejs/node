@@ -100,7 +100,7 @@ int32_t getIndex(const char* pluralKeyword, UErrorCode& status) {
     // pluralKeyword can also be "dnam", "per", or "gender"
     switch (*pluralKeyword) {
     case 'd':
-        if (uprv_strcmp(pluralKeyword + 1, "nam") == 0) {
+        if (uprv_strcmp(pluralKeyword + 1, "name") == 0) {
             return DNAM_INDEX;
         }
         break;

@@ -25,7 +25,7 @@
 // lsxintrin.h to be compiled with both LSX and LASX enabled.  Then when
 // we call the inline functions in the header with only LSX enabled,
 // we'll get an "always_inline function requires lasx but would be inlined
-// into a function that is compiled without suport for lasx" error.
+// into a function that is compiled without support for lasx" error.
 HWY_PUSH_ATTRIBUTES("lsx")
 #define __loongarch_sx
 #include <lsxintrin.h>
@@ -1826,7 +1826,7 @@ HWY_API Vec128<double, N> operator*(const Vec128<double, N> a,
 
 // ------------------------------ MulHigh
 
-// Usigned
+// Unsigned
 template <size_t N>
 HWY_API Vec128<uint8_t, N> MulHigh(const Vec128<uint8_t, N> a,
                                    const Vec128<uint8_t, N> b) {
@@ -2468,7 +2468,7 @@ HWY_API Vec128<double, N> MulAdd(Vec128<double, N> mul, Vec128<double, N> x,
   return Vec128<double, N>{__lsx_vfmadd_d(mul.raw, x.raw, add.raw)};
 }
 
-// Unsinged
+// Unsigned
 template <typename T, size_t N, HWY_IF_UNSIGNED(T)>
 HWY_API Vec128<T, N> MulAdd(Vec128<T, N> mul, Vec128<T, N> x,
                             Vec128<T, N> add) {

@@ -15,7 +15,7 @@ namespace v8 {
 namespace internal {
 
 TEST(SandboxTest, Initialization) {
-  base::VirtualAddressSpace vas;
+  base::VirtualAddressSpace was;
 
   Sandbox sandbox;
 
@@ -23,7 +23,7 @@ TEST(SandboxTest, Initialization) {
   EXPECT_FALSE(sandbox.is_partially_reserved());
   EXPECT_EQ(sandbox.size(), 0UL);
 
-  sandbox.Initialize(&vas);
+  sandbox.Initialize(&was);
 
   EXPECT_TRUE(sandbox.is_initialized());
   EXPECT_NE(sandbox.base(), 0UL);
@@ -35,14 +35,14 @@ TEST(SandboxTest, Initialization) {
 }
 
 TEST(SandboxTest, InitializationWithSize) {
-  base::VirtualAddressSpace vas;
+  base::VirtualAddressSpace was;
   // This test only works if virtual memory subspaces can be allocated.
-  if (!vas.CanAllocateSubspaces()) return;
+  if (!was.CanAllocateSubspaces()) return;
 
   Sandbox sandbox;
   size_t size = 8ULL * GB;
   const bool use_guard_regions = false;
-  sandbox.Initialize(&vas, size, use_guard_regions);
+  sandbox.Initialize(&was, size, use_guard_regions);
 
   EXPECT_TRUE(sandbox.is_initialized());
   EXPECT_FALSE(sandbox.is_partially_reserved());
@@ -52,15 +52,15 @@ TEST(SandboxTest, InitializationWithSize) {
 }
 
 TEST(SandboxTest, PartiallyReservedSandbox) {
-  base::VirtualAddressSpace vas;
+  base::VirtualAddressSpace was;
   Sandbox sandbox;
   // Total size of the sandbox.
   size_t size = kSandboxSize;
   // Size of the virtual memory that is actually reserved at the start of the
   // sandbox.
-  size_t reserved_size = 2 * vas.allocation_granularity();
+  size_t reserved_size = 2 * was.allocation_granularity();
   EXPECT_TRUE(
-      sandbox.InitializeAsPartiallyReservedSandbox(&vas, size, reserved_size));
+      sandbox.InitializeAsPartiallyReservedSandbox(&was, size, reserved_size));
 
   EXPECT_TRUE(sandbox.is_initialized());
   EXPECT_TRUE(sandbox.is_partially_reserved());
@@ -79,9 +79,9 @@ TEST(SandboxTest, PartiallyReservedSandbox) {
 }
 
 TEST(SandboxTest, Contains) {
-  base::VirtualAddressSpace vas;
+  base::VirtualAddressSpace was;
   Sandbox sandbox;
-  sandbox.Initialize(&vas);
+  sandbox.Initialize(&was);
 
   if (sandbox.is_partially_reserved()) {
     // If we couldn't create a "full" sandbox, this test will fail, so skip it.
@@ -139,7 +139,7 @@ TEST(SandboxTest, PageAllocation) {
   const size_t kAllocatinSizesInPages[] = {1, 1, 2, 3, 5, 8, 13, 21, 34};
   constexpr int kNumAllocations = arraysize(kAllocatinSizesInPages);
 
-  VirtualAddressSpace* vas = sandbox.address_space();
+  VirtualAddressSpace* was = sandbox.address_space();
   size_t allocation_granularity = vas->allocation_granularity();
   std::vector<Address> allocations;
   for (int i = 0; i < kNumAllocations; i++) {

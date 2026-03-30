@@ -276,7 +276,7 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
 
   // The rules for untagging are that we can only widen input representations,
   // i.e. promote Int32 -> Float64 -> HoleyFloat64. We cannot convert from Int32
-  // to Uint32 and vise versa, but both can be converted to Float64.
+  // to Uint32 and vice versa, but both can be converted to Float64.
   //
   // Inputs can always be used as more generic uses, and tighter uses always
   // block more generic inputs. So, we can find the minimum generic use and
@@ -1063,7 +1063,7 @@ ValueNode* MaglevPhiRepresentationSelector::EnsurePhiTagged(
       tagged = AddNewNodeNoInputConversion<Uint32ToNumber>(block, pos, {phi});
       break;
     case ValueRepresentation::kTagged:
-      // Already handled at the begining of this function.
+      // Already handled at the beginning of this function.
     case ValueRepresentation::kIntPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
@@ -1187,7 +1187,7 @@ void MaglevPhiRepresentationSelector::PreparePhiTaggings(
         // There is a predecessor that doesn't have this Tagging, so we'll
         // return nullptr, and if we need it in the future, we'll have to
         // recreate it. An alternative would be to eagerly insert this Tagging
-        // in all of the other predecesors, but it's possible that it's not used
+        // in all of the other predecessors, but it's possible that it's not used
         // anymore or not on all future path, so this could also introduce
         // unnecessary tagging.
         return static_cast<Phi*>(nullptr);

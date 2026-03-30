@@ -473,8 +473,8 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   inline bool IsTrustedPointerFieldUnpublished(size_t offset,
                                                IndirectPointerTag tag,
                                                IsolateForSandbox isolate) const;
-  inline void ClearTrustedPointerField(size_t offest);
-  inline void ClearTrustedPointerField(size_t offest, ReleaseStoreTag);
+  inline void ClearTrustedPointerField(size_t offset);
+  inline void ClearTrustedPointerField(size_t offset, ReleaseStoreTag);
 
   // Code pointers.
   //
@@ -487,7 +487,7 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   inline void WriteCodePointerField(size_t offset, Tagged<Code> value);
 
   inline bool IsCodePointerFieldEmpty(size_t offset) const;
-  inline void ClearCodePointerField(size_t offest);
+  inline void ClearCodePointerField(size_t offset);
 
   inline Address ReadCodeEntrypointViaCodePointerField(
       size_t offset, CodeEntrypointTag tag) const;
@@ -608,7 +608,7 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 
   enum class EmitWriteBarrier {
     kYes,
-    kNo,
+    know,
   };
 
   template <EmitWriteBarrier emit_write_barrier, typename MemoryOrder,
@@ -697,7 +697,7 @@ V8_INLINE bool OutsideSandboxOrInReadonlySpace(Tagged<HeapObject> obj);
 // Returns true if obj is guaranteed to be a read-only object or a specific
 // (small) Smi. If the method returns false, we need more checks for RO space
 // objects or Smis. This can be used for a fast RO space/Smi check which are
-// objects for e.g. GC than can be exlucded for processing.
+// objects for e.g. GC than can be excluded for processing.
 V8_INLINE constexpr bool FastInReadOnlySpaceOrSmallSmi(Tagged_t obj);
 V8_INLINE constexpr bool FastInReadOnlySpaceOrSmallSmi(Tagged<MaybeObject> obj);
 

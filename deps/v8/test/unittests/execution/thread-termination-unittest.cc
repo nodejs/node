@@ -570,7 +570,7 @@ TEST_F(ThreadTerminationTest, TerminationInInnerTryCall) {
     TryCatch try_catch(isolate());
     TryRunJS("inner_try_call_terminate()");
     CHECK(try_catch.HasTerminated());
-    // Any further exectutions in this TryCatch scope would fail.
+    // Any further executions in this TryCatch scope would fail.
     CHECK(isolate()->IsExecutionTerminating());
   }
   // Leaving the TryCatch cleared the termination exception.
@@ -787,7 +787,7 @@ TEST_F(ThreadTerminationTest, TerminateInMicrotask) {
       CHECK(context2 == isolate()->GetEnteredOrMicrotaskContext());
       CHECK(try_catch.HasCaught());
       CHECK(try_catch.HasTerminated());
-      // Any further exectutions in this TryCatch scope would fail.
+      // Any further executions in this TryCatch scope would fail.
       CHECK(isolate()->IsExecutionTerminating());
       CHECK(!i_isolate()->stack_guard()->CheckTerminateExecution());
     }

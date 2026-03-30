@@ -1055,7 +1055,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* CallCFunction(Node* function, std::optional<MachineType> return_type,
                       std::initializer_list<CFunctionArg> args);
 
-  // Call to a C function without a function discriptor on AIX.
+  // Call to a C function without a function descriptor on AIX.
   template <class... CArgs>
   Node* CallCFunctionWithoutFunctionDescriptor(Node* function,
                                                MachineType return_type,

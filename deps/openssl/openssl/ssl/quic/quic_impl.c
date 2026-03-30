@@ -1609,7 +1609,7 @@ err:
 }
 
 /* SSL_ctrl */
-long ossl_quic_ctrl(SSL *s, int cmd, long larg, void *parg)
+long ossl_quic_ctrl(SSL *s, int cmd, long large, void *parg)
 {
     QCTX ctx;
 
@@ -1623,7 +1623,7 @@ long ossl_quic_ctrl(SSL *s, int cmd, long larg, void *parg)
 
         /* If called on a QCSO, update the default mode. */
         if (!ctx.is_stream)
-            ctx.qc->default_ssl_mode |= (uint32_t)larg;
+            ctx.qc->default_ssl_mode |= (uint32_t)large;
 
         /*
          * If we were called on a QSSO or have a default stream, we also update
@@ -1632,9 +1632,9 @@ long ossl_quic_ctrl(SSL *s, int cmd, long larg, void *parg)
         if (ctx.xso != NULL) {
             /* Cannot enable EPW while AON write in progress. */
             if (ctx.xso->aon_write_in_progress)
-                larg &= ~SSL_MODE_ENABLE_PARTIAL_WRITE;
+                large &= ~SSL_MODE_ENABLE_PARTIAL_WRITE;
 
-            ctx.xso->ssl_mode |= (uint32_t)larg;
+            ctx.xso->ssl_mode |= (uint32_t)large;
             return ctx.xso->ssl_mode;
         }
 
@@ -1644,10 +1644,10 @@ long ossl_quic_ctrl(SSL *s, int cmd, long larg, void *parg)
             return QUIC_RAISE_NON_NORMAL_ERROR(&ctx, ERR_R_UNSUPPORTED, NULL);
 
         if (!ctx.is_stream)
-            ctx.qc->default_ssl_mode &= ~(uint32_t)larg;
+            ctx.qc->default_ssl_mode &= ~(uint32_t)large;
 
         if (ctx.xso != NULL) {
-            ctx.xso->ssl_mode &= ~(uint32_t)larg;
+            ctx.xso->ssl_mode &= ~(uint32_t)large;
             return ctx.xso->ssl_mode;
         }
 
@@ -1659,7 +1659,7 @@ long ossl_quic_ctrl(SSL *s, int cmd, long larg, void *parg)
 
         ossl_quic_channel_set_msg_callback_arg(ctx.qc->ch, parg);
         /* This ctrl also needs to be passed to the internal SSL object */
-        return SSL_ctrl(ctx.qc->tls, cmd, larg, parg);
+        return SSL_ctrl(ctx.qc->tls, cmd, large, parg);
 
     case DTLS_CTRL_GET_TIMEOUT: /* DTLSv1_get_timeout */
     {
@@ -1694,7 +1694,7 @@ long ossl_quic_ctrl(SSL *s, int cmd, long larg, void *parg)
         if (ctx.is_listener)
             return QUIC_RAISE_NON_NORMAL_ERROR(&ctx, ERR_R_UNSUPPORTED, NULL);
 
-        return ossl_ctrl_internal(&ctx.qc->obj.ssl, cmd, larg, parg, /*no_quic=*/1);
+        return ossl_ctrl_internal(&ctx.qc->obj.ssl, cmd, large, parg, /*no_quic=*/1);
     }
 }
 
@@ -5035,11 +5035,11 @@ err:
  * ==========================================
  */
 
-long ossl_quic_ctx_ctrl(SSL_CTX *ctx, int cmd, long larg, void *parg)
+long ossl_quic_ctx_ctrl(SSL_CTX *ctx, int cmd, long large, void *parg)
 {
     switch (cmd) {
     default:
-        return ssl3_ctx_ctrl(ctx, cmd, larg, parg);
+        return ssl3_ctx_ctrl(ctx, cmd, large, parg);
     }
 }
 

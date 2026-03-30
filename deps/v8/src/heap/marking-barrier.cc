@@ -48,7 +48,7 @@ void MarkingBarrier::Write(Tagged<HeapObject> host, IndirectPointerSlot slot) {
   DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
 
   // An indirect pointer slot can only contain a Smi if it is uninitialized (in
-  // which case the vaue will be Smi::zero()). However, at this point the slot
+  // which case the value will be Smi::zero()). However, at this point the slot
   // must have been initialized because it was just written to.
   Tagged<HeapObject> value = Cast<HeapObject>(slot.load(isolate()));
 

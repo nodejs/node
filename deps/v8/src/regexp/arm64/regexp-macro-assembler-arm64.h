@@ -301,7 +301,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   // must not write to it.
   inline Register GetRegister(int register_index, Register maybe_result);
 
-  // Returns the harware register (x0-x7) holding the value of the capture
+  // Returns the hardware register (x0-x7) holding the value of the capture
   // register.
   // This assumes that the state of the register is not STACKED.
   inline Register GetCachedRegister(int register_index);

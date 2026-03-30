@@ -22,7 +22,7 @@ constexpr size_t kKB = 1024;
 constexpr size_t kMB = kKB * 1024;
 constexpr size_t kGB = kMB * 1024;
 
-// Offset of the uint16_t bitfield from the payload contaning the
+// Offset of the uint16_t bitfield from the payload containing the
 // in-construction bit. This is subtracted from the payload pointer to get
 // to the right bitfield.
 static constexpr size_t kFullyConstructedBitFieldOffsetFromPayload =

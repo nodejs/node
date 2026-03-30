@@ -587,7 +587,7 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
   using NodeState = base::BitField8<State, 0, 2>;
   // Tracks whether the node is contained in the set of young nodes. This bit
   // persists across allocating and freeing a node as it's only cleaned up
-  // when young nodes are proccessed.
+  // when young nodes are processed.
   using IsInYoungList = NodeState::Next<bool, 1>;
   using NodeWeaknessType = IsInYoungList::Next<WeaknessType, 2>;
 

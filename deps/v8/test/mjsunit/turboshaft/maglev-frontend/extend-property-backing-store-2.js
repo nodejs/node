@@ -44,6 +44,6 @@ addProperties(o2);
 s.add(o2);  // Force creating the hash.
 
 foo(o2);
-// Assert that the hash value was preseved when extending the properties
+// Assert that the hash value was preserved when extending the properties
 // backing store.
 assertTrue(s.has(o2));

@@ -158,7 +158,7 @@ TEST(StatusMatcherTest, StatusIsFailure) {
       EXPECT_THAT(invalid, StatusIs(absl::StatusCode::kOutOfRange)), "INVALID");
   EXPECT_NONFATAL_FAILURE(
       EXPECT_THAT(invalid,
-                  StatusIs(absl::StatusCode::kInvalidArgument, "invalide")),
+                  StatusIs(absl::StatusCode::kInvalidArgument, "invalid")),
       "ungueltig");
 }
 

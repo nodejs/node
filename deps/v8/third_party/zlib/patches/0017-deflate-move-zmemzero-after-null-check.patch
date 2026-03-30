@@ -19,7 +19,7 @@ index 8a5281c2b6cd8..49496bb3b0561 100644
      s->window = (Bytef *) ZALLOC(strm,
                                   s->w_size + WINDOW_PADDING,
                                   2*sizeof(Byte));
--    /* Avoid use of unitialized values in the window, see crbug.com/1137613 and
+-    /* Avoid use of uninitialized values in the window, see crbug.com/1137613 and
 -     * crbug.com/1144420 */
 -    zmemzero(s->window, (s->w_size + WINDOW_PADDING) * (2 * sizeof(Byte)));
      s->prev   = (Posf *)  ZALLOC(strm, s->w_size, sizeof(Pos));
@@ -34,7 +34,7 @@ index 8a5281c2b6cd8..49496bb3b0561 100644
          deflateEnd (strm);
          return Z_MEM_ERROR;
      }
-+    /* Avoid use of unitialized values in the window, see crbug.com/1137613 and
++    /* Avoid use of uninitialized values in the window, see crbug.com/1137613 and
 +     * crbug.com/1144420 */
 +    zmemzero(s->window, (s->w_size + WINDOW_PADDING) * (2 * sizeof(Byte)));
 +    /* Avoid use of uninitialized value, see:

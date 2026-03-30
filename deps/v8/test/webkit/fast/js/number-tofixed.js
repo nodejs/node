@@ -69,7 +69,7 @@ shouldBeEqualToString("(-0.0).toFixed()", "0");
 // From http://bugs.webkit.org/show_bug.cgi?id=5258
 shouldBeEqualToString("(1234.567).toFixed()", "1235");
 shouldBeEqualToString("(1234.567).toFixed(0)", "1235");
-// 0 equivilents
+// 0 equivalents
 shouldBeEqualToString("(1234.567).toFixed(null)", "1235");
 shouldBeEqualToString("(1234.567).toFixed(false)", "1235");
 shouldBeEqualToString("(1234.567).toFixed('foo')", "1235");

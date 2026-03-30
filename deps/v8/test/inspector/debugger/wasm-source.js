@@ -4,7 +4,7 @@
 
 utils.load('test/inspector/wasm-inspector-test.js');
 
-let {session, contextGroup, Protocol} = InspectorTest.start('Tests how wasm scrips report the source');
+let {session, contextGroup, Protocol} = InspectorTest.start('Tests how wasm scripts report the source');
 
 var builder = new WasmModuleBuilder();
 

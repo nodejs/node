@@ -12,7 +12,7 @@ array[3] = 3.1;
 
 var copy = array.slice(0, array.length);
 
-// Use the defaul array prototype.
+// Use the default array prototype.
 var proto = array.__proto__;
 
 // Define [1] on the prototype to alter the array during concatenation.

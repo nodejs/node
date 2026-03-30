@@ -49,7 +49,7 @@ class LoopPeelingReducer : public Next {
 
   V<None> REDUCE_INPUT_GRAPH(Goto)(V<None> ig_idx, const GotoOp& gto) {
     // Note that the "ShouldSkipOptimizationStep" is placed in the part of
-    // this Reduce method triggering the peeling rather than at the begining.
+    // this Reduce method triggering the peeling rather than at the beginning.
     // This is because the backedge skipping is not an optimization but a
     // mandatory lowering when peeling is being performed.
     LABEL_BLOCK(no_change) { return Next::ReduceInputGraphGoto(ig_idx, gto); }

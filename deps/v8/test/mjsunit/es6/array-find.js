@@ -63,7 +63,7 @@ assertEquals(22, a.find(function(val) { return 22 === val; }), undefined);
 
 
 //
-// Test predicate is called with correct argumetns
+// Test predicate is called with correct arguments
 //
 (function() {
   var a = ["b"];

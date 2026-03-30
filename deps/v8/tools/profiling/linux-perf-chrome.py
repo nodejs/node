@@ -242,7 +242,7 @@ with tempfile.TemporaryDirectory(prefix="chrome-") as tmp_dir_path:
   else:
     process = subprocess.Popen(cmd)
     if not wait_for_process_timeout(process):
-      log(f"QUITING chrome child processes after {options.timeout}s timeout")
+      log(f"QUITTING chrome child processes after {options.timeout}s timeout")
     current_process = psutil.Process()
     children = current_process.children(recursive=True)
     for child in children:

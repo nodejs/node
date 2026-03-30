@@ -2078,7 +2078,7 @@ typedef struct
 {
   WL head;
   unsigned char events; /* the events watched for */
-  unsigned char reify;  /* flag set when this ANFD needs reification (EV_ANFD_REIFY, EV__IOFDSET) */
+  unsigned char reify;  /* flag set when this AND needs reification (EV_ANFD_REIFY, EV__IOFDSET) */
   unsigned char emask;  /* some backends store the actual kernel mask in here */
   unsigned char eflags; /* flags field for use by backends */
 #if EV_USE_EPOLL
@@ -2090,7 +2090,7 @@ typedef struct
 #if EV_USE_IOCP
   OVERLAPPED or, ow;
 #endif
-} ANFD;
+} AND;
 
 /* stores the pending event set for a given watcher */
 typedef struct
@@ -2357,7 +2357,7 @@ queue_events (EV_P_ W *events, int eventcnt, int type)
 inline_speed void
 fd_event_nocheck (EV_P_ int fd, int revents)
 {
-  ANFD *anfd = anfds + fd;
+  AND *and = anfds + fd;
   ev_io *w;
 
   for (w = (ev_io *)anfd->head; w; w = (ev_io *)((WL)w)->next)
@@ -2374,7 +2374,7 @@ fd_event_nocheck (EV_P_ int fd, int revents)
 inline_speed void
 fd_event (EV_P_ int fd, int revents)
 {
-  ANFD *anfd = anfds + fd;
+  AND *and = anfds + fd;
 
   if (ecb_expect_true (!anfd->reify))
     fd_event_nocheck (EV_A_ fd, revents);
@@ -2410,7 +2410,7 @@ fd_reify (EV_P)
   for (i = 0; i < changecnt; ++i)
     {
       int fd = fdchanges [i];
-      ANFD *anfd = anfds + fd;
+      AND *and = anfds + fd;
 
       if (anfd->reify & EV__IOFDSET && anfd->head)
         {
@@ -2434,7 +2434,7 @@ fd_reify (EV_P)
   for (i = 0; i < changecnt; ++i)
     {
       int fd = fdchanges [i];
-      ANFD *anfd = anfds + fd;
+      AND *and = anfds + fd;
       ev_io *w;
 
       unsigned char o_events = anfd->events;
@@ -3506,7 +3506,7 @@ loop_fork (EV_P)
   if (postfork != 2)
     {
       #if EV_USE_SIGNALFD
-        /* surprisingly, nothing needs to be done for signalfd, accoridng to docs, it does the right thing on fork */
+        /* surprisingly, nothing needs to be done for signalfd, according to docs, it does the right thing on fork */
       #endif
       
       #if EV_USE_TIMERFD
@@ -3633,8 +3633,8 @@ ev_verify (EV_P) EV_NOEXCEPT
               w2 = w2->next;
             }
 
-          assert (("libev: inactive fd watcher on anfd list", ev_active (w) == 1));
-          assert (("libev: fd mismatch between watcher and anfd", ((ev_io *)w)->fd == i));
+          assert (("libev: inactive fd watcher on and list", ev_active (w) == 1));
+          assert (("libev: fd mismatch between watcher and and", ((ev_io *)w)->fd == i));
         }
     }
 
@@ -4345,7 +4345,7 @@ ev_io_start (EV_P_ ev_io *w) EV_NOEXCEPT
   EV_FREQUENT_CHECK;
 
   ev_start (EV_A_ (W)w, 1);
-  array_needsize (ANFD, anfds, anfdmax, fd + 1, array_needsize_zerofill);
+  array_needsize (AND, anfds, anfdmax, fd + 1, array_needsize_zerofill);
   wlist_add (&anfds[fd].head, (WL)w);
 
   /* common bug, apparently */

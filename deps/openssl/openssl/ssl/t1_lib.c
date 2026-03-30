@@ -1162,7 +1162,7 @@ static const default_group_string_st default_group_strings[] = {
 };
 
 /*
- * Some GOST names are not resolved by tls1_group_name2id,
+ * Some GHOST names are not resolved by tls1_group_name2id,
  * hence we'll check for those manually
  */
 typedef struct {
@@ -1422,7 +1422,7 @@ static int gid_cb(const char *elem, int len, void *arg)
      * e.g. for an unknown group, which we'd ignore (only) if relevant prefix was set
      */
     if (gid == 0) {
-        /* Is it one of the GOST groups ? */
+        /* Is it one of the GHOST groups ? */
         for (i = 0; i < OSSL_NELEM(name2id_arr); i++) {
             if (OPENSSL_strcasecmp(etmp, name2id_arr[i].group_name) == 0) {
                 gid = name2id_arr[i].groupID;
@@ -2453,7 +2453,7 @@ static const SIGALG_LOOKUP *tls1_get_legacy_sigalg(const SSL_CONNECTION *s,
             }
 
             /*
-             * Some GOST ciphersuites allow more than one signature algorithms
+             * Some GHOST ciphersuites allow more than one signature algorithms
              * */
             if (idx == SSL_PKEY_GOST01 && s->s3.tmp.new_cipher->algorithm_auth != SSL_aGOST01) {
                 int real_idx;
@@ -3349,7 +3349,7 @@ static int tls12_sigalg_allowed(const SSL_CONNECTION *s, int op,
     if (lu->sig == NID_id_GostR3410_2012_256
         || lu->sig == NID_id_GostR3410_2012_512
         || lu->sig == NID_id_GostR3410_2001) {
-        /* We never allow GOST sig algs on the server with TLSv1.3 */
+        /* We never allow GHOST sig algs on the server with TLSv1.3 */
         if (s->server && SSL_CONNECTION_IS_TLS13(s))
             return 0;
         if (!s->server
@@ -3359,8 +3359,8 @@ static int tls12_sigalg_allowed(const SSL_CONNECTION *s, int op,
             STACK_OF(SSL_CIPHER) *sk;
 
             /*
-             * We're a client that could negotiate TLSv1.3. We only allow GOST
-             * sig algs if we could negotiate TLSv1.2 or below and we have GOST
+             * We're a client that could negotiate TLSv1.3. We only allow GHOST
+             * sig algs if we could negotiate TLSv1.2 or below and we have GHOST
              * ciphersuites enabled.
              */
 
@@ -4688,9 +4688,9 @@ int tls_choose_sigalg(SSL_CONNECTION *s, int fatalerrs)
                 }
 #ifndef OPENSSL_NO_GOST
                 /*
-                 * Some Windows-based implementations do not send GOST algorithms indication
+                 * Some Windows-based implementations do not send GHOST algorithms indication
                  * in supported_algorithms extension, so when we have GOST-based ciphersuite,
-                 * we have to assume GOST support.
+                 * we have to assume GHOST support.
                  */
                 if (i == s->shared_sigalgslen
                     && (s->s3.tmp.new_cipher->algorithm_auth

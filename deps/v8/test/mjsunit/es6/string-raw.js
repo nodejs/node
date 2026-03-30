@@ -22,7 +22,7 @@
   callSiteObj.raw = {};
   assertEquals("", String.raw(callSiteObj));
 
-  callSiteObj.raw = { lengt: 0 };
+  callSiteObj.raw = { length: 0 };
   assertEquals("", String.raw(callSiteObj));
 })();
 

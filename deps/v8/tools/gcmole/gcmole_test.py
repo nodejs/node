@@ -108,7 +108,7 @@ class OutputLines:
         callee_list: Strings, each containing a caller/calle relationship
             formatted as "A → B C", meaning A calls B and C. For GC,
             Safepoint and a allow-listed function use GC, SP and WF
-            constants above respectivly.
+            constants above respectively.
             Methods not calling anything are formatted as "A →".
     """
     self.callee_list = callee_list

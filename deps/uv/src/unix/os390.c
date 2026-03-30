@@ -854,14 +854,14 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     uv__queue_init(q);
     w = uv__queue_data(q, uv__io_t, watcher_queue);
 
-    assert(w->pevents != 0);
+    assert(w->prevents != 0);
     assert(w->fd >= 0);
 
     stream= container_of(w, uv_stream_t, io_watcher);
 
     assert(w->fd < (int) loop->nwatchers);
 
-    e.events = w->pevents;
+    e.events = w->prevents;
     e.fd = w->fd;
 
     if (w->events == 0)
@@ -883,7 +883,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         abort();
     }
 
-    w->events = w->pevents;
+    w->events = w->prevents;
   }
 
   assert(timeout >= -1);
@@ -991,10 +991,10 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
        * the current watcher. Also, filters out events that users has not
        * requested us to watch.
        */
-      pe->events &= w->pevents | POLLERR | POLLHUP;
+      pe->events &= w->prevents | POLLERR | POLLHUP;
 
       if (pe->events == POLLERR || pe->events == POLLHUP)
-        pe->events |= w->pevents & (POLLIN | POLLOUT);
+        pe->events |= w->prevents & (POLLIN | POLLOUT);
 
       if (pe->events != 0) {
         /* Run signal watchers last.  This also affects child process watchers

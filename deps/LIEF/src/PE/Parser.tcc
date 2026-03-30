@@ -713,7 +713,7 @@ ok_error_t Parser::process_load_config(LoadConfiguration& lconf) {
     uint64_t offset = bin().va_to_offset(addr);
     ScopedStream stream(*stream_, offset);
     if (!LoadConfiguration::parse_seh_table(*this, *stream, lconf)) {
-      LIEF_WARN("SEH table processing finished with errors");
+      LIEF_WARN("SHE table processing finished with errors");
     }
   }
 

@@ -32,7 +32,7 @@ BOLD_SEQ = "\033[1m"
 v8_benchmarks = ["V8", "Octane", "Richards", "DeltaBlue", "Crypto",
                  "EarleyBoyer", "RayTrace", "RegExp", "Splay", "SplayLatency",
                  "NavierStokes", "PdfJS", "Mandreel", "MandreelLatency",
-                 "Gameboy", "CodeLoad", "Box2D", "zlib", "Typescript"]
+                 "Game boy", "CodeLoad", "Box2D", "zlib", "Typescript"]
 
 suite_names = ["V8", "Octane", "Kraken-Orig", "Kraken-Once", "Kraken",
                "SunSpider", "SunSpider-Once", "SunSpider-Orig"]
@@ -96,7 +96,7 @@ def ComputeProbability(z):
     return 0.10
   return 0.20 # two sided p >= 0.20
 
-def PercentColor(change_percent, flakyness):
+def PercentColor(change_percent, flakiness):
   result = ""
   if change_percent >= PERCENT_CONSIDERED_SIGNIFICANT:
     result = "$GREEN"
@@ -104,9 +104,9 @@ def PercentColor(change_percent, flakyness):
     result = "$RED"
   else:
     return ""
-  if flakyness < PROBABILITY_CONSIDERED_SIGNIFICANT:
+  if flakiness < PROBABILITY_CONSIDERED_SIGNIFICANT:
     result += "$BOLD"
-  elif flakyness > PROBABILITY_CONSIDERED_MEANINGLESS:
+  elif flakiness > PROBABILITY_CONSIDERED_MEANINGLESS:
     result = ""
   return result
 

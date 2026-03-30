@@ -361,7 +361,7 @@ int main(int argc, char* argv[]) {
   std::string usage = "Usage: " + std::string(argv[0]) + " [--list]" +
                       " [[V8_FLAGS] CCTEST]\n\n" + "Options:\n" +
                       "  --list:   list all cctests\n" +
-                      "  CCTEST:   cctest identfier returned by --list\n" +
+                      "  CCTEST:   cctest identifier returned by --list\n" +
                       "  V8_FLAGS: see V8 options below\n\n\n";
 
 #ifdef V8_USE_PERFETTO

@@ -22,23 +22,23 @@ defaultSerializer.writeHeader();
 const headerLength = defaultSerializer.releaseBuffer().length;
 
 describe('v8 deserializer', common.mustCall(() => {
-  let fileTest;
+  let file test;
   let reported;
   beforeEach(common.mustCallAtLeast(() => {
     reported = [];
-    fileTest = new runner.FileTest({
+    file test = new runner.file test({
       name: 'filetest',
       harness: { config: {} },
     });
-    fileTest.reporter.on('data', (data) => reported.push(data));
-    assert(fileTest.isClearToSend());
+    file test.reporter.on('data', (data) => reported.push(data));
+    assert(file test.isClearToSend());
   }));
 
   async function collectReported(chunks) {
-    chunks.forEach((chunk) => fileTest.parseMessage(chunk));
-    fileTest.drain();
-    fileTest.reporter.end();
-    await finished(fileTest.reporter);
+    chunks.forEach((chunk) => file test.parseMessage(chunk));
+    file test.drain();
+    file test.reporter.end();
+    await finished(file test.reporter);
     return reported;
   }
 

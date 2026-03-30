@@ -24,7 +24,7 @@
 namespace LIEF {
 namespace MachO {
 
-/// This class represents a binding operation infered from the indirect symbol
+/// This class represents a binding operation inferred from the indirect symbol
 /// table.
 class LIEF_API IndirectBindingInfo : public BindingInfo {
   friend class BinaryParser;

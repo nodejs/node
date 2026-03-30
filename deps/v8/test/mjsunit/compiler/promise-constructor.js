@@ -169,7 +169,7 @@ failWithMessage = (msg) => %AbortJS(msg);
 
 
 // Check that when the promise constructor is marked for lazy deoptimization
-// from below, but not immediatelly deoptimized, and then throws, the deopt continuation
+// from below, but not immediately deoptimized, and then throws, the deopt continuation
 // catches and calls the reject function instead of propagating the exception.
 (function() {
   function foo() {

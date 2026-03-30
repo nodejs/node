@@ -45,7 +45,7 @@ promise_test(async (t) => {
   let wheelEventTargets = [];
   let removedInitialTarget = false;
 
-  // Remove the initial element the wheel event is targetted at once we fire the
+  // Remove the initial element the wheel event is targeted at once we fire the
   // first wheel event, then log the subsequent wheel event targets.
   function removeInitialElement(e) {
     wheelEventTargets.push(e.target);
@@ -75,7 +75,7 @@ promise_test(async (t) => {
   await waitForCompositorCommit();
 
   assert_true(removedInitialTarget, "Removed the initial target");
-  // The first wheel event should be targetted at the removed element.
+  // The first wheel event should be targeted at the removed element.
   assert_equals(wheelEventTargets.shift(), initialTarget,
                 "Initial wheel event has the removed element as the target");
 
@@ -84,7 +84,7 @@ promise_test(async (t) => {
     // on what element the event should target. Find out what the target should be here
     // and make this assertion more restrictive.
     assert_not_equals(wheelEventTarget, initialTarget,
-                      "Wheel event at index `" + i + "` targetted the initial element");
+                      "Wheel event at index `" + i + "` targeted the initial element");
   });
   assert_greater_than(document.scrollingElement.scrollTop, 0, "The document has scrolled");
 }, "Remove the initial wheel event target.");

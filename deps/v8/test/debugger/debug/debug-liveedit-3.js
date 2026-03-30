@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-// In this test case we edit a script so that techincally function text
+// In this test case we edit a script so that technically function text
 // hasen't been changed. However actually function became one level more nested
 // and must be recompiled because it uses variable from outer scope.
 

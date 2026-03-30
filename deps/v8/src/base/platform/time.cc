@@ -742,7 +742,7 @@ TimeTicks TimeTicks::Now() {
     DCHECK_EQ(KERN_SUCCESS, result);
     USE(result);
   }
-  ticks = mach_absolute_time() * info.numer /
+  ticks = mach_absolute_time() * info.number /
           (Time::kNanosecondsPerMicrosecond * info.denom);
 #elif V8_OS_SOLARIS
   ticks = (gethrtime() / Time::kNanosecondsPerMicrosecond);

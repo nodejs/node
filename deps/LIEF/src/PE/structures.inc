@@ -326,7 +326,7 @@ struct pe_resource_acceltableentry {
 // Export structures
 //
 struct pe_export_directory_table {
-  uint32_t ExportFlags;           ///< Reserverd must be 0
+  uint32_t ExportFlags;           ///< Reserved must be 0
   uint32_t Timestamp;             ///< The time and date that the export data was created
   uint16_t MajorVersion;          ///< The Major version number
   uint16_t MinorVersion;          ///< The Minor version number
@@ -371,7 +371,7 @@ struct pe_resource_version_info {
 /// Resource icons directory structure
 /// Based on https://docs.microsoft.com/en-us/windows/win32/menurc/resources-reference
 ///
-/// This is the begining of the RESOURCE_TYPES::GROUP_ICON content
+/// This is the beginning of the RESOURCE_TYPES::GROUP_ICON content
 struct pe_resource_icon_dir {
   uint16_t reserved; ///< Reserved
   uint16_t type;     ///< Resource type (1 for icons)

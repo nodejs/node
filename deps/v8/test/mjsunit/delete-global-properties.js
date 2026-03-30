@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Global properties declared with 'var' or 'function' should not be
-// deleteable.
+// deletable.
 var tmp;
 assertFalse(delete tmp);  // should be DONT_DELETE
 assertTrue("tmp" in this);

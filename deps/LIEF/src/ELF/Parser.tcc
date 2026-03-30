@@ -895,7 +895,7 @@ ok_error_t Parser::parse_segments() {
   for (size_t i = 0; i < nbof_segments; ++i) {
     const auto elf_phdr = stream_->read<Elf_Phdr>();
     if (!elf_phdr) {
-      LIEF_ERR("Can't parse segement #{:d}", i);
+      LIEF_ERR("Can't parse segment #{:d}", i);
       break;
     }
 

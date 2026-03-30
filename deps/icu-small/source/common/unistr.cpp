@@ -1961,7 +1961,7 @@ UnicodeString::cloneArrayIfNeeded(int32_t newCapacity,
     int16_t flags = fUnion.fFields.fLengthAndFlags;
 
     if(flags&kUsingStackBuffer) {
-      U_ASSERT(!(flags&kRefCounted)); /* kRefCounted and kUsingStackBuffer are mutally exclusive */
+      U_ASSERT(!(flags&kRefCounted)); /* kRefCounted and kUsingStackBuffer are mutually exclusive */
       if(doCopyArray && growCapacity > US_STACKBUF_SIZE) {
         // copy the stack buffer contents because it will be overwritten with
         // fUnion.fFields values

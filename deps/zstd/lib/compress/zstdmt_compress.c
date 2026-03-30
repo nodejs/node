@@ -251,7 +251,7 @@ static Buffer ZSTDMT_resizeBuffer(ZSTDMT_bufferPool* bufPool, Buffer buffer)
 }
 #endif
 
-/* store buffer for later re-use, up to pool capacity */
+/* store buffer for later reuse, up to pool capacity */
 static void ZSTDMT_releaseBuffer(ZSTDMT_bufferPool* bufPool, Buffer buf)
 {
     DEBUGLOG(5, "ZSTDMT_releaseBuffer");

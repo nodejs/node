@@ -38,7 +38,7 @@ enum class UpdateFeedbackMode {
 // Which feedback slots to clear in Clear().
 enum class ClearBehavior {
   kDefault,
-  kClearAll,  // .. also ForIn, CompareOp, BinaryOp.
+  kClearAll,  // .. also foreign, CompareOp, BinaryOp.
 };
 
 enum class FeedbackSlotKind : uint8_t {

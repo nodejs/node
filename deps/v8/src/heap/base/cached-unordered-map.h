@@ -51,7 +51,7 @@ class CachedUnorderedMap final {
   }
 
   // No iterator is cached in this class so an actual find() has to be executed
-  // everytime.
+  // every time.
   typename MapT::iterator find(const Key& key) { return map_.find(key); }
 
   typename MapT::iterator begin() { return map_.begin(); }

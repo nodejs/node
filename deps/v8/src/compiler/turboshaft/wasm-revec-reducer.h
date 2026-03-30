@@ -542,7 +542,7 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
 #ifdef V8_TARGET_ARCH_X64
   // The Simd Shuffle in Wasm is a high level representation. It can map to
   // different x64 instructions depending on its shuffle array, and the
-  // performance of these intructions varies greatly.
+  // performance of these instructions varies greatly.
   // For example, if the shuffle array is totally random, there is a high
   // probability to use a general shuffle. The general shuffle may consist
   // of a sequence mov, vpinsrq, vpshufb. Its performance cost is high.

@@ -27,13 +27,13 @@ namespace strings_internal {
 
 struct base64_testcase {
   absl::string_view plaintext;
-  absl::string_view cyphertext;
+  absl::string_view ciphertext;
 };
 
 inline const std::array<base64_testcase, 5>& base64_strings() {
   static const std::array<base64_testcase, 5> testcase{{
       // Some google quotes
-      // Cyphertext created with "uuencode (GNU sharutils) 4.6.3"
+      // Ciphertext created with "uuencode (GNU sharutils) 4.6.3"
       // (Note that we're testing the websafe encoding, though, so if
       // you add messages, be sure to run "tr -- '+/' '-_'" on the output)
       { "I was always good at math and science, and I never realized "

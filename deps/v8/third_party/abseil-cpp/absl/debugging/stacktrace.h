@@ -52,7 +52,7 @@ extern int GetStackFrames(void** result, uintptr_t* frames, int* sizes,
 // parameter to allow callers to receive a start address for each stack frame.
 // The address may be zero in cases where it cannot be computed.
 //
-// DO NOT use this function without consulting the owners of absl/debuggging.
+// DO NOT use this function without consulting the owners of absl/debugging.
 // There is NO GUARANTEE on the precise frame addresses returned on any given
 // platform. It is only intended to provide sufficient non-overlapping bounds on
 // the local variables of a stack frame when used in conjunction with the

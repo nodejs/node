@@ -1022,7 +1022,7 @@ void uv__pipe_interrupt_read(uv_pipe_t* handle) {
     thread = *thread_ptr;
     if (thread == NULL) {
       /* The thread pool thread has not yet reached the point of blocking, we
-       * can pre-empt it by setting thread_handle to INVALID_HANDLE_VALUE. */
+       * can preempt it by setting thread_handle to INVALID_HANDLE_VALUE. */
       *thread_ptr = INVALID_HANDLE_VALUE;
 
     } else {

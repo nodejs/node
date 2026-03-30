@@ -1016,7 +1016,7 @@ TEST(CivilTime, NormalizeWithHugeYear) {
   EXPECT_EQ("-9223372036854775807-01", Format(c));
 }
 
-TEST(CivilTime, LeapYears) {
+TEST(CivilTime, leap years) {
   // Test data for leap years.
   const struct {
     int year;

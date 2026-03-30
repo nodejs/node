@@ -17,7 +17,7 @@ assertTrue(%IsInPlaceInternalizableString(foo));
 // Create old-to-new reference.
 old.foo = foo;
 
-// The second minor GC would usally promote that string
+// The second minor GC would usually promote that string
 // into old space, with --shared-string-table it is promoted
 // into shared heap instead. This should create an old-to-shared
 // reference from an old-to-new slot.

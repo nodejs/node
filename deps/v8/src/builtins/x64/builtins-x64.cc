@@ -1249,7 +1249,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   } else {
     DCHECK_EQ(mode, InterpreterEntryTrampolineMode::kForProfiling);
     // Both versions must be the same up to this point otherwise the builtins
-    // will not be interchangable.
+    // will not be interchangeable.
     CHECK_EQ(
         masm->isolate()->heap()->interpreter_entry_return_pc_offset().value(),
         masm->pc_offset());
@@ -3185,7 +3185,7 @@ void Generate_RestoreFrameDescriptionRegisters(MacroAssembler* masm,
 // to kick off execution running the builtin continuation associated with
 // ReturnAddress_N on the stack above. AdaptShadowStackForDeopt uses
 // kScratchRegister and kAdaptShadowStackRegister for its own work, and
-// that is why those registers are additionaly saved on the stack, to be
+// that is why those registers are additionally saved on the stack, to be
 // restored at the end of the process.
 
 // kAdaptShadowStackDispatchFirstEntryOffset marks the "kick-off" location in
@@ -4148,7 +4148,7 @@ void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm,
     __ Move(kCArgRegs[1], kOldSPRegister);
     __ PrepareCallCFunction(2);
     __ CallCFunction(ER::wasm_switch_to_the_central_stack(), 2,
-                     SetIsolateDataSlots::kNo);
+                     SetIsolateDataSlots::know);
     __ movq(central_stack_sp, kReturnRegister0);
 
     __ popq(argc_input);
@@ -4192,7 +4192,7 @@ void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm,
     __ Move(kCArgRegs[0], ER::isolate_address());
     __ PrepareCallCFunction(1);
     __ CallCFunction(ER::wasm_switch_from_the_central_stack(), 1,
-                     SetIsolateDataSlots::kNo);
+                     SetIsolateDataSlots::know);
 
     __ popq(kReturnRegister1);
     __ popq(kReturnRegister0);
@@ -4382,7 +4382,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ Move(kCArgRegs[1], 0);  // argv.
     __ Move(kCArgRegs[2], ER::isolate_address());
     __ PrepareCallCFunction(3);
-    __ CallCFunction(find_handler, 3, SetIsolateDataSlots::kNo);
+    __ CallCFunction(find_handler, 3, SetIsolateDataSlots::know);
   }
 
 #ifdef V8_ENABLE_CET_SHADOW_STACK

@@ -998,7 +998,7 @@ impl<'ast> LoweringContext<'ast> {
                         Ok(Type::DiplomatOption(Box::new(inner)))
                     }
                     ast::TypeName::Box(box_ty) => {
-                        // we could see whats in the box here too
+                        // we could see what's in the box here too
                         self.errors.push(LoweringError::Other(format!("found Option<Box<T>> in input, but box isn't allowed in inputs. T = {box_ty}")));
                         Err(())
                     }

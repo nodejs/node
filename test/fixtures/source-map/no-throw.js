@@ -16,13 +16,13 @@ var Foo = /** @class */ (function () {
     };
     Foo.prototype.methodC = function () {
     };
-    Foo.prototype.methodD = function () {
+    Foo.prototype.method = function () {
     };
     return Foo;
 }());
 var a = new Foo(0);
 var b = new Foo(33);
-a.methodD();
+a.method();
 module.exports = {
     a: a,
     b: b,

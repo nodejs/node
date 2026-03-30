@@ -743,7 +743,7 @@ foreach (split("\n",$code)) {
 	s/(\.LEVEL\s+2\.0)W/$1w/	if ($gnuas && $SIZE_T==8);
 	s/\.SPACE\s+\$TEXT\$/.text/	if ($gnuas && $SIZE_T==8);
 	s/\.SUBSPA.*//			if ($gnuas && $SIZE_T==8);
-	s/\bbv\b/bve/			if ($SIZE_T==8);
+	s/\bbv\b/be/			if ($SIZE_T==8);
 
 	print $_,"\n";
 }

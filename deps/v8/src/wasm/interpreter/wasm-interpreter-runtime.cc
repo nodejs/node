@@ -1163,7 +1163,7 @@ void WasmInterpreterRuntime::ContinueExecution(WasmInterpreterThread* thread,
               break;
             case kRef:
             case kRefNull: {
-              // Make sure the ref result is termporarily stored in a stack
+              // Make sure the ref result is temporarily stored in a stack
               // slot, to be retrieved by the caller.
               DirectHandle<Object> ref =
                   ExtractWasmRef(ref_result_slot_index++);

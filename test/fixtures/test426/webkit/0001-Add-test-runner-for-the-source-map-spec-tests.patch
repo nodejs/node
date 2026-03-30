@@ -858,9 +858,9 @@ index 000000000000..a8bb3947c435
 +  - [X] A five field segment gets mapped to the correct line and column.
 +  - [X] When a name is present in a segment, it is correctly mapped.
 +  - [X] When a source is present in a segment, it is correctly mapped.
-+  - [ ] The second occurence of a field segment in a line is mapped relative to the previous one.
++  - [ ] The second occurrence of a field segment in a line is mapped relative to the previous one.
 +  - [ ] When a new line starts, the generated column field resets to zero rather than being relative to the previous line.
-+  - [ ] For fields other than the generated column, a segment field that has occured once in a previous line is mapped relatively when it occurs in the next line.
++  - [ ] For fields other than the generated column, a segment field that has occurred once in a previous line is mapped relatively when it occurs in the next line.
 +  - [ ] Ensure that a transitive source map mapping works as expected
 +  - Index maps are correctly used in mappings
 +    * [ ] An index map with one sub-map will map correctly.
@@ -3397,7 +3397,7 @@ index 000000000000..c5fbd4baa8b0
 ++    },
 ++    {
 ++      "name": "sourceRootResolution",
-++      "description": "Similar to basic mapping test, but test resoultion of sources with a sourceRoot field",
+++      "description": "Similar to basic mapping test, but test resolution of sources with a sourceRoot field",
 ++      "baseFile": "source-root-resolution.js",
 ++      "sourceMapFile": "source-root-resolution.js.map",
 ++      "sourceMapIsValid": true,
@@ -3424,7 +3424,7 @@ index 000000000000..c5fbd4baa8b0
 ++    },
 ++    {
 ++      "name": "sourceResolutionAbsoluteURL",
-++      "description": "Test resoultion of sources with absolute URLs",
+++      "description": "Test resolution of sources with absolute URLs",
 ++      "baseFile": "source-resolution-absolute-url.js",
 ++      "sourceMapFile": "source-resolution-absolute-url.js.map",
 ++      "sourceMapIsValid": true,
@@ -7283,7 +7283,7 @@ index 000000000000..71dec0d65a1a
 +  "names": [],
 +  "sources": ["vlq-valid-negative-digit-original.js"],
 +  "sourcesContent": ["\n 4;3"],
-+  "mappings": ";;eACG,bAAF"
++  "mappings": ";;each,bAAF"
 +}
 diff --git a/LayoutTests/imported/tg4/source-map-tests/resources/vlq-valid-single-digit.js b/LayoutTests/imported/tg4/source-map-tests/resources/vlq-valid-single-digit.js
 new file mode 100644
@@ -7950,7 +7950,7 @@ index 000000000000..4601502fffd6
 +    },
 +    {
 +      "name": "sourceRootResolution",
-+      "description": "Similar to basic mapping test, but test resoultion of sources with a sourceRoot field",
++      "description": "Similar to basic mapping test, but test resolution of sources with a sourceRoot field",
 +      "baseFile": "source-root-resolution.js",
 +      "sourceMapFile": "source-root-resolution.js.map",
 +      "sourceMapIsValid": true,
@@ -7977,7 +7977,7 @@ index 000000000000..4601502fffd6
 +    },
 +    {
 +      "name": "sourceResolutionAbsoluteURL",
-+      "description": "Test resoultion of sources with absolute URLs",
++      "description": "Test resolution of sources with absolute URLs",
 +      "baseFile": "source-resolution-absolute-url.js",
 +      "sourceMapFile": "source-resolution-absolute-url.js.map",
 +      "sourceMapIsValid": true,

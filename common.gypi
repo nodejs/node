@@ -435,7 +435,7 @@
           }],
         ],
       }],
-      # The defines bellow must include all things from the external_v8_defines
+      # The defines below must include all things from the external_v8_defines
       # list in v8/BUILD.gn.
       ['v8_enable_v8_checks == 1', {
         'defines': ['V8_ENABLE_CHECKS'],

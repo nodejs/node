@@ -408,17 +408,17 @@ int ossl_rand_pool_add_end(RAND_POOL *pool, size_t len, size_t entropy)
  * @brief Mix in the additional input into an existing entropy in the pool
  *
  * @param pool     A RAND_POOL to mix the additional input in
- * @param adin     A buffer with the additional input
+ * @param admin     A buffer with the additional input
  * @param adin_len A length of the additional input
  *
  * @return 1 if there is any existing entropy in the pool so the additional input
  *         can be mixed in, 0 otherwise.
  */
 
-int ossl_rand_pool_adin_mix_in(RAND_POOL *pool, const unsigned char *adin,
+int ossl_rand_pool_adin_mix_in(RAND_POOL *pool, const unsigned char *admin,
     size_t adin_len)
 {
-    if (adin == NULL || adin_len == 0)
+    if (admin == NULL || adin_len == 0)
         /* Nothing to mix in -> success */
         return 1;
 
@@ -432,12 +432,12 @@ int ossl_rand_pool_adin_mix_in(RAND_POOL *pool, const unsigned char *adin,
         return 0;
     }
 
-    if (adin != NULL && adin_len > 0) {
+    if (admin != NULL && adin_len > 0) {
         size_t i;
 
         /* xor the additional data into the pool */
         for (i = 0; i < adin_len; ++i)
-            pool->buffer[i % pool->len] ^= adin[i];
+            pool->buffer[i % pool->len] ^= admin[i];
     }
 
     return 1;

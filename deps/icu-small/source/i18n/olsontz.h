@@ -226,7 +226,7 @@ class U_I18N_API_CLASS OlsonTimeZone : public BasicTimeZone {
     virtual int32_t getDSTSavings() const override;
 
     /**
-     * TimeZone API.  Also comare historic transitions.
+     * TimeZone API.  Also compare historic transitions.
      */
     virtual UBool hasSameRules(const TimeZone& other) const override;
 

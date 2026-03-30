@@ -1649,7 +1649,7 @@ class LIEF_LOCAL ExeLayout : public Layout {
         std::string sec_name = *section_res;
 
         // If the binary has the note type but does not have
-        // the section (likly because the user added the note manually)
+        // the section (likely because the user added the note manually)
         // then, create the section
         if (const Section* nsec = binary_->get_section(*section_res);
             nsec == nullptr)

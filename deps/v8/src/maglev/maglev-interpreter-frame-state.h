@@ -338,7 +338,7 @@ class MergePointInterpreterFrameState {
                  BasicBlock* loop_end_block);
   void set_loop_effects(LoopEffects* loop_effects);
   const LoopEffects* loop_effects();
-  // Merges a frame-state that might not be mergable, in which case we need to
+  // Merges a frame-state that might not be mergeable, in which case we need to
   // re-compile the loop again. Calls FinishBlock only if the merge succeeded.
   bool TryMergeLoop(MaglevGraphBuilder* graph_builder,
                     InterpreterFrameState& loop_end_state,

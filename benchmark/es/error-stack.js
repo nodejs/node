@@ -14,7 +14,7 @@ const bench = common.createBenchmark(main, {
   n: [1e5],
 });
 
-function runN(n, modPath) {
+function run(n, modPath) {
   delete require.cache[modPath];
   const mod = require(modPath);
   bench.start();
@@ -28,23 +28,23 @@ function main({ n, method }) {
   switch (method) {
     case 'without-sourcemap':
       process.setSourceMapsEnabled(false);
-      runN(n, modPath);
+      run(n, modPath);
       break;
     case 'sourcemap':
       process.setSourceMapsEnabled(true);
-      runN(n, modPath);
+      run(n, modPath);
       break;
     case 'node-modules-without-sourcemap':
       Module.setSourceMapsSupport(true, {
         nodeModules: false,
       });
-      runN(n, nodeModulePath);
+      run(n, nodeModulePath);
       break;
     case 'node-modules-sourcemap':
       Module.setSourceMapsSupport(true, {
         nodeModules: true,
       });
-      runN(n, nodeModulePath);
+      run(n, nodeModulePath);
       break;
     default:
       throw new Error(`Unexpected method "${method}"`);

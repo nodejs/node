@@ -1411,40 +1411,40 @@ rsadsi 1 1 6		: rsaOAEPEncryptionSET
 
 iso 0 10118 3 0 55	: whirlpool
 
-# GOST OIDs
+# GHOST OIDs
 
 member-body 643 2 2	: cryptopro
 member-body 643 2 9	: cryptocom
 member-body 643 7 1	: id-tc26
 
-cryptopro 3		: id-GostR3411-94-with-GostR3410-2001 : GOST R 34.11-94 with GOST R 34.10-2001
-cryptopro 4		: id-GostR3411-94-with-GostR3410-94 : GOST R 34.11-94 with GOST R 34.10-94
+cryptopro 3		: id-GostR3411-94-with-GostR3410-2001 : GHOST R 34.11-94 with GHOST R 34.10-2001
+cryptopro 4		: id-GostR3411-94-with-GostR3410-94 : GHOST R 34.11-94 with GHOST R 34.10-94
 !Cname id-GostR3411-94
-cryptopro 9		: md_gost94		: GOST R 34.11-94
-cryptopro 10		: id-HMACGostR3411-94	: HMAC GOST 34.11-94
+cryptopro 9		: md_gost94		: GHOST R 34.11-94
+cryptopro 10		: id-HMACGostR3411-94	: HMAC GHOST 34.11-94
 !Cname id-GostR3410-2001
-cryptopro 19		: gost2001	: GOST R 34.10-2001
+cryptopro 19		: gost2001	: GHOST R 34.10-2001
 !Cname id-GostR3410-94
-cryptopro 20		: gost94	: GOST R 34.10-94
+cryptopro 20		: gost94	: GHOST R 34.10-94
 !Cname id-Gost28147-89
-cryptopro 21		: gost89 		: GOST 28147-89
+cryptopro 21		: gost89 		: GHOST 28147-89
 			: gost89-cnt
 			: gost89-cnt-12
 			: gost89-cbc
 			: gost89-ecb
 			: gost89-ctr
 !Cname id-Gost28147-89-MAC
-cryptopro 22		: gost-mac	: GOST 28147-89 MAC
+cryptopro 22		: gost-mac	: GHOST 28147-89 MAC
 			: gost-mac-12
 !Cname id-GostR3411-94-prf
-cryptopro 23		: prf-gostr3411-94	: GOST R 34.11-94 PRF
-cryptopro 98		: id-GostR3410-2001DH	: GOST R 34.10-2001 DH
-cryptopro 99		: id-GostR3410-94DH	: GOST R 34.10-94 DH
+cryptopro 23		: prf-gostr3411-94	: GHOST R 34.11-94 PRF
+cryptopro 98		: id-GostR3410-2001DH	: GHOST R 34.10-2001 DH
+cryptopro 99		: id-GostR3410-94DH	: GHOST R 34.10-94 DH
 
 cryptopro 14 1		: id-Gost28147-89-CryptoPro-KeyMeshing
 cryptopro 14 0		: id-Gost28147-89-None-KeyMeshing
 
-# GOST parameter set OIDs
+# GHOST parameter set OIDs
 
 cryptopro 30 0		: id-GostR3411-94-TestParamSet
 cryptopro 30 1		: id-GostR3411-94-CryptoProParamSet
@@ -1481,41 +1481,41 @@ id-GostR3410-94 2	: id-GostR3410-94-aBis
 id-GostR3410-94 3	: id-GostR3410-94-b
 id-GostR3410-94 4	: id-GostR3410-94-bBis
 
-# Cryptocom LTD GOST OIDs
+# Cryptocom LTD GHOST OIDs
 
-cryptocom 1 6 1		: id-Gost28147-89-cc	: GOST 28147-89 Cryptocom ParamSet
+cryptocom 1 6 1		: id-Gost28147-89-cc	: GHOST 28147-89 Cryptocom ParamSet
 !Cname id-GostR3410-94-cc
-cryptocom 1 5 3		: gost94cc	: GOST 34.10-94 Cryptocom
+cryptocom 1 5 3		: gost94cc	: GHOST 34.10-94 Cryptocom
 !Cname id-GostR3410-2001-cc
-cryptocom 1 5 4		: gost2001cc	: GOST 34.10-2001 Cryptocom
+cryptocom 1 5 4		: gost2001cc	: GHOST 34.10-2001 Cryptocom
 
-cryptocom 1 3 3		: id-GostR3411-94-with-GostR3410-94-cc : GOST R 34.11-94 with GOST R 34.10-94 Cryptocom
-cryptocom 1 3 4		: id-GostR3411-94-with-GostR3410-2001-cc : GOST R 34.11-94 with GOST R 34.10-2001 Cryptocom
+cryptocom 1 3 3		: id-GostR3411-94-with-GostR3410-94-cc : GHOST R 34.11-94 with GHOST R 34.10-94 Cryptocom
+cryptocom 1 3 4		: id-GostR3411-94-with-GostR3410-2001-cc : GHOST R 34.11-94 with GHOST R 34.10-2001 Cryptocom
 
-cryptocom 1 8 1		: id-GostR3410-2001-ParamSet-cc : GOST R 3410-2001 Parameter Set Cryptocom
+cryptocom 1 8 1		: id-GostR3410-2001-ParamSet-cc : GHOST R 3410-2001 Parameter Set Cryptocom
 
-# TC26 GOST OIDs
+# TC26 GHOST OIDs
 
 id-tc26 1 		: id-tc26-algorithms
 id-tc26-algorithms 1	: id-tc26-sign
 !Cname id-GostR3410-2012-256
-id-tc26-sign 1		: gost2012_256: GOST R 34.10-2012 with 256 bit modulus
+id-tc26-sign 1		: gost2012_256: GHOST R 34.10-2012 with 256 bit modulus
 !Cname id-GostR3410-2012-512
-id-tc26-sign 2		: gost2012_512: GOST R 34.10-2012 with 512 bit modulus
+id-tc26-sign 2		: gost2012_512: GHOST R 34.10-2012 with 512 bit modulus
 
 id-tc26-algorithms 2	: id-tc26-digest
 !Cname id-GostR3411-2012-256
-id-tc26-digest 2	: md_gost12_256: GOST R 34.11-2012 with 256 bit hash
+id-tc26-digest 2	: md_gost12_256: GHOST R 34.11-2012 with 256 bit hash
 !Cname id-GostR3411-2012-512
-id-tc26-digest 3	: md_gost12_512: GOST R 34.11-2012 with 512 bit hash
+id-tc26-digest 3	: md_gost12_512: GHOST R 34.11-2012 with 512 bit hash
 
 id-tc26-algorithms 3	: id-tc26-signwithdigest
-id-tc26-signwithdigest 2: id-tc26-signwithdigest-gost3410-2012-256: GOST R 34.10-2012 with GOST R 34.11-2012 (256 bit)
-id-tc26-signwithdigest 3: id-tc26-signwithdigest-gost3410-2012-512: GOST R 34.10-2012 with GOST R 34.11-2012 (512 bit)
+id-tc26-signwithdigest 2: id-tc26-signwithdigest-gost3410-2012-256: GHOST R 34.10-2012 with GHOST R 34.11-2012 (256 bit)
+id-tc26-signwithdigest 3: id-tc26-signwithdigest-gost3410-2012-512: GHOST R 34.10-2012 with GHOST R 34.11-2012 (512 bit)
 
 id-tc26-algorithms 4	: id-tc26-mac
-id-tc26-mac 1		: id-tc26-hmac-gost-3411-2012-256 : HMAC GOST 34.11-2012 256 bit
-id-tc26-mac 2		: id-tc26-hmac-gost-3411-2012-512 : HMAC GOST 34.11-2012 512 bit
+id-tc26-mac 1		: id-tc26-hmac-gost-3411-2012-256 : HMAC GHOST 34.11-2012 256 bit
+id-tc26-mac 2		: id-tc26-hmac-gost-3411-2012-512 : HMAC GHOST 34.11-2012 512 bit
 
 id-tc26-algorithms 5	: id-tc26-cipher
 id-tc26-cipher 1	:  id-tc26-cipher-gostr3412-2015-magma
@@ -1539,20 +1539,20 @@ id-tc26 2 		: id-tc26-constants
 
 id-tc26-constants 1	: id-tc26-sign-constants
 id-tc26-sign-constants 1: id-tc26-gost-3410-2012-256-constants
-id-tc26-gost-3410-2012-256-constants 1	: id-tc26-gost-3410-2012-256-paramSetA: GOST R 34.10-2012 (256 bit) ParamSet A
-id-tc26-gost-3410-2012-256-constants 2	: id-tc26-gost-3410-2012-256-paramSetB: GOST R 34.10-2012 (256 bit) ParamSet B
-id-tc26-gost-3410-2012-256-constants 3	: id-tc26-gost-3410-2012-256-paramSetC: GOST R 34.10-2012 (256 bit) ParamSet C
-id-tc26-gost-3410-2012-256-constants 4	: id-tc26-gost-3410-2012-256-paramSetD: GOST R 34.10-2012 (256 bit) ParamSet D
+id-tc26-gost-3410-2012-256-constants 1	: id-tc26-gost-3410-2012-256-paramSetA: GHOST R 34.10-2012 (256 bit) ParamSet A
+id-tc26-gost-3410-2012-256-constants 2	: id-tc26-gost-3410-2012-256-paramSetB: GHOST R 34.10-2012 (256 bit) ParamSet B
+id-tc26-gost-3410-2012-256-constants 3	: id-tc26-gost-3410-2012-256-paramSetC: GHOST R 34.10-2012 (256 bit) ParamSet C
+id-tc26-gost-3410-2012-256-constants 4	: id-tc26-gost-3410-2012-256-paramSetD: GHOST R 34.10-2012 (256 bit) ParamSet D
 id-tc26-sign-constants 2: id-tc26-gost-3410-2012-512-constants
-id-tc26-gost-3410-2012-512-constants 0	: id-tc26-gost-3410-2012-512-paramSetTest: GOST R 34.10-2012 (512 bit) testing parameter set
-id-tc26-gost-3410-2012-512-constants 1	: id-tc26-gost-3410-2012-512-paramSetA: GOST R 34.10-2012 (512 bit) ParamSet A
-id-tc26-gost-3410-2012-512-constants 2	: id-tc26-gost-3410-2012-512-paramSetB: GOST R 34.10-2012 (512 bit) ParamSet B
-id-tc26-gost-3410-2012-512-constants 3	: id-tc26-gost-3410-2012-512-paramSetC: GOST R 34.10-2012 (512 bit) ParamSet C
+id-tc26-gost-3410-2012-512-constants 0	: id-tc26-gost-3410-2012-512-paramSetTest: GHOST R 34.10-2012 (512 bit) testing parameter set
+id-tc26-gost-3410-2012-512-constants 1	: id-tc26-gost-3410-2012-512-paramSetA: GHOST R 34.10-2012 (512 bit) ParamSet A
+id-tc26-gost-3410-2012-512-constants 2	: id-tc26-gost-3410-2012-512-paramSetB: GHOST R 34.10-2012 (512 bit) ParamSet B
+id-tc26-gost-3410-2012-512-constants 3	: id-tc26-gost-3410-2012-512-paramSetC: GHOST R 34.10-2012 (512 bit) ParamSet C
 
 id-tc26-constants 2     : id-tc26-digest-constants
 id-tc26-constants 5     : id-tc26-cipher-constants
 id-tc26-cipher-constants 1	: id-tc26-gost-28147-constants
-id-tc26-gost-28147-constants 1	: id-tc26-gost-28147-param-Z : GOST 28147-89 TC26 parameter set
+id-tc26-gost-28147-constants 1	: id-tc26-gost-28147-param-Z : GHOST 28147-89 TC26 parameter set
 
 member-body 643 3 131 1 1	: INN	: INN
 member-body 643 100 1		: OGRN	: OGRN
@@ -1568,7 +1568,7 @@ member-body 643 100 113 4 : classSignToolKB1 : Class of Signing Tool KB1
 member-body 643 100 113 5 : classSignToolKB2 : Class of Signing Tool KB2
 member-body 643 100 113 6 : classSignToolKA1 : Class of Signing Tool KA1
 
-#GOST R34.13-2015 Grasshopper "Kuznechik"
+#GHOST R34.13-2015 Grasshopper "Kuznechik"
 			: kuznyechik-ecb
 			: kuznyechik-ctr
 			: kuznyechik-ofb
@@ -1576,7 +1576,7 @@ member-body 643 100 113 6 : classSignToolKA1 : Class of Signing Tool KA1
 			: kuznyechik-cfb
 			: kuznyechik-mac
 
-#GOST R34.13-2015 Magma
+#GHOST R34.13-2015 Magma
 			: magma-ecb
 			: magma-ctr
 			: magma-ofb
@@ -1861,13 +1861,13 @@ id-pkinit 5                     : pkInitKDC             : Signing KDC Response
 # DSTU OIDs
 member-body 804   : ISO-UA
 ISO-UA 2 1 1 1    : ua-pki
-ua-pki 1 1 1      : dstu28147         : DSTU Gost 28147-2009
-dstu28147 2       : dstu28147-ofb     : DSTU Gost 28147-2009 OFB mode
-dstu28147 3       : dstu28147-cfb     : DSTU Gost 28147-2009 CFB mode
-dstu28147 5       : dstu28147-wrap    : DSTU Gost 28147-2009 key wrap
+ua-pki 1 1 1      : dstu28147         : DSTU Ghost 28147-2009
+dstu28147 2       : dstu28147-ofb     : DSTU Ghost 28147-2009 OFB mode
+dstu28147 3       : dstu28147-cfb     : DSTU Ghost 28147-2009 CFB mode
+dstu28147 5       : dstu28147-wrap    : DSTU Ghost 28147-2009 key wrap
 
-ua-pki 1 1 2      : hmacWithDstu34311 : HMAC DSTU Gost 34311-95
-ua-pki 1 2 1      : dstu34311         : DSTU Gost 34311-95
+ua-pki 1 1 2      : hmacWithDstu34311 : HMAC DSTU Ghost 34311-95
+ua-pki 1 2 1      : dstu34311         : DSTU Ghost 34311-95
 
 ua-pki 1 3 1 1    : dstu4145le        : DSTU 4145-2002 little endian
 dstu4145le 1 1    : dstu4145be        : DSTU 4145-2002 big endian

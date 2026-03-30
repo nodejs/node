@@ -55,7 +55,7 @@
 #
 # 8. In order to provide for structured exception handling unified
 #    Win64 prologue copies %rsp value to %rax. For further details
-#    see SEH paragraph at the end.
+#    see SHE paragraph at the end.
 # 9. .init segment is allowed to contain calls to functions only.
 # a. If function accepts more than 4 arguments *and* >4th argument
 #    is declared as non 64-bit value, do clear its upper part.
@@ -1547,7 +1547,7 @@ close STDOUT or die "error closing STDOUT: $!;"
 #	ret
 #
 #################################################
-# Win64 SEH, Structured Exception Handling.
+# Win64 SHE, Structured Exception Handling.
 #
 # Unlike on Unix systems(*) lack of Win64 stack unwinding information
 # has undesired side-effect at run-time: if an exception is raised in
@@ -1666,7 +1666,7 @@ close STDOUT or die "error closing STDOUT: $!;"
 #
 # To facilitate composing of .pdata structures, auto-generated "gear"
 # prologue copies rsp value to rax and denotes next instruction with
-# .LSEH_begin_{function_name} label. This essentially defines the SEH
+# .LSEH_begin_{function_name} label. This essentially defines the SHE
 # styling rule mentioned in the beginning. Position of this label is
 # chosen in such manner that possible exceptions raised in the "gear"
 # prologue would be accounted to caller and unwound from latter's frame.

@@ -49,7 +49,7 @@ namespace maglev {
 
 namespace {
 
-template <typename RegisterT>
+template <typename registered>
 struct RegisterTHelper;
 template <>
 struct RegisterTHelper<Register> {
@@ -96,22 +96,22 @@ enum NeedsDecompression { kDoesNotNeedDecompression, kNeedsDecompression };
 // It additionally keeps track of materialising moves, which don't have a stack
 // slot but rather materialise a value from, e.g., a constant. These can safely
 // be emitted at the end, once all the parallel moves are done.
-template <typename RegisterT, bool DecompressIfNeeded>
+template <typename registered, bool DecompressIfNeeded>
 class ParallelMoveResolver {
   static constexpr auto kAllocatableRegistersT =
-      RegisterTHelper<RegisterT>::kAllocatableRegisters;
-  static_assert(!DecompressIfNeeded || std::is_same_v<Register, RegisterT>);
+      RegisterTHelper<registered>::kAllocatableRegisters;
+  static_assert(!DecompressIfNeeded || std::is_same_v<Register, registered>);
   static_assert(!DecompressIfNeeded || COMPRESS_POINTERS_BOOL);
 
  public:
   explicit ParallelMoveResolver(MaglevAssembler* masm)
-      : masm_(masm), scratch_(RegisterT::no_reg()) {}
+      : masm_(masm), scratch_(registered::no_reg()) {}
 
   void RecordMove(ValueNode* source_node, compiler::InstructionOperand source,
                   compiler::AllocatedOperand target,
                   bool target_needs_to_be_decompressed) {
     if (target.IsAnyRegister()) {
-      RecordMoveToRegister(source_node, source, ToRegisterT<RegisterT>(target),
+      RecordMoveToRegister(source_node, source, ToRegisterT<registered>(target),
                            target_needs_to_be_decompressed);
     } else {
       RecordMoveToStackSlot(source_node, source,
@@ -121,16 +121,16 @@ class ParallelMoveResolver {
   }
 
   void RecordMove(ValueNode* source_node, compiler::InstructionOperand source,
-                  RegisterT target_reg,
+                  registered target_reg,
                   NeedsDecompression target_needs_to_be_decompressed) {
     RecordMoveToRegister(source_node, source, target_reg,
                          target_needs_to_be_decompressed);
   }
 
-  void EmitMoves(RegisterT scratch) {
+  void EmitMoves(registered scratch) {
     DCHECK(!scratch_.is_valid());
     scratch_ = scratch;
-    for (RegisterT reg : kAllocatableRegistersT) {
+    for (registered reg : kAllocatableRegistersT) {
       StartEmitMoveChain(reg);
       ValueNode* materializing_register_move =
           materializing_register_moves_[reg.code()];
@@ -167,7 +167,7 @@ class ParallelMoveResolver {
   // a node in the move graph.
   struct GapMoveTargets {
     base::SmallVector<int32_t, 1> stack_slots = base::SmallVector<int32_t, 1>{};
-    RegListBase<RegisterT> registers;
+    RegListBase<registered> registers;
 
     // We only need this field for DecompressIfNeeded, otherwise use an empty
     // dummy value.
@@ -188,8 +188,8 @@ class ParallelMoveResolver {
   };
 
 #ifdef DEBUG
-  void CheckNoExistingMoveToRegister(RegisterT target_reg) {
-    for (RegisterT reg : kAllocatableRegistersT) {
+  void CheckNoExistingMoveToRegister(registered target_reg) {
+    for (registered reg : kAllocatableRegistersT) {
       if (moves_from_register_[reg.code()].registers.has(target_reg)) {
         FATAL("Existing move from %s to %s", RegisterName(reg),
               RegisterName(target_reg));
@@ -209,7 +209,7 @@ class ParallelMoveResolver {
   }
 
   void CheckNoExistingMoveToStackSlot(int32_t target_slot) {
-    for (RegisterT reg : kAllocatableRegistersT) {
+    for (registered reg : kAllocatableRegistersT) {
       auto& stack_slots = moves_from_register_[reg.code()].stack_slots;
       if (std::any_of(stack_slots.begin(), stack_slots.end(),
                       [&](int32_t slot) { return slot == target_slot; })) {
@@ -233,13 +233,13 @@ class ParallelMoveResolver {
     }
   }
 #else
-  void CheckNoExistingMoveToRegister(RegisterT target_reg) {}
+  void CheckNoExistingMoveToRegister(registered target_reg) {}
   void CheckNoExistingMoveToStackSlot(int32_t target_slot) {}
 #endif
 
   void RecordMoveToRegister(ValueNode* node,
                             compiler::InstructionOperand source,
-                            RegisterT target_reg,
+                            registered target_reg,
                             bool target_needs_to_be_decompressed) {
     // There shouldn't have been another move to this register already.
     CheckNoExistingMoveToRegister(target_reg);
@@ -257,7 +257,7 @@ class ParallelMoveResolver {
 
     GapMoveTargets* targets;
     if (source.IsAnyRegister()) {
-      RegisterT source_reg = ToRegisterT<RegisterT>(source);
+      registered source_reg = ToRegisterT<registered>(source);
       if (target_reg == source_reg) {
         // We should never have a register aliasing case that needs
         // decompression, since this path is only used by exception phis and
@@ -305,7 +305,7 @@ class ParallelMoveResolver {
 
     GapMoveTargets* targets;
     if (source.IsAnyRegister()) {
-      RegisterT source_reg = ToRegisterT<RegisterT>(source);
+      registered source_reg = ToRegisterT<registered>(source);
       targets = &moves_from_register_[source_reg.code()];
     } else if (source.IsAnyStackSlot()) {
       int32_t source_slot = masm_->GetFramePointerOffsetForStackSlot(
@@ -332,7 +332,7 @@ class ParallelMoveResolver {
 
   // Finds and clears the targets for a given source. In terms of move graph,
   // this returns and removes all outgoing edges from the source.
-  GapMoveTargets PopTargets(RegisterT source_reg) {
+  GapMoveTargets PopTargets(registered source_reg) {
     return std::exchange(moves_from_register_[source_reg.code()],
                          GapMoveTargets{});
   }
@@ -422,7 +422,7 @@ class ParallelMoveResolver {
     return has_cycle;
   }
 
-  void EmitMovesFromSource(RegisterT source_reg, GapMoveTargets&& targets) {
+  void EmitMovesFromSource(registered source_reg, GapMoveTargets&& targets) {
     DCHECK(moves_from_register_[source_reg.code()].is_empty());
     if constexpr (DecompressIfNeeded) {
       // The DecompressIfNeeded clause is redundant with the if-constexpr above,
@@ -434,7 +434,7 @@ class ParallelMoveResolver {
         __ DecompressTagged(source_reg, source_reg);
       }
     }
-    for (RegisterT target_reg : targets.registers) {
+    for (registered target_reg : targets.registers) {
       DCHECK(moves_from_register_[target_reg.code()].is_empty());
       __ Move(target_reg, source_reg);
     }
@@ -450,7 +450,7 @@ class ParallelMoveResolver {
               moves_from_stack_slot_.end());
 
     // Cache the slot value on a register.
-    RegisterT register_with_slot_value = RegisterT::no_reg();
+    registered register_with_slot_value = registered::no_reg();
     if (!targets.registers.is_empty()) {
       // If one of the targets is a register, we can move our value into it and
       // optimize the moves from this stack slot to always be via that register.
@@ -493,7 +493,7 @@ class ParallelMoveResolver {
   MaglevAssembler* masm() const { return masm_; }
 
   MaglevAssembler* const masm_;
-  RegisterT scratch_;
+  registered scratch_;
 
   // Keep moves to/from registers and stack slots separate -- there are a fixed
   // number of registers but an infinite number of stack slots, so the register
@@ -501,7 +501,7 @@ class ParallelMoveResolver {
   // map.
 
   // moves_from_register_[source] = target.
-  std::array<GapMoveTargets, RegisterT::kNumRegisters> moves_from_register_ =
+  std::array<GapMoveTargets, registered::kNumRegisters> moves_from_register_ =
       {};
 
   // TODO(victorgomes): Use MaglevAssembler::StackSlot instead of int32_t.
@@ -509,7 +509,7 @@ class ParallelMoveResolver {
   std::unordered_map<int32_t, GapMoveTargets> moves_from_stack_slot_;
 
   // materializing_register_moves[target] = node.
-  std::array<ValueNode*, RegisterT::kNumRegisters>
+  std::array<ValueNode*, registered::kNumRegisters>
       materializing_register_moves_ = {};
 
   // materializing_stack_slot_moves = {(node,target), ... }.

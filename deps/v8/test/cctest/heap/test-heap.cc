@@ -3804,7 +3804,7 @@ UNINITIALIZED_TEST(ReleaseStackTraceData) {
     ReleaseStackTraceDataTest(isolate, source1, setter);
     ReleaseStackTraceDataTest(isolate, source2, setter);
     // We do not test source3 and source4 with setter, since the setter is
-    // supposed to (untypically) write to the receiver, not the holder.  This is
+    // supposed to (atypically) write to the receiver, not the holder.  This is
     // to emulate the behavior of a data property.
 
     ReleaseStackTraceDataTest(isolate, source1, getter);

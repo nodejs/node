@@ -164,7 +164,7 @@ std::vector<uint8_t> File::raw(bool deoptimize) const {
         case OPCODES::OP_IPUT_QUICK:
           {
             LIEF_TRACE("{}.{}", method->cls()->fullname(), method->name());
-            LIEF_TRACE("[{:06x}] iput-quick -> iput@{:d}", dex_pc, value);
+            LIEF_TRACE("[{:06x}] input-quick -> input@{:d}", dex_pc, value);
             if (static_cast<int32_t>(value) == -1) {
               LIEF_WARN("Unable to resolve instruction: {}.{} at 0x{:04x} (iput-quick)",
                   method->cls()->fullname(), method->name(), dex_pc);

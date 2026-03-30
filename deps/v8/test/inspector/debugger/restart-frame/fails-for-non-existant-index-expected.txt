@@ -1,4 +1,4 @@
-Checks that requesting to restart a non-existant frame fails cleanly
+Checks that requesting to restart a non-existent frame fails cleanly
 Paused at (after evaluation):
 
     (function foo() { #debugger; })();

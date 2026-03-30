@@ -129,7 +129,7 @@ class LIEF_API LoadCommand : public Object {
     return command_;
   }
 
-  /// Size of the command (should be greather than ``sizeof(load_command)``)
+  /// Size of the command (should be greater than ``sizeof(load_command)``)
   uint32_t size() const {
     return size_;
   }

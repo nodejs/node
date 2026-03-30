@@ -44,7 +44,7 @@ class SandboxTesting : public AllStatic {
   // This will initialize the sandbox crash filter. The crash filter is a
   // signal handler for a number of fatal signals (e.g. SIGSEGV and SIGBUS) that
   // filters out all crashes that are not considered "sandbox violations".
-  // Examples of such "safe" crahses (in the context of the sandbox) are memory
+  // Examples of such "safe" crashes (in the context of the sandbox) are memory
   // access violations inside the sandbox address space or access violations
   // that always lead to an immediate crash (for example, an access to a
   // non-canonical address which may be the result of a tag mismatch in one of

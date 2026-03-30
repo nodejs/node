@@ -8,7 +8,7 @@
 
 
 (function copyWithinTargetAndStart() {
-  // works with two arguemnts
+  // works with two arguments
   assertArrayEquals([4, 5, 3, 4, 5], [1, 2, 3, 4, 5].copyWithin(0, 3));
   assertArrayEquals([1, 4, 5, 4, 5], [1, 2, 3, 4, 5].copyWithin(1, 3));
   assertArrayEquals([1, 3, 4, 5, 5], [1, 2, 3, 4, 5].copyWithin(1, 2));

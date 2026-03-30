@@ -24,7 +24,7 @@
  *                          = log(6.3*5.3) + lgamma(5.3)
  *                          = log(6.3*5.3*4.3*3.3*2.3) + lgamma(2.3)
  *   2. Polynomial approximation of lgamma around its
- *      minimun ymin=1.461632144968362245 to maintain monotonicity.
+ *      minimum ymin=1.461632144968362245 to maintain monotonicity.
  *      On [ymin-0.23, ymin+0.27] (i.e., [1.23164,1.73163]), use
  *              Let z = x-ymin;
  *              lgamma(x) = -1.214862905358496078218 + z^2*poly(z)

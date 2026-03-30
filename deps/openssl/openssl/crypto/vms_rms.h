@@ -20,7 +20,7 @@
 #define NAMX_ESL naml$l_long_expand_size
 #define NAMX_ESS naml$l_long_expand_alloc
 #define NAMX_NOP naml$b_nop
-#define SET_NAMX_NO_SHORT_UPCASE(nam) nam.naml$v_no_short_upcase = 1
+#define SET_NAMX_NO_SHORT_UPCASE(name) name.naml$v_no_short_upcase = 1
 
 #if __INITIAL_POINTER_SIZE == 64
 #define NAMX_DNA_FNA_SET(fab)           \
@@ -44,17 +44,17 @@
 #define FAB_OR_NAML_DNS fab$b_dns
 #define FAB_OR_NAML_FNA fab$l_fna
 #define FAB_OR_NAML_FNS fab$b_fns
-#define NAMX_ESA nam$l_esa
-#define NAMX_ESL nam$b_esl
-#define NAMX_ESS nam$b_ess
-#define NAMX_NOP nam$b_nop
+#define NAMX_ESA name$l_esa
+#define NAMX_ESL name$b_esl
+#define NAMX_ESS name$b_ess
+#define NAMX_NOP name$b_nop
 #define NAMX_DNA_FNA_SET(fab)
-#define NAMX_MAXRSS NAM$C_MAXRSS
-#define NAMX_STRUCT NAM
-#ifdef NAM$M_NO_SHORT_UPCASE
-#define SET_NAMX_NO_SHORT_UPCASE(nam) naml.naml$v_no_short_upcase = 1
-#else /* def NAM$M_NO_SHORT_UPCASE */
-#define SET_NAMX_NO_SHORT_UPCASE(nam)
-#endif /* def NAM$M_NO_SHORT_UPCASE [else] */
+#define NAMX_MAXRSS NAME$C_MAXRSS
+#define NAMX_STRUCT NAME
+#ifdef NAME$M_NO_SHORT_UPCASE
+#define SET_NAMX_NO_SHORT_UPCASE(name) naml.naml$v_no_short_upcase = 1
+#else /* def NAME$M_NO_SHORT_UPCASE */
+#define SET_NAMX_NO_SHORT_UPCASE(name)
+#endif /* def NAME$M_NO_SHORT_UPCASE [else] */
 
 #endif /* def NAML$C_MAXRSS [else] */

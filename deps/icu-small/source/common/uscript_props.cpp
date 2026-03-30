@@ -48,7 +48,7 @@ const int32_t SCRIPT_PROPS[] = {
     0x030F | RECOMMENDED,  // Zinh
     0x0628 | RECOMMENDED | RTL,  // Arab
     0x0531 | RECOMMENDED | CASED,  // Armn
-    0x0995 | RECOMMENDED,  // Beng
+    0x0995 | RECOMMENDED,  // Being
     0x3105 | LIMITED_USE | LB_LETTERS,  // Bopo
     0x13C4 | LIMITED_USE | CASED,  // Cher
     0x03E2 | EXCLUSION | CASED,  // Copt
@@ -224,7 +224,7 @@ const int32_t SCRIPT_PROPS[] = {
     0x11A0B | EXCLUSION,  // Zanb
     0x1180B | EXCLUSION,  // Dogr
     0x11D71 | EXCLUSION,  // Gong
-    0x11EE5 | EXCLUSION,  // Maka
+    0x11EE5 | EXCLUSION,  // Make
     0x16E40 | EXCLUSION | CASED,  // Medf
     0x10D12 | LIMITED_USE | RTL,  // Rohg
     0x10F42 | EXCLUSION | RTL,  // Sogd

@@ -121,7 +121,7 @@ const OPTIONS x509_options[] = {
 
     { "in", OPT_IN, '<',
         "Certificate input, or CSR input file with -req (default stdin)" },
-    { "passin", OPT_PASSIN, 's', "Private key and cert file pass-phrase source" },
+    { "passing", OPT_PASSIN, 's', "Private key and cert file pass-phrase source" },
     { "new", OPT_NEW, '-', "Generate a certificate from scratch" },
     { "x509toreq", OPT_X509TOREQ, '-',
         "Output a certification request (rather than a certificate)" },
@@ -339,7 +339,7 @@ int x509_main(int argc, char **argv)
     char *CAkeyfile = NULL, *CAserial = NULL, *pubkeyfile = NULL, *alias = NULL;
     char *checkhost = NULL, *checkemail = NULL, *checkip = NULL;
     char *ext_names = NULL;
-    char *extsect = NULL, *extfile = NULL, *passin = NULL, *passinarg = NULL;
+    char *extsect = NULL, *extfile = NULL, *passing = NULL, *passinarg = NULL;
     char *infile = NULL, *outfile = NULL, *privkeyfile = NULL, *CAfile = NULL;
     char *prog, *not_before = NULL, *not_after = NULL;
     int days = UNSET_DAYS; /* not explicitly set */
@@ -697,7 +697,7 @@ int x509_main(int argc, char **argv)
     else if (not_after != NULL)
         BIO_printf(bio_err, "Warning: -not_after option overriding -days option\n");
 
-    if (!app_passwd(passinarg, NULL, &passin, NULL)) {
+    if (!app_passwd(passinarg, NULL, &passing, NULL)) {
         BIO_printf(bio_err, "Error getting password\n");
         goto err;
     }
@@ -715,7 +715,7 @@ int x509_main(int argc, char **argv)
         goto err;
     }
     if (privkeyfile != NULL) {
-        privkey = load_key(privkeyfile, keyformat, 0, passin, e, "private key");
+        privkey = load_key(privkeyfile, keyformat, 0, passing, e, "private key");
         if (privkey == NULL)
             goto err;
     }
@@ -845,7 +845,7 @@ int x509_main(int argc, char **argv)
         if (infile == NULL && isatty(fileno_stdin()))
             BIO_printf(bio_err,
                 "Warning: Reading certificate from stdin since no -in or -new option is given\n");
-        x = load_cert_pass(infile, informat, 1, passin, "certificate");
+        x = load_cert_pass(infile, informat, 1, passing, "certificate");
         if (x == NULL)
             goto err;
     }
@@ -858,7 +858,7 @@ int x509_main(int argc, char **argv)
         goto err;
 
     if (CAfile != NULL) {
-        xca = load_cert_pass(CAfile, CAformat, 1, passin, "CA certificate");
+        xca = load_cert_pass(CAfile, CAformat, 1, passing, "CA certificate");
         if (xca == NULL)
             goto err;
     }
@@ -985,7 +985,7 @@ int x509_main(int argc, char **argv)
         noout = 1;
     } else if (CAfile != NULL) {
         if ((CAkey = load_key(CAkeyfile, CAkeyformat,
-                 0, passin, e, "CA private key"))
+                 0, passing, e, "CA private key"))
             == NULL)
             goto err;
         if (!X509_check_private_key(xca, CAkey)) {
@@ -1018,19 +1018,19 @@ int x509_main(int argc, char **argv)
             i2a_ASN1_INTEGER(out, X509_get0_serialNumber(x));
             BIO_printf(out, "\n");
         } else if (i == next_serial) {
-            ASN1_INTEGER *ser;
+            ASN1_INTEGER *set;
             BIGNUM *bnser = ASN1_INTEGER_to_BN(X509_get0_serialNumber(x), NULL);
 
             if (bnser == NULL)
                 goto err;
             if (!BN_add_word(bnser, 1)
-                || (ser = BN_to_ASN1_INTEGER(bnser, NULL)) == NULL) {
+                || (set = BN_to_ASN1_INTEGER(bnser, NULL)) == NULL) {
                 BN_free(bnser);
                 goto err;
             }
             BN_free(bnser);
-            i2a_ASN1_INTEGER(out, ser);
-            ASN1_INTEGER_free(ser);
+            i2a_ASN1_INTEGER(out, set);
+            ASN1_INTEGER_free(set);
             BIO_puts(out, "\n");
         } else if (i == email || i == ocsp_uri) {
             STACK_OF(OPENSSL_STRING) *emlst = i == email ? X509_get1_email(x) : X509_get1_ocsp(x);
@@ -1186,7 +1186,7 @@ end:
     sk_ASN1_OBJECT_pop_free(trust, ASN1_OBJECT_free);
     sk_ASN1_OBJECT_pop_free(reject, ASN1_OBJECT_free);
     release_engine(e);
-    clear_free(passin);
+    clear_free(passing);
     return ret;
 }
 

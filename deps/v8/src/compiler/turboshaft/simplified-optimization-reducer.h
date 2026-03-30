@@ -43,7 +43,7 @@ class SimplifiedOptimizationReducer : public Next {
         case ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kNumber: {
           if (input_assumptions == TruncateJSPrimitiveToUntaggedOp::
                                        InputAssumptions::kNumberOrOddball) {
-            // There is an unnecessary convertion to JSPrimitive. We'll bypass
+            // There is an unnecessary conversion to JSPrimitive. We'll bypass
             // it and simply to an untagged conversion/truncation.
             switch (multi(convert->input_rep, kind)) {
               case multi(RegisterRepresentation::Float64(),

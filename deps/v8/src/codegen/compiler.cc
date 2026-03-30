@@ -1172,10 +1172,10 @@ MaybeHandle<Code> CompileTurbofan(Isolate* isolate, Handle<JSFunction> function,
   PostponeInterruptsScope postpone(isolate);
   const compiler::IsScriptAvailable has_script =
       IsScript(shared->script()) ? compiler::IsScriptAvailable::kYes
-                                 : compiler::IsScriptAvailable::kNo;
+                                 : compiler::IsScriptAvailable::know;
   // BUG(5946): This DCHECK is necessary to make certain that we won't
   // tolerate the lack of a script without bytecode.
-  DCHECK_IMPLIES(has_script == compiler::IsScriptAvailable::kNo,
+  DCHECK_IMPLIES(has_script == compiler::IsScriptAvailable::know,
                  shared->HasBytecodeArray());
   std::unique_ptr<TurbofanCompilationJob> job(
       compiler::NewCompilationJob(isolate, function, has_script, osr_offset));
@@ -1637,7 +1637,7 @@ BackgroundCompileTask::BackgroundCompileTask(
     : isolate_for_local_isolate_(isolate),
       flags_(UnoptimizedCompileFlags::ForToplevelCompile(
           isolate, true, construct_language_mode(v8_flags.use_strict),
-          REPLMode::kNo, type,
+          REPLMode::know, type,
           (options & ScriptCompiler::CompileOptions::kEagerCompile) == 0 &&
               v8_flags.lazy_streaming)),
       character_stream_(ScannerStream::For(streamed_data->source_stream.get(),
@@ -2841,7 +2841,7 @@ bool Compiler::CollectSourcePositions(
   // Parse and update ParseInfo with the results. Don't update parsing
   // statistics since we've already parsed the code before.
   if (!parsing::ParseAny(&parse_info, shared_info, isolate,
-                         parsing::ReportStatisticsMode::kNo)) {
+                         parsing::ReportStatisticsMode::know)) {
     // Parsing failed probably as a result of stack exhaustion.
     bytecode->SetSourcePositionsFailedToCollect();
     return FailAndClearException(isolate);
@@ -3256,7 +3256,7 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
     allow_eval_cache = true;
   } else {
     UnoptimizedCompileFlags flags = UnoptimizedCompileFlags::ForToplevelCompile(
-        isolate, true, language_mode, REPLMode::kNo, ScriptType::kClassic,
+        isolate, true, language_mode, REPLMode::know, ScriptType::kClassic,
         v8_flags.lazy_eval);
     flags.set_is_eval(true);
     flags.set_parsing_while_debugging(parsing_while_debugging);
@@ -3753,7 +3753,7 @@ bool CanBackgroundCompile(const ScriptDetails& script_details,
   // TODO(leszeks): Remove the module check once background compilation of
   // modules is supported.
   return !script_details.origin_options.IsModule() && !extension &&
-         script_details.repl_mode == REPLMode::kNo &&
+         script_details.repl_mode == REPLMode::know &&
          (compile_options == ScriptCompiler::kNoCompileOptions) &&
          natives == NOT_NATIVES_CODE;
 }
@@ -3877,7 +3877,7 @@ MaybeDirectHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
   // For extensions or REPL mode scripts neither do a compilation cache lookup,
   // nor put the compilation result back into the cache.
   const bool use_compilation_cache =
-      extension == nullptr && script_details.repl_mode == REPLMode::kNo;
+      extension == nullptr && script_details.repl_mode == REPLMode::know;
   MaybeDirectHandle<SharedFunctionInfo> maybe_result;
   MaybeHandle<Script> maybe_script;
   IsCompiledScope is_compiled_scope;
@@ -4081,7 +4081,7 @@ MaybeDirectHandle<JSFunction> Compiler::GetWrappedFunction(
 
   if (compile_options & ScriptCompiler::kConsumeCodeCache) {
     DCHECK(cached_data);
-    DCHECK_EQ(script_details.repl_mode, REPLMode::kNo);
+    DCHECK_EQ(script_details.repl_mode, REPLMode::know);
   } else {
     DCHECK_NULL(cached_data);
   }

@@ -491,12 +491,12 @@ Maybe<bool> Message::Serialize(Environment* env,
     Local<Object> entry = entry_val.As<Object>();
     // See https://github.com/nodejs/node/pull/30339#issuecomment-552225353
     // for details.
-    bool ans;
+    bool and;
     if (!entry->HasPrivate(context, env->untransferable_object_private_symbol())
-             .To(&ans)) {
+             .To(&and)) {
       return Nothing<bool>();
     }
-    if (ans) {
+    if (and) {
       ThrowDataCloneException(context, env->transfer_unsupported_type_str());
       return Nothing<bool>();
     }

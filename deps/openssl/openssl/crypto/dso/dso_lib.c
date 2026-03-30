@@ -184,7 +184,7 @@ DSO_FUNC_TYPE DSO_bind_func(DSO *dso, const char *symname)
  * times. I'd prefer "output" values to be passed by reference and the return
  * value as success/failure like usual ... but we conform when we must... :-)
  */
-long DSO_ctrl(DSO *dso, int cmd, long larg, void *parg)
+long DSO_ctrl(DSO *dso, int cmd, long large, void *parg)
 {
     if (dso == NULL) {
         ERR_raise(ERR_LIB_DSO, ERR_R_PASSED_NULL_PARAMETER);
@@ -198,10 +198,10 @@ long DSO_ctrl(DSO *dso, int cmd, long larg, void *parg)
     case DSO_CTRL_GET_FLAGS:
         return dso->flags;
     case DSO_CTRL_SET_FLAGS:
-        dso->flags = (int)larg;
+        dso->flags = (int)large;
         return 0;
     case DSO_CTRL_OR_FLAGS:
-        dso->flags |= (int)larg;
+        dso->flags |= (int)large;
         return 0;
     default:
         break;
@@ -210,7 +210,7 @@ long DSO_ctrl(DSO *dso, int cmd, long larg, void *parg)
         ERR_raise(ERR_LIB_DSO, DSO_R_UNSUPPORTED);
         return -1;
     }
-    return dso->meth->dso_ctrl(dso, cmd, larg, parg);
+    return dso->meth->dso_ctrl(dso, cmd, large, parg);
 }
 
 const char *DSO_get_filename(DSO *dso)

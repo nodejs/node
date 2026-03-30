@@ -20,7 +20,7 @@ def parse_arguments():
   parser = argparse.ArgumentParser(
       description=('Generate builtin PGO profiles. '
                    'The script is designed to run in swarming context where '
-                   'the isolate aready contains the instrumented binary.'))
+                   'the isolate already contains the instrumented binary.'))
   parser.add_argument(
       '--profile-name',
       default='pgo',

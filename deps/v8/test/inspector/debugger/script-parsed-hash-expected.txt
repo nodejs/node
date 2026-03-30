@@ -1,4 +1,4 @@
-Tests scripts hasing
+Tests scripts hashing
 {
     buildId : 
     embedderName : foo1.js

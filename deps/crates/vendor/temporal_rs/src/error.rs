@@ -294,7 +294,7 @@ pub fn ixdtf_error_to_static_string(error: ParseError) -> &'static str {
 
         ParseError::InvalidDayRange => "Parsed day value not in a valid range.",
 
-        ParseError::DateYear => "Invalid chracter while parsing year value.",
+        ParseError::DateYear => "Invalid character while parsing year value.",
 
         ParseError::DateExtendedYear => "Invalid character while parsing extended year value.",
 
@@ -350,7 +350,7 @@ pub fn ixdtf_error_to_static_string(error: ParseError) -> &'static str {
             "Duplicate calendars cannot be provided when one is critical."
         }
 
-        ParseError::UnrecognizedCritical => "Unrecognized annoation is marked as critical.",
+        ParseError::UnrecognizedCritical => "Unrecognized annotation is marked as critical.",
 
         ParseError::TzLeadingChar => "Invalid time zone leading character.",
 

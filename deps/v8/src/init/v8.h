@@ -25,7 +25,7 @@ class V8 : public AllStatic {
 
   // Report process out of memory. Implementation found in api.cc.
   // This function will not return, but will terminate the execution.
-  // IMPORTANT: Update the Google-internal crash processer if this signature
+  // IMPORTANT: Update the Google-internal crash processor if this signature
   // changes to be able to extract detailed v8::internal::HeapStats on OOM.
   [[noreturn]] V8_EXPORT_PRIVATE static void FatalProcessOutOfMemory(
       Isolate* isolate, const char* location,

@@ -130,8 +130,8 @@ CsaLoadElimination::HalfState const* CsaLoadElimination::HalfState::KillField(
       // May alias with:
       // - The same object/offset
       // - Arbitrary objects with the same offset
-      // - The same object, unkwown offset
-      // - Arbitrary objects with unkwown offset
+      // - The same object, unknown offset
+      // - Arbitrary objects with unknown offset
       result->KillOffsetInFresh(object, num_offset, repr);
       KillOffset(result->arbitrary_entries_, num_offset, repr, zone_);
       result->fresh_unknown_entries_.Set(object, InnerMap(zone_));
@@ -139,7 +139,7 @@ CsaLoadElimination::HalfState const* CsaLoadElimination::HalfState::KillField(
     } else if (Helpers::IsConstantObject(object)) {
       // May alias with:
       // - Constant/arbitrary objects with the same offset
-      // - Constant/arbitrary objects with unkwown offset
+      // - Constant/arbitrary objects with unknown offset
       KillOffset(result->constant_entries_, num_offset, repr, zone_);
       KillOffset(result->arbitrary_entries_, num_offset, repr, zone_);
       result->constant_unknown_entries_ = empty_unknown;

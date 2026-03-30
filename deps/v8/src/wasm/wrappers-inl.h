@@ -389,7 +389,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapper(
     bool receiver_is_first_param) {
   V<Any> result = BuildJSToWasmWrapperImpl(
       receiver_is_first_param, OpIndex::Invalid(), OpIndex::Invalid(), {}, {},
-      compiler::LazyDeoptOnThrow::kNo);
+      compiler::LazyDeoptOnThrow::know);
   if (result != OpIndex::Invalid()) {  // Invalid signature.
     __ Return(result);
   }
@@ -501,7 +501,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmToJSWrapper(
           __ graph_zone(), false, pushed_count + 1, CallDescriptor::kNoFlags);
       const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
           call_descriptor, compiler::CanThrow::kYes,
-          compiler::LazyDeoptOnThrow::kNo, __ graph_zone());
+          compiler::LazyDeoptOnThrow::know, __ graph_zone());
 
       // Determine receiver at runtime.
       args[0] =
@@ -536,7 +536,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmToJSWrapper(
           StubCallMode::kCallBuiltinPointer);
       const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
           call_descriptor, compiler::CanThrow::kYes,
-          compiler::LazyDeoptOnThrow::kNo, __ graph_zone());
+          compiler::LazyDeoptOnThrow::know, __ graph_zone());
 
       // The native_context is sufficient here, because all kind of callables
       // which depend on the context provide their own context. The context
@@ -610,7 +610,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmStackEntryWrapper() {
   OpIndex arg = instance;
   BuildCallWasmFromWrapper(__ phase_zone(), sig_, target,
                            base::VectorOf(&arg, 1), {}, {},
-                           compiler::LazyDeoptOnThrow::kNo);
+                           compiler::LazyDeoptOnThrow::know);
   CallBuiltin<WasmFXReturnDescriptor>(Builtin::kWasmFXReturn,
                                       Operator::kNoProperties);
   __ Unreachable();
@@ -687,7 +687,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildCapiCallWrapper() {
         Operator::kNoProperties, StubCallMode::kCallBuiltinPointer);
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
         call_descriptor, compiler::CanThrow::kYes,
-        compiler::LazyDeoptOnThrow::kNo, __ graph_zone());
+        compiler::LazyDeoptOnThrow::know, __ graph_zone());
     OpIndex rethrow_call_target =
         GetTargetForBuiltinCall(Builtin::kWasmRethrowExplicitContext);
     V<Context> context = __ Load(incoming_params[0], LoadOp::Kind::TaggedBase(),

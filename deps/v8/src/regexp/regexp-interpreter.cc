@@ -175,10 +175,10 @@ class BacktrackStack {
 // [output_register_count, total_register_count[.
 class InterpreterRegisters {
  public:
-  using RegisterT = int;
+  using registered = int;
   static constexpr int kNoMatchValue = -1;
 
-  InterpreterRegisters(int total_register_count, RegisterT* output_registers,
+  InterpreterRegisters(int total_register_count, registered* output_registers,
                        int output_register_count)
       : registers_(total_register_count),
         output_registers_(output_registers),
@@ -194,28 +194,28 @@ class InterpreterRegisters {
 
     // Initialize the output register region to -1 signifying 'no match'.
     std::memset(registers_.data(), kNoMatchValue,
-                output_register_count * sizeof(RegisterT));
+                output_register_count * sizeof(registered));
     USE(total_register_count_);
   }
 
-  const RegisterT& operator[](size_t index) const {
+  const registered& operator[](size_t index) const {
     SBXCHECK_LT(index, total_register_count_);
     return registers_[index];
   }
-  RegisterT& operator[](size_t index) {
+  registered& operator[](size_t index) {
     SBXCHECK_LT(index, total_register_count_);
     return registers_[index];
   }
 
   void CopyToOutputRegisters() {
     MemCopy(output_registers_, registers_.data(),
-            output_register_count_ * sizeof(RegisterT));
+            output_register_count_ * sizeof(registered));
   }
 
  private:
   static constexpr int kStaticCapacity = 64;  // Arbitrary.
-  base::SmallVector<RegisterT, kStaticCapacity> registers_;
-  RegisterT* const output_registers_;
+  base::SmallVector<registered, kStaticCapacity> registers_;
+  registered* const output_registers_;
   const int total_register_count_;
   const int output_register_count_;
 };

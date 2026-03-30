@@ -50,7 +50,7 @@ shouldBe("rg.toString()", "'/a/g'");
 shouldBe("ri.toString()", "'/a/i'");
 shouldBe("rm.toString()", "'/a/m'");
 
-// check properety attributes
+// check property attributes
 rg.global = false;
 shouldBeTrue("rg.global");
 ri.ignoreCase = false;

@@ -1099,7 +1099,7 @@ define(register_init, {
 .des_dec:
 
 	! implemented with out5 as first parameter to avoid
-	! register exchange in ede modes
+	! register exchange in edge modes
 
 	! key address in4
 	! loads key next encryption/decryption first round from [in3]

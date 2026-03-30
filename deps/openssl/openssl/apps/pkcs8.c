@@ -61,7 +61,7 @@ const OPTIONS pkcs8_options[] = {
     OPT_SECTION("Input"),
     { "in", OPT_IN, '<', "Input file" },
     { "inform", OPT_INFORM, 'F', "Input format (DER or PEM)" },
-    { "passin", OPT_PASSIN, 's', "Input file pass phrase source" },
+    { "passing", OPT_PASSIN, 's', "Input file pass phrase source" },
     { "nocrypt", OPT_NOCRYPT, '-', "Use or expect unencrypted private key" },
 
     OPT_SECTION("Output"),
@@ -100,7 +100,7 @@ int pkcs8_main(int argc, char **argv)
 #ifndef OPENSSL_NO_UI_CONSOLE
     char pass[APP_PASS_LEN];
 #endif
-    char *passin = NULL, *passout = NULL, *p8pass = NULL;
+    char *passing = NULL, *passout = NULL, *p8pass = NULL;
     OPTION_CHOICE o;
     int nocrypt = 0, ret = 1, iter = PKCS12_DEFAULT_ITER;
     int informat = FORMAT_UNDEF, outformat = FORMAT_PEM, topk8 = 0, pbe_nid = -1;
@@ -230,7 +230,7 @@ int pkcs8_main(int argc, char **argv)
             goto opthelp;
     }
 
-    if (!app_passwd(passinarg, passoutarg, &passin, &passout)) {
+    if (!app_passwd(passinarg, passoutarg, &passing, &passout)) {
         BIO_printf(bio_err, "Error getting passwords\n");
         goto end;
     }
@@ -244,7 +244,7 @@ int pkcs8_main(int argc, char **argv)
         goto end;
 
     if (topk8) {
-        pkey = load_key(infile, informat, 1, passin, e, "key");
+        pkey = load_key(infile, informat, 1, passing, e, "key");
         if (pkey == NULL)
             goto end;
         if ((p8inf = EVP_PKEY2PKCS8(pkey)) == NULL) {
@@ -344,8 +344,8 @@ int pkcs8_main(int argc, char **argv)
             ERR_print_errors(bio_err);
             goto end;
         }
-        if (passin != NULL) {
-            p8pass = passin;
+        if (passing != NULL) {
+            p8pass = passing;
         } else if (1) {
 #ifndef OPENSSL_NO_UI_CONSOLE
             p8pass = pass;
@@ -399,7 +399,7 @@ end:
     release_engine(e);
     BIO_free_all(out);
     BIO_free(in);
-    OPENSSL_free(passin);
+    OPENSSL_free(passing);
     OPENSSL_free(passout);
 
     return ret;

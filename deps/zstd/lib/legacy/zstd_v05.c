@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Yann Collet, Meta Platforms, Inc. and affiliates.
+ * Copyright (c) Yann Collect, Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -17,7 +17,7 @@
 /* ******************************************************************
    mem.h
    low-level memory access routines
-   Copyright (C) 2013-2015, Yann Collet.
+   Copyright (C) 2013-2015, Yann Collect.
 
    BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
@@ -208,7 +208,7 @@ MEM_STATIC size_t MEM_readLEST(const void* memPtr)
 /*
     zstd - standard compression library
     Header File for static linking only
-    Copyright (C) 2014-2016, Yann Collet.
+    Copyright (C) 2014-2016, Yann Collect.
 
     BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
@@ -282,7 +282,7 @@ size_t ZSTDv05_decompressBegin(ZSTDv05_DCtx* dctx);
 
   A ZSTDv05_DCtx object is required to track streaming operations.
   Use ZSTDv05_createDCtx() / ZSTDv05_freeDCtx() to manage it.
-  A ZSTDv05_DCtx object can be re-used multiple times.
+  A ZSTDv05_DCtx object can be reused multiple times.
 
   First typical operation is to retrieve frame parameters, using ZSTDv05_getFrameParams().
   This operation is independent, and just needs enough input data to properly decode the frame header.
@@ -344,7 +344,7 @@ size_t ZSTDv05_decompressBlock(ZSTDv05_DCtx* dctx, void* dst, size_t dstCapacity
 /*
     zstd_internal - common functions to include
     Header File for include
-    Copyright (C) 2014-2016, Yann Collet.
+    Copyright (C) 2014-2016, Yann Collect.
 
     BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
@@ -499,7 +499,7 @@ typedef struct {
 /* ******************************************************************
    FSEv05 : Finite State Entropy coder
    header file
-   Copyright (C) 2013-2015, Yann Collet.
+   Copyright (C) 2013-2015, Yann Collect.
 
    BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
@@ -618,7 +618,7 @@ size_t FSEv05_decompress_usingDTable(void* dst, size_t dstCapacity, const void* 
    bitstream
    Part of FSEv05 library
    header file (to include)
-   Copyright (C) 2013-2016, Yann Collet.
+   Copyright (C) 2013-2016, Yann Collect.
 
    BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
@@ -847,7 +847,7 @@ MEM_STATIC unsigned BITv05_endOfDStream(const BITv05_DStream_t* DStream)
 /* ******************************************************************
    FSEv05 : Finite State Entropy coder
    header file for static linking (only)
-   Copyright (C) 2013-2015, Yann Collet
+   Copyright (C) 2013-2015, Yann Collect
 
    BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
@@ -997,7 +997,7 @@ MEM_STATIC unsigned FSEv05_endOfDState(const FSEv05_DState_t* DStatePtr)
 #endif  /* FSEv05_STATIC_H */
 /* ******************************************************************
    FSEv05 : Finite State Entropy coder
-   Copyright (C) 2013-2015, Yann Collet.
+   Copyright (C) 2013-2015, Yann Collect.
 
    BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
@@ -1483,7 +1483,7 @@ size_t FSEv05_decompress(void* dst, size_t maxDstSize, const void* cSrc, size_t 
 /* ******************************************************************
    Huff0 : Huffman coder, part of New Generation Entropy library
    header file
-   Copyright (C) 2013-2016, Yann Collet.
+   Copyright (C) 2013-2016, Yann Collect.
 
    BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
@@ -1556,7 +1556,7 @@ const char* HUFv05_getErrorName(size_t code);   /* provides error code string (u
 /* ******************************************************************
    Huff0 : Huffman codec, part of New Generation Entropy library
    header file, for static linking only
-   Copyright (C) 2013-2016, Yann Collet
+   Copyright (C) 2013-2016, Yann Collect
 
    BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
@@ -1648,7 +1648,7 @@ size_t HUFv05_decompress1X4_usingDTable(void* dst, size_t maxDstSize, const void
 #endif /* HUF0_STATIC_H */
 /* ******************************************************************
    Huff0 : Huffman coder, part of New Generation Entropy library
-   Copyright (C) 2013-2015, Yann Collet.
+   Copyright (C) 2013-2015, Yann Collect.
 
    BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
@@ -1834,7 +1834,7 @@ size_t HUFv05_readDTableX2 (U16* DTable, const void* src, size_t srcSize)
 
     /* check result */
     if (tableLog > DTable[0]) return ERROR(tableLog_tooLarge);   /* DTable is too small */
-    DTable[0] = (U16)tableLog;   /* maybe should separate sizeof allocated DTable, from used size of DTable, in case of re-use */
+    DTable[0] = (U16)tableLog;   /* maybe should separate sizeof allocated DTable, from used size of DTable, in case of reuse */
 
     /* Prepare ranks */
     nextRankStart = 0;
@@ -2060,7 +2060,7 @@ static void HUFv05_fillDTableX4Level2(HUFv05_DEltX4* DTable, U32 sizeLog, const 
                            const sortedSymbol_t* sortedSymbols, const U32 sortedListSize,
                            U32 nbBitsBaseline, U16 baseSeq)
 {
-    HUFv05_DEltX4 DElt;
+    HUFv05_DEltX4 dealt;
     U32 rankVal[HUFv05_ABSOLUTEMAX_TABLELOG + 1];
     U32 s;
 
@@ -2070,11 +2070,11 @@ static void HUFv05_fillDTableX4Level2(HUFv05_DEltX4* DTable, U32 sizeLog, const 
     /* fill skipped values */
     if (minWeight>1) {
         U32 i, skipSize = rankVal[minWeight];
-        MEM_writeLE16(&(DElt.sequence), baseSeq);
-        DElt.nbBits   = (BYTE)(consumed);
-        DElt.length   = 1;
+        MEM_writeLE16(&(dealt.sequence), baseSeq);
+        dealt.nbBits   = (BYTE)(consumed);
+        dealt.length   = 1;
         for (i = 0; i < skipSize; i++)
-            DTable[i] = DElt;
+            DTable[i] = dealt;
     }
 
     /* fill DTable */
@@ -2087,10 +2087,10 @@ static void HUFv05_fillDTableX4Level2(HUFv05_DEltX4* DTable, U32 sizeLog, const 
         U32 i = start;
         const U32 end = start + length;
 
-        MEM_writeLE16(&(DElt.sequence), (U16)(baseSeq + (symbol << 8)));
-        DElt.nbBits = (BYTE)(nbBits + consumed);
-        DElt.length = 2;
-        do { DTable[i++] = DElt; } while (i<end);   /* since length >= 1 */
+        MEM_writeLE16(&(dealt.sequence), (U16)(baseSeq + (symbol << 8)));
+        dealt.nbBits = (BYTE)(nbBits + consumed);
+        dealt.length = 2;
+        do { DTable[i++] = dealt; } while (i<end);   /* since length >= 1 */
 
         rankVal[weight] += length;
     }
@@ -2130,13 +2130,13 @@ static void HUFv05_fillDTableX4(HUFv05_DEltX4* DTable, const U32 targetLog,
         } else {
             U32 i;
             const U32 end = start + length;
-            HUFv05_DEltX4 DElt;
+            HUFv05_DEltX4 dealt;
 
-            MEM_writeLE16(&(DElt.sequence), symbol);
-            DElt.nbBits   = (BYTE)(nbBits);
-            DElt.length   = 1;
+            MEM_writeLE16(&(dealt.sequence), symbol);
+            dealt.nbBits   = (BYTE)(nbBits);
+            dealt.length   = 1;
             for (i = start; i < end; i++)
-                DTable[i] = DElt;
+                DTable[i] = dealt;
         }
         rankVal[weight] += length;
     }
@@ -2493,7 +2493,7 @@ size_t HUFv05_decompress (void* dst, size_t dstSize, const void* cSrc, size_t cS
 }
 /*
     zstd - standard compression library
-    Copyright (C) 2014-2016, Yann Collet.
+    Copyright (C) 2014-2016, Yann Collect.
 
     BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
@@ -3699,7 +3699,7 @@ size_t ZSTDv05_decompressBegin_usingDict(ZSTDv05_DCtx* dctx, const void* dict, s
 
 /*
     Buffered version of Zstd compression library
-    Copyright (C) 2015-2016, Yann Collet.
+    Copyright (C) 2015-2016, Yann Collect.
 
     BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 

@@ -253,13 +253,13 @@ std::vector<uint8_t> InspectorIsolateData::DisconnectSession(
   // The InspectorSession destructor does cleanup work like disabling agents.
   // This could send some more notifications. We'll delay removing the channel
   // so notification tasks have time to get sent.
-  // Note: This only works for tasks scheduled immediately by the desctructor.
+  // Note: This only works for tasks scheduled immediately by the destructor.
   //       Any task scheduled in turn by one of the "cleanup tasks" will run
   //       AFTER the channel was removed.
   context_task_runner->Append(std::make_unique<RemoveChannelTask>(session_id));
 
   // In case we shutdown the test runner before the above task can run, we
-  // let the desctructor clean up the channel.
+  // let the destructor clean up the channel.
   session_ids_for_cleanup_.insert(session_id);
   return result;
 }

@@ -751,7 +751,7 @@ NFRuleSet::parse(const UnicodeString& text, ParsePosition& pos, double upperBoun
 
     // finally, go through the regular rules one at a time.  We start
     // at the end of the list because we want to try matching the most
-    // sigificant rule first (this helps ensure that we parse
+    // significant rule first (this helps ensure that we parse
     // "five thousand three hundred six" as
     // "(five thousand) (three hundred) (six)" rather than
     // "((five thousand three) hundred) (six)").  Skip rules whose

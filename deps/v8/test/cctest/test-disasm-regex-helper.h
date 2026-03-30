@@ -120,7 +120,7 @@ class RegexParser {
   //   * symbols mustn't be redefined.
   //     - if a line has been matched against a pattern R1 with symbol 'A'
   //       then other patterns mustn't define symbol 'A'.
-  //   * symbols defininitions are only committed and registered if the whole
+  //   * symbols definitions are only committed and registered if the whole
   //     pattern is successfully matched.
   //
   // Notes:
@@ -271,7 +271,7 @@ class RegexParser {
   Status CheckSymbolsMatchedValues(const MatchVector& symbols_refs,
                                    const std::smatch& match) const {
     // There is a one-to-one correspondence between matched subexpressions and
-    // symbols refences in the vector (by construction).
+    // symbols references in the vector (by construction).
     for (size_t vec_pos = 0, size = symbols_refs.size(); vec_pos < size;
          vec_pos++) {
       auto elem = symbols_refs[vec_pos];

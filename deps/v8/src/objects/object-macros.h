@@ -12,7 +12,7 @@
 
 // The accessors with RELAXED_, ACQUIRE_, and RELEASE_ prefixes should be used
 // for fields that can be written to and read from multiple threads at the same
-// time. See comments in src/base/atomicops.h for the memory ordering sematics.
+// time. See comments in src/base/atomicops.h for the memory ordering semantics.
 
 // First, ensure that we do not include object-macros.h twice without including
 // object-macros-undef.h in between.

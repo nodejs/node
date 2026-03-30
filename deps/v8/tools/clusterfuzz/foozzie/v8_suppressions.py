@@ -28,7 +28,7 @@ import re
 
 from itertools import zip_longest
 
-# Max line length for regular experessions checking for lines to ignore.
+# Max line length for regular expressions checking for lines to ignore.
 MAX_LINE_LENGTH = 512
 
 # Ignore by output pattern. Map from bug->regexp like above.

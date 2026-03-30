@@ -22,7 +22,7 @@ class WasmOnePrototypeConfigBuilder {
     this.prototype = prototype;
     this.parent = parent;
     this.constructor = undefined;
-    this.statics = [];
+    this.statistics = [];
     this.methods = [];
   }
 
@@ -51,7 +51,7 @@ class WasmOnePrototypeConfigBuilder {
     if (!(func instanceof WasmFunctionBuilder)) {
       throw new Error("{func} should be a WasmFunctionBuilder instance");
     }
-    this.statics.push({name, kind, func});
+    this.statistics.push({name, kind, func});
     return this;
   }
 
@@ -136,11 +136,11 @@ class WasmPrototypeSetupBuilder {
         data.push(1);
         data.push(...StringToArray(config.constructor.name));
         functions.push(config.constructor.func.index);
-      } else if (config.statics.length > 0) {
-        throw new Error("Can't have statics without having a constructor");
+      } else if (config.statistics.length > 0) {
+        throw new Error("Can't have statistics without having a constructor");
       }
-      data.push(...wasmUnsignedLeb(config.statics.length));
-      for (let stat of config.statics) {
+      data.push(...wasmUnsignedLeb(config.statistics.length));
+      for (let stat of config.statistics) {
         data.push(stat.kind);
         data.push(...StringToArray(stat.name));
         functions.push(stat.func.index);

@@ -41,7 +41,7 @@ class LIEF_API FatBinary {
 
   public:
 
-  /// Internal containter used to store Binary objects within a Fat Mach-O
+  /// Internal container used to store Binary objects within a Fat Mach-O
   using binaries_t = std::vector<std::unique_ptr<Binary>>;
 
   /// Iterator that outputs Binary&

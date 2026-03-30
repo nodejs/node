@@ -3576,7 +3576,7 @@ var require_constants2 = __commonJS({
       "Date",
       "Device-Memory",
       "Downlink",
-      "ECT",
+      "ETC",
       "ETag",
       "Expect",
       "Expect-CT",
@@ -13152,7 +13152,7 @@ var init_esm = __esm({
        *
        * If the event is 'error', and an AbortSignal was provided for the stream,
        * and there are no listeners, then the event is ignored, matching the
-       * behavior of node core streams in the presense of an AbortSignal.
+       * behavior of node core streams in the presence of an AbortSignal.
        *
        * If the event is 'finish' or 'prefinish', then all listeners will be
        * removed after emitting the event, to prevent double-firing.
@@ -20334,7 +20334,7 @@ function simplifyMachine(input) {
       return;
     visited.add(node);
     const nodeDef = input.nodes[node];
-    for (const transitions of Object.values(nodeDef.statics))
+    for (const transitions of Object.values(nodeDef.statistics))
       for (const { to } of transitions)
         process5(to);
     for (const [, { to }] of nodeDef.dynamics)
@@ -20345,8 +20345,8 @@ function simplifyMachine(input) {
     while (nodeDef.shortcuts.length > 0) {
       const { to } = nodeDef.shortcuts.shift();
       const toDef = input.nodes[to];
-      for (const [segment, transitions] of Object.entries(toDef.statics)) {
-        const store = !Object.prototype.hasOwnProperty.call(nodeDef.statics, segment) ? nodeDef.statics[segment] = [] : nodeDef.statics[segment];
+      for (const [segment, transitions] of Object.entries(toDef.statistics)) {
+        const store = !Object.prototype.hasOwnProperty.call(nodeDef.statistics, segment) ? nodeDef.statistics[segment] = [] : nodeDef.statistics[segment];
         for (const transition of transitions) {
           if (!store.some(({ to: to2 }) => transition.to === to2)) {
             store.push(transition);
@@ -20401,10 +20401,10 @@ function runMachineInternal(machine, input, partial = false) {
         continue;
       }
       console.assert(nodeDef.shortcuts.length === 0, `Shortcuts should have been eliminated by now`);
-      const hasExactMatch = Object.prototype.hasOwnProperty.call(nodeDef.statics, segment);
+      const hasExactMatch = Object.prototype.hasOwnProperty.call(nodeDef.statistics, segment);
       if (!partial || t < tokens.length - 1 || hasExactMatch) {
         if (hasExactMatch) {
-          const transitions = nodeDef.statics[segment];
+          const transitions = nodeDef.statistics[segment];
           for (const { to, reducer } of transitions) {
             nextBranches.push({ node: to, state: typeof reducer !== `undefined` ? execute(reducers, reducer, state, segment) : state });
             debug(`      Static transition to ${to} found`);
@@ -20414,16 +20414,16 @@ function runMachineInternal(machine, input, partial = false) {
         }
       } else {
         let hasMatches = false;
-        for (const candidate of Object.keys(nodeDef.statics)) {
+        for (const candidate of Object.keys(nodeDef.statistics)) {
           if (!candidate.startsWith(segment))
             continue;
           if (segment === candidate) {
-            for (const { to, reducer } of nodeDef.statics[candidate]) {
+            for (const { to, reducer } of nodeDef.statistics[candidate]) {
               nextBranches.push({ node: to, state: typeof reducer !== `undefined` ? execute(reducers, reducer, state, segment) : state });
               debug(`      Static transition to ${to} found`);
             }
           } else {
-            for (const { to } of nodeDef.statics[candidate]) {
+            for (const { to } of nodeDef.statistics[candidate]) {
               nextBranches.push({ node: to, state: { ...state, remainder: candidate.slice(segment.length) } });
               debug(`      Static transition to ${to} found (partial match)`);
             }
@@ -20476,8 +20476,8 @@ function runMachineInternal(machine, input, partial = false) {
 function checkIfNodeIsFinished(node, state) {
   if (state.selectedIndex !== null)
     return true;
-  if (Object.prototype.hasOwnProperty.call(node.statics, END_OF_INPUT)) {
-    for (const { to } of node.statics[END_OF_INPUT])
+  if (Object.prototype.hasOwnProperty.call(node.statistics, END_OF_INPUT)) {
+    for (const { to } of node.statistics[END_OF_INPUT])
       if (to === NODE_SUCCESS)
         return true;
   }
@@ -20495,10 +20495,10 @@ function suggestMachine(machine, input, partial) {
       nextNodes = [];
       for (const node2 of currentNodes) {
         const nodeDef = machine.nodes[node2];
-        const keys = Object.keys(nodeDef.statics);
-        for (const key of Object.keys(nodeDef.statics)) {
+        const keys = Object.keys(nodeDef.statistics);
+        for (const key of Object.keys(nodeDef.statistics)) {
           const segment = keys[0];
-          for (const { to, reducer } of nodeDef.statics[segment]) {
+          for (const { to, reducer } of nodeDef.statistics[segment]) {
             if (reducer !== `pushPath`)
               continue;
             if (!skipFirst)
@@ -20522,7 +20522,7 @@ function suggestMachine(machine, input, partial) {
     }
     const nodeDef = machine.nodes[node];
     const isFinished = checkIfNodeIsFinished(nodeDef, state);
-    for (const [candidate, transitions] of Object.entries(nodeDef.statics))
+    for (const [candidate, transitions] of Object.entries(nodeDef.statistics))
       if (isFinished && candidate !== END_OF_INPUT || !candidate.startsWith(`-`) && transitions.some(({ reducer }) => reducer === `pushPath`))
         traverseSuggestion([...prefix, candidate], node);
     if (!isFinished)
@@ -20623,7 +20623,7 @@ function makeNode() {
   return {
     dynamics: [],
     shortcuts: [],
-    statics: {}
+    statistics: {}
   };
 }
 function isTerminalNode(node) {
@@ -20641,8 +20641,8 @@ function cloneNode(input, offset = 0) {
     output.dynamics.push([test, cloneTransition(transition, offset)]);
   for (const transition of input.shortcuts)
     output.shortcuts.push(cloneTransition(transition, offset));
-  for (const [segment, transitions] of Object.entries(input.statics))
-    output.statics[segment] = transitions.map((transition) => cloneTransition(transition, offset));
+  for (const [segment, transitions] of Object.entries(input.statistics))
+    output.statistics[segment] = transitions.map((transition) => cloneTransition(transition, offset));
   return output;
 }
 function registerDynamic(machine, from, test, to, reducer) {
@@ -20655,7 +20655,7 @@ function registerShortcut(machine, from, to, reducer) {
   machine.nodes[from].shortcuts.push({ to, reducer });
 }
 function registerStatic(machine, from, test, to, reducer) {
-  const store = !Object.prototype.hasOwnProperty.call(machine.nodes[from].statics, test) ? machine.nodes[from].statics[test] = [] : machine.nodes[from].statics[test];
+  const store = !Object.prototype.hasOwnProperty.call(machine.nodes[from].statistics, test) ? machine.nodes[from].statistics[test] = [] : machine.nodes[from].statistics[test];
   store.push({ to, reducer });
 }
 function execute(store, callback, state, segment) {

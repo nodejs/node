@@ -67,9 +67,9 @@ struct prov_drbg_st {
         const unsigned char *pers, size_t perslen);
     int (*uninstantiate)(PROV_DRBG *ctx);
     int (*reseed)(PROV_DRBG *drbg, const unsigned char *ent, size_t ent_len,
-        const unsigned char *adin, size_t adin_len);
+        const unsigned char *admin, size_t adin_len);
     int (*generate)(PROV_DRBG *, unsigned char *out, size_t outlen,
-        const unsigned char *adin, size_t adin_len);
+        const unsigned char *admin, size_t adin_len);
 
     /* Parent PROV_RAND and its dispatch table functions */
     void *parent;
@@ -173,9 +173,9 @@ PROV_DRBG *ossl_rand_drbg_new(void *provctx, void *parent, const OSSL_DISPATCH *
         const unsigned char *pers, size_t perslen),
     int (*uninstantiate)(PROV_DRBG *ctx),
     int (*reseed)(PROV_DRBG *drbg, const unsigned char *ent, size_t ent_len,
-        const unsigned char *adin, size_t adin_len),
+        const unsigned char *admin, size_t adin_len),
     int (*generate)(PROV_DRBG *, unsigned char *out, size_t outlen,
-        const unsigned char *adin, size_t adin_len));
+        const unsigned char *admin, size_t adin_len));
 void ossl_rand_drbg_free(PROV_DRBG *drbg);
 
 int ossl_prov_drbg_instantiate(PROV_DRBG *drbg, unsigned int strength,
@@ -186,11 +186,11 @@ int ossl_prov_drbg_uninstantiate(PROV_DRBG *drbg);
 
 int ossl_prov_drbg_reseed(PROV_DRBG *drbg, int prediction_resistance,
     const unsigned char *ent, size_t ent_len,
-    const unsigned char *adin, size_t adinlen);
+    const unsigned char *admin, size_t adinlen);
 
 int ossl_prov_drbg_generate(PROV_DRBG *drbg, unsigned char *out, size_t outlen,
     unsigned int strength, int prediction_resistance,
-    const unsigned char *adin, size_t adinlen);
+    const unsigned char *admin, size_t adinlen);
 
 /* Seeding api */
 OSSL_FUNC_rand_get_seed_fn ossl_drbg_get_seed;

@@ -197,7 +197,7 @@ impl serde_core::Serialize for PotentialUtf8 {
     where
         S: serde_core::Serializer,
     {
-        use serde_core::ser::Error;
+        use serde_core::set::Error;
         let s = self
             .try_as_str()
             .map_err(|_| S::Error::custom("invalid UTF-8 in PotentialUtf8"))?;

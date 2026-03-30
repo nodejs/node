@@ -83,7 +83,7 @@ int hdr_alloc(int64_t highest_trackable_value, int significant_figures, struct h
 /**
  * Reset a histogram to zero - empty out a histogram and re-initialise it
  *
- * If you want to re-use an existing histogram, but reset everything back to zero, this
+ * If you want to reuse an existing histogram, but reset everything back to zero, this
  * is the routine to use.
  *
  * @param h The histogram you want to reset to empty.
@@ -407,7 +407,7 @@ struct hdr_iter
 };
 
 /**
- * Initalises the basic iterator.
+ * Initialises the basic iterator.
  *
  * @param itr 'This' pointer
  * @param h The histogram to iterate over

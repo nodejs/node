@@ -77,7 +77,7 @@ class Hashtable;
  * (or nullptr, or an empty string) then the type is appended to the resource name,
  * for example,  'Eras_japanese' instead of 'Eras'.   If the resource 'Eras_japanese' did
  * not exist (even in root), then this class will fall back to just 'Eras', that is,
- * Gregorian data.  Therefore, the calendar implementor MUST ensure that the root
+ * Gregorian data.  Therefore, the calendar implementer MUST ensure that the root
  * locale at least contains any resources that are to be particularized for the
  * calendar type.
  */

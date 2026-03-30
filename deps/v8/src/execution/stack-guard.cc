@@ -144,7 +144,7 @@ void StackGuard::PopInterruptsScope() {
     thread_local_.interrupt_flags_ |= top->intercepted_flags_;
   } else {
     DCHECK_EQ(top->mode_, InterruptsScope::kRunInterrupts);
-    // Postpone existing interupts if needed.
+    // Postpone existing interrupts if needed.
     if (top->prev_) {
       for (uint32_t interrupt = 1; interrupt < ALL_INTERRUPTS;
            interrupt = interrupt << 1) {

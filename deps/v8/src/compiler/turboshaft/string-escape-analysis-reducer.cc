@@ -102,7 +102,7 @@ void StringEscapeAnalyzer::ProcessBlock(const Block& block) {
       case Opcode::kStringLength:
         // The first input to StringConcat is the length of the result, which
         // means that StringLength won't prevent eliding StringConcat:
-        // StringLength(StringConcat(len, left, rigth)) == len
+        // StringLength(StringConcat(len, left, right)) == len
         break;
       default:
         // By default, all uses are considered as escaping their inputs.

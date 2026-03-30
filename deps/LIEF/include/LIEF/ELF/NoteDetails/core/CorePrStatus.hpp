@@ -195,7 +195,7 @@ LIEF_API const char* to_string(CorePrStatus::Registers::X86_64 e);
 LIEF_API const char* to_string(CorePrStatus::Registers::ARM e);
 LIEF_API const char* to_string(CorePrStatus::Registers::AARCH64 e);
 
-} // namepsace ELF
+} // namespace ELF
 } // namespace LIEF
 
 #endif

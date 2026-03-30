@@ -129,7 +129,7 @@ const { Event, EventTarget, CustomEvent } = require('internal/event_target');
   const ev = new CustomEvent('$');
   assert.strictEqual(ev.constructor.name, 'CustomEvent');
 
-  // CustomEvent Statics
+  // CustomEvent Statistics
   assert.strictEqual(CustomEvent.NONE, 0);
   assert.strictEqual(CustomEvent.CAPTURING_PHASE, 1);
   assert.strictEqual(CustomEvent.AT_TARGET, 2);

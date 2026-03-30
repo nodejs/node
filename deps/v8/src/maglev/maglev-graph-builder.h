@@ -440,7 +440,7 @@ class MaglevGraphBuilder {
       MergePointInterpreterFrameState& merge_state);
 
   // Return true if the given offset is a merge point, i.e. there are jumps
-  // targetting it.
+  // targeting it.
   bool IsOffsetAMergePoint(int offset) const {
     return merge_states_[offset] != nullptr;
   }
@@ -1954,7 +1954,7 @@ class MaglevGraphBuilder {
 
   compiler::FeedbackSource current_speculation_feedback();
 
-  // When loop SPeeling is enabled then the second-last peeling iteration
+  // When loop spelling is enabled then the second-last peeling iteration
   // is the optimistic iteration. At the end we try to compile the JumpLoop and
   // only proceed with the fallback iteration 0, if the loop state is
   // incompatible with the loop end state.

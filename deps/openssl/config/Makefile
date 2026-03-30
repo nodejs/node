@@ -55,7 +55,7 @@ all: $(ASM_ARCHS) $(NO_ASM_ARCHS) generate_headers
 $(ASM_ARCHS):
 	cd $(OPSSL_SRC); $(NO_WARN_ENV) CC=$(CC) $(PERL) $(CONFIGURE) $(COPTS) $@;
 	$(PERL) -w -I$(OPSSL_SRC) $(GENERATE) asm $@ "${GEN_HEADERS}" "${CRYPTO_GEN_HEADERS}" "${INTERNAL_GEN_HEADERS}"
-# Confgure asm_avx2 and generate upto avx2 support
+# Configure asm_avx2 and generate upto avx2 support
 	cd $(OPSSL_SRC); $(NO_WARN_ENV) CC=$(FAKE_GCC) $(PERL) $(CONFIGURE) \
 	$(COPTS) $@;
 	$(PERL) -w -I$(OPSSL_SRC) $(GENERATE) asm_avx2 $@ "${GEN_HEADERS}" "${CRYTO_GEN_HEADERS}" "${INTERNAL_GEN_HEADERS}"

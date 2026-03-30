@@ -1091,7 +1091,7 @@
 
 /** Maximum key length for ciphers.
  *
- * Since there is no additional PSA_WANT_xxx symbol to specifiy the size of
+ * Since there is no additional PSA_WANT_xxx symbol to specify the size of
  * the key once a cipher is enabled (as it happens for asymmetric keys for
  * example), the maximum key length is taken into account for each cipher.
  * The resulting value will be the maximum cipher's key length given depending

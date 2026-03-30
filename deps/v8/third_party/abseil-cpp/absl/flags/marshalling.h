@@ -328,7 +328,7 @@ std::string Unparse(double v);
 //
 // Some implementations of `AbslParseFlag()` for types which consist of other,
 // constituent types which already have Abseil flag support, may need to call
-// `absl::ParseFlag()` on those consituent string values. (See above.)
+// `absl::ParseFlag()` on those constituent string values. (See above.)
 template <typename T>
 inline bool ParseFlag(absl::string_view input, T* dst, std::string* error) {
   return flags_internal::InvokeParseFlag(input, dst, error);

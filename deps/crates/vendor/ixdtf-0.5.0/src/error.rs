@@ -24,11 +24,11 @@ pub enum ParseError {
     InvalidMonthRange,
     #[displaydoc("Parsed day value not in a valid range.")]
     InvalidDayRange,
-    #[displaydoc("Invalid chracter while parsing year value.")]
+    #[displaydoc("Invalid character while parsing year value.")]
     DateYear,
     #[displaydoc("Invalid character while parsing extended year value.")]
     DateExtendedYear,
-    #[displaydoc("Invalid caracter while parsing month value.")]
+    #[displaydoc("Invalid character while parsing month value.")]
     DateMonth,
     #[displaydoc("Invalid character while parsing day value.")]
     DateDay,
@@ -76,7 +76,7 @@ pub enum ParseError {
     // Duplicate calendar with critical.
     #[displaydoc("Duplicate calendars cannot be provided when one is critical.")]
     CriticalDuplicateCalendar,
-    #[displaydoc("Unrecognized annoation is marked as critical.")]
+    #[displaydoc("Unrecognized annotation is marked as critical.")]
     UnrecognizedCritical,
 
     // Time Zone Errors

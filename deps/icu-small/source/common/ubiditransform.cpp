@@ -84,7 +84,7 @@ struct UBiDiTransform {
     uint32_t                srcSize;            /* input text capacity excluding the trailing zero */
     uint32_t                destSize;           /* output text capacity */
     uint32_t                *pDestLength;       /* number of UChars written to dest */
-    uint32_t                reorderingOptions;  /* reordering options - currently only suppot DO_MIRRORING */
+    uint32_t                reorderingOptions;  /* reordering options - currently only support DO_MIRRORING */
     uint32_t                digits;             /* digit option for ArabicShaping */
     uint32_t                letters;            /* letter option for ArabicShaping */
 };

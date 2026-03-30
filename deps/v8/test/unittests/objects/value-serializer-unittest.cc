@@ -3449,7 +3449,7 @@ TEST_F(ValueSerializerTestWithWasm, DefaultDeserializationDelegate) {
 }
 
 // We only want to allow deserialization through
-// transferred modules - which requres both serializer
+// transferred modules - which requires both serializer
 // and deserializer to understand that - or through
 // explicitly allowing inlined data, which requires
 // deserializer opt-in (we default the serializer to

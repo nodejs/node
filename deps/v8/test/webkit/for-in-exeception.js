@@ -37,7 +37,7 @@ function throwStringException() {
 
 function test(func) {
   for (var foo in func()) {
-    testFailed("Shoud not be reached");
+    testFailed("Should not be reached");
   }
 }
 

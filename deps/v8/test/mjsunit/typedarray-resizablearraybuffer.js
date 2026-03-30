@@ -1037,7 +1037,7 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
     const length_tracking_ta = new ctor(rab);
     TestIterationAndResize(length_tracking_ta, [0, 1], rab, 2, 0);
 
-    // Length-tracking TA which is resized beyond the offset appars detached.
+    // Length-tracking TA which is resized beyond the offset appears detached.
     rab = CreateRab(buffer_byte_length, ctor);
     const length_tracking_ta_with_offset = new ctor(rab, byte_offset);
     assertThrows(() => {
@@ -7471,7 +7471,7 @@ Reverse(ArrayReverseHelper, false);
   }
 })();
 
-// This function cannot be reused between TypedArray.protoype.sort and
+// This function cannot be reused between TypedArray.prototype.sort and
 // Array.prototype.sort, since the default sorting functions differ.
 (function SortWithDefaultComparison() {
   for (let ctor of ctors) {

@@ -94,7 +94,7 @@ All notable changes to this project will be documented in this file.
 * Bump versions
 * cleanup: Remove parsing functionality from PartialZDT by @Manishearth in [#493](https://github.com/boa-dev/temporal/pull/493)
 * Various MonthDay fixes by @Manishearth in [#492](https://github.com/boa-dev/temporal/pull/492)
-* Add `CalendarFields` concept and integate it with API and Partial structs by @nekevss in [#487](https://github.com/boa-dev/temporal/pull/487)
+* Add `CalendarFields` concept and integrate it with API and Partial structs by @nekevss in [#487](https://github.com/boa-dev/temporal/pull/487)
 * Add support for non-ISO yearmonths and monthdays by @Manishearth in [#490](https://github.com/boa-dev/temporal/pull/490)
 * Add separate parsed variants of all types by @Manishearth in [#486](https://github.com/boa-dev/temporal/pull/486)
 * Update icu_calendar, fix self-consistency test by @Manishearth in [#488](https://github.com/boa-dev/temporal/pull/488)
@@ -331,7 +331,7 @@ All notable changes to this project will be documented in this file.
 * Implement `ZonedDateTime::since` and `ZonedDateTime::until` by @nekevss in [#170](https://github.com/boa-dev/temporal/pull/170)
 * Implement to_string functionality and methods for `Duration`, `PlainYearMonth`, and `PlainMonthDay` by @nekevss in [#164](https://github.com/boa-dev/temporal/pull/164)
 * API cleanup, visibility updates, and tech debt cleanup by @nekevss in [#168](https://github.com/boa-dev/temporal/pull/168)
-* Add to_string functionality for timezone identifer by @nekevss in [#161](https://github.com/boa-dev/temporal/pull/161)
+* Add to_string functionality for timezone identifier by @nekevss in [#161](https://github.com/boa-dev/temporal/pull/161)
 * Bug fixes to address test failures + removing unused API by @nekevss in [#162](https://github.com/boa-dev/temporal/pull/162)
 * Implement correct resolving of `getStartOfDay` by @jedel1043 in [#159](https://github.com/boa-dev/temporal/pull/159)
 * Add an MSRV check to CI by @nekevss in [#158](https://github.com/boa-dev/temporal/pull/158)

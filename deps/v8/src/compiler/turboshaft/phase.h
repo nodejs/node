@@ -332,7 +332,7 @@ class V8_EXPORT_PRIVATE PipelineData {
   OptimizedCompilationInfo* info() const { return info_; }
   const char* debug_name() const { return debug_name_.get(); }
   JSHeapBroker* broker() const { return broker_.get(); }
-  CompilationDependencies* depedencies() const { return dependencies_; }
+  CompilationDependencies* dependencies() const { return dependencies_; }
   const AssemblerOptions& assembler_options() const {
     return assembler_options_;
   }

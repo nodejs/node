@@ -153,7 +153,7 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
          and this kind of a heuristic speeds up compression quite
          a lot. */
       if (position > apply_random_heuristics) {
-        /* Going through uncompressible data, jump. */
+        /* Going through incompressible data, jump. */
         if (position >
             apply_random_heuristics + 4 * random_heuristics_window_size) {
           /* It is quite a long time since we saw a copy, so we assume

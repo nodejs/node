@@ -88,7 +88,7 @@ static int seed_src_uninstantiate(void *vseed)
 static int seed_src_generate(void *vseed, unsigned char *out, size_t outlen,
     unsigned int strength,
     ossl_unused int prediction_resistance,
-    const unsigned char *adin,
+    const unsigned char *admin,
     size_t adin_len)
 {
     PROV_SEED_SRC *s = (PROV_SEED_SRC *)vseed;
@@ -112,7 +112,7 @@ static int seed_src_generate(void *vseed, unsigned char *out, size_t outlen,
     entropy_available = ossl_pool_acquire_entropy(pool);
 
     if (entropy_available > 0) {
-        if (!ossl_rand_pool_adin_mix_in(pool, adin, adin_len)) {
+        if (!ossl_rand_pool_adin_mix_in(pool, admin, adin_len)) {
             ossl_rand_pool_free(pool);
             return 0;
         }
@@ -127,7 +127,7 @@ static int seed_src_reseed(void *vseed,
     ossl_unused int prediction_resistance,
     ossl_unused const unsigned char *ent,
     ossl_unused size_t ent_len,
-    ossl_unused const unsigned char *adin,
+    ossl_unused const unsigned char *admin,
     ossl_unused size_t adin_len)
 {
     PROV_SEED_SRC *s = (PROV_SEED_SRC *)vseed;
@@ -180,7 +180,7 @@ static int seed_src_verify_zeroization(ossl_unused void *vseed)
 static size_t seed_get_seed(void *vseed, unsigned char **pout,
     int entropy, size_t min_len, size_t max_len,
     int prediction_resistance,
-    const unsigned char *adin, size_t adin_len)
+    const unsigned char *admin, size_t adin_len)
 {
     size_t ret = 0;
     size_t entropy_available = 0;
@@ -196,7 +196,7 @@ static size_t seed_get_seed(void *vseed, unsigned char **pout,
     entropy_available = ossl_pool_acquire_entropy(pool);
 
     if (entropy_available > 0
-        && ossl_rand_pool_adin_mix_in(pool, adin, adin_len)) {
+        && ossl_rand_pool_adin_mix_in(pool, admin, adin_len)) {
         ret = ossl_rand_pool_length(pool);
         *pout = ossl_rand_pool_detach(pool);
     } else {

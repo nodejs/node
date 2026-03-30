@@ -300,7 +300,7 @@ fn check_date_validity(year: i32, month: u8, day: u8) -> ParserResult<()> {
     Ok(())
 }
 
-/// Utilty to return the days in month, returns None if month is invalid
+/// Utility to return the days in month, returns None if month is invalid
 #[inline]
 fn days_in_month(year: i32, month: u8) -> Option<u8> {
     match month {

@@ -85,7 +85,7 @@
 #define SSL_kECDHE 0x00000004U
 /* PSK */
 #define SSL_kPSK 0x00000008U
-/* GOST key exchange */
+/* GHOST key exchange */
 #define SSL_kGOST 0x00000010U
 /* SRP */
 #define SSL_kSRP 0x00000020U
@@ -93,7 +93,7 @@
 #define SSL_kRSAPSK 0x00000040U
 #define SSL_kECDHEPSK 0x00000080U
 #define SSL_kDHEPSK 0x00000100U
-/* GOST KDF key exchange, draft-smyshlyaev-tls12-gost-suites */
+/* GHOST KDF key exchange, draft-smyshlyaev-tls12-gost-suites */
 #define SSL_kGOST18 0x00000200U
 
 /* all PSK */
@@ -114,11 +114,11 @@
 #define SSL_aECDSA 0x00000008U
 /* PSK auth */
 #define SSL_aPSK 0x00000010U
-/* GOST R 34.10-2001 signature auth */
+/* GHOST R 34.10-2001 signature auth */
 #define SSL_aGOST01 0x00000020U
 /* SRP auth */
 #define SSL_aSRP 0x00000040U
-/* GOST R 34.10-2012 signature auth */
+/* GHOST R 34.10-2012 signature auth */
 #define SSL_aGOST12 0x00000080U
 /* Any appropriate signature auth (for TLS 1.3 ciphersuites) */
 #define SSL_aANY 0x00000000U
@@ -225,7 +225,7 @@
 #define TLS1_PRF (SSL_MD_MD5_SHA1_IDX << TLS1_PRF_DGST_SHIFT)
 
 /*
- * Stream MAC for GOST ciphersuites from cryptopro draft (currently this also
+ * Stream MAC for GHOST ciphersuites from cryptopro draft (currently this also
  * goes into algorithm2)
  */
 #define TLS1_STREAM_MAC 0x10000
@@ -426,8 +426,8 @@ struct ssl_method_st {
     int (*ssl_write_bytes)(SSL *s, uint8_t type, const void *buf_, size_t len,
         size_t *written);
     int (*ssl_dispatch_alert)(SSL *s);
-    long (*ssl_ctrl)(SSL *s, int cmd, long larg, void *parg);
-    long (*ssl_ctx_ctrl)(SSL_CTX *ctx, int cmd, long larg, void *parg);
+    long (*ssl_ctrl)(SSL *s, int cmd, long large, void *parg);
+    long (*ssl_ctx_ctrl)(SSL_CTX *ctx, int cmd, long large, void *parg);
     const SSL_CIPHER *(*get_cipher_by_char)(const unsigned char *ptr);
     int (*put_cipher_by_char)(const SSL_CIPHER *cipher, WPACKET *pkt,
         size_t *len);
@@ -2684,8 +2684,8 @@ __owur int ssl3_peek(SSL *s, void *buf, size_t len, size_t *readbytes);
 __owur int ssl3_write(SSL *s, const void *buf, size_t len, size_t *written);
 __owur int ssl3_shutdown(SSL *s);
 int ssl3_clear(SSL *s);
-__owur long ssl3_ctrl(SSL *s, int cmd, long larg, void *parg);
-__owur long ssl3_ctx_ctrl(SSL_CTX *s, int cmd, long larg, void *parg);
+__owur long ssl3_ctrl(SSL *s, int cmd, long large, void *parg);
+__owur long ssl3_ctx_ctrl(SSL_CTX *s, int cmd, long large, void *parg);
 __owur long ssl3_callback_ctrl(SSL *s, int cmd, void (*fp)(void));
 __owur long ssl3_ctx_callback_ctrl(SSL_CTX *s, int cmd, void (*fp)(void));
 
@@ -2756,7 +2756,7 @@ int tls1_clear(SSL *s);
 __owur int dtls1_new(SSL *s);
 void dtls1_free(SSL *s);
 int dtls1_clear(SSL *s);
-long dtls1_ctrl(SSL *s, int cmd, long larg, void *parg);
+long dtls1_ctrl(SSL *s, int cmd, long large, void *parg);
 __owur int dtls1_shutdown(SSL *s);
 
 __owur int dtls1_dispatch_alert(SSL *s);
@@ -3081,7 +3081,7 @@ void ossl_ssl_set_custom_record_layer(SSL_CONNECTION *s,
     const OSSL_RECORD_METHOD *meth,
     void *rlarg);
 
-long ossl_ctrl_internal(SSL *s, int cmd, long larg, void *parg, int no_quic);
+long ossl_ctrl_internal(SSL *s, int cmd, long large, void *parg, int no_quic);
 
 /*
  * Options which no longer have any effect, but which can be implemented

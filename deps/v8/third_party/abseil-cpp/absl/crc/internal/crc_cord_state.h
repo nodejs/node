@@ -33,7 +33,7 @@ namespace crc_internal {
 // the converted Cord is modified outside of CrcCord, the CrcCordState is
 // discarded from the Cord. If the Cord is converted back to a CrcCord, and the
 // Cord is still carrying the CrcCordState in its root node, the CrcCord can
-// re-use the CrcCordState, making the construction of the CrcCord cheap.
+// reuse the CrcCordState, making the construction of the CrcCord cheap.
 //
 // CrcCordState does not try to encapsulate the CRC32C state (CrcCord requires
 // knowledge of how CrcCordState represents the CRC32C state). It does

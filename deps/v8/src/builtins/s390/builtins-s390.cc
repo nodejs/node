@@ -926,7 +926,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
                       IsolateData::cage_base_offset());
 #endif
 
-  Register scrach = r8;
+  Register scratch = r8;
 
   // Set up frame pointer for the frame to be pushed.
   __ lay(fp, MemOperand(sp, -EntryFrameConstants::kNextFastCallFramePCOffset));
@@ -938,17 +938,17 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   ExternalReference js_entry_sp = ExternalReference::Create(
       IsolateAddressId::kJSEntrySPAddress, masm->isolate());
   __ Move(r7, js_entry_sp);
-  __ LoadAndTestP(scrach, MemOperand(r7));
+  __ LoadAndTestP(scratch, MemOperand(r7));
   __ bne(&non_outermost_js, Label::kNear);
   __ StoreU64(fp, MemOperand(r7));
-  __ mov(scrach, Operand(StackFrame::OUTERMOST_JSENTRY_FRAME));
+  __ mov(scratch, Operand(StackFrame::OUTERMOST_JSENTRY_FRAME));
   Label cont;
   __ b(&cont, Label::kNear);
   __ bind(&non_outermost_js);
-  __ mov(scrach, Operand(StackFrame::INNER_JSENTRY_FRAME));
+  __ mov(scratch, Operand(StackFrame::INNER_JSENTRY_FRAME));
 
   __ bind(&cont);
-  __ push(scrach);  // frame-type
+  __ push(scratch);  // frame-type
 
   // Jump to a faked try block that does the invoke, with a faked catch
   // block that sets the exception.
@@ -964,10 +964,10 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // field in the JSEnv and return a failure sentinel.  Coming in here the
   // fp will be invalid because the PushStackHandler below sets it to 0 to
   // signal the existence of the JSEntry frame.
-  __ Move(scrach, ExternalReference::Create(IsolateAddressId::kExceptionAddress,
+  __ Move(scratch, ExternalReference::Create(IsolateAddressId::kExceptionAddress,
                                             masm->isolate()));
 
-  __ StoreU64(r2, MemOperand(scrach));
+  __ StoreU64(r2, MemOperand(scratch));
   __ LoadRoot(r2, RootIndex::kException);
   __ b(&exit, Label::kNear);
 
@@ -999,24 +999,24 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ pop(r7);
   __ CmpS64(r7, Operand(StackFrame::OUTERMOST_JSENTRY_FRAME));
   __ bne(&non_outermost_js_2, Label::kNear);
-  __ mov(scrach, Operand::Zero());
+  __ mov(scratch, Operand::Zero());
   __ Move(r7, js_entry_sp);
-  __ StoreU64(scrach, MemOperand(r7));
+  __ StoreU64(scratch, MemOperand(r7));
   __ bind(&non_outermost_js_2);
 
   // Restore the top frame descriptors from the stack.
   __ pop(r5);
-  __ LoadIsolateField(scrach, IsolateFieldId::kFastCCallCallerPC);
-  __ StoreU64(r5, MemOperand(scrach));
+  __ LoadIsolateField(scratch, IsolateFieldId::kFastCCallCallerPC);
+  __ StoreU64(r5, MemOperand(scratch));
 
   __ pop(r5);
-  __ LoadIsolateField(scrach, IsolateFieldId::kFastCCallCallerFP);
-  __ StoreU64(r5, MemOperand(scrach));
+  __ LoadIsolateField(scratch, IsolateFieldId::kFastCCallCallerFP);
+  __ StoreU64(r5, MemOperand(scratch));
 
   __ pop(r5);
-  __ Move(scrach, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
+  __ Move(scratch, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
                                             masm->isolate()));
-  __ StoreU64(r5, MemOperand(scrach));
+  __ StoreU64(r5, MemOperand(scratch));
 
   // Reset the stack to the callee saved registers.
   __ lay(sp, MemOperand(sp, -EntryFrameConstants::kNextExitFrameFPOffset));
@@ -1587,7 +1587,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   } else {
     DCHECK_EQ(mode, InterpreterEntryTrampolineMode::kForProfiling);
     // Both versions must be the same up to this point otherwise the builtins
-    // will not be interchangable.
+    // will not be interchangeable.
     CHECK_EQ(
         masm->isolate()->heap()->interpreter_entry_return_pc_offset().value(),
         masm->pc_offset());
@@ -4081,7 +4081,7 @@ void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm, Register argc_input,
     __ Move(kCArgRegs[0], ER::isolate_address());
     __ Move(kCArgRegs[1], kOldSPRegister);
     __ CallCFunction(ER::wasm_switch_to_the_central_stack(), 2,
-                     SetIsolateDataSlots::kNo);
+                     SetIsolateDataSlots::know);
     __ Move(central_stack_sp, kReturnRegister0);
     __ Pop(argv_input);
     __ Pop(target_input);
@@ -4123,7 +4123,7 @@ void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm) {
     __ PrepareCallCFunction(1, r0);
     __ Move(kCArgRegs[0], ER::isolate_address());
     __ CallCFunction(ER::wasm_switch_from_the_central_stack(), 1,
-                     SetIsolateDataSlots::kNo);
+                     SetIsolateDataSlots::know);
     __ Pop(kReturnRegister0, kReturnRegister1);
   }
 
@@ -4204,7 +4204,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   if (needs_return_buffer) {
     // The return value is 16-byte non-scalar value.
     // Use frame storage reserved by calling function to pass return
-    // buffer as implicit first argument in R2.  Shfit original parameters
+    // buffer as implicit first argument in R2.  Shift original parameters
     // by one register each.
     __ mov(r4, r3);
     __ mov(r3, r2);
@@ -4333,7 +4333,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ mov(kCArgRegs[1], Operand::Zero());
     __ Move(kCArgRegs[2], ER::isolate_address());
     __ CallCFunction(ER::Create(Runtime::kUnwindAndFindExceptionHandler), 3,
-                     SetIsolateDataSlots::kNo);
+                     SetIsolateDataSlots::know);
   }
 
   // Retrieve the handler context, SP and FP.

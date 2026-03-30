@@ -44,7 +44,7 @@ class VirtualAddressSpaceBase
 V8_BASE_EXPORT bool IsSubset(PagePermissions lhs, PagePermissions rhs);
 
 /*
- * The virtual address space of the current process. Conceptionally, there
+ * The virtual address space of the current process. Conceptually, there
  * should only be one such "root" instance. However, in practice there is no
  * issue with having multiple instances as the actual resources are managed by
  * the OS kernel.

@@ -47,7 +47,7 @@ function h() {}
 // This test sets several break points at the same place and checks that
 // several break points at the same place only makes one debug break event
 // and that when the last break point is removed no more debug break events
-// occours.
+// occurs.
 break_point_hit_count = 0;
 
 // Set a breakpoint in f.

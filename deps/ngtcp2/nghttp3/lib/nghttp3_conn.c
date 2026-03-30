@@ -1222,7 +1222,7 @@ nghttp3_ssize nghttp3_conn_read_control(nghttp3_conn *conn,
 
         if (conn->rx.originlen == 0 || rstate->left < conn->rx.originlen) {
           /* While this seems OK in very loose RFC, allowing this
-             sounds like an atack vector. */
+             sounds like an attack vector. */
           return NGHTTP3_ERR_H3_FRAME_ERROR;
         }
 

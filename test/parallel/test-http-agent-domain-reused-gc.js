@@ -76,7 +76,7 @@ const d = domain.create();
 const noDomain = domain.create();
 
 d.run(common.mustCall(() => {
-  // Create a first request only so that we can get a “re-used” socket later.
+  // Create a first request only so that we can get a “reused” socket later.
   makeRequest(common.mustCall(() => {
     // Schedule the second request.
     setImmediate(common.mustCall(() => {

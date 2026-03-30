@@ -726,7 +726,7 @@ class FloatType : public Type {
     if (auto c = try_get_constant()) return *c == value;
     return false;
   }
-  // Returns the minimium value of a range or set, ignoring any special values
+  // Returns the minimum value of a range or set, ignoring any special values
   // (in contrast to min() above).
   float_t range_or_set_min() const {
     switch (sub_kind()) {

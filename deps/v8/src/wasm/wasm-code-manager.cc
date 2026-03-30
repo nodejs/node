@@ -1968,7 +1968,7 @@ void NativeModule::AddLazyCompilationTimeSample(int64_t sample_in_micro_sec) {
          !max_lazy_compilation_time_in_micro_sec_.compare_exchange_weak(
              max, sample_in_micro_sec, std::memory_order_relaxed,
              std::memory_order_relaxed)) {
-    // Repeat until we set the new maximum sucessfully.
+    // Repeat until we set the new maximum successfully.
   }
 }
 
@@ -2028,7 +2028,7 @@ NativeModule::JumpTablesRef NativeModule::FindJumpTablesForRegionLocked(
     // We can allow a max_distance that is equal to
     // kDefaultMaxWasmCodeSpaceSizeMb, because every call or jump will target an
     // address *within* the region, but never exactly the end of the region. So
-    // all occuring offsets are actually smaller than max_distance.
+    // all occurring offsets are actually smaller than max_distance.
     return max_distance <= kDefaultMaxWasmCodeSpaceSizeMb * MB;
   };
 

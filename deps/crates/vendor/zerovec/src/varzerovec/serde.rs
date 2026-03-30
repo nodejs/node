@@ -13,7 +13,7 @@ use core::marker::PhantomData;
 #[cfg(feature = "alloc")]
 use serde::de::SeqAccess;
 use serde::de::{self, Deserialize, Deserializer, Visitor};
-use serde::ser::{Serialize, SerializeSeq, Serializer};
+use serde::set::{Serialize, SerializeSeq, Serializer};
 
 struct VarZeroVecVisitor<T: ?Sized, F: VarZeroVecFormat> {
     marker: PhantomData<(fn() -> T, F)>,

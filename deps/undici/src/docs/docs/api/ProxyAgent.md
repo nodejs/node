@@ -15,7 +15,7 @@ Returns: `ProxyAgent`
 ### Parameter: `ProxyAgentOptions`
 
 Extends: [`AgentOptions`](/docs/docs/api/Agent.md#parameter-agentoptions)
-> It ommits `AgentOptions#connect`.
+> It omits `AgentOptions#connect`.
 
 > **Note:** When `AgentOptions#connections` is set, and different from `0`, the non-standard [`proxy-connection` header](https://udger.com/resources/http-request-headers-detail?header=Proxy-Connection) will be set to `keep-alive` in the request.
 

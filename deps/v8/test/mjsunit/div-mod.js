@@ -206,7 +206,7 @@ function lithium_integer_mod() {
     305419896,  // 0x12345678
   ];
 
-  // Test the standard lithium code for modulo opeartions.
+  // Test the standard lithium code for modulo operations.
   var mod_func;
   for (var i = 0; i < left_operands.length; i++) {
     for (var j = 0; j < divisors.length; j++) {

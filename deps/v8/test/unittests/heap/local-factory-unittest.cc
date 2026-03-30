@@ -60,7 +60,7 @@ class LocalFactoryTest : public TestWithIsolateAndZone {
             isolate(),
             UnoptimizedCompileFlags::ForToplevelCompile(
                 isolate(), true, construct_language_mode(v8_flags.use_strict),
-                REPLMode::kNo, ScriptType::kClassic, v8_flags.lazy),
+                REPLMode::know, ScriptType::kClassic, v8_flags.lazy),
             &state_, &reusable_state_),
         local_isolate_(isolate()->main_thread_local_isolate()) {}
 

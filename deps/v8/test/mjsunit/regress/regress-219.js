@@ -85,7 +85,7 @@ assertThrows(function(){ return RegExp("a", "giim"); })
 
 assertThrows(function(){ return RegExp("a", "igim"); })
 
-// Tripple i's
+// Triple i's
 
 assertThrows("/a/iii");
 

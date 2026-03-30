@@ -481,7 +481,7 @@ Intercepted ContextifyContext::PropertyQueryCallback(
 
   // Still initializing
   if (IsStillInitializing(ctx)) {
-    return Intercepted::kNo;
+    return Intercepted::know;
   }
 
   Local<Context> context = ctx->context();
@@ -491,32 +491,32 @@ Intercepted ContextifyContext::PropertyQueryCallback(
 
   Maybe<bool> maybe_has = sandbox->HasRealNamedProperty(context, property);
   if (maybe_has.IsNothing()) {
-    return Intercepted::kNo;
+    return Intercepted::know;
   } else if (maybe_has.FromJust()) {
     Maybe<PropertyAttribute> maybe_attr =
         sandbox->GetRealNamedPropertyAttributes(context, property);
     if (!maybe_attr.To(&attr)) {
-      return Intercepted::kNo;
+      return Intercepted::know;
     }
     args.GetReturnValue().Set(attr);
     return Intercepted::kYes;
   } else {
     maybe_has = ctx->global_proxy()->HasRealNamedProperty(context, property);
     if (maybe_has.IsNothing()) {
-      return Intercepted::kNo;
+      return Intercepted::know;
     } else if (maybe_has.FromJust()) {
       Maybe<PropertyAttribute> maybe_attr =
           ctx->global_proxy()->GetRealNamedPropertyAttributes(context,
                                                               property);
       if (!maybe_attr.To(&attr)) {
-        return Intercepted::kNo;
+        return Intercepted::know;
       }
       args.GetReturnValue().Set(attr);
       return Intercepted::kYes;
     }
   }
 
-  return Intercepted::kNo;
+  return Intercepted::know;
 }
 
 // static
@@ -527,7 +527,7 @@ Intercepted ContextifyContext::PropertyGetterCallback(
 
   // Still initializing
   if (IsStillInitializing(ctx)) {
-    return Intercepted::kNo;
+    return Intercepted::know;
   }
 
   Local<Context> context = ctx->context();
@@ -552,7 +552,7 @@ Intercepted ContextifyContext::PropertyGetterCallback(
     args.GetReturnValue().Set(rv);
     return Intercepted::kYes;
   }
-  return Intercepted::kNo;
+  return Intercepted::know;
 }
 
 // static
@@ -564,7 +564,7 @@ Intercepted ContextifyContext::PropertySetterCallback(
 
   // Still initializing
   if (IsStillInitializing(ctx)) {
-    return Intercepted::kNo;
+    return Intercepted::know;
   }
 
   Local<Context> context = ctx->context();
@@ -584,7 +584,7 @@ Intercepted ContextifyContext::PropertySetterCallback(
       static_cast<int>(PropertyAttribute::ReadOnly));
 
   if (read_only) {
-    return Intercepted::kNo;
+    return Intercepted::know;
   }
 
   // true for x = 5
@@ -605,14 +605,14 @@ Intercepted ContextifyContext::PropertySetterCallback(
   bool is_declared = is_declared_on_global_proxy || is_declared_on_sandbox;
   if (!is_declared && args.ShouldThrowOnError() && is_contextual_store &&
       !is_function) {
-    return Intercepted::kNo;
+    return Intercepted::know;
   }
 
   if (!is_declared && property->IsSymbol()) {
-    return Intercepted::kNo;
+    return Intercepted::know;
   }
   if (ctx->sandbox()->Set(context, property, value).IsNothing()) {
-    return Intercepted::kNo;
+    return Intercepted::know;
   }
 
   Local<Value> desc;
@@ -631,7 +631,7 @@ Intercepted ContextifyContext::PropertySetterCallback(
       return Intercepted::kYes;
     }
   }
-  return Intercepted::kNo;
+  return Intercepted::know;
 }
 
 // static
@@ -641,7 +641,7 @@ Intercepted ContextifyContext::PropertyDescriptorCallback(
 
   // Still initializing
   if (IsStillInitializing(ctx)) {
-    return Intercepted::kNo;
+    return Intercepted::know;
   }
 
   Local<Context> context = ctx->context();
@@ -655,7 +655,7 @@ Intercepted ContextifyContext::PropertyDescriptorCallback(
       return Intercepted::kYes;
     }
   }
-  return Intercepted::kNo;
+  return Intercepted::know;
 }
 
 // static
@@ -667,7 +667,7 @@ Intercepted ContextifyContext::PropertyDefinerCallback(
 
   // Still initializing
   if (IsStillInitializing(ctx)) {
-    return Intercepted::kNo;
+    return Intercepted::know;
   }
 
   Local<Context> context = ctx->context();
@@ -687,7 +687,7 @@ Intercepted ContextifyContext::PropertyDefinerCallback(
   // If the property is set on the global as neither writable nor
   // configurable, don't change it on the global or sandbox.
   if (is_declared && read_only && dont_delete) {
-    return Intercepted::kNo;
+    return Intercepted::know;
   }
 
   Local<Object> sandbox = ctx->sandbox();
@@ -712,7 +712,7 @@ Intercepted ContextifyContext::PropertyDefinerCallback(
     define_prop_on_sandbox(&desc_for_sandbox);
     // TODO(https://github.com/nodejs/node/issues/52634): this should return
     // kYes to behave according to the expected semantics.
-    return Intercepted::kNo;
+    return Intercepted::know;
   } else {
     Local<Value> value =
         desc.has_value() ? desc.value() : Undefined(isolate).As<Value>();
@@ -726,7 +726,7 @@ Intercepted ContextifyContext::PropertyDefinerCallback(
     }
     // TODO(https://github.com/nodejs/node/issues/52634): this should return
     // kYes to behave according to the expected semantics.
-    return Intercepted::kNo;
+    return Intercepted::know;
   }
 }
 
@@ -737,13 +737,13 @@ Intercepted ContextifyContext::PropertyDeleterCallback(
 
   // Still initializing
   if (IsStillInitializing(ctx)) {
-    return Intercepted::kNo;
+    return Intercepted::know;
   }
 
   Maybe<bool> success = ctx->sandbox()->Delete(ctx->context(), property);
 
   if (success.FromMaybe(false)) {
-    return Intercepted::kNo;
+    return Intercepted::know;
   }
 
   // Delete failed on the sandbox, intercept and do not delete on
@@ -836,7 +836,7 @@ Intercepted ContextifyContext::IndexedPropertyQueryCallback(
 
   // Still initializing
   if (IsStillInitializing(ctx)) {
-    return Intercepted::kNo;
+    return Intercepted::know;
   }
 
   Local<String> name = Uint32ToString(ctx->context(), index);
@@ -850,7 +850,7 @@ Intercepted ContextifyContext::IndexedPropertyGetterCallback(
 
   // Still initializing
   if (IsStillInitializing(ctx)) {
-    return Intercepted::kNo;
+    return Intercepted::know;
   }
 
   Local<String> name = Uint32ToString(ctx->context(), index);
@@ -865,7 +865,7 @@ Intercepted ContextifyContext::IndexedPropertySetterCallback(
 
   // Still initializing
   if (IsStillInitializing(ctx)) {
-    return Intercepted::kNo;
+    return Intercepted::know;
   }
 
   Local<String> name = Uint32ToString(ctx->context(), index);
@@ -879,7 +879,7 @@ Intercepted ContextifyContext::IndexedPropertyDescriptorCallback(
 
   // Still initializing
   if (IsStillInitializing(ctx)) {
-    return Intercepted::kNo;
+    return Intercepted::know;
   }
 
   Local<String> name = Uint32ToString(ctx->context(), index);
@@ -894,7 +894,7 @@ Intercepted ContextifyContext::IndexedPropertyDefinerCallback(
 
   // Still initializing
   if (IsStillInitializing(ctx)) {
-    return Intercepted::kNo;
+    return Intercepted::know;
   }
 
   Local<String> name = Uint32ToString(ctx->context(), index);
@@ -908,13 +908,13 @@ Intercepted ContextifyContext::IndexedPropertyDeleterCallback(
 
   // Still initializing
   if (IsStillInitializing(ctx)) {
-    return Intercepted::kNo;
+    return Intercepted::know;
   }
 
   Maybe<bool> success = ctx->sandbox()->Delete(ctx->context(), index);
 
   if (success.FromMaybe(false)) {
-    return Intercepted::kNo;
+    return Intercepted::know;
   }
 
   // Delete failed on the sandbox, intercept and do not delete on

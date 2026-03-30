@@ -3573,7 +3573,7 @@ var source =
 "  checking is fairly extensive, and will slow down execution\n" +
 "  noticeably. Calling malloc_stats or mallinfo with DEBUG set will\n" +
 "  attempt to check every non-mmapped allocated and free chunk in the\n" +
-"  course of computing the summmaries. (By nature, mmapped regions\n" +
+"  course of computing the summaries. (By nature, mmapped regions\n" +
 "  cannot be checked very much automatically.)\n" +
 "\n" +
 "  Setting DEBUG may also be helpful if you are trying to modify\n" +
@@ -3623,7 +3623,7 @@ var source =
 "  this case the alignment requirements turn out to negate any\n" +
 "  potential advantages of decreasing size_t word size.\n" +
 "\n" +
-"  Implementors: Beware of the possible combinations of:\n" +
+"  Implementers: Beware of the possible combinations of:\n" +
 "     - INTERNAL_SIZE_T might be signed or unsigned, might be 32 or 64 bits,\n" +
 "       and might be the same width as int or as long\n" +
 "     - size_t might have different width and signedness as INTERNAL_SIZE_T\n" +
@@ -4563,7 +4563,7 @@ var source =
 "  might set to a value close to the average size of a process\n" +
 "  (program) running on your system.  Releasing this much memory\n" +
 "  would allow such a process to run in memory.  Generally, it's\n" +
-"  worth it to tune for trimming rather tham memory mapping when a\n" +
+"  worth it to tune for trimming rather than memory mapping when a\n" +
 "  program undergoes phases where several large chunks are\n" +
 "  allocated and released in ways that can reuse each other's\n" +
 "  storage, perhaps mixed with phases where there are no such\n" +
@@ -5164,7 +5164,7 @@ var source =
 "    the malloc code, but \"mem\" is the pointer that is returned to the\n" +
 "    user.  \"Nextchunk\" is the beginning of the next contiguous chunk.\n" +
 "\n" +
-"    Chunks always begin on even word boundries, so the mem portion\n" +
+"    Chunks always begin on even word boundaries, so the mem portion\n" +
 "    (which is returned to the user) is also on an even word boundary, and\n" +
 "    thus at least double-word aligned.\n" +
 "\n" +
@@ -5717,7 +5717,7 @@ var source =
 "   If you are adapting this malloc in a way that does NOT use a static\n" +
 "   malloc_state, you MUST explicitly zero-fill it before using. This\n" +
 "   malloc relies on the property that malloc_state is initialized to\n" +
-"   all zeroes (as is true of C statics).\n" +
+"   all zeroes (as is true of C statistics).\n" +
 "*/\n" +
 "\n" +
 "static struct malloc_state av_;  /* never directly referenced */\n" +

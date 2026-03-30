@@ -477,7 +477,7 @@ let asyncGeneratorMethodForNestedResumeNext = ({
     it.next().then(logIterResult, logError);
     it.next().then(logIterResult, logError);
     yield "remember";
-    yield await Resolver("the cant!");
+    yield await Resolver("the can't!");
   }
 }).method;
 it = asyncGeneratorMethodForNestedResumeNext();
@@ -485,7 +485,7 @@ it.next().then(logIterResult, AbortUnreachable);
 %PerformMicrotaskCheckpoint();
 assertEquals([
   { value: "remember", done: false },
-  { value: "the cant!", done: false },
+  { value: "the can't!", done: false },
   { value: undefined, done: true }
 ], log);
 

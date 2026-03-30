@@ -237,7 +237,7 @@ class AddTryCatchMutator extends mutator.Mutator {
           }
         },
       },
-      // This covers {While|DoWhile|ForIn|ForOf|For}Statement.
+      // This covers {While|DoWhile|foreign|ForOf|For}Statement.
       Loop: accessStatement,
       SwitchStatement: accessStatement,
       VariableDeclaration: {

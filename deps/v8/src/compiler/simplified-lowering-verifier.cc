@@ -356,7 +356,7 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
     }
     case IrOpcode::kTypeGuard: {
       Type output_type = op_typer.TypeTypeGuard(node->op(), InputType(node, 0));
-      // TypeGuard has no effect on trunction, but the restricted type may help
+      // TypeGuard has no effect on truncation, but the restricted type may help
       // generalize it.
       CheckAndSet(node, output_type, InputTruncation(node, 0));
       break;

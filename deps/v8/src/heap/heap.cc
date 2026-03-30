@@ -1373,11 +1373,11 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   }
 
   const auto perform_heap_limit_check = v8_flags.late_heap_limit_check
-                                            ? PerformHeapLimitCheck::kNo
+                                            ? PerformHeapLimitCheck::know
                                             : PerformHeapLimitCheck::kYes;
   const auto perform_ineffective_mc_check =
       v8_flags.ineffective_gcs_forces_last_resort
-          ? PerformIneffectiveMarkCompactCheck::kNo
+          ? PerformIneffectiveMarkCompactCheck::know
           : PerformIneffectiveMarkCompactCheck::kYes;
   for (int attempt = 0; attempt < kMaxNumberOfAttempts; attempt++) {
     const size_t roots_before = num_roots();
@@ -3368,7 +3368,7 @@ void Heap::CreateFillerObjectAtBackground(const WritableFreeSpace& free_space) {
   // allowed to access the main thread's remembered set.
   CreateFillerObjectAtRaw(free_space,
                           ClearFreedMemoryMode::kDontClearFreedMemory,
-                          ClearRecordedSlots::kNo, VerifyNoSlotsRecorded::kNo);
+                          ClearRecordedSlots::know, VerifyNoSlotsRecorded::know);
 }
 
 void Heap::CreateFillerObjectAt(Address addr, int size,
@@ -3385,14 +3385,14 @@ void Heap::CreateFillerObjectAt(Address addr, int size,
     WritableFreeSpace free_space =
         WritableFreeSpace::ForNonExecutableMemory(addr, size);
     CreateFillerObjectAtRaw(free_space, clear_memory_mode,
-                            ClearRecordedSlots::kNo,
+                            ClearRecordedSlots::know,
                             VerifyNoSlotsRecorded::kYes);
     return;
   }
   WritableJitPage jit_page(addr, size);
   WritableFreeSpace free_space = jit_page.FreeRange(addr, size);
   CreateFillerObjectAtRaw(free_space, clear_memory_mode,
-                          ClearRecordedSlots::kNo, VerifyNoSlotsRecorded::kYes);
+                          ClearRecordedSlots::know, VerifyNoSlotsRecorded::kYes);
 }
 
 void Heap::CreateFillerObjectAtRaw(
@@ -3573,7 +3573,7 @@ Tagged<FixedArrayBase> Heap::LeftTrimFixedArray(Tagged<FixedArrayBase> object,
       WritableFreeSpace::ForNonExecutableMemory(old_start, bytes_to_trim),
       ClearFreedMemoryMode::kClearFreedMemory,
       MayContainRecordedSlots(object) ? ClearRecordedSlots::kYes
-                                      : ClearRecordedSlots::kNo,
+                                      : ClearRecordedSlots::know,
       VerifyNoSlotsRecorded::kYes);
 
   // Initialize header of the trimmed array. Since left trimming is only
@@ -3652,7 +3652,7 @@ void Heap::RightTrimArray(Tagged<Array> object, int new_capacity,
   if (!HeapLayout::InAnyLargeSpace(object)) {
     NotifyObjectSizeChange(
         object, old_size, old_size - bytes_to_trim,
-        clear_slots ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
+        clear_slots ? ClearRecordedSlots::kYes : ClearRecordedSlots::know);
     if (!v8_flags.black_allocated_pages) {
       Tagged<HeapObject> filler = HeapObject::FromAddress(new_end);
       // Clear the mark bits of the black area that belongs now to the filler.
@@ -4269,10 +4269,10 @@ void Heap::NotifyObjectSizeChange(Tagged<HeapObject> object, int old_size,
   const bool is_main_thread = LocalHeap::Current()->is_main_thread();
 
   DCHECK_IMPLIES(!is_main_thread,
-                 clear_recorded_slots == ClearRecordedSlots::kNo);
+                 clear_recorded_slots == ClearRecordedSlots::know);
 
   const auto verify_no_slots_recorded =
-      is_main_thread ? VerifyNoSlotsRecorded::kYes : VerifyNoSlotsRecorded::kNo;
+      is_main_thread ? VerifyNoSlotsRecorded::kYes : VerifyNoSlotsRecorded::know;
 
   const auto clear_memory_mode = ClearFreedMemoryMode::kDontClearFreedMemory;
 

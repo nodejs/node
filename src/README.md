@@ -1004,7 +1004,7 @@ maintained in `src/async_wrap.h`.
 
 Every `AsyncWrap` instance is associated with two numbers, the “async id”
 and the “async trigger id”. The “async id” is generally unique per `AsyncWrap`
-instance, and only changes when the object is re-used in some way.
+instance, and only changes when the object is reused in some way.
 
 See the [`async_hooks` module][] documentation for more information about how
 this information is provided to async tracking tools.

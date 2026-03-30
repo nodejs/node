@@ -657,7 +657,7 @@ class U_I18N_API Precision : public UMemory {
      * Precision::incrementExact(50, -2)
      * </pre>
      *
-     * This is analagous to ICU4J `Precision.increment(new BigDecimal("0.50"))`.
+     * This is analogous to ICU4J `Precision.increment(new BigDecimal("0.50"))`.
      *
      * This behavior is modeled after ECMA-402. For more information, see:
      * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/NumberFormat/NumberFormat#roundingincrement

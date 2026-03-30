@@ -140,7 +140,7 @@
     inst_param(1); inst_param(2);
     %OptimizeFunctionOnNextCall(inst_param); inst_param(3);
 
-    // TODO(gsps): Reenable once we fully support const field information
+    // TODO(gsps): Re-enable once we fully support const field information
     //   tracking in the presence of pointer compression.
     // inst_param(1.1); inst_param(2.2);
     // %OptimizeFunctionOnNextCall(inst_param); inst_param(3.3);

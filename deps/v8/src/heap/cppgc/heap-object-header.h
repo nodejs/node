@@ -370,7 +370,7 @@ void HeapObjectHeader::StoreEncoded(uint16_t bits, uint16_t mask) {
     return;
   }
   // We don't perform CAS loop here assuming that only none of the info that
-  // shares the same encoded halfs change at the same time.
+  // shares the same encoded halves change at the same time.
   auto* atomic_encoded = v8::base::AsAtomicPtr(&half);
   uint16_t value = atomic_encoded->load(std::memory_order_relaxed);
   value = (value & ~mask) | bits;

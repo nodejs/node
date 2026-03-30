@@ -974,7 +974,7 @@ UConverter_fromUnicode_ISCII_OFFSETS_LOGIC(
             /* is the sourceChar in the INDIC_RANGE? */
             if ((uint16_t)(INDIC_BLOCK_END-sourceChar) <= INDIC_RANGE) {
                 /* Danda and Double Danda are valid in Northern scripts.. since Unicode
-                 * does not include these codepoints in all Northern scrips we need to
+                 * does not include these codepoints in all Northern scripts we need to
                  * filter them out
                  */
                 if (sourceChar!= DANDA && sourceChar != DOUBLE_DANDA) {

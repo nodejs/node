@@ -195,7 +195,7 @@ void AccessorAssembler::TryEnumeratedKeyedLoad(
     ExitPoint* exit_point) {
   if (!p->IsEnumeratedKeyedLoad()) return;
   Label no_enum_cache(this);
-  // |p->cache_type()| comes from the outer loop's ForIn state.
+  // |p->cache_type()| comes from the outer loop's foreign state.
   GotoIf(TaggedNotEqual(p->cache_type(), lookup_start_object_map),
          &no_enum_cache);
 
@@ -206,7 +206,7 @@ void AccessorAssembler::TryEnumeratedKeyedLoad(
       descriptors, DescriptorArray::kEnumCacheOffset);
   TNode<FixedArray> enum_keys =
       LoadObjectField<FixedArray>(enum_cache, EnumCache::kKeysOffset);
-  // |p->enum_index()| comes from the outer loop's ForIn state.
+  // |p->enum_index()| comes from the outer loop's foreign state.
   TNode<Object> key = LoadFixedArrayElement(enum_keys, p->enum_index());
   // Check if |p->name()| matches the key in enum cache. |p->name()| is the
   // "each" variable of a for-in loop, but it can be modified by debugger or
@@ -1535,7 +1535,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
     BIND(&if_proto_handler);
     {
-      // Note, although DefineOwnICs don't reqiure checking for prototype
+      // Note, although DefineOwnICs don't require checking for prototype
       // chain modifications the proto handlers shape is still used for
       // StoreHandler::StoreElementTransition in order to store both Code
       // handler and transition target map.

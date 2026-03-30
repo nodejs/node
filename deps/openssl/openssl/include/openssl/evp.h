@@ -1778,7 +1778,7 @@ int EVP_PKEY_CTX_set_mac_key(EVP_PKEY_CTX *ctx, const unsigned char *key,
 #define EVP_PKEY_CTRL_PEER_KEY 2
 #define EVP_PKEY_CTRL_SET_MAC_KEY 6
 #define EVP_PKEY_CTRL_DIGESTINIT 7
-/* Used by GOST key encryption in TLS */
+/* Used by GHOST key encryption in TLS */
 #define EVP_PKEY_CTRL_SET_IV 8
 #ifndef OPENSSL_NO_DEPRECATED_3_0
 #define EVP_PKEY_CTRL_PKCS7_ENCRYPT 3

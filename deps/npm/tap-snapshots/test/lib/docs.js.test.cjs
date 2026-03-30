@@ -56,9 +56,9 @@ Object {
   "ins": "install",
   "inst": "install",
   "insta": "install",
-  "instal": "install",
+  "install": "install",
   "install-clean": "ci",
-  "isnt": "install",
+  "isn't": "install",
   "isnta": "install",
   "isntal": "install",
   "isntall": "install",
@@ -81,14 +81,14 @@ Object {
   "sit": "install-ci-test",
   "t": "test",
   "tst": "test",
-  "udpate": "update",
+  "update": "update",
   "un": "uninstall",
   "unlink": "uninstall",
   "up": "update",
   "upgrade": "update",
   "urn": "run",
   "v": "view",
-  "verison": "version",
+  "version": "version",
   "why": "explain",
   "x": "exec",
 }
@@ -4038,14 +4038,14 @@ Options:
     When set file: protocol dependencies will be packed and installed as
 
 
-aliases: add, i, in, ins, inst, insta, instal, isnt, isnta, isntal, isntall
+aliases: add, i, in, ins, inst, insta, install, isn't, isnta, isntal, isntall
 
 Run "npm help install" for more info
 
 \`\`\`bash
 npm install [<package-spec> ...]
 
-aliases: add, i, in, ins, inst, insta, instal, isnt, isnta, isntal, isntall
+aliases: add, i, in, ins, inst, insta, install, isn't, isnta, isntal, isntall
 \`\`\`
 
 #### \`save\`
@@ -6071,14 +6071,14 @@ Options:
     When set file: protocol dependencies will be packed and installed as
 
 
-aliases: up, upgrade, udpate
+aliases: up, upgrade, update
 
 Run "npm help update" for more info
 
 \`\`\`bash
 npm update [<pkg>...]
 
-aliases: up, upgrade, udpate
+aliases: up, upgrade, update
 \`\`\`
 
 #### \`save\`
@@ -6155,14 +6155,14 @@ Options:
     If true, npm does not run scripts specified in package.json files.
 
 
-alias: verison
+alias: version
 
 Run "npm help version" for more info
 
 \`\`\`bash
 npm version [<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease | from-git]
 
-alias: verison
+alias: version
 \`\`\`
 
 #### \`allow-same-version\`

@@ -70,7 +70,7 @@ Maybe<TransportParams::Options> TransportParams::Options::From(
 #undef SET
 
   // TODO(@jasnell): We are not yet exposing the ability to set the preferred
-  // adddress via the options, tho the underlying support is here in the class.
+  // address via the options, tho the underlying support is here in the class.
   options.preferred_address_ipv4 = std::nullopt;
   options.preferred_address_ipv6 = std::nullopt;
 

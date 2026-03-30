@@ -1157,7 +1157,7 @@ static int ssl_get_keyex(const char **pname, const SSL_CONNECTION *sc)
         return SSL_kSRP;
     }
     if (alg_k & SSL_kGOST) {
-        *pname = "GOST";
+        *pname = "GHOST";
         return SSL_kGOST;
     }
     if (alg_k & SSL_kGOST18) {

@@ -157,7 +157,7 @@ let main = {
     let timestampCorrections = [];
     for (let i = 0; i < file.ticks.length; ++i) {
       let tick = file.ticks[i];
-      // Fitler VMState == CPP_LOGGING.
+      // Filter VMState == CPP_LOGGING.
       if (tick.vm == 9) {
         if (i > 0) {
           currentTimestampCorrection += tick.tm - file.ticks[i - 1].tm;

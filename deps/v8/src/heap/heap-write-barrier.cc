@@ -40,7 +40,7 @@ MarkingBarrier* WriteBarrier::SetForThread(MarkingBarrier* marking_barrier) {
   return existing;
 }
 
-template V8_EXPORT_PRIVATE void WriteBarrier::MarkingSlow<RecordYoungSlot::kNo>(
+template V8_EXPORT_PRIVATE void WriteBarrier::MarkingSlow<RecordYoungSlot::know>(
     Tagged<HeapObject> host, HeapObjectSlot slot, Tagged<HeapObject> value);
 template V8_EXPORT_PRIVATE void
 WriteBarrier::MarkingSlow<RecordYoungSlot::kYes>(Tagged<HeapObject> host,

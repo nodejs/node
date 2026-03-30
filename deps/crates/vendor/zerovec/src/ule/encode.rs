@@ -66,7 +66,7 @@ pub unsafe trait EncodeAsVarULE<T: VarULE + ?Sized> {
     /// Calls `cb` with a piecewise list of byte slices that when concatenated
     /// produce the memory pattern of the corresponding instance of `T`.
     ///
-    /// Do not call this function directly; instead use the other two. Some implementors
+    /// Do not call this function directly; instead use the other two. Some implementers
     /// may define this function to panic.
     fn encode_var_ule_as_slices<R>(&self, cb: impl FnOnce(&[&[u8]]) -> R) -> R;
 

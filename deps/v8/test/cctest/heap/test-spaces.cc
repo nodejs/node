@@ -386,7 +386,7 @@ TEST(OldSpace) {
 
   auto old_space = std::make_unique<OldSpace>(heap);
   MainAllocator allocator(heap->main_thread_local_heap(), old_space.get(),
-                          MainAllocator::IsNewGeneration::kNo,
+                          MainAllocator::IsNewGeneration::know,
                           &allocation_info);
   const int obj_size = kMaxRegularHeapObjectSize;
 

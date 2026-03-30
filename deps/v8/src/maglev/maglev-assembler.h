@@ -97,7 +97,7 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
 
   MaglevAssembler(Isolate* isolate, Zone* zone,
                   MaglevCodeGenState* code_gen_state)
-      : MacroAssembler(isolate, zone, CodeObjectRequired::kNo),
+      : MacroAssembler(isolate, zone, CodeObjectRequired::know),
         code_gen_state_(code_gen_state) {}
 
   static constexpr RegList GetAllocatableRegisters() {

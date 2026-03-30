@@ -614,7 +614,7 @@ class Joiner(object):
 
 class Namespace(object):
     """A namespace object that can hold arbitrary attributes.  It may be
-    initialized from a dictionary or with keyword argments."""
+    initialized from a dictionary or with keyword arguments."""
 
     def __init__(*args, **kwargs):
         self, args = args[0], args[1:]

@@ -24,7 +24,7 @@ Debug.setListener(listener);
 // 'x' lives in the ScriptContext of this REPL script.
 Debug.evaluateGlobalREPL('let x = 21;');
 
-// The second script re-declares 'x', but then breaks and
+// The second script redeclares 'x', but then breaks and
 // evaluates x.
 Debug.evaluateGlobalREPL(`
   let x = 42;

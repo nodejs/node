@@ -540,7 +540,7 @@ template <typename Char> class basic_string_view {
   FMT_CONSTEXPR20 basic_string_view(const Char* s) : data_(s) {
 #if FMT_HAS_BUILTIN(__builtin_strlen) || FMT_GCC_VERSION || FMT_CLANG_VERSION
     if (std::is_same<Char, char>::value && !detail::is_constant_evaluated()) {
-      size_ = __builtin_strlen(detail::narrow(s));  // strlen is not costexpr.
+      size_ = __builtin_strlen(detail::narrow(s));  // strlen is not constexpr.
       return;
     }
 #endif
@@ -1464,14 +1464,14 @@ FMT_CONSTEXPR auto parse_format_specs(const Char* begin, const Char* end,
     }
   } enter_state;
 
-  using pres = presentation_type;
+  using press = presentation_type;
   constexpr auto integral_set = sint_set | uint_set | bool_set | char_set;
   struct {
     const Char*& begin;
     format_specs& specs;
     type arg_type;
 
-    FMT_CONSTEXPR auto operator()(pres pres_type, int set) -> const Char* {
+    FMT_CONSTEXPR auto operator()(press pres_type, int set) -> const Char* {
       if (!in(arg_type, set)) report_error("invalid format specifier");
       specs.set_type(pres_type);
       return begin + 1;
@@ -1528,30 +1528,30 @@ FMT_CONSTEXPR auto parse_format_specs(const Char* begin, const Char* end,
       specs.set_localized();
       ++begin;
       break;
-    case 'd': return parse_presentation_type(pres::dec, integral_set);
+    case 'd': return parse_presentation_type(press::dec, integral_set);
     case 'X': specs.set_upper(); FMT_FALLTHROUGH;
-    case 'x': return parse_presentation_type(pres::hex, integral_set);
-    case 'o': return parse_presentation_type(pres::oct, integral_set);
+    case 'x': return parse_presentation_type(press::hex, integral_set);
+    case 'o': return parse_presentation_type(press::oct, integral_set);
     case 'B': specs.set_upper(); FMT_FALLTHROUGH;
-    case 'b': return parse_presentation_type(pres::bin, integral_set);
+    case 'b': return parse_presentation_type(press::bin, integral_set);
     case 'E': specs.set_upper(); FMT_FALLTHROUGH;
-    case 'e': return parse_presentation_type(pres::exp, float_set);
+    case 'e': return parse_presentation_type(press::exp, float_set);
     case 'F': specs.set_upper(); FMT_FALLTHROUGH;
-    case 'f': return parse_presentation_type(pres::fixed, float_set);
+    case 'f': return parse_presentation_type(press::fixed, float_set);
     case 'G': specs.set_upper(); FMT_FALLTHROUGH;
-    case 'g': return parse_presentation_type(pres::general, float_set);
+    case 'g': return parse_presentation_type(press::general, float_set);
     case 'A': specs.set_upper(); FMT_FALLTHROUGH;
-    case 'a': return parse_presentation_type(pres::hexfloat, float_set);
+    case 'a': return parse_presentation_type(press::hexfloat, float_set);
     case 'c':
       if (arg_type == type::bool_type) report_error("invalid format specifier");
-      return parse_presentation_type(pres::chr, integral_set);
+      return parse_presentation_type(press::chr, integral_set);
     case 's':
-      return parse_presentation_type(pres::string,
+      return parse_presentation_type(press::string,
                                      bool_set | string_set | cstring_set);
     case 'p':
-      return parse_presentation_type(pres::pointer, pointer_set | cstring_set);
+      return parse_presentation_type(press::pointer, pointer_set | cstring_set);
     case '?':
-      return parse_presentation_type(pres::debug,
+      return parse_presentation_type(press::debug,
                                      char_set | string_set | cstring_set);
     case '}': return begin;
     default:  {

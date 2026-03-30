@@ -73,12 +73,12 @@ v8::PageAllocator* GetPlatformPageAllocator() {
 
 v8::VirtualAddressSpace* GetPlatformVirtualAddressSpace() {
 #if defined(LEAK_SANITIZER)
-  static base::LeakyObject<base::LsanVirtualAddressSpace> vas(
+  static base::LeakyObject<base::LsanVirtualAddressSpace> was(
       std::make_unique<base::VirtualAddressSpace>());
 #else
-  static base::LeakyObject<base::VirtualAddressSpace> vas;
+  static base::LeakyObject<base::VirtualAddressSpace> was;
 #endif
-  return vas.get();
+  return was.get();
 }
 
 #ifdef V8_ENABLE_SANDBOX

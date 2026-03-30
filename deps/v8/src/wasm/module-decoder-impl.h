@@ -1333,7 +1333,7 @@ class ModuleDecoderImpl : public Decoder {
           size_t num_memories = module_->memories.size();
           if (exp->index >= module_->memories.size()) {
             errorf(index_pos,
-                   "invalid exported memory index %u (having %zu memor%s)",
+                   "invalid exported memory index %u (having %zu memory%s)",
                    exp->index, num_memories, num_memories == 1 ? "y" : "ies");
             break;
           }
@@ -3031,7 +3031,7 @@ class ModuleDecoderImpl : public Decoder {
       size_t num_memories = module_->memories.size();
       if (mem_index >= num_memories) {
         errorf(pos,
-               "invalid memory index %u for data section (having %zu memor%s)",
+               "invalid memory index %u for data section (having %zu memory%s)",
                mem_index, num_memories, num_memories == 1 ? "y" : "ies");
         return {};
       }

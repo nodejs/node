@@ -66,7 +66,7 @@ function wrapRequestBody (body) {
     !ArrayBuffer.isView(body) &&
     isIterable(body)
   ) {
-    // TODO: Should we allow re-using iterable if !this.opts.idempotent
+    // TODO: Should we allow reusing iterable if !this.opts.idempotent
     // or through some other flag?
     return new BodyAsyncIterable(body)
   } else {
@@ -557,7 +557,7 @@ function assertRequestHandler (handler, method, upgrade) {
 }
 
 /**
- * A body is disturbed if it has been read from and it cannot be re-used without
+ * A body is disturbed if it has been read from and it cannot be reused without
  * losing state or data.
  * @param {import('node:stream').Readable} body
  * @returns {boolean}

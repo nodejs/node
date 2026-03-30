@@ -366,7 +366,7 @@ class DefaultExecutionPool(ContextPool):
     Returns: A wrapped result if one was available within heartbeat timeout,
         a heartbeat result otherwise.
     Raises:
-        Exception: If an exception occured when processing the task on the
+        Exception: If an exception occurred when processing the task on the
             worker side, it is reraised here.
     """
     while True:

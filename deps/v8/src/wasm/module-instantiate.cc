@@ -1564,7 +1564,7 @@ bool InstanceBuilder::ExecuteStartFunction() {
   // the correct "entered context" is available. This is the equivalent of
   // v8::Context::Enter() and must happen in addition to the function call
   // sequence doing the compiled version of "isolate->set_context(...)".
-  HandleScopeImplementer* hsi = isolate_->handle_scope_implementer();
+  HandleScopeImplementer* his = isolate_->handle_scope_implementer();
   hsi->EnterContext(start_function_->native_context());
 
   // Call the JS function.

@@ -192,7 +192,7 @@ HWY_NOINLINE void TestAllSlideUpLanes() {
 // SSE2/SSSE3/SSE4/AVX2/AVX3/NEON/WASM targets,
 // DoTestSlideDownLanesWithConstAmt_0_7, DoTestSlideDownLanesWithConstAmt_8_15,
 // DoTestSlideDownLanesWithConstAmt_16_31, and
-// DoTestSlideDownLanesWithConstAmt_32_63 will fail to throughly test the
+// DoTestSlideDownLanesWithConstAmt_32_63 will fail to thoroughly test the
 // implementations of SlideDownLanes(d, v, N) in optimized builds compiled with
 // GCC or Clang for the case where N is known to be a constant.
 #define HWY_SLIDE_DOWN_TEST_INLINE HWY_INLINE

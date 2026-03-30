@@ -15,7 +15,7 @@ namespace v8_inspector {
 class V8SerializationDuplicateTracker {
  public:
   // Returns a `protocol::DictionaryValue` value either empty if the V8 value
-  // was not serialized yet, or filled in as a reference to previousely
+  // was not serialized yet, or filled in as a reference to previously
   // serialized protocol value.
   V8_EXPORT std::unique_ptr<protocol::DictionaryValue> LinkExistingOrCreate(
       v8::Local<v8::Value> v8Value, bool* isKnown);

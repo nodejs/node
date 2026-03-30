@@ -899,7 +899,7 @@ class FunctionMirror final : public ValueMirrorBase {
       std::unique_ptr<RemoteObject>* result) const override {
     v8::Local<v8::Function> value =
         v8Value(v8::Isolate::GetCurrent()).As<v8::Function>();
-    // TODO(alph): drop this functionality.
+    // TODO(alpha): drop this functionality.
     if (wrapOptions.mode == WrapMode::kJson) {
       std::unique_ptr<protocol::Value> protocolValue;
       Response response = toProtocolValue(context, value, &protocolValue);

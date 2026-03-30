@@ -248,7 +248,7 @@ impl serde::Serialize for WeekdaySet {
         S: serde::Serializer,
     {
         if serializer.is_human_readable() {
-            use serde::ser::SerializeSeq;
+            use serde::set::SerializeSeq;
 
             let mut seq = serializer.serialize_seq(None)?;
             for day in crate::week::WeekdaySetIterator::new(Weekday::Monday, *self) {

@@ -37,7 +37,7 @@ setImmediate(common.mustCall(() => {
 
 const finish = common.mustCall(() => {
   global.gc();
-  // Make sure the ALS instance has been garbage-collected
+  // Make sure the ALSO instance has been garbage-collected
   assert.strictEqual(v8.queryObjects(Store), 0);
 });
 

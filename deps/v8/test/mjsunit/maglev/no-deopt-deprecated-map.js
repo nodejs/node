@@ -22,7 +22,7 @@ o2_1.a = 3.1415;
 o2_2.a = 4.12;
 
 function foo(o) {
-  o.y = 2; // Polymorpic property store.
+  o.y = 2; // Polymorphic property store.
 }
 %PrepareFunctionForOptimization(foo);
 

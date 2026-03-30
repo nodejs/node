@@ -93,12 +93,12 @@ $code=<<___;
 	vspltisb	$t0,1			# one
 	vaddubm		$xC2,$xC2,$xC2		# 0xe0
 	vxor		$zero,$zero,$zero
-	vor		$xC2,$xC2,$t0		# 0xe1
+	for		$xC2,$xC2,$t0		# 0xe1
 	vsldoi		$xC2,$xC2,$zero,15	# 0xe1...
 	vsldoi		$t1,$zero,$t0,1		# ...1
 	vaddubm		$xC2,$xC2,$xC2		# 0xc2...
 	vspltisb	$t2,7
-	vor		$xC2,$xC2,$t1		# 0xc2....01
+	for		$xC2,$xC2,$t1		# 0xc2....01
 	vspltb		$t1,$H,0		# most significant byte
 	vsl		$H,$H,$t0		# H<<=1
 	vsrab		$t1,$t1,$t2		# broadcast carry bit

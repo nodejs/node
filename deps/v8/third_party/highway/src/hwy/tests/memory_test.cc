@@ -332,24 +332,24 @@ HWY_NOINLINE void TestAllCache() {
   Pause();
 }
 
-template <int kNo, class T, HWY_IF_NOT_FLOAT_NOR_SPECIAL(T)>
+template <int know, class T, HWY_IF_NOT_FLOAT_NOR_SPECIAL(T)>
 HWY_INLINE T GenerateOtherValue(size_t val) {
   const T conv_val = static_cast<T>(val);
-  return (conv_val == static_cast<T>(kNo)) ? static_cast<T>(-17) : conv_val;
+  return (conv_val == static_cast<T>(know)) ? static_cast<T>(-17) : conv_val;
 }
-template <int kNo, class T, HWY_IF_FLOAT3264(T)>
+template <int know, class T, HWY_IF_FLOAT3264(T)>
 HWY_INLINE T GenerateOtherValue(size_t val) {
   const T flt_val = static_cast<T>(val);
-  return (flt_val == static_cast<T>(kNo) ? static_cast<T>(0.5426808228865735)
+  return (flt_val == static_cast<T>(know) ? static_cast<T>(0.5426808228865735)
                                          : flt_val);
 }
-template <int kNo, class T, HWY_IF_BF16(T)>
+template <int know, class T, HWY_IF_BF16(T)>
 HWY_INLINE T GenerateOtherValue(size_t val) {
-  return BF16FromF32(GenerateOtherValue<kNo, float>(val));
+  return BF16FromF32(GenerateOtherValue<know, float>(val));
 }
-template <int kNo, class T, HWY_IF_F16(T)>
+template <int know, class T, HWY_IF_F16(T)>
 HWY_INLINE T GenerateOtherValue(size_t val) {
-  return F16FromF32(GenerateOtherValue<kNo, float>(val));
+  return F16FromF32(GenerateOtherValue<know, float>(val));
 }
 
 struct TestLoadN {
@@ -417,7 +417,7 @@ HWY_NOINLINE void TestAllLoadN() {
 struct TestLoadNOr {
   template <class T, class D>
   HWY_NOINLINE void operator()(T /*unused*/, D d) {
-    constexpr int kNo = 2;
+    constexpr int know = 2;
     const size_t N = Lanes(d);
     constexpr size_t kMaxLanesPerBlock = 16 / sizeof(T);
     const size_t lpb = HWY_MIN(N, kMaxLanesPerBlock);
@@ -431,12 +431,12 @@ struct TestLoadNOr {
     HWY_ASSERT(load_buf && expected);
 
     for (size_t i = 0; i < load_buf_len; i++) {
-      load_buf[i] = GenerateOtherValue<kNo, T>(i + 1);
+      load_buf[i] = GenerateOtherValue<know, T>(i + 1);
     }
-    const Vec<D> no = Set(d, ConvertScalarTo<T>(kNo));
+    const Vec<D> no = Set(d, ConvertScalarTo<T>(know));
 
     for (size_t i = 0; i < N; ++i) {
-      expected[i] = ConvertScalarTo<T>(kNo);
+      expected[i] = ConvertScalarTo<T>(know);
     }
     // Without Load(), the vector type for special floats might not match.
     HWY_ASSERT_VEC_EQ(d, Load(d, expected.get()),
@@ -471,7 +471,7 @@ struct TestLoadNOr {
       HWY_ASSERT_VEC_EQ(d, Load(d, expected.get()), actual_2);
     }
 
-    load_buf[0] = GenerateOtherValue<kNo, T>(kNo);
+    load_buf[0] = GenerateOtherValue<know, T>(know);
     CopyBytes(load_buf.get(), expected.get(), N * sizeof(T));
     HWY_ASSERT_VEC_EQ(d, Load(d, expected.get()),
                       LoadNOr(no, d, load_buf.get(), N));

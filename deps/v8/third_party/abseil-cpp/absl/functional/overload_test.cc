@@ -174,7 +174,7 @@ TEST(OverloadTest, VariantVisitWithAutoFallbackDispatchesCorrectly) {
 }
 
 // This API used to be exported as a function, so it should also work fine to
-// use parantheses when initializing it.
+// use parentheses when initializing it.
 TEST(OverloadTest, UseWithParentheses) {
   const auto overloaded =
       absl::Overload([](const std::string& s) { return s.size(); },

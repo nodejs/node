@@ -143,7 +143,7 @@ So, that gets installed at [A].
 Since the parent installation of blerg satisfies bar's dependency on `blerg@1.x`, it does not install another copy under [B].
 
 Bar [B] also has dependencies on baz and asdf.
-Because it depends on `baz@2.x`, it cannot re-use the `baz@1.2.3` installed in the parent `node_modules` folder [D], and must install its own copy [C].
+Because it depends on `baz@2.x`, it cannot reuse the `baz@1.2.3` installed in the parent `node_modules` folder [D], and must install its own copy [C].
 In order to minimize duplication, npm hoists dependencies to the top level by default, so asdf is installed under [A].
 
 Underneath bar, the `baz -> quux -> bar` dependency creates a cycle.

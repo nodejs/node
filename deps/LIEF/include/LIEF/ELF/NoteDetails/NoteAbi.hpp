@@ -88,7 +88,7 @@ class LIEF_API NoteAbi : public Note {
 
 LIEF_API const char* to_string(NoteAbi::ABI abi);
 
-} // namepsace ELF
+} // namespace ELF
 } // namespace LIEF
 
 #endif

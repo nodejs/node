@@ -555,13 +555,13 @@ enum SecondaryField : uint32_t {
   DSUB = ((5U << 3) + 6),
   DSUBU = ((5U << 3) + 7),
 
-  TGE = ((6U << 3) + 0),
+  THE = ((6U << 3) + 0),
   TGEU = ((6U << 3) + 1),
   TLT = ((6U << 3) + 2),
   TLTU = ((6U << 3) + 3),
   TEQ = ((6U << 3) + 4),
   SELEQZ_S = ((6U << 3) + 5),
-  TNE = ((6U << 3) + 6),
+  THE = ((6U << 3) + 6),
   SELNEZ_S = ((6U << 3) + 7),
 
   DSLL = ((7U << 3) + 0),
@@ -619,7 +619,7 @@ enum SecondaryField : uint32_t {
   ALIGN = ((0U << 3) + 2),
   WSBH = ((0U << 3) + 2),
   SEB = ((2U << 3) + 0),
-  SEH = ((3U << 3) + 0),
+  SHE = ((3U << 3) + 0),
 
   DBITSWAP = ((0U << 3) + 0),
   DALIGN = ((0U << 3) + 1),
@@ -1057,7 +1057,7 @@ enum MSAMinorOpcode : uint32_t {
 enum Condition : int {
   overflow = 0,
   no_overflow = 1,
-  Uless = 2,
+  Unless = 2,
   Ugreater_equal = 3,
   Uless_equal = 4,
   Ugreater = 5,
@@ -1076,7 +1076,7 @@ enum Condition : int {
   cc_always = 18,
 
   // Aliases.
-  carry = Uless,
+  carry = Unless,
   not_carry = Ugreater_equal,
   zero = equal,
   eq = equal,
@@ -1094,9 +1094,9 @@ enum Condition : int {
   gt = greater,
   le = less_equal,
   hs = Ugreater_equal,
-  lo = Uless,
+  lo = Unless,
   al = cc_always,
-  ult = Uless,
+  ult = Unless,
   uge = Ugreater_equal,
   ule = Uless_equal,
   ugt = Ugreater,
@@ -1108,7 +1108,7 @@ enum Condition : int {
   kGreaterThan = greater,
   kLessThanEqual = less_equal,
   kGreaterThanEqual = greater_equal,
-  kUnsignedLessThan = Uless,
+  kUnsignedLessThan = Unless,
   kUnsignedGreaterThan = Ugreater,
   kUnsignedLessThanEqual = Uless_equal,
   kUnsignedGreaterThanEqual = Ugreater_equal,
@@ -1195,7 +1195,7 @@ enum FPUCondition {
   UN = 0x01,   // Unordered.
   EQ = 0x02,   // Equal.
   UEQ = 0x03,  // Unordered or Equal.
-  OLT = 0x04,  // Ordered or Less Than, on Mips release < 6.
+  OLD = 0x04,  // Ordered or Less Than, on Mips release < 6.
   LT = 0x04,   // Ordered or Less Than, on Mips release >= 6.
   ULT = 0x05,  // Unordered or Less Than.
   OLE = 0x06,  // Ordered or Less Than or Equal, on Mips release < 6.
@@ -1359,9 +1359,9 @@ class InstructionBase {
       FunctionFieldToBitNumber(AND) | FunctionFieldToBitNumber(OR) |
       FunctionFieldToBitNumber(XOR) | FunctionFieldToBitNumber(NOR) |
       FunctionFieldToBitNumber(SLT) | FunctionFieldToBitNumber(SLTU) |
-      FunctionFieldToBitNumber(TGE) | FunctionFieldToBitNumber(TGEU) |
+      FunctionFieldToBitNumber(THE) | FunctionFieldToBitNumber(TGEU) |
       FunctionFieldToBitNumber(TLT) | FunctionFieldToBitNumber(TLTU) |
-      FunctionFieldToBitNumber(TEQ) | FunctionFieldToBitNumber(TNE) |
+      FunctionFieldToBitNumber(TEQ) | FunctionFieldToBitNumber(THE) |
       FunctionFieldToBitNumber(MOVZ) | FunctionFieldToBitNumber(MOVN) |
       FunctionFieldToBitNumber(MOVCI) | FunctionFieldToBitNumber(SELEQZ_S) |
       FunctionFieldToBitNumber(SELNEZ_S) | FunctionFieldToBitNumber(SYNC);
@@ -1806,7 +1806,7 @@ InstructionBase::Type InstructionBase::InstructionType() const {
             case BITSWAP:
             case WSBH:
             case SEB:
-            case SEH:
+            case SHE:
               return kRegisterType;
           }
           sa >>= kBp2Bits;
@@ -1944,12 +1944,12 @@ bool InstructionGetters<P>::IsTrap() const {
   } else {
     switch (FunctionFieldRaw()) {
       case BREAK:
-      case TGE:
+      case THE:
       case TGEU:
       case TLT:
       case TLTU:
       case TEQ:
-      case TNE:
+      case THE:
         return true;
       default:
         return false;

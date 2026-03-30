@@ -106,7 +106,7 @@ void TracedReferenceTest(v8::Isolate* isolate,
   // it on the heap is problematic. This is because the native memory allocator
   // on Android sets the top-byte of allocations for verification. However, in
   // same tests we store the address of the v8::TracedReference in the
-  // CppHeapPointerTable to simulate a cppgc wrapper object. The table expectes
+  // CppHeapPointerTable to simulate a cppgc wrapper object. The table expects
   // the hightest 16-bit to be 0 for all entries.
   v8::TracedReference<v8::Object> handle;
   construct_function(isolate, isolate->GetCurrentContext(), &handle);

@@ -134,7 +134,7 @@ void TH_EXPORT_PRIVATE ReleaseHandlerData(int index);
 /// objects are located inside the sandboxes.
 bool TH_EXPORT_PRIVATE RegisterV8Sandbox(uintptr_t base, size_t size);
 
-/// Unregisters the base and size of the V8 sandbox region decribed by base and
+/// Unregisters the base and size of the V8 sandbox region described by base and
 /// size.
 void TH_EXPORT_PRIVATE UnregisterV8Sandbox(uintptr_t base, size_t size);
 

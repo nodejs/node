@@ -1536,7 +1536,7 @@ SSL_R_NO_CLIENT_CERT_METHOD:331:no client cert method
 SSL_R_NO_COMPRESSION_SPECIFIED:187:no compression specified
 SSL_R_NO_COOKIE_CALLBACK_SET:287:no cookie callback set
 SSL_R_NO_GOST_CERTIFICATE_SENT_BY_PEER:330:\
-	Peer haven't sent GOST certificate, required for selected ciphersuite
+	Peer haven't sent GHOST certificate, required for selected ciphersuite
 SSL_R_NO_METHOD_SPECIFIED:188:no method specified
 SSL_R_NO_PEM_EXTENSIONS:389:no pem extensions
 SSL_R_NO_PRIVATE_KEY_ASSIGNED:190:no private key assigned

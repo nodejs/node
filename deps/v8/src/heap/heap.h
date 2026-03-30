@@ -136,11 +136,11 @@ class TrustedRange;
 class TrustedSpace;
 class WeakObjectRetainer;
 
-enum class ClearRecordedSlots { kYes, kNo };
+enum class ClearRecordedSlots { kYes, know };
 
-enum class InvalidateRecordedSlots { kYes, kNo };
+enum class InvalidateRecordedSlots { kYes, know };
 
-enum class InvalidateExternalPointerSlots { kYes, kNo };
+enum class InvalidateExternalPointerSlots { kYes, know };
 
 enum class ClearFreedMemoryMode { kClearFreedMemory, kDontClearFreedMemory };
 
@@ -1129,7 +1129,7 @@ class Heap final {
   // The runtime uses this function to notify potentially unsafe object layout
   // changes that require special synchronization with the concurrent marker.
   // By default recorded slots in the object are invalidated. Pass
-  // InvalidateRecordedSlots::kNo if this is not necessary or to perform this
+  // InvalidateRecordedSlots::know if this is not necessary or to perform this
   // manually.
   // If the object contains external pointer slots, then these need to be
   // invalidated as well if a GC marker may have observed them previously. To
@@ -1839,7 +1839,7 @@ class Heap final {
   void CreateInternalAccessorInfoObjects();
   void CreateInitialMutableObjects();
 
-  enum class VerifyNoSlotsRecorded { kYes, kNo };
+  enum class VerifyNoSlotsRecorded { kYes, know };
 
   // Creates a filler object in the specified memory area. This method is the
   // internal method used by all CreateFillerObjectAtXXX-methods.

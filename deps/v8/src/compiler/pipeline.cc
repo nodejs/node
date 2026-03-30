@@ -1762,7 +1762,7 @@ CompilationJob::Status FinalizeWrapperCompilation(
   if (!pipeline.FinalizeCode(call_descriptor).ToHandle(&code)) {
     V8::FatalProcessOutOfMemory(isolate, method_name);
   }
-  DCHECK_NULL(turboshaft_data->depedencies());
+  DCHECK_NULL(turboshaft_data->dependencies());
   info->SetCode(code);
 #ifdef ENABLE_DISASSEMBLER
   if (v8_flags.print_wasm_code) {

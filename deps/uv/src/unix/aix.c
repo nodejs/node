@@ -163,11 +163,11 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     uv__queue_init(q);
 
     w = uv__queue_data(q, uv__io_t, watcher_queue);
-    assert(w->pevents != 0);
+    assert(w->prevents != 0);
     assert(w->fd >= 0);
     assert(w->fd < (int) loop->nwatchers);
 
-    pc.events = w->pevents;
+    pc.events = w->prevents;
     pc.fd = w->fd;
 
     add_failed = 0;
@@ -213,7 +213,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       }
     }
 
-    w->events = w->pevents;
+    w->events = w->prevents;
   }
 
   assert(timeout >= -1);
@@ -823,7 +823,7 @@ int uv_fs_event_start(uv_fs_event_t* handle,
 
   uv__io_start(handle->loop, &handle->event_watcher, POLLIN);
 
-  /* AHAFS wants someone to poll for it to start mointoring.
+  /* AHAFS wants someone to poll for it to start monitoring.
    *  so kick-start it so that we don't miss an event in the
    *  eventuality of an event that occurs in the current loop. */
   do {

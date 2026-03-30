@@ -165,7 +165,7 @@ public:
     *    then creating a RegexMatcher object from the pattern.
     *
     * @param regex The regular expression to be compiled.
-    * @param pe    Receives the position (line and column nubers) of any error
+    * @param pe    Receives the position (line and column numbers) of any error
     *              within the regular expression.)
     * @param status A reference to a UErrorCode to receive any errors.
     * @return      A regexPattern object for the compiled pattern.
@@ -195,7 +195,7 @@ public:
     * @param regex The regular expression to be compiled. Note, the text referred
     *              to by this UText must not be deleted during the lifetime of the
     *              RegexPattern object or any RegexMatcher object created from it.
-    * @param pe    Receives the position (line and column nubers) of any error
+    * @param pe    Receives the position (line and column numbers) of any error
     *              within the regular expression.)
     * @param status A reference to a UErrorCode to receive any errors.
     * @return      A regexPattern object for the compiled pattern.

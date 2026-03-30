@@ -54,7 +54,7 @@ class MaglevGraphLabeller {
   void PrintNodeLabel(std::ostream& os, const NodeBase* node,
                       bool has_regalloc_data) {
     if (node != nullptr && node->Is<VirtualObject>()) {
-      // VirtualObjects are unregisted nodes, since they are not attached to
+      // VirtualObjects are unregistered nodes, since they are not attached to
       // the graph, but its inlined allocation is.
       const VirtualObject* vo = node->Cast<VirtualObject>();
       os << "VO{" << vo->id() << "}:";

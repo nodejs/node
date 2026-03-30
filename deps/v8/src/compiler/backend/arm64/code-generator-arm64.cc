@@ -1207,7 +1207,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (linkage()->GetIncomingDescriptor()->IsWasmCapiFunction()) {
         // Put the return address in a stack slot.
         __ StoreReturnAddressInWasmExitFrame(&return_location);
-        set_isolate_data_slots = SetIsolateDataSlots::kNo;
+        set_isolate_data_slots = SetIsolateDataSlots::know;
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
       int pc_offset;

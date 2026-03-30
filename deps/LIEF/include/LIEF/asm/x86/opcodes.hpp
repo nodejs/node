@@ -1510,7 +1510,7 @@ enum class OPCODE {
   CVTTSS2SIrr_Int = 1486,
   CWD = 1487,
   CWDE = 1488,
-  DAA = 1489,
+  DATA = 1489,
   DAS = 1490,
   DATA16_PREFIX = 1491,
   DEC16m = 1492,

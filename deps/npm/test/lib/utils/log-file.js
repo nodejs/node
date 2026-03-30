@@ -311,7 +311,7 @@ t.test('delete log file while open', async t => {
   const logs = await readLogs()
 
   // XXX: do some retry logic after error?
-  t.strictSame(logs, [], 'logs arent written after error')
+  t.strictSame(logs, [], 'logs aren't written after error')
 })
 
 t.test('snapshot', async t => {

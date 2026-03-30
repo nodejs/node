@@ -952,7 +952,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Caution: if {reg} is a 32-bit negative int, it should be sign-extended to
   // 64-bit before calling this function.
-  void Switch(Register scrach, Register reg, int case_base_value,
+  void Switch(Register scratch, Register reg, int case_base_value,
               Label** labels, int num_labels);
 
   void JumpIfCodeIsMarkedForDeoptimization(Register code, Register scratch,

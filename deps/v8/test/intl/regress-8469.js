@@ -82,6 +82,6 @@ function testTz(tz) {
   assertEquals(expectedTimeZone, timeZone);
 }
 
-// first test soem tz not impacted by v8:8469 to ensure testTz is correct.
+// first test some tz not impacted by v8:8469 to ensure testTz is correct.
 for (var tz of some_tz_list) testTz(tz);
 for (var tz of problem_tz_list) testTz(tz);

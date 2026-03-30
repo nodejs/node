@@ -22,8 +22,8 @@
 //! In their paper, Neri and Schneider calculated for a Rata Die cycle
 //! shift of constant of 82, but that was not sufficient in order to
 //! support Temporal's date range, so below is a small addendum table
-//! on extending the date range from a cyle shift of 82 to 680 in order
-//! to accomodate Temporal's range.
+//! on extending the date range from a cycle shift of 82 to 680 in order
+//! to accommodate Temporal's range.
 //!
 //! | Significant Date | Computational Rata Die | Rata Die Shift
 //! | -----------------|------------------------|-----------------|

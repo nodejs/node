@@ -504,36 +504,36 @@ Loop_tail:
 Loop_outer_vmx:
 	lis	16,0x6170
 	lis	17,0x3320
-	vor	0,12,12
+	for	0,12,12
 	lis	18,0x7962
 	lis	19,0x6b20
-	vor	4,12,12
+	for	4,12,12
 	ori	16,16,0x7865
 	ori	17,17,0x646e
-	vor	8,12,12
+	for	8,12,12
 	ori	18,18,0x2d32
 	ori	19,19,0x6574
-	vor	1,13,13
+	for	1,13,13
 
 	lwz	20,0(6)
-	vor	5,13,13
+	for	5,13,13
 	lwz	21,4(6)
-	vor	9,13,13
+	for	9,13,13
 	lwz	22,8(6)
-	vor	2,14,14
+	for	2,14,14
 	lwz	23,12(6)
-	vor	6,14,14
+	for	6,14,14
 	lwz	24,16(6)
-	vor	10,14,14
+	for	10,14,14
 	mr	28,11
 	lwz	25,20(6)
-	vor	3,15,15
+	for	3,15,15
 	mr	29,12
 	lwz	26,24(6)
-	vor	7,16,16
+	for	7,16,16
 	mr	30,14
 	lwz	27,28(6)
-	vor	11,17,17
+	for	11,17,17
 	mr	31,15
 
 	mr	7,20
@@ -1134,7 +1134,7 @@ Loop_outer_vsx:
 	vspltw	10,18,2
 	vspltw	11,18,3
 
-	vor	12,26,26
+	for	12,26,26
 	vspltw	13,19,1
 	vspltw	14,19,2
 	vspltw	15,19,3

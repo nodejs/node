@@ -103,8 +103,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
                             : CallDescriptor::kNoFlags,
         Operator::kNoProperties, StubCallMode::kCallBuiltinPointer);
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
-        call_descriptor, compiler::CanThrow::kNo,
-        compiler::LazyDeoptOnThrow::kNo, __ graph_zone());
+        call_descriptor, compiler::CanThrow::know,
+        compiler::LazyDeoptOnThrow::know, __ graph_zone());
     V<WordPtr> call_target = GetTargetForBuiltinCall(name);
     return __ Call(call_target, frame_state, base::VectorOf({args...}),
                    ts_call_descriptor);
@@ -117,8 +117,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
         __ graph_zone(), Descriptor(), 0, CallDescriptor::kNoFlags,
         Operator::kNoProperties, StubCallMode::kCallBuiltinPointer);
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
-        call_descriptor, compiler::CanThrow::kNo,
-        compiler::LazyDeoptOnThrow::kNo, __ graph_zone());
+        call_descriptor, compiler::CanThrow::know,
+        compiler::LazyDeoptOnThrow::know, __ graph_zone());
     V<WordPtr> call_target = GetTargetForBuiltinCall(name);
     return __ Call(call_target, {args...}, ts_call_descriptor);
   }
@@ -329,8 +329,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
     CallDescriptor* call_descriptor =
         GetBigIntToI64CallDescriptor(frame_state.valid());
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
-        call_descriptor, compiler::CanThrow::kNo,
-        compiler::LazyDeoptOnThrow::kNo, __ graph_zone());
+        call_descriptor, compiler::CanThrow::know,
+        compiler::LazyDeoptOnThrow::know, __ graph_zone());
     return frame_state.valid()
                ? __ Call(target, frame_state.value(),
                          base::VectorOf({input, context}), ts_call_descriptor)

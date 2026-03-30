@@ -273,9 +273,9 @@ void NumberRangeFormatterImpl::formatRange(UFormattedNumberRangeData& data,
                                            UErrorCode& status) const {
     if (U_FAILURE(status)) { return; }
 
-    // modInner is always notation (scientific); collapsable in ALL.
-    // modOuter is always units; collapsable in ALL, AUTO, and UNIT.
-    // modMiddle could be either; collapsable in ALL and sometimes AUTO and UNIT.
+    // modInner is always notation (scientific); collapsible in ALL.
+    // modOuter is always units; collapsible in ALL, AUTO, and UNIT.
+    // modMiddle could be either; collapsible in ALL and sometimes AUTO and UNIT.
     // Never collapse an outer mod but not an inner mod.
     bool collapseOuter, collapseMiddle, collapseInner;
     switch (fCollapse) {
@@ -287,7 +287,7 @@ void NumberRangeFormatterImpl::formatRange(UFormattedNumberRangeData& data,
             collapseOuter = micros1.modOuter->semanticallyEquivalent(*micros2.modOuter);
 
             if (!collapseOuter) {
-                // Never collapse inner mods if outer mods are not collapsable
+                // Never collapse inner mods if outer mods are not collapsible
                 collapseMiddle = false;
                 collapseInner = false;
                 break;
@@ -297,7 +297,7 @@ void NumberRangeFormatterImpl::formatRange(UFormattedNumberRangeData& data,
             collapseMiddle = micros1.modMiddle->semanticallyEquivalent(*micros2.modMiddle);
 
             if (!collapseMiddle) {
-                // Never collapse inner mods if outer mods are not collapsable
+                // Never collapse inner mods if outer mods are not collapsible
                 collapseInner = false;
                 break;
             }

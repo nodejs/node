@@ -2688,7 +2688,7 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
   mov(r3, r4);
 
   // XPLINK treats r7 as voliatile return register, but r14 as preserved
-  // Since Linux is the other way around, perserve r7 value in r14 across
+  // Since Linux is the other way around, preserve r7 value in r14 across
   // the call.
   mov(r14, r7);
 
@@ -5322,7 +5322,7 @@ void MacroAssembler::StoreReturnAddressAndCall(Register target) {
   StoreU64(ra, MemOperand(sp, kStackFrameRASlot * kSystemPointerSize));
 
   // zLinux ABI requires caller's frame to have sufficient space for callee
-  // preserved regsiter save area.
+  // preserved register save area.
   b(target);
   bind(&return_label);
 }

@@ -228,7 +228,7 @@ class LIEF_API Binary : public LIEF::Binary {
   }
 
   /// Header that follows the header(). It is named optional from the COFF
-  /// specfication but it is mandatory in a PE file.
+  /// specification but it is mandatory in a PE file.
   OptionalHeader& optional_header() {
     return optional_header_;
   }
@@ -425,7 +425,7 @@ class LIEF_API Binary : public LIEF::Binary {
   result<ResourcesManager> resources_manager() const;
 
   /// Return binary's section from its name.
-  /// If the secion can't be found, return a nullptr
+  /// If the section can't be found, return a nullptr
   ///
   /// @param[in] name Name of the Section
   Section* get_section(const std::string& name) {
@@ -511,7 +511,7 @@ class LIEF_API Binary : public LIEF::Binary {
   /// Return the CodeViewPDB object if present
   const CodeViewPDB* codeview_pdb() const;
 
-  /// Retrun the LoadConfiguration object or a nullptr if the binary does not
+  /// Return the LoadConfiguration object or a nullptr if the binary does not
   /// use the LoadConfiguration
   const LoadConfiguration* load_configuration() const {
     return loadconfig_.get();

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 const {session, Protocol} =
-    InspectorTest.start('Checks that requesting to restart a non-existant frame fails cleanly');
+    InspectorTest.start('Checks that requesting to restart a non-existent frame fails cleanly');
 
 session.setupScriptMap();
 

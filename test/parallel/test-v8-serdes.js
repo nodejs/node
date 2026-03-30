@@ -36,13 +36,13 @@ const objects = [
 const hostObject = new (internalBinding('js_stream').JSStream)();
 
 {
-  const ser = new v8.DefaultSerializer();
-  ser.writeHeader();
+  const set = new v8.DefaultSerializer();
+  set.writeHeader();
   for (const obj of objects) {
-    ser.writeValue(obj);
+    set.writeValue(obj);
   }
 
-  const des = new v8.DefaultDeserializer(ser.releaseBuffer());
+  const des = new v8.DefaultDeserializer(set.releaseBuffer());
   des.readHeader();
 
   for (const obj of objects) {
@@ -57,36 +57,36 @@ const hostObject = new (internalBinding('js_stream').JSStream)();
 }
 
 {
-  const ser = new v8.DefaultSerializer();
-  ser._getDataCloneError = common.mustCall((message) => {
+  const set = new v8.DefaultSerializer();
+  set._getDataCloneError = common.mustCall((message) => {
     assert.strictEqual(message, '#<Object> could not be cloned.');
     return new Error('foobar');
   });
 
-  ser.writeHeader();
+  set.writeHeader();
 
   assert.throws(() => {
-    ser.writeValue(new Proxy({}, {}));
+    set.writeValue(new Proxy({}, {}));
   }, /foobar/);
 }
 
 {
-  const ser = new v8.DefaultSerializer();
-  ser._writeHostObject = common.mustCall((object) => {
+  const set = new v8.DefaultSerializer();
+  set._writeHostObject = common.mustCall((object) => {
     assert.strictEqual(object, hostObject);
     const buf = Buffer.from('hostObjectTag');
 
-    ser.writeUint32(buf.length);
-    ser.writeRawBytes(buf);
+    set.writeUint32(buf.length);
+    set.writeRawBytes(buf);
 
-    ser.writeUint64(1, 2);
-    ser.writeDouble(-0.25);
+    set.writeUint64(1, 2);
+    set.writeDouble(-0.25);
   });
 
-  ser.writeHeader();
-  ser.writeValue({ val: hostObject });
+  set.writeHeader();
+  set.writeValue({ val: hostObject });
 
-  const des = new v8.DefaultDeserializer(ser.releaseBuffer());
+  const des = new v8.DefaultDeserializer(set.releaseBuffer());
   des._readHostObject = common.mustCall(() => {
     const length = des.readUint32();
     const buf = des.readRawBytes(length);
@@ -112,18 +112,18 @@ const hostObject = new (internalBinding('js_stream').JSStream)();
   // `buf` is one of `TypedArray` or `DataView`.
   function testWriteRawBytes(buf) {
     let writeHostObjectCalled = false;
-    const ser = new v8.DefaultSerializer();
+    const set = new v8.DefaultSerializer();
 
-    ser._writeHostObject = common.mustCall((object) => {
+    set._writeHostObject = common.mustCall((object) => {
       writeHostObjectCalled = true;
-      ser.writeUint32(buf.byteLength);
-      ser.writeRawBytes(buf);
+      set.writeUint32(buf.byteLength);
+      set.writeRawBytes(buf);
     });
 
-    ser.writeHeader();
-    ser.writeValue({ val: hostObject });
+    set.writeHeader();
+    set.writeValue({ val: hostObject });
 
-    const des = new v8.DefaultDeserializer(ser.releaseBuffer());
+    const des = new v8.DefaultDeserializer(set.releaseBuffer());
     des._readHostObject = common.mustCall(() => {
       assert.strictEqual(writeHostObjectCalled, true);
       const length = des.readUint32();
@@ -144,14 +144,14 @@ const hostObject = new (internalBinding('js_stream').JSStream)();
 }
 
 {
-  const ser = new v8.DefaultSerializer();
-  ser._writeHostObject = common.mustCall((object) => {
+  const set = new v8.DefaultSerializer();
+  set._writeHostObject = common.mustCall((object) => {
     throw new Error('foobar');
   });
 
-  ser.writeHeader();
+  set.writeHeader();
   assert.throws(() => {
-    ser.writeValue({ val: hostObject });
+    set.writeValue({ val: hostObject });
   }, /foobar/);
 }
 
@@ -191,11 +191,11 @@ const hostObject = new (internalBinding('js_stream').JSStream)();
   des.readHeader();
   const value = des.readValue();
 
-  const ser = new v8.DefaultSerializer();
-  ser.writeHeader();
-  ser.writeValue(value);
+  const set = new v8.DefaultSerializer();
+  set.writeHeader();
+  set.writeValue(value);
 
-  const serBuf = ser.releaseBuffer();
+  const serBuf = set.releaseBuffer();
   const serStr = serBuf.toString('hex');
   assert.deepStrictEqual(serStr, desStr, message);
 }

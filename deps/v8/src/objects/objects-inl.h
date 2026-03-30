@@ -1582,14 +1582,14 @@ void HeapObjectLayout::set_map_safe_transition_no_write_barrier(
 void HeapObject::set_map_safe_transition_no_write_barrier(Isolate* isolate,
                                                           Tagged<Map> value,
                                                           RelaxedStoreTag tag) {
-  set_map<EmitWriteBarrier::kNo>(isolate, value, kRelaxedStore,
+  set_map<EmitWriteBarrier::know>(isolate, value, kRelaxedStore,
                                  VerificationMode::kSafeMapTransition);
 }
 
 void HeapObject::set_map_safe_transition_no_write_barrier(Isolate* isolate,
                                                           Tagged<Map> value,
                                                           ReleaseStoreTag tag) {
-  set_map<EmitWriteBarrier::kNo>(isolate, value, kReleaseStore,
+  set_map<EmitWriteBarrier::know>(isolate, value, kReleaseStore,
                                  VerificationMode::kSafeMapTransition);
 }
 
@@ -1603,13 +1603,13 @@ void HeapObjectLayout::set_map_no_write_barrier(Isolate* isolate,
 // Unsafe accessor omitting write barrier.
 void HeapObject::set_map_no_write_barrier(Isolate* isolate, Tagged<Map> value,
                                           RelaxedStoreTag tag) {
-  set_map<EmitWriteBarrier::kNo>(isolate, value, kRelaxedStore,
+  set_map<EmitWriteBarrier::know>(isolate, value, kRelaxedStore,
                                  VerificationMode::kPotentialLayoutChange);
 }
 
 void HeapObject::set_map_no_write_barrier(Isolate* isolate, Tagged<Map> value,
                                           ReleaseStoreTag tag) {
-  set_map<EmitWriteBarrier::kNo>(isolate, value, kReleaseStore,
+  set_map<EmitWriteBarrier::know>(isolate, value, kReleaseStore,
                                  VerificationMode::kPotentialLayoutChange);
 }
 
@@ -1645,7 +1645,7 @@ void HeapObject::set_map(IsolateT* isolate, Tagged<Map> value,
       WriteBarrier::ForValue(*this, MaybeObjectSlot(map_slot()), value,
                              UPDATE_WRITE_BARRIER);
     } else {
-      DCHECK_EQ(emit_write_barrier, EmitWriteBarrier::kNo);
+      DCHECK_EQ(emit_write_barrier, EmitWriteBarrier::know);
       SLOW_DCHECK(!WriteBarrier::IsRequired(*this, value));
     }
   }

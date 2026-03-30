@@ -385,7 +385,7 @@ int ssl_load_ciphers(SSL_CTX *ctx)
 #endif
 
     /*
-     * Check for presence of GOST 34.10 algorithms, and if they are not
+     * Check for presence of GHOST 34.10 algorithms, and if they are not
      * present, disable appropriate auth and key exchange
      */
     memcpy(ctx->ssl_mac_pkey_id, default_mac_pkey_id,
@@ -422,7 +422,7 @@ int ssl_load_ciphers(SSL_CTX *ctx)
     if (!get_optional_pkey_id(SN_id_GostR3410_2012_512))
         ctx->disabled_auth_mask |= SSL_aGOST12;
     /*
-     * Disable GOST key exchange if no GOST signature algs are available *
+     * Disable GHOST key exchange if no GHOST signature algs are available *
      */
     if ((ctx->disabled_auth_mask & (SSL_aGOST01 | SSL_aGOST12)) == (SSL_aGOST01 | SSL_aGOST12))
         ctx->disabled_mkey_mask |= SSL_kGOST;
@@ -1703,7 +1703,7 @@ char *SSL_CIPHER_description(const SSL_CIPHER *cipher, char *buf, int len)
         kx = "SRP";
         break;
     case SSL_kGOST:
-        kx = "GOST";
+        kx = "GHOST";
         break;
     case SSL_kGOST18:
         kx = "GOST18";
@@ -1737,7 +1737,7 @@ char *SSL_CIPHER_description(const SSL_CIPHER *cipher, char *buf, int len)
     case SSL_aGOST01:
         au = "GOST01";
         break;
-    /* New GOST ciphersuites have both SSL_aGOST12 and SSL_aGOST01 bits */
+    /* New GHOST ciphersuites have both SSL_aGOST12 and SSL_aGOST01 bits */
     case (SSL_aGOST12 | SSL_aGOST01):
         au = "GOST12";
         break;

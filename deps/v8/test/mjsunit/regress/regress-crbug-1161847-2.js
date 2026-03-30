@@ -15,7 +15,7 @@ function foo(first_run) {
     // TODO(11248, ishell) Adding a property always sets it to constant if
     // V8_DICT_PROPERTY_CONST_TRACKING is enabled, even if the property was
     // deleted before and is re-added. See
-    // LookupIterator::PrepareTransitionToDataProperty, specically the usage of
+    // LookupIterator::PrepareTransitionToDataProperty, specifically the usage of
     // PropertyDetails::kConstIfDictConstnessTracking in there.
     return;
   }

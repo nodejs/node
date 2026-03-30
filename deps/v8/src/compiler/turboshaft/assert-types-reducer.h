@@ -101,7 +101,7 @@ class AssertTypesReducer
           __ CallBuiltin(
               builtin, OpIndex::Invalid(),
               {actual_value_indices.data(), actual_value_indices.size()},
-              CanThrow::kNo, isolate_);
+              CanThrow::know, isolate_);
 #ifdef DEBUG
           // Used for debugging
           if (v8_flags.turboshaft_trace_typing) {

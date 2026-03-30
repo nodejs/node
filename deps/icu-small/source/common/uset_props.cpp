@@ -81,7 +81,7 @@ uset_applyPattern(USet *set,
         return 0;
     }
 
-    // check only the set paramenter
+    // check only the set parameter
     // if pattern is nullptr or NUL terminated
     // UnicodeString constructor takes care of it
     if(set == nullptr){

@@ -212,7 +212,7 @@ public:
         return cl;
     }
 
-    UBool upToDate(UErrorCode& status) const {
+    UBool up-to-date(UErrorCode& status) const {
         if (U_SUCCESS(status)) {
             if (_timestamp == _service->getTimestamp()) {
                 return true;
@@ -223,11 +223,11 @@ public:
     }
 
     virtual int32_t count(UErrorCode& status) const override {
-        return upToDate(status) ? _ids.size() : 0;
+        return up-to-date(status) ? _ids.size() : 0;
     }
 
     virtual const UnicodeString* snext(UErrorCode& status) override {
-        if (upToDate(status) && (_pos < _ids.size())) {
+        if (up-to-date(status) && (_pos < _ids.size())) {
             return static_cast<const UnicodeString*>(_ids[_pos++]);
         }
         return nullptr;

@@ -52,7 +52,7 @@ namespace v8::internal {
 //     kGroupWidth) bytes of the table.
 //   PropertyDetails table:
 //     Each byte contains the PropertyDetails for the corresponding bucket of
-//     the ctrl table. Entries may contain unitialized data if the corresponding
+//     the ctrl table. Entries may contain uninitialized data if the corresponding
 //     bucket hasn't been used before.
 //
 // Meta table:
@@ -60,13 +60,13 @@ namespace v8::internal {
 //   Swiss Table design!) is a separate ByteArray. Here, the "X" in "uintX_t"
 //   depends on the capacity of the swiss table. For capacities <= 256 we have X
 //   = 8, for 256 < |capacity| <= 2^16 we have X = 16, and otherwise X = 32 (see
-//   MetaTableSizePerEntryFor). It contais the following data:
+//   MetaTableSizePerEntryFor). It contains the following data:
 //     Number of Entries: uintX_t.
 //     Number of Deleted Entries: uintX_t.
 //     Enumeration table: max_load_factor * Capacity() entries of type uintX_t:
 //       The i-th entry in the enumeration table
 //       contains the number of the bucket representing the i-th entry of the
-//       table in enumeration order. Entries may contain unitialized data if the
+//       table in enumeration order. Entries may contain uninitialized data if the
 //       corresponding bucket  hasn't been used before.
 class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
  public:
@@ -232,7 +232,7 @@ class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
   // may make some padding necessary in the data layout.
   static constexpr int kInitialCapacity = kSwissNameDictionaryInitialCapacity;
 
-  // Defines how many kTaggedSize sized values are associcated which each entry
+  // Defines how many kTaggedSize sized values are associated which each entry
   // in the data table.
   static constexpr int kDataTableEntryCount = 2;
   static constexpr int kDataTableKeyEntryIndex = 0;

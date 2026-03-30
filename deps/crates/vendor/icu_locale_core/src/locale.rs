@@ -43,7 +43,7 @@ use core::str::FromStr;
 /// This operation normalizes syntax to be well-formed. No legacy subtag replacements is performed.
 /// For validation and canonicalization, see `LocaleCanonicalizer`.
 ///
-/// ICU4X's Locale parsing does not allow for non-BCP-47-compatible locales [allowed by UTS 35 for backwards compatability][tr35-bcp].
+/// ICU4X's Locale parsing does not allow for non-BCP-47-compatible locales [allowed by UTS 35 for backwards compatibility][tr35-bcp].
 /// Furthermore, it currently does not allow for language tags to have more than three characters.
 ///
 /// # Examples

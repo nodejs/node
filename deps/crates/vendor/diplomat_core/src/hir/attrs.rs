@@ -531,7 +531,7 @@ impl Attrs {
                         match method.output {
                             ReturnType::Infallible(_) => (),
                             ReturnType::Fallible(..) => {
-                                // Only report an error if constructors *are* supported but failable constructors *arent*
+                                // Only report an error if constructors *are* supported but failable constructors *aren't*
                                 if validator.attrs_supported().constructors
                                     && !validator.attrs_supported().fallible_constructors
                                 {
@@ -947,7 +947,7 @@ impl Attrs {
 pub struct BackendAttrSupport {
     /// Namespacing types, e.g. C++ `namespace`.
     pub namespacing: bool,
-    /// Rust can directly acccess the memory of this language, like C and C++.
+    /// Rust can directly access the memory of this language, like C and C++.
     /// This is not supported in any garbage-collected language.
     pub memory_sharing: bool,
     /// This language's structs are non-exhaustive by default, i.e. adding
@@ -1094,7 +1094,7 @@ pub trait AttributeValidator {
     fn is_backend(&self, backend_name: &str) -> bool;
     /// does this backend satisfy cfg(name = value)?
     fn is_name_value(&self, name: &str, value: &str) -> Result<bool, LoweringError>;
-    /// What backedn attrs does this support?
+    /// What backend attrs does this support?
     fn attrs_supported(&self) -> BackendAttrSupport;
 
     /// Provided, checks if type satisfies a `DiplomatBackendAttrCfg`

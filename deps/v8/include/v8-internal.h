@@ -61,7 +61,7 @@ const int kHeapObjectTagSize = 2;
 const intptr_t kHeapObjectTagMask = (1 << kHeapObjectTagSize) - 1;
 const intptr_t kHeapObjectReferenceTagMask = 1 << (kHeapObjectTagSize - 1);
 
-// Tag information for fowarding pointers stored in object headers.
+// Tag information for forwarding pointers stored in object headers.
 // 0b00 at the lowest 2 bits in the header indicates that the map word is a
 // forwarding pointer.
 const int kForwardingTag = 0;
@@ -694,7 +694,7 @@ V8_INLINE static constexpr bool IsManagedExternalPointerType(
   return kAnyManagedResourceExternalPointerTag.Contains(tag_range);
 }
 
-// When an external poiner field can contain the null external pointer handle,
+// When an external pointer field can contain the null external pointer handle,
 // the type checking mechanism needs to also check for null.
 // TODO(saelo): this is mostly a temporary workaround to introduce range-based
 // type checks. In the future, we should either (a) change the type tagging

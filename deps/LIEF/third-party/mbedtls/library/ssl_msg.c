@@ -2223,7 +2223,7 @@ int mbedtls_ssl_fetch_input(mbedtls_ssl_context *ssl, size_t nb_want)
 
         /*
          * Don't even try to read if time's out already.
-         * This avoids by-passing the timer when repeatedly receiving messages
+         * This avoids bypassing the timer when repeatedly receiving messages
          * that will end up being dropped.
          */
         if (mbedtls_ssl_check_timer(ssl) != 0) {
@@ -4461,7 +4461,7 @@ static int ssl_load_buffered_message(mbedtls_ssl_context *ssl)
         ret = 0;
         goto exit;
     } else {
-        MBEDTLS_SSL_DEBUG_MSG(2, ("Next handshake message %u not or only partially bufffered",
+        MBEDTLS_SSL_DEBUG_MSG(2, ("Next handshake message %u not or only partially buffered",
                                   hs->in_msg_seq));
     }
 
@@ -6275,7 +6275,7 @@ int mbedtls_ssl_write_early_data(mbedtls_ssl_context *ssl,
     } else {
         /*
          * If we are past the point where we can send early data or we have
-         * already reached the maximum early data size, return immediatly.
+         * already reached the maximum early data size, return immediately.
          * Otherwise, progress the handshake as much as possible to not delay
          * it too much. If we reach a point where we can still send early data,
          * then we will send some.

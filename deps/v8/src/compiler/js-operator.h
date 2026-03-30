@@ -164,7 +164,7 @@ class ConstructParameters final {
 
   // TODO(jgruber): Consider removing `arity()` and just storing the arity
   // without extra args in ConstructParameters. Every spot that creates
-  // ConstructParameters artifically adds the extra args. Every spot that uses
+  // ConstructParameters artificially adds the extra args. Every spot that uses
   // ConstructParameters artificially subtracts the extra args.
   // We keep them for now for consistency with other spots
   // that expect `arity()` to include extra args.
@@ -812,7 +812,7 @@ std::ostream& operator<<(std::ostream&, CloneObjectParameters const&);
 
 const CloneObjectParameters& CloneObjectParametersOf(const Operator* op);
 
-// Defines the shared information for the iterator symbol thats loaded and
+// Defines the shared information for the iterator symbol that's loaded and
 // called. This is used as a parameter by JSGetIterator operator.
 class GetIteratorParameters final {
  public:

@@ -6,16 +6,16 @@
 
 import * as mod from "keyed-has-ic-module-export.mjs";
 
-function testIn(obj, key) {
+function testing(obj, key) {
   return key in obj;
 }
 
 function expectTrue(obj, key) {
-  assertTrue(testIn(obj, key));
+  assertTrue(testing(obj, key));
 }
 
 function expectFalse(obj, key) {
-  assertFalse(testIn(obj, key));
+  assertFalse(testing(obj, key));
 }
 
 var tests = {
@@ -61,10 +61,10 @@ var tests = {
 };
 
 for (let test in tests) {
-  %DeoptimizeFunction(testIn);
-  %ClearFunctionFeedback(testIn);
-  %PrepareFunctionForOptimization(testIn);
+  %DeoptimizeFunction(testing);
+  %ClearFunctionFeedback(testing);
+  %PrepareFunctionForOptimization(testing);
   tests[test]();
-  %OptimizeFunctionOnNextCall(testIn);
+  %OptimizeFunctionOnNextCall(testing);
   tests[test]();
 }

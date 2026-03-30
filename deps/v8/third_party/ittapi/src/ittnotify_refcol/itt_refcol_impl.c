@@ -178,7 +178,7 @@ char* get_metadata_elements(size_t size, __itt_metadata_type type, void* metadat
             sprintf(metadata_str, "%s%lf;", metadata_str, ((double*)metadata)[i]);
         break;
     default:
-            printf("ERROR: Unknow metadata type\n");
+            printf("ERROR: Unknown metadata type\n");
     }
 
     return metadata_str;

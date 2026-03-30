@@ -1669,7 +1669,7 @@
  * functions mbedtls_ssl_context_save() and mbedtls_ssl_context_load().
  *
  * This pair of functions allows one side of a connection to serialize the
- * context associated with the connection, then free or re-use that context
+ * context associated with the connection, then free or reuse that context
  * while the serialized state is persisted elsewhere, and finally deserialize
  * that state to a live context for resuming read/write operations on the
  * connection. From a protocol perspective, the state of the connection is

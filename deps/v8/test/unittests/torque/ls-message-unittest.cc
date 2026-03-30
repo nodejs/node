@@ -110,7 +110,7 @@ TEST(LanguageServerMessage, GotoDefinition) {
   });
   EXPECT_TRUE(writer_called);
 
-  // Second, check a known defintion.
+  // Second, check a known definition.
   request = GotoDefinitionRequest();
   request.set_id(43);
   request.set_method("textDocument/definition");

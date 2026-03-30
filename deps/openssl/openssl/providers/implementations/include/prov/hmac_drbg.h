@@ -28,6 +28,6 @@ int ossl_drbg_hmac_init(PROV_DRBG_HMAC *drbg,
     const unsigned char *pstr, size_t pstr_len);
 int ossl_drbg_hmac_generate(PROV_DRBG_HMAC *hmac,
     unsigned char *out, size_t outlen,
-    const unsigned char *adin, size_t adin_len);
+    const unsigned char *admin, size_t adin_len);
 
 #endif /* OSSL_PROV_HMAC_DRBG_H */

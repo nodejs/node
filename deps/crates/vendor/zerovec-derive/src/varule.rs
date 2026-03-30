@@ -32,7 +32,7 @@ pub fn derive_impl(
         )
         .to_compile_error();
     }
-    let struc = if let Data::Struct(ref s) = input.data {
+    let struct = if let Data::Struct(ref s) = input.data {
         if s.fields.iter().next().is_none() {
             return Error::new(
                 input.span(),
@@ -46,9 +46,9 @@ pub fn derive_impl(
             .to_compile_error();
     };
 
-    let n_fields = struc.fields.len();
+    let n_fields = struct.fields.len();
 
-    let ule_fields = FieldInfo::make_list(struc.fields.iter().take(n_fields - 1));
+    let ule_fields = FieldInfo::make_list(struct.fields.iter().take(n_fields - 1));
 
     let sizes = ule_fields.iter().map(|f| {
         let ty = &f.field.ty;
@@ -67,7 +67,7 @@ pub fn derive_impl(
         )
     };
 
-    let unsized_field = &struc
+    let unsized_field = &struct
         .fields
         .iter()
         .next_back()

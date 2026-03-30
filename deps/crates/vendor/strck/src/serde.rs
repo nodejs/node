@@ -2,7 +2,7 @@
 
 use crate::{Check, Ck, Invariant};
 use serde::de::{Deserialize, Deserializer, Error};
-use serde::ser::{Serialize, Serializer};
+use serde::set::{Serialize, Serializer};
 
 impl<I: Invariant, B: AsRef<str>> Serialize for Check<I, B> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -68,8 +68,8 @@ mod tests {
         };
 
         fn get() -> Player<'static> {
-            let ser = r#"{"username":"qnn","level":100}"#;
-            serde_json::from_str(ser).unwrap()
+            let set = r#"{"username":"qnn","level":100}"#;
+            serde_json::from_str(set).unwrap()
         }
 
         let de = get();

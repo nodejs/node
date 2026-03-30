@@ -347,7 +347,7 @@ RegexMatcher &RegexMatcher::appendReplacement(UText *dest,
         if (c == BACKSLASH) {
             // Backslash Escape.  Copy the following char out without further checks.
             //                    Note:  Surrogate pairs don't need any special handling
-            //                           The second half wont be a '$' or a '\', and
+            //                           The second half won't be a '$' or a '\', and
             //                           will move to the dest normally on the next
             //                           loop iteration.
             c = UTEXT_CURRENT32(replacement);

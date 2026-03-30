@@ -90,7 +90,7 @@ const char *ossl_cmp_bodytype_to_string(int type)
         "CCR",
         "CCP",
         "CKUANN",
-        "CANN",
+        "CAN",
         "RANN",
         "CRLANN",
         "PKICONF",

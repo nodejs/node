@@ -1023,7 +1023,7 @@ bool Binary::is_pie() const {
   }
 
   /* If the ELF binary uses an interpreter, then it is position
-   * independant since the interpreter aims at loading the binary at a random base address
+   * independent since the interpreter aims at loading the binary at a random base address
    */
   if (it_segment != std::end(segments_)) {
     return true;
@@ -1033,7 +1033,7 @@ bool Binary::is_pie() const {
    * the case, for instance, when compiling with the -static-pie flag
    *
    * While header().file_type() == E_TYPE::ET_DYN is a requirement
-   * for PIC binary (Position independant **CODE**), it does not enable
+   * for PIC binary (Position independent **CODE**), it does not enable
    * to distinguish PI **Executables** from libraries.
    *
    * Therefore, we add the following checks:

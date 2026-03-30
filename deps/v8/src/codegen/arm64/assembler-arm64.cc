@@ -3843,7 +3843,7 @@ void Assembler::uqxtn2(const VRegister& vd, const VRegister& vn) {
   NEONXtn(vd, vn, NEON_UQXTN);
 }
 
-// NEON NOT and RBIT are distinguised by bit 22, the bottom bit of "size".
+// NEON NOT and RBIT are distinguished by bit 22, the bottom bit of "size".
 void Assembler::not_(const VRegister& vd, const VRegister& vn) {
   DCHECK(AreSameFormat(vd, vn));
   DCHECK(vd.Is8B() || vd.Is16B());

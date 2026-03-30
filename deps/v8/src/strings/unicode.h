@@ -207,7 +207,7 @@ class V8_EXPORT_PRIVATE Utf8 {
   // kBadChar and BOMs.
   //
   // This method checks for:
-  // - valid utf-8 endcoding (e.g. no over-long encodings),
+  // - valid utf-8 encoding (e.g. no over-long encodings),
   // - absence of surrogates,
   // - valid code point range.
   static bool ValidateEncoding(const uint8_t* str, size_t length);
@@ -240,7 +240,7 @@ class V8_EXPORT_PRIVATE Wtf8 {
   // Validate that the input has a valid WTF-8 encoding.
   //
   // This method checks for:
-  // - valid utf-8 endcoding (e.g. no over-long encodings),
+  // - valid utf-8 encoding (e.g. no over-long encodings),
   // - absence of surrogate pairs,
   // - valid code point range.
   //

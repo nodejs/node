@@ -309,7 +309,7 @@ TEST(Unwind_CodeObjectPCInMiddle_Success_CodePagesAPI) {
   Address pc = code->instruction_start() + offset;
   register_state.pc = reinterpret_cast<void*>(pc);
 
-  // Get code pages from the API now that the code obejct exists and check that
+  // Get code pages from the API now that the code object exists and check that
   // our code objects is on one of the pages.
   size_t pages_length =
       isolate->CopyCodePages(arraysize(code_pages), code_pages);

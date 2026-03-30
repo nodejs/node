@@ -1,6 +1,6 @@
 //! # Serde
 //!
-//! Serde is a framework for ***ser***ializing and ***de***serializing Rust data
+//! Serde is a framework for ***set***ializing and ***de***serializing Rust data
 //! structures efficiently and generically.
 //!
 //! The Serde ecosystem consists of data structures that know how to serialize
@@ -121,7 +121,7 @@
     // not available in our oldest supported compiler
     clippy::empty_enum,
     clippy::type_repetition_in_bounds, // https://github.com/rust-lang/rust-clippy/issues/8772
-    // integer and float ser/de requires these sorts of casts
+    // integer and float set/de requires these sorts of casts
     clippy::cast_possible_truncation,
     clippy::cast_possible_wrap,
     clippy::cast_precision_loss,
@@ -250,7 +250,7 @@ macro_rules! crate_root {
         ////////////////////////////////////////////////////////////////////////////////
 
         pub use serde_core::{
-            de, forward_to_deserialize_any, ser, Deserialize, Deserializer, Serialize, Serializer,
+            de, forward_to_deserialize_any, set, Deserialize, Deserializer, Serialize, Serializer,
         };
 
         // Used by generated code and doc tests. Not public API.

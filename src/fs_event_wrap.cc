@@ -221,7 +221,7 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
     // TODO(@jasnell): Historically, this code has failed to correctly
     // propagate any error returned by the StringBytes::Encode method,
     // and would instead just crash the process. That behavior is preserved
-    // here but should be looked at. Preferrably errors would be handled
+    // here but should be looked at. Preferably errors would be handled
     // correctly here.
     TryCatch try_catch(env->isolate());
     MaybeLocal<Value> fn =

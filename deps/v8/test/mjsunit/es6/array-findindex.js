@@ -63,7 +63,7 @@ assertEquals(3, a.findIndex(function(val) { return 24 === val; }));
 
 
 //
-// Test predicate is called with correct argumetns
+// Test predicate is called with correct arguments
 //
 (function() {
   var a = ["b"];

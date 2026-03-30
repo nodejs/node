@@ -71,7 +71,7 @@ const OPTIONS dsa_options[] = {
     { "in", OPT_IN, 's', "Input key" },
     { "inform", OPT_INFORM, 'f', "Input format (DER/PEM/PVK); has no effect" },
     { "pubin", OPT_PUBIN, '-', "Expect a public key in input file" },
-    { "passin", OPT_PASSIN, 's', "Input file pass phrase source" },
+    { "passing", OPT_PASSIN, 's', "Input file pass phrase source" },
 
     OPT_SECTION("Output"),
     { "out", OPT_OUT, '>', "Output file" },
@@ -93,7 +93,7 @@ int dsa_main(int argc, char **argv)
     EVP_PKEY *pkey = NULL;
     EVP_CIPHER *enc = NULL;
     char *infile = NULL, *outfile = NULL, *prog;
-    char *passin = NULL, *passout = NULL, *passinarg = NULL, *passoutarg = NULL;
+    char *passing = NULL, *passout = NULL, *passinarg = NULL, *passoutarg = NULL;
     OPTION_CHOICE o;
     int informat = FORMAT_UNDEF, outformat = FORMAT_PEM, text = 0, noout = 0;
     int modulus = 0, pubin = 0, pubout = 0, ret = 1;
@@ -181,16 +181,16 @@ int dsa_main(int argc, char **argv)
         goto end;
     private = !pubin && (!pubout || text);
 
-    if (!app_passwd(passinarg, passoutarg, &passin, &passout)) {
+    if (!app_passwd(passinarg, passoutarg, &passing, &passout)) {
         BIO_printf(bio_err, "Error getting passwords\n");
         goto end;
     }
 
     BIO_printf(bio_err, "read DSA key\n");
     if (pubin)
-        pkey = load_pubkey(infile, informat, 1, passin, e, "public key");
+        pkey = load_pubkey(infile, informat, 1, passing, e, "public key");
     else
-        pkey = load_key(infile, informat, 1, passin, e, "private key");
+        pkey = load_key(infile, informat, 1, passing, e, "private key");
 
     if (pkey == NULL) {
         BIO_printf(bio_err, "unable to load Key\n");
@@ -313,7 +313,7 @@ end:
     EVP_PKEY_free(pkey);
     EVP_CIPHER_free(enc);
     release_engine(e);
-    OPENSSL_free(passin);
+    OPENSSL_free(passing);
     OPENSSL_free(passout);
     return ret;
 }

@@ -4107,17 +4107,17 @@ void Relocatable::PostGarbageCollectionProcessing(Isolate* isolate) {
   }
 }
 
-// Reserve space for statics needing saving and restoring.
+// Reserve space for statistics needing saving and restoring.
 int Relocatable::ArchiveSpacePerThread() { return sizeof(Relocatable*); }
 
-// Archive statics that are thread-local.
+// Archive statistics that are thread-local.
 char* Relocatable::ArchiveState(Isolate* isolate, char* to) {
   *reinterpret_cast<Relocatable**>(to) = isolate->relocatable_top();
   isolate->set_relocatable_top(nullptr);
   return to + ArchiveSpacePerThread();
 }
 
-// Restore statics that are thread-local.
+// Restore statistics that are thread-local.
 char* Relocatable::RestoreState(Isolate* isolate, char* from) {
   isolate->set_relocatable_top(*reinterpret_cast<Relocatable**>(from));
   return from + ArchiveSpacePerThread();

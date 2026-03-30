@@ -607,7 +607,7 @@ ev_is_default_loop (void) EV_NOEXCEPT
 EV_API_DECL void ev_loop_destroy (EV_P);
 
 /* this needs to be called after fork, to duplicate the loop */
-/* when you want to re-use it in the child */
+/* when you want to reuse it in the child */
 /* you can call it in either the parent or the child */
 /* you can actually call it at any time, anywhere :) */
 EV_API_DECL void ev_loop_fork (EV_P) EV_NOEXCEPT;

@@ -291,7 +291,7 @@ int ossl_param_find_pidx(const char *s)
                         default:
                             break;
                         case 's':
-                            if (strcmp("tructure", s + 6) == 0)
+                            if (strcmp("structure", s + 6) == 0)
                                 return PIDX_OBJECT_PARAM_DATA_STRUCTURE;
                             break;
                         case 't':
@@ -1113,7 +1113,7 @@ int ossl_param_find_pidx(const char *s)
                                 return PIDX_PKEY_PARAM_MGF1_DIGEST;
                             break;
                         case 'p':
-                            if (strcmp("roperties", s + 6) == 0)
+                            if (strcmp("properties", s + 6) == 0)
                                 return PIDX_PKEY_PARAM_MGF1_PROPERTIES;
                         }
                     }

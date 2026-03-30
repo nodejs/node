@@ -89,7 +89,7 @@ TEST_IMPL(tcp_connect6_link_local) {
 
 #if defined(__QEMU__)
   /* qemu's sockaddr_in6 translation is broken pre-qemu 8.0.0
-   * when host endianness != guest endiannes.
+   * when host endianness != guest endianness.
    * Fixed in https://github.com/qemu/qemu/commit/44cf6731d6b.
    */
   RETURN_SKIP("Test does not currently work in QEMU");

@@ -229,7 +229,7 @@ pub struct MonthInfo {
     /// Months considered the "same" have the same code: This means that the Hebrew months "Adar" and "Adar II" ("Adar, but during a leap year")
     /// are considered the same month and have the code M05
     pub standard_code: MonthCode,
-    /// A month code, useable for formatting
+    /// A month code, usable for formatting
     ///
     /// This may not necessarily be the canonical month code for a month in cases where a month has different
     /// formatting in a leap year, for example Adar/Adar II in the Hebrew calendar in a leap year has

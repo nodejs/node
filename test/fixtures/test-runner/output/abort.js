@@ -41,6 +41,6 @@ test('callback abort signal', { signal: AbortSignal.abort() }, (t, done) => {
 });
 
 // AbortSignal.timeout(1) doesn't prevent process from closing
-// thus we have to keep the process open to prevent cancelation
+// thus we have to keep the process open to prevent cancellation
 // of the entire test tree
 setTimeout(() => {}, 1000);

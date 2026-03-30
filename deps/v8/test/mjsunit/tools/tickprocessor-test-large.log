@@ -1344,7 +1344,7 @@ code-creation,BytecodeHandler,0,18398,0x55742641f8a0,1364,TestLessThanOrEqual
 code-creation,BytecodeHandler,0,18408,0x55742641fe00,1364,TestGreaterThanOrEqual
 code-creation,BytecodeHandler,0,18417,0x557426420360,52,TestReferenceEqual
 code-creation,BytecodeHandler,0,18426,0x5574264203a0,880,TestInstanceOf
-code-creation,BytecodeHandler,0,18435,0x557426420720,164,TestIn
+code-creation,BytecodeHandler,0,18435,0x557426420720,164,testing
 code-creation,BytecodeHandler,0,18444,0x5574264207e0,60,TestUndetectable
 code-creation,BytecodeHandler,0,18453,0x557426420820,44,TestNull
 code-creation,BytecodeHandler,0,18462,0x557426420860,44,TestUndefined
@@ -1515,7 +1515,7 @@ code-creation,BytecodeHandler,0,20007,0x557426434ee0,1364,TestLessThanOrEqual.Wi
 code-creation,BytecodeHandler,0,20019,0x557426435440,1364,TestGreaterThanOrEqual.Wide
 code-creation,BytecodeHandler,0,20028,0x5574264359a0,52,TestReferenceEqual.Wide
 code-creation,BytecodeHandler,0,20038,0x5574264359e0,884,TestInstanceOf.Wide
-code-creation,BytecodeHandler,0,20047,0x557426435d60,164,TestIn.Wide
+code-creation,BytecodeHandler,0,20047,0x557426435d60,164,testing.Wide
 code-creation,BytecodeHandler,0,20056,0x557426435e20,112,ToName.Wide
 code-creation,BytecodeHandler,0,20065,0x557426435ea0,212,ToNumber.Wide
 code-creation,BytecodeHandler,0,20074,0x557426435f80,228,ToNumeric.Wide
@@ -1667,7 +1667,7 @@ code-creation,BytecodeHandler,0,21493,0x557426449020,1364,TestLessThanOrEqual.Ex
 code-creation,BytecodeHandler,0,21506,0x557426449580,1364,TestGreaterThanOrEqual.ExtraWide
 code-creation,BytecodeHandler,0,21516,0x557426449ae0,52,TestReferenceEqual.ExtraWide
 code-creation,BytecodeHandler,0,21526,0x557426449b20,880,TestInstanceOf.ExtraWide
-code-creation,BytecodeHandler,0,21536,0x557426449ea0,164,TestIn.ExtraWide
+code-creation,BytecodeHandler,0,21536,0x557426449ea0,164,testing.ExtraWide
 code-creation,BytecodeHandler,0,21545,0x557426449f60,112,ToName.ExtraWide
 code-creation,BytecodeHandler,0,21554,0x557426449fe0,208,ToNumber.ExtraWide
 code-creation,BytecodeHandler,0,21563,0x55742644a0c0,228,ToNumeric.ExtraWide

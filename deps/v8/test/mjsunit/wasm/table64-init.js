@@ -90,7 +90,7 @@ function addPassiveSegmentWithExportedFuncs(builder) {
 
   const src = 0;
   const size = 3;
-  // Just in bouds.
+  // Just in bounds.
   let dst = 2n;
   exports.table64_init(dst, src, size);
   assertEquals(5n, exports.table64_size());

@@ -20,7 +20,7 @@ namespace internal {
 // Arguments provides access to runtime call parameters.
 //
 // It uses the fact that the instance fields of Arguments
-// (length_, arguments_) are "overlayed" with the parameters
+// (length_, arguments_) are "overlaid" with the parameters
 // (no. of parameters, and the parameter pointer) passed so
 // that inside the C++ function, the parameters passed can
 // be accessed conveniently:

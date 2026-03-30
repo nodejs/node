@@ -525,7 +525,7 @@ static const struct url_test url_tests[] =
       .rv = URLPARSE_ERR_PARSE /* s_dead */,
     },
     {
-      .name = "proxy emtpy hostname",
+      .name = "proxy empty hostname",
       .url = "http:///fo",
       .rv = URLPARSE_ERR_PARSE /* s_dead */,
     },

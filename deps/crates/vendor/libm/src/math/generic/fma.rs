@@ -231,7 +231,7 @@ impl<F: Float> Norm<F> {
     const EXP_UNBIAS: u32 = F::EXP_BIAS + F::SIG_BITS + 1;
 
     /// Values greater than this had a saturated exponent (infinity or NaN), OR were zero and we
-    /// adjusted the exponent such that it exceeds this threashold.
+    /// adjusted the exponent such that it exceeds this threshold.
     const ZERO_INF_NAN: u32 = F::EXP_SAT - Self::EXP_UNBIAS;
 
     fn from_float(x: F) -> Self {
@@ -246,7 +246,7 @@ impl<F: Float> Norm<F> {
             ix = scaled.to_bits();
             e = scaled.ex() as i32;
             e = if e == 0 {
-                // If the exponent is still zero, the input was zero. Artifically set this value
+                // If the exponent is still zero, the input was zero. Artificially set this value
                 // such that the final `e` will exceed `ZERO_INF_NAN`.
                 1 << F::EXP_BITS
             } else {

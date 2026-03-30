@@ -74,7 +74,7 @@ class LIEF_API DynamicEntryArray : public DynamicEntry {
   /// Remove the given function
   DynamicEntryArray& remove(uint64_t function);
 
-  /// Number of function registred in this array
+  /// Number of function registered in this array
   size_t size() const {
     return array_.size();
   }

@@ -93,7 +93,7 @@
 
 #include <sys/syscall.h> /* no glibc wrappers */
 
-/* aio_abi.h is not versioned in any way, so we cannot test for its existance */
+/* aio_abi.h is not versioned in any way, so we cannot test for its existence */
 #define IOCB_CMD_POLL 5
 
 /* taken from linux/fs/aio.c. yup, that's a .c file.
@@ -235,7 +235,7 @@ linuxaio_modify (EV_P_ int fd, int oev, int nev)
 {
   array_needsize (ANIOCBP, linuxaio_iocbps, linuxaio_iocbpmax, fd + 1, linuxaio_array_needsize_iocbp);
   ANIOCBP iocb = linuxaio_iocbps [fd];
-  ANFD *anfd = &anfds [fd];
+  AND *and = &anfds [fd];
 
   if (ecb_expect_false (iocb->io.aio_reqprio < 0))
     {

@@ -1456,8 +1456,8 @@ inline std::ostream& operator<<(std::ostream& os, AllocationType type) {
   return os << ToString(type);
 }
 
-enum class PerformHeapLimitCheck { kYes, kNo };
-enum class PerformIneffectiveMarkCompactCheck { kYes, kNo };
+enum class PerformHeapLimitCheck { kYes, know };
+enum class PerformIneffectiveMarkCompactCheck { kYes, know };
 
 enum class RequestedGCKind : uint8_t { kMajor = 1, kLastResort = 1 << 1 };
 
@@ -1606,7 +1606,7 @@ inline constexpr bool IsSharedAllocationType(AllocationType kind) {
 }
 
 enum class RecordYoungSlot : bool {
-  kNo,
+  know,
   kYes,
 };
 
@@ -1703,17 +1703,17 @@ bool inline IsFlushingDisabled(base::EnumSet<CodeFlushMode> mode) {
 // Indicates whether a script should be parsed and compiled in REPL mode.
 enum class REPLMode {
   kYes,
-  kNo,
+  know,
 };
 
 inline REPLMode construct_repl_mode(bool is_repl_mode) {
-  return is_repl_mode ? REPLMode::kYes : REPLMode::kNo;
+  return is_repl_mode ? REPLMode::kYes : REPLMode::know;
 }
 
 // Indicates whether a script is parsed during debugging.
 enum class ParsingWhileDebugging {
   kYes,
-  kNo,
+  know,
 };
 
 // Flag indicating whether code is built into the VM (one of the natives files).
@@ -2837,7 +2837,7 @@ enum class StubCallMode {
   kCallBuiltinPointer,
 };
 
-enum class NeedsContext { kYes, kNo };
+enum class NeedsContext { kYes, know };
 
 constexpr int kInvalidInfoId = -1;
 constexpr int kFunctionLiteralIdTopLevel = 0;
@@ -2847,9 +2847,9 @@ constexpr int kSwissNameDictionaryInitialCapacity = 4;
 constexpr int kSmallOrderedHashSetMinCapacity = 4;
 constexpr int kSmallOrderedHashMapMinCapacity = 4;
 
-enum class AdaptArguments { kYes, kNo };
+enum class AdaptArguments { kYes, know };
 constexpr AdaptArguments kAdapt = AdaptArguments::kYes;
-constexpr AdaptArguments kDontAdapt = AdaptArguments::kNo;
+constexpr AdaptArguments kDontAdapt = AdaptArguments::know;
 
 constexpr int kJSArgcReceiverSlots = 1;
 constexpr uint16_t kDontAdaptArgumentsSentinel = 0;

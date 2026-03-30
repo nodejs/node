@@ -534,7 +534,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // generate the correct value if a saturating conversion is requested.
   bool SatConversionIsSafe() const { return flags_ & kSatConversionIsSafe; }
 
-  // Return true if the target suppoerts performing a pair of loads/stores in
+  // Return true if the target supports performing a pair of loads/stores in
   // a single operation.
   bool SupportsLoadStorePairs() const {
     return !v8_flags.enable_unconditional_write_barriers &&

@@ -40,7 +40,7 @@ class V8_EXPORT_PRIVATE FatalOutOfMemoryHandler final {
 // Gets the global OOM handler that is not bound to any specific Heap instance.
 FatalOutOfMemoryHandler& GetGlobalOOMHandler();
 
-// Gets the gobal PageAllocator that is not bound to any specific Heap instance.
+// Gets the global PageAllocator that is not bound to any specific Heap instance.
 PageAllocator& GetGlobalPageAllocator();
 
 }  // namespace cppgc::internal

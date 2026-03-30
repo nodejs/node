@@ -212,7 +212,7 @@ class CordRepBtree : public CordRep {
 
   // Returns a new tree, containing `n` bytes of data from this instance
   // starting at offset `offset`. Where possible, the returned tree shares
-  // (re-uses) data edges and nodes with this instance to minimize the
+  // (reuses) data edges and nodes with this instance to minimize the
   // combined memory footprint of both trees.
   // Requires `offset + n <= length`. Returns `nullptr` if `n` is zero.
   CordRep* SubTree(size_t offset, size_t n);

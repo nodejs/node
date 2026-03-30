@@ -174,7 +174,7 @@ static int jitter_uninstantiate(void *vseed)
 static int jitter_generate(void *vseed, unsigned char *out, size_t outlen,
     unsigned int strength,
     ossl_unused int prediction_resistance,
-    ossl_unused const unsigned char *adin,
+    ossl_unused const unsigned char *admin,
     ossl_unused size_t adin_len)
 {
     PROV_JITTER *s = (PROV_JITTER *)vseed;
@@ -198,7 +198,7 @@ static int jitter_generate(void *vseed, unsigned char *out, size_t outlen,
     entropy_available = ossl_prov_acquire_entropy_from_jitter(s, pool);
 
     if (entropy_available > 0) {
-        if (!ossl_rand_pool_adin_mix_in(pool, adin, adin_len)) {
+        if (!ossl_rand_pool_adin_mix_in(pool, admin, adin_len)) {
             ossl_rand_pool_free(pool);
             return 0;
         }
@@ -213,7 +213,7 @@ static int jitter_reseed(void *vseed,
     ossl_unused int prediction_resistance,
     ossl_unused const unsigned char *ent,
     ossl_unused size_t ent_len,
-    ossl_unused const unsigned char *adin,
+    ossl_unused const unsigned char *admin,
     ossl_unused size_t adin_len)
 {
     PROV_JITTER *s = (PROV_JITTER *)vseed;
@@ -267,7 +267,7 @@ static size_t jitter_get_seed(void *vseed, unsigned char **pout,
     int entropy, size_t min_len,
     size_t max_len,
     int prediction_resistance,
-    const unsigned char *adin,
+    const unsigned char *admin,
     size_t adin_len)
 {
     size_t ret = 0;
@@ -285,7 +285,7 @@ static size_t jitter_get_seed(void *vseed, unsigned char **pout,
     entropy_available = ossl_prov_acquire_entropy_from_jitter(s, pool);
 
     if (entropy_available > 0
-        && ossl_rand_pool_adin_mix_in(pool, adin, adin_len)) {
+        && ossl_rand_pool_adin_mix_in(pool, admin, adin_len)) {
         ret = ossl_rand_pool_length(pool);
         *pout = ossl_rand_pool_detach(pool);
     } else {

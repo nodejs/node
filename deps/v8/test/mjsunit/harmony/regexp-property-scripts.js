@@ -22,7 +22,7 @@ f(/\p{Script=Latn}+/u, "いただきます");
 t(/\p{sc=Hiragana}/u, "いただきます");
 t(/\p{sc=Hira}/u, "ありがとうございました");
 f(/\p{sc=Hiragana}/u,
-  "Als Gregor Samsa eines Morgens aus unruhigen Träumen erwachte");
+  "Also Gregor Samsa eines Morgens aus unruhigen Träumen erwachte");
 f(/\p{sc=Hira}/u, "Call me Ishmael");
 
 t(/\p{sc=Phoenician}/u, "\u{10900}\u{1091a}");

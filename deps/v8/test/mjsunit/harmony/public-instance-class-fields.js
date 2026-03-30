@@ -399,7 +399,7 @@ x()();
     c = this.a;
     d = 2;
     returnC = () => this.c;
-    returnD = () => this.d;
+    returned = () => this.d;
   }
 
   let c = new C;
@@ -409,12 +409,12 @@ x()();
   assertEquals(1, c.returnA());
   assertEquals(1, c.returnC());
   assertEquals(2, c.d);
-  assertEquals(2, c.returnD());
+  assertEquals(2, c.returned());
 
   let c2 = new C;
   assertNotEquals(c2.returnA, c.returnA);
   assertNotEquals(c2.returnC, c.returnC);
-  assertNotEquals(c2.returnD, c.returnD);
+  assertNotEquals(c2.returned, c.returned);
 }
 
 {

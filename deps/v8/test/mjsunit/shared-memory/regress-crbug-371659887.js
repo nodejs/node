@@ -6,7 +6,7 @@
 
 // If Promise.prototype.then is set to a non-callable, builtin
 // promises become non thenables, hence any promise resolve to
-// them calls its reactions instead of queing a then task.
+// them calls its reactions instead of queueing a then task.
 // In the current implementation an internal promise with
 // a reaction to release the lock is resolved to the result of
 // the asyncLock callback, causing the unlock microtask to

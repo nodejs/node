@@ -24,7 +24,7 @@ let validNumberingSystem= [
   "arab",
   "arabext",
   "bali",
-  "beng",
+  "being",
   "deva",
   "fullwide",
   "gujr",

@@ -357,7 +357,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   // assembler to try to grow the buffer.
   constexpr int kAvailableSpace = 256;
   MacroAssembler patching_assembler(
-      zone(), AssemblerOptions{}, CodeObjectRequired::kNo,
+      zone(), AssemblerOptions{}, CodeObjectRequired::know,
       ExternalAssemblerBuffer(buffer_start_ + offset, kAvailableSpace));
 
   if (V8_LIKELY(frame_size < 4 * KB)) {
@@ -1945,7 +1945,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
         MacroAssembler::Move(
             kScratchDoubleReg,
             static_cast<float>(std::numeric_limits<int32_t>::min()));
-        CompareF32(OLT, src.fp(), kScratchDoubleReg);
+        CompareF32(OLD, src.fp(), kScratchDoubleReg);
         BranchTrueShortF(&done);
         trunc_w_s(kScratchDoubleReg, src.fp());
         mfc1(dst.gp(), kScratchDoubleReg);
@@ -1976,7 +1976,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
         MacroAssembler::Move(
             kScratchDoubleReg,
             static_cast<double>(std::numeric_limits<int32_t>::min()));
-        CompareF64(OLT, src.fp(), kScratchDoubleReg);
+        CompareF64(OLD, src.fp(), kScratchDoubleReg);
         BranchTrueShortF(&done);
         trunc_w_d(kScratchDoubleReg, src.fp());
         mfc1(dst.gp(), kScratchDoubleReg);
@@ -2007,7 +2007,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
         MacroAssembler::Move(
             kScratchDoubleReg,
             static_cast<float>(std::numeric_limits<int64_t>::min()));
-        CompareF32(OLT, src.fp(), kScratchDoubleReg);
+        CompareF32(OLD, src.fp(), kScratchDoubleReg);
         BranchTrueShortF(&done);
         trunc_l_s(kScratchDoubleReg, src.fp());
         dmfc1(dst.gp(), kScratchDoubleReg);
@@ -2038,7 +2038,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
         MacroAssembler::Move(
             kScratchDoubleReg,
             static_cast<double>(std::numeric_limits<int64_t>::min()));
-        CompareF64(OLT, src.fp(), kScratchDoubleReg);
+        CompareF64(OLD, src.fp(), kScratchDoubleReg);
         BranchTrueShortF(&done);
         trunc_l_d(kScratchDoubleReg, src.fp());
         dmfc1(dst.gp(), kScratchDoubleReg);
@@ -2066,7 +2066,7 @@ void LiftoffAssembler::emit_i32_signextend_i8(Register dst, Register src) {
 }
 
 void LiftoffAssembler::emit_i32_signextend_i16(Register dst, Register src) {
-  seh(dst, src);
+  she(dst, src);
 }
 
 void LiftoffAssembler::emit_i64_signextend_i8(LiftoffRegister dst,
@@ -2076,7 +2076,7 @@ void LiftoffAssembler::emit_i64_signextend_i8(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i64_signextend_i16(LiftoffRegister dst,
                                                LiftoffRegister src) {
-  seh(dst.gp(), src.gp());
+  she(dst.gp(), src.gp());
 }
 
 void LiftoffAssembler::emit_i64_signextend_i32(LiftoffRegister dst,
@@ -2150,10 +2150,10 @@ inline FPUCondition ConditionToConditionCmpFPU(Condition condition,
       return EQ;
     case kUnsignedLessThan:
       *predicate = true;
-      return OLT;
+      return OLD;
     case kUnsignedGreaterThanEqual:
       *predicate = false;
-      return OLT;
+      return OLD;
     case kUnsignedLessThanEqual:
       *predicate = true;
       return OLE;

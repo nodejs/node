@@ -80,7 +80,7 @@ Revision history for Text::Template
 NOTE: Changes for versions prior to 1.47 have been imported from README
 
 1.46  2013-02-11
-    - Thanks to Rik Signes, there is a new
+    - Thanks to Rik Signs, there is a new
       Text::Template->append_text_to_output method, which Text::Template always
       uses whenever it wants to emit output.  You can subclass this to get
       control over the output, for example for postprocessing.

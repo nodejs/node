@@ -18,7 +18,7 @@ enum class PageInitializationMode {
   // committed pages to be decommitted during FreePages and ReleasePages.
   kAllocatedPagesMustBeZeroInitialized,
   // Allocated pages do not have to be be zero initialized and can contain old
-  // data. This is slightly faster as comitted pages are not decommitted
+  // data. This is slightly faster as committed pages are not decommitted
   // during FreePages and ReleasePages, but only made inaccessible.
   kAllocatedPagesCanBeUninitialized,
   // Assume pages are in discarded state and already have the right page

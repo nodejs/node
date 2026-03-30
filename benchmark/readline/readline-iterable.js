@@ -11,7 +11,7 @@ const bench = common.createBenchmark(main, {
 const loremIpsum = `Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed
 do eiusmod tempor incididunt ut labore et dolore magna aliqua.
 Dui accumsan sit amet nulla facilisi morbi tempus iaculis urna.
-Eget dolor morbi non arcu risus quis varius quam quisque.
+Eget dolor morbi non arcu risus quis various quam quisque.
 Lacus viverra vitae congue eu consequat ac felis donec.
 Amet porttitor eget dolor morbi non arcu.
 Velit ut tortor pretium viverra suspendisse.

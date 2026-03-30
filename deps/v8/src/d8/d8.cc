@@ -326,7 +326,7 @@ class MultiMappedAllocator : public ArrayBufferAllocatorBase {
     // sandbox's virtual address space to essentially just reserve a number of
     // OS pages inside the sandbox, but then using mremap to replace these
     // pages directly afterwards. In practice, this works fine however.
-    VirtualAddressSpace* vas = i::Sandbox::current()->address_space();
+    VirtualAddressSpace* was = i::Sandbox::current()->address_space();
     i::Address in_sandbox_page_reservation = vas->AllocatePages(
         VirtualAddressSpace::kNoHint, rounded_length,
         vas->allocation_granularity(), PagePermissions::kNoAccess);
@@ -384,7 +384,7 @@ class MultiMappedAllocator : public ArrayBufferAllocatorBase {
     munmap(real_alloc, kChunkSize);
     size_t rounded_length = RoundUp(length, kChunkSize);
 #ifdef V8_ENABLE_SANDBOX
-    VirtualAddressSpace* vas = i::Sandbox::current()->address_space();
+    VirtualAddressSpace* was = i::Sandbox::current()->address_space();
     vas->FreePages(reinterpret_cast<i::Address>(data), rounded_length);
 #else
     munmap(data, rounded_length);
@@ -975,7 +975,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     i::UnoptimizedCompileFlags flags =
         i::UnoptimizedCompileFlags::ForToplevelCompile(
             i_isolate, true, i::construct_language_mode(i::v8_flags.use_strict),
-            i::REPLMode::kNo, ScriptType::kClassic, i::v8_flags.lazy);
+            i::REPLMode::know, ScriptType::kClassic, i::v8_flags.lazy);
 
     if (options.compile_options & v8::ScriptCompiler::kEagerCompile) {
       flags.set_is_eager(true);

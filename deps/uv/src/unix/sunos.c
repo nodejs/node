@@ -176,18 +176,18 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     uv__queue_init(q);
 
     w = uv__queue_data(q, uv__io_t, watcher_queue);
-    assert(w->pevents != 0);
+    assert(w->prevents != 0);
 
     if (port_associate(loop->backend_fd,
                        PORT_SOURCE_FD,
                        w->fd,
-                       w->pevents,
+                       w->prevents,
                        0)) {
       perror("(libuv) port_associate()");
       abort();
     }
 
-    w->events = w->pevents;
+    w->events = w->prevents;
   }
 
   pset = NULL;
@@ -300,7 +300,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         continue;  /* Disabled by callback. */
 
       /* Events Ports operates in oneshot mode, rearm timer on next run. */
-      if (w->pevents != 0 && uv__queue_empty(&w->watcher_queue))
+      if (w->prevents != 0 && uv__queue_empty(&w->watcher_queue))
         uv__queue_insert_tail(&loop->watcher_queue, &w->watcher_queue);
     }
 

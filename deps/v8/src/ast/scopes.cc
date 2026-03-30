@@ -1751,7 +1751,7 @@ void DeclarationScope::AnalyzePartially(Parser* parser,
   //
   // Additionally, functions in potential arrowheads _need_ to be analyzed, in
   // case they do end up being in an arrowhead and the arrow function needs to
-  // know about context acceses. For example, in
+  // know about context accesses. For example, in
   //
   //     (a, b=function foo(){ a = 1 }) => { b(); return a}
   //

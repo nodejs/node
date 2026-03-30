@@ -306,7 +306,7 @@ des_t4_cbc_decrypt:
 ___
 
 # One might wonder why does one have back-to-back des_iip/des_ip
-# pairs between EDE passes. Indeed, aren't they inverse of each other?
+# pairs between EDGE passes. Indeed, aren't they inverse of each other?
 # They almost are. Outcome of the pair is 32-bit words being swapped
 # in target register. Consider pair of des_iip/des_ip as a way to
 # perform the due swap, it's actually fastest way in this case.

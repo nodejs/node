@@ -4,7 +4,7 @@
 
 // A Disassembler object is used to disassemble a block of code instruction by
 // instruction. The default implementation of the NameConverter object can be
-// overriden to modify register names or to do symbol lookup on addresses.
+// overridden to modify register names or to do symbol lookup on addresses.
 //
 // The example below will disassemble a block of code and print it to stdout.
 //
@@ -189,7 +189,7 @@ int Decoder::FormatRegister(Instruction* instr, const char* format) {
 int Decoder::FormatFloatingRegister(Instruction* instr, const char* format) {
   DCHECK_EQ(format[0], 'f');
 
-  // reuse 1, 5 and 6 because it is coresponding
+  // reuse 1, 5 and 6 because it is corresponding
   if (format[1] == '1') {  // 'r1: register resides in bit 8-11
     RRInstruction* rrinstr = reinterpret_cast<RRInstruction*>(instr);
     int reg = rrinstr->R1Value();

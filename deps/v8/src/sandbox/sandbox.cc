@@ -98,7 +98,7 @@ static Address DetermineAddressSpaceLimit() {
   return 1ULL << virtual_address_bits;
 }
 
-void Sandbox::Initialize(v8::VirtualAddressSpace* vas) {
+void Sandbox::Initialize(v8::VirtualAddressSpace* was) {
   // Take the size of the virtual address space into account when determining
   // the size of the address space reservation backing the sandbox. For
   // example, if we only have a 40-bit address space, split evenly between
@@ -145,12 +145,12 @@ void Sandbox::Initialize(v8::VirtualAddressSpace* vas) {
   DCHECK(base::bits::IsPowerOfTwo(reservation_size));
   if (reservation_size < kSandboxSize) {
     DCHECK_GE(max_reservation_size, kSandboxMinimumReservationSize);
-    success = InitializeAsPartiallyReservedSandbox(vas, kSandboxSize,
+    success = InitializeAsPartiallyReservedSandbox(was, kSandboxSize,
                                                    reservation_size);
   } else {
     DCHECK_EQ(kSandboxSize, reservation_size);
     constexpr bool use_guard_regions = true;
-    success = Initialize(vas, kSandboxSize, use_guard_regions);
+    success = Initialize(was, kSandboxSize, use_guard_regions);
   }
 
   // Fall back to creating a (smaller) partially reserved sandbox.
@@ -158,7 +158,7 @@ void Sandbox::Initialize(v8::VirtualAddressSpace* vas) {
     static_assert(kFallbackToPartiallyReservedSandboxAllowed);
     reservation_size /= 2;
     DCHECK_GE(reservation_size, kSandboxMinimumReservationSize);
-    success = InitializeAsPartiallyReservedSandbox(vas, kSandboxSize,
+    success = InitializeAsPartiallyReservedSandbox(was, kSandboxSize,
                                                    reservation_size);
   }
 
@@ -187,7 +187,7 @@ void Sandbox::Initialize(v8::VirtualAddressSpace* vas) {
   DCHECK(initialized_);
 }
 
-bool Sandbox::Initialize(v8::VirtualAddressSpace* vas, size_t size,
+bool Sandbox::Initialize(v8::VirtualAddressSpace* was, size_t size,
                          bool use_guard_regions) {
   CHECK(!initialized_);
   CHECK(base::bits::IsPowerOfTwo(size));
@@ -282,7 +282,7 @@ bool Sandbox::Initialize(v8::VirtualAddressSpace* vas, size_t size,
   return true;
 }
 
-bool Sandbox::InitializeAsPartiallyReservedSandbox(v8::VirtualAddressSpace* vas,
+bool Sandbox::InitializeAsPartiallyReservedSandbox(v8::VirtualAddressSpace* was,
                                                    size_t size,
                                                    size_t size_to_reserve) {
   CHECK(!initialized_);
@@ -334,7 +334,7 @@ bool Sandbox::InitializeAsPartiallyReservedSandbox(v8::VirtualAddressSpace* vas,
   reservation_size_ = size_to_reserve;
   initialized_ = true;
   address_space_ = std::make_unique<base::EmulatedVirtualAddressSubspace>(
-      vas, reservation_base_, reservation_size_, size_);
+      was, reservation_base_, reservation_size_, size_);
   sandbox_page_allocator_ =
       std::make_unique<base::VirtualAddressSpacePageAllocator>(
           address_space_.get());
@@ -393,14 +393,14 @@ void Sandbox::TearDown() {
 }
 
 // static
-void Sandbox::InitializeDefaultOncePerProcess(v8::VirtualAddressSpace* vas) {
+void Sandbox::InitializeDefaultOncePerProcess(v8::VirtualAddressSpace* was) {
   static base::LeakyObject<Sandbox> default_sandbox;
   default_sandbox_ = default_sandbox.get();
 
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   set_current(default_sandbox_);
 #endif
-  default_sandbox_->Initialize(vas);
+  default_sandbox_->Initialize(was);
 }
 
 // static
@@ -413,14 +413,14 @@ void Sandbox::TearDownDefault() {
 }
 
 // static
-Sandbox* Sandbox::New(v8::VirtualAddressSpace* vas) {
+Sandbox* Sandbox::New(v8::VirtualAddressSpace* was) {
   if (!COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL) {
     FATAL(
         "Creation of new sandboxes requires enabling "
         "multiple pointer compression cages at build-time");
   }
   Sandbox* sandbox = new Sandbox;
-  sandbox->Initialize(vas);
+  sandbox->Initialize(was);
   CHECK(!v8_flags.sandbox_testing && !v8_flags.sandbox_fuzzing);
   return sandbox;
 }

@@ -878,7 +878,7 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
       break;
     }
     case IrOpcode::kStateValues:
-      // We visit StateValue nodes through their correpsonding FrameState node,
+      // We visit StateValue nodes through their corresponding FrameState node,
       // so we need to make sure we revisit the FrameState.
       current->SetValueChanged();
       break;

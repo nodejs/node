@@ -60,7 +60,7 @@ boo(-1);
 
 
 // Key is HMul(-i ==> i * (-1))
-function coo() {
+function coup() {
   var ret = 0;
   for (var i = 4; i > 0; i -= 1) {
     ret += a[-i + 4];  // dehoisted
@@ -69,11 +69,11 @@ function coo() {
   return ret;
 }
 
-%PrepareFunctionForOptimization(coo);
-coo();
-coo();
-%OptimizeFunctionOnNextCall(coo);
-coo();
+%PrepareFunctionForOptimization(coup);
+coup();
+coup();
+%OptimizeFunctionOnNextCall(coup);
+coup();
 
 
 // Key is HPhi, used only by dehoisted

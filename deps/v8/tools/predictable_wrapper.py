@@ -7,7 +7,7 @@
 Wrapper script for verify-predictable mode. D8 is expected to be compiled with
 v8_enable_verify_predictable.
 
-The actual test command is expected to be passed to this wraper as is. E.g.:
+The actual test command is expected to be passed to this wrapper as is. E.g.:
 predictable_wrapper.py path/to/d8 --test --predictable --flag1 --flag2
 
 The command is run up to three times and the printed allocation hash is

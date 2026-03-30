@@ -609,7 +609,7 @@ void S390Debugger::Debug() {
         PrintF("del\n");
         PrintF("  delete the breakpoint\n");
         PrintF("trace (alias 't')\n");
-        PrintF("  toogle the tracing of all executed statements\n");
+        PrintF("  toggle the tracing of all executed statements\n");
         PrintF("stop feature:\n");
         PrintF("  Description:\n");
         PrintF("    Stops are debug instructions inserted by\n");
@@ -1763,7 +1763,7 @@ intptr_t Simulator::get_pc() const { return special_reg_pc_; }
 // Runtime FP routines take:
 // - two double arguments
 // - one double argument and zero or one integer arguments.
-// All are consructed here from d1, d2 and r2.
+// All are constructed here from d1, d2 and r2.
 void Simulator::GetFpArgs(double* x, double* y, intptr_t* z) {
   *x = get_fpr<double>(0);
   *y = get_fpr<double>(2);
@@ -2374,7 +2374,7 @@ void Simulator::IncreaseStopCounter(uint32_t code) {
   if ((watched_stops_[code].count & ~(1 << 31)) == 0x7FFFFFFF) {
     PrintF(
         "Stop counter for code %i has overflowed.\n"
-        "Enabling this code and reseting the counter to 0.\n",
+        "Enabling this code and resetting the counter to 0.\n",
         code);
     watched_stops_[code].count = 0;
     EnableStop(code);
@@ -8295,7 +8295,7 @@ EVALUATE(SGR) {
 EVALUATE(ALGR) {
   DCHECK_OPCODE(ALGR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  // 64-bit Non-clobbering unsigned arithmetics
+  // 64-bit Non-clobbering unsigned arithmetic
   uint64_t r1_val = get_register(r1);
   uint64_t r2_val = get_register(r2);
   bool isOF = CheckOverflowForUIntAdd(r1_val, r2_val);
@@ -8747,7 +8747,7 @@ EVALUATE(MG) {
 EVALUATE(MGRK) {
   DCHECK_OPCODE(MGRK);
   DECODE_RRF_A_INSTRUCTION(r1, r2, r3);
-  // 64-bit Non-clobbering arithmetics / bitwise ops.
+  // 64-bit Non-clobbering arithmetic / bitwise ops.
   int64_t r2_val = get_register(r2);
   int64_t r3_val = get_register(r3);
   set_register(r1, base::bits::SignedMulHigh64(r2_val, r3_val));
@@ -8758,7 +8758,7 @@ EVALUATE(MGRK) {
 EVALUATE(MLGR) {
   DCHECK_OPCODE(MLGR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  // 64-bit Non-clobbering unsigned arithmetics
+  // 64-bit Non-clobbering unsigned arithmetic
   CHECK_EQ(r1 % 2, 0);
   uint64_t r1_plus_1_val = get_register(r1 + 1);
   uint64_t r2_val = get_register(r2);
@@ -9040,7 +9040,7 @@ EVALUATE(POPCNT_Z) {
 #if defined(__GNUC__)
     r1_val_ptr[i] = __builtin_popcount(x);
 #else
-#error unsupport __builtin_popcount
+#error unsupported __builtin_popcount
 #endif
   }
   set_register(r1, static_cast<uint64_t>(r1_val));
@@ -9059,7 +9059,7 @@ EVALUATE(LOCGR) {
 EVALUATE(NGRK) {
   DCHECK_OPCODE(NGRK);
   DECODE_RRF_A_INSTRUCTION(r1, r2, r3);
-  // 64-bit Non-clobbering arithmetics / bitwise ops.
+  // 64-bit Non-clobbering arithmetic / bitwise ops.
   int64_t r2_val = get_register(r2);
   int64_t r3_val = get_register(r3);
   uint64_t bitwise_result = 0;
@@ -9072,7 +9072,7 @@ EVALUATE(NGRK) {
 EVALUATE(OGRK) {
   DCHECK_OPCODE(OGRK);
   DECODE_RRF_A_INSTRUCTION(r1, r2, r3);
-  // 64-bit Non-clobbering arithmetics / bitwise ops.
+  // 64-bit Non-clobbering arithmetic / bitwise ops.
   int64_t r2_val = get_register(r2);
   int64_t r3_val = get_register(r3);
   uint64_t bitwise_result = 0;
@@ -9085,7 +9085,7 @@ EVALUATE(OGRK) {
 EVALUATE(XGRK) {
   DCHECK_OPCODE(XGRK);
   DECODE_RRF_A_INSTRUCTION(r1, r2, r3);
-  // 64-bit Non-clobbering arithmetics / bitwise ops.
+  // 64-bit Non-clobbering arithmetic / bitwise ops.
   int64_t r2_val = get_register(r2);
   int64_t r3_val = get_register(r3);
   uint64_t bitwise_result = 0;
@@ -9098,7 +9098,7 @@ EVALUATE(XGRK) {
 EVALUATE(AGRK) {
   DCHECK_OPCODE(AGRK);
   DECODE_RRF_A_INSTRUCTION(r1, r2, r3);
-  // 64-bit Non-clobbering arithmetics / bitwise ops.
+  // 64-bit Non-clobbering arithmetic / bitwise ops.
   int64_t r2_val = get_register(r2);
   int64_t r3_val = get_register(r3);
   bool isOF = CheckOverflowForIntAdd(r2_val, r3_val, int64_t);
@@ -9111,7 +9111,7 @@ EVALUATE(AGRK) {
 EVALUATE(SGRK) {
   DCHECK_OPCODE(SGRK);
   DECODE_RRF_A_INSTRUCTION(r1, r2, r3);
-  // 64-bit Non-clobbering arithmetics / bitwise ops.
+  // 64-bit Non-clobbering arithmetic / bitwise ops.
   int64_t r2_val = get_register(r2);
   int64_t r3_val = get_register(r3);
   bool isOF = CheckOverflowForIntSub(r2_val, r3_val, int64_t);
@@ -9124,7 +9124,7 @@ EVALUATE(SGRK) {
 EVALUATE(ALGRK) {
   DCHECK_OPCODE(ALGRK);
   DECODE_RRF_A_INSTRUCTION(r1, r2, r3);
-  // 64-bit Non-clobbering unsigned arithmetics
+  // 64-bit Non-clobbering unsigned arithmetic
   uint64_t r2_val = get_register(r2);
   uint64_t r3_val = get_register(r3);
   bool isOF = CheckOverflowForUIntAdd(r2_val, r3_val);
@@ -9137,7 +9137,7 @@ EVALUATE(ALGRK) {
 EVALUATE(SLGRK) {
   DCHECK_OPCODE(SLGRK);
   DECODE_RRF_A_INSTRUCTION(r1, r2, r3);
-  // 64-bit Non-clobbering unsigned arithmetics
+  // 64-bit Non-clobbering unsigned arithmetic
   uint64_t r2_val = get_register(r2);
   uint64_t r3_val = get_register(r3);
   bool isOF = CheckOverflowForUIntSub(r2_val, r3_val);
@@ -9159,7 +9159,7 @@ EVALUATE(LOCR) {
 EVALUATE(NRK) {
   DCHECK_OPCODE(NRK);
   DECODE_RRF_A_INSTRUCTION(r1, r2, r3);
-  // 32-bit Non-clobbering arithmetics / bitwise ops
+  // 32-bit Non-clobbering arithmetic / bitwise ops
   int32_t r2_val = get_low_register<int32_t>(r2);
   int32_t r3_val = get_low_register<int32_t>(r3);
   // Assume bitwise operation here
@@ -9173,7 +9173,7 @@ EVALUATE(NRK) {
 EVALUATE(ORK) {
   DCHECK_OPCODE(ORK);
   DECODE_RRF_A_INSTRUCTION(r1, r2, r3);
-  // 32-bit Non-clobbering arithmetics / bitwise ops
+  // 32-bit Non-clobbering arithmetic / bitwise ops
   int32_t r2_val = get_low_register<int32_t>(r2);
   int32_t r3_val = get_low_register<int32_t>(r3);
   // Assume bitwise operation here
@@ -9187,7 +9187,7 @@ EVALUATE(ORK) {
 EVALUATE(XRK) {
   DCHECK_OPCODE(XRK);
   DECODE_RRF_A_INSTRUCTION(r1, r2, r3);
-  // 32-bit Non-clobbering arithmetics / bitwise ops
+  // 32-bit Non-clobbering arithmetic / bitwise ops
   int32_t r2_val = get_low_register<int32_t>(r2);
   int32_t r3_val = get_low_register<int32_t>(r3);
   // Assume bitwise operation here
@@ -9201,7 +9201,7 @@ EVALUATE(XRK) {
 EVALUATE(ARK) {
   DCHECK_OPCODE(ARK);
   DECODE_RRF_A_INSTRUCTION(r1, r2, r3);
-  // 32-bit Non-clobbering arithmetics / bitwise ops
+  // 32-bit Non-clobbering arithmetic / bitwise ops
   int32_t r2_val = get_low_register<int32_t>(r2);
   int32_t r3_val = get_low_register<int32_t>(r3);
   bool isOF = CheckOverflowForIntAdd(r2_val, r3_val, int32_t);
@@ -9214,7 +9214,7 @@ EVALUATE(ARK) {
 EVALUATE(SRK) {
   DCHECK_OPCODE(SRK);
   DECODE_RRF_A_INSTRUCTION(r1, r2, r3);
-  // 32-bit Non-clobbering arithmetics / bitwise ops
+  // 32-bit Non-clobbering arithmetic / bitwise ops
   int32_t r2_val = get_low_register<int32_t>(r2);
   int32_t r3_val = get_low_register<int32_t>(r3);
   bool isOF = CheckOverflowForIntSub(r2_val, r3_val, int32_t);
@@ -9227,7 +9227,7 @@ EVALUATE(SRK) {
 EVALUATE(ALRK) {
   DCHECK_OPCODE(ALRK);
   DECODE_RRF_A_INSTRUCTION(r1, r2, r3);
-  // 32-bit Non-clobbering unsigned arithmetics
+  // 32-bit Non-clobbering unsigned arithmetic
   uint32_t r2_val = get_low_register<uint32_t>(r2);
   uint32_t r3_val = get_low_register<uint32_t>(r3);
   bool isOF = CheckOverflowForUIntAdd(r2_val, r3_val);
@@ -9240,7 +9240,7 @@ EVALUATE(ALRK) {
 EVALUATE(SLRK) {
   DCHECK_OPCODE(SLRK);
   DECODE_RRF_A_INSTRUCTION(r1, r2, r3);
-  // 32-bit Non-clobbering unsigned arithmetics
+  // 32-bit Non-clobbering unsigned arithmetic
   uint32_t r2_val = get_low_register<uint32_t>(r2);
   uint32_t r3_val = get_low_register<uint32_t>(r3);
   bool isOF = CheckOverflowForUIntSub(r2_val, r3_val);

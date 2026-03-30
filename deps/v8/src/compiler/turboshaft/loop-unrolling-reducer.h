@@ -371,7 +371,7 @@ class LoopUnrollingReducer : public Next {
 
   V<None> REDUCE_INPUT_GRAPH(Goto)(V<None> ig_idx, const GotoOp& gto) {
     // Note that the "ShouldSkipOptimizationStep" are placed in the parts of
-    // this Reduce method triggering the unrolling rather than at the begining.
+    // this Reduce method triggering the unrolling rather than at the beginning.
     // This is because the backedge skipping is not an optimization but a
     // mandatory lowering when unrolling is being performed.
     LABEL_BLOCK(no_change) { return Next::ReduceInputGraphGoto(ig_idx, gto); }
@@ -528,7 +528,7 @@ void LoopUnrollingReducer<Next>::PartiallyUnrollLoop(const Block* header) {
   // Emitting the 1st iteration of the loop (with a proper loop header). We
   // remove the stack check of all iterations except the last one.
   ScopedModification<bool> skip_stack_checks(&skip_next_stack_check_, true);
-  TRACE("> Emitting first iteraton (with header)");
+  TRACE("> Emitting first iteration (with header)");
   Block* output_graph_header =
       __ CloneSubGraph(loop_body, /* keep_loop_kinds */ true);
   if (StopUnrollingIfUnreachable(output_graph_header)) {

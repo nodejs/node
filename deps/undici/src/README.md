@@ -116,7 +116,7 @@ const response = await fetch('https://api.example.com/data');
 - Building isomorphic code that runs in browsers and Node.js
 - Publishing to npm and want to maximize compatibility with JS runtimes
 - Simple HTTP requests without advanced configuration
-- You're publishing to npm and you want to maximize compatiblity
+- You're publishing to npm and you want to maximize compatibility
 - You don't depend on features from a specific version of undici
 
 #### Use Undici Module When:
@@ -491,7 +491,7 @@ The [Fetch Standard](https://fetch.spec.whatwg.org) allows users to skip consumi
 Garbage collection in Node is less aggressive and deterministic
 (due to the lack of clear idle periods that browsers have through the rendering refresh rate)
 which means that leaving the release of connection resources to the garbage collector can lead
-to excessive connection usage, reduced performance (due to less connection re-use), and even
+to excessive connection usage, reduced performance (due to less connection reuse), and even
 stalls or deadlocks when running out of connections.
 Therefore, __it is important to always either consume or cancel the response body anyway__.
 

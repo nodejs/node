@@ -351,7 +351,7 @@ class TestChannel : public FrontendChannel {
 };
 
 TEST(UberDispatcherTest, MethodNotFound) {
-  // No domain dispatchers are registered, so unsuprisingly, we'll get a method
+  // No domain dispatchers are registered, so unsurprisingly, we'll get a method
   // not found error and can see that DispatchResult::MethodFound() yields
   // false.
   TestChannel channel;

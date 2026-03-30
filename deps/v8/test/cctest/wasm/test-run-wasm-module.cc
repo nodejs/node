@@ -322,7 +322,7 @@ TEST(TestInterruptLoop) {
     // {signal_value_} is written to memory to signal a helper thread that the
     // main thread reached the loop in the WebAssembly program. When the helper
     // thread reads {signal_value_} from memory, it registers the
-    // InterruptCallback. Upon exeution, the InterruptCallback write into the
+    // InterruptCallback. Upon execution, the InterruptCallback write into the
     // WebAssemblyMemory to end the loop in the WebAssembly program.
     TestSignatures sigs;
     Isolate* isolate = CcTest::InitIsolateOnce();

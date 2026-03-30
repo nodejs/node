@@ -34,7 +34,7 @@ assertEquals(expected_smi_arr, smi_arr);
 transition_arr(holey_smi_arr);
 assertEquals(expected_holey_smi_arr, holey_smi_arr)
 assertOptimized(transition_arr);
-// Not trigering transitions (because arrays already transitioned)
+// Not triggering transitions (because arrays already transitioned)
 transition_arr(smi_arr);
 transition_arr(holey_smi_arr);
 assertOptimized(transition_arr);

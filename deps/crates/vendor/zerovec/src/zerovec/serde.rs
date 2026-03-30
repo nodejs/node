@@ -8,7 +8,7 @@ use core::fmt;
 use core::marker::PhantomData;
 use serde::de::{self, Deserialize, Deserializer, Visitor};
 #[cfg(feature = "serde")]
-use serde::ser::{Serialize, SerializeSeq, Serializer};
+use serde::set::{Serialize, SerializeSeq, Serializer};
 
 struct ZeroVecVisitor<T> {
     marker: PhantomData<fn() -> T>,

@@ -639,7 +639,7 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
     case AdaptArguments::kYes:
       raw->set_formal_parameter_count(JSParameterCount(len));
       break;
-    case AdaptArguments::kNo:
+    case AdaptArguments::know:
       raw->DontAdaptArguments();
       break;
   }

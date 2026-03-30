@@ -288,7 +288,7 @@ TEST(CompressedTupleTest, Nested) {
   std::set<Empty<0>*> empties{&y.get<0>(), &y.get<1>(), &y.get<2>().get<0>(),
                               &y.get<2>().get<1>().get<0>()};
 #ifdef _MSC_VER
-  // MSVC has a bug where many instances of the same base class are layed out in
+  // MSVC has a bug where many instances of the same base class are laid out in
   // the same address when using __declspec(empty_bases).
   // This will be fixed in a future version of MSVC.
   int expected = 1;

@@ -75,7 +75,7 @@ export class GraphLayout {
       startNodesHasNoInputs[edge.target.id] = false;
     });
 
-    // Finialize the list of start and end nodes.
+    // Finalize the list of start and end nodes.
     const endNodes = new Array<GraphNode>();
     const startNodes = new Array<GraphNode>();
     const visited = new Array<boolean>();

@@ -1104,8 +1104,8 @@ void SharedFunctionInfo::ClearPreparseData(IsolateForSandbox isolate) {
 
   // We are basically trimming that object to its supertype, so recorded slots
   // within the object don't need to be invalidated.
-  heap->NotifyObjectLayoutChange(data, no_gc, InvalidateRecordedSlots::kNo,
-                                 InvalidateExternalPointerSlots::kNo);
+  heap->NotifyObjectLayoutChange(data, no_gc, InvalidateRecordedSlots::know,
+                                 InvalidateExternalPointerSlots::know);
   static_assert(sizeof(UncompiledDataWithoutPreparseData) <
                 sizeof(UncompiledDataWithPreparseData));
   static_assert(sizeof(UncompiledDataWithoutPreparseData) ==

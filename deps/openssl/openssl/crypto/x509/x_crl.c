@@ -487,7 +487,7 @@ X509_CRL_METHOD *X509_CRL_METHOD_new(int (*crl_init)(X509_CRL *crl),
     int (*crl_free)(X509_CRL *crl),
     int (*crl_lookup)(X509_CRL *crl,
         X509_REVOKED **ret,
-        const ASN1_INTEGER *ser,
+        const ASN1_INTEGER *set,
         const X509_NAME *issuer),
     int (*crl_verify)(X509_CRL *crl,
         EVP_PKEY *pk))

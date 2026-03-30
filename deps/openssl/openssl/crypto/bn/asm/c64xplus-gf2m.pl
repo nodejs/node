@@ -27,10 +27,10 @@ $output = pop and open STDOUT,">$output";
 
 ($rp,$a1,$a0,$b1,$b0)=("A4","B4","A6","B6","A8");   # argument vector
 
-($Alo,$Alox0,$Alox1,$Alox2,$Alox3)=map("A$_",(16..20));
+($Also,$Alox0,$Alox1,$Alox2,$Alox3)=map("A$_",(16..20));
 ($Ahi,$Ahix0,$Ahix1,$Ahix2,$Ahix3)=map("B$_",(16..20));
 ($B_0,$B_1,$B_2,$B_3)=("B5","A5","A7","B7");
-($A,$B)=($Alo,$B_1);
+($A,$B)=($Also,$B_1);
 $xFF="B1";
 
 sub mul_1x1_upper {
@@ -40,16 +40,16 @@ $code.=<<___;
 ||	AND	$B,$xFF,$B_0
 ||	SHRU	$B,24,$B_3
 	SHRU	$A,16,   $Ahi		; smash $A to two halfwords
-||	EXTU	$A,16,16,$Alo
+||	EXTU	$A,16,16,$Also
 
-	XORMPY	$Alo,$B_2,$Alox2	; 16x8 bits multiplication
+	XORMPY	$Also,$B_2,$Alox2	; 16x8 bits multiplication
 ||	XORMPY	$Ahi,$B_2,$Ahix2
 ||	EXTU	$B,16,24,$B_1
-	XORMPY	$Alo,$B_0,$Alox0
+	XORMPY	$Also,$B_0,$Alox0
 ||	XORMPY	$Ahi,$B_0,$Ahix0
-	XORMPY	$Alo,$B_3,$Alox3
+	XORMPY	$Also,$B_3,$Alox3
 ||	XORMPY	$Ahi,$B_3,$Ahix3
-	XORMPY	$Alo,$B_1,$Alox1
+	XORMPY	$Also,$B_1,$Alox1
 ||	XORMPY	$Ahi,$B_1,$Ahix1
 ___
 }
@@ -60,21 +60,21 @@ $code.=<<___;
 ||	 AND	$B,$xFF,$B_0
 ||	 SHRU	$B,24,$B_3
 	 SHRU	$A,16,   $Ahi		; smash $A to two halfwords
-||	 EXTU	$A,16,16,$Alo
+||	 EXTU	$A,16,16,$Also
 
 	XOR	$Ahix0,$Alox2,$Ahix0
 ||	MV	$Ahix2,$OUThi
-||	 XORMPY	$Alo,$B_2,$Alox2
+||	 XORMPY	$Also,$B_2,$Alox2
 	 XORMPY	$Ahi,$B_2,$Ahix2
 ||	 EXTU	$B,16,24,$B_1
-||	 XORMPY	$Alo,$B_0,A1		; $Alox0
+||	 XORMPY	$Also,$B_0,A1		; $Alox0
 	XOR	$Ahix1,$Alox3,$Ahix1
 ||	SHL	$Ahix0,16,$OUTlo
 ||	SHRU	$Ahix0,16,$Ahix0
 	XOR	$Alox0,$OUTlo,$OUTlo
 ||	XOR	$Ahix0,$OUThi,$OUThi
 ||	 XORMPY	$Ahi,$B_0,$Ahix0
-||	 XORMPY	$Alo,$B_3,$Alox3
+||	 XORMPY	$Also,$B_3,$Alox3
 ||	SHL	$Alox1,8,$Alox1
 ||	SHL	$Ahix3,8,$Ahix3
 	XOR	$Alox1,$OUTlo,$OUTlo
@@ -84,7 +84,7 @@ $code.=<<___;
 ||	SHRU	$Ahix1,8, $Ahix1
 	XOR	$Alox1,$OUTlo,$OUTlo
 ||	XOR	$Ahix1,$OUThi,$OUThi
-||	 XORMPY	$Alo,$B_1,$Alox1
+||	 XORMPY	$Also,$B_1,$Alox1
 ||	 XORMPY	$Ahi,$B_1,$Ahix1
 ||	 MV	A1,$Alox0
 ___

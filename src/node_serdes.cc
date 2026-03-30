@@ -468,32 +468,32 @@ void Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
 
-  Local<FunctionTemplate> ser =
+  Local<FunctionTemplate> set =
       NewFunctionTemplate(isolate, SerializerContext::New);
 
   ser->InstanceTemplate()->SetInternalFieldCount(
       SerializerContext::kInternalFieldCount);
 
-  SetProtoMethod(isolate, ser, "writeHeader", SerializerContext::WriteHeader);
-  SetProtoMethod(isolate, ser, "writeValue", SerializerContext::WriteValue);
+  SetProtoMethod(isolate, set, "writeHeader", SerializerContext::WriteHeader);
+  SetProtoMethod(isolate, set, "writeValue", SerializerContext::WriteValue);
   SetProtoMethod(
-      isolate, ser, "releaseBuffer", SerializerContext::ReleaseBuffer);
+      isolate, set, "releaseBuffer", SerializerContext::ReleaseBuffer);
   SetProtoMethod(isolate,
-                 ser,
+                 set,
                  "transferArrayBuffer",
                  SerializerContext::TransferArrayBuffer);
-  SetProtoMethod(isolate, ser, "writeUint32", SerializerContext::WriteUint32);
-  SetProtoMethod(isolate, ser, "writeUint64", SerializerContext::WriteUint64);
-  SetProtoMethod(isolate, ser, "writeDouble", SerializerContext::WriteDouble);
+  SetProtoMethod(isolate, set, "writeUint32", SerializerContext::WriteUint32);
+  SetProtoMethod(isolate, set, "writeUint64", SerializerContext::WriteUint64);
+  SetProtoMethod(isolate, set, "writeDouble", SerializerContext::WriteDouble);
   SetProtoMethod(
-      isolate, ser, "writeRawBytes", SerializerContext::WriteRawBytes);
+      isolate, set, "writeRawBytes", SerializerContext::WriteRawBytes);
   SetProtoMethod(isolate,
-                 ser,
+                 set,
                  "_setTreatArrayBufferViewsAsHostObjects",
                  SerializerContext::SetTreatArrayBufferViewsAsHostObjects);
 
   ser->ReadOnlyPrototype();
-  SetConstructorFunction(context, target, "Serializer", ser);
+  SetConstructorFunction(context, target, "Serializer", set);
 
   Local<FunctionTemplate> des =
       NewFunctionTemplate(isolate, DeserializerContext::New);

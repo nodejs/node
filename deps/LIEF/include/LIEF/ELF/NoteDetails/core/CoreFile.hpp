@@ -109,7 +109,7 @@ class LIEF_API CoreFile : public Note {
   Header::CLASS class_ = Header::CLASS::NONE;
 };
 
-} // namepsace ELF
+} // namespace ELF
 } // namespace LIEF
 
 #endif

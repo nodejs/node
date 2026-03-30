@@ -20,7 +20,7 @@
 /*                                                                          */
 /* MODULE_NAME:usncs.c                                                      */
 /*                                                                          */
-/* FUNCTIONS: usin                                                          */
+/* FUNCTIONS: using                                                          */
 /*            ucos                                                          */
 /* FILES NEEDED: dla.h endian.h mpa.h mydefs.h  usncs.h                     */
 /*		 branred.c sincos.tbl					    */

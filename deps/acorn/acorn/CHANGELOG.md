@@ -200,7 +200,7 @@ Use a loop to find line breaks, because the existing regexp search would overrun
 
 ### Bug fixes
 
-Fix a bug where an object literal with multiple `__proto__` properties would incorrectly be accepted if a later property value held an assigment.
+Fix a bug where an object literal with multiple `__proto__` properties would incorrectly be accepted if a later property value held an assignment.
 
 ### New features
 
@@ -734,7 +734,7 @@ A binary operator after a parenthesized arrow expression is no longer incorrectl
 
 Raise an error for duplicated lexical bindings.
 
-Fix spurious error when an assignement expression occurred after a spread expression.
+Fix spurious error when an assignment expression occurred after a spread expression.
 
 Accept regular expressions after `of` (in `for`/`of`), `yield` (in a generator), and braced arrow functions.
 
@@ -969,4 +969,4 @@ Stop allowing multiple `__proto__` properties on an object literal in strict mod
 
 Don't allow rest parameters to be non-identifier patterns.
 
-Check for duplicate paramter names in arrow functions.
+Check for duplicate parameter names in arrow functions.

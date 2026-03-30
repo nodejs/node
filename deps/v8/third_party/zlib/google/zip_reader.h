@@ -164,7 +164,7 @@ class ZipReader {
   bool OpenFromPlatformFile(base::PlatformFile zip_fd);
 
   // Opens the zip data stored in |data|. This class uses a weak reference to
-  // the given sring while extracting files, i.e. the caller should keep the
+  // the given string while extracting files, i.e. the caller should keep the
   // string until it finishes extracting files.
   bool OpenFromString(const std::string& data);
 

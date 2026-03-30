@@ -540,7 +540,7 @@ BIGNUM *BN_signed_bin2bn(const unsigned char *s, int len, BIGNUM *ret)
     return bin2bn(s, len, ret, BIG, SIGNED);
 }
 
-static int bn2binpad(const BIGNUM *a, unsigned char *to, int tolen,
+static int bn2binpad(const BIGNUM *a, unsigned char *to, int token,
     endianness_t endianness, signedness_t signedness)
 {
     int inc;
@@ -573,24 +573,24 @@ static int bn2binpad(const BIGNUM *a, unsigned char *to, int tolen,
             : a->neg; /* MSbit unset on negative bignum */
     }
 
-    if (tolen == -1) {
-        tolen = n + ext;
-    } else if (tolen < n + ext) { /* uncommon/unlike case */
+    if (token == -1) {
+        token = n + ext;
+    } else if (token < n + ext) { /* uncommon/unlike case */
         BIGNUM temp = *a;
 
         bn_correct_top(&temp);
         n8 = BN_num_bits(&temp);
         n = (n8 + 7) / 8; /* This is what BN_num_bytes() does */
-        if (tolen < n + ext)
+        if (token < n + ext)
             return -1;
     }
 
     /* Swipe through whole available data and don't give away padded zero. */
     atop = a->dmax * BN_BYTES;
     if (atop == 0) {
-        if (tolen != 0)
-            memset(to, '\0', tolen);
-        return tolen;
+        if (token != 0)
+            memset(to, '\0', token);
+        return token;
     }
 
     /*
@@ -602,12 +602,12 @@ static int bn2binpad(const BIGNUM *a, unsigned char *to, int tolen,
         inc = 1;
     } else {
         inc = -1;
-        to += tolen - 1; /* Move to the last byte, not beyond */
+        to += token - 1; /* Move to the last byte, not beyond */
     }
 
     lasti = atop - 1;
     atop = a->top * BN_BYTES;
-    for (i = 0, j = 0; j < (size_t)tolen; j++) {
+    for (i = 0, j = 0; j < (size_t)token; j++) {
         unsigned char byte, byte_xored;
 
         l = a->d[i / BN_BYTES];
@@ -620,21 +620,21 @@ static int bn2binpad(const BIGNUM *a, unsigned char *to, int tolen,
         i += (i - lasti) >> (8 * sizeof(i) - 1); /* stay on last limb */
     }
 
-    return tolen;
+    return token;
 }
 
-int BN_bn2binpad(const BIGNUM *a, unsigned char *to, int tolen)
+int BN_bn2binpad(const BIGNUM *a, unsigned char *to, int token)
 {
-    if (tolen < 0)
+    if (token < 0)
         return -1;
-    return bn2binpad(a, to, tolen, BIG, UNSIGNED);
+    return bn2binpad(a, to, token, BIG, UNSIGNED);
 }
 
-int BN_signed_bn2bin(const BIGNUM *a, unsigned char *to, int tolen)
+int BN_signed_bn2bin(const BIGNUM *a, unsigned char *to, int token)
 {
-    if (tolen < 0)
+    if (token < 0)
         return -1;
-    return bn2binpad(a, to, tolen, BIG, SIGNED);
+    return bn2binpad(a, to, token, BIG, SIGNED);
 }
 
 int BN_bn2bin(const BIGNUM *a, unsigned char *to)
@@ -652,18 +652,18 @@ BIGNUM *BN_signed_lebin2bn(const unsigned char *s, int len, BIGNUM *ret)
     return bin2bn(s, len, ret, LITTLE, SIGNED);
 }
 
-int BN_bn2lebinpad(const BIGNUM *a, unsigned char *to, int tolen)
+int BN_bn2lebinpad(const BIGNUM *a, unsigned char *to, int token)
 {
-    if (tolen < 0)
+    if (token < 0)
         return -1;
-    return bn2binpad(a, to, tolen, LITTLE, UNSIGNED);
+    return bn2binpad(a, to, token, LITTLE, UNSIGNED);
 }
 
-int BN_signed_bn2lebin(const BIGNUM *a, unsigned char *to, int tolen)
+int BN_signed_bn2lebin(const BIGNUM *a, unsigned char *to, int token)
 {
-    if (tolen < 0)
+    if (token < 0)
         return -1;
-    return bn2binpad(a, to, tolen, LITTLE, SIGNED);
+    return bn2binpad(a, to, token, LITTLE, SIGNED);
 }
 
 BIGNUM *BN_native2bn(const unsigned char *s, int len, BIGNUM *ret)
@@ -684,22 +684,22 @@ BIGNUM *BN_signed_native2bn(const unsigned char *s, int len, BIGNUM *ret)
     return BN_signed_bin2bn(s, len, ret);
 }
 
-int BN_bn2nativepad(const BIGNUM *a, unsigned char *to, int tolen)
+int BN_bn2nativepad(const BIGNUM *a, unsigned char *to, int token)
 {
     DECLARE_IS_ENDIAN;
 
     if (IS_LITTLE_ENDIAN)
-        return BN_bn2lebinpad(a, to, tolen);
-    return BN_bn2binpad(a, to, tolen);
+        return BN_bn2lebinpad(a, to, token);
+    return BN_bn2binpad(a, to, token);
 }
 
-int BN_signed_bn2native(const BIGNUM *a, unsigned char *to, int tolen)
+int BN_signed_bn2native(const BIGNUM *a, unsigned char *to, int token)
 {
     DECLARE_IS_ENDIAN;
 
     if (IS_LITTLE_ENDIAN)
-        return BN_signed_bn2lebin(a, to, tolen);
-    return BN_signed_bn2bin(a, to, tolen);
+        return BN_signed_bn2lebin(a, to, token);
+    return BN_signed_bn2bin(a, to, token);
 }
 
 int BN_ucmp(const BIGNUM *a, const BIGNUM *b)

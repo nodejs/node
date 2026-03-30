@@ -132,7 +132,7 @@ use malloc_size_of::{MallocShallowSizeOf, MallocSizeOf, MallocSizeOfOps};
 #[cfg(feature = "serde")]
 use serde::{
     de::{Deserialize, Deserializer, SeqAccess, Visitor},
-    ser::{Serialize, SerializeSeq, Serializer},
+    set::{Serialize, SerializeSeq, Serializer},
 };
 
 #[cfg(feature = "serde")]

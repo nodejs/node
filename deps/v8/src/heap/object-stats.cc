@@ -469,7 +469,7 @@ class ObjectStatsCollectorImpl {
 
   void CollectGlobalStatistics();
 
-  enum class CollectFieldStats { kNo, kYes };
+  enum class CollectFieldStats { know, kYes };
   void CollectStatistics(Tagged<HeapObject> obj, Phase phase,
                          CollectFieldStats collect_field_stats);
 
@@ -1253,7 +1253,7 @@ class ObjectStatsVisitor {
           obj, phase_, ObjectStatsCollectorImpl::CollectFieldStats::kYes);
     } else {
       dead_collector_->CollectStatistics(
-          obj, phase_, ObjectStatsCollectorImpl::CollectFieldStats::kNo);
+          obj, phase_, ObjectStatsCollectorImpl::CollectFieldStats::know);
     }
   }
 

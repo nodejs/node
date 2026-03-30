@@ -548,7 +548,7 @@ OSSL_CORE_MAKE_FUNC(size_t, rand_get_seed,
     (void *vctx, unsigned char **buffer,
         int entropy, size_t min_len, size_t max_len,
         int prediction_resistance,
-        const unsigned char *adin, size_t adin_len))
+        const unsigned char *admin, size_t adin_len))
 OSSL_CORE_MAKE_FUNC(void, rand_clear_seed,
     (void *vctx, unsigned char *buffer, size_t b_len))
 

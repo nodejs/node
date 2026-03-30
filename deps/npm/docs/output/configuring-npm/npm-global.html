@@ -293,7 +293,7 @@ Since version 3, npm hoists dependencies by default.</p>
 So, that gets installed at [A].
 Since the parent installation of blerg satisfies bar's dependency on <code>blerg@1.x</code>, it does not install another copy under [B].</p>
 <p>Bar [B] also has dependencies on baz and asdf.
-Because it depends on <code>baz@2.x</code>, it cannot re-use the <code>baz@1.2.3</code> installed in the parent <code>node_modules</code> folder [D], and must install its own copy [C].
+Because it depends on <code>baz@2.x</code>, it cannot reuse the <code>baz@1.2.3</code> installed in the parent <code>node_modules</code> folder [D], and must install its own copy [C].
 In order to minimize duplication, npm hoists dependencies to the top level by default, so asdf is installed under [A].</p>
 <p>Underneath bar, the <code>baz -&gt; quux -&gt; bar</code> dependency creates a cycle.
 However, because bar is already in quux's ancestry [B], it does not unpack another copy of bar into that folder.

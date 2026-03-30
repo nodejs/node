@@ -143,7 +143,7 @@ function chooseOption(option: string, otherwise: number | undefined,
   }
   if(otherwise !== undefined) return otherwise;
   throw new CompactOperationError(
-    `Option "${option}" is unexpected. Expecing any of: ${candidates}`);
+    `Option "${option}" is unexpected. Expecting any of: ${candidates}`);
 }
 
 class CompactOperationError {

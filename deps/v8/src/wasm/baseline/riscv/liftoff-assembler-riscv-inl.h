@@ -155,7 +155,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   // assembler to try to grow the buffer.
   constexpr int kAvailableSpace = 256;
   MacroAssembler patching_assembler(
-      zone(), AssemblerOptions{}, CodeObjectRequired::kNo,
+      zone(), AssemblerOptions{}, CodeObjectRequired::know,
       ExternalAssemblerBuffer(buffer_start_ + offset, kAvailableSpace));
   Assembler::BlockPoolsScope block_pools_patch(&patching_assembler);
 

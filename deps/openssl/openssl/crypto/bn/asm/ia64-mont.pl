@@ -126,16 +126,16 @@ bn_mul_mont_general:
 	mov	prevpr=pr		};;
 
 	.body
-	.rotf		alo[6],nlo[4],ahi[8],nhi[6]
+	.rotf		also[6],nlo[4],ahi[8],nhi[6]
 	.rotr		a[3],n[3],t[2]
 
 { .mmi;	ldf8		bi=[bptr],8		// (*bp++)
-	ldf8		alo[4]=[aptr],16	// ap[0]
+	ldf8		also[4]=[aptr],16	// ap[0]
 	$ADDP		r30=8,in1	};;
-{ .mmi;	ldf8		alo[3]=[r30],16		// ap[1]
-	ldf8		alo[2]=[aptr],16	// ap[2]
+{ .mmi;	ldf8		also[3]=[r30],16		// ap[1]
+	ldf8		also[2]=[aptr],16	// ap[2]
 	$ADDP		in4=0,in4	};;
-{ .mmi;	ldf8		alo[1]=[r30]		// ap[3]
+{ .mmi;	ldf8		also[1]=[r30]		// ap[3]
 	ldf8		n0=[in4]		// n0
 	$ADDP		rptr=0,in0		}
 { .mmi;	$ADDP		nptr=0,in3
@@ -148,23 +148,23 @@ bn_mul_mont_general:
 	add		lc=-5,num
 	sub		r31=sp,r31	};;
 { .mfb;	and		sp=-16,r31		// alloca
-	xmpy.hu		ahi[2]=alo[4],bi	// ap[0]*bp[0]
+	xmpy.hu		ahi[2]=also[4],bi	// ap[0]*bp[0]
 	nop.b		0		}
 { .mfb;	nop.m		0
-	xmpy.lu		alo[4]=alo[4],bi
+	xmpy.lu		also[4]=also[4],bi
 	brp.loop.imp	.L1st_ctop,.L1st_cend-16
 					};;
 { .mfi;	nop.m		0
-	xma.hu		ahi[1]=alo[3],bi,ahi[2]	// ap[1]*bp[0]
+	xma.hu		ahi[1]=also[3],bi,ahi[2]	// ap[1]*bp[0]
 	add		tp_1=8,sp	}
 { .mfi;	nop.m		0
-	xma.lu		alo[3]=alo[3],bi,ahi[2]
+	xma.lu		also[3]=also[3],bi,ahi[2]
 	mov		pr.rot=0x20001f<<16
 			// ------^----- (p40) at first (p23)
 			// ----------^^ p[16:20]=1
 					};;
 { .mfi;	nop.m		0
-	xmpy.lu		m0=alo[4],n0		// (ap[0]*bp[0])*n0
+	xmpy.lu		m0=also[4],n0		// (ap[0]*bp[0])*n0
 	mov		ar.lc=lc	}
 { .mfi;	nop.m		0
 	fcvt.fxu.s1	nhi[1]=f0
@@ -173,13 +173,13 @@ bn_mul_mont_general:
 .align	32
 .L1st_ctop:
 .pred.rel	"mutex",p40,p42
-{ .mfi;	(p16)	ldf8		alo[0]=[aptr],8		    // *(aptr++)
-	(p18)	xma.hu		ahi[0]=alo[2],bi,ahi[1]
+{ .mfi;	(p16)	ldf8		also[0]=[aptr],8		    // *(aptr++)
+	(p18)	xma.hu		ahi[0]=also[2],bi,ahi[1]
 	(p40)	add		n[2]=n[2],a[2]		}   // (p23)					}
 { .mfi;	(p18)	ldf8		nlo[0]=[nptr],8		    // *(nptr++)(p16)
-	(p18)	xma.lu		alo[2]=alo[2],bi,ahi[1]
+	(p18)	xma.lu		also[2]=also[2],bi,ahi[1]
 	(p42)	add		n[2]=n[2],a[2],1	};; // (p23)
-{ .mfi;	(p21)	getf.sig	a[0]=alo[5]
+{ .mfi;	(p21)	getf.sig	a[0]=also[5]
 	(p20)	xma.hu		nhi[0]=nlo[2],m0,nhi[1]
 	(p42)	cmp.leu		p41,p39=n[2],a[2]   	}   // (p23)
 { .mfi;	(p23)	st8		[tp_1]=n[2],8
@@ -213,28 +213,28 @@ bn_mul_mont_general:
 { .mmi;	ldf8		bi=[bptr],8		// (*bp++)
 	ldf8		ahi[3]=[tptr]		// tp[0]
 	add		r30=8,aptr	};;
-{ .mmi;	ldf8		alo[4]=[aptr],16	// ap[0]
-	ldf8		alo[3]=[r30],16		// ap[1]
+{ .mmi;	ldf8		also[4]=[aptr],16	// ap[0]
+	ldf8		also[3]=[r30],16		// ap[1]
 	add		r31=8,nptr	};;
-{ .mfb;	ldf8		alo[2]=[aptr],16	// ap[2]
-	xma.hu		ahi[2]=alo[4],bi,ahi[3]	// ap[0]*bp[i]+tp[0]
+{ .mfb;	ldf8		also[2]=[aptr],16	// ap[2]
+	xma.hu		ahi[2]=also[4],bi,ahi[3]	// ap[0]*bp[i]+tp[0]
 	brp.loop.imp	.Linner_ctop,.Linner_cend-16
 					}
-{ .mfb;	ldf8		alo[1]=[r30]		// ap[3]
-	xma.lu		alo[4]=alo[4],bi,ahi[3]
+{ .mfb;	ldf8		also[1]=[r30]		// ap[3]
+	xma.lu		also[4]=also[4],bi,ahi[3]
 	clrrrb.pr			};;
 { .mfi;	ldf8		nlo[2]=[nptr],16	// np[0]
-	xma.hu		ahi[1]=alo[3],bi,ahi[2]	// ap[1]*bp[i]
+	xma.hu		ahi[1]=also[3],bi,ahi[2]	// ap[1]*bp[i]
 	nop.i		0		}
 { .mfi;	ldf8		nlo[1]=[r31]		// np[1]
-	xma.lu		alo[3]=alo[3],bi,ahi[2]
+	xma.lu		also[3]=also[3],bi,ahi[2]
 	mov		pr.rot=0x20101f<<16
 			// ------^----- (p40) at first (p23)
 			// --------^--- (p30) at first (p22)
 			// ----------^^ p[16:20]=1
 					};;
 { .mfi;	st8		[tptr]=r0		// tp[0] is already accounted
-	xmpy.lu		m0=alo[4],n0		// (ap[0]*bp[i]+tp[0])*n0
+	xmpy.lu		m0=also[4],n0		// (ap[0]*bp[i]+tp[0])*n0
 	mov		ar.lc=lc	}
 { .mfi;
 	fcvt.fxu.s1	nhi[1]=f0
@@ -250,13 +250,13 @@ bn_mul_mont_general:
 .Linner_ctop:
 .pred.rel	"mutex",p40,p42
 .pred.rel	"mutex",p30,p32
-{ .mfi;	(p16)	ldf8		alo[0]=[aptr],8		    // *(aptr++)
-	(p18)	xma.hu		ahi[0]=alo[2],bi,ahi[1]
+{ .mfi;	(p16)	ldf8		also[0]=[aptr],8		    // *(aptr++)
+	(p18)	xma.hu		ahi[0]=also[2],bi,ahi[1]
 	(p40)	add		n[2]=n[2],a[2]		}   // (p23)
 { .mfi;	(p16)	nop.m		0
-	(p18)	xma.lu		alo[2]=alo[2],bi,ahi[1]
+	(p18)	xma.lu		also[2]=also[2],bi,ahi[1]
 	(p42)	add		n[2]=n[2],a[2],1	};; // (p23)
-{ .mfi;	(p21)	getf.sig	a[0]=alo[5]
+{ .mfi;	(p21)	getf.sig	a[0]=also[5]
 	(p16)	nop.f		0
 	(p40)	cmp.ltu		p41,p39=n[2],a[2]	}   // (p23)
 { .mfi;	(p21)	ld8		t[0]=[tptr],8
@@ -413,7 +413,7 @@ bn_mul_mont_8:
 	$ADDP		rptr=0,in0	};;
 
 	.body
-	.rotf		bj[8],mj[2],tf[2],alo[10],ahi[10],nlo[10],nhi[10]
+	.rotf		bj[8],mj[2],tf[2],also[10],ahi[10],nlo[10],nhi[10]
 	.rotr		t[8]
 
 // load input vectors padding them to 8 elements
@@ -505,9 +505,9 @@ bn_mul_mont_8:
 	(p16)	xma.hu		ahi[0]=ai0,bj[7],tf[1]	//	ap[0]*b[i]+t[0]
 	(p40)	add		a3=a3,n3	}	//	(p17) a3+=n3
 { .mfi;	(p42)	add		a3=a3,n3,1
-	(p16)	xma.lu		alo[0]=ai0,bj[7],tf[1]
+	(p16)	xma.lu		also[0]=ai0,bj[7],tf[1]
 	(p16)	nop.i		0		};;
-{ .mii;	(p17)	getf.sig	a7=alo[8]		// 1:
+{ .mii;	(p17)	getf.sig	a7=also[8]		// 1:
 	(p48)	add		t[6]=t[6],a3		//	(p17) t[6]+=a3
 	(p50)	add		t[6]=t[6],a3,1	};;
 { .mfi;	(p17)	getf.sig	a8=ahi[8]		// 2:
@@ -525,10 +525,10 @@ bn_mul_mont_8:
 	(p16)	xma.hu		ahi[1]=ai1,bj[7],ahi[0]	//	ap[1]*b[i]
 	(p41)	add		a4=a4,n4	}	//	(p17) a4+=n4
 { .mfi;	(p43)	add		a4=a4,n4,1
-	(p16)	xma.lu		alo[1]=ai1,bj[7],ahi[0]
+	(p16)	xma.lu		also[1]=ai1,bj[7],ahi[0]
 	(p16)	nop.i		0		};;
 { .mfi;	(p49)	add		t[5]=t[5],a4		// 5:	(p17) t[5]+=a4
-	(p16)	xmpy.lu		mj[0]=alo[0],n0		//	(ap[0]*b[i]+t[0])*n0
+	(p16)	xmpy.lu		mj[0]=also[0],n0		//	(ap[0]*b[i]+t[0])*n0
 	(p51)	add		t[5]=t[5],a4,1	};;
 { .mfi;	(p16)	nop.m		0			// 6:
 	(p17)	xma.hu		nhi[8]=ni7,mj[1],nhi[7]	//	np[7]*m0
@@ -545,16 +545,16 @@ bn_mul_mont_8:
 	(p16)	xma.hu		ahi[2]=ai2,bj[7],ahi[1]	//	ap[2]*b[i]
 	(p40)	add		a5=a5,n5	}	//	(p17) a5+=n5
 { .mfi;	(p42)	add		a5=a5,n5,1
-	(p16)	xma.lu		alo[2]=ai2,bj[7],ahi[1]
+	(p16)	xma.lu		also[2]=ai2,bj[7],ahi[1]
 	(p16)	nop.i		0		};;
-{ .mii;	(p16)	getf.sig	a1=alo[1]		// 9:
+{ .mii;	(p16)	getf.sig	a1=also[1]		// 9:
 	(p48)	add		t[4]=t[4],a5		//	p(17) t[4]+=a5
 	(p50)	add		t[4]=t[4],a5,1	};;
 { .mfi;	(p16)	nop.m		0			// 10:
-	(p16)	xma.hu		nhi[0]=ni0,mj[0],alo[0]	//	np[0]*m0
+	(p16)	xma.hu		nhi[0]=ni0,mj[0],also[0]	//	np[0]*m0
 	(p40)	cmp.ltu		p43,p41=a5,n5	}
 { .mfi;	(p42)	cmp.leu		p43,p41=a5,n5
-	(p16)	xma.lu		nlo[0]=ni0,mj[0],alo[0]
+	(p16)	xma.lu		nlo[0]=ni0,mj[0],also[0]
 	(p16)	nop.i		0		};;
 { .mii;	(p17)	getf.sig	n7=nlo[8]		// 11:
 	(p48)	cmp.ltu		p51,p49=t[4],a5
@@ -565,9 +565,9 @@ bn_mul_mont_8:
 	(p16)	xma.hu		ahi[3]=ai3,bj[7],ahi[2]	//	ap[3]*b[i]
 	(p41)	add		a6=a6,n6	}	//	(p17) a6+=n6
 { .mfi;	(p43)	add		a6=a6,n6,1
-	(p16)	xma.lu		alo[3]=ai3,bj[7],ahi[2]
+	(p16)	xma.lu		also[3]=ai3,bj[7],ahi[2]
 	(p16)	nop.i		0		};;
-{ .mii;	(p16)	getf.sig	a2=alo[2]		// 13:
+{ .mii;	(p16)	getf.sig	a2=also[2]		// 13:
 	(p49)	add		t[3]=t[3],a6		//	(p17) t[3]+=a6
 	(p51)	add		t[3]=t[3],a6,1	};;
 { .mfi;	(p16)	nop.m		0			// 14:
@@ -585,9 +585,9 @@ bn_mul_mont_8:
 	(p16)	xma.hu		ahi[4]=ai4,bj[7],ahi[3]	//	ap[4]*b[i]
 	(p40)	add		a7=a7,n7	}	//	(p17) a7+=n7
 { .mfi;	(p42)	add		a7=a7,n7,1
-	(p16)	xma.lu		alo[4]=ai4,bj[7],ahi[3]
+	(p16)	xma.lu		also[4]=ai4,bj[7],ahi[3]
 	(p16)	nop.i		0		};;
-{ .mii;	(p16)	getf.sig	a3=alo[3]		// 17:
+{ .mii;	(p16)	getf.sig	a3=also[3]		// 17:
 	(p48)	add		t[2]=t[2],a7		//	(p17) t[2]+=a7
 	(p50)	add		t[2]=t[2],a7,1	};;
 { .mfi;	(p16)	nop.m		0			// 18:
@@ -605,9 +605,9 @@ bn_mul_mont_8:
 	(p16)	xma.hu		ahi[5]=ai5,bj[7],ahi[4]	//	ap[5]*b[i]
 	(p41)	add		a8=a8,n8	}	//	(p17) a8+=n8
 { .mfi;	(p43)	add		a8=a8,n8,1
-	(p16)	xma.lu		alo[5]=ai5,bj[7],ahi[4]
+	(p16)	xma.lu		also[5]=ai5,bj[7],ahi[4]
 	(p16)	nop.i		0		};;
-{ .mii;	(p16)	getf.sig	a4=alo[4]		// 21:
+{ .mii;	(p16)	getf.sig	a4=also[4]		// 21:
 	(p49)	add		t[1]=t[1],a8		//	(p17) t[1]+=a8
 	(p51)	add		t[1]=t[1],a8,1	};;
 { .mfi;	(p16)	nop.m		0			// 22:
@@ -623,9 +623,9 @@ bn_mul_mont_8:
 	(p16)	xma.hu		ahi[6]=ai6,bj[7],ahi[5]	//	ap[6]*b[i]
 	(p16)	add		a1=a1,n1	}	//	(p16) a1+=n1
 { .mfi;	(p16)	nop.m		0
-	(p16)	xma.lu		alo[6]=ai6,bj[7],ahi[5]
+	(p16)	xma.lu		also[6]=ai6,bj[7],ahi[5]
 	(p17)	mov		t[0]=r0		};;
-{ .mii;	(p16)	getf.sig	a5=alo[5]		// 25:
+{ .mii;	(p16)	getf.sig	a5=also[5]		// 25:
 	(p16)	add		t0=t[7],a1		//	(p16) t[7]+=a1
 	(p42)	add		t[0]=t[0],r0,1	};;
 { .mfi;	(p16)	setf.sig	tf[0]=t0		// 26:
@@ -643,9 +643,9 @@ bn_mul_mont_8:
 	(p16)	xma.hu		ahi[7]=ai7,bj[7],ahi[6]	//	ap[7]*b[i]
 	(p40)	add		a2=a2,n2	}	//	(p16) a2+=n2
 { .mfi;	(p42)	add		a2=a2,n2,1
-	(p16)	xma.lu		alo[7]=ai7,bj[7],ahi[6]
+	(p16)	xma.lu		also[7]=ai7,bj[7],ahi[6]
 	(p16)	nop.i		0		};;
-{ .mii;	(p16)	getf.sig	a6=alo[6]		// 29:
+{ .mii;	(p16)	getf.sig	a6=also[6]		// 29:
 	(p48)	add		t[6]=t[6],a2		//	(p16) t[6]+=a2
 	(p50)	add		t[6]=t[6],a2,1	};;
 { .mfi;	(p16)	nop.m		0			// 30:
@@ -669,7 +669,7 @@ bn_mul_mont_8:
 { .mmi;	(p0)	getf.sig	n1=ni0			// 0:
 	(p40)	add		a3=a3,n3		//	(p17) a3+=n3
 	(p42)	add		a3=a3,n3,1	};;
-{ .mii;	(p17)	getf.sig	a7=alo[8]		// 1:
+{ .mii;	(p17)	getf.sig	a7=also[8]		// 1:
 	(p48)	add		t[6]=t[6],a3		//	(p17) t[6]+=a3
 	(p50)	add		t[6]=t[6],a3,1	};;
 { .mfi;	(p17)	getf.sig	a8=ahi[8]		// 2:

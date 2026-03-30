@@ -451,8 +451,8 @@ TEST_F(DisasmLoong64Test, TypeOp12) {
   COMPARE(fnmsub_d(f12, f13, f14, f15),
           "08e7b9ac       fnmsub.d     f12, f13, f14, f15");
 
-  COMPARE(fcmp_cond_s(CAF, f1, f2, FCC0),
-          "0c100820       fcmp.caf.s   fcc0, f1, f2");
+  COMPARE(fcmp_cond_s(CALF, f1, f2, FCC0),
+          "0c100820       fcmp.calf.s   fcc0, f1, f2");
   COMPARE(fcmp_cond_s(CUN, f5, f6, FCC0),
           "0c1418a0       fcmp.cun.s   fcc0, f5, f6");
   COMPARE(fcmp_cond_s(CEQ, f9, f10, FCC0),
@@ -500,8 +500,8 @@ TEST_F(DisasmLoong64Test, TypeOp12) {
   COMPARE(fcmp_cond_s(SUNE, f1, f2, FCC0),
           "0c1c8820       fcmp.sune.s  fcc0, f1, f2");
 
-  COMPARE(fcmp_cond_d(CAF, f1, f2, FCC0),
-          "0c200820       fcmp.caf.d   fcc0, f1, f2");
+  COMPARE(fcmp_cond_d(CALF, f1, f2, FCC0),
+          "0c200820       fcmp.calf.d   fcc0, f1, f2");
   COMPARE(fcmp_cond_d(CUN, f5, f6, FCC0),
           "0c2418a0       fcmp.cun.d   fcc0, f5, f6");
   COMPARE(fcmp_cond_d(CEQ, f9, f10, FCC0),

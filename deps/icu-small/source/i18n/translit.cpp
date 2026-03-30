@@ -829,7 +829,7 @@ UnicodeString& U_EXPORT2 Transliterator::getDisplayName(const UnicodeString& id,
 
 /**
  * Returns the filter used by this transliterator, or <tt>null</tt>
- * if this transliterator uses no filter.  Caller musn't delete
+ * if this transliterator uses no filter.  Caller mustn't delete
  * the result!
  */
 const UnicodeFilter* Transliterator::getFilter() const {

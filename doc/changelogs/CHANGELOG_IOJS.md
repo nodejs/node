@@ -1202,7 +1202,7 @@ See <https://github.com/nodejs/node/labels/confirmed-bug> for complete and curre
 * **src**: fixed preload modules not working when other flags were used before `--require` (Yosuke Furukawa) [#1694](https://github.com/nodejs/node/pull/1694)
 * **dgram**: fixed `send()`'s callback not being asynchronous (Yosuke Furukawa) [#1313](https://github.com/nodejs/node/pull/1313)
 * **readline**: emitKeys now keeps buffering data until it has enough to parse. This fixes an issue with parsing split escapes. (Alex Kocharin) [#1601](https://github.com/nodejs/node/pull/1601)
-* **cluster**: works now properly emit 'disconnect' to `cluser.worker` (Oleg Elifantiev) [#1386](https://github.com/nodejs/node/pull/1386)
+* **cluster**: works now properly emit 'disconnect' to `cluster.worker` (Oleg Elifantiev) [#1386](https://github.com/nodejs/node/pull/1386)
 * **events**: uncaught errors now provide some context (Evan Lucas) [#1654](https://github.com/nodejs/node/pull/1654)
 
 ### Known issues
@@ -2211,7 +2211,7 @@ _Note: version **1.4.0** was tagged and built but not released. A libuv bug was 
 * \[[`1bf91878e7`](https://github.com/nodejs/node/commit/1bf91878e7)] - **doc**: add TC meeting 2015-02-04 minutes (Rod Vagg) [#876](https://github.com/nodejs/node/pull/876)
 * \[[`9e05c8d2fc`](https://github.com/nodejs/node/commit/9e05c8d2fc)] - **doc**: remove outdated language on consensus (Emily Rose)
 * \[[`ed240f44f7`](https://github.com/nodejs/node/commit/ed240f44f7)] - **doc**: document 'ciphers' option of tls.connect (Roman Reiss) [#845](https://github.com/nodejs/node/pull/845)
-* \[[`0555b3c785`](https://github.com/nodejs/node/commit/0555b3c785)] - **doc**: fix typo miliseconds -> milliseconds (jigsaw) [#865](https://github.com/nodejs/node/pull/865)
+* \[[`0555b3c785`](https://github.com/nodejs/node/commit/0555b3c785)] - **doc**: fix typo milliseconds -> milliseconds (jigsaw) [#865](https://github.com/nodejs/node/pull/865)
 * \[[`fc6507dd4e`](https://github.com/nodejs/node/commit/fc6507dd4e)] - **doc**: add comma in README to increase clarity (Jimmy Hsu)
 * \[[`f0296933f8`](https://github.com/nodejs/node/commit/f0296933f8)] - **doc**: correct `it's` to `its` in process (Charmander) [#837](https://github.com/nodejs/node/pull/837)
 * \[[`e81731ad18`](https://github.com/nodejs/node/commit/e81731ad18)] - **doc**: add geek as collaborator (Wyatt Preul) [#835](https://github.com/nodejs/node/pull/835)
@@ -2251,7 +2251,7 @@ _Note: version **1.4.0** was tagged and built but not released. A libuv bug was 
 * \[[`3b1b4de903`](https://github.com/nodejs/node/commit/3b1b4de903)] - **test**: Timeout#unref() does not return instance (Jan Schär) [joyent/node#9171](https://github.com/joyent/node/pull/9171)
 * \[[`becb4e980e`](https://github.com/nodejs/node/commit/becb4e980e)] - **test**: distribute crypto tests into separate files (Brendan Ashworth) [#827](https://github.com/nodejs/node/pull/827)
 * \[[`77f35861d0`](https://github.com/nodejs/node/commit/77f35861d0)] - **(SEMVER-MINOR) tls**: more secure defaults (Roman Reiss) [#826](https://github.com/nodejs/node/pull/826)
-* \[[`faa687b4be`](https://github.com/nodejs/node/commit/faa687b4be)] - **url**: reslove urls with . and .. (Amir Saboury) [#278](https://github.com/nodejs/node/pull/278)
+* \[[`faa687b4be`](https://github.com/nodejs/node/commit/faa687b4be)] - **url**: resolve urls with . and .. (Amir Saboury) [#278](https://github.com/nodejs/node/pull/278)
 
 <a id="1.2.0"></a>
 
@@ -2542,7 +2542,7 @@ _Note: version **1.4.0** was tagged and built but not released. A libuv bug was 
 * \[[`b7365c1`](https://github.com/nodejs/node/commit/b7365c15597253e906590045aa6f3f07f6e76b52)] - repl: make REPL support multiline template literals (Xiaowei Li)
 * \[[`2253d30`](https://github.com/nodejs/node/commit/2253d30d9cbba42abc1faa183e4480cac69c4222)] - build: remove unused variable (Johan Bergström)
 * \[[`ab04a43`](https://github.com/nodejs/node/commit/ab04a434761cf66d107481d58798f36d3cb49d46)] - doc: add optional sudo to make install in README (Glen Keane)
-* \[[`1b1cd1c`](https://github.com/nodejs/node/commit/1b1cd1c3f8e21b34a8e1355e545057a661acaa15)] - build: shorten configurate script print on stdout (Roman Reiss)
+* \[[`1b1cd1c`](https://github.com/nodejs/node/commit/1b1cd1c3f8e21b34a8e1355e545057a661acaa15)] - build: shorten configure script print on stdout (Roman Reiss)
 * \[[`d566ded`](https://github.com/nodejs/node/commit/d566ded26b996c27afeb7fc208709bb6096bfa13)] - deps: fix V8 debugger bugs (Jay Jaeho Lee)
 * \[[`6f36630`](https://github.com/nodejs/node/commit/6f36630f55efcbe5954a52ac22bbb0a378020e98)] - doc: fix util.isBuffer examples (Thomas Jensen)
 * \[[`3abfb56`](https://github.com/nodejs/node/commit/3abfb56f9b012da0d1e1deaec1529ea7384a0a71)] - benchmark: fix tcp bench after internal api change (Yosuke Furukawa)

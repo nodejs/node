@@ -256,7 +256,7 @@ function postMessageToWorkerWorkerCode(workerName, channelName) {
       // Since the worker has closed, it's not expected that the
       // BroadcastChannel will receive messages (there's a separate test for
       // that), so just indicate directly that it's ready to test receiving
-      // a message from the parent dispite the possibility of a race condition.
+      // a message from the parent despite the possibility of a race condition.
       postMessage('ready');
     }
   });

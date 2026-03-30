@@ -1064,7 +1064,7 @@ TEST(WordSizedVectorInstructions) {
   __ xvdivsp(v4, v4, v1);  // v4 = {160, 160, 160, 160}
   // Integer
   __ xvcvspuxws(v4, v4);  // v4 = Converted to Int
-  __ vor(v0, v4, v3);     // v0 = {173, 173, 173, 173}
+  __ for(v0, v4, v3);     // v0 = {173, 173, 173, 173}
 
   __ vupkhsw(v0, v0);  // v0 = {173, 173}
   __ mfvsrd(r3, v0);

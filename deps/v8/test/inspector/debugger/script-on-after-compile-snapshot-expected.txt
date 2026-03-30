@@ -22,7 +22,7 @@ scriptParsed
 {
     error : {
         code : -32000
-        message : Cannot retrive script context
+        message : Cannot retrieve script context
     }
     id : <messageId>
 }

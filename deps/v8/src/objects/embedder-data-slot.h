@@ -50,7 +50,7 @@ class EmbedderDataSlot
   static constexpr int kExternalPointerOffset = kRawPayloadOffset;
 #elif defined(V8_COMPRESS_POINTERS) && defined(V8_TARGET_BIG_ENDIAN)
   // The raw payload is located in the other "tagged" part of the full pointer
-  // and cotains the upper part of an aligned address. The raw part is not
+  // and contains the upper part of an aligned address. The raw part is not
   // expected to look like a tagged value.
   //
   // Layout (big endian pointer compression):

@@ -134,7 +134,7 @@ struct JumpOptimizationInfo {
 
     for (auto p : may_optimizable_farjmp) {
       const auto& jmp_info = p.second;
-      printf("{postion:%d, opcode_size:%d, distance:%d, dest:%d}\n",
+      printf("{position:%d, opcode_size:%d, distance:%d, dest:%d}\n",
              jmp_info.pos, jmp_info.opcode_size, jmp_info.distance,
              jmp_info.pos + jmp_info.opcode_size + 4 + jmp_info.distance);
     }
@@ -187,7 +187,7 @@ class HeapNumberRequest {
 // -----------------------------------------------------------------------------
 // Platform independent assembler base class.
 
-enum class CodeObjectRequired { kNo, kYes };
+enum class CodeObjectRequired { know, kYes };
 
 enum class BuiltinCallJumpMode {
   // The builtin entry point address is embedded into the instruction stream as
@@ -256,7 +256,7 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
 // Wrapper around an optional Zone*. If the zone isn't present, the
 // AccountingAllocator* may be used to create a fresh one.
 //
-// This is useful for assemblers that want to Zone-allocate temporay data,
+// This is useful for assemblers that want to Zone-allocate temporary data,
 // without forcing all users to have to create a Zone before using the
 // assembler.
 using MaybeAssemblerZone = std::variant<Zone*, AccountingAllocator*>;
@@ -358,7 +358,7 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 
   bool is_constant_pool_available() const {
     if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
-      // We need to disable constant pool here for embeded builtins
+      // We need to disable constant pool here for embedded builtins
       // because the metadata section is not adjacent to instructions.
       // We also need to disable it on Wasm as the constant pool register is not
       // yet handled during stack switching.

@@ -108,7 +108,7 @@ class LIEF_API RuntimeFunctionX64 : public ExceptionInfo {
     /// unwind operation code slots, as described in the note above.
     SAVE_NONVOL_FAR = 5,
 
-    /// This entry is only revelant for version 2. It describes the function
+    /// This entry is only relevant for version 2. It describes the function
     /// epilog.
     EPILOG = 6,
 

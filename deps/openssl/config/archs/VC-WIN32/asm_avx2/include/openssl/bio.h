@@ -755,10 +755,10 @@ __owur int BIO_get_rpoll_descriptor(BIO *b, BIO_POLL_DESCRIPTOR *desc);
 __owur int BIO_get_wpoll_descriptor(BIO *b, BIO_POLL_DESCRIPTOR *desc);
 int BIO_puts(BIO *bp, const char *buf);
 int BIO_indent(BIO *b, int indent, int max);
-long BIO_ctrl(BIO *bp, int cmd, long larg, void *parg);
+long BIO_ctrl(BIO *bp, int cmd, long large, void *parg);
 long BIO_callback_ctrl(BIO *b, int cmd, BIO_info_cb *fp);
-void *BIO_ptr_ctrl(BIO *bp, int cmd, long larg);
-long BIO_int_ctrl(BIO *bp, int cmd, long larg, int iarg);
+void *BIO_ptr_ctrl(BIO *bp, int cmd, long large);
+long BIO_int_ctrl(BIO *bp, int cmd, long large, int iarg);
 BIO *BIO_push(BIO *b, BIO *append);
 BIO *BIO_pop(BIO *b);
 void BIO_free_all(BIO *a);
@@ -1017,7 +1017,7 @@ OSSL_DEPRECATEDIN_3_5 int (*BIO_meth_get_puts(const BIO_METHOD *biom))(BIO *, co
 OSSL_DEPRECATEDIN_3_5 int (*BIO_meth_get_gets(const BIO_METHOD *biom))(BIO *, char *, int);
 OSSL_DEPRECATEDIN_3_5 long (*BIO_meth_get_ctrl(const BIO_METHOD *biom))(BIO *, int,
     long, void *);
-OSSL_DEPRECATEDIN_3_5 int (*BIO_meth_get_create(const BIO_METHOD *bion))(BIO *);
+OSSL_DEPRECATEDIN_3_5 int (*BIO_meth_get_create(const BIO_METHOD *bio))(BIO *);
 OSSL_DEPRECATEDIN_3_5 int (*BIO_meth_get_destroy(const BIO_METHOD *biom))(BIO *);
 OSSL_DEPRECATEDIN_3_5 long (*BIO_meth_get_callback_ctrl(const BIO_METHOD *biom))(BIO *, int,
     BIO_info_cb *);

@@ -280,7 +280,7 @@ void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
   temps.Exclude(x16, x17);
 
   // This is the previous stack pointer value (before we push the lr and the
-  // fp). We need to keep it to autenticate the lr and adjust the new stack
+  // fp). We need to keep it to authenticate the lr and adjust the new stack
   // pointer afterwards.
   Add(x16, fp, 16);
 

@@ -28,6 +28,6 @@ let o2 = {a: 1};
 s.add(o2);  // Force creating the hash.
 
 foo(o2);
-// Assert that the hash value was preseved when adding the properties backing
+// Assert that the hash value was preserved when adding the properties backing
 // store.
 assertTrue(s.has(o2));

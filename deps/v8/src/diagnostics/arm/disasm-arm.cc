@@ -4,7 +4,7 @@
 
 // A Disassembler object is used to disassemble a block of code instruction by
 // instruction. The default implementation of the NameConverter object can be
-// overriden to modify register names or to do symbol lookup on addresses.
+// overridden to modify register names or to do symbol lookup on addresses.
 //
 // The example below will disassemble a block of code and print it to stdout.
 //
@@ -624,7 +624,7 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
         }
       }
       // 's: S field of data processing instructions
-      if (instr->HasS()) {
+      if (instr->hash()) {
         Print("s");
       }
       return 1;
@@ -972,7 +972,7 @@ void Decoder::DecodeType01(Instruction* instr) {
         break;
       }
       case TST: {
-        if (instr->HasS()) {
+        if (instr->hash()) {
           Format(instr, "tst'cond 'rn, 'shift_op");
         } else {
           Format(instr, "movw'cond 'mw");
@@ -980,7 +980,7 @@ void Decoder::DecodeType01(Instruction* instr) {
         break;
       }
       case TEQ: {
-        if (instr->HasS()) {
+        if (instr->hash()) {
           Format(instr, "teq'cond 'rn, 'shift_op");
         } else {
           // Other instructions matching this pattern are handled in the
@@ -990,7 +990,7 @@ void Decoder::DecodeType01(Instruction* instr) {
         break;
       }
       case CMP: {
-        if (instr->HasS()) {
+        if (instr->hash()) {
           Format(instr, "cmp'cond 'rn, 'shift_op");
         } else {
           Format(instr, "movt'cond 'mw");
@@ -998,7 +998,7 @@ void Decoder::DecodeType01(Instruction* instr) {
         break;
       }
       case CMN: {
-        if (instr->HasS()) {
+        if (instr->hash()) {
           Format(instr, "cmn'cond 'rn, 'shift_op");
         } else {
           // Other instructions matching this pattern are handled in the

@@ -17,7 +17,7 @@ class Foo {
   methodC () {
     console.info('covered')
   }
-  methodD () {
+  method () {
     console.info('uncovered')
   }
 }

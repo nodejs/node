@@ -12,7 +12,7 @@ function f(a) {
                                // number, but Phi untagging will decide that it
                                // should be a Int32 phi.
   let truncated = phi | 0; // Will insert a CheckedTruncateNumberToInt32
-                           // conversion, which will become an Idendity after
+                           // conversion, which will become an Identity after
                            // phi untagging, but is an input to the following
                            // deopt state, which should thus be updated.
   10 * "a"; // can lazy deopt (an operation that can eager deopt could cause a

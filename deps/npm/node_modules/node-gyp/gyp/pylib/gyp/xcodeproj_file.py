@@ -718,7 +718,7 @@ class XCObject:
         self._XCPrint(file, 0, printable)
 
     def Print(self, file=sys.stdout):
-        """Prints a reprentation of this object to file, adhering to Xcode output
+        """Prints a representation of this object to file, adhering to Xcode output
         formatting.
         """
 
@@ -2083,7 +2083,7 @@ class PBXCopyFilesBuildPhase(XCBuildPhase):
         "SHARED_SUPPORT_FOLDER_PATH": 12,  # Shared Support
         "PLUGINS_FOLDER_PATH": 13,  # PlugIns
         # For XPC Services, Xcode sets both dstPath and dstSubfolderSpec.
-        # Note that it re-uses the BUILT_PRODUCTS_DIR value for
+        # Note that it reuses the BUILT_PRODUCTS_DIR value for
         # dstSubfolderSpec. dstPath is set below.
         "XPCSERVICES_FOLDER_PATH": 16,  # XPC Services.
     }

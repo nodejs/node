@@ -44,7 +44,7 @@ let expected = new Uint8ClampedArray([7,255,21,255,168,255,6,255,0,0]);
 store_clamped_array(4, 6, 1896.365, NaN);
 assertEquals(expected, uint8_clamped_arr);
 
-// Reseting the array
+// Resetting the array
 uint8_clamped_arr = new Uint8ClampedArray(10);
 
 %OptimizeFunctionOnNextCall(store_clamped_array);

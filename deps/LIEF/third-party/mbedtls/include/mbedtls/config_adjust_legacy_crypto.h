@@ -103,7 +103,7 @@
  *   via a direct legacy call (see below).
  *
  * The md module performs an algorithm via PSA if there is a PSA hash
- * accelerator and the PSA driver subsytem is initialized at the time the
+ * accelerator and the PSA driver subsystem is initialized at the time the
  * operation is started, and makes a direct legacy call otherwise.
  */
 

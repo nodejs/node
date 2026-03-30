@@ -54,7 +54,7 @@ namespace compiler {
 const char* kSimplifiedLoweringReducerName = "SimplifiedLowering";
 
 // Representation selection and lowering of {Simplified} operators to machine
-// operators are interwined. We use a fixpoint calculation to compute both the
+// operators are intertwined. We use a fixpoint calculation to compute both the
 // output representation and the best possible lowering for {Simplified} nodes.
 // Representation change insertion ensures that all values are in the correct
 // machine representation after this phase, as dictated by the machine
@@ -2876,7 +2876,7 @@ class RepresentationSelector {
             UNREACHABLE();
           case NumberOperationHint::kNumberOrOddball:
             // Abstract and strict equality don't perform ToNumber conversions
-            // on Oddballs, so make sure we don't accidentially sneak in a
+            // on Oddballs, so make sure we don't accidentally sneak in a
             // hint with Oddball feedback here.
             DCHECK_NE(IrOpcode::kSpeculativeNumberEqual, node->opcode());
             [[fallthrough]];

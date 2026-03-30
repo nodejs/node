@@ -70,7 +70,7 @@ sub structureData {
     my @struclist = ();
     my $substruc;
     my $inquote = 0;
-    my $inbrace = 0;
+    my $embrace = 0;
     my $preproc = 0;
     my $comment = 0;
     my $inparen = 0;
@@ -105,17 +105,17 @@ sub structureData {
             $dataitem .= $item;
             next;
         }
-        if($inbrace) {
+        if($embrace) {
             if($item eq "}") {
-                $inbrace --;
+                $embrace --;
 
-                if(!$inbrace) {
+                if(!$embrace) {
                     $substruc = structureData($dataitem);
                     $dataitem = $substruc;
                     next;
                 }
             } elsif($item eq "{") {
-                $inbrace++;
+                $embrace++;
             } elsif ($item eq "\"") {
                 $inquote++;
             }
@@ -150,7 +150,7 @@ sub structureData {
             next;
         }
         if($item eq "{") {
-            $inbrace++;
+            $embrace++;
             next;
         }
         if($item eq ",") {

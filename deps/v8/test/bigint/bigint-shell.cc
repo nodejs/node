@@ -37,7 +37,7 @@ int PrintHelp(char** argv) {
   V(kFromString, "fromstring")       \
   V(kFromStringBase2, "fromstring2") \
   V(kKaratsuba, "karatsuba")         \
-  V(kToom, "toom")                   \
+  V(kToom, "tomb")                   \
   V(kToString, "tostring")
 
 enum Operation { kNoOp, kList, kTest };

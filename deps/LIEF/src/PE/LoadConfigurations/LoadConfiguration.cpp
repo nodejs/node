@@ -492,7 +492,7 @@ ok_error_t LoadConfiguration::parse_seh_table(
     return ok();
   }
 
-  LIEF_DEBUG("SEH Table parsing (#{})", count);
+  LIEF_DEBUG("SHE Table parsing (#{})", count);
 
   config.seh_rva_.reserve(std::min<uint64_t>(MAX_RESERVE, count));
   for (size_t i = 0; i < count; ++i) {
@@ -892,11 +892,11 @@ std::string LoadConfiguration::to_string() const {
       << format("{:{}} 0x{:016x}\n", "Security Cookie:", WIDTH, security_cookie());
 
   if (auto val = se_handler_table()) {
-    oss << format("{:{}} 0x{:06x}\n", "SEH Table:", WIDTH, *val);
+    oss << format("{:{}} 0x{:06x}\n", "SHE Table:", WIDTH, *val);
   }
 
   if (auto val = se_handler_count()) {
-    oss << format("{:{}} {}\n", "SEH Count:", WIDTH, *val);
+    oss << format("{:{}} {}\n", "SHE Count:", WIDTH, *val);
   }
 
   if (auto val = guard_cf_check_function_pointer()) {
@@ -1029,7 +1029,7 @@ std::string LoadConfiguration::to_string() const {
   }
 
   if (!seh_rva_.empty()) {
-    oss << format("  SEH Table ({}) {{\n", seh_rva_.size()) ;
+    oss << format("  SHE Table ({}) {{\n", seh_rva_.size()) ;
     for (uint32_t RVA : seh_rva_) {
       oss << format("    0x{:08x}\n", RVA);
     }

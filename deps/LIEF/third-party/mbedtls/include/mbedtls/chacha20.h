@@ -96,7 +96,7 @@ int mbedtls_chacha20_setkey(mbedtls_chacha20_context *ctx,
 /**
  * \brief           This function sets the nonce and initial counter value.
  *
- * \note            A ChaCha20 context can be re-used with the same key by
+ * \note            A ChaCha20 context can be reused with the same key by
  *                  calling this function to change the nonce.
  *
  * \warning         You must never use the same nonce twice with the same key.

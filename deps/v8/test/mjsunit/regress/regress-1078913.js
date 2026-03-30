@@ -5,7 +5,7 @@
 // Flags: --interpreted-frames-native-stack
 
 // Make sure that the interpreted trampoline copy (for native interpreter frames
-// in stack traces) works for interperted functions but doesn't crash for asm.js
+// in stack traces) works for interpreted functions but doesn't crash for asm.js
 
 function func() {
   return;

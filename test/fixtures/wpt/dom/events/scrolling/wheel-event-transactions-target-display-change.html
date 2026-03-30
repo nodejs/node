@@ -50,7 +50,7 @@ function runTest() {
     let wheelEventTargets = [];
     let makeInitialTargetNone = false;
 
-    // Modify the initial element the wheel event is targetted at to
+    // Modify the initial element the wheel event is targeted at to
     // display: <variant> once we fire the first wheel event, then log
     // the subsequent wheel event targets.
     function makeInitialElementNone(e) {
@@ -76,7 +76,7 @@ function runTest() {
     await waitForAnimationEnd(() => { return document.scrollingElement.scrollTop; });
     await waitForCompositorCommit();
 
-    // The first wheel event should be targetted at the modified element.
+    // The first wheel event should be targeted at the modified element.
     assert_equals(wheelEventTargets.shift(), initialTarget,
                   "Initial wheel event is has the modified element as the target");
 
@@ -85,7 +85,7 @@ function runTest() {
       // on what element the event should target. Find out what the target should be here
       // and make this assertion more restrictive.
       assert_not_equals(wheelEventTarget, initialTarget,
-                        "Wheel event at index `" + i + "` targetted the initial element");
+                        "Wheel event at index `" + i + "` targeted the initial element");
     });
 
     assert_greater_than(document.scrollingElement.scrollTop, 0, "The document has scrolled");

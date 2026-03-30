@@ -166,7 +166,7 @@ CRCImpl* CRCImpl::NewInternal() {
   // Find an accelearated implementation first.
   CRCImpl* result = TryNewCRC32AcceleratedX86ARMCombined();
 
-  // Fall back to generic implementions if no acceleration is available.
+  // Fall back to generic implementations if no acceleration is available.
   if (result == nullptr) {
     result = new CRC32();
   }

@@ -56,7 +56,7 @@ class BaselineBatchCompiler {
   void ClearBatch();
 
   // Tries to compile |maybe_sfi|. Returns false if compilation was not possible
-  // (e.g. bytecode was fushed, weak handle no longer valid, ...).
+  // (e.g. bytecode was flushed, weak handle no longer valid, ...).
   bool MaybeCompileFunction(Tagged<MaybeObject> maybe_sfi);
 
   Isolate* isolate_;
@@ -68,7 +68,7 @@ class BaselineBatchCompiler {
   // Last index set in compilation_queue_;
   int last_index_;
 
-  // Estimated insturction size of current batch.
+  // Estimated instruction size of current batch.
   int estimated_instruction_size_;
 
   // Flag indicating whether batch compilation is enabled.

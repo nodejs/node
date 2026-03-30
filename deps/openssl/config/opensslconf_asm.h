@@ -54,7 +54,7 @@
   | solaris            | __sun                     |
   | freebsd            | __FreeBSD__               |
   | openbsd            | __OpenBSD__               |
-  | linux (not andorid)| __linux__ && !__ANDROID__ |
+  | linux (not android)| __linux__ && !__ANDROID__ |
   | android            | __ANDROID__               |
 
   | --dest-cpu | pre-defined macro |

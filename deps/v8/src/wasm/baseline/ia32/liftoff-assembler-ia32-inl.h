@@ -2233,7 +2233,7 @@ inline void EmitFloatMinOrMax(LiftoffAssembler* assm, DoubleRegister dst,
   Label done;
 
   // We need one tmp register to extract the sign bit. Get it right at the
-  // beginning, such that the spilling code is not accidentially jumped over.
+  // beginning, such that the spilling code is not accidentally jumped over.
   Register tmp = assm->GetUnusedRegister(kGpReg, {}).gp();
 
 #define dop(name, ...)            \
@@ -2872,7 +2872,7 @@ void LiftoffAssembler::emit_i64_set_cond(Condition cond, Register dst,
   cmp(lhs.low_gp(), rhs.low_gp());
   if (unsigned_cond != cond) {
     // If the condition predicate for the low differs from that for the high
-    // word, emit a separete setcc sequence for the low word.
+    // word, emit a separate setcc sequence for the low word.
     liftoff::setcc_32_no_spill(this, unsigned_cond, dst, tmp_byte_reg);
     jmp(&cont);
   }
@@ -5115,7 +5115,7 @@ void LiftoffAssembler::CallCWithStackBuffer(
     } else if (value_kind_size(arg.kind()) == 4) {
       // We do not have a scratch register, so move via the stack. Note that
       // {push} decrements {esp} by 4 and {pop} increments it again, but the
-      // destionation operand uses the {esp} value after increasing.
+      // destination operand uses the {esp} value after increasing.
       push(liftoff::GetStackSlot(arg.offset()));
       pop(Operand(esp, arg_offset));
     } else {

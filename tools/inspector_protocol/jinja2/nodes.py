@@ -636,7 +636,7 @@ class Filter(Expr):
 
         # we have to be careful here because we call filter_ below.
         # if this variable would be called filter, 2to3 would wrap the
-        # call in a list beause it is assuming we are talking about the
+        # call in a list because it is assuming we are talking about the
         # builtin filter function here which no longer returns a list in
         # python 3.  because of that, do not rename filter_ to filter!
         filter_ = self.environment.filters.get(self.name)

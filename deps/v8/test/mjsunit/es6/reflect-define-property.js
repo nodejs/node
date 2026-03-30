@@ -291,7 +291,7 @@ assertFalse(Reflect.defineProperty(obj1, "foobar", dataConfigurable));
 assertFalse(Reflect.defineProperty(obj1, "foobar", dataConfigurable));
 
 
-// Redifine with the same descriptor - should succeed (step 6).
+// Redefine with the same descriptor - should succeed (step 6).
 assertTrue(Reflect.defineProperty(obj1, "foobar", dataNoConfigurable));
 desc = Object.getOwnPropertyDescriptor(obj1, "foobar");
 assertEquals(obj1.foobar, 2000);

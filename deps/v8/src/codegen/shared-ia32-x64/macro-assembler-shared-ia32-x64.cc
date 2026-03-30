@@ -266,7 +266,7 @@ void SharedMacroAssemblerBase::F64x2Min(XMMRegister dst, XMMRegister lhs,
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
     // The minpd instruction doesn't propagate NaNs and +0's in its first
-    // operand. Perform minpd in both orders, merge the resuls, and adjust.
+    // operand. Perform minpd in both orders, merge the results, and adjust.
     vminpd(scratch, lhs, rhs);
     vminpd(dst, rhs, lhs);
     // propagate -0's and NaNs, which may be non-canonical.
@@ -304,7 +304,7 @@ void SharedMacroAssemblerBase::F64x2Max(XMMRegister dst, XMMRegister lhs,
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
     // The maxpd instruction doesn't propagate NaNs and +0's in its first
-    // operand. Perform maxpd in both orders, merge the resuls, and adjust.
+    // operand. Perform maxpd in both orders, merge the results, and adjust.
     vmaxpd(scratch, lhs, rhs);
     vmaxpd(dst, rhs, lhs);
     // Find discrepancies.
@@ -679,7 +679,7 @@ void SharedMacroAssemblerBase::I16x8SConvertI8x16High(XMMRegister dst,
   } else {
     CpuFeatureScope sse_scope(this, SSE4_1);
     if (dst == src) {
-      // 2 bytes shorter than pshufd, but has depdency on dst.
+      // 2 bytes shorter than pshufd, but has dependency on dst.
       movhlps(dst, src);
       pmovsxbw(dst, dst);
     } else {
@@ -875,7 +875,7 @@ void SharedMacroAssemblerBase::I32x4SConvertI16x8High(XMMRegister dst,
   } else {
     CpuFeatureScope sse_scope(this, SSE4_1);
     if (dst == src) {
-      // 2 bytes shorter than pshufd, but has depdency on dst.
+      // 2 bytes shorter than pshufd, but has dependency on dst.
       movhlps(dst, src);
       pmovsxwd(dst, dst);
     } else {

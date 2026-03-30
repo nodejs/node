@@ -113,10 +113,10 @@ $carry="%i4";	# %i4 reused(!) for a carry bit
 #   ..b
 $ba="%f0";    $bb="%f2";    $bc="%f4";    $bd="%f6";
 $na="%f8";    $nb="%f10";   $nc="%f12";   $nd="%f14";
-$alo="%f16";  $alo_="%f17"; $ahi="%f18";  $ahi_="%f19";
+$also="%f16";  $alo_="%f17"; $ahi="%f18";  $ahi_="%f19";
 $nlo="%f20";  $nlo_="%f21"; $nhi="%f22";  $nhi_="%f23";
 
-$dota="%f24"; $dotb="%f26";
+$data="%f24"; $dotb="%f26";
 
 $aloa="%f32"; $alob="%f34"; $aloc="%f36"; $alod="%f38";
 $ahia="%f40"; $ahib="%f42"; $ahic="%f44"; $ahid="%f46";
@@ -201,7 +201,7 @@ $fname:
 	stx	%o0,[%sp+$bias+$frame+0]
 
 	ld	[%o3+0],$alo_	! load a[j] as pair of 32-bit words
-	fzeros	$alo
+	fzeros	$also
 	ld	[%o3+4],$ahi_
 	fzeros	$ahi
 	ld	[%o5+0],$nlo_	! load n[j] as pair of 32-bit words
@@ -211,7 +211,7 @@ $fname:
 
 	! transfer b[i] to FPU as 4x16-bit values
 	ldda	[%o4+2]%asi,$ba
-	fxtod	$alo,$alo
+	fxtod	$also,$also
 	ldda	[%o4+0]%asi,$bb
 	fxtod	$ahi,$ahi
 	ldda	[%o4+6]%asi,$bc
@@ -229,7 +229,7 @@ $fname:
 	ldda	[%sp+$bias+$frame+0]%asi,$nd
 	fxtod	$bd,$bd
 
-	std	$alo,[$ap_l+$j]		! save smashed ap[j] in double format
+	std	$also,[$ap_l+$j]		! save smashed ap[j] in double format
 	fxtod	$na,$na
 	std	$ahi,[$ap_h+$j]
 	fxtod	$nb,$nb
@@ -238,14 +238,14 @@ $fname:
 	std	$nhi,[$np_h+$j]
 	fxtod	$nd,$nd
 
-		fmuld	$alo,$ba,$aloa
+		fmuld	$also,$ba,$aloa
 		fmuld	$nlo,$na,$nloa
-		fmuld	$alo,$bb,$alob
+		fmuld	$also,$bb,$alob
 		fmuld	$nlo,$nb,$nlob
-		fmuld	$alo,$bc,$aloc
+		fmuld	$also,$bc,$aloc
 	faddd	$aloa,$nloa,$nloa
 		fmuld	$nlo,$nc,$nloc
-		fmuld	$alo,$bd,$alod
+		fmuld	$also,$bd,$alod
 	faddd	$alob,$nlob,$nlob
 		fmuld	$nlo,$nd,$nlod
 		fmuld	$ahi,$ba,$ahia
@@ -261,7 +261,7 @@ $fname:
 	faddd	$ahib,$nhib,$nhib
 		fmuld	$nhi,$nd,$nhid
 
-	faddd	$ahic,$nhic,$dota	! $nhic
+	faddd	$ahic,$nhic,$data	! $nhic
 	faddd	$ahid,$nhid,$dotb	! $nhid
 
 	faddd	$nloc,$nhia,$nloc
@@ -281,7 +281,7 @@ $fname:
 	std	$nlod,[%sp+$bias+$frame+24]
 
 	ld	[%o4+0],$alo_	! load a[j] as pair of 32-bit words
-	fzeros	$alo
+	fzeros	$also
 	ld	[%o4+4],$ahi_
 	fzeros	$ahi
 	ld	[%o5+0],$nlo_	! load n[j] as pair of 32-bit words
@@ -289,30 +289,30 @@ $fname:
 	ld	[%o5+4],$nhi_
 	fzeros	$nhi
 
-	fxtod	$alo,$alo
+	fxtod	$also,$also
 	fxtod	$ahi,$ahi
 	fxtod	$nlo,$nlo
 	fxtod	$nhi,$nhi
 
 	ldx	[%sp+$bias+$frame+0],%o0
-		fmuld	$alo,$ba,$aloa
+		fmuld	$also,$ba,$aloa
 	ldx	[%sp+$bias+$frame+8],%o1
 		fmuld	$nlo,$na,$nloa
 	ldx	[%sp+$bias+$frame+16],%o2
-		fmuld	$alo,$bb,$alob
+		fmuld	$also,$bb,$alob
 	ldx	[%sp+$bias+$frame+24],%o3
 		fmuld	$nlo,$nb,$nlob
 
 	srlx	%o0,16,%o7
-	std	$alo,[$ap_l+$j]		! save smashed ap[j] in double format
-		fmuld	$alo,$bc,$aloc
+	std	$also,[$ap_l+$j]		! save smashed ap[j] in double format
+		fmuld	$also,$bc,$aloc
 	add	%o7,%o1,%o1
 	std	$ahi,[$ap_h+$j]
 		faddd	$aloa,$nloa,$nloa
 		fmuld	$nlo,$nc,$nloc
 	srlx	%o1,16,%o7
 	std	$nlo,[$np_l+$j]		! save smashed np[j] in double format
-		fmuld	$alo,$bd,$alod
+		fmuld	$also,$bd,$alod
 	add	%o7,%o2,%o2
 	std	$nhi,[$np_h+$j]
 		faddd	$alob,$nlob,$nlob
@@ -343,9 +343,9 @@ $fname:
 	faddd	$ahib,$nhib,$nhib
 		fmuld	$nhi,$nd,$nhid
 
-	faddd	$dota,$nloa,$nloa
+	faddd	$data,$nloa,$nloa
 	faddd	$dotb,$nlob,$nlob
-	faddd	$ahic,$nhic,$dota	! $nhic
+	faddd	$ahic,$nhic,$data	! $nhic
 	faddd	$ahid,$nhid,$dotb	! $nhid
 
 	faddd	$nloc,$nhia,$nloc
@@ -368,7 +368,7 @@ $fname:
 	add	$ap,$j,%o4
 	add	$np,$j,%o5
 	ld	[%o4+0],$alo_	! load a[j] as pair of 32-bit words
-	fzeros	$alo
+	fzeros	$also
 	ld	[%o4+4],$ahi_
 	fzeros	$ahi
 	ld	[%o5+0],$nlo_	! load n[j] as pair of 32-bit words
@@ -376,30 +376,30 @@ $fname:
 	ld	[%o5+4],$nhi_
 	fzeros	$nhi
 
-	fxtod	$alo,$alo
+	fxtod	$also,$also
 	fxtod	$ahi,$ahi
 	fxtod	$nlo,$nlo
 	fxtod	$nhi,$nhi
 
 	ldx	[%sp+$bias+$frame+0],%o0
-		fmuld	$alo,$ba,$aloa
+		fmuld	$also,$ba,$aloa
 	ldx	[%sp+$bias+$frame+8],%o1
 		fmuld	$nlo,$na,$nloa
 	ldx	[%sp+$bias+$frame+16],%o2
-		fmuld	$alo,$bb,$alob
+		fmuld	$also,$bb,$alob
 	ldx	[%sp+$bias+$frame+24],%o3
 		fmuld	$nlo,$nb,$nlob
 
 	srlx	%o0,16,%o7
-	std	$alo,[$ap_l+$j]		! save smashed ap[j] in double format
-		fmuld	$alo,$bc,$aloc
+	std	$also,[$ap_l+$j]		! save smashed ap[j] in double format
+		fmuld	$also,$bc,$aloc
 	add	%o7,%o1,%o1
 	std	$ahi,[$ap_h+$j]
 		faddd	$aloa,$nloa,$nloa
 		fmuld	$nlo,$nc,$nloc
 	srlx	%o1,16,%o7
 	std	$nlo,[$np_l+$j]		! save smashed np[j] in double format
-		fmuld	$alo,$bd,$alod
+		fmuld	$also,$bd,$alod
 	add	%o7,%o2,%o2
 	std	$nhi,[$np_h+$j]
 		faddd	$alob,$nlob,$nlob
@@ -428,7 +428,7 @@ $fname:
 		faddd	$ahib,$nhib,$nhib
 		fmuld	$nhi,$nd,$nhid
 	addcc	%g1,%o0,%o0
-		faddd	$dota,$nloa,$nloa
+		faddd	$data,$nloa,$nloa
 	srlx	%o3,16,%g1		! 34-bit carry
 		faddd	$dotb,$nlob,$nlob
 	bcs,a	%xcc,.+8
@@ -436,7 +436,7 @@ $fname:
 
 	stx	%o0,[$tp]		! tp[j-1]=
 
-	faddd	$ahic,$nhic,$dota	! $nhic
+	faddd	$ahic,$nhic,$data	! $nhic
 	faddd	$ahid,$nhid,$dotb	! $nhid
 
 	faddd	$nloc,$nhia,$nloc
@@ -457,7 +457,7 @@ $fname:
 	add	$tp,8,$tp
 
 .L1stskip:
-	fdtox	$dota,$dota
+	fdtox	$data,$data
 	fdtox	$dotb,$dotb
 
 	ldx	[%sp+$bias+$frame+0],%o0
@@ -466,7 +466,7 @@ $fname:
 	ldx	[%sp+$bias+$frame+24],%o3
 
 	srlx	%o0,16,%o7
-	std	$dota,[%sp+$bias+$frame+32]
+	std	$data,[%sp+$bias+$frame+32]
 	add	%o7,%o1,%o1
 	std	$dotb,[%sp+$bias+$frame+40]
 	srlx	%o1,16,%o7
@@ -545,7 +545,7 @@ $fname:
 	fxtod	$bc,$bc
 	ldda	[%sp+$bias+$frame+0]%asi,$nd
 	fxtod	$bd,$bd
-	ldd	[$ap_l+$j],$alo		! load a[j] in double format
+	ldd	[$ap_l+$j],$also		! load a[j] in double format
 	fxtod	$na,$na
 	ldd	[$ap_h+$j],$ahi
 	fxtod	$nb,$nb
@@ -554,14 +554,14 @@ $fname:
 	ldd	[$np_h+$j],$nhi
 	fxtod	$nd,$nd
 
-		fmuld	$alo,$ba,$aloa
+		fmuld	$also,$ba,$aloa
 		fmuld	$nlo,$na,$nloa
-		fmuld	$alo,$bb,$alob
+		fmuld	$also,$bb,$alob
 		fmuld	$nlo,$nb,$nlob
-		fmuld	$alo,$bc,$aloc
+		fmuld	$also,$bc,$aloc
 	faddd	$aloa,$nloa,$nloa
 		fmuld	$nlo,$nc,$nloc
-		fmuld	$alo,$bd,$alod
+		fmuld	$also,$bd,$alod
 	faddd	$alob,$nlob,$nlob
 		fmuld	$nlo,$nd,$nlod
 		fmuld	$ahi,$ba,$ahia
@@ -577,7 +577,7 @@ $fname:
 	faddd	$ahib,$nhib,$nhib
 		fmuld	$nhi,$nd,$nhid
 
-	faddd	$ahic,$nhic,$dota	! $nhic
+	faddd	$ahic,$nhic,$data	! $nhic
 	faddd	$ahid,$nhid,$dotb	! $nhid
 
 	faddd	$nloc,$nhia,$nloc
@@ -594,21 +594,21 @@ $fname:
 	add	$j,8,$j
 	std	$nlod,[%sp+$bias+$frame+24]
 
-	ldd	[$ap_l+$j],$alo		! load a[j] in double format
+	ldd	[$ap_l+$j],$also		! load a[j] in double format
 	ldd	[$ap_h+$j],$ahi
 	ldd	[$np_l+$j],$nlo		! load n[j] in double format
 	ldd	[$np_h+$j],$nhi
 
-		fmuld	$alo,$ba,$aloa
+		fmuld	$also,$ba,$aloa
 		fmuld	$nlo,$na,$nloa
-		fmuld	$alo,$bb,$alob
+		fmuld	$also,$bb,$alob
 		fmuld	$nlo,$nb,$nlob
-		fmuld	$alo,$bc,$aloc
+		fmuld	$also,$bc,$aloc
 	ldx	[%sp+$bias+$frame+0],%o0
 		faddd	$aloa,$nloa,$nloa
 		fmuld	$nlo,$nc,$nloc
 	ldx	[%sp+$bias+$frame+8],%o1
-		fmuld	$alo,$bd,$alod
+		fmuld	$also,$bd,$alod
 	ldx	[%sp+$bias+$frame+16],%o2
 		faddd	$alob,$nlob,$nlob
 		fmuld	$nlo,$nd,$nlod
@@ -637,12 +637,12 @@ $fname:
 		faddd	$ahib,$nhib,$nhib
 		fmuld	$nhi,$nd,$nhid
 	sllx	%o1,16,%o1
-		faddd	$dota,$nloa,$nloa
+		faddd	$data,$nloa,$nloa
 	sllx	%o2,32,%o2
 		faddd	$dotb,$nlob,$nlob
 	sllx	%o3,48,%o7
 	or	%o1,%o0,%o0
-		faddd	$ahic,$nhic,$dota	! $nhic
+		faddd	$ahic,$nhic,$data	! $nhic
 	or	%o2,%o0,%o0
 		faddd	$ahid,$nhid,$dotb	! $nhid
 	or	%o7,%o0,%o0		! 64-bit result
@@ -671,21 +671,21 @@ $fname:
 	nop
 .align	32
 .Linner:
-	ldd	[$ap_l+$j],$alo		! load a[j] in double format
+	ldd	[$ap_l+$j],$also		! load a[j] in double format
 	ldd	[$ap_h+$j],$ahi
 	ldd	[$np_l+$j],$nlo		! load n[j] in double format
 	ldd	[$np_h+$j],$nhi
 
-		fmuld	$alo,$ba,$aloa
+		fmuld	$also,$ba,$aloa
 		fmuld	$nlo,$na,$nloa
-		fmuld	$alo,$bb,$alob
+		fmuld	$also,$bb,$alob
 		fmuld	$nlo,$nb,$nlob
-		fmuld	$alo,$bc,$aloc
+		fmuld	$also,$bc,$aloc
 	ldx	[%sp+$bias+$frame+0],%o0
 		faddd	$aloa,$nloa,$nloa
 		fmuld	$nlo,$nc,$nloc
 	ldx	[%sp+$bias+$frame+8],%o1
-		fmuld	$alo,$bd,$alod
+		fmuld	$also,$bd,$alod
 	ldx	[%sp+$bias+$frame+16],%o2
 		faddd	$alob,$nlob,$nlob
 		fmuld	$nlo,$nd,$nlod
@@ -713,12 +713,12 @@ $fname:
 		faddd	$ahib,$nhib,$nhib
 		fmuld	$nhi,$nd,$nhid
 	sllx	%o1,16,%o1
-		faddd	$dota,$nloa,$nloa
+		faddd	$data,$nloa,$nloa
 	sllx	%o2,32,%o2
 		faddd	$dotb,$nlob,$nlob
 	sllx	%o3,48,%o7
 	or	%o1,%o0,%o0
-		faddd	$ahic,$nhic,$dota	! $nhic
+		faddd	$ahic,$nhic,$data	! $nhic
 	or	%o2,%o0,%o0
 		faddd	$ahid,$nhid,$dotb	! $nhid
 	or	%o7,%o0,%o0		! 64-bit result
@@ -748,7 +748,7 @@ $fname:
 	add	$tp,8,$tp
 
 .Linnerskip:
-	fdtox	$dota,$dota
+	fdtox	$data,$data
 	fdtox	$dotb,$dotb
 
 	ldx	[%sp+$bias+$frame+0],%o0
@@ -757,7 +757,7 @@ $fname:
 	ldx	[%sp+$bias+$frame+24],%o3
 
 	srlx	%o0,16,%o7
-	std	$dota,[%sp+$bias+$frame+32]
+	std	$data,[%sp+$bias+$frame+32]
 	add	%o7,%o1,%o1
 	std	$dotb,[%sp+$bias+$frame+40]
 	srlx	%o1,16,%o7

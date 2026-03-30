@@ -218,12 +218,12 @@ function() {
   return this.map(o => o.constructor.name + ',' + typeof o).sort();
 }`;
 
-async function queryObjects(sesion, prototypeObjectId, name) {
-  let {result:{objects}} = await sesion.Protocol.Runtime.queryObjects({
+async function queryObjects(session, prototypeObjectId, name) {
+  let {result:{objects}} = await session.Protocol.Runtime.queryObjects({
     prototypeObjectId
   });
   InspectorTest.log(`Query objects with ${name} prototype.`);
-  let {result:{result:{value}}} = await sesion.Protocol.Runtime.callFunctionOn({
+  let {result:{result:{value}}} = await session.Protocol.Runtime.callFunctionOn({
     objectId: objects.objectId,
     functionDeclaration: constructorsNameFunction,
     returnByValue: true

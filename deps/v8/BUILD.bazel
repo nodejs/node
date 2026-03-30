@@ -312,7 +312,7 @@ config_setting(
     },
 )
 
-# Explicity defined v8_enable_pointer_compression.
+# Explicitly defined v8_enable_pointer_compression.
 config_setting(
     name = "v8_enable_pointer_compression_is_true",
     flag_values = {
@@ -407,7 +407,7 @@ config_setting(
     },
 )
 
-# Explicity defined v8_enable_pointer_compression.
+# Explicitly defined v8_enable_pointer_compression.
 config_setting(
     name = "v8_enable_short_builtin_calls_is_true",
     flag_values = {
@@ -415,7 +415,7 @@ config_setting(
     },
 )
 
-# Explicity defined v8_enable_static_roots
+# Explicitly defined v8_enable_static_roots
 config_setting(
     name = "v8_enable_static_roots_is_true",
     flag_values = {
@@ -3711,7 +3711,7 @@ filegroup(
         "//conditions:default": [],
     }) + select({
         # Turboshaft's Maglev graph builder needs some Maglev files. We only
-        # include them explicitely when Maglev is disabled.
+        # include them explicitly when Maglev is disabled.
         ":enable_maglev": [],
         "//conditions:default": [
             "src/maglev/maglev-basic-block.h",

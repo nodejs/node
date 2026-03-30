@@ -848,7 +848,7 @@ added: v24.5.0
     lock is not already held. If it cannot be granted, `callback` will be
     invoked with `null` instead of a `Lock` instance. **Default:** `false`.
   * `steal` {boolean} If `true`, any existing locks with the same name are
-    released and the request is granted immediately, pre-empting any queued
+    released and the request is granted immediately, preempting any queued
     requests. **Default:** `false`.
   * `signal` {AbortSignal} that can be used to abort a
     pending (but not yet granted) lock request.

@@ -1,7 +1,7 @@
 //! Extension trait for full float functionality in `#[no_std]` backed by [`libm`].
 //!
 //! Method signatures, implementation, and documentation are copied from as `std` 1.72,
-//! with calls to instrinsics replaced by their `libm` equivalents.
+//! with calls to intrinsics replaced by their `libm` equivalents.
 //!
 //! # Usage
 //! ```rust
@@ -183,7 +183,7 @@ pub trait CoreFloat: Sized + Copy {
     ///
     /// Using `mul_add` *may* be more performant than an unfused multiply-add if
     /// the target architecture has a dedicated `fma` CPU instruction. However,
-    /// this is not always true, and will be heavily dependant on designing
+    /// this is not always true, and will be heavily dependent on designing
     /// algorithms with specific target hardware in mind.
     ///
     /// This implementation uses `libm` instead of the Rust intrinsic.

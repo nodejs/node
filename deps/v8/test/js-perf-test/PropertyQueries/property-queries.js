@@ -169,14 +169,14 @@ function MakeKeyQueries(keys, query_kind) {
 
 var TestData = [];
 
-[true, false].forEach((cachable) => {
+[true, false].forEach((cacheable) => {
   [OBJ_MODE_FAST, OBJ_MODE_SLOW].forEach((obj_mode) => {
-    var proto_mode = cachable ? "" : "-with-slow-proto";
+    var proto_mode = cacheable ? "" : "-with-slow-proto";
     var name = `${obj_mode}-obj${proto_mode}`;
     var objects = [];
     [10, 50, 100, 200, 500].forEach((prop_count) => {
       // Create object with prop_count properties and prop_count elements.
-      obj = ObjectWithProtoKeys(5, prop_count * 2, cachable,
+      obj = ObjectWithProtoKeys(5, prop_count * 2, cacheable,
                                 ObjectWithMixedKeys);
       if (obj_mode == OBJ_MODE_SLOW) {
         obj = MakeDictionaryMode(obj);

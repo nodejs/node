@@ -62,7 +62,7 @@ template <typename... B, size_t I>
 struct Elem<CompressedTuple<B...>, I>
     : std::tuple_element<I, std::tuple<B...>> {};
 template <typename D, size_t I>
-using ElemT = typename Elem<D, I>::type;
+using element = typename Elem<D, I>::type;
 
 
 template <typename T>
@@ -208,11 +208,11 @@ class ABSL_INTERNAL_COMPRESSED_TUPLE_DECLSPEC CompressedTuple
           internal_compressed_tuple::ShouldAnyUseBase<Ts...>()> {
  private:
   template <int I>
-  using ElemT = internal_compressed_tuple::ElemT<CompressedTuple, I>;
+  using element = internal_compressed_tuple::element<CompressedTuple, I>;
 
   template <int I>
   using StorageT = internal_compressed_tuple::Storage<
-      ElemT<I>, I, internal_compressed_tuple::StorageTag<Ts...>>;
+      element<I>, I, internal_compressed_tuple::StorageTag<Ts...>>;
 
  public:
   // There seems to be a bug in MSVC dealing in which using '=default' here will
@@ -241,22 +241,22 @@ class ABSL_INTERNAL_COMPRESSED_TUPLE_DECLSPEC CompressedTuple
                                              std::forward<Vs>(base)...) {}
 
   template <int I>
-  constexpr ElemT<I>& get() & {
+  constexpr element<I>& get() & {
     return StorageT<I>::get();
   }
 
   template <int I>
-  constexpr const ElemT<I>& get() const& {
+  constexpr const element<I>& get() const& {
     return StorageT<I>::get();
   }
 
   template <int I>
-  constexpr ElemT<I>&& get() && {
+  constexpr element<I>&& get() && {
     return std::move(*this).StorageT<I>::get();
   }
 
   template <int I>
-  constexpr const ElemT<I>&& get() const&& {
+  constexpr const element<I>&& get() const&& {
     return std::move(*this).StorageT<I>::get();
   }
 };

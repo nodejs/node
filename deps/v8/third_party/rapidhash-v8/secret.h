@@ -27,7 +27,7 @@
  * author: 王一 Wang Yi <godspeed_china@yeah.net>
  * contributors: Reini Urban, Dietrich Epp, Joshua Haberman, Tommy Ettinger,
  * Daniel Lemire, Otmar Ertl, cocowalla, leo-yuriev, Diego Barrios Romero,
- * paulie-g, dumblob, Yann Collet, ivte-ms, hyb, James Z.M. Gao, easyaspi314
+ * paulie-g, dumblob, Yann Collect, ivte-ms, hyb, James Z.M. Gao, easyaspi314
  * (Devin), TheOneric
  */
 

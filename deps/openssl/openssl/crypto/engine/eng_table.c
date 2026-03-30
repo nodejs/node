@@ -24,7 +24,7 @@ struct st_engine_pile {
     /*
      * Zero if 'sk' is newer than the cached 'funct', non-zero otherwise
      */
-    int uptodate;
+    int up-to-date;
 };
 
 /* The type exposed in eng_local.h */
@@ -106,7 +106,7 @@ int engine_table_register(ENGINE_TABLE **table, ENGINE_CLEANUP_CB *cleanup,
             fnd = OPENSSL_malloc(sizeof(*fnd));
             if (fnd == NULL)
                 goto end;
-            fnd->uptodate = 1;
+            fnd->up-to-date = 1;
             fnd->nid = *nids;
             fnd->sk = sk_ENGINE_new_null();
             if (!fnd->sk) {
@@ -129,7 +129,7 @@ int engine_table_register(ENGINE_TABLE **table, ENGINE_CLEANUP_CB *cleanup,
         if (!sk_ENGINE_push(fnd->sk, e))
             goto end;
         /* "touch" this ENGINE_PILE */
-        fnd->uptodate = 0;
+        fnd->up-to-date = 0;
         if (setdefault) {
             if (!engine_unlocked_init(e)) {
                 ERR_raise(ERR_LIB_ENGINE, ENGINE_R_INIT_FAILED);
@@ -138,7 +138,7 @@ int engine_table_register(ENGINE_TABLE **table, ENGINE_CLEANUP_CB *cleanup,
             if (fnd->funct)
                 engine_unlocked_finish(fnd->funct, 0);
             fnd->funct = e;
-            fnd->uptodate = 1;
+            fnd->up-to-date = 1;
         }
         nids++;
     }
@@ -154,7 +154,7 @@ static void int_unregister_cb(ENGINE_PILE *pile, ENGINE *e)
     /* Iterate the 'c->sk' stack removing any occurrence of 'e' */
     while ((n = sk_ENGINE_find(pile->sk, e)) >= 0) {
         (void)sk_ENGINE_delete(pile->sk, n);
-        pile->uptodate = 0;
+        pile->up-to-date = 0;
     }
     if (pile->funct == e) {
         engine_unlocked_finish(e, 0);
@@ -237,7 +237,7 @@ ENGINE *ossl_engine_table_select(ENGINE_TABLE **table, int nid,
         ret = fnd->funct;
         goto end;
     }
-    if (fnd->uptodate) {
+    if (fnd->up-to-date) {
         ret = fnd->funct;
         goto end;
     }
@@ -278,7 +278,7 @@ end:
      * registrations have taken place. In all cases, we cache.
      */
     if (fnd)
-        fnd->uptodate = 1;
+        fnd->up-to-date = 1;
     if (ret)
         OSSL_TRACE4(ENGINE_TABLE,
             "%s:%d, nid=%d, caching ENGINE '%s'\n",

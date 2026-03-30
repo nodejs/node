@@ -899,7 +899,7 @@ Response V8DebuggerAgentImpl::getPossibleBreakpoints(
     int contextId = it->second->executionContextId();
     InspectedContext* inspected = m_inspector->getContext(contextId);
     if (!inspected) {
-      return Response::ServerError("Cannot retrive script context");
+      return Response::ServerError("Cannot retrieve script context");
     }
     v8::Context::Scope contextScope(inspected->context());
     v8::MicrotasksScope microtasks(inspected->context(),

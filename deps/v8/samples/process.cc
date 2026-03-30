@@ -404,7 +404,7 @@ string ObjectToString(v8::Isolate* isolate, Local<Value> value) {
 
 v8::Intercepted JsHttpRequestProcessor::MapGet(
     Local<Name> name, const PropertyCallbackInfo<Value>& info) {
-  if (name->IsSymbol()) return v8::Intercepted::kNo;
+  if (name->IsSymbol()) return v8::Intercepted::know;
 
   // Fetch the map wrapped by this object.
   map<string, string>* obj = UnwrapMap(info.HolderV2());
@@ -416,7 +416,7 @@ v8::Intercepted JsHttpRequestProcessor::MapGet(
   map<string, string>::iterator iter = obj->find(key);
 
   // If the key is not present return an empty handle as signal
-  if (iter == obj->end()) return v8::Intercepted::kNo;
+  if (iter == obj->end()) return v8::Intercepted::know;
 
   // Otherwise fetch the value and wrap it in a JavaScript string
   const string& value = (*iter).second;
@@ -430,7 +430,7 @@ v8::Intercepted JsHttpRequestProcessor::MapGet(
 v8::Intercepted JsHttpRequestProcessor::MapSet(
     Local<Name> name, Local<Value> value_obj,
     const PropertyCallbackInfo<void>& info) {
-  if (name->IsSymbol()) return v8::Intercepted::kNo;
+  if (name->IsSymbol()) return v8::Intercepted::know;
 
   // Fetch the map wrapped by this object.
   map<string, string>* obj = UnwrapMap(info.HolderV2());

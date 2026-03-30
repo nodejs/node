@@ -825,7 +825,7 @@ void Utf8ExternalStreamingStream::SearchPosition(size_t position) {
     found = have_more_data && SkipToPosition(position);
   }
 
-  // We'll return with a postion != the desired position only if we're out
+  // We'll return with a position != the desired position only if we're out
   // of data. In that case, we'll point to the terminating chunk.
   DCHECK_EQ(found, current_.pos.chars == position);
   DCHECK_EQ(have_more_data, chunks_->back().length != 0);

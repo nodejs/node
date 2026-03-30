@@ -71,7 +71,7 @@ assertEquals(1, String.prototype.indexOf.length);
 var twoByteString = "\u039a\u0391\u03a3\u03a3\u0395";
 
 // Test single char pattern
-assertEquals(0, twoByteString.indexOf("\u039a"), "Lamda");
+assertEquals(0, twoByteString.indexOf("\u039a"), "Lambda");
 assertEquals(1, twoByteString.indexOf("\u0391"), "Alpha");
 assertEquals(2, twoByteString.indexOf("\u03a3"), "First Sigma");
 assertEquals(3, twoByteString.indexOf("\u03a3",3), "Second Sigma");

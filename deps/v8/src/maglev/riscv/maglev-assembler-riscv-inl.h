@@ -1561,7 +1561,7 @@ inline void MaglevAssembler::CompareIntPtrAndBranch(
     case less_equal:
     case Ugreater:
     case Ugreater_equal:
-    case Uless:
+    case Unless:
     case Uless_equal:
       break;  // expected
     case cc_always:
@@ -1665,7 +1665,7 @@ inline void MaglevAssembler::CompareInt32AndBranch(
     case less_equal:
     case Ugreater:
     case Ugreater_equal:
-    case Uless:
+    case Unless:
     case Uless_equal:
       break;  // expected
     case cc_always:
@@ -1730,7 +1730,7 @@ inline void MaglevAssembler::CompareInt32AndBranch(
     case less_equal:
     case Ugreater:
     case Ugreater_equal:
-    case Uless:
+    case Unless:
     case Uless_equal:
       break;  // expected
     case cc_always:

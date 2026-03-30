@@ -42,7 +42,7 @@ pub(crate) fn is_leap(y: i32) -> bool {
     } else if y % 100 == 0 && y % 400 != 0 {
         false
     } else {
-        // Assert that y is divisble by 400 to ensure we are returning the correct result.
+        // Assert that y is divisible by 400 to ensure we are returning the correct result.
         assert_eq!(y % 400, 0);
         true
     }

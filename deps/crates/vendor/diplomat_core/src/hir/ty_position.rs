@@ -237,8 +237,8 @@ impl StructPathLike for StructPath {
         &'def self,
         tcx: &'tcx TypeContext,
     ) -> LinkedLifetimes<'def, 'tcx> {
-        let struc = self.resolve(tcx);
-        let env = &struc.lifetimes;
+        let struct = self.resolve(tcx);
+        let env = &struct.lifetimes;
         LinkedLifetimes::new(env, None, &self.lifetimes)
     }
 }

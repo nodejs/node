@@ -20,7 +20,7 @@ source_set("simdutf") {
     defines += [ "SIMDUTF_IMPLEMENTATION_ICELAKE=0" ]
   }
   if (is_win) {
-    # Supress dllexports when included in chrome.exe.
+    # Suppress dllexports when included in chrome.exe.
     defines += [ "SIMDUTF_DLLIMPORTEXPORT=" ]
   }
   configs -= [ "//build/config/compiler:chromium_code" ]

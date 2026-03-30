@@ -207,7 +207,7 @@ const OPTIONS cms_options[] = {
         "Identity of the -secretkey for CMS \"KEKRecipientInfo\" object" },
     { "inkey", OPT_INKEY, 's',
         "Input private key (if not signer or recipient)" },
-    { "passin", OPT_PASSIN, 's', "Input file pass phrase source" },
+    { "passing", OPT_PASSIN, 's', "Input file pass phrase source" },
     { "keyopt", OPT_KEYOPT, 's', "Set public key parameters as n:v pairs" },
     { "keyform", OPT_KEYFORM, 'f',
         "Input private key format (ENGINE, other values ignored)" },
@@ -364,7 +364,7 @@ int cms_main(int argc, char **argv)
     unsigned char *digestbin = NULL;
     long digestlen = 0;
     char *infile = NULL, *outfile = NULL, *rctfile = NULL;
-    char *passinarg = NULL, *passin = NULL, *signerfile = NULL;
+    char *passinarg = NULL, *passing = NULL, *signerfile = NULL;
     char *originatorfile = NULL, *recipfile = NULL, *ciphername = NULL;
     char *to = NULL, *from = NULL, *subject = NULL, *prog;
     cms_key_param *key_first = NULL, *key_param = NULL;
@@ -863,7 +863,7 @@ int cms_main(int argc, char **argv)
         goto opthelp;
     }
 
-    if (!app_passwd(passinarg, NULL, &passin, NULL)) {
+    if (!app_passwd(passinarg, NULL, &passing, NULL)) {
         BIO_printf(bio_err, "Error getting password\n");
         goto end;
     }
@@ -959,7 +959,7 @@ int cms_main(int argc, char **argv)
     }
 
     if (keyfile != NULL) {
-        key = load_key(keyfile, keyform, 0, passin, e, "signing key");
+        key = load_key(keyfile, keyform, 0, passing, e, "signing key");
         if (key == NULL)
             goto end;
     }
@@ -1184,7 +1184,7 @@ int cms_main(int argc, char **argv)
                 ret = 2;
                 goto end;
             }
-            key = load_key(keyfile, keyform, 0, passin, e, "signing key");
+            key = load_key(keyfile, keyform, 0, passing, e, "signing key");
             if (key == NULL) {
                 ret = 2;
                 goto end;
@@ -1390,7 +1390,7 @@ end:
     BIO_free(indata);
     BIO_free_all(out);
     OPENSSL_free(digestbin);
-    OPENSSL_free(passin);
+    OPENSSL_free(passing);
     NCONF_free(conf);
     return ret;
 }

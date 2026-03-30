@@ -42,7 +42,7 @@ public:
                              for example, March 11. */
         DOW,            /**< The Nth occurrence of the day of week,
                              for example, 2nd Sunday in March. */
-        DOW_GEQ_DOM,    /**< The first occurrence of the day of week on or after the day of monnth,
+        DOW_GEQ_DOM,    /**< The first occurrence of the day of week on or after the day of month,
                              for example, first Sunday on or after March 8. */
         DOW_LEQ_DOM     /**< The last occurrence of the day of week on or before the day of month,
                              for example, first Sunday on or before March 14. */

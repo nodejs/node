@@ -95,7 +95,7 @@ class NumberMutator extends mutator.Mutator {
           return;
         }
 
-        // Enfore positive numbers if the literal is the key of an object
+        // Enforce positive numbers if the literal is the key of an object
         // property or method. Negative keys cause syntax errors.
         // TODO(389069288): We also enforce a positive base for
         // exponentiations as stand-alone negative numbers cause syntax errors.

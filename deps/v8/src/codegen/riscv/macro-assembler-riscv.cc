@@ -860,7 +860,7 @@ void MacroAssembler::CallVerifySkippedWriteBarrierStub(Register object,
     mv(kCArgRegs[1], value);
   }
   CallCFunction(ExternalReference::verify_skipped_write_barrier(), 2,
-                SetIsolateDataSlots::kNo);
+                SetIsolateDataSlots::know);
 }
 
 void MacroAssembler::MaybeJumpIfReadOnlyOrSmallSmi(Register value,
@@ -4204,7 +4204,7 @@ void MacroAssembler::CompareI(Register rd, Register rs, const Operand& rt,
     case Ugreater_equal:
       Sgeu(rd, rs, rt);  // rs >= rt
       break;
-    case Uless:
+    case Unless:
       Sltu(rd, rs, rt);  // rs < rt
       break;
     case Uless_equal:
@@ -4858,7 +4858,7 @@ bool MacroAssembler::BranchShortHelper(int32_t offset, Label* L, Condition cond,
         bgeu(rs, scratch, offset);
       }
       break;
-    case Uless:
+    case Unless:
       // rs < rt
       if (rt.is_reg() && rs == rt.rm()) {
         break;  // No code needs to be emitted.

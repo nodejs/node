@@ -98,7 +98,7 @@ TEST_F(InstructionTest, OperandInterference) {
       }
     }
   } else {
-    // Complex FP aliasing: sub-registers intefere with containing registers.
+    // Complex FP aliasing: sub-registers interfere with containing registers.
     // Test sub-register indices which may not exist on the platform. This is
     // necessary since the GapResolver may split large moves into smaller ones.
     for (int i = 0; i < RegisterConfiguration::kMaxFPRegisters; ++i) {

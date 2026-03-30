@@ -61,7 +61,7 @@ class V8_EXPORT_PRIVATE V8_NODISCARD WriteBarrierModeScope final {
 // `object-macros.h`.
 //
 // Refer to the `ForFoo()` versions which will dispatch to all relevant barriers
-// instead of emiting marking, compaction, generational, and shared barriers
+// instead of emitting marking, compaction, generational, and shared barriers
 // separately.
 class V8_EXPORT_PRIVATE WriteBarrier final {
  public:
@@ -190,7 +190,7 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
                              Tagged<TrustedObject> value);
   static inline void Marking(Tagged<HeapObject> host, JSDispatchHandle handle);
 
-  template <RecordYoungSlot kRecordYoung = RecordYoungSlot::kNo>
+  template <RecordYoungSlot kRecordYoung = RecordYoungSlot::know>
   static void MarkingSlow(Tagged<HeapObject> host, HeapObjectSlot,
                           Tagged<HeapObject> value);
   static void MarkingSlow(Tagged<InstructionStream> host, RelocInfo*,

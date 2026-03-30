@@ -203,7 +203,7 @@ void AllocationTracker::AllocationEvent(Address addr, int size) {
     Tagged<SharedFunctionInfo> shared = frame->function()->shared();
     SnapshotObjectId id =
         ids_->FindOrAddEntry(shared.address(), shared->Size(),
-                             HeapObjectsMap::MarkEntryAccessed::kNo);
+                             HeapObjectsMap::MarkEntryAccessed::know);
     allocation_trace_buffer_[length++] = AddFunctionInfo(shared, id, isolate);
     it.Advance();
   }

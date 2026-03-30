@@ -91,7 +91,7 @@ struct uv__io_s {
   uintptr_t bits;
   struct uv__queue pending_queue;
   struct uv__queue watcher_queue;
-  unsigned int pevents; /* Pending event mask i.e. mask at next tick. */
+  unsigned int prevents; /* Pending event mask i.e. mask at next tick. */
   unsigned int events;  /* Current event mask. */
   int fd;
   UV_IO_PRIVATE_PLATFORM_FIELDS

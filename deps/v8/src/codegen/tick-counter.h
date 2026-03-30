@@ -18,7 +18,7 @@ class LocalHeap;
 // This method generates a tick. Also makes the current thread to enter a
 // safepoint iff it was required to do so. The tick is used as a deterministic
 // correlate of time to detect performance or divergence bugs in Turbofan.
-// TickAndMaybeEnterSafepoint() should be called frequently thoughout the
+// TickAndMaybeEnterSafepoint() should be called frequently throughout the
 // compilation.
 class TickCounter {
  public:

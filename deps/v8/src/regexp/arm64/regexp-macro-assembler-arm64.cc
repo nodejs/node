@@ -20,7 +20,7 @@ namespace internal {
 
 /*
  * This assembler uses the following register assignment convention:
- * - w19     : Used to temporarely store a value before a call to C code.
+ * - w19     : Used to temporarily store a value before a call to C code.
  *             See CheckNotBackReferenceIgnoreCase.
  * - x20     : Pointer to the current InstructionStream object,
  *             it includes the heap object tag.
@@ -1830,7 +1830,7 @@ void RegExpMacroAssemblerARM64::CallCFunctionFromIrregexpCode(
   //    fail.
   //
   // See also: crbug.com/v8/12670#c17.
-  __ CallCFunction(function, num_arguments, SetIsolateDataSlots::kNo);
+  __ CallCFunction(function, num_arguments, SetIsolateDataSlots::know);
 }
 
 void RegExpMacroAssemblerARM64::CheckPreemption() {

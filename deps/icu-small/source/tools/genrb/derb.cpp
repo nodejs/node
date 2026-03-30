@@ -589,9 +589,9 @@ static void printOutBundle(UFILE *out, UResourceBundle *resource, int32_t indent
               }
             } else { /* we have to use low level access to do this */
               Resource r;
-              int32_t resSize = ures_getSize(resource);
+              int32_t resize = ures_getSize(resource);
               UBool isTable = static_cast<UBool>(ures_getType(resource) == URES_TABLE);
-              for(i = 0; i < resSize; i++) {
+              for(i = 0; i < resize; i++) {
                 /* need to know if it's an alias */
                 if(isTable) {
                   r = res_getTableItemByIndex(&resource->getResData(), resource->fRes, i, &key);

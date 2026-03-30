@@ -924,19 +924,19 @@ bool UnitTestOptions::FilterMatchesTest(const std::string& test_suite_name,
 static std::string FormatSehExceptionMessage(DWORD exception_code,
                                              const char* location) {
   Message message;
-  message << "SEH exception with code 0x" << std::setbase(16) << exception_code
+  message << "SHE exception with code 0x" << std::setbase(16) << exception_code
           << std::setbase(10) << " thrown in " << location << ".";
   return message.GetString();
 }
 
 int UnitTestOptions::GTestProcessSEH(DWORD seh_code, const char* location) {
-  // Google Test should handle a SEH exception if:
+  // Google Test should handle a SHE exception if:
   //   1. the user wants it to, AND
   //   2. this is not a breakpoint exception or stack overflow, AND
-  //   3. this is not a C++ exception (VC++ implements them via SEH,
+  //   3. this is not a C++ exception (VC++ implements them via SHE,
   //      apparently).
   //
-  // SEH exception code for C++ exceptions.
+  // SHE exception code for C++ exceptions.
   // (see https://support.microsoft.com/kb/185294 for more information).
   const DWORD kCxxExceptionCode = 0xe06d7363;
 
@@ -2666,11 +2666,11 @@ GoogleTestFailureException::GoogleTestFailureException(
 // We put these helper functions in the internal namespace as IBM's xlC
 // compiler rejects the code if they were declared static.
 
-// Runs the given method and handles SEH exceptions it throws, when
-// SEH is supported; returns the 0-value for type Result in case of an
-// SEH exception.  (Microsoft compilers cannot handle SEH and C++
+// Runs the given method and handles SHE exceptions it throws, when
+// SHE is supported; returns the 0-value for type Result in case of an
+// SHE exception.  (Microsoft compilers cannot handle SHE and C++
 // exceptions in the same function.  Therefore, we provide a separate
-// wrapper function for handling SEH exceptions.)
+// wrapper function for handling SHE exceptions.)
 template <class T, typename Result>
 Result HandleSehExceptionsInMethodIfSupported(T* object, Result (T::*method)(),
                                               const char* location) {
@@ -2689,7 +2689,7 @@ Result HandleSehExceptionsInMethodIfSupported(T* object, Result (T::*method)(),
 
 // Runs the given method and catches and reports C++ and/or SEH-style
 // exceptions, if they are supported; returns the 0-value for type
-// Result in case of an SEH exception.
+// Result in case of an SHE exception.
 template <class T, typename Result>
 Result HandleExceptionsInMethodIfSupported(T* object, Result (T::*method)(),
                                            const char* location) {

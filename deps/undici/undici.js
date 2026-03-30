@@ -979,7 +979,7 @@ var require_constants = __commonJS({
         "Date",
         "Device-Memory",
         "Downlink",
-        "ECT",
+        "ETC",
         "ETag",
         "Expect",
         "Expect-CT",

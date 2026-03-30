@@ -507,8 +507,8 @@ class V8_EXPORT_PRIVATE Pipeline {
   }
 
   bool CommitDependencies(Handle<Code> code) {
-    return data_->depedencies() == nullptr ||
-           data_->depedencies()->Commit(code);
+    return data_->dependencies() == nullptr ||
+           data_->dependencies()->Commit(code);
   }
 
  private:

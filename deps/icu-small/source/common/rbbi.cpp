@@ -833,7 +833,7 @@ int32_t RuleBasedBreakIterator::handleNext() {
             // Reached end of input string.
             if (mode == RBBI_END) {
                 // We have already run the loop one last time with the
-                //   character set to the psueudo {eof} value.  Now it is time
+                //   character set to the pseudo {eof} value.  Now it is time
                 //   to unconditionally bail out.
                 break;
             }

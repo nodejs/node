@@ -43,13 +43,13 @@ struct CallProbability {
 
   // There are a caller and a callee, we assume caller was invoked
   // "caller-count" times, it calls callee "call-count" times, the callee was
-  // invoked "callee-count" times. imcoming_ means the possibity the callee
-  // calls from caller, it was calculted by call-count / callee-count. If
+  // invoked "callee-count" times. imcoming_ means the possibility the callee
+  // calls from caller, it was calculated by call-count / callee-count. If
   // callee-count is 0 (may not be compiled by TurboFan or normalized as 0 due
   // to too small), we set imcoming_ as -1.
   int32_t incoming_;
-  // outgoing_ means the possibity the caller
-  // calls to callee, it was calculted by call-count / caller-count. If
+  // outgoing_ means the possibility the caller
+  // calls to callee, it was calculated by call-count / caller-count. If
   // caller-count is 0 (may not be compiled by TurboFan or normalized as 0 due
   // to too small), we set outgoing_ as -1. We didn't use outgoing_ as condition
   // for reordering builtins yet, but we could try to do some experiments with

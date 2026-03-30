@@ -165,7 +165,7 @@ dependencies.
 
 The container provides a durable copy of the versions of the tools
 used for a specific build which are under the control of the Node.js
-project. In addition, the tools and verions are documented through metadata
+project. In addition, the tools and versions are documented through metadata
 within the container in the `/home/node/metadata directory`.
 
 The available tools can be found by looking at the current version of the

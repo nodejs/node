@@ -90,7 +90,7 @@ public:
     int32_t findHiddenOverlay(const UnicodeString& input, UErrorCode& status) const;
     bool isIllegalCombiningDotLeadCharacter(UChar32 cp) const;
 
-    /** parse a hex number.  Untility used by the builders.   */
+    /** parse a hex number.  Utility used by the builders.   */
     static UChar32 ScanHex(const char16_t *s, int32_t start, int32_t limit, UErrorCode &status);
 
     static UClassID U_EXPORT2 getStaticClassID();

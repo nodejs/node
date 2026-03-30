@@ -1556,7 +1556,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return CallCFunction(function, return_type, {cargs...});
   }
 
-  // Call to a C function without a function discriptor on AIX.
+  // Call to a C function without a function descriptor on AIX.
   template <class... CArgs>
   Node* CallCFunctionWithoutFunctionDescriptor(Node* function,
                                                MachineType return_type,
@@ -1946,7 +1946,7 @@ class V8_EXPORT_PRIVATE V8_NODISCARD ScopedExceptionHandler {
   ScopedExceptionHandler(CodeAssembler* assembler,
                          CodeAssemblerExceptionHandlerLabel* label);
 
-  // Use this constructor for compatability/ports of old CSA code only. New code
+  // Use this constructor for compatibility/ports of old CSA code only. New code
   // should use the CodeAssemblerExceptionHandlerLabel version.
   ScopedExceptionHandler(CodeAssembler* assembler, CodeAssemblerLabel* label,
                          TypedCodeAssemblerVariable<Object>* exception);

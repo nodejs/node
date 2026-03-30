@@ -519,7 +519,7 @@ static void StoreCommands(BrotliTwoPassArena* s,
   }
 }
 
-/* Acceptable loss for uncompressible speedup is 2% */
+/* Acceptable loss for incompressible speedup is 2% */
 #define MIN_RATIO 0.98
 #define SAMPLE_RATE 43
 
@@ -586,7 +586,7 @@ static BROTLI_INLINE void BrotliCompressFragmentTwoPassImpl(
     } else {
       /* Since we did not find many backward references and the entropy of
          the data is close to 8 bits, we can simply emit an uncompressed block.
-         This makes compression speed of uncompressible data about 3x faster. */
+         This makes compression speed of incompressible data about 3x faster. */
       EmitUncompressedMetaBlock(input, block_size, storage_ix, storage);
     }
     input += block_size;

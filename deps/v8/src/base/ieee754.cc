@@ -372,7 +372,7 @@ V8_INLINE double __kernel_cos(double x, double y) {
  *                      64-bit  precision       2
  *                      113-bit precision       3
  *              The actual value is the sum of them. Thus for 113-bit
- *              precison, one may have to do something like:
+ *              precision, one may have to do something like:
  *
  *              long double t,w,r_head, r_tail;
  *              t = (long double)y[2] + (long double)y[1];
@@ -1586,7 +1586,7 @@ double atanh(double x) {
 }
 
 /* log(x)
- * Return the logrithm of x
+ * Return the logarithm of x
  *
  * Method :
  *   1. Argument Reduction: find k and f such that

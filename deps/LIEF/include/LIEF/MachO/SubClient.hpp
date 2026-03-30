@@ -31,7 +31,7 @@ struct sub_client_command;
 }
 
 /// Class that represents the SubClient command.
-/// Accodring to the Mach-O `loader.h` documentation:
+/// According to the Mach-O `loader.h` documentation:
 ///
 /// > For dynamically linked shared libraries that are subframework of an umbrella
 /// > framework they can allow clients other than the umbrella framework or other

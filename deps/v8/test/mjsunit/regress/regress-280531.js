@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-var contextA = Realm.create();
-var date1 = Realm.eval(contextA, "new Date('Thu, 29 Aug 2013 00:00:00 UTC')");
+var context = Realm.create();
+var date1 = Realm.eval(context, "new Date('Thu, 29 Aug 2013 00:00:00 UTC')");
 new Date('Thu, 29 Aug 2013 00:00:01 UTC');
-var date2 = Realm.eval(contextA, "new Date('Thu, 29 Aug 2013 00:00:00 UTC')");
+var date2 = Realm.eval(context, "new Date('Thu, 29 Aug 2013 00:00:00 UTC')");
 assertEquals(date1, date2);

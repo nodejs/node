@@ -253,7 +253,7 @@ class LIEF_API LoadConfiguration : public Object {
     return se_handler_count_;
   }
 
-  /// Return the list of the function RVA in the SEH table (if any)
+  /// Return the list of the function RVA in the SHE table (if any)
   const std::vector<uint32_t>& seh_functions() const {
     return seh_rva_;
   }

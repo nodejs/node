@@ -4,7 +4,7 @@
 // have to get `bindgen` working themselves.
 //
 // If bindgen or ittapi.h or jitprofiling.h change you can run tests with
-// `BLESS=1` (inpired by a similiar pach for binaryen) to regenerate the
+// `BLESS=1` (inpired by a similar pach for binaryen) to regenerate the
 // source files, otherwise this can test on CI that the file doesn't need
 // to be regenerated.
 

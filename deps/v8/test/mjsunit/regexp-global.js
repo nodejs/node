@@ -36,11 +36,11 @@ str = str.replace(/(\w)?X/g, function(match, capture) {
 assertEquals("Ab -", str);
 
 // Test zero-length matches.
-str = "Als Gregor Samsa eines Morgens";
+str = "Also Gregor Samsa eines Morgens";
 str = str.replace(/\b/g, function(match, capture) {
                            return "/";
                          });
-assertEquals("/Als/ /Gregor/ /Samsa/ /eines/ /Morgens/", str);
+assertEquals("/Also/ /Gregor/ /Samsa/ /eines/ /Morgens/", str);
 
 // Test zero-length matches that have non-zero-length sub-captures.
 str = "It was a pleasure to burn.";
@@ -88,11 +88,11 @@ str = str.replace(/(\w)?\u1234/g,
 assertEquals("Ab -", str);
 
 // Test zero-length matches.
-str = "Als \u2623\u2642 eines Morgens";
+str = "Also \u2623\u2642 eines Morgens";
 str = str.replace(/\b/g, function(match, capture) {
                            return "/";
                          });
-assertEquals("/Als/ \u2623\u2642 /eines/ /Morgens/", str);
+assertEquals("/Also/ \u2623\u2642 /eines/ /Morgens/", str);
 
 // Test zero-length matches that have non-zero-length sub-captures.
 str = "It was a pleasure to \u70e7.";

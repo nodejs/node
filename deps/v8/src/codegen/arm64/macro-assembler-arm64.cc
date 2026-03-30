@@ -1300,7 +1300,7 @@ void MacroAssembler::PushHelper(int count, int size, const CPURegister& src0,
                                 const CPURegister& src1,
                                 const CPURegister& src2,
                                 const CPURegister& src3) {
-  // Ensure that we don't unintentially modify scratch or debug registers.
+  // Ensure that we don't unintentionally modify scratch or debug registers.
   InstructionAccurateScope scope(this, count <= 2 ? 1 : 2);
 
   DCHECK(AreSameSizeAndType(src0, src1, src2, src3));
@@ -1337,7 +1337,7 @@ void MacroAssembler::PushHelper(int count, int size, const CPURegister& src0,
 void MacroAssembler::PopHelper(int count, int size, const CPURegister& dst0,
                                const CPURegister& dst1, const CPURegister& dst2,
                                const CPURegister& dst3) {
-  // Ensure that we don't unintentially modify scratch or debug registers.
+  // Ensure that we don't unintentionally modify scratch or debug registers.
   InstructionAccurateScope scope(this, count <= 2 ? 1 : 2);
 
   DCHECK(AreSameSizeAndType(dst0, dst1, dst2, dst3));
@@ -1682,7 +1682,7 @@ void MacroAssembler::AssertFPCRState(Register fpcr) {
 
   // Settings left to their default values:
   //   - Assert that flush-to-zero is not set.
-  // TODO(leszeks): Reenable check based on isolate flag.
+  // TODO(leszeks): Re-enable check based on isolate flag.
   // Tbnz(fpcr, FZ_offset, &unexpected_mode);
   //   - Assert that the rounding mode is nearest-with-ties-to-even.
   static_assert(FPTieEven == 0);
@@ -4479,7 +4479,7 @@ void MacroAssembler::CallVerifySkippedWriteBarrierStub(Register object,
   ASM_CODE_COMMENT(this);
   MovePair(kCArgRegs[0], object, kCArgRegs[1], value);
   CallCFunction(ExternalReference::verify_skipped_write_barrier(), 2,
-                SetIsolateDataSlots::kNo);
+                SetIsolateDataSlots::know);
 }
 
 void MacroAssembler::CallVerifySkippedIndirectWriteBarrierStubSaveRegisters(
@@ -4495,7 +4495,7 @@ void MacroAssembler::CallVerifySkippedIndirectWriteBarrierStub(Register object,
   ASM_CODE_COMMENT(this);
   MovePair(kCArgRegs[0], object, kCArgRegs[1], value);
   CallCFunction(ExternalReference::verify_skipped_indirect_write_barrier(), 2,
-                SetIsolateDataSlots::kNo);
+                SetIsolateDataSlots::know);
 }
 
 void MacroAssembler::MoveObjectAndSlot(Register dst_object, Register dst_slot,

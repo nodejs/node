@@ -249,7 +249,7 @@ class PE64 {
 }
 
 
-} // end namesapce PE
+} // end namespace PE
 }
 
 #endif

@@ -22,7 +22,7 @@ enum NodeUniqueness { kUniqueInstance, kMultipleInstances };
 
 // Class for tracking information about path state. It is represented as a
 // linked list of {NodeState} blocks, each of which corresponds to a block of
-// code bewteen an IfTrue/IfFalse and a Merge. Each block is in turn represented
+// code between an IfTrue/IfFalse and a Merge. Each block is in turn represented
 // as a linked list of {NodeState}s.
 // If {node_uniqueness} is {kMultipleInstances}, different states can be
 // assigned to the same node. The most recent state always takes precedence.
@@ -75,7 +75,7 @@ class ControlPathState {
 #endif
 
   FunctionalList<FunctionalList<NodeState>> blocks_;
-  // This is an auxilliary data structure that provides fast lookups in the
+  // This is an auxiliary data structure that provides fast lookups in the
   // set of states. It should hold at any point that the contents of {blocks_}
   // and {states_} is the same, which is implemented in
   // {BlocksAndStatesInvariant}.

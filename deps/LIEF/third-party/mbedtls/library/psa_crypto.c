@@ -3664,7 +3664,7 @@ psa_status_t psa_sign_hash_start(
 
     LOCAL_INPUT_ALLOC(hash_external, hash_length, hash);
 
-    /* Ensure ops count gets reset, in case of operation re-use. */
+    /* Ensure ops count gets reset, in case of operation reuse. */
     operation->num_ops = 0;
 
     status = psa_driver_wrapper_sign_hash_start(operation, &slot->attr,
@@ -3828,7 +3828,7 @@ psa_status_t psa_verify_hash_start(
     LOCAL_INPUT_ALLOC(hash_external, hash_length, hash);
     LOCAL_INPUT_ALLOC(signature_external, signature_length, signature);
 
-    /* Ensure ops count gets reset, in case of operation re-use. */
+    /* Ensure ops count gets reset, in case of operation reuse. */
     operation->num_ops = 0;
 
     status = psa_driver_wrapper_verify_hash_start(operation, &slot->attr,
@@ -4018,7 +4018,7 @@ psa_status_t mbedtls_psa_sign_hash_start(
 
     mbedtls_ecdsa_restart_init(&operation->restart_ctx);
 
-    /* Ensure num_ops is zero'ed in case of context re-use. */
+    /* Ensure num_ops is zero'ed in case of context reuse. */
     operation->num_ops = 0;
 
     status = mbedtls_psa_ecp_load_representation(attributes->type,
@@ -4240,7 +4240,7 @@ psa_status_t mbedtls_psa_verify_hash_start(
     mbedtls_mpi_init(&operation->r);
     mbedtls_mpi_init(&operation->s);
 
-    /* Ensure num_ops is zero'ed in case of context re-use. */
+    /* Ensure num_ops is zero'ed in case of context reuse. */
     operation->num_ops = 0;
 
     status = mbedtls_psa_ecp_load_representation(attributes->type,

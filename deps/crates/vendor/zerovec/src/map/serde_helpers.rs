@@ -6,14 +6,14 @@
 // THIS FILE IS SHARED BETWEEN LITEMAP AND ZEROVEC. PLEASE KEEP IT IN SYNC FOR ALL EDITS
 // @@@@@@@@@@@@@@@@
 
-use serde::ser::{Impossible, Serialize, Serializer};
+use serde::set::{Impossible, Serialize, Serializer};
 
 pub fn is_num_or_string<T: Serialize + ?Sized>(k: &T) -> bool {
-    // Serializer that errors in the same cases as serde_json::ser::MapKeySerializer
+    // Serializer that errors in the same cases as serde_json::set::MapKeySerializer
     struct MapKeySerializerDryRun;
     impl Serializer for MapKeySerializerDryRun {
         type Ok = ();
-        // Singleton error type that implements serde::ser::Error
+        // Singleton error type that implements serde::set::Error
         type Error = core::fmt::Error;
 
         type SerializeSeq = Impossible<(), Self::Error>;

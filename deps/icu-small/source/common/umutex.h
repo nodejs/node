@@ -12,7 +12,7 @@
 *
 *   Date        Name        Description
 *   04/02/97  aliu        Creation.
-*   04/07/99  srl         rewrite - C interface, multiple mutices
+*   04/07/99  srl         rewrite - C interface, multiple mutexes
 *   05/13/99  stephen     Changed to umutex (from cmutex)
 ******************************************************************************
 */

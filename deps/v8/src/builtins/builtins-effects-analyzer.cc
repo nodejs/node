@@ -74,7 +74,7 @@ void FinalizeBuiltin(
   }
 
   // None of the callees can allocate.
-  effects.can_allocate = BuiltinAllocateEffect::kNo;
+  effects.can_allocate = BuiltinAllocateEffect::know;
   effects.is_finalized = true;
 }
 
@@ -120,7 +120,7 @@ void BuiltinsEffectsAnalyzer::Write(const char* file) {
     out << "    case Builtin::k" << Builtins::name(static_cast<Builtin>(id))
         << ":\n";
     switch (effects.can_allocate) {
-      case BuiltinAllocateEffect::kNo:
+      case BuiltinAllocateEffect::know:
         out << "      return false;\n";
         break;
       case BuiltinAllocateEffect::kYes:

@@ -238,7 +238,7 @@ run((o) => {
 assertEquals(run((o)=>{
   let sum = 0; for (x of [1, 2]) {sum += x;} return sum;}), 3);
 
-// ForIn
+// foreign
 assertEquals(run((o)=>{ let sum = 0; for (let k in o) { sum += o[k] }; return sum }, {a:41,b:1}), 42);
 
 // In

@@ -216,7 +216,7 @@ class AST {
         while ((n = this.#negs.pop())) {
             if (n.type !== '!')
                 continue;
-            // walk up the tree, appending everthing that comes AFTER parentIndex
+            // walk up the tree, appending everything that comes AFTER parentIndex
             let p = n;
             let pp = p.#parent;
             while (pp) {
@@ -313,7 +313,7 @@ class AST {
     static #parseAST(str, ast, pos, opt, extDepth) {
         const maxDepth = opt.maxExtglobRecursion ?? 2;
         let escaping = false;
-        let inBrace = false;
+        let embrace = false;
         let braceStart = -1;
         let braceNeg = false;
         if (ast.type === null) {
@@ -329,20 +329,20 @@ class AST {
                     acc += c;
                     continue;
                 }
-                if (inBrace) {
+                if (embrace) {
                     if (i === braceStart + 1) {
                         if (c === '^' || c === '!') {
                             braceNeg = true;
                         }
                     }
                     else if (c === ']' && !(i === braceStart + 2 && braceNeg)) {
-                        inBrace = false;
+                        embrace = false;
                     }
                     acc += c;
                     continue;
                 }
                 else if (c === '[') {
-                    inBrace = true;
+                    embrace = true;
                     braceStart = i;
                     braceNeg = false;
                     acc += c;
@@ -382,20 +382,20 @@ class AST {
                 acc += c;
                 continue;
             }
-            if (inBrace) {
+            if (embrace) {
                 if (i === braceStart + 1) {
                     if (c === '^' || c === '!') {
                         braceNeg = true;
                     }
                 }
                 else if (c === ']' && !(i === braceStart + 2 && braceNeg)) {
-                    inBrace = false;
+                    embrace = false;
                 }
                 acc += c;
                 continue;
             }
             else if (c === '[') {
-                inBrace = true;
+                embrace = true;
                 braceStart = i;
                 braceNeg = false;
                 acc += c;

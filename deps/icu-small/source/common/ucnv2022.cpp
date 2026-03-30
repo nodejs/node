@@ -20,7 +20,7 @@
 *                       Changed implementation of toUnicode
 *                       function
 *   08/21/2000  Ram     Added support for ISO-2022-KR
-*   08/29/2000  Ram     Seperated implementation of EBCDIC to
+*   08/29/2000  Ram     Separated implementation of EBCDIC to
 *                       ucnvebdc.c
 *   09/20/2000  Ram     Added support for ISO-2022-CN
 *                       Added implementations for getNextUChar()

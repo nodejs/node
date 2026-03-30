@@ -9,7 +9,7 @@ var d = false;
 
 function bar() {
   if (d) {
-    // This shoud access 'o' defined in foo, but its allocation was
+    // This should access 'o' defined in foo, but its allocation was
     // removed since there was no use.
     throw foo_inlined.arguments[0].x;
   }

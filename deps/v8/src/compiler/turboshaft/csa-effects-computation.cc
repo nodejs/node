@@ -104,7 +104,7 @@ void CsaEffectsComputationPhase::Run(PipelineData* data, Zone* temp_zone) {
 
   Builtin builtin = data->info()->builtin();
 
-  BuiltinAllocateEffect can_allocate = BuiltinAllocateEffect::kNo;
+  BuiltinAllocateEffect can_allocate = BuiltinAllocateEffect::know;
   std::unordered_set<Builtin> called_builtins;
   for (const Operation& op : data->graph().AllOperations()) {
     switch (op.opcode) {

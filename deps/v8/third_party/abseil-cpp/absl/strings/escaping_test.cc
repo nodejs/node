@@ -311,7 +311,7 @@ TEST_F(CUnescapeTest, UnescapesMultipleUnicodeNulls) {
 
 static struct {
   absl::string_view plaintext;
-  absl::string_view cyphertext;
+  absl::string_view ciphertext;
 } const base64_tests[] = {
     // Empty string.
     {{"", 0}, {"", 0}},
@@ -578,14 +578,14 @@ void TestEscapeAndUnescape() {
     // Test plain base64.
     StringType encoded("this junk should be ignored");
     absl::Base64Escape(tc.plaintext, &encoded);
-    EXPECT_EQ(encoded, tc.cyphertext);
-    EXPECT_EQ(absl::Base64Escape(tc.plaintext), tc.cyphertext);
+    EXPECT_EQ(encoded, tc.ciphertext);
+    EXPECT_EQ(absl::Base64Escape(tc.plaintext), tc.ciphertext);
 
     StringType decoded("this junk should be ignored");
     EXPECT_TRUE(absl::Base64Unescape(encoded, &decoded));
     EXPECT_EQ(decoded, tc.plaintext);
 
-    StringType websafe_with_padding(tc.cyphertext);
+    StringType websafe_with_padding(tc.ciphertext);
     for (unsigned int c = 0; c < websafe_with_padding.size(); ++c) {
       if ('+' == websafe_with_padding[c]) websafe_with_padding[c] = '-';
       if ('/' == websafe_with_padding[c]) websafe_with_padding[c] = '_';
@@ -614,8 +614,8 @@ void TestEscapeAndUnescape() {
   for (const auto& tc : absl::strings_internal::base64_strings()) {
     StringType buffer;
     absl::WebSafeBase64Escape(tc.plaintext, &buffer);
-    EXPECT_EQ(tc.cyphertext, buffer);
-    EXPECT_EQ(absl::WebSafeBase64Escape(tc.plaintext), tc.cyphertext);
+    EXPECT_EQ(tc.ciphertext, buffer);
+    EXPECT_EQ(absl::WebSafeBase64Escape(tc.plaintext), tc.ciphertext);
   }
 
   // Verify the behavior when decoding bad data

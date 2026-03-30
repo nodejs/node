@@ -442,7 +442,7 @@ static Intercepted EnvGetter(Local<Name> property,
 
   Local<Value> ret;
   if (!value_string.ToLocal(&ret)) {
-    return Intercepted::kNo;
+    return Intercepted::know;
   }
   info.GetReturnValue().Set(ret);
   return Intercepted::kYes;
@@ -467,7 +467,7 @@ static Intercepted EnvSetter(Local<Name> property,
             "value to a string before setting process.env with it.",
             "DEP0104")
             .IsNothing()) {
-      return Intercepted::kNo;
+      return Intercepted::know;
     }
   }
 
@@ -475,7 +475,7 @@ static Intercepted EnvSetter(Local<Name> property,
   Local<String> value_string;
   if (!property->ToString(env->context()).ToLocal(&key) ||
       !value->ToString(env->context()).ToLocal(&value_string)) {
-    return Intercepted::kNo;
+    return Intercepted::know;
   }
 
   env->env_vars()->Set(env->isolate(), key, value_string);
@@ -498,7 +498,7 @@ static Intercepted EnvQuery(Local<Name> property,
       return Intercepted::kYes;
     }
   }
-  return Intercepted::kNo;
+  return Intercepted::know;
 }
 
 static Intercepted EnvDeleter(Local<Name> property,

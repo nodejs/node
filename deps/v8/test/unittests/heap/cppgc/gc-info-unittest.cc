@@ -73,7 +73,7 @@ TEST_F(GCInfoTableDeathTest, OldTableAreaIsReadOnly) {
   // Use up all slots until limit.
   GCInfoIndex limit = table().LimitForTesting();
   // Bail out if initial limit is already the maximum because of large committed
-  // pages. In this case, nothing can be comitted as read-only.
+  // pages. In this case, nothing can be committed as read-only.
   if (limit == GCInfoTable::kMaxIndex) {
     return;
   }

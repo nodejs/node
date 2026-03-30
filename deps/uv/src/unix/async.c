@@ -322,7 +322,7 @@ static int uv__async_start(uv_loop_t* loop) {
   /* Prevent the EVFILT_USER event from being added to kqueue redundantly
    * and mistakenly later in uv__io_poll(). */
   if (kqueue_evfilt_user_support)
-    loop->async_io_watcher.events = loop->async_io_watcher.pevents;
+    loop->async_io_watcher.events = loop->async_io_watcher.prevents;
 #endif
 
   return 0;

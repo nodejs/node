@@ -317,11 +317,11 @@ class HeapObjectsMap {
     base::TimeTicks timestamp;
   };
   enum class MarkEntryAccessed {
-    kNo,
+    know,
     kYes,
   };
   enum class IsNativeObject {
-    kNo,
+    know,
     kYes,
   };
 
@@ -335,7 +335,7 @@ class HeapObjectsMap {
   SnapshotObjectId FindOrAddEntry(
       Address addr, unsigned int size,
       MarkEntryAccessed accessed = MarkEntryAccessed::kYes,
-      IsNativeObject is_native_object = IsNativeObject::kNo);
+      IsNativeObject is_native_object = IsNativeObject::know);
   SnapshotObjectId FindMergedNativeEntry(NativeObject addr);
   void AddMergedNativeEntry(NativeObject addr, Address canonical_addr);
   bool MoveObject(Address from, Address to, int size);
@@ -621,7 +621,7 @@ class NativeObjectsExplorer {
 
  private:
   // Returns an entry for a given node, where node may be a V8 node or an
-  // embedder node. Returns the coresponding wrapper node if present.
+  // embedder node. Returns the corresponding wrapper node if present.
   HeapEntry* EntryForEmbedderGraphNode(EmbedderGraph::Node* node);
   void MergeNodeIntoEntry(HeapEntry* entry, EmbedderGraph::Node* original_node,
                           EmbedderGraph::Node* wrapper_node);

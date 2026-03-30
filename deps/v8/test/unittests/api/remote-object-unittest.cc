@@ -25,7 +25,7 @@ bool AccessCheck(Local<Context> accessing_context,
 
 v8::Intercepted NamedGetter(Local<Name> property,
                             const PropertyCallbackInfo<Value>& info) {
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 void Constructor(const FunctionCallbackInfo<Value>& info) {

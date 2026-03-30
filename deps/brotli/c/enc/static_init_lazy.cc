@@ -15,7 +15,7 @@ void BrotliEncoderLazyStaticInit(void) {
      concurrently, the initialization occurs exactly once...
      Usual implementations of this feature use variants of the double-checked
      locking pattern, which reduces runtime overhead for already-initialized
-     local statics to a single non-atomic boolean comparison.
+     local statistics to a single non-atomic boolean comparison.
    */
   static bool ok = [](){
     BrotliEncoderLazyStaticInitInner();

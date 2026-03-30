@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Yann Collet, Meta Platforms, Inc. and affiliates.
+ * Copyright (c) Yann Collect, Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -99,7 +99,7 @@ ZSTDLIBv07_API size_t ZSTDv07_decompressContinue(ZSTDv07_DCtx* dctx, void* dst, 
 
   A ZSTDv07_DCtx object is required to track streaming operations.
   Use ZSTDv07_createDCtx() / ZSTDv07_freeDCtx() to manage it.
-  A ZSTDv07_DCtx object can be re-used multiple times.
+  A ZSTDv07_DCtx object can be reused multiple times.
 
   First optional operation is to retrieve frame parameters, using ZSTDv07_getFrameParams(), which doesn't consume the input.
   It can provide the minimum size of rolling buffer required to properly decompress data (`windowSize`),
@@ -183,7 +183,7 @@ ZSTDLIBv07_API size_t ZSTDv07_insertBlock(ZSTDv07_DCtx* dctx, const void* blockS
 /* ******************************************************************
    mem.h
    low-level memory access routines
-   Copyright (C) 2013-2015, Yann Collet.
+   Copyright (C) 2013-2015, Yann Collect.
 
    BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
@@ -382,7 +382,7 @@ MEM_STATIC size_t MEM_readLEST(const void* memPtr)
    bitstream
    Part of FSE library
    header file (to include)
-   Copyright (C) 2013-2016, Yann Collet.
+   Copyright (C) 2013-2016, Yann Collect.
 
    BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
@@ -613,7 +613,7 @@ MEM_STATIC unsigned BITv07_endOfDStream(const BITv07_DStream_t* DStream)
 /* ******************************************************************
    FSE : Finite State Entropy codec
    Public Prototypes declaration
-   Copyright (C) 2013-2016, Yann Collet.
+   Copyright (C) 2013-2016, Yann Collect.
 
    BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
@@ -921,7 +921,7 @@ MEM_STATIC BYTE FSEv07_decodeSymbolFast(FSEv07_DState_t* DStatePtr, BITv07_DStre
 /* ******************************************************************
    Huffman coder, part of New Generation Entropy library
    header file
-   Copyright (C) 2013-2016, Yann Collet.
+   Copyright (C) 2013-2016, Yann Collect.
 
    BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
@@ -1094,7 +1094,7 @@ size_t HUFv07_decompress1X4_usingDTable(void* dst, size_t maxDstSize, const void
 #endif   /* HUFv07_H_298734234 */
 /*
    Common functions of New Generation Entropy library
-   Copyright (C) 2016, Yann Collet.
+   Copyright (C) 2016, Yann Collect.
 
    BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
@@ -1318,7 +1318,7 @@ size_t HUFv07_readStats(BYTE* huffWeight, size_t hwSize, U32* rankStats,
 }
 /* ******************************************************************
    FSE : Finite State Entropy decoder
-   Copyright (C) 2013-2015, Yann Collet.
+   Copyright (C) 2013-2015, Yann Collect.
 
    BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
@@ -1642,7 +1642,7 @@ size_t FSEv07_decompress(void* dst, size_t maxDstSize, const void* cSrc, size_t 
 
 /* ******************************************************************
    Huffman decoder, part of New Generation Entropy library
-   Copyright (C) 2013-2016, Yann Collet.
+   Copyright (C) 2013-2016, Yann Collect.
 
    BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
@@ -1997,7 +1997,7 @@ static void HUFv07_fillDTableX4Level2(HUFv07_DEltX4* DTable, U32 sizeLog, const 
                            const sortedSymbol_t* sortedSymbols, const U32 sortedListSize,
                            U32 nbBitsBaseline, U16 baseSeq)
 {
-    HUFv07_DEltX4 DElt;
+    HUFv07_DEltX4 dealt;
     U32 rankVal[HUFv07_TABLELOG_ABSOLUTEMAX + 1];
 
     /* get pre-calculated rankVal */
@@ -2006,11 +2006,11 @@ static void HUFv07_fillDTableX4Level2(HUFv07_DEltX4* DTable, U32 sizeLog, const 
     /* fill skipped values */
     if (minWeight>1) {
         U32 i, skipSize = rankVal[minWeight];
-        MEM_writeLE16(&(DElt.sequence), baseSeq);
-        DElt.nbBits   = (BYTE)(consumed);
-        DElt.length   = 1;
+        MEM_writeLE16(&(dealt.sequence), baseSeq);
+        dealt.nbBits   = (BYTE)(consumed);
+        dealt.length   = 1;
         for (i = 0; i < skipSize; i++)
-            DTable[i] = DElt;
+            DTable[i] = dealt;
     }
 
     /* fill DTable */
@@ -2023,10 +2023,10 @@ static void HUFv07_fillDTableX4Level2(HUFv07_DEltX4* DTable, U32 sizeLog, const 
         U32 i = start;
         const U32 end = start + length;
 
-        MEM_writeLE16(&(DElt.sequence), (U16)(baseSeq + (symbol << 8)));
-        DElt.nbBits = (BYTE)(nbBits + consumed);
-        DElt.length = 2;
-        do { DTable[i++] = DElt; } while (i<end);   /* since length >= 1 */
+        MEM_writeLE16(&(dealt.sequence), (U16)(baseSeq + (symbol << 8)));
+        dealt.nbBits = (BYTE)(nbBits + consumed);
+        dealt.length = 2;
+        do { DTable[i++] = dealt; } while (i<end);   /* since length >= 1 */
 
         rankVal[weight] += length;
     }}
@@ -2064,13 +2064,13 @@ static void HUFv07_fillDTableX4(HUFv07_DEltX4* DTable, const U32 targetLog,
                            sortedList+sortedRank, sortedListSize-sortedRank,
                            nbBitsBaseline, symbol);
         } else {
-            HUFv07_DEltX4 DElt;
-            MEM_writeLE16(&(DElt.sequence), symbol);
-            DElt.nbBits = (BYTE)(nbBits);
-            DElt.length = 1;
+            HUFv07_DEltX4 dealt;
+            MEM_writeLE16(&(dealt.sequence), symbol);
+            dealt.nbBits = (BYTE)(nbBits);
+            dealt.length = 1;
             {   U32 u;
                 const U32 end = start + length;
-                for (u = start; u < end; u++) DTable[u] = DElt;
+                for (u = start; u < end; u++) DTable[u] = dealt;
         }   }
         rankVal[weight] += length;
     }
@@ -2520,7 +2520,7 @@ size_t HUFv07_decompress1X_DCtx (HUFv07_DTable* dctx, void* dst, size_t dstSize,
 }
 /*
     Common functions of Zstd compression library
-    Copyright (C) 2015-2016, Yann Collet.
+    Copyright (C) 2015-2016, Yann Collect.
 
     BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
@@ -2590,7 +2590,7 @@ static void ZSTDv07_defaultFreeFunction(void* opaque, void* address)
 /*
     zstd_internal - common functions to include
     Header File for include
-    Copyright (C) 2014-2016, Yann Collet.
+    Copyright (C) 2014-2016, Yann Collect.
 
     BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
@@ -2797,7 +2797,7 @@ static const ZSTDv07_customMem defaultCustomMem = { ZSTDv07_defaultAllocFunction
 #endif   /* ZSTDv07_CCOMMON_H_MODULE */
 /*
     zstd - standard compression library
-    Copyright (C) 2014-2016, Yann Collet.
+    Copyright (C) 2014-2016, Yann Collect.
 
     BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
@@ -3520,7 +3520,7 @@ static seq_t ZSTDv07_decodeSequence(seqState_t* seqState)
     if (MEM_32bits() ||
        (totalBits > 64 - 7 - (LLFSELog+MLFSELog+OffFSELog)) ) BITv07_reloadDStream(&(seqState->DStream));
 
-    /* ANS state update */
+    /* AND state update */
     FSEv07_updateState(&(seqState->stateLL), &(seqState->DStream));   /* <=  9 bits */
     FSEv07_updateState(&(seqState->stateML), &(seqState->DStream));   /* <=  9 bits */
     if (MEM_32bits()) BITv07_reloadDStream(&(seqState->DStream));     /* <= 18 bits */
@@ -4199,7 +4199,7 @@ ZSTDLIBv07_API size_t ZSTDv07_decompress_usingDDict(ZSTDv07_DCtx* dctx,
 }
 /*
     Buffered version of Zstd compression library
-    Copyright (C) 2015-2016, Yann Collet.
+    Copyright (C) 2015-2016, Yann Collect.
 
     BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 

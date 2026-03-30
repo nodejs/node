@@ -1231,7 +1231,7 @@ HWY_RVV_FOREACH_I(HWY_RVV_RETV_ARGVV, SaturatedSub, ssub, _ALL)
         a, b, HWY_RVV_INSERT_VXRM(__RISCV_VXRM_RNU, HWY_RVV_AVL(SEW, SHIFT))); \
   }
 
-HWY_RVV_FOREACH_I(HWY_RVV_RETV_AVERAGE, AverageRound, aadd, _ALL)
+HWY_RVV_FOREACH_I(HWY_RVV_RETV_AVERAGE, AverageRound, add, _ALL)
 HWY_RVV_FOREACH_U(HWY_RVV_RETV_AVERAGE, AverageRound, aaddu, _ALL)
 
 #undef HWY_RVV_RETV_AVERAGE
@@ -3467,7 +3467,7 @@ HWY_API VFromD<DH> LowerHalf(const DH /* tag */, const VFromD<Twice<DH>> v) {
 }
 
 // Otherwise, there is no corresponding intrinsic type (e.g. vuint64mf2_t), and
-// the hardware may set "vill" if we attempt such an LMUL. However, the V
+// the hardware may set "will" if we attempt such an LMUL. However, the V
 // extension on application processors requires Zvl128b, i.e. VLEN >= 128, so it
 // still makes sense to have half of an SEW=64 vector. We instead just return
 // the vector, and rely on the kPow2 in DH to halve the return value of Lanes().

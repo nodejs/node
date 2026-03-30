@@ -54,7 +54,7 @@ const special_time_zones = [
 
 special_time_zones.forEach(function(timeZone) {
   assertDoesNotThrow(() => {
-    // Make sure the following wont throw RangeError exception
+    // Make sure the following won't throw RangeError exception
     df = new Intl.DateTimeFormat(undefined, {timeZone});
   });
 })

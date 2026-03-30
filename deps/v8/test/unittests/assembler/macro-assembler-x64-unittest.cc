@@ -69,7 +69,7 @@ void PrintCode(Isolate* isolate, CodeDesc desc) {
 
 TEST_F(MacroAssemblerX64Test, TestHardAbort) {
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::know,
                       buffer->CreateView());
   __ set_root_array_available(false);
   __ set_abort_hard(true);
@@ -87,7 +87,7 @@ TEST_F(MacroAssemblerX64Test, TestHardAbort) {
 
 TEST_F(MacroAssemblerX64Test, TestCheck) {
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::know,
                       buffer->CreateView());
   __ set_root_array_available(false);
   __ set_abort_hard(true);

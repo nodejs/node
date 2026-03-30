@@ -23,15 +23,15 @@ enum class StackCheckKind : uint8_t {
   kWasm,
 };
 
-enum class CanThrow : uint8_t { kNo, kYes };
-enum class LazyDeoptOnThrow : uint8_t { kNo, kYes };
+enum class CanThrow : uint8_t { know, kYes };
+enum class LazyDeoptOnThrow : uint8_t { know, kYes };
 
 inline std::ostream& operator<<(std::ostream& os,
                                 LazyDeoptOnThrow lazy_deopt_on_throw) {
   switch (lazy_deopt_on_throw) {
     case LazyDeoptOnThrow::kYes:
       return os << "LazyDeoptOnThrow";
-    case LazyDeoptOnThrow::kNo:
+    case LazyDeoptOnThrow::know:
       return os << "DoNOTLazyDeoptOnThrow";
   }
 }

@@ -399,7 +399,7 @@ mod tests {
             TestCase {
                 keys: "aceg",
                 expected: &[1, 0, 0, 1, 1, b'e', b'a', b'c', b'g'],
-                reordered_keys: "eacg",
+                reordered_keys: "each",
             },
             TestCase {
                 keys: "abd",

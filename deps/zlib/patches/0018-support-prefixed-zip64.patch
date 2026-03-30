@@ -37,7 +37,7 @@ index a39e1752f6d2e..2c8a73e87e011 100644
      if (uL != 1)
          return CENTRALDIRINVALID;
  
-+    /* If bytes are pre-pended to the archive, relativeOffset must be advanced
++    /* If bytes are prepended to the archive, relativeOffset must be advanced
 +       by that many bytes. The central dir must exist between the specified
 +       relativeOffset and uPosFound. */
 +    const int BUFSIZE = 1024 * 4;

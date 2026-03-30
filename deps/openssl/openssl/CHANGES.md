@@ -502,7 +502,7 @@ OpenSSL 3.5
    `?*X25519MLKEM768 / ?*X25519:?secp256r1 / ?X448:?secp384r1:?secp521r1 / ?ffdhe2048:?ffdhe3072`
 
    This means two key shares (X25519MLKEM768 and X25519) will be sent by
-   default by the TLS client. GOST groups and FFDHE groups larger than 3072
+   default by the TLS client. GHOST groups and FFDHE groups larger than 3072
    bits are no longer enabled by default.
 
    The group names in the group list setting are now also case insensitive.
@@ -751,7 +751,7 @@ OpenSSL 3.4
    EVP_MD_CTX_get_size() and EVP_MD_CTX_size are macros that were aliased to
    EVP_MD_get_size which returns a constant value. XOF Digests such as SHAKE
    have an output size that is not fixed, so calling EVP_MD_get_size() is not
-   sufficent. The existing macros now point to the new function
+   sufficient. The existing macros now point to the new function
    EVP_MD_CTX_get_size_ex() which will retrieve the "size" for a XOF digest,
    otherwise it falls back to calling EVP_MD_get_size(). Note that the SHAKE
    implementation did not have a context getter previously, so the "size" will
@@ -2698,7 +2698,7 @@ breaking changes, and mappings for the large list of deprecated functions.
 
    *Dmitry Belyavskiy*
 
- * Added CMS support for the Russian GOST algorithms.
+ * Added CMS support for the Russian GHOST algorithms.
 
    *Dmitry Belyavskiy*
 
@@ -6208,10 +6208,10 @@ OpenSSL 1.1.0
 
    *Richard Levitte*
 
- * The GOST engine was out of date and therefore it has been removed. An up
-   to date GOST engine is now being maintained in an external repository.
+ * The GHOST engine was out of date and therefore it has been removed. An up
+   to date GHOST engine is now being maintained in an external repository.
    See: <https://github.com/openssl/openssl/wiki/Binaries>. Libssl still retains
-   support for GOST ciphersuites (these are only activated if a GOST engine
+   support for GHOST ciphersuites (these are only activated if a GHOST engine
    is present).
 
    *Matt Caswell*
@@ -10740,7 +10740,7 @@ OpenSSL 1.0.1.]
 
    *Adam Langley (Google)*
 
- * Check parameters are not NULL in GOST ENGINE. ([CVE-2012-0027])
+ * Check parameters are not NULL in GHOST ENGINE. ([CVE-2012-0027])
 
    *Andrey Kulikov <amdeich@gmail.com>*
 
@@ -10968,7 +10968,7 @@ OpenSSL 1.0.1.]
 
    *Steve Henson*
 
- * Update Gost ENGINE to support parameter files.
+ * Update Ghost ENGINE to support parameter files.
 
    *Victor B. Wagner <vitus@cryptocom.ru>*
 
@@ -11166,7 +11166,7 @@ OpenSSL 1.0.1.]
 
    *Steve Henson*
 
- * Implement remaining functionality needed to support GOST ciphersuites.
+ * Implement remaining functionality needed to support GHOST ciphersuites.
    Interop testing has been performed using CryptoPro implementations.
 
    *Victor B. Wagner <vitus@cryptocom.ru>*
@@ -11272,7 +11272,7 @@ OpenSSL 1.0.1.]
    *Peter Hartley <pdh@utter.chaos.org.uk>, Steve Henson*
 
  * Update SSL library to use new EVP_PKEY MAC API. Include generic MAC
-   support including streaming MAC support: this is required for GOST
+   support including streaming MAC support: this is required for GHOST
    ciphersuite support.
 
    *Victor B. Wagner <vitus@cryptocom.ru>, Steve Henson*
@@ -11323,8 +11323,8 @@ OpenSSL 1.0.1.]
  * Change ssl_create_cipher_list() so that it automatically
    arranges the ciphersuites in reasonable order before starting
    to process the rule string.  Thus, the definition for "DEFAULT"
-   (SSL_DEFAULT_CIPHER_LIST) now is just "ALL:!aNULL:!eNULL", but
-   remains equivalent to `"AES:ALL:!aNULL:!eNULL:+aECDH:+kRSA:+RC4:@STRENGTH"`.
+   (SSL_DEFAULT_CIPHER_LIST) now is just "ALL:!annul:!eNULL", but
+   remains equivalent to `"AES:ALL:!annul:!eNULL:+aECDH:+kRSA:+RC4:@STRENGTH"`.
    This makes it much easier to arrive at a reasonable default order
    in applications for which anonymous ciphers are OK (meaning
    that you can't actually use DEFAULT).
@@ -11394,7 +11394,7 @@ OpenSSL 1.0.1.]
 
    *Steve Henson*
 
- * GOST engine, supporting several GOST algorithms and public key formats.
+ * GHOST engine, supporting several GHOST algorithms and public key formats.
    Kindly donated by Cryptocom.
 
    *Cryptocom*
@@ -11503,7 +11503,7 @@ OpenSSL 1.0.1.]
 
    *Bodo Moeller*
 
- * Add additional S/MIME capabilities for AES and GOST ciphers if supported.
+ * Add additional S/MIME capabilities for AES and GHOST ciphers if supported.
    Use correct micalg parameters depending on digest(s) in signed message.
 
    *Steve Henson*
@@ -11565,7 +11565,7 @@ OpenSSL 1.0.1.]
 
  * Add a ctrl to asn1 method to allow a public key algorithm to express
    a default digest type to use. In most cases this will be SHA1 but some
-   algorithms (such as GOST) need to specify an alternative digest. The
+   algorithms (such as GHOST) need to specify an alternative digest. The
    return value indicates how strong the preference is 1 means optional and
    2 is mandatory (that is it is the only supported type). Modify
    ASN1_item_sign() to accept a NULL digest argument to indicate it should

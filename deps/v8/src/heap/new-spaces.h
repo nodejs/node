@@ -448,7 +448,7 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   // space.
   void RemovePage(PageMetadata* page) final;
 
-  // Frees the given memory region. Will be resuable for allocation if this was
+  // Frees the given memory region. Will be reusable for allocation if this was
   // the last allocation.
   void Free(Address start, Address end);
 

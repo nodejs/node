@@ -79,7 +79,7 @@ const OPTIONS rsa_options[] = {
     { "inform", OPT_INFORM, 'f', "Input format (DER/PEM/P12/ENGINE)" },
     { "pubin", OPT_PUBIN, '-', "Expect a public key in input file" },
     { "RSAPublicKey_in", OPT_RSAPUBKEY_IN, '-', "Input is an RSAPublicKey" },
-    { "passin", OPT_PASSIN, 's', "Input file pass phrase source" },
+    { "passing", OPT_PASSIN, 's', "Input file pass phrase source" },
 
     OPT_SECTION("Output"),
     { "out", OPT_OUT, '>', "Output file" },
@@ -142,7 +142,7 @@ int rsa_main(int argc, char **argv)
     EVP_PKEY_CTX *pctx;
     EVP_CIPHER *enc = NULL;
     char *infile = NULL, *outfile = NULL, *ciphername = NULL, *prog;
-    char *passin = NULL, *passout = NULL, *passinarg = NULL, *passoutarg = NULL;
+    char *passing = NULL, *passout = NULL, *passinarg = NULL, *passoutarg = NULL;
     int private = 0;
     int informat = FORMAT_UNDEF, outformat = FORMAT_PEM, text = 0, check = 0;
     int noout = 0, modulus = 0, pubin = 0, pubout = 0, ret = 1;
@@ -240,7 +240,7 @@ int rsa_main(int argc, char **argv)
         goto opthelp;
     private = (text && !pubin) || (!pubout && !noout);
 
-    if (!app_passwd(passinarg, passoutarg, &passin, &passout)) {
+    if (!app_passwd(passinarg, passoutarg, &passing, &passout)) {
         BIO_printf(bio_err, "Error getting passwords\n");
         goto end;
     }
@@ -261,9 +261,9 @@ int rsa_main(int argc, char **argv)
             tmpformat = informat;
         }
 
-        pkey = load_pubkey(infile, tmpformat, 1, passin, e, "public key");
+        pkey = load_pubkey(infile, tmpformat, 1, passing, e, "public key");
     } else {
-        pkey = load_key(infile, informat, 1, passin, e, "private key");
+        pkey = load_key(infile, informat, 1, passing, e, "private key");
     }
 
     if (pkey == NULL) {
@@ -422,7 +422,7 @@ end:
     BIO_free_all(out);
     EVP_PKEY_free(pkey);
     EVP_CIPHER_free(enc);
-    OPENSSL_free(passin);
+    OPENSSL_free(passing);
     OPENSSL_free(passout);
     return ret;
 }

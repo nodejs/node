@@ -272,7 +272,7 @@ class Cord {
   // This method is guaranteed to consume `buffer`.
   void Append(CordBuffer buffer);
 
-  // Returns a CordBuffer, re-using potential existing capacity in this cord.
+  // Returns a CordBuffer, reusing potential existing capacity in this cord.
   //
   // Cord instances may have additional unused capacity in the last (or first)
   // nodes of the underlying tree to facilitate amortized growth. This method
@@ -306,7 +306,7 @@ class Cord {
   //   }
   CordBuffer GetAppendBuffer(size_t capacity, size_t min_capacity = 16);
 
-  // Returns a CordBuffer, re-using potential existing capacity in this cord.
+  // Returns a CordBuffer, reusing potential existing capacity in this cord.
   //
   // This function is identical to `GetAppendBuffer`, except that in the case
   // where a new `CordBuffer` is allocated, it is allocated using the provided

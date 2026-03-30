@@ -231,7 +231,7 @@ class V8_EXPORT_PRIVATE StringBuilderOptimizer final {
   // to State::kPendingPhi. Only once we've visited the whole loop and the
   // backedge and that the use chain following the loop phi up to and including
   // the backedge are valid as part of a String Builder, then the loop phi
-  // status is siwtched to State::kInStringBuilder. Then, in the final step
+  // status is switched to State::kInStringBuilder. Then, in the final step
   // where we switch the status to State::kConfirmedInStringBuilder, we ignore
   // nodes that have a status that isn't kInStringBuilder, which means that we
   // ignore loop phis that still have the kPendingPhi status (and their

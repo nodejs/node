@@ -421,7 +421,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let global = builder.addGlobal(
       wasmRefNullType(struct_2), true, false, [kExprRefNull, struct_2]);
 
-  // The three alocations should be folded.
+  // The three allocations should be folded.
   builder.addFunction("main", kSig_i_i)
     .addBody([
       kExprLocalGet, 0,

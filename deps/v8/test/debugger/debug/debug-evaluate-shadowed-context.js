@@ -107,7 +107,7 @@ function f2() {
   return y;
 };
 
-// Uses the same listener delgate as for `f1`.
+// Uses the same listener delegate as for `f1`.
 f2();
 assertEquals("A", a);
 EndTest();

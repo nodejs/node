@@ -503,7 +503,7 @@ void ResetSignalHandlers() {
       // The only bad handler value we can inherit from before exec is SIG_IGN
       // (any actual function pointer is reset to SIG_DFL during exec).
       // If that's the case, we want to reset it back to SIG_DFL.
-      // However, it's also possible that an embeder (or an LD_PRELOAD-ed
+      // However, it's also possible that an embedder (or an LD_PRELOAD-ed
       // library) has set up own signal handler for own purposes
       // (e.g. profiling). If that's the case, we want to keep it intact.
       struct sigaction old;

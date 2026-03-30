@@ -91,13 +91,13 @@ pub use ascii::TinyAsciiStr;
 pub use error::ParseError;
 pub use unvalidated::UnvalidatedTinyAsciiStr;
 
-/// These are temporary compatability reexports that will be removed
+/// These are temporary compatibility reexports that will be removed
 /// in a future version.
 pub type TinyStr4 = TinyAsciiStr<4>;
-/// These are temporary compatability reexports that will be removed
+/// These are temporary compatibility reexports that will be removed
 /// in a future version.
 pub type TinyStr8 = TinyAsciiStr<8>;
-/// These are temporary compatability reexports that will be removed
+/// These are temporary compatibility reexports that will be removed
 /// in a future version.
 pub type TinyStr16 = TinyAsciiStr<16>;
 

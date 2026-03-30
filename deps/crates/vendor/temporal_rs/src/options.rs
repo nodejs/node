@@ -609,7 +609,7 @@ impl fmt::Display for Unit {
             Self::Hour => "hour",
             Self::Minute => "minute",
             Self::Second => "second",
-            Self::Millisecond => "millsecond",
+            Self::Millisecond => "millisecond",
             Self::Microsecond => "microsecond",
             Self::Nanosecond => "nanosecond",
         }

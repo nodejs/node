@@ -1139,7 +1139,7 @@ private:
 
     /**
      * The 2 calendars with the from and to date.
-     * could re-use the calendar in fDateFormat,
+     * could reuse the calendar in fDateFormat,
      * but keeping 2 calendars make it clear and clean.
      */
     Calendar* fFromCalendar;

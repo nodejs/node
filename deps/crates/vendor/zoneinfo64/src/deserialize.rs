@@ -87,7 +87,7 @@ pub(crate) fn deserialize<'a>(resb: &'a [u32]) -> Result<ZoneInfo64<'a>, BinaryD
                     (None, None, None) => None,
                     _ => {
                         return Err(BinaryDeserializerError::unknown(
-                            "inconsisent finalRule, finalRaw, finalYear",
+                            "inconsistent finalRule, finalRaw, finalYear",
                         ))
                     }
                 };

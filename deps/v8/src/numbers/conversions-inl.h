@@ -141,7 +141,7 @@ inline double DoubleToInteger(double x) {
 // Implements most of https://tc39.github.io/ecma262/#sec-toint32.
 int32_t DoubleToInt32(double x) {
   if ((std::isfinite(x)) && (x <= INT_MAX) && (x >= INT_MIN)) {
-    // All doubles within these limits are trivially convertable to an int.
+    // All doubles within these limits are trivially convertible to an int.
     return static_cast<int32_t>(x);
   }
   base::Double d(x);
@@ -165,7 +165,7 @@ int32_t DoubleToInt32(double x) {
 // EnforceRange will come in the future.
 inline int64_t DoubleToWebIDLInt64(double x) {
   if ((std::isfinite(x)) && (x <= kMaxSafeInteger) && (x >= kMinSafeInteger)) {
-    // All doubles within these limits are trivially convertable to an int.
+    // All doubles within these limits are trivially convertible to an int.
     return static_cast<int64_t>(x);
   }
   base::Double d(x);

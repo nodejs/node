@@ -218,7 +218,7 @@ function createLargeObjectInArrayCreator(size) {
 test(createLargeObjectInArrayCreator(500),
      (o) => o[0].a140, (o) => o[0].a140 = T2, 140);
 
-// Array with an object refrence (not object literal; should not be cloned).
+// Array with an object reference (not object literal; should not be cloned).
 // Likewise, the array boilerplate won't contain the object, but it's
 // added outside.
 {

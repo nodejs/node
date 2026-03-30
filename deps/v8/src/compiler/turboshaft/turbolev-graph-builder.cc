@@ -136,14 +136,14 @@ class BlockOriginTrackingReducer : public Next {
 };
 
 class GeneratorAnalyzer {
-  // A document explaning how generators are handled by the translation can be
+  // A document explaining how generators are handled by the translation can be
   // found here:
   //
   //     https://docs.google.com/document/d/1-iFoVuvpIEjA9dtSsOjmKL5vAzzvf0cKI6f4zaObiV8/edit?usp=sharing
   //
   //
   // Because of generator resumes, Maglev graphs can have edges that bypass loop
-  // headers. This actually happens everytime a loop contains a `yield`.
+  // headers. This actually happens every time a loop contains a `yield`.
   // In Turboshaft, however, the loop header must always dominate every block in
   // the loop, and thus does not allow such edges that bypass the loop header.
   // For instance,
@@ -4415,7 +4415,7 @@ class GraphBuildingNodeProcessor {
 // Turbofan has chance to get better feedback. However, once we reach Turbofan,
 // we stop collecting feedback, since we've tried multiple times to keep
 // collecting feedback in Turbofan, but it never seemed worth it. The latest
-// occurence of this was ended by this CL: https://crrev.com/c/4110858.
+// occurrence of this was ended by this CL: https://crrev.com/c/4110858.
 #define PROCESS_GENERIC_BINOP(Name)                                            \
   maglev::ProcessResult Process(maglev::Generic##Name* node,                   \
                                 const maglev::ProcessingState& state) {        \
@@ -6060,7 +6060,7 @@ class GraphBuildingNodeProcessor {
     DCHECK(loop->is_loop());
     if (!loop->has_phi()) return;
     for (maglev::Phi* maglev_phi : *loop->phis()) {
-      // Note that we've already emited the backedge Goto, which means that
+      // Note that we've already emitted the backedge Goto, which means that
       // we're currently not in a block, which means that we need to pass
       // can_be_invalid=false to `Map`, otherwise it will think that we're
       // currently emitting unreachable operations and return
@@ -6148,10 +6148,10 @@ class GraphBuildingNodeProcessor {
   }
 
   LazyDeoptOnThrow ShouldLazyDeoptOnThrow(maglev::NodeBase* node) {
-    if (!node->properties().can_throw()) return LazyDeoptOnThrow::kNo;
+    if (!node->properties().can_throw()) return LazyDeoptOnThrow::know;
     const maglev::ExceptionHandlerInfo* info = node->exception_handler_info();
     if (info->ShouldLazyDeopt()) return LazyDeoptOnThrow::kYes;
-    return LazyDeoptOnThrow::kNo;
+    return LazyDeoptOnThrow::know;
   }
 
   class ThrowingScope {
@@ -6168,7 +6168,7 @@ class GraphBuildingNodeProcessor {
     // automatically be wired to the catch handler. Then, when calling
     // Process(Phi) on exception phis (= when processing the catch handler),
     // these Phis will be mapped to the Variable corresponding to their owning
-    // intepreter register.
+    // interpreter register.
 
    public:
     ThrowingScope(GraphBuildingNodeProcessor* builder,
@@ -6261,7 +6261,7 @@ class GraphBuildingNodeProcessor {
     explicit NoThrowingScopeRequired(maglev::NodeBase* node) {
       // If this DCHECK fails, then the caller should instead use a
       // ThrowingScope. Additionally, all of the calls it contains should
-      // explicitely pass LazyDeoptOnThrow.
+      // explicitly pass LazyDeoptOnThrow.
       DCHECK(!node->properties().can_throw());
     }
   };

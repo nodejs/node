@@ -1386,7 +1386,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ larl(r0, &return_location);
         __ StoreU64(r0,
                     MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
-        set_isolate_data_slots = SetIsolateDataSlots::kNo;
+        set_isolate_data_slots = SetIsolateDataSlots::know;
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
       int pc_offset;
@@ -3519,7 +3519,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   // TODO(john.yan): use load imm high on condition here
   __ mov(reg, Operand::Zero());
   __ mov(kScratchReg, Operand(1));
-  // locr is sufficient since reg's upper 32 is guarrantee to be 0
+  // locr is sufficient since reg's upper 32 is guarantee to be 0
   __ locr(cond, reg, kScratchReg);
   __ bind(&done);
 }
@@ -4123,7 +4123,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
   }
 }
 
-// Swaping contents in source and destination.
+// Swapping contents in source and destination.
 // source and destination could be:
 //   Register,
 //   FloatRegister,

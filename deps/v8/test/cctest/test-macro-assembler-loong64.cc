@@ -1775,8 +1775,8 @@ TEST(SUB_W) {
       {0x7FFFFFFF,   0xFFFFFFFF80000001,         3},  // max_int32
       // Generates lu12i_w + ori + sub_w
       {0xFFFFFFFF80000000, 0xFFFFFFFF80000000,   2},  // min_int32
-      // The test case above generates lu12i + sub_w intruction sequence.
-      // The result of 0 - min_int32 eqauls max_int32 + 1, which wraps around to
+      // The test case above generates lu12i + sub_w instruction sequence.
+      // The result of 0 - min_int32 equals max_int32 + 1, which wraps around to
       // min_int32 again.
   };
   // clang-format on

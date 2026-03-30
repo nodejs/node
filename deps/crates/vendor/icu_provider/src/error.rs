@@ -30,11 +30,11 @@ pub enum DataErrorKind {
     #[displaydoc("The data for two markers is not consistent: {0:?} (were they generated in different datagen invocations?)")]
     InconsistentData(DataMarkerInfo),
 
-    /// An error occured during [`Any`](core::any::Any) downcasting.
+    /// An error occurred during [`Any`](core::any::Any) downcasting.
     #[displaydoc("Downcast: expected {0}, found")]
     Downcast(&'static str),
 
-    /// An error occured during [`serde`] deserialization.
+    /// An error occurred during [`serde`] deserialization.
     ///
     /// Check debug logs for potentially more information.
     #[displaydoc("Deserialize")]

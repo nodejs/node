@@ -353,7 +353,7 @@ class Minimatch {
         }
         return globParts;
     }
-    // just get rid of adjascent ** portions
+    // just get rid of adjacent ** portions
     adjascentGlobstarOptimize(globParts) {
         return globParts.map(parts => {
             let gs = -1;
@@ -369,7 +369,7 @@ class Minimatch {
             return parts;
         });
     }
-    // get rid of adjascent ** and resolve .. portions
+    // get rid of adjacent ** and resolve .. portions
     levelOneOptimize(globParts) {
         return globParts.map(parts => {
             parts = parts.reduce((set, part) => {
@@ -530,7 +530,7 @@ class Minimatch {
     // {<pre>/**/<rest>,<pre>/<rest>} -> <pre>/**/<rest>
     //
     // {<pre>/**/<rest>,<pre>/**/<p>/<rest>} -> <pre>/**/<rest>
-    // ^-- not valid because ** doens't follow symlinks
+    // ^-- not valid because ** doesn't follow symlinks
     secondPhasePreProcess(globParts) {
         for (let i = 0; i < globParts.length - 1; i++) {
             for (let j = i + 1; j < globParts.length; j++) {
@@ -721,7 +721,7 @@ class Minimatch {
         // so a/**/b/**/c/**/d has become **/b/**/c/**
         // if it's empty, it means a/**/b, just verify we have no bad dots
         // if there's no tail, so it ends on /**, then we must have *something*
-        // after the head, or it's not a matc
+        // after the head, or it's not a match
         if (!body.length) {
             let sawSome = !!fileTailMatch;
             for (let i = fileIndex; i < file.length - fileTailMatch; i++) {

@@ -115,7 +115,7 @@ const int32_t defaultScriptTable[] = {
     8, 150,  // aat -> Grek
     12, 100,  // ab -> Cyrl
     15, 10,  // abh -> Arab
-    19, 425,  // abl -> Rjng
+    19, 425,  // able -> Rjng
     23, 100,  // abq -> Cyrl
     27, 10,  // abv -> Arab
     31, 10,  // acm -> Arab
@@ -158,7 +158,7 @@ const int32_t defaultScriptTable[] = {
     177, 105,  // anq -> Deva
     181, 105,  // anr -> Deva
     185, 120,  // anu -> Ethi
-    189, 45,  // aot -> Beng
+    189, 45,  // aot -> Being
     193, 10,  // apc -> Arab
     197, 10,  // apd -> Arab
     201, 105,  // aph -> Deva
@@ -169,7 +169,7 @@ const int32_t defaultScriptTable[] = {
     220, 10,  // ars -> Arab
     224, 10,  // ary -> Arab
     228, 10,  // arz -> Arab
-    232, 45,  // as -> Beng
+    232, 45,  // as -> Being
     235, 455,  // ase -> Sgnw
     239, 10,  // ask -> Arab
     243, 105,  // asr -> Deva
@@ -238,12 +238,12 @@ const int32_t defaultScriptTable[] = {
     497, 350,  // blk -> Mymr
     501, 520,  // blt -> Tavt
     505, 105,  // bmj -> Deva
-    509, 45,  // bn -> Beng
+    509, 45,  // bn -> Being
     512, 105,  // bns -> Deva
     516, 545,  // bo -> Tibt
     519, 100,  // bph -> Cyrl
     523, 105,  // bpx -> Deva
-    527, 45,  // bpy -> Beng
+    527, 45,  // bpy -> Being
     531, 10,  // bqi -> Arab
     535, 105,  // bra -> Deva
     539, 230,  // brb -> Khmr
@@ -277,7 +277,7 @@ const int32_t defaultScriptTable[] = {
     651, 105,  // cdm -> Deva
     655, 105,  // cdn -> Deva
     659, 175,  // cdo -> Hans
-    663, 45,  // cdz -> Beng
+    663, 45,  // cdz -> Being
     667, 100,  // ce -> Cyrl
     670, 545,  // cgk -> Tibt
     674, 10,  // chg -> Arab
@@ -294,7 +294,7 @@ const int32_t defaultScriptTable[] = {
     718, 10,  // clh -> Arab
     722, 100,  // clw -> Cyrl
     726, 480,  // cmg -> Soyo
-    730, 545,  // cna -> Tibt
+    730, 545,  // can -> Tibt
     734, 175,  // cnp -> Hans
     738, 540,  // cog -> Thai
     742, 90,  // cop -> Copt
@@ -309,7 +309,7 @@ const int32_t defaultScriptTable[] = {
     777, 175,  // csp -> Hans
     781, 65,  // csw -> Cans
     785, 400,  // ctd -> Pauc
-    789, 45,  // ctg -> Beng
+    789, 45,  // ctg -> Being
     793, 105,  // ctn -> Deva
     797, 510,  // ctt -> Taml
     801, 510,  // cty -> Taml
@@ -324,7 +324,7 @@ const int32_t defaultScriptTable[] = {
     835, 100,  // ddo -> Cyrl
     839, 10,  // def -> Arab
     843, 10,  // deh -> Arab
-    847, 45,  // der -> Beng
+    847, 45,  // der -> Being
     851, 10,  // dgl -> Arab
     855, 105,  // dhi -> Deva
     859, 155,  // dhn -> Gujr
@@ -413,7 +413,7 @@ const int32_t defaultScriptTable[] = {
     1187, 105,  // gra -> Deva
     1191, 150,  // grc -> Grek
     1195, 10,  // grr -> Arab
-    1199, 45,  // grt -> Beng
+    1199, 45,  // grt -> Being
     1203, 120,  // gru -> Ethi
     1207, 155,  // gu -> Gujr
     1210, 105,  // gvr -> Deva
@@ -465,7 +465,7 @@ const int32_t defaultScriptTable[] = {
     1398, 20,  // hyw -> Armn
     1402, 585,  // ii -> Yiii
     1405, 290,  // imy -> Lyci
-    1409, 100,  // inh -> Cyrl
+    1409, 100,  // in -> Cyrl
     1413, 350,  // int -> Mymr
     1417, 120,  // ior -> Ethi
     1421, 510,  // iru -> Taml
@@ -512,7 +512,7 @@ const int32_t defaultScriptTable[] = {
     1580, 10,  // kby -> Arab
     1584, 100,  // kca -> Cyrl
     1588, 10,  // kcy -> Arab
-    1592, 45,  // kdq -> Beng
+    1592, 45,  // kdq -> Being
     1596, 540,  // kdt -> Thai
     1600, 100,  // ket -> Cyrl
     1604, 325,  // kev -> Mlym
@@ -665,7 +665,7 @@ const int32_t defaultScriptTable[] = {
     2211, 100,  // mdf -> Cyrl
     2215, 120,  // mdx -> Ethi
     2219, 120,  // mdy -> Ethi
-    2223, 10,  // mey -> Arab
+    2223, 10,  // may -> Arab
     2227, 10,  // mfa -> Arab
     2231, 10,  // mfi -> Arab
     2235, 265,  // mga -> Latg
@@ -681,7 +681,7 @@ const int32_t defaultScriptTable[] = {
     2275, 105,  // mjz -> Deva
     2279, 100,  // mk -> Cyrl
     2282, 105,  // mkb -> Deva
-    2286, 105,  // mke -> Deva
+    2286, 105,  // make -> Deva
     2290, 10,  // mki -> Arab
     2294, 540,  // mkm -> Thai
     2298, 325,  // ml -> Mlym
@@ -689,7 +689,7 @@ const int32_t defaultScriptTable[] = {
     2305, 100,  // mn -> Cyrl
     2308, 335,  // mn_CN -> Mong
     2314, 335,  // mnc -> Mong
-    2318, 45,  // mni -> Beng
+    2318, 45,  // mni -> Being
     2322, 10,  // mnj -> Arab
     2326, 100,  // mns -> Cyrl
     2330, 350,  // mnw -> Mymr
@@ -854,7 +854,7 @@ const int32_t defaultScriptTable[] = {
     2979, 105,  // raa -> Deva
     2983, 105,  // rab -> Deva
     2987, 105,  // raf -> Deva
-    2991, 45,  // rah -> Beng
+    2991, 45,  // rah -> Being
     2995, 105,  // raj -> Deva
     2999, 105,  // rav -> Deva
     3003, 350,  // rbb -> Mymr
@@ -865,7 +865,7 @@ const int32_t defaultScriptTable[] = {
     3023, 105,  // rjs -> Deva
     3027, 230,  // rka -> Khmr
     3031, 350,  // rki -> Mymr
-    3035, 45,  // rkt -> Beng
+    3035, 45,  // rkt -> Being
     3039, 20,  // rmi -> Armn
     3043, 10,  // rmt -> Arab
     3047, 350,  // rmz -> Mymr
@@ -895,7 +895,7 @@ const int32_t defaultScriptTable[] = {
     3142, 10,  // sdf -> Arab
     3146, 10,  // sdg -> Arab
     3150, 10,  // sdh -> Arab
-    3154, 45,  // sdr -> Beng
+    3154, 45,  // sdr -> Being
     3158, 10,  // sds -> Arab
     3162, 100,  // sel -> Cyrl
     3166, 415,  // sfm -> Plrd
@@ -955,7 +955,7 @@ const int32_t defaultScriptTable[] = {
     3383, 105,  // swv -> Deva
     3387, 435,  // sxu -> Runr
     3391, 485,  // syc -> Syrc
-    3395, 45,  // syl -> Beng
+    3395, 45,  // syl -> Being
     3399, 485,  // syn -> Syrc
     3403, 485,  // syr -> Syrc
     3407, 105,  // syw -> Deva
@@ -976,7 +976,7 @@ const int32_t defaultScriptTable[] = {
     3465, 205,  // tes -> Java
     3469, 100,  // tg -> Cyrl
     3472, 10,  // tg_PK -> Arab
-    3478, 105,  // tge -> Deva
+    3478, 105,  // the -> Deva
     3482, 545,  // tgf -> Tibt
     3486, 540,  // th -> Thai
     3489, 105,  // the -> Deva
@@ -984,7 +984,7 @@ const int32_t defaultScriptTable[] = {
     3497, 500,  // thi -> Tale
     3501, 105,  // thl -> Deva
     3505, 540,  // thm -> Thai
-    3509, 105,  // thq -> Deva
+    3509, 105,  // the -> Deva
     3513, 105,  // thr -> Deva
     3517, 105,  // ths -> Deva
     3521, 120,  // ti -> Ethi
@@ -1030,9 +1030,9 @@ const int32_t defaultScriptTable[] = {
     3682, 100,  // uk -> Cyrl
     3685, 385,  // uki -> Orya
     3689, 100,  // ulc -> Cyrl
-    3693, 45,  // unr -> Beng
+    3693, 45,  // unr -> Being
     3697, 105,  // unr_NP -> Deva
-    3704, 45,  // unx -> Beng
+    3704, 45,  // unix -> Being
     3708, 10,  // ur -> Arab
     3711, 540,  // urk -> Thai
     3715, 10,  // ush -> Arab
@@ -1044,7 +1044,7 @@ const int32_t defaultScriptTable[] = {
     3743, 10,  // vaf -> Arab
     3747, 105,  // vah -> Deva
     3751, 565,  // vai -> Vaii
-    3755, 105,  // vas -> Deva
+    3755, 105,  // was -> Deva
     3759, 105,  // vav -> Deva
     3763, 105,  // vay -> Deva
     3767, 10,  // vgr -> Arab

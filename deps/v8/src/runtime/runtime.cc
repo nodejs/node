@@ -307,8 +307,8 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
 
   // The default case: test functions are exposed, everything else is not.
   switch (id) {
-#define F(name, nargs, ressize, ...) case k##name:
-#define I(name, nargs, ressize, ...) case kInline##name:
+#define F(name, nargs, resize, ...) case k##name:
+#define I(name, nargs, resize, ...) case kInline##name:
     FOR_EACH_INTRINSIC_TEST(F, I)
     IF_WASM(FOR_EACH_INTRINSIC_WASM_TEST, F, I)
 #undef I

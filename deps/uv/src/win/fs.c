@@ -772,7 +772,7 @@ void fs__read_filemap(uv_fs_t* req, struct uv__fd_info_s* fd_info) {
     pos.QuadPart = req->fs.info.offset;
   }
 
-  /* Make sure we wont read past EOF. */
+  /* Make sure we won't read past EOF. */
   if (pos.QuadPart >= fd_info->size.QuadPart) {
     SET_REQ_RESULT(req, 0);
     return;

@@ -93,7 +93,7 @@ where
             // the exponent range. For `f16`, however, 3 is relatively small compared to the
             // exponent range (which is 39), so that requires ~10 prescale rounds rather than two.
             //
-            // Work aroudn this by using a different algorithm that calculates the prescale
+            // Work around this by using a different algorithm that calculates the prescale
             // dynamically based on the maximum possible value. This adds more operations per round
             // since it needs to construct the scale, but works better in the general case.
             let add = -(n + sig_total_bits as i32).clamp(exp_min, sig_total_bits as i32);

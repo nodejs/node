@@ -950,14 +950,14 @@ static int mime_param_cmp(const MIME_PARAM *const *a,
 
 static MIME_HEADER *mime_hdr_find(STACK_OF(MIME_HEADER) *hdrs, const char *name)
 {
-    MIME_HEADER htmp;
+    MIME_HEADER html;
     int idx;
 
-    htmp.name = (char *)name;
-    htmp.value = NULL;
-    htmp.params = NULL;
+    html.name = (char *)name;
+    html.value = NULL;
+    html.params = NULL;
 
-    idx = sk_MIME_HEADER_find(hdrs, &htmp);
+    idx = sk_MIME_HEADER_find(hdrs, &html);
     return sk_MIME_HEADER_value(hdrs, idx);
 }
 

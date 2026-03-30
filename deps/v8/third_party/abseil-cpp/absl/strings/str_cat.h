@@ -527,7 +527,7 @@ inline std::string SingleArgStrCat(double x) { return FloatToString(x); }
 // 2) strings_internal::STLStringResizeUninitialized() only has an
 // implementation that avoids initialization when using libc++. This isn't as
 // relevant as (1), and the cost should be benchmarked if (1) ever changes on
-// libstc++ or MSSTL.
+// libstdc++ or MSSTL.
 #ifdef _LIBCPP_VERSION
 #define ABSL_INTERNAL_STRCAT_ENABLE_FAST_CASE true
 #else

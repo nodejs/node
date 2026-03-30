@@ -163,7 +163,7 @@ testEqual(true, "1");
 // a number hint.
 
 testEqual(new Boolean(true), true);
-testEqual(new Boolean(true), 1);  // First to primtive boolean, then to number.
+testEqual(new Boolean(true), 1);  // First to primitive boolean, then to number.
 testEqual(new Boolean(false), false);
 testEqual(new Boolean(false), 0);
 

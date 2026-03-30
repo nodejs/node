@@ -113,7 +113,7 @@ class LIEF_API NoteGnuProperty : public Note {
 
 LIEF_API const char* to_string(NoteGnuProperty::Property::TYPE type);
 
-} // namepsace ELF
+} // namespace ELF
 } // namespace LIEF
 
 #endif

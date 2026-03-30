@@ -2933,12 +2933,12 @@ int SSL_new_session_ticket(SSL *s)
     return 1;
 }
 
-long SSL_ctrl(SSL *s, int cmd, long larg, void *parg)
+long SSL_ctrl(SSL *s, int cmd, long large, void *parg)
 {
-    return ossl_ctrl_internal(s, cmd, larg, parg, /*no_quic=*/0);
+    return ossl_ctrl_internal(s, cmd, large, parg, /*no_quic=*/0);
 }
 
-long ossl_ctrl_internal(SSL *s, int cmd, long larg, void *parg, int no_quic)
+long ossl_ctrl_internal(SSL *s, int cmd, long large, void *parg, int no_quic)
 {
     long l;
     SSL_CONNECTION *sc = SSL_CONNECTION_FROM_SSL(s);
@@ -2959,7 +2959,7 @@ long ossl_ctrl_internal(SSL *s, int cmd, long larg, void *parg, int no_quic)
      *     redirected to the handshake layer SSL object.
      */
     if (!no_quic && IS_QUIC(s))
-        return s->method->ssl_ctrl(s, cmd, larg, parg);
+        return s->method->ssl_ctrl(s, cmd, large, parg);
 
     if (sc == NULL)
         return 0;
@@ -2969,13 +2969,13 @@ long ossl_ctrl_internal(SSL *s, int cmd, long larg, void *parg, int no_quic)
         return RECORD_LAYER_get_read_ahead(&sc->rlayer);
     case SSL_CTRL_SET_READ_AHEAD:
         l = RECORD_LAYER_get_read_ahead(&sc->rlayer);
-        RECORD_LAYER_set_read_ahead(&sc->rlayer, larg);
+        RECORD_LAYER_set_read_ahead(&sc->rlayer, large);
         return l;
 
     case SSL_CTRL_MODE: {
         OSSL_PARAM options[2], *opts = options;
 
-        sc->mode |= larg;
+        sc->mode |= large;
 
         *opts++ = OSSL_PARAM_construct_uint32(OSSL_LIBSSL_RECORD_LAYER_PARAM_MODE,
             &sc->mode);
@@ -2987,38 +2987,38 @@ long ossl_ctrl_internal(SSL *s, int cmd, long larg, void *parg, int no_quic)
         return sc->mode;
     }
     case SSL_CTRL_CLEAR_MODE:
-        return (sc->mode &= ~larg);
+        return (sc->mode &= ~large);
     case SSL_CTRL_GET_MAX_CERT_LIST:
         return (long)sc->max_cert_list;
     case SSL_CTRL_SET_MAX_CERT_LIST:
-        if (larg < 0)
+        if (large < 0)
             return 0;
         l = (long)sc->max_cert_list;
-        sc->max_cert_list = (size_t)larg;
+        sc->max_cert_list = (size_t)large;
         return l;
     case SSL_CTRL_SET_MAX_SEND_FRAGMENT:
-        if (larg < 512 || larg > SSL3_RT_MAX_PLAIN_LENGTH)
+        if (large < 512 || large > SSL3_RT_MAX_PLAIN_LENGTH)
             return 0;
 #ifndef OPENSSL_NO_KTLS
         if (sc->wbio != NULL && BIO_get_ktls_send(sc->wbio))
             return 0;
 #endif /* OPENSSL_NO_KTLS */
-        sc->max_send_fragment = larg;
+        sc->max_send_fragment = large;
         if (sc->max_send_fragment < sc->split_send_fragment)
             sc->split_send_fragment = sc->max_send_fragment;
-        sc->rlayer.wrlmethod->set_max_frag_len(sc->rlayer.wrl, larg);
+        sc->rlayer.wrlmethod->set_max_frag_len(sc->rlayer.wrl, large);
         return 1;
     case SSL_CTRL_SET_SPLIT_SEND_FRAGMENT:
-        if ((size_t)larg > sc->max_send_fragment || larg == 0)
+        if ((size_t)large > sc->max_send_fragment || large == 0)
             return 0;
-        sc->split_send_fragment = larg;
+        sc->split_send_fragment = large;
         return 1;
     case SSL_CTRL_SET_MAX_PIPELINES:
-        if (larg < 1 || larg > SSL_MAX_PIPELINES)
+        if (large < 1 || large > SSL_MAX_PIPELINES)
             return 0;
-        sc->max_pipelines = larg;
+        sc->max_pipelines = large;
         if (sc->rlayer.rrlmethod->set_max_pipelines != NULL)
-            sc->rlayer.rrlmethod->set_max_pipelines(sc->rlayer.rrl, (size_t)larg);
+            sc->rlayer.rrlmethod->set_max_pipelines(sc->rlayer.rrl, (size_t)large);
         return 1;
     case SSL_CTRL_GET_RI_SUPPORT:
         return sc->s3.send_connection_binding;
@@ -3026,9 +3026,9 @@ long ossl_ctrl_internal(SSL *s, int cmd, long larg, void *parg, int no_quic)
         sc->rwstate = SSL_RETRY_VERIFY;
         return 1;
     case SSL_CTRL_CERT_FLAGS:
-        return (sc->cert->cert_flags |= larg);
+        return (sc->cert->cert_flags |= large);
     case SSL_CTRL_CLEAR_CERT_FLAGS:
-        return (sc->cert->cert_flags &= ~larg);
+        return (sc->cert->cert_flags &= ~large);
 
     case SSL_CTRL_GET_RAW_CIPHERLIST:
         if (parg) {
@@ -3047,22 +3047,22 @@ long ossl_ctrl_internal(SSL *s, int cmd, long larg, void *parg, int no_quic)
         else
             return 0;
     case SSL_CTRL_SET_MIN_PROTO_VERSION:
-        return ssl_check_allowed_versions(larg, sc->max_proto_version)
-            && ssl_set_version_bound(s->defltmeth->version, (int)larg,
+        return ssl_check_allowed_versions(large, sc->max_proto_version)
+            && ssl_set_version_bound(s->defltmeth->version, (int)large,
                 &sc->min_proto_version);
     case SSL_CTRL_GET_MIN_PROTO_VERSION:
         return sc->min_proto_version;
     case SSL_CTRL_SET_MAX_PROTO_VERSION:
-        return ssl_check_allowed_versions(sc->min_proto_version, larg)
-            && ssl_set_version_bound(s->defltmeth->version, (int)larg,
+        return ssl_check_allowed_versions(sc->min_proto_version, large)
+            && ssl_set_version_bound(s->defltmeth->version, (int)large,
                 &sc->max_proto_version);
     case SSL_CTRL_GET_MAX_PROTO_VERSION:
         return sc->max_proto_version;
     default:
         if (IS_QUIC(s))
-            return SSL_ctrl((SSL *)sc, cmd, larg, parg);
+            return SSL_ctrl((SSL *)sc, cmd, large, parg);
         else
-            return s->method->ssl_ctrl(s, cmd, larg, parg);
+            return s->method->ssl_ctrl(s, cmd, large, parg);
     }
 }
 
@@ -3087,12 +3087,12 @@ static int ssl_tsan_load(SSL_CTX *ctx, TSAN_QUALIFIER int *stat)
     return res;
 }
 
-long SSL_CTX_ctrl(SSL_CTX *ctx, int cmd, long larg, void *parg)
+long SSL_CTX_ctrl(SSL_CTX *ctx, int cmd, long large, void *parg)
 {
     long l;
 
-    /* For some cases with ctx == NULL or larg == 1 perform syntax checks */
-    if (cmd == SSL_CTRL_SET_GROUPS_LIST && larg == 1)
+    /* For some cases with ctx == NULL or large == 1 perform syntax checks */
+    if (cmd == SSL_CTRL_SET_GROUPS_LIST && large == 1)
         return tls1_set_groups_list(ctx, NULL, NULL, NULL, NULL, NULL, NULL, parg);
     if (ctx == NULL) {
         switch (cmd) {
@@ -3109,7 +3109,7 @@ long SSL_CTX_ctrl(SSL_CTX *ctx, int cmd, long larg, void *parg)
         return ctx->read_ahead;
     case SSL_CTRL_SET_READ_AHEAD:
         l = ctx->read_ahead;
-        ctx->read_ahead = larg;
+        ctx->read_ahead = large;
         return l;
 
     case SSL_CTRL_SET_MSG_CALLBACK_ARG:
@@ -3119,23 +3119,23 @@ long SSL_CTX_ctrl(SSL_CTX *ctx, int cmd, long larg, void *parg)
     case SSL_CTRL_GET_MAX_CERT_LIST:
         return (long)ctx->max_cert_list;
     case SSL_CTRL_SET_MAX_CERT_LIST:
-        if (larg < 0)
+        if (large < 0)
             return 0;
         l = (long)ctx->max_cert_list;
-        ctx->max_cert_list = (size_t)larg;
+        ctx->max_cert_list = (size_t)large;
         return l;
 
     case SSL_CTRL_SET_SESS_CACHE_SIZE:
-        if (larg < 0)
+        if (large < 0)
             return 0;
         l = (long)ctx->session_cache_size;
-        ctx->session_cache_size = (size_t)larg;
+        ctx->session_cache_size = (size_t)large;
         return l;
     case SSL_CTRL_GET_SESS_CACHE_SIZE:
         return (long)ctx->session_cache_size;
     case SSL_CTRL_SET_SESS_CACHE_MODE:
         l = ctx->session_cache_mode;
-        ctx->session_cache_mode = larg;
+        ctx->session_cache_mode = large;
         return l;
     case SSL_CTRL_GET_SESS_CACHE_MODE:
         return ctx->session_cache_mode;
@@ -3165,44 +3165,44 @@ long SSL_CTX_ctrl(SSL_CTX *ctx, int cmd, long larg, void *parg)
     case SSL_CTRL_SESS_CACHE_FULL:
         return ssl_tsan_load(ctx, &ctx->stats.sess_cache_full);
     case SSL_CTRL_MODE:
-        return (ctx->mode |= larg);
+        return (ctx->mode |= large);
     case SSL_CTRL_CLEAR_MODE:
-        return (ctx->mode &= ~larg);
+        return (ctx->mode &= ~large);
     case SSL_CTRL_SET_MAX_SEND_FRAGMENT:
-        if (larg < 512 || larg > SSL3_RT_MAX_PLAIN_LENGTH)
+        if (large < 512 || large > SSL3_RT_MAX_PLAIN_LENGTH)
             return 0;
-        ctx->max_send_fragment = larg;
+        ctx->max_send_fragment = large;
         if (ctx->max_send_fragment < ctx->split_send_fragment)
             ctx->split_send_fragment = ctx->max_send_fragment;
         return 1;
     case SSL_CTRL_SET_SPLIT_SEND_FRAGMENT:
-        if ((size_t)larg > ctx->max_send_fragment || larg == 0)
+        if ((size_t)large > ctx->max_send_fragment || large == 0)
             return 0;
-        ctx->split_send_fragment = larg;
+        ctx->split_send_fragment = large;
         return 1;
     case SSL_CTRL_SET_MAX_PIPELINES:
-        if (larg < 1 || larg > SSL_MAX_PIPELINES)
+        if (large < 1 || large > SSL_MAX_PIPELINES)
             return 0;
-        ctx->max_pipelines = larg;
+        ctx->max_pipelines = large;
         return 1;
     case SSL_CTRL_CERT_FLAGS:
-        return (ctx->cert->cert_flags |= larg);
+        return (ctx->cert->cert_flags |= large);
     case SSL_CTRL_CLEAR_CERT_FLAGS:
-        return (ctx->cert->cert_flags &= ~larg);
+        return (ctx->cert->cert_flags &= ~large);
     case SSL_CTRL_SET_MIN_PROTO_VERSION:
-        return ssl_check_allowed_versions(larg, ctx->max_proto_version)
-            && ssl_set_version_bound(ctx->method->version, (int)larg,
+        return ssl_check_allowed_versions(large, ctx->max_proto_version)
+            && ssl_set_version_bound(ctx->method->version, (int)large,
                 &ctx->min_proto_version);
     case SSL_CTRL_GET_MIN_PROTO_VERSION:
         return ctx->min_proto_version;
     case SSL_CTRL_SET_MAX_PROTO_VERSION:
-        return ssl_check_allowed_versions(ctx->min_proto_version, larg)
-            && ssl_set_version_bound(ctx->method->version, (int)larg,
+        return ssl_check_allowed_versions(ctx->min_proto_version, large)
+            && ssl_set_version_bound(ctx->method->version, (int)large,
                 &ctx->max_proto_version);
     case SSL_CTRL_GET_MAX_PROTO_VERSION:
         return ctx->max_proto_version;
     default:
-        return ctx->method->ssl_ctx_ctrl(ctx, cmd, larg, parg);
+        return ctx->method->ssl_ctx_ctrl(ctx, cmd, large, parg);
     }
 }
 

@@ -295,7 +295,7 @@ class Code : public ExposedTrustedObject {
   // (see Isolate::is_short_builtin_calls_enabled()) then both embedded and
   // un-embedded builtins might be exeuted and thus two kinds of |pc|s might
   // appear on the stack.
-  // Unlike the paremeterless versions of the functions above the below variants
+  // Unlike the parameterless versions of the functions above the below variants
   // ensure that the instruction start correspond to the given |pc| value.
   // Thus for off-heap trampoline InstructionStream objects the result might be
   // the instruction start/end of the embedded code stream or of un-embedded

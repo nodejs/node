@@ -321,12 +321,12 @@ class V8_EXPORT_PRIVATE SimdShuffle {
       const ShuffleArray<kSimd128HalfSize>& shuffle);
 
 #ifdef V8_TARGET_ARCH_X64
-  // If matching success, the corresponding instrution should be:
+  // If matching success, the corresponding instruction should be:
   // vpshufd ymm, ymm, imm8
   // The augument 'control' is 'imm8' in the instruction.
   static bool TryMatchVpshufd(const uint8_t* shuffle32x8, uint8_t* control);
 
-  // If matching success, the corresponding instrution should be:
+  // If matching success, the corresponding instruction should be:
   // vshufps ymm, ymm, ymm, imm8
   // The augument 'control' is 'imm8' in the instruction.
   static bool TryMatchShufps256(const uint8_t* shuffle32x8, uint8_t* control);

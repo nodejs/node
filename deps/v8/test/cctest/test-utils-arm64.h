@@ -230,7 +230,7 @@ DoubleRegList PopulateVRegisterArray(VRegister* s, VRegister* d, VRegister* v,
                                      int reg_size, int reg_count,
                                      DoubleRegList allowed);
 
-// Ovewrite the contents of the specified registers. This enables tests to
+// Overwrite the contents of the specified registers. This enables tests to
 // check that register contents are written in cases where it's likely that the
 // correct outcome could already be stored in the register.
 //

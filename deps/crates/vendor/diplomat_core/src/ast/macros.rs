@@ -384,7 +384,7 @@ impl MacroUse {
 /// Used for determining how to parse [`MacroUse`].
 /// First constructed with [`MacroMatcher::parse`] inside of [`MacroDef::parse`]. Then, we compare with [`MacroUse::parse_macro_matcher`].
 pub enum MacroMatch {
-    /// A token, excluding $ or delimeters. See https://doc.rust-lang.org/reference/tokens.html#grammar-Token
+    /// A token, excluding $ or delimiters. See https://doc.rust-lang.org/reference/tokens.html#grammar-Token
     Tokens(TokenStream),
     /// A delimeter-separated vector of [`MacroMatch`].
     MacroMatcher(MacroMatcher),

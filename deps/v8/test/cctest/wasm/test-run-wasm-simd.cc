@@ -2686,7 +2686,7 @@ WASM_EXEC_TEST(I8x16ShuffleWithZeroInput) {
     LANE(src1, i) = i;
   }
 
-  // Zero extend first 4 elments of src1 to 32 bit
+  // Zero extend first 4 elements of src1 to 32 bit
   constexpr std::array<int8_t, 16> shuffle = {16, 1, 2,  3,  17, 5,  6,  7,
                                               18, 9, 10, 11, 19, 13, 14, 15};
   constexpr std::array<int8_t, 16> expected = {0, 0, 0, 0, 1, 0, 0, 0,
@@ -6873,7 +6873,7 @@ TEST(RunWasmTurbofan_ForcePackIdenticalLoad) {
     TSSimd256VerifyScope ts_scope(
         r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
                       compiler::turboshaft::Opcode::kSimdPack128To256>);
-    // Load from [0:15], the two loads are indentical.
+    // Load from [0:15], the two loads are identical.
     r.Build({WASM_LOCAL_SET(temp3, WASM_SIMD_LOAD_MEM(WASM_ZERO)),
              WASM_LOCAL_SET(
                  temp1, WASM_SIMD_UNOP(kExprI32x4Abs,

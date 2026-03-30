@@ -521,7 +521,7 @@ Object.preventExtensions(arr2);
 Object.freeze(arr2);
 testPackedFrozenArray2(arr2);
 
-// Verify that repeatedly attemping to freeze a typed array fails
+// Verify that repeatedly attempting to freeze a typed array fails
 var typedArray = new Uint8Array(10);
 assertThrows(() => { Object.freeze(typedArray); }, TypeError);
 assertFalse(Object.isFrozen(typedArray));

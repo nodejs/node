@@ -50,7 +50,7 @@ class LIEF_API OptionalHeader : public Object {
     FORCE_INTEGRITY       = 0x0080, ///< Code integrity checks are enforced.
     NX_COMPAT             = 0x0100, ///< Image is NX compatible.
     NO_ISOLATION          = 0x0200, ///< Isolation aware, but do not isolate the image.
-    NO_SEH                = 0x0400, ///< Does not use structured exception handling (SEH). No SEH handler may be called in this image.
+    NO_SEH                = 0x0400, ///< Does not use structured exception handling (SHE). No SHE handler may be called in this image.
     NO_BIND               = 0x0800, ///< Do not bind the image.
     APPCONTAINER          = 0x1000, ///< Image should execute in an AppContainer.
     WDM_DRIVER            = 0x2000, ///< A WDM driver.
@@ -63,7 +63,7 @@ class LIEF_API OptionalHeader : public Object {
     NATIVE                   = 1,  ///< Device drivers and native Windows processes
     WINDOWS_GUI              = 2,  ///< The Windows GUI subsystem.
     WINDOWS_CUI              = 3,  ///< The Windows character subsystem.
-    OS2_CUI                  = 5,  ///< The OS/2 character subsytem.
+    OS2_CUI                  = 5,  ///< The OS/2 character subsystem.
     POSIX_CUI                = 7,  ///< The POSIX character subsystem.
     NATIVE_WINDOWS           = 8,  ///< Native Windows 9x driver.
     WINDOWS_CE_GUI           = 9,  ///< Windows CE.

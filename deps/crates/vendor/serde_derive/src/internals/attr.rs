@@ -276,18 +276,18 @@ impl Container {
                 if meta.path == RENAME {
                     // #[serde(rename = "foo")]
                     // #[serde(rename(serialize = "foo", deserialize = "bar"))]
-                    let (ser, de) = get_renames(cx, RENAME, &meta)?;
-                    ser_name.set_opt(&meta.path, ser.as_ref().map(Name::from));
+                    let (set, de) = get_renames(cx, RENAME, &meta)?;
+                    ser_name.set_opt(&meta.path, set.as_ref().map(Name::from));
                     de_name.set_opt(&meta.path, de.as_ref().map(Name::from));
                 } else if meta.path == RENAME_ALL {
                     // #[serde(rename_all = "foo")]
                     // #[serde(rename_all(serialize = "foo", deserialize = "bar"))]
                     let one_name = meta.input.peek(Token![=]);
-                    let (ser, de) = get_renames(cx, RENAME_ALL, &meta)?;
-                    if let Some(ser) = ser {
-                        match RenameRule::from_str(&ser.value()) {
+                    let (set, de) = get_renames(cx, RENAME_ALL, &meta)?;
+                    if let Some(set) = set {
+                        match RenameRule::from_str(&set.value()) {
                             Ok(rename_rule) => rename_all_ser_rule.set(&meta.path, rename_rule),
-                            Err(err) => cx.error_spanned_by(ser, err),
+                            Err(err) => cx.error_spanned_by(set, err),
                         }
                     }
                     if let Some(de) = de {
@@ -304,16 +304,16 @@ impl Container {
                     // #[serde(rename_all_fields = "foo")]
                     // #[serde(rename_all_fields(serialize = "foo", deserialize = "bar"))]
                     let one_name = meta.input.peek(Token![=]);
-                    let (ser, de) = get_renames(cx, RENAME_ALL_FIELDS, &meta)?;
+                    let (set, de) = get_renames(cx, RENAME_ALL_FIELDS, &meta)?;
 
                     match item.data {
                         syn::Data::Enum(_) => {
-                            if let Some(ser) = ser {
-                                match RenameRule::from_str(&ser.value()) {
+                            if let Some(set) = set {
+                                match RenameRule::from_str(&set.value()) {
                                     Ok(rename_rule) => {
                                         rename_all_fields_ser_rule.set(&meta.path, rename_rule);
                                     }
-                                    Err(err) => cx.error_spanned_by(ser, err),
+                                    Err(err) => cx.error_spanned_by(set, err),
                                 }
                             }
                             if let Some(de) = de {
@@ -393,8 +393,8 @@ impl Container {
                 } else if meta.path == BOUND {
                     // #[serde(bound = "T: SomeBound")]
                     // #[serde(bound(serialize = "...", deserialize = "..."))]
-                    let (ser, de) = get_where_predicates(cx, &meta)?;
-                    ser_bound.set_opt(&meta.path, ser);
+                    let (set, de) = get_where_predicates(cx, &meta)?;
+                    ser_bound.set_opt(&meta.path, set);
                     de_bound.set_opt(&meta.path, de);
                 } else if meta.path == UNTAGGED {
                     // #[serde(untagged)]
@@ -776,8 +776,8 @@ impl Variant {
                 if meta.path == RENAME {
                     // #[serde(rename = "foo")]
                     // #[serde(rename(serialize = "foo", deserialize = "bar"))]
-                    let (ser, de) = get_multiple_renames(cx, &meta)?;
-                    ser_name.set_opt(&meta.path, ser.as_ref().map(Name::from));
+                    let (set, de) = get_multiple_renames(cx, &meta)?;
+                    ser_name.set_opt(&meta.path, set.as_ref().map(Name::from));
                     for de_value in de {
                         de_name.set_if_none(Name::from(&de_value));
                         de_aliases.insert(&meta.path, Name::from(&de_value));
@@ -791,11 +791,11 @@ impl Variant {
                     // #[serde(rename_all = "foo")]
                     // #[serde(rename_all(serialize = "foo", deserialize = "bar"))]
                     let one_name = meta.input.peek(Token![=]);
-                    let (ser, de) = get_renames(cx, RENAME_ALL, &meta)?;
-                    if let Some(ser) = ser {
-                        match RenameRule::from_str(&ser.value()) {
+                    let (set, de) = get_renames(cx, RENAME_ALL, &meta)?;
+                    if let Some(set) = set {
+                        match RenameRule::from_str(&set.value()) {
                             Ok(rename_rule) => rename_all_ser_rule.set(&meta.path, rename_rule),
-                            Err(err) => cx.error_spanned_by(ser, err),
+                            Err(err) => cx.error_spanned_by(set, err),
                         }
                     }
                     if let Some(de) = de {
@@ -824,8 +824,8 @@ impl Variant {
                 } else if meta.path == BOUND {
                     // #[serde(bound = "T: SomeBound")]
                     // #[serde(bound(serialize = "...", deserialize = "..."))]
-                    let (ser, de) = get_where_predicates(cx, &meta)?;
-                    ser_bound.set_opt(&meta.path, ser);
+                    let (set, de) = get_where_predicates(cx, &meta)?;
+                    ser_bound.set_opt(&meta.path, set);
                     de_bound.set_opt(&meta.path, de);
                 } else if meta.path == WITH {
                     // #[serde(with = "...")]
@@ -1075,8 +1075,8 @@ impl Field {
                 if meta.path == RENAME {
                     // #[serde(rename = "foo")]
                     // #[serde(rename(serialize = "foo", deserialize = "bar"))]
-                    let (ser, de) = get_multiple_renames(cx, &meta)?;
-                    ser_name.set_opt(&meta.path, ser.as_ref().map(Name::from));
+                    let (set, de) = get_multiple_renames(cx, &meta)?;
+                    ser_name.set_opt(&meta.path, set.as_ref().map(Name::from));
                     for de_value in de {
                         de_name.set_if_none(Name::from(&de_value));
                         de_aliases.insert(&meta.path, Name::from(&de_value));
@@ -1140,8 +1140,8 @@ impl Field {
                 } else if meta.path == BOUND {
                     // #[serde(bound = "T: SomeBound")]
                     // #[serde(bound(serialize = "...", deserialize = "..."))]
-                    let (ser, de) = get_where_predicates(cx, &meta)?;
-                    ser_bound.set_opt(&meta.path, ser);
+                    let (set, de) = get_where_predicates(cx, &meta)?;
+                    ser_bound.set_opt(&meta.path, set);
                     de_bound.set_opt(&meta.path, de);
                 } else if meta.path == BORROW {
                     if meta.input.peek(Token![=]) {
@@ -1390,24 +1390,24 @@ fn get_renames(
     attr_name: Symbol,
     meta: &ParseNestedMeta,
 ) -> syn::Result<SerAndDe<syn::LitStr>> {
-    let (ser, de) = get_ser_and_de(cx, attr_name, meta, get_lit_str2)?;
-    Ok((ser.at_most_one(), de.at_most_one()))
+    let (set, de) = get_ser_and_de(cx, attr_name, meta, get_lit_str2)?;
+    Ok((set.at_most_one(), de.at_most_one()))
 }
 
 fn get_multiple_renames(
     cx: &Ctxt,
     meta: &ParseNestedMeta,
 ) -> syn::Result<(Option<syn::LitStr>, Vec<syn::LitStr>)> {
-    let (ser, de) = get_ser_and_de(cx, RENAME, meta, get_lit_str2)?;
-    Ok((ser.at_most_one(), de.get()))
+    let (set, de) = get_ser_and_de(cx, RENAME, meta, get_lit_str2)?;
+    Ok((set.at_most_one(), de.get()))
 }
 
 fn get_where_predicates(
     cx: &Ctxt,
     meta: &ParseNestedMeta,
 ) -> syn::Result<SerAndDe<Vec<syn::WherePredicate>>> {
-    let (ser, de) = get_ser_and_de(cx, BOUND, meta, parse_lit_into_where)?;
-    Ok((ser.at_most_one(), de.at_most_one()))
+    let (set, de) = get_ser_and_de(cx, BOUND, meta, parse_lit_into_where)?;
+    Ok((set.at_most_one(), de.at_most_one()))
 }
 
 fn get_lit_str(

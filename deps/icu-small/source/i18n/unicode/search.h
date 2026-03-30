@@ -229,7 +229,7 @@ public:
     /**
      * Set the string text to be searched. Text iteration will hence begin at 
      * the start of the text string. This method is useful if you want to 
-     * re-use an iterator to search for the same pattern within a different 
+     * reuse an iterator to search for the same pattern within a different 
      * body of text. The user is responsible for deleting the text.
      * @param text string to be searched.
      * @param status for errors. If the text length is 0, 
@@ -241,7 +241,7 @@ public:
     /**
      * Set the string text to be searched. Text iteration will hence begin at 
      * the start of the text string. This method is useful if you want to 
-     * re-use an iterator to search for the same pattern within a different 
+     * reuse an iterator to search for the same pattern within a different 
      * body of text.
      * <p>
      * Note: No parsing of the text within the <tt>CharacterIterator</tt> 

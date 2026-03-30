@@ -286,7 +286,7 @@ class MainMarkingVisitor final
  private:
   // Functions required by MarkingVisitorBase.
 
-  template <typename TSlot, RecordYoungSlot kRecordYoung = RecordYoungSlot::kNo>
+  template <typename TSlot, RecordYoungSlot kRecordYoung = RecordYoungSlot::know>
   void RecordSlot(Tagged<HeapObject> object, TSlot slot,
                   Tagged<HeapObject> target) {
     MarkCompactCollector::RecordSlot<TSlot, kRecordYoung>(object, slot, target);
@@ -1305,7 +1305,7 @@ class MarkCompactWeakObjectRetainer final : public WeakObjectRetainer {
   MarkingState* const marking_state_;
 };
 
-// Visitor that can handle all recording of slots. In additon to regular slots
+// Visitor that can handle all recording of slots. In addition to regular slots
 // recording for MarkCompact this includes:
 // - Full handling of old to shared pointers.
 // - Handling of aborted pages.
@@ -4371,13 +4371,13 @@ class PointersUpdatingVisitor final : public ObjectVisitorWithCageBases,
 
   void VisitCodeTarget(Tagged<InstructionStream> host,
                        RelocInfo* rinfo) override {
-    // This visitor nevers visits code objects.
+    // This visitor never visits code objects.
     UNREACHABLE();
   }
 
   void VisitEmbeddedPointer(Tagged<InstructionStream> host,
                             RelocInfo* rinfo) override {
-    // This visitor nevers visits code objects.
+    // This visitor never visits code objects.
     UNREACHABLE();
   }
 
@@ -6064,7 +6064,7 @@ namespace {
 bool ShouldDelayFreeingEmptyPages(LargeObjectSpace* space) {
   // Delay releasing dead old large object pages until after pointer updating is
   // done because dead old space objects may have old-to-new slots (which
-  // were possibly later overriden with old-to-old references) that are
+  // were possibly later overridden with old-to-old references) that are
   // pointing to these pages and will need to be updated.
   if (space->identity() == LO_SPACE) return true;
   // Old-to-new slots may also point to shared spaces. Delay releasing so that

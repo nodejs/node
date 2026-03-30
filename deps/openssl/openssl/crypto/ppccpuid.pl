@@ -55,7 +55,7 @@ $code=<<___;
 .globl	.OPENSSL_altivec_probe
 .align	4
 .OPENSSL_altivec_probe:
-	.long	0x10000484	# vor	v0,v0,v0
+	.long	0x10000484	# for	v0,v0,v0
 	blr
 	.long	0
 	.byte	0,12,0x14,0,0,0,0,0

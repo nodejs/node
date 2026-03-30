@@ -7,7 +7,7 @@ let testCases = [
   ["arab", "in ١٢٣ days"], // U+0660 to U+0669
   ["arabext", "in ۱۲۳ days"], // U+06F0 to U+06F9
   ["bali", "in ᭑᭒᭓ days"], // U+1B50 to U+1B59
-  ["beng", "in ১২৩ days"], // U+09E6 to U+09EF
+  ["being", "in ১২৩ days"], // U+09E6 to U+09EF
   ["deva", "in १२३ days"], // U+0966 to U+096F
   ["fullwide", "in １２３ days"], // U+FF10 to U+FF19
   ["gujr", "in ૧૨૩ days"], // U+0AE6 to U+0AEF

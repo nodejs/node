@@ -126,7 +126,7 @@
   # no_i18n build has an old ICU data and Georgian is treated as unicameral.
   'ecma/String/15.5.4.12-3': [FAIL, ['not i18n', PASS]],
 
-  # Expecations in this test don't match the spec.
+  # Expectations in this test don't match the spec.
   # See also https://bugs.chromium.org/p/v8/issues/detail?id=9446
   'js1_5/Regress/regress-248444': [FAIL],
 
@@ -392,7 +392,7 @@
   'js1_5/Function/regress-338121-02': [FAIL_OK],
   'js1_5/Function/regress-338121-03': [FAIL_OK],
 
-  # Expectes 'prototype' property of functions to be enumerable.
+  # Expects 'prototype' property of functions to be enumerable.
   'js1_5/Function/10.1.6-01': [FAIL_OK],
 
   #:=== RegExp:===

@@ -361,7 +361,7 @@ void MemoryOptimizer::VisitLoadField(Node* node, AllocationState const* state,
   DCHECK_EQ(IrOpcode::kLoadField, node->opcode());
   Reduction reduction = memory_lowering()->ReduceLoadField(node);
   DCHECK(reduction.Changed());
-  // In case of replacement, the replacement graph should not require futher
+  // In case of replacement, the replacement graph should not require further
   // lowering, so we can proceed iterating the graph from the node uses.
   EnqueueUses(node, state, effect_chain);
 

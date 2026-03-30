@@ -329,7 +329,7 @@ pub trait Writeable {
     /// }
     /// ```
     ///
-    /// # Note to implementors
+    /// # Note to implementers
     ///
     /// This method has a default implementation in terms of `writeable_borrow`,
     /// `writeable_length_hint`, and `write_to`. The only case

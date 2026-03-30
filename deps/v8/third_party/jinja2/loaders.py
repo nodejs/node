@@ -77,7 +77,7 @@ class BaseLoader:
     ) -> t.Tuple[str, t.Optional[str], t.Optional[t.Callable[[], bool]]]:
         """Get the template source, filename and reload helper for a template.
         It's passed the environment and template name and has to return a
-        tuple in the form ``(source, filename, uptodate)`` or raise a
+        tuple in the form ``(source, filename, up-to-date)`` or raise a
         `TemplateNotFound` error if it can't locate the template.
 
         The source part of the returned tuple must be the source of the
@@ -86,7 +86,7 @@ class BaseLoader:
         ``None``. The filename is used by Python for the tracebacks
         if no loader extension is used.
 
-        The last item in the tuple is the `uptodate` function.  If auto
+        The last item in the tuple is the `up-to-date` function.  If auto
         reloading is enabled it's always called to check if the template
         changed.  No arguments are passed so the function must store the
         old state somewhere (for example in a closure).  If it returns `False`
@@ -122,8 +122,8 @@ class BaseLoader:
             globals = {}
 
         # first we try to get the source for this template together
-        # with the filename and the uptodate function.
-        source, filename, uptodate = self.get_source(environment, name)
+        # with the filename and the up-to-date function.
+        source, filename, up-to-date = self.get_source(environment, name)
 
         # try to load the code from the bytecode cache if there is a
         # bytecode cache configured.
@@ -145,7 +145,7 @@ class BaseLoader:
             bcc.set_bucket(bucket)
 
         return environment.template_class.from_code(
-            environment, code, globals, uptodate
+            environment, code, globals, up-to-date
         )
 
 
@@ -207,14 +207,14 @@ class FileSystemLoader(BaseLoader):
 
             mtime = os.path.getmtime(filename)
 
-            def uptodate() -> bool:
+            def up-to-date() -> bool:
                 try:
                     return os.path.getmtime(filename) == mtime
                 except OSError:
                     return False
 
             # Use normpath to convert Windows altsep to sep.
-            return contents, os.path.normpath(filename), uptodate
+            return contents, os.path.normpath(filename), up-to-date
         raise TemplateNotFound(template)
 
     def list_templates(self) -> t.List[str]:

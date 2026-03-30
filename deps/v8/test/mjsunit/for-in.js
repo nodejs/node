@@ -229,7 +229,7 @@ for (i=0 ; i < 3; ++i) {
 }
 
 (function testLargeElementKeys() {
-  // Key out of SMI range but well within safe double representaion.
+  // Key out of SMI range but well within safe double representation.
   var large_key = 2147483650;
   var o = [];
   // Trigger dictionary elements with HeapNumber keys.

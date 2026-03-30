@@ -49,7 +49,7 @@ class StringLiteral {
 
   const char* c_str() const { return data_.data(); }
 
-  // `data_` cannot be private to satisify requirements of a structural type.
+  // `data_` cannot be private to satisfy requirements of a structural type.
   const std::array<char, N> data_;
 };
 

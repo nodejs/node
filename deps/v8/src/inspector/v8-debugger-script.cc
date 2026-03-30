@@ -137,32 +137,32 @@ bool V8DebuggerScript::getPossibleBreakpoints(
     bool restrictToFunction, std::vector<v8::debug::BreakLocation>* locations) {
   v8::HandleScope scope(m_isolate);
   v8::Local<v8::debug::Script> script = m_script.Get(m_isolate);
-  std::vector<v8::debug::BreakLocation> allLocations;
+  std::vector<v8::debug::BreakLocation> allocations;
   if (!script->GetPossibleBreakpoints(start, end, restrictToFunction,
-                                      &allLocations)) {
+                                      &allocations)) {
     return false;
   }
-  if (allLocations.empty()) return true;
-  v8::debug::BreakLocation current = allLocations[0];
-  for (size_t i = 1; i < allLocations.size(); ++i) {
-    if (allLocations[i].GetLineNumber() == current.GetLineNumber() &&
-        allLocations[i].GetColumnNumber() == current.GetColumnNumber()) {
-      if (allLocations[i].type() != v8::debug::kCommonBreakLocation) {
-        DCHECK(allLocations[i].type() == v8::debug::kCallBreakLocation ||
-               allLocations[i].type() == v8::debug::kReturnBreakLocation);
+  if (allocations.empty()) return true;
+  v8::debug::BreakLocation current = allocations[0];
+  for (size_t i = 1; i < allocations.size(); ++i) {
+    if (allocations[i].GetLineNumber() == current.GetLineNumber() &&
+        allocations[i].GetColumnNumber() == current.GetColumnNumber()) {
+      if (allocations[i].type() != v8::debug::kCommonBreakLocation) {
+        DCHECK(allocations[i].type() == v8::debug::kCallBreakLocation ||
+               allocations[i].type() == v8::debug::kReturnBreakLocation);
         // debugger can returns more then one break location at the same
         // source location, e.g. foo() - in this case there are two break
         // locations before foo: for statement and for function call, we can
         // merge them for inspector and report only one with call type.
-        current = allLocations[i];
+        current = allocations[i];
       }
     } else {
       // we assume that returned break locations are sorted.
-      DCHECK(allLocations[i].GetLineNumber() > current.GetLineNumber() ||
-             (allLocations[i].GetColumnNumber() >= current.GetColumnNumber() &&
-              allLocations[i].GetLineNumber() == current.GetLineNumber()));
+      DCHECK(allocations[i].GetLineNumber() > current.GetLineNumber() ||
+             (allocations[i].GetColumnNumber() >= current.GetColumnNumber() &&
+              allocations[i].GetLineNumber() == current.GetLineNumber()));
       locations->push_back(current);
-      current = allLocations[i];
+      current = allocations[i];
     }
   }
   locations->push_back(current);

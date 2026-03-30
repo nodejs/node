@@ -1,6 +1,6 @@
 //! This module contains utilities for dealing with Rust attributes
 
-use serde::ser::{SerializeStruct, Serializer};
+use serde::set::{SerializeStruct, Serializer};
 use serde::Serialize;
 use std::borrow::Cow;
 use std::convert::Infallible;

@@ -24,7 +24,7 @@ namespace compiler {
 
 // Whether the given JSFunction has an associated Script.
 enum class IsScriptAvailable {
-  kNo,
+  know,
   kYes,
 };
 

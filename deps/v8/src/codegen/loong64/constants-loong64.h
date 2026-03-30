@@ -537,7 +537,7 @@ enum Opcode : uint32_t {
 enum Condition : int {
   overflow = 0,
   no_overflow = 1,
-  Uless = 2,
+  Unless = 2,
   Ugreater_equal = 3,
   Uless_equal = 4,
   Ugreater = 5,
@@ -556,7 +556,7 @@ enum Condition : int {
   cc_always = 18,
 
   // Aliases.
-  carry = Uless,
+  carry = Unless,
   not_carry = Ugreater_equal,
   zero = equal,
   eq = equal,
@@ -574,9 +574,9 @@ enum Condition : int {
   gt = greater,
   le = less_equal,
   hs = Ugreater_equal,
-  lo = Uless,
+  lo = Unless,
   al = cc_always,
-  ult = Uless,
+  ult = Unless,
   uge = Ugreater_equal,
   ule = Uless_equal,
   ugt = Ugreater,
@@ -588,7 +588,7 @@ enum Condition : int {
   kGreaterThan = greater,
   kLessThanEqual = less_equal,
   kGreaterThanEqual = greater_equal,
-  kUnsignedLessThan = Uless,
+  kUnsignedLessThan = Unless,
   kUnsignedGreaterThan = Ugreater,
   kUnsignedLessThanEqual = Uless_equal,
   kUnsignedGreaterThanEqual = Ugreater_equal,
@@ -640,7 +640,7 @@ inline Condition NegateFpuCondition(Condition cc) {
 enum FPUCondition {
   kNoFPUCondition = -1,
 
-  CAF = 0x00,  // False.
+  CALF = 0x00,  // False.
   SAF = 0x01,  // False.
   CLT = 0x02,  // Less Than quiet
                //  SLT  = 0x03,    // Less Than signaling

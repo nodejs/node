@@ -15,12 +15,12 @@ result = await evaluate("let x = 7;");
 result = await evaluate("x;");
 assertEquals(7, result);
 
-// Re-declare in the same script after declaration in another script.
+// Redeclare in the same script after declaration in another script.
 assertThrows(() => evaluate("let x = 8; let x = 9;"));
 result = await evaluate("x;");
 assertEquals(7, result);
 
-// Re-declare let as let
+// Redeclare let as let
 assertDoesNotThrow(async () => result = await evaluate("let x = 8;"));
 result = await evaluate("x;");
 assertEquals(8, result);
@@ -52,14 +52,14 @@ await evaluate("let x = 10");
 result = await evaluate("{ let z; x = 11; } x;");
 assertEquals(11, result);
 
-// Check re-declare from an inner scope does nothing.
+// Check redeclare from an inner scope does nothing.
 result = await evaluate("{ let z; let x = 12; } x;");
 assertEquals(11, result);
 
 assertThrowsAsync(evaluate("{ let qq = 10; } qq;"),
     ReferenceError, "qq is not defined");
 
-// Re-declare in the same script (no previous declaration).
+// Redeclare in the same script (no previous declaration).
 assertThrows(() => result = evaluate("let y = 7; let y = 8;"),
     SyntaxError, "Identifier 'y' has already been declared");
 
@@ -108,12 +108,12 @@ result = await evaluate("const c = 7;");
 result = await evaluate("c;");
 assertEquals(7, result);
 
-// Re-declare in the same script after declaration in another script.
+// Redeclare in the same script after declaration in another script.
 assertThrows(() => evaluate("let c = 8; let c = 9;"));
 result = await evaluate("c;");
 assertEquals(7, result);
 
-// Re-declare const as const
+// Redeclare const as const
 result = await evaluate("const c = 8;");
 result = await evaluate("c;");
 assertEquals(8, result);
@@ -147,7 +147,7 @@ assertThrowsAsync(evaluate("{ let z; c = 11; };"),
 result = await evaluate("c;");
 assertEquals(10, result);
 
-// Check re-declare from an inner scope does nothing.
+// Check redeclare from an inner scope does nothing.
 result = await evaluate("{ let z; const c = 12; } c;");
 assertEquals(10, result);
 
@@ -176,14 +176,14 @@ assertEquals(undefined, result);
 result = await evaluate("f;");
 assertEquals(11, result);
 
-// Re-declare let as const
+// Redeclare let as const
 evaluate("let z = 10;");
 assertThrows(() => result = evaluate("const z = 9;"),
     SyntaxError, "Identifier 'z' has already been declared");
 result = await evaluate("z;");
 assertEquals(10, result)
 
-// Re-declare const as let
+// Redeclare const as let
 result = await evaluate("const g = 12;");
 assertThrows(() => result = evaluate("let g = 13;"),
     SyntaxError, "Identifier 'g' has already been declared");
@@ -196,7 +196,7 @@ assertThrows(() => result = evaluate("let h = 13; const h = 14;"),
 assertThrows(() => result = evaluate("const i = 13; let i = 14;"),
     SyntaxError, "Identifier 'i' has already been declared");
 
-// Configurable properties of the global object can be re-declared as let.
+// Configurable properties of the global object can be redeclared as let.
 result = await evaluate(`Object.defineProperty(globalThis, 'j', {
   value: 1,
   configurable: true
@@ -208,7 +208,7 @@ result = await evaluate("j;");
 assertEquals(2, result);
 
 // Non-configurable properties of the global object (also created by plain old
-// top-level var declarations) cannot be re-declared as let.
+// top-level var declarations) cannot be redeclared as let.
 result = await evaluate(`Object.defineProperty(globalThis, 'k', {
   value: 1,
   configurable: false
@@ -290,7 +290,7 @@ result = await evaluate("typeof k11");
 assertEquals("undefined", result);
 
 // Non-configurable properties of the global object (also created by plain old
-// top-level var declarations) cannot be re-declared as const.
+// top-level var declarations) cannot be redeclared as const.
 result = await evaluate(`Object.defineProperty(globalThis, 'k12', {
   value: 1,
   configurable: false
@@ -347,7 +347,7 @@ result = evaluateNonREPL("let l1 = 1; let l2 = 2; let l3 = 3;");
 result = await evaluate("l1;");
 assertEquals(1, result);
 
-// But we can't re-declare page script lets in a REPL script. We might want to
+// But we can't redeclare page script lets in a REPL script. We might want to
 // later.
 assertThrows(() => result = evaluate("let l1 = 2;"),
     SyntaxError, "Identifier 'l1' has already been declared");
@@ -358,7 +358,7 @@ assertThrows(() => result = evaluate("var l2 = 3;"),
 assertThrows(() => result = evaluate("const l3 = 4;"),
     SyntaxError, "Identifier 'l3' has already been declared");
 
-// Re-declaring var across modes works.
+// Redeclaring var across modes works.
 result = evaluateNonREPL("var l4 = 1; const l5 = 1;");
 result = await evaluate("var l4 = 2;");
 result = await evaluate("l4;");
@@ -385,7 +385,7 @@ result = await evaluate("let l9;");
 result = await evaluate("l9; let l9;"),
 assertEquals(undefined, await evaluate('l9;'));
 
-// Check that binding and re-declaring a function via let works.
+// Check that binding and redeclaring a function via let works.
 result = evaluate("let fn1 = function() { return 21; }");
 assertEquals(21, fn1());
 result = evaluate("let fn1 = function() { return 42; }");
@@ -397,7 +397,7 @@ evaluate("let l10 = 42; function fn2() { return l10; }");
 evaluate("let l10 = 'foo';");
 assertEquals("foo", fn2());
 
-// Check that binding and re-declaring a function via const works.
+// Check that binding and redeclaring a function via const works.
 result = evaluate("const fn3 = function() { return 21; }");
 assertEquals(21, fn3());
 result = evaluate("const fn3 = function() { return 42; }");

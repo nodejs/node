@@ -16,7 +16,7 @@ namespace torque {
 namespace {
 
 // This is a simplified version of the basic Torque type definitions.
-// Some class types are replaced by abstact types to keep it self-contained and
+// Some class types are replaced by abstract types to keep it self-contained and
 // small.
 constexpr const char* kTestTorquePrelude = R"(
 type void;
@@ -219,7 +219,7 @@ void ExpectFailingCompilation(
 }
 
 // TODO(almuthanna): the definition of this function is skipped on Fuchsia
-// because it causes an 'unused function' exception upon buidling gn
+// because it causes an 'unused function' exception upon building gn
 // Ticket: https://crbug.com/1028617
 #if !defined(V8_TARGET_OS_FUCHSIA)
 int CountPreludeLines() {
@@ -238,7 +238,7 @@ using SubstrWithPosition =
               LineAndColumn>;
 
 // TODO(almuthanna): the definition of this function is skipped on Fuchsia
-// because it causes an 'unused function' exception upon buidling gn
+// because it causes an 'unused function' exception upon building gn
 // Ticket: https://crbug.com/1028617
 #if !defined(V8_TARGET_OS_FUCHSIA)
 SubstrWithPosition SubstrTester(const std::string& message, int line, int col) {
@@ -914,7 +914,7 @@ TEST(Torque, UnusedImplicit) {
     @export
     macro Test4(b: Smi): void { Test3(b);  }
   )",
-      HasSubstr("unititialized implicit parameters can only be passed to "
+      HasSubstr("uninitialized implicit parameters can only be passed to "
                 "Torque-defined macros: the implicit parameter 'c' is not "
                 "defined when invoking Test3"));
   ExpectSuccessfulCompilation(

@@ -61,13 +61,13 @@
  *    applications, to the detriment of everybody else who just wants
  *    an event loop. but, umm, ok, if that's all, it could be worse.
  *    (from what I gather from the author Jens Axboe, it simply didn't
- *    occur to him, and he made good on it by adding an unlimited nuber
+ *    occur to him, and he made good on it by adding an unlimited number
  *    of timeouts later :).
  * h) initially there was a hardcoded limit of 4096 outstanding events.
  *    later versions not only bump this to 32k, but also can handle
  *    an unlimited amount of events, so this only affects the batch size.
  * i) unlike linux aio, you *can* register more then the limit
- *    of fd events. while early verisons of io_uring signalled an overflow
+ *    of fd events. while early versions of io_uring signalled an overflow
  *    and you ended up getting wet. 5.5+ does not do this anymore.
  * j) but, oh my! it had exactly the same bugs as the linux aio backend,
  *    where some undocumented poll combinations just fail. fortunately,
@@ -261,7 +261,7 @@ iouring_sqe_get (EV_P)
       tail = EV_SQ_VAR (tail);
 
       if (ecb_expect_true (tail + 1 - EV_SQ_VAR (head) <= EV_SQ_VAR (ring_entries)))
-        break; /* whats the problem, we have free sqes */
+        break; /* what's the problem, we have free sqes */
 
       /* queue full, need to flush and possibly handle some events */
 

@@ -123,7 +123,7 @@ void ossl_curve448_scalar_add(curve448_scalar_t out, const curve448_scalar_t a,
 }
 
 static ossl_inline void scalar_decode_short(curve448_scalar_t s,
-    const unsigned char *ser,
+    const unsigned char *set,
     size_t nbytes)
 {
     size_t i, j, k = 0;
@@ -132,19 +132,19 @@ static ossl_inline void scalar_decode_short(curve448_scalar_t s,
         c448_word_t out = 0;
 
         for (j = 0; j < sizeof(c448_word_t) && k < nbytes; j++, k++)
-            out |= ((c448_word_t)ser[k]) << (8 * j);
+            out |= ((c448_word_t)set[k]) << (8 * j);
         s->limb[i] = out;
     }
 }
 
 c448_error_t
 ossl_curve448_scalar_decode(curve448_scalar_t s,
-    const unsigned char ser[C448_SCALAR_BYTES])
+    const unsigned char set[C448_SCALAR_BYTES])
 {
     unsigned int i;
     c448_dsword_t accum = 0;
 
-    scalar_decode_short(s, ser, C448_SCALAR_BYTES);
+    scalar_decode_short(s, set, C448_SCALAR_BYTES);
     for (i = 0; i < C448_SCALAR_LIMBS; i++)
         accum = (accum + s->limb[i] - sc_p->limb[i]) >> WBITS;
     /* Here accum == 0 or -1 */
@@ -160,7 +160,7 @@ void ossl_curve448_scalar_destroy(curve448_scalar_t scalar)
 }
 
 void ossl_curve448_scalar_decode_long(curve448_scalar_t s,
-    const unsigned char *ser, size_t ser_len)
+    const unsigned char *set, size_t ser_len)
 {
     size_t i;
     curve448_scalar_t t1, t2;
@@ -174,7 +174,7 @@ void ossl_curve448_scalar_decode_long(curve448_scalar_t s,
     if (i == ser_len)
         i -= C448_SCALAR_BYTES;
 
-    scalar_decode_short(t1, &ser[i], ser_len - i);
+    scalar_decode_short(t1, &set[i], ser_len - i);
 
     if (ser_len == sizeof(curve448_scalar_t)) {
         assert(i == 0);
@@ -187,7 +187,7 @@ void ossl_curve448_scalar_decode_long(curve448_scalar_t s,
     while (i) {
         i -= C448_SCALAR_BYTES;
         sc_montmul(t1, t1, sc_r2);
-        (void)ossl_curve448_scalar_decode(t2, ser + i);
+        (void)ossl_curve448_scalar_decode(t2, set + i);
         ossl_curve448_scalar_add(t1, t1, t2);
     }
 
@@ -196,14 +196,14 @@ void ossl_curve448_scalar_decode_long(curve448_scalar_t s,
     ossl_curve448_scalar_destroy(t2);
 }
 
-void ossl_curve448_scalar_encode(unsigned char ser[C448_SCALAR_BYTES],
+void ossl_curve448_scalar_encode(unsigned char set[C448_SCALAR_BYTES],
     const curve448_scalar_t s)
 {
     unsigned int i, j, k = 0;
 
     for (i = 0; i < C448_SCALAR_LIMBS; i++) {
         for (j = 0; j < sizeof(c448_word_t); j++, k++)
-            ser[k] = s->limb[i] >> (8 * j);
+            set[k] = s->limb[i] >> (8 * j);
     }
 }
 

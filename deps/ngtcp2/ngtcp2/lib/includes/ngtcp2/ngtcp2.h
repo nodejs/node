@@ -467,14 +467,14 @@ typedef struct ngtcp2_mem {
 /**
  * @macro
  *
- * :macro:`NGTCP2_ECN_ECT_1` is ECT(1) codepoint.
+ * :macro:`NGTCP2_ECN_ECT_1` is ETC(1) codepoint.
  */
 #define NGTCP2_ECN_ECT_1 0x1
 
 /**
  * @macro
  *
- * :macro:`NGTCP2_ECN_ECT_0` is ECT(0) codepoint.
+ * :macro:`NGTCP2_ECN_ECT_0` is ETC(0) codepoint.
  */
 #define NGTCP2_ECN_ECT_0 0x2
 

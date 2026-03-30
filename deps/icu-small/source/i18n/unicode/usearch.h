@@ -549,7 +549,7 @@ U_CAPI const UBreakIterator * U_EXPORT2 usearch_getBreakIterator(
 
 /**
 * Set the string text to be searched. Text iteration will hence begin at the 
-* start of the text string. This method is useful if you want to re-use an 
+* start of the text string. This method is useful if you want to reuse an 
 * iterator to search for the same pattern within a different body of text.
 *
 * The UStringSearch retains a pointer to the text string. The caller must not

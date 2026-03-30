@@ -352,7 +352,7 @@ typedef uint8_t UBiDiLevel;
  * is assumed to be visual LTR, and the text after reordering is required
  * to be the corresponding logical string with appropriate contextual
  * direction. The direction of the result string will be RTL if either
- * the righmost or leftmost strong character of the source text is RTL
+ * the rightmost or leftmost strong character of the source text is RTL
  * or Arabic Letter, the direction will be LTR otherwise.<p>
  *
  * If reordering option <code>UBIDI_OPTION_INSERT_MARKS</code> is set, an RLM may
@@ -378,7 +378,7 @@ typedef uint8_t UBiDiLevel;
  * is assumed to be visual LTR, and the text after reordering is required
  * to be the corresponding logical string with appropriate contextual
  * direction. The direction of the result string will be RTL if either
- * the righmost or leftmost strong character of the source text is RTL
+ * the rightmost or leftmost strong character of the source text is RTL
  * or Arabic Letter, or if the text contains no strong character;
  * the direction will be LTR otherwise.<p>
  *

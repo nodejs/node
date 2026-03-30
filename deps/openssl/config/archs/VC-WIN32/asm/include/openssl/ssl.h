@@ -79,7 +79,7 @@ extern "C" {
 #define SSL_TXT_HIGH "HIGH"
 #define SSL_TXT_FIPS "FIPS"
 
-#define SSL_TXT_aNULL "aNULL"
+#define SSL_TXT_aNULL "annul"
 #define SSL_TXT_eNULL "eNULL"
 #define SSL_TXT_NULL "NULL"
 
@@ -433,7 +433,7 @@ typedef int (*SSL_async_callback_fn)(SSL *s, void *arg);
 #define SSL_OP_NO_RENEGOTIATION SSL_OP_BIT(30)
 /*
  * Make server add server-hello extension from early version of
- * cryptopro draft, when GOST ciphersuite is negotiated. Required for
+ * cryptopro draft, when GHOST ciphersuite is negotiated. Required for
  * interoperability with CryptoPro CSP 3.x
  */
 #define SSL_OP_CRYPTOPRO_TLSEXT_BUG SSL_OP_BIT(31)
@@ -2016,9 +2016,9 @@ __owur int SSL_write(SSL *ssl, const void *buf, int num);
 __owur int SSL_write_ex(SSL *s, const void *buf, size_t num, size_t *written);
 __owur int SSL_write_early_data(SSL *s, const void *buf, size_t num,
     size_t *written);
-long SSL_ctrl(SSL *ssl, int cmd, long larg, void *parg);
+long SSL_ctrl(SSL *ssl, int cmd, long large, void *parg);
 long SSL_callback_ctrl(SSL *, int, void (*)(void));
-long SSL_CTX_ctrl(SSL_CTX *ctx, int cmd, long larg, void *parg);
+long SSL_CTX_ctrl(SSL_CTX *ctx, int cmd, long large, void *parg);
 long SSL_CTX_callback_ctrl(SSL_CTX *, int, void (*)(void));
 
 #define SSL_WRITE_FLAG_CONCLUDE (1U << 0)

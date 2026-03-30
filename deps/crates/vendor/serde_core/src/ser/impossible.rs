@@ -2,7 +2,7 @@
 
 use crate::lib::*;
 
-use crate::ser::{
+use crate::set::{
     self, Serialize, SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant,
     SerializeTuple, SerializeTupleStruct, SerializeTupleVariant,
 };
@@ -16,7 +16,7 @@ use crate::ser::{
 /// [`SerializeMap`], [`SerializeStruct`], and [`SerializeStructVariant`].
 ///
 /// ```edition2021
-/// # use serde::ser::{Serializer, Impossible};
+/// # use serde::set::{Serializer, Impossible};
 /// # use serde_core::__private::doc::Error;
 /// #
 /// # struct MySerializer;
@@ -50,13 +50,13 @@ use crate::ser::{
 /// ```
 ///
 /// [`Serializer`]: crate::Serializer
-/// [`SerializeSeq`]: crate::ser::SerializeSeq
-/// [`SerializeTuple`]: crate::ser::SerializeTuple
-/// [`SerializeTupleStruct`]: crate::ser::SerializeTupleStruct
-/// [`SerializeTupleVariant`]: crate::ser::SerializeTupleVariant
-/// [`SerializeMap`]: crate::ser::SerializeMap
-/// [`SerializeStruct`]: crate::ser::SerializeStruct
-/// [`SerializeStructVariant`]: crate::ser::SerializeStructVariant
+/// [`SerializeSeq`]: crate::set::SerializeSeq
+/// [`SerializeTuple`]: crate::set::SerializeTuple
+/// [`SerializeTupleStruct`]: crate::set::SerializeTupleStruct
+/// [`SerializeTupleVariant`]: crate::set::SerializeTupleVariant
+/// [`SerializeMap`]: crate::set::SerializeMap
+/// [`SerializeStruct`]: crate::set::SerializeStruct
+/// [`SerializeStructVariant`]: crate::set::SerializeStructVariant
 pub struct Impossible<Ok, Error> {
     void: Void,
     ok: PhantomData<Ok>,
@@ -67,7 +67,7 @@ enum Void {}
 
 impl<Ok, Error> SerializeSeq for Impossible<Ok, Error>
 where
-    Error: ser::Error,
+    Error: set::Error,
 {
     type Ok = Ok;
     type Error = Error;
@@ -87,7 +87,7 @@ where
 
 impl<Ok, Error> SerializeTuple for Impossible<Ok, Error>
 where
-    Error: ser::Error,
+    Error: set::Error,
 {
     type Ok = Ok;
     type Error = Error;
@@ -107,7 +107,7 @@ where
 
 impl<Ok, Error> SerializeTupleStruct for Impossible<Ok, Error>
 where
-    Error: ser::Error,
+    Error: set::Error,
 {
     type Ok = Ok;
     type Error = Error;
@@ -127,7 +127,7 @@ where
 
 impl<Ok, Error> SerializeTupleVariant for Impossible<Ok, Error>
 where
-    Error: ser::Error,
+    Error: set::Error,
 {
     type Ok = Ok;
     type Error = Error;
@@ -147,7 +147,7 @@ where
 
 impl<Ok, Error> SerializeMap for Impossible<Ok, Error>
 where
-    Error: ser::Error,
+    Error: set::Error,
 {
     type Ok = Ok;
     type Error = Error;
@@ -175,7 +175,7 @@ where
 
 impl<Ok, Error> SerializeStruct for Impossible<Ok, Error>
 where
-    Error: ser::Error,
+    Error: set::Error,
 {
     type Ok = Ok;
     type Error = Error;
@@ -196,7 +196,7 @@ where
 
 impl<Ok, Error> SerializeStructVariant for Impossible<Ok, Error>
 where
-    Error: ser::Error,
+    Error: set::Error,
 {
     type Ok = Ok;
     type Error = Error;

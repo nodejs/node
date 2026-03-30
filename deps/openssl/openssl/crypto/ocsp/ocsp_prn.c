@@ -101,11 +101,11 @@ int OCSP_REQUEST_print(BIO *bp, OCSP_REQUEST *o, unsigned long flags)
     if (BIO_printf(bp, "    Version: %lu (0x%lx)", l + 1, l) <= 0)
         goto err;
     if (inf->requestorName != NULL) {
-        if (BIO_write(bp, "\n    Requestor Name: ", 21) <= 0)
+        if (BIO_write(bp, "\n    Requester Name: ", 21) <= 0)
             goto err;
         GENERAL_NAME_print(bp, inf->requestorName);
     }
-    if (BIO_write(bp, "\n    Requestor List:\n", 21) <= 0)
+    if (BIO_write(bp, "\n    Requester List:\n", 21) <= 0)
         goto err;
     for (i = 0; i < sk_OCSP_ONEREQ_num(inf->requestList); i++) {
         one = sk_OCSP_ONEREQ_value(inf->requestList, i);

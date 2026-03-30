@@ -1277,7 +1277,7 @@ class MetaBuildWrapper():
         raise
 
   def PathJoin(self, *comps):
-    # This function largely exists so it can be overriden for testing.
+    # This function largely exists so it can be overridden for testing.
     return os.path.join(*comps)
 
   def Print(self, *args, **kwargs):
@@ -1287,16 +1287,16 @@ class MetaBuildWrapper():
       sys.stdout.flush()
 
   def ReadFile(self, path):
-    # This function largely exists so it can be overriden for testing.
+    # This function largely exists so it can be overridden for testing.
     with open(path) as fp:
       return fp.read()
 
   def RelPath(self, path, start='.'):
-    # This function largely exists so it can be overriden for testing.
+    # This function largely exists so it can be overridden for testing.
     return os.path.relpath(path, start)
 
   def RemoveFile(self, path):
-    # This function largely exists so it can be overriden for testing.
+    # This function largely exists so it can be overridden for testing.
     os.remove(path)
 
   def RemoveDirectory(self, abs_path):
@@ -1311,11 +1311,11 @@ class MetaBuildWrapper():
       shutil.rmtree(abs_path, ignore_errors=True)
 
   def TempFile(self, mode='w'):
-    # This function largely exists so it can be overriden for testing.
+    # This function largely exists so it can be overridden for testing.
     return tempfile.NamedTemporaryFile(mode=mode, delete=False)
 
   def WriteFile(self, path, contents, force_verbose=False):
-    # This function largely exists so it can be overriden for testing.
+    # This function largely exists so it can be overridden for testing.
     if self.args.dryrun or self.args.verbose or force_verbose:
       self.Print('\nWriting """\\\n%s""" to %s.\n' % (contents, path))
     with open(path, 'w') as fp:

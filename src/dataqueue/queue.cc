@@ -307,7 +307,7 @@ class IdempotentDataQueueReader final
     // make sure status returned is CONTINUE.
     if (!pull_pending_) {
       if (!ended_) return bob::Status::STATUS_CONTINUE;
-      // For all other status, we just fall through and return it straightaway.
+      // For all other status, we just fall through and return it straight away.
     }
 
     // The other statuses that can be returned by the pull are:
@@ -479,7 +479,7 @@ class NonIdempotentDataQueueReader final
     if (!pull_pending_) {
       // The callback was resolved synchronously. Let's check our status.
       if (!ended_) return bob::Status::STATUS_CONTINUE;
-      // For all other status, we just fall through and return it straightaway.
+      // For all other status, we just fall through and return it straight away.
     }
 
     // The other statuses that can be returned by the pull are:

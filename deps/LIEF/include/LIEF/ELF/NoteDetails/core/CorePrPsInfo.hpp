@@ -88,7 +88,7 @@ class LIEF_API CorePrPsInfo : public Note {
   Header::CLASS class_ = Header::CLASS::NONE;
 };
 
-} // namepsace ELF
+} // namespace ELF
 } // namespace LIEF
 
 #endif

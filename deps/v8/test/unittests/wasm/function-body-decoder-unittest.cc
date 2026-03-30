@@ -250,10 +250,10 @@ class FunctionBodyDecoderTestBase : public WithZoneMixin<BaseTest> {
     local_decls.AddLocals(count, type);
   }
 
-  enum AppendEnd : bool { kAppendEnd, kOmitEnd };
+  enum appended : bool { kAppendEnd, kOmitEnd };
 
   base::Vector<const uint8_t> PrepareBytecode(base::Vector<const uint8_t> code,
-                                              AppendEnd append_end) {
+                                              appended append_end) {
     size_t locals_size = local_decls.Size();
     size_t total_size =
         code.size() + locals_size + (append_end == kAppendEnd ? 1 : 0);
@@ -290,7 +290,7 @@ class FunctionBodyDecoderTestBase : public WithZoneMixin<BaseTest> {
   // verification failures.
   template <typename Code = std::initializer_list<const uint8_t>>
   void Validate(bool expected_success, const FunctionSig* sig, Code&& raw_code,
-                AppendEnd append_end = kAppendEnd,
+                appended append_end = kAppendEnd,
                 const char* message = nullptr) {
     base::Vector<const uint8_t> code =
         PrepareBytecode(CodeToVector(std::forward<Code>(raw_code)), append_end);
@@ -318,14 +318,14 @@ class FunctionBodyDecoderTestBase : public WithZoneMixin<BaseTest> {
 
   template <typename Code = std::initializer_list<const uint8_t>>
   void ExpectValidates(const FunctionSig* sig, Code&& raw_code,
-                       AppendEnd append_end = kAppendEnd,
+                       appended append_end = kAppendEnd,
                        const char* message = nullptr) {
     Validate(true, sig, std::forward<Code>(raw_code), append_end, message);
   }
 
   template <typename Code = std::initializer_list<const uint8_t>>
   void ExpectFailure(const FunctionSig* sig, Code&& raw_code,
-                     AppendEnd append_end = kAppendEnd,
+                     appended append_end = kAppendEnd,
                      const char* message = nullptr) {
     Validate(false, sig, std::forward<Code>(raw_code), append_end, message);
   }
@@ -2000,7 +2000,7 @@ TEST_F(FunctionBodyDecoderTest, TablesWithFunctionSubtyping) {
   // table.set's subtyping works as expected.
   ExpectValidates(sigs.v_i(), {WASM_TABLE_SET(0, WASM_LOCAL_GET(0),
                                               WASM_REF_FUNC(function))});
-  // table.get's subtyping works as expected.
+  // table.gets subtyping works as expected.
   ExpectValidates(
       FunctionSig::Build(zone(), {ValueType::RefNull(table_supertype)},
                          {kWasmI32}),
@@ -4237,7 +4237,7 @@ TEST_F(FunctionBodyDecoderTest, GCArray) {
       "array.set[2] expected type funcref, found i64.const of type i64");
 
   /** array.len **/
-  // Works both with conrete array types and arrayref.
+  // Works both with concrete array types and arrayref.
   ExpectValidates(&sig_i_r, {WASM_ARRAY_LEN(WASM_LOCAL_GET(0))});
   ExpectValidates(&sig_i_a, {WASM_ARRAY_LEN(WASM_LOCAL_GET(0))});
   // Wrong return type.

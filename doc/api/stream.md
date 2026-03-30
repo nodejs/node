@@ -723,7 +723,7 @@ myStream.write('foo', (error) => console.error(error.code));
 Once `destroy()` has been called any further calls will be a no-op and no
 further errors except from `_destroy()` may be emitted as `'error'`.
 
-Implementors should not override this method,
+Implementers should not override this method,
 but instead implement [`writable._destroy()`][writable-_destroy].
 
 ##### `writable.closed`
@@ -1409,7 +1409,7 @@ will be ignored.
 Once `destroy()` has been called any further calls will be a no-op and no
 further errors except from `_destroy()` may be emitted as `'error'`.
 
-Implementors should not override this method, but instead implement
+Implementers should not override this method, but instead implement
 [`readable._destroy()`][readable-_destroy].
 
 ##### `readable.closed`
@@ -2727,7 +2727,7 @@ changes:
 
 Destroy the stream, and optionally emit an `'error'` event. After this call, the
 transform stream would release any internal resources.
-Implementors should not override this method, but instead implement
+Implementers should not override this method, but instead implement
 [`readable._destroy()`][readable-_destroy].
 The default implementation of `_destroy()` for `Transform` also emit `'close'`
 unless `emitClose` is set in false.

@@ -330,8 +330,8 @@ class HandleScopeImplementer {
  public:
   class V8_NODISCARD EnteredContextRewindScope {
    public:
-    explicit EnteredContextRewindScope(HandleScopeImplementer* hsi)
-        : hsi_(hsi), saved_entered_context_count_(hsi->EnteredContextCount()) {}
+    explicit EnteredContextRewindScope(HandleScopeImplementer* his)
+        : hsi_(his), saved_entered_context_count_(his->EnteredContextCount()) {}
 
     ~EnteredContextRewindScope() {
       DCHECK_LE(saved_entered_context_count_, hsi_->EnteredContextCount());

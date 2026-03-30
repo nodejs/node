@@ -57,23 +57,23 @@ void HeapAllocator::Setup() {
           ? &heap_->isolate()->isolate_data()->old_allocation_info()
           : nullptr;
   old_space_allocator_.emplace(local_heap_, heap_->old_space(),
-                               MainAllocator::IsNewGeneration::kNo,
+                               MainAllocator::IsNewGeneration::know,
                                old_allocation_info);
 
   trusted_space_allocator_.emplace(local_heap_, heap_->trusted_space(),
-                                   MainAllocator::IsNewGeneration::kNo);
+                                   MainAllocator::IsNewGeneration::know);
   code_space_allocator_.emplace(local_heap_, heap_->code_space(),
-                                MainAllocator::IsNewGeneration::kNo);
+                                MainAllocator::IsNewGeneration::know);
 
   if (heap_->isolate()->has_shared_space()) {
     shared_space_allocator_.emplace(local_heap_,
                                     heap_->shared_allocation_space(),
-                                    MainAllocator::IsNewGeneration::kNo);
+                                    MainAllocator::IsNewGeneration::know);
     shared_lo_space_ = heap_->shared_lo_allocation_space();
 
     shared_trusted_space_allocator_.emplace(
         local_heap_, heap_->shared_trusted_allocation_space(),
-        MainAllocator::IsNewGeneration::kNo);
+        MainAllocator::IsNewGeneration::know);
     shared_trusted_lo_space_ = heap_->shared_trusted_lo_allocation_space();
   }
 }
@@ -540,7 +540,7 @@ bool HeapAllocator::RetryCustomAllocateLight(CustomAllocationFunction allocate,
 bool HeapAllocator::CollectGarbageAndRetryAllocation(
     CustomAllocationFunction allocate, AllocationType allocation) {
   const auto perform_heap_limit_check = v8_flags.late_heap_limit_check
-                                            ? PerformHeapLimitCheck::kNo
+                                            ? PerformHeapLimitCheck::know
                                             : PerformHeapLimitCheck::kYes;
 
   for (int i = 0; i < 2; i++) {

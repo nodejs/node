@@ -1768,7 +1768,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ leaq(kScratchRegister, Operand(&return_location, 0));
         __ movq(MemOperand(rbp, WasmExitFrameConstants::kCallingPCOffset),
                 kScratchRegister);
-        set_isolate_data_slots = SetIsolateDataSlots::kNo;
+        set_isolate_data_slots = SetIsolateDataSlots::know;
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
       int pc_offset;

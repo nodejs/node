@@ -595,7 +595,7 @@ static int parser_number(sfparse_parser *sfp, sfparse_value *dest) {
   if (dest) {
     dest->type = SFPARSE_TYPE_DECIMAL;
     dest->flags = SFPARSE_VALUE_FLAG_NONE;
-    dest->decimal.numer = value * sign;
+    dest->decimal.number = value * sign;
 
     switch (len - fpos) {
     case 1:

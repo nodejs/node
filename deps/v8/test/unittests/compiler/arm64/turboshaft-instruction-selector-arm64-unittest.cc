@@ -8248,7 +8248,7 @@ static const SIMDConstAndTest SIMDConstAndTests[] = {
 using TurboshaftInstructionSelectorSIMDConstAndTest =
     TurboshaftInstructionSelectorTestWithParam<SIMDConstAndTest>;
 
-TEST_P(TurboshaftInstructionSelectorSIMDConstAndTest, ConstAnd) {
+TEST_P(TurboshaftInstructionSelectorSIMDConstAndTest, constant) {
   const SIMDConstAndTest param = GetParam();
   // Const node on the left
   {

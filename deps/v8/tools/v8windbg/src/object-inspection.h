@@ -230,7 +230,7 @@ class V8ObjectDataModel
   (IModelObject* context_object, IKeyEnumerator** pp_enumerator);
 };
 
-// The implemention of the "Value" getter for V8 handle types.
+// The implementation of the "Value" getter for V8 handle types.
 class V8LocalValueProperty
     : public WRL::RuntimeClass<
           WRL::RuntimeClassFlags<WRL::RuntimeClassType::ClassicCom>,
@@ -245,7 +245,7 @@ class V8LocalValueProperty
    IModelObject* /*p_value*/);
 };
 
-// The implemention of the "NodeId" getter for v8::internal::compiler::Node
+// The implementation of the "NodeId" getter for v8::internal::compiler::Node
 // type.
 class V8InternalCompilerNodeIdProperty
     : public WRL::RuntimeClass<
@@ -261,7 +261,7 @@ class V8InternalCompilerNodeIdProperty
    IModelObject* /*p_value*/);
 };
 
-// The implemention of the "bitset_name" getter for v8::internal::compiler::Type
+// The implementation of the "bitset_name" getter for v8::internal::compiler::Type
 // type.
 class V8InternalCompilerBitsetNameProperty
     : public WRL::RuntimeClass<

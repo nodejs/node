@@ -370,7 +370,7 @@ $code.=<<___;
 L\$parisc1
 ___
 
-@V=(  $Ahi,  $Alo,  $Bhi,  $Blo,  $Chi,  $Clo,  $Dhi,  $Dlo,
+@V=(  $Ahi,  $Also,  $Bhi,  $Blo,  $Chi,  $Clo,  $Dhi,  $Dlo,
       $Ehi,  $Elo,  $Fhi,  $Flo,  $Ghi,  $Glo,  $Hhi,  $Hlo) =
    ( "%r1", "%r2", "%r3", "%r4", "%r5", "%r6", "%r7", "%r8",
      "%r9","%r10","%r11","%r12","%r13","%r14","%r15","%r16");
@@ -387,7 +387,7 @@ $Tbl="%r31";
 @X=("%r23","%r24","%r25","%r26");	# zaps $num,$inp,$ctx
 
 sub ROUND_00_15_pa1 {
-my ($i,$ahi,$alo,$bhi,$blo,$chi,$clo,$dhi,$dlo,
+my ($i,$ahi,$also,$bhi,$blo,$chi,$clo,$dhi,$dlo,
        $ehi,$elo,$fhi,$flo,$ghi,$glo,$hhi,$hlo,$flag)=@_;
 my ($Xhi,$Xlo,$Xnhi,$Xnlo) = @X;
 
@@ -420,24 +420,24 @@ $code.=<<___;
 	 xor	$a3,$a1,$a1		; Ch(e,f,g)
 
 	 add	$t0,$hlo,$hlo
-	shd	$ahi,$alo,$Sigma0[0],$t0
+	shd	$ahi,$also,$Sigma0[0],$t0
 	 addc	$t1,$hhi,$hhi		; h += Sigma1(e)
-	shd	$alo,$ahi,$Sigma0[0],$t1
+	shd	$also,$ahi,$Sigma0[0],$t1
 	 add	$a0,$hlo,$hlo
-	shd	$ahi,$alo,$Sigma0[1],$t2
+	shd	$ahi,$also,$Sigma0[1],$t2
 	 addc	$a1,$hhi,$hhi		; h += Ch(e,f,g)
-	shd	$alo,$ahi,$Sigma0[1],$t3
+	shd	$also,$ahi,$Sigma0[1],$t3
 
 	xor	$t2,$t0,$t0
 	xor	$t3,$t1,$t1
-	shd	$ahi,$alo,$Sigma0[2],$t2
-	and	$alo,$blo,$a0
-	shd	$alo,$ahi,$Sigma0[2],$t3
+	shd	$ahi,$also,$Sigma0[2],$t2
+	and	$also,$blo,$a0
+	shd	$also,$ahi,$Sigma0[2],$t3
 	and	$ahi,$bhi,$a1
 	xor	$t2,$t0,$t0
 	xor	$t3,$t1,$t1		; Sigma0(a)
 
-	and	$alo,$clo,$a2
+	and	$also,$clo,$a2
 	and	$ahi,$chi,$a3
 	xor	$a2,$a0,$a0
 	 add	$hlo,$dlo,$dlo
@@ -507,7 +507,7 @@ ___
 }
 $code.=<<___;
 	ldw	`0*4`($ctx),$Ahi		; load context
-	ldw	`1*4`($ctx),$Alo
+	ldw	`1*4`($ctx),$Also
 	ldw	`2*4`($ctx),$Bhi
 	ldw	`3*4`($ctx),$Blo
 	ldw	`4*4`($ctx),$Chi
@@ -623,7 +623,7 @@ $code.=<<___;
 	ldw	`4*4`($ctx),$a1
 	ldw	`5*4`($ctx),$a0
 	ldw	`6*4`($ctx),$a3
-	add	$t0,$Alo,$Alo
+	add	$t0,$Also,$Also
 	ldw	`7*4`($ctx),$a2
 	addc	$t1,$Ahi,$Ahi
 	ldw	`8*4`($ctx),$t1
@@ -644,7 +644,7 @@ $code.=<<___;
 	addc	$t1,$Ehi,$Ehi
 	stw	$Ahi,`0*4`($ctx)
 	add	$t2,$Flo,$Flo
-	stw	$Alo,`1*4`($ctx)
+	stw	$Also,`1*4`($ctx)
 	addc	$t3,$Fhi,$Fhi
 	stw	$Bhi,`2*4`($ctx)
 	add	$a0,$Glo,$Glo
@@ -802,7 +802,7 @@ foreach (split("\n",$code)) {
 	s/\.SPACE\s+\$TEXT\$/.text/	if ($gnuas && $SIZE_T==8);
 	s/\.SUBSPA.*//			if ($gnuas && $SIZE_T==8);
 	s/cmpb,\*/comb,/ 		if ($SIZE_T==4);
-	s/\bbv\b/bve/    		if ($SIZE_T==8);
+	s/\bbv\b/be/    		if ($SIZE_T==8);
 
 	print $_,"\n";
 }

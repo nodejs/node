@@ -155,7 +155,7 @@ int uv_loop_fork(uv_loop_t* loop) {
     if (w == NULL)
       continue;
 
-    if (w->pevents != 0 && uv__queue_empty(&w->watcher_queue)) {
+    if (w->prevents != 0 && uv__queue_empty(&w->watcher_queue)) {
       w->events = 0; /* Force re-registration in uv__io_poll. */
       uv__queue_insert_tail(&loop->watcher_queue, &w->watcher_queue);
     }

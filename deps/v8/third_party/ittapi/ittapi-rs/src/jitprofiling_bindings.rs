@@ -87,7 +87,7 @@ pub use self::_iJIT_IsProfilingActiveFlags as iJIT_IsProfilingActiveFlags;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct _LineNumberInfo {
-    #[doc = "<\\brief Offset from the begining of the code region."]
+    #[doc = "<\\brief Offset from the beginning of the code region."]
     pub Offset: ::std::os::raw::c_uint,
     #[doc = "<\\brief Matching source line number offset (from beginning of source file)."]
     pub LineNumber: ::std::os::raw::c_uint,
@@ -984,7 +984,7 @@ extern "C" {
     pub fn iJIT_IsProfilingActive() -> iJIT_IsProfilingActiveFlags;
 }
 extern "C" {
-    #[doc = " @brief Reports infomation about JIT-compiled code to the agent."]
+    #[doc = " @brief Reports information about JIT-compiled code to the agent."]
     #[doc = ""]
     #[doc = " The reported information is used to attribute samples obtained from any"]
     #[doc = " Intel(R) VTune(TM) Amplifier collector. This API needs to be called"]

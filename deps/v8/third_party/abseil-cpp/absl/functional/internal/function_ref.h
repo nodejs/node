@@ -56,8 +56,8 @@ struct PassByValue<T, /*IsLValueReference=*/false>
 template <typename T>
 struct ForwardT : std::conditional<PassByValue<T>::value, T, T&&> {};
 
-// An Invoker takes a pointer to the type-erased invokable object, followed by
-// the arguments that the invokable object expects.
+// An Invoker takes a pointer to the type-erased invocable object, followed by
+// the arguments that the invocable object expects.
 //
 // Note: The order of arguments here is an optimization, since member functions
 // have an implicit "this" pointer as their first argument, putting VoidPtr

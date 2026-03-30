@@ -480,7 +480,7 @@ public:
      * the caller is no longer responsible for deleting it.
      * @param pattern           the given pattern for the format.
      * @param formatDataToAdopt the symbols to be adopted.
-     * @param status            Output param set to success/faulure code.
+     * @param status            Output param set to success/failure code.
      * @stable ICU 2.0
      */
     U_I18N_API SimpleDateFormat(const UnicodeString& pattern,
@@ -493,7 +493,7 @@ public:
      * remains responsible for deleting it.
      * @param pattern           the given pattern for the format.
      * @param formatData        the formatting symbols to be use.
-     * @param status            Output param set to success/faulure code.
+     * @param status            Output param set to success/failure code.
      * @stable ICU 2.0
      */
     U_I18N_API SimpleDateFormat(const UnicodeString& pattern,

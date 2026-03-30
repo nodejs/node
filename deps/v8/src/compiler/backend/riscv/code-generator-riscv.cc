@@ -349,7 +349,7 @@ Condition FlagsConditionToConditionCmp(FlagsCondition condition) {
     case kSignedGreaterThan:
       return gt;
     case kUnsignedLessThan:
-      return Uless;
+      return Unless;
     case kUnsignedGreaterThanOrEqual:
       return Ugreater_equal;
     case kUnsignedLessThanOrEqual:
@@ -969,7 +969,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                        RelocInfo::EXTERNAL_REFERENCE);
         __ StoreWord(kScratchReg,
                      MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
-        set_isolate_data_slots = SetIsolateDataSlots::kNo;
+        set_isolate_data_slots = SetIsolateDataSlots::know;
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
       int pc_offset;
@@ -1350,7 +1350,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvDiv32: {
       DCHECK_NE(i.OutputRegister(), i.InputRegister(1));
       __ Div32(i.OutputRegister(), i.InputOrZeroRegister(0), i.InputOperand(1));
-      // Set ouput to zero if divisor == 0
+      // Set output to zero if divisor == 0
       __ LoadZeroIfConditionZero(i.OutputRegister(), i.InputRegister(1));
       break;
     }
@@ -1358,7 +1358,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_NE(i.OutputRegister(), i.InputRegister(1));
       __ Divu32(i.OutputRegister(), i.InputOrZeroRegister(0),
                 i.InputOperand(1));
-      // Set ouput to zero if divisor == 0
+      // Set output to zero if divisor == 0
       __ LoadZeroIfConditionZero(i.OutputRegister(), i.InputRegister(1));
       break;
     }
@@ -1375,7 +1375,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvDiv64: {
       DCHECK_NE(i.OutputRegister(), i.InputRegister(1));
       __ Div64(i.OutputRegister(), i.InputOrZeroRegister(0), i.InputOperand(1));
-      // Set ouput to zero if divisor == 0
+      // Set output to zero if divisor == 0
       __ LoadZeroIfConditionZero(i.OutputRegister(), i.InputRegister(1));
       break;
     }
@@ -1383,7 +1383,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_NE(i.OutputRegister(), i.InputRegister(1));
       __ Divu64(i.OutputRegister(), i.InputOrZeroRegister(0),
                 i.InputOperand(1));
-      // Set ouput to zero if divisor == 0
+      // Set output to zero if divisor == 0
       __ LoadZeroIfConditionZero(i.OutputRegister(), i.InputRegister(1));
       break;
     }
@@ -1404,13 +1404,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kRiscvDiv32: {
       __ Div(i.OutputRegister(), i.InputOrZeroRegister(0), i.InputOperand(1));
-      // Set ouput to zero if divisor == 0
+      // Set output to zero if divisor == 0
       __ LoadZeroIfConditionZero(i.OutputRegister(), i.InputRegister(1));
       break;
     }
     case kRiscvDivU32: {
       __ Divu(i.OutputRegister(), i.InputOrZeroRegister(0), i.InputOperand(1));
-      // Set ouput to zero if divisor == 0
+      // Set output to zero if divisor == 0
       __ LoadZeroIfConditionZero(i.OutputRegister(), i.InputRegister(1));
       break;
     }
@@ -1968,7 +1968,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // exploiting the fact that UINT32_MAX+1 is 0.
       if (set_overflow_to_min_u32) {
         __ Add32(kScratchReg, i.OutputRegister(), 1);
-        // Set ouput to zero if result overflows (i.e., UINT32_MAX)
+        // Set output to zero if result overflows (i.e., UINT32_MAX)
         __ LoadZeroIfConditionZero(i.OutputRegister(), kScratchReg);
       }
       break;
@@ -4790,7 +4790,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
           __ Xor(result, result, 1);
         }
       } break;
-      case Uless:
+      case Unless:
       case Ugreater_equal: {
         Register left = i.InputOrZeroRegister(0);
         Operand right = i.InputOperand(1);
@@ -4842,7 +4842,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
           __ Xor(result, result, 1);
         }
       } break;
-      case Uless:
+      case Unless:
       case Ugreater_equal: {
         Register left = i.InputOrZeroRegister(0);
         Operand right = Operand(zero_reg);
@@ -4909,7 +4909,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
           __ Xor(result, result, 1);
         }
       } break;
-      case Uless:
+      case Unless:
       case Ugreater_equal: {
         auto left = trim_reg(i.InputOrZeroRegister(0));
         __ Sltu(result, left, zero_reg);

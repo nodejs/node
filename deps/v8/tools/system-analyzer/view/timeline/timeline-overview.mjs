@@ -253,12 +253,12 @@ class Frequency {
 
   toSVG(height) {
     const vScale = height / this.max();
-    const initialY = height;
+    const initially = height;
     const buffer = [
       'M 0',
-      initialY,
+      initially,
     ];
-    let prevY = initialY;
+    let prevY = initially;
     let usedPrevY = false;
     for (let i = 0; i < this._size; i++) {
       const y = height - (this._smoothenedData[i] * vScale) | 0;
@@ -272,7 +272,7 @@ class Frequency {
       usedPrevY = true;
     }
     if (!usedPrevY) buffer.push('L', this._size - 1, prevY);
-    buffer.push('L', this._size - 1, initialY);
+    buffer.push('L', this._size - 1, initially);
     buffer.push('Z');
     return buffer.join(' ');
   }

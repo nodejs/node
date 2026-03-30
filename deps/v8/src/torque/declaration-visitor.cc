@@ -279,7 +279,7 @@ void DeclarationVisitor::Visit(SpecializationDeclaration* decl) {
       if (matching_generic != nullptr) {
         std::stringstream stream;
         stream << "specialization of " << decl->name
-               << " is ambigous, it matches more than one generic declaration ("
+               << " is ambiguous, it matches more than one generic declaration ("
                << *matching_generic << " and " << *generic << ")";
         ReportError(stream.str());
       }
@@ -404,7 +404,7 @@ Callable* DeclarationVisitor::Specialize(
     std::stringstream stream;
     stream << "number of template parameters ("
            << std::to_string(key.specialized_types.size())
-           << ") to intantiation of generic " << declaration->name
+           << ") to instantiation of generic " << declaration->name
            << " doesnt match the generic's declaration ("
            << std::to_string(generic_parameter_count) << ")";
     ReportError(stream.str());

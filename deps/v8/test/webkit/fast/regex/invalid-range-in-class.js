@@ -41,7 +41,7 @@ shouldBe('/[\\d-\\d]+/.exec("1-3xy");', '["1-3"]');
 // the grammar, and as such in the following regex a-z cannot be matched as a range.
 shouldBe('/[\\d-a-z]+/.exec("az1-3y");', '["az1-3"]');
 
-// An escaped hypen should not be confused for an invalid range.
+// An escaped hyphen should not be confused for an invalid range.
 shouldBe('/[\\d\\-x]+/.exec("1-3xy");', '["1-3x"]');
 shouldBe('/[x\\-\\d]+/.exec("1-3xy");', '["1-3x"]');
 shouldBe('/[\\d\\-\\d]+/.exec("1-3xy");', '["1-3"]');

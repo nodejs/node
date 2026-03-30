@@ -31982,7 +31982,7 @@ simdutf_warn_unused size_t implementation::utf16_length_from_utf8(
       /* 0110 */ 1,
       /* 0111 */ 1,
 
-      // continutation bytes
+      // continuation bytes
       /* 1000 */ 0,
       /* 1001 */ 0,
       /* 1010 */ 0,
@@ -41824,9 +41824,9 @@ std::pair<const char *, size_t> ppc64_utf8_length_from_latin1(const char *input,
  * https://www.codeproject.com/Articles/276993/Base-Encoding-on-a-GPU. (2013).
  *
  * AMD XOP specific: http://0x80.pl/notesen/2016-01-12-sse-base64-encoding.html
- * Altivec has capabilites of AMD XOP (or vice versa): shuffle using 2 vectors
+ * Altivec has capabilities of AMD XOP (or vice versa): shuffle using 2 vectors
  * and variable shifts, thus this implementation shares some code solution
- * (modulo intrisic function names).
+ * (modulo intrinsic function names).
  */
 
 constexpr bool with_base64_std = false;

@@ -242,7 +242,7 @@ void Simulator::CheckPCSComplianceAndRun() {
            dreg_bits(PopLowestIndexAsCode(&fpregister_list)));
   }
 
-  // Corrupt caller saved register minus the return regiters.
+  // Corrupt caller saved register minus the return registers.
 
   // In theory x0 to x7 can be used for return values, but V8 only uses x0, x1
   // for now .
@@ -261,7 +261,7 @@ void Simulator::CheckPCSComplianceAndRun() {
 }
 
 #ifdef DEBUG
-// The least significant byte of the curruption value holds the corresponding
+// The least significant byte of the corruption value holds the corresponding
 // register's code.
 void Simulator::CorruptRegisters(CPURegList* list, uint64_t value) {
   if (list->type() == CPURegister::kRegister) {

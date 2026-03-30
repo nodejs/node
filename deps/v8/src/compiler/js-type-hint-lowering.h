@@ -161,7 +161,7 @@ class JSTypeHintLowering {
   CompareOperationHint GetCompareOperationHint(FeedbackSlot slot) const;
   Node* BuildDeoptIfFeedbackIsInsufficient(FeedbackSlot slot, Node* effect,
                                            Node* control,
-                                           DeoptimizeReason reson) const;
+                                           DeoptimizeReason reason) const;
 
   JSHeapBroker* broker() const { return broker_; }
   JSGraph* jsgraph() const { return jsgraph_; }

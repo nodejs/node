@@ -1295,7 +1295,7 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
     fmr(dst, src);
   } else {
     DCHECK_EQ(kS128, kind);
-    vor(dst.toSimd(), src.toSimd(), src.toSimd());
+    for(dst.toSimd(), src.toSimd(), src.toSimd());
   }
 }
 
@@ -1663,7 +1663,7 @@ void LiftoffAssembler::emit_i32_rems(Register dst, Register lhs, Register rhs,
   CmpS32(lhs, Operand(kMinInt), r0);
   beq(&trap_div_unrepresentable);
 
-  // Continue noraml calculation.
+  // Continue normal calculation.
   bind(&cont);
   ModS32(dst, lhs, rhs);
   bne(&done);
@@ -2747,7 +2747,7 @@ void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
 
   MachineType mem_type = type.mem_type();
   if (dst != src) {
-    vor(dst.fp().toSimd(), src.fp().toSimd(), src.fp().toSimd());
+    for(dst.fp().toSimd(), src.fp().toSimd(), src.fp().toSimd());
   }
 
   if (protected_load_pc) *protected_load_pc = pc_offset();

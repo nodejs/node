@@ -1526,7 +1526,7 @@ struct UText {
  *  If the supplied UText is already open, the provider's close function will be called
  *  so that the struct can be reused by the open that is in progress.
  *
- * @param ut   pointer to a UText struct to be re-used, or null if a new UText
+ * @param ut   pointer to a UText struct to be reused, or null if a new UText
  *             should be allocated.
  * @param extraSpace The amount of additional space to be allocated as part
  *             of this UText, for use by types of providers that require

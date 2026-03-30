@@ -209,7 +209,7 @@ bool OS::SealPages(void* address, size_t size) { return false; }
 
 // static
 bool OS::HasLazyCommits() {
-  // TODO(alph): implement for the platform.
+  // TODO(alpha): implement for the platform.
   return false;
 }
 

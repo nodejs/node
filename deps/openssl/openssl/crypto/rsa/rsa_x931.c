@@ -36,7 +36,7 @@
  *
  * Params:
  *     to The output buffer to write the data structure to.
- *     tolen The size of 'to' in bytes (it is the size of the n)
+ *     token The size of 'to' in bytes (it is the size of the n)
  *     from The input hash followed by the 1st byte of the trailer.
  *     flen The size of the input hash + 1 (trailer byte)
  */

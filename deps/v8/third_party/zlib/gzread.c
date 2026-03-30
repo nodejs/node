@@ -114,7 +114,7 @@ local int gz_look(gz_statep state) {
 
     /* look for gzip magic bytes -- if there, do gzip decoding (note: there is
        a logical dilemma here when considering the case of a partially written
-       gzip file, to wit, if a single 31 byte is written, then we cannot tell
+       gzip file, to with, if a single 31 byte is written, then we cannot tell
        whether this is a single-byte file, or just a partially written gzip
        file -- for here we assume that if a gzip file is being written, then
        the header will be written in a single operation, so that reading a

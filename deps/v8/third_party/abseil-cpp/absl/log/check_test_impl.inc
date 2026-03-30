@@ -638,7 +638,7 @@ struct StringifiableStreamableType {
   template <typename Sink>
   friend void AbslStringify(Sink& sink,
                             const StringifiableStreamableType& obj) {
-    absl::Format(&sink, "Strigified{%d}", obj.x);
+    absl::Format(&sink, "Stringified{%d}", obj.x);
   }
   friend std::ostream& operator<<(std::ostream& out,
                                   const StringifiableStreamableType& obj) {

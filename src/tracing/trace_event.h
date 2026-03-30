@@ -120,7 +120,7 @@ enum CategoryGroupEnabledFlags {
       controller->UpdateTraceEventDuration
 
 // Adds a metadata event to the trace log. The |AppendValueAsTraceFormat| method
-// on the convertable value will be called at flush time.
+// on the convertible value will be called at flush time.
 // TRACE_EVENT_API_ADD_METADATA_EVENT(
 //     const unsigned char* category_group_enabled,
 //     const char* event_name,

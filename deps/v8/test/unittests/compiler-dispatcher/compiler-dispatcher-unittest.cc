@@ -179,7 +179,7 @@ class DeferredPostJob {
 
   // Non-owning pointer to the handle returned by PostJob. The handle holds
   // a pointer to this instance, and registers/deregisters itself on
-  // constuction/destruction.
+  // construction/destruction.
   DeferredJobHandle* deferred_handle_ = nullptr;
 
   std::unique_ptr<JobHandle> real_handle_ = nullptr;
@@ -493,7 +493,7 @@ TEST_F(LazyCompileDispatcherTest, IdleTaskSmallIdleTime) {
       LazyCompileDispatcher::Job::State::kReadyToFinalize);
   ASSERT_TRUE(platform.IdleTaskPending());
 
-  // Grant a small anount of idle time and have time advance beyond it in one
+  // Grant a small amount of idle time and have time advance beyond it in one
   // step.
   platform.RunIdleTask(2.0, 1.0);
 

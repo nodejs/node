@@ -8,8 +8,8 @@ namespace v8 {
 namespace base {
 
 VirtualAddressSpacePageAllocator::VirtualAddressSpacePageAllocator(
-    v8::VirtualAddressSpace* vas)
-    : vas_(vas) {}
+    v8::VirtualAddressSpace* was)
+    : vas_(was) {}
 
 void* VirtualAddressSpacePageAllocator::AllocatePages(
     void* hint, size_t size, size_t alignment,

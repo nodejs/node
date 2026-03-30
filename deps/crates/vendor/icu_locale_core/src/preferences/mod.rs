@@ -395,7 +395,7 @@ pub use locale::*;
 /// [`ICU4X`]: ../icu/index.html
 pub trait PreferenceKey: Sized {
     /// Optional constructor of the given preference. It takes the
-    /// unicode extension key and if the key matches it attemptes to construct
+    /// unicode extension key and if the key matches it attempts to construct
     /// the preference based on the given value.
     /// If the value is not a valid value for the given key, the constructor throws.
     fn try_from_key_value(

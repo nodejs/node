@@ -151,7 +151,7 @@ HWY_DLLEXPORT double InvariantTicksPerSecond() {
   // https://developer.apple.com/library/mac/qa/qa1398/_index.html
   mach_timebase_info_data_t timebase;
   (void)mach_timebase_info(&timebase);
-  return static_cast<double>(timebase.denom) / timebase.numer * 1E9;
+  return static_cast<double>(timebase.denom) / timebase.number * 1E9;
 #else
   return 1E9;  // Haiku and clock_gettime return nanoseconds.
 #endif

@@ -12,8 +12,8 @@ function code_points(s) {
 [
   '', // Empty strings
   'abc\x00def', // Embedded NUL
-  '\uD800', // Unpaired low surrogage
-  '\uDC00', // Unpaired high surrogage
+  '\uD800', // Unpaired low surrogate
+  '\uDC00', // Unpaired high surrogate
   '\uDC00\uD800', // Swapped surrogate pair
   '\uFFFF' // Non-character
 ].forEach(string => {

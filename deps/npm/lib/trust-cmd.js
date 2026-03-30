@@ -27,7 +27,7 @@ class TrustCommand extends BaseCommand {
 
   // dialogue is non-log text that is different from our usual npm prefix logging
   // it should always show to the user unless --json is specified
-  // it's not controled by log levels
+  // it's not controlled by log levels
   dialogue (strings, ...values) {
     const json = this.config.get('json')
     if (!json) {

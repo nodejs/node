@@ -606,7 +606,7 @@ umsg_vparse(const UMessageFormat *fmt,
  * is indeed a valid pattern.  The only effect is to convert
  * between patterns having different quoting semantics.
  *
- * @param pattern the 'apostrophe-friendly' patttern to convert
+ * @param pattern the 'apostrophe-friendly' pattern to convert
  * @param patternLength the length of pattern, or -1 if unknown and pattern is null-terminated
  * @param dest the buffer for the result, or NULL if preflight only
  * @param destCapacity the length of the buffer, or 0 if preflighting

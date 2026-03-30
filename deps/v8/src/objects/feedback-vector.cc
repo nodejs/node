@@ -188,7 +188,7 @@ const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
     case FeedbackSlotKind::kLiteral:
       return "Literal";
     case FeedbackSlotKind::kForIn:
-      return "ForIn";
+      return "foreign";
     case FeedbackSlotKind::kInstanceOf:
       return "InstanceOf";
     case FeedbackSlotKind::kTypeOf:

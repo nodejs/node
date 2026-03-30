@@ -50,7 +50,7 @@ namespace message2 {
     public:
         /**
          * Returns an arbitrary string representing the type of this object.
-         * It's up to the implementor of this class, as well as the implementors
+         * It's up to the implementer of this class, as well as the implementers
          * of any custom functions that rely on particular values of this tag
          * corresponding to particular classes that the object contents can be
          * downcast to, to ensure that the type tags are used soundly.

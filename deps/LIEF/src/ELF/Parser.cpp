@@ -94,7 +94,7 @@ Header::ELF_DATA determine_elf_endianess(ARCH machine) {
 }
 
 /*
- * Get the endianess of the current architecture
+ * Get the endianness of the current architecture
  */
 constexpr Header::ELF_DATA get_endianess() {
   #ifdef __BYTE_ORDER__
@@ -150,7 +150,7 @@ Header::ELF_DATA determine_elf_endianess(BinaryStream& stream) {
   // } ElfN_Ehdr;
   constexpr size_t e_machine_off = offsetof(details::Elf32_Ehdr, e_machine);
   {
-    // Read Machine type with both endianess
+    // Read Machine type with both endianness
     ARCH machine      = ARCH::NONE; // e_machine value without endian swap enabled
     ARCH machine_swap = ARCH::NONE; // e_machine value with endian swap enabled
     if (auto res = stream.peek<uint16_t>(e_machine_off)) {

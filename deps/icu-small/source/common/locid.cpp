@@ -1332,7 +1332,7 @@ AliasReplacer::parseLanguageReplacement(
     char* data = str->data();
     replacedLanguage = (const char*) data;
     char* endOfField = uprv_strchr(data, '_');
-    *endOfField = '\0'; // null terminiate it.
+    *endOfField = '\0'; // null terminate it.
     endOfField++;
     const char* start = endOfField;
     endOfField = const_cast<char*>(uprv_strchr(start, '_'));
@@ -1341,7 +1341,7 @@ AliasReplacer::parseLanguageReplacement(
         len = uprv_strlen(start);
     } else {
         len = endOfField - start;
-        *endOfField = '\0'; // null terminiate it.
+        *endOfField = '\0'; // null terminate it.
     }
     if (len == 4 && uprv_isASCIILetter(*start)) {
         // Got a script
@@ -1355,7 +1355,7 @@ AliasReplacer::parseLanguageReplacement(
             len = uprv_strlen(start);
         } else {
             len = endOfField - start;
-            *endOfField = '\0'; // null terminiate it.
+            *endOfField = '\0'; // null terminate it.
         }
     }
     if (len >= 2 && len <= 3) {
@@ -1370,7 +1370,7 @@ AliasReplacer::parseLanguageReplacement(
             len = uprv_strlen(start);
         } else {
             len = endOfField - start;
-            *endOfField = '\0'; // null terminiate it.
+            *endOfField = '\0'; // null terminate it.
         }
     }
     if (len >= 4) {

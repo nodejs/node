@@ -27,7 +27,7 @@
 
 // Flags: --allow-natives-syntax
 
-// Test instantations of generators.
+// Test instantiations of generators.
 
 // Generators shouldn't allocate stack slots.  This test will abort in debug
 // mode if generators have stack slots.

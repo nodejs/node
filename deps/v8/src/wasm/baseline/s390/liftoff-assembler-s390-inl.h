@@ -2040,7 +2040,7 @@ void LiftoffAssembler::emit_i32_rems(Register dst, Register lhs, Register rhs,
   CmpS32(lhs, Operand(kMinInt));
   beq(&trap_div_unrepresentable);
 
-  // Continue noraml calculation.
+  // Continue normal calculation.
   bind(&cont);
   ModS32(dst, lhs, rhs);
   bne(&done);
@@ -3214,7 +3214,7 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
                                           const uint8_t shuffle[16],
                                           bool is_swizzle) {
   // Remap the shuffle indices to match IBM lane numbering.
-  // TODO(miladfarca): Put this in a function and share it with the instrction
+  // TODO(miladfarca): Put this in a function and share it with the instruction
   // selector.
   int max_index = 15;
   int total_lane_count = 2 * kSimd128Size;

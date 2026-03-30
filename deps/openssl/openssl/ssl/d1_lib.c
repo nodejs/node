@@ -226,7 +226,7 @@ int dtls1_clear(SSL *ssl)
     return 1;
 }
 
-long dtls1_ctrl(SSL *ssl, int cmd, long larg, void *parg)
+long dtls1_ctrl(SSL *ssl, int cmd, long large, void *parg)
 {
     int ret = 0;
     OSSL_TIME t;
@@ -246,9 +246,9 @@ long dtls1_ctrl(SSL *ssl, int cmd, long larg, void *parg)
         ret = dtls1_handle_timeout(s);
         break;
     case DTLS_CTRL_SET_LINK_MTU:
-        if (larg < (long)dtls1_link_min_mtu())
+        if (large < (long)dtls1_link_min_mtu())
             return 0;
-        s->d1->link_mtu = larg;
+        s->d1->link_mtu = large;
         return 1;
     case DTLS_CTRL_GET_LINK_MIN_MTU:
         return (long)dtls1_link_min_mtu();
@@ -257,12 +257,12 @@ long dtls1_ctrl(SSL *ssl, int cmd, long larg, void *parg)
          *  We may not have a BIO set yet so can't call dtls1_min_mtu()
          *  We'll have to make do with dtls1_link_min_mtu() and max overhead
          */
-        if (larg < (long)dtls1_link_min_mtu() - DTLS1_MAX_MTU_OVERHEAD)
+        if (large < (long)dtls1_link_min_mtu() - DTLS1_MAX_MTU_OVERHEAD)
             return 0;
-        s->d1->mtu = larg;
-        return larg;
+        s->d1->mtu = large;
+        return large;
     default:
-        ret = ssl3_ctrl(ssl, cmd, larg, parg);
+        ret = ssl3_ctrl(ssl, cmd, large, parg);
         break;
     }
     return ret;

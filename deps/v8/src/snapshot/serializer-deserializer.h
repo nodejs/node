@@ -115,7 +115,7 @@ class SerializerDeserializer : public RootVisitor {
     kOffHeapResizableBackingStore,
     // Used for embedder-provided serialization data for embedder fields.
     kEmbedderFieldsData,
-    // Used for embedder-provided serialziation data for API wrappers.
+    // Used for embedder-provided serialization data for API wrappers.
     kApiWrapperFieldsData,
     // Raw data of variable length.
     kVariableRawData,

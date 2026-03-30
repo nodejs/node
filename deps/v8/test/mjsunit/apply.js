@@ -195,7 +195,7 @@ assertEquals(primes.length, same_primes.length, "prime-length");
 Array.prototype["1"] = "sep";
 
 var holey = new Array(3);
-holey[0] = "mor";
+holey[0] = "more";
 holey[2] = "er";
 
 assertEquals("morseper", String.prototype.concat.apply("", holey),

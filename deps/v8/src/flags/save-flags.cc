@@ -10,8 +10,8 @@ namespace v8::internal {
 
 SaveFlags::SaveFlags() {
 // For each flag, save the current flag value.
-#define FLAG_MODE_APPLY(ftype, ctype, nam, def, cmt) \
-  SAVED_##nam = v8_flags.nam.value();
+#define FLAG_MODE_APPLY(ftype, ctype, name, def, cmt) \
+  SAVED_##name = v8_flags.name.value();
 #include "src/flags/flag-definitions.h"
 #undef FLAG_MODE_APPLY
 }
@@ -19,9 +19,9 @@ SaveFlags::SaveFlags() {
 SaveFlags::~SaveFlags() {
 // For each flag, set back the old flag value if it changed (don't write the
 // flag if it didn't change, to keep TSAN happy).
-#define FLAG_MODE_APPLY(ftype, ctype, nam, def, cmt) \
-  if (SAVED_##nam != v8_flags.nam.value()) {         \
-    v8_flags.nam = SAVED_##nam;                      \
+#define FLAG_MODE_APPLY(ftype, ctype, name, def, cmt) \
+  if (SAVED_##name != v8_flags.name.value()) {         \
+    v8_flags.name = SAVED_##name;                      \
   }
 #include "src/flags/flag-definitions.h"  // NOLINT
 #undef FLAG_MODE_APPLY

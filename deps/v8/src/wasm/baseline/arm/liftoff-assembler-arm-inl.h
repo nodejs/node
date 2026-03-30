@@ -3403,7 +3403,7 @@ void LiftoffAssembler::emit_i64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
   QwNeonRegister right = liftoff::GetSimd128Register(rhs);
 
   // These temporary registers will be modified. We can directly modify lhs and
-  // rhs if they are not uesd, saving on temporaries.
+  // rhs if they are not used, saving on temporaries.
   QwNeonRegister tmp1 = left;
   QwNeonRegister tmp2 = right;
 

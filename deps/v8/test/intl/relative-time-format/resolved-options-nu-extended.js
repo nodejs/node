@@ -10,7 +10,7 @@
 if (Intl.RelativeTimeFormat.supportedLocalesOf(["bn"]).length > 0) {
   // For locale default the numberingSystem to other than 'latn'
   assertEquals(
-      "beng",
+      "being",
       new Intl.RelativeTimeFormat("bn").resolvedOptions().numberingSystem
   );
 
@@ -23,7 +23,7 @@ if (Intl.RelativeTimeFormat.supportedLocalesOf(["bn"]).length > 0) {
   );
   // For locale use -u-nu- with invalid value still back to default.
   assertEquals(
-      "beng",
+      "being",
       new Intl.RelativeTimeFormat("bn-u-nu-abcd").resolvedOptions()
           .numberingSystem
   );

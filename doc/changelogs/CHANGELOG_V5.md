@@ -141,7 +141,7 @@ This is a security release. All Node.js users should consult the security releas
 * \[[`3c8d404a82`](https://github.com/nodejs/node/commit/3c8d404a82)] - **build**: allow test-ci to run tests in parallel (Johan Bergström) [#6208](https://github.com/nodejs/node/pull/6208)
 * \[[`a5f8d0c6ef`](https://github.com/nodejs/node/commit/a5f8d0c6ef)] - **build**: remove -f{data,function}-sections flags (Ben Noordhuis) [#6077](https://github.com/nodejs/node/pull/6077)
 * \[[`adfb1a4bb0`](https://github.com/nodejs/node/commit/adfb1a4bb0)] - **child\_process**: add nullptr checks after allocs (Anna Henningsen) [#6256](https://github.com/nodejs/node/pull/6256)
-* \[[`1fb40524ee`](https://github.com/nodejs/node/commit/1fb40524ee)] - **(SEMVER-MINOR)** **debugger**: run last command on presssing enter (Rich Trott) [#6090](https://github.com/nodejs/node/pull/6090)
+* \[[`1fb40524ee`](https://github.com/nodejs/node/commit/1fb40524ee)] - **(SEMVER-MINOR)** **debugger**: run last command on pressing enter (Rich Trott) [#6090](https://github.com/nodejs/node/pull/6090)
 * \[[`5305831184`](https://github.com/nodejs/node/commit/5305831184)] - **deps**: update to http-parser 2.7.0 (Fedor Indutny) [#6279](https://github.com/nodejs/node/pull/6279)
 * \[[`8ae200c768`](https://github.com/nodejs/node/commit/8ae200c768)] - **deps**: floating fix for npm's test-node script (Kat Marchán) [#6153](https://github.com/nodejs/node/pull/6153)
 * \[[`e3e544eb96`](https://github.com/nodejs/node/commit/e3e544eb96)] - **deps**: upgrade npm to 3.8.6 (Kat Marchán) [#6153](https://github.com/nodejs/node/pull/6153)
@@ -308,7 +308,7 @@ This is a security release. All Node.js users should consult the security releas
 * \[[`bdf933bece`](https://github.com/nodejs/node/commit/bdf933bece)] - **buffer**: changing let in for loops back to var (Gareth Ellis) [#5819](https://github.com/nodejs/node/pull/5819)
 * \[[`c1534e7eaf`](https://github.com/nodejs/node/commit/c1534e7eaf)] - **(SEMVER-MINOR)** **buffer**: backport new buffer constructor APIs (James M Snell) [#5763](https://github.com/nodejs/node/pull/5763)
 * \[[`3c02727055`](https://github.com/nodejs/node/commit/3c02727055)] - **(SEMVER-MINOR)** **buffer**: backport --zero-fill-buffers command line option (James M Snell) [#5744](https://github.com/nodejs/node/pull/5744)
-* \[[`58b5c1e19f`](https://github.com/nodejs/node/commit/58b5c1e19f)] - **build**: add suport for x86 architecture (Robert Chiras) [#5544](https://github.com/nodejs/node/pull/5544)
+* \[[`58b5c1e19f`](https://github.com/nodejs/node/commit/58b5c1e19f)] - **build**: add support for x86 architecture (Robert Chiras) [#5544](https://github.com/nodejs/node/pull/5544)
 * \[[`389f5a85e6`](https://github.com/nodejs/node/commit/389f5a85e6)] - **build**: add script to create Android .mk files (Robert Chiras) [#5544](https://github.com/nodejs/node/pull/5544)
 * \[[`5ee5fa292f`](https://github.com/nodejs/node/commit/5ee5fa292f)] - **build**: add missing `openssl_fips%` to common.gypi (Fedor Indutny) [#5919](https://github.com/nodejs/node/pull/5919)
 * \[[`5681ffecf7`](https://github.com/nodejs/node/commit/5681ffecf7)] - **build**: enable compilation for linuxOne (Michael Dawson) [#5941](https://github.com/nodejs/node/pull/5941)
@@ -316,7 +316,7 @@ This is a security release. All Node.js users should consult the security releas
 * \[[`0928584444`](https://github.com/nodejs/node/commit/0928584444)] - **deps**: upgrade npm to 3.8.3 (Forrest L Norvell)
 * \[[`ec1813199d`](https://github.com/nodejs/node/commit/ec1813199d)] - **deps**: backport 8d00c2c from v8 upstream (Ben Noordhuis) [#5577](https://github.com/nodejs/node/pull/5577)
 * \[[`2a5c6d7006`](https://github.com/nodejs/node/commit/2a5c6d7006)] - **dns**: Refactor forEach to map (Benjamin Gruenbaum) [#5803](https://github.com/nodejs/node/pull/5803)
-* \[[`6a6112a2f3`](https://github.com/nodejs/node/commit/6a6112a2f3)] - **dns**: Use object without protoype for map (Benjamin Gruenbaum) [#5843](https://github.com/nodejs/node/pull/5843)
+* \[[`6a6112a2f3`](https://github.com/nodejs/node/commit/6a6112a2f3)] - **dns**: Use object without prototype for map (Benjamin Gruenbaum) [#5843](https://github.com/nodejs/node/pull/5843)
 * \[[`8fa0b5c1da`](https://github.com/nodejs/node/commit/8fa0b5c1da)] - **doc**: Add @mhdawson back to the CTC (James M Snell) [#5633](https://github.com/nodejs/node/pull/5633)
 * \[[`858a524325`](https://github.com/nodejs/node/commit/858a524325)] - **doc**: typo: interal->internal. (Corey Kosak) [#5849](https://github.com/nodejs/node/pull/5849)
 * \[[`5676a35bd9`](https://github.com/nodejs/node/commit/5676a35bd9)] - **doc**: explain path.format expected properties (John Eversole) [#5801](https://github.com/nodejs/node/pull/5801)
@@ -567,7 +567,7 @@ This is a security release. All Node.js users should consult the security releas
 * \[[`7cae774d9b`](https://github.com/nodejs/node/commit/7cae774d9b)] - **benchmark**: refactor to eliminate redeclared vars (Rich Trott) [#5468](https://github.com/nodejs/node/pull/5468)
 * \[[`6aebe16669`](https://github.com/nodejs/node/commit/6aebe16669)] - **benchmark**: add benchmark for buf.compare() (Rich Trott) [#5441](https://github.com/nodejs/node/pull/5441)
 * \[[`00660f55c8`](https://github.com/nodejs/node/commit/00660f55c8)] - **benchmark**: move string-decoder to its own category (Andreas Madsen) [#5177](https://github.com/nodejs/node/pull/5177)
-* \[[`4650cb3818`](https://github.com/nodejs/node/commit/4650cb3818)] - **benchmark**: fix configuation parameters (Andreas Madsen) [#5177](https://github.com/nodejs/node/pull/5177)
+* \[[`4650cb3818`](https://github.com/nodejs/node/commit/4650cb3818)] - **benchmark**: fix configuration parameters (Andreas Madsen) [#5177](https://github.com/nodejs/node/pull/5177)
 * \[[`3ccb275139`](https://github.com/nodejs/node/commit/3ccb275139)] - **benchmark**: merge url.js with url-resolve.js (Andreas Madsen) [#5177](https://github.com/nodejs/node/pull/5177)
 * \[[`c1e7dbffaa`](https://github.com/nodejs/node/commit/c1e7dbffaa)] - **benchmark**: move misc to categorized directories (Andreas Madsen) [#5177](https://github.com/nodejs/node/pull/5177)
 * \[[`2f9fee6e8e`](https://github.com/nodejs/node/commit/2f9fee6e8e)] - **benchmark**: use strict mode (Rich Trott) [#5336](https://github.com/nodejs/node/pull/5336)
@@ -1616,7 +1616,7 @@ This is an important security release. All Node.js users should consult the secu
   * _(Breaking)_ Removed `require.paths` and `require.registerExtension()`, both had been previously set to throw `Error` when accessed (Sakthipriyan Vairamani) [#2922](https://github.com/nodejs/node/pull/2922).
 * **npm**: Upgraded to version 3.3.6 from 2.14.7, see <https://github.com/npm/npm/releases/tag/v3.3.6> for more details. This is a major version bump for npm and it has seen a significant amount of change. Please see the original [npm v3.0.0 release notes](https://github.com/npm/npm/blob/master/CHANGELOG.md#v300-2015-06-25) for a list of major changes (Rebecca Turner) [#3310](https://github.com/nodejs/node/pull/3310).
 * **src**: _(Breaking)_ Bumped `NODE_MODULE_VERSION` to `47` from `46`, this is necessary due to the V8 upgrade. Native add-ons will need to be recompiled (Rod Vagg) [#3400](https://github.com/nodejs/node/pull/3400).
-* **timers**: Attempt to reuse the timer handle for `setTimeout().unref()`. This fixes a long-standing known issue where unrefed timers would perviously hold `beforeExit` open (Fedor Indutny) [#3407](https://github.com/nodejs/node/pull/3407).
+* **timers**: Attempt to reuse the timer handle for `setTimeout().unref()`. This fixes a long-standing known issue where unrefed timers would previously hold `beforeExit` open (Fedor Indutny) [#3407](https://github.com/nodejs/node/pull/3407).
 * **tls**:
   * Added ALPN Support (Shigeki Ohtsu) [#2564](https://github.com/nodejs/node/pull/2564).
   * TLS options can now be passed in an object to `createSecurePair()` (Коренберг Марк) [#2441](https://github.com/nodejs/node/pull/2441).
@@ -1658,7 +1658,7 @@ This is an important security release. All Node.js users should consult the secu
 * \[[`d8011d1683`](https://github.com/nodejs/node/commit/d8011d1683)] - **(SEMVER-MAJOR)** **deps**: upgrade V8 to 4.6.85.23 (Michaël Zasso) [#3351](https://github.com/nodejs/node/pull/3351)
 * \[[`a334ddc467`](https://github.com/nodejs/node/commit/a334ddc467)] - _**Revert**_ "**deps**: backport 03ef3cd from V8 upstream" (Ali Ijaz Sheikh) [#3237](https://github.com/nodejs/node/pull/3237)
 * \[[`6fff47ffac`](https://github.com/nodejs/node/commit/6fff47ffac)] - **deps**: backport 03ef3cd from V8 upstream (Ali Ijaz Sheikh) [#3165](https://github.com/nodejs/node/pull/3165)
-* \[[`680dda8023`](https://github.com/nodejs/node/commit/680dda8023)] - **dns**: remove nonexistant exports.ADNAME (Roman Reiss) [#3051](https://github.com/nodejs/node/pull/3051)
+* \[[`680dda8023`](https://github.com/nodejs/node/commit/680dda8023)] - **dns**: remove nonexistent exports.ADNAME (Roman Reiss) [#3051](https://github.com/nodejs/node/pull/3051)
 * \[[`239ad899a3`](https://github.com/nodejs/node/commit/239ad899a3)] - **doc**: add LTS info to COLLABORATOR\_GUIDE.md (Myles Borins) [#3442](https://github.com/nodejs/node/pull/3442)
 * \[[`5e76587fdf`](https://github.com/nodejs/node/commit/5e76587fdf)] - **doc**: createServer's key option can be an array (Sakthipriyan Vairamani) [#3123](https://github.com/nodejs/node/pull/3123)
 * \[[`0317c880da`](https://github.com/nodejs/node/commit/0317c880da)] - **doc**: add TSC meeting minutes 2015-10-21 (Rod Vagg) [#3480](https://github.com/nodejs/node/pull/3480)
@@ -1746,7 +1746,7 @@ This is an important security release. All Node.js users should consult the secu
 * \[[`f72e178a78`](https://github.com/nodejs/node/commit/f72e178a78)] - **(SEMVER-MAJOR)** **tls**: add minDHSize option to tls.connect() (Shigeki Ohtsu) [#1831](https://github.com/nodejs/node/pull/1831)
 * \[[`6d92ebac11`](https://github.com/nodejs/node/commit/6d92ebac11)] - **tls**: add TLSSocket.getEphemeralKeyInfo() (Shigeki Ohtsu) [#1831](https://github.com/nodejs/node/pull/1831)
 * \[[`62ad1d0113`](https://github.com/nodejs/node/commit/62ad1d0113)] - **(SEMVER-MINOR)** **tls, crypto**: add ALPN Support (Shigeki Ohtsu) [#2564](https://github.com/nodejs/node/pull/2564)
-* \[[`5029f41b2f`](https://github.com/nodejs/node/commit/5029f41b2f)] - **(SEMVER-MINOR)** **tls,crypto**: move NPN protcol data to hidden value (Shigeki Ohtsu) [#2564](https://github.com/nodejs/node/pull/2564)
+* \[[`5029f41b2f`](https://github.com/nodejs/node/commit/5029f41b2f)] - **(SEMVER-MINOR)** **tls,crypto**: move NPN protocol data to hidden value (Shigeki Ohtsu) [#2564](https://github.com/nodejs/node/pull/2564)
 * \[[`701e38c25f`](https://github.com/nodejs/node/commit/701e38c25f)] - **tools**: enable prefer-const eslint rule (Sakthipriyan Vairamani) [#3152](https://github.com/nodejs/node/pull/3152)
 * \[[`6e78382605`](https://github.com/nodejs/node/commit/6e78382605)] - **tools**: ensure npm always uses the local node (Jeremiah Senkpiel) [#3489](https://github.com/nodejs/node/pull/3489)
 * \[[`3c3435d017`](https://github.com/nodejs/node/commit/3c3435d017)] - **tools**: update test-npm to work with npm 3 (Rebecca Turner) [#3489](https://github.com/nodejs/node/pull/3489)

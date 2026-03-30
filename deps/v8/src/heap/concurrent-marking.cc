@@ -180,7 +180,7 @@ class ConcurrentMarkingVisitor final
     return false;
   }
 
-  template <typename TSlot, RecordYoungSlot kRecordYoung = RecordYoungSlot::kNo>
+  template <typename TSlot, RecordYoungSlot kRecordYoung = RecordYoungSlot::know>
   void RecordSlot(Tagged<HeapObject> object, TSlot slot,
                   Tagged<HeapObject> target) {
     MarkCompactCollector::RecordSlot<TSlot, kRecordYoung>(object, slot, target);
@@ -593,7 +593,7 @@ void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
     TimedScope scope(&time_ms);
     if (heap_->minor_mark_sweep_collector()->is_in_atomic_pause()) {
       // This gets a lower bound for estimated concurrency as we may have marked
-      // most of the graph concurrently already and may not be using parallism
+      // most of the graph concurrently already and may not be using parallelism
       // as much.
       estimate_concurrency_.fetch_add(1, std::memory_order_relaxed);
       marked_bytes =

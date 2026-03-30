@@ -310,7 +310,7 @@ domain Debugger
   # Restarts particular call frame from the beginning. The old, deprecated
   # behavior of `restartFrame` is to stay paused and allow further CDP commands
   # after a restart was scheduled. This can cause problems with restarting, so
-  # we now continue execution immediatly after it has been scheduled until we
+  # we now continue execution immediately after it has been scheduled until we
   # reach the beginning of the restarted frame.
   #
   # To stay back-wards compatible, `restartFrame` now expects a `mode`
@@ -1020,7 +1020,7 @@ domain Profiler
 
   # Reports coverage delta since the last poll (either from an event like this, or from
   # `takePreciseCoverage` for the current isolate. May only be sent if precise code
-  # coverage has been started. This event can be trigged by the embedder to, for example,
+  # coverage has been started. This event can be triggered by the embedder to, for example,
   # trigger collection of coverage data immediately at a certain point in time.
   experimental event preciseCoverageDeltaUpdate
     parameters
@@ -1052,7 +1052,7 @@ domain Runtime
         # The result is put either into `value` or into `unserializableValue`. Synonym of
         # `returnByValue: true`. Overrides `returnByValue`.
         json
-        # Only remote object id is put in the result. Same bahaviour as if no
+        # Only remote object id is put in the result. Same behaviour as if no
         # `serializationOptions`, `generatePreview` nor `returnByValue` are provided.
         idOnly
 
@@ -1448,7 +1448,7 @@ domain Runtime
       # execution. Overrides `setPauseOnException` state.
       optional boolean silent
       # Whether the result is expected to be a JSON object which should be sent by value.
-      # Can be overriden by `serializationOptions`.
+      # Can be overridden by `serializationOptions`.
       optional boolean returnByValue
       # Whether preview should be generated for the result.
       experimental optional boolean generatePreview
@@ -1546,7 +1546,7 @@ domain Runtime
       # Disable breakpoints during execution.
       experimental optional boolean disableBreaks
       # Setting this flag to true enables `let` re-declaration and top-level `await`.
-      # Note that `let` variables can only be re-declared if they originate from
+      # Note that `let` variables can only be redeclared if they originate from
       # `replMode` themselves.
       experimental optional boolean replMode
       # The Content Security Policy (CSP) for the target might block 'unsafe-eval'

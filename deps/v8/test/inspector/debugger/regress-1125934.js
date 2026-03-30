@@ -21,7 +21,7 @@ session.setupScriptMap();
   //# sourceURL=framework.js`});
   // Issue lots of pause messages to trigger at least one during regexp.
   for (let i = 0; i < 100; i++) Protocol.Debugger.pause();
-  // Send the messages through interupt while regexp is running.
+  // Send the messages through interrupt while regexp is running.
   utils.interruptForMessages();
   InspectorTest.completeTest();
 })();

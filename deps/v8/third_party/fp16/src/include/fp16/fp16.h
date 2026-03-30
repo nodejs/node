@@ -221,7 +221,7 @@ static inline float fp16_ieee_to_fp32_value(uint16_t h) {
 	 * A normalized single-precision floating-point number is represented as:
 	 *    FP32 = (1 + mantissa * 2**(-23)) * 2**(exponent - 127)
 	 * Therefore, when the biased exponent is 126, a unit change in the mantissa of the input denormalized half-precision
-	 * number causes a change of the constructud single-precision number by 2**(-24), i.e. the same ammount.
+	 * number causes a change of the constructud single-precision number by 2**(-24), i.e. the same amount.
 	 *
 	 * The last step is to adjust the bias of the constructed single-precision number. When the input half-precision number
 	 * is zero, the constructed single-precision number has the value of
@@ -460,7 +460,7 @@ static inline float fp16_alt_to_fp32_value(uint16_t h) {
 	 * A normalized single-precision floating-point number is represented as:
 	 *    FP32 = (1 + mantissa * 2**(-23)) * 2**(exponent - 127)
 	 * Therefore, when the biased exponent is 126, a unit change in the mantissa of the input denormalized half-precision
-	 * number causes a change of the constructud single-precision number by 2**(-24), i.e. the same ammount.
+	 * number causes a change of the constructud single-precision number by 2**(-24), i.e. the same amount.
 	 *
 	 * The last step is to adjust the bias of the constructed single-precision number. When the input half-precision number
 	 * is zero, the constructed single-precision number has the value of

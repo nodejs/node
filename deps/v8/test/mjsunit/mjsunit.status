@@ -487,7 +487,7 @@
   # BUG(v8:12561)
   'spread-large-map': [SKIP],
 
-  # Flaky tests due to GC interferring with optimization.
+  # Flaky tests due to GC interfering with optimization.
   'compiler/regress-crbug-1323114': [SKIP],
   'wasm/wasm-gc-inlining': [SKIP], #BUG(397252111)
   'maglev/load_mutable_heap_slot_context_specialized': [SKIP],

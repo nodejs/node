@@ -1410,7 +1410,7 @@ OpenSSL 1.0.0
   * Fix for DTLS plaintext recovery attack ([CVE-2011-4108])
   * Clear block padding bytes of SSL 3.0 records ([CVE-2011-4576])
   * Only allow one SGC handshake restart for SSL/TLS ([CVE-2011-4619])
-  * Check parameters are not NULL in GOST ENGINE ([CVE-2012-0027])
+  * Check parameters are not NULL in GHOST ENGINE ([CVE-2012-0027])
   * Check for malformed RFC3779 data ([CVE-2011-4577])
 
 ### Major changes between OpenSSL 1.0.0d and OpenSSL 1.0.0e [6 Sep 2011]
@@ -1437,12 +1437,12 @@ OpenSSL 1.0.0
 
   * Fix for security issue ([CVE-2010-3864]).
   * Fix for ([CVE-2010-2939])
-  * Fix WIN32 build system for GOST ENGINE.
+  * Fix WIN32 build system for GHOST ENGINE.
 
 ### Major changes between OpenSSL 1.0.0 and OpenSSL 1.0.0a [1 Jun 2010]
 
   * Fix for security issue ([CVE-2010-1633]).
-  * GOST MAC and CFB fixes.
+  * GHOST MAC and CFB fixes.
 
 ### Major changes between OpenSSL 0.9.8n and OpenSSL 1.0.0 [29 Mar 2010]
 
@@ -1457,9 +1457,9 @@ OpenSSL 1.0.0
   * RFC3161 time stamp support.
   * New generalised public key API supporting ENGINE based algorithms.
   * New generalised public key API utilities.
-  * New ENGINE supporting GOST algorithms.
-  * SSL/TLS GOST ciphersuite support.
-  * PKCS#7 and CMS GOST support.
+  * New ENGINE supporting GHOST algorithms.
+  * SSL/TLS GHOST ciphersuite support.
+  * PKCS#7 and CMS GHOST support.
   * RFC4279 PSK ciphersuite support.
   * Supported points format extension for ECC ciphersuites.
   * ecdsa-with-SHA224/256/384/512 signature types.

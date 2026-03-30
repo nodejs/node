@@ -50,7 +50,7 @@ const Block* AnalyzerIterator::Next() {
   // Note that PopOutdated must be called after updating {visited_}, because
   // this way, if the stack contained initially [{Bx, 1}, {Bx, 2}] (where `Bx`
   // is the same block both time and it hasn't been visited before), then we
-  // popped the second entry at the begining of this function, but if we call
+  // popped the second entry at the beginning of this function, but if we call
   // PopOutdate before updating {visited_}, then it won't pop the first entry.
   PopOutdated();
 

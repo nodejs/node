@@ -85,7 +85,7 @@ const isPlainObject = (v) => v && typeof v === 'object' && !Array.isArray(v)
 const getArrayOrObject = (items) => {
   if (items.length) {
     const foundNonObject = items.find(o => !isPlainObject(o))
-    // Non-objects and arrays cant be merged, so just return the first item
+    // Non-objects and arrays can't be merged, so just return the first item
     if (foundNonObject) {
       return foundNonObject
     }
@@ -122,7 +122,7 @@ const getJsonBuffer = ({ [JSON_ERROR_KEY]: metaError }, buffer) => {
   // XXX(BREAKING_CHANGE): remove this in favor of always returning an object with result and error keys
   if (isPlainObject(res) && errors.length) {
     // This is not ideal.
-    // JSON output has always been keyed at the root with an `error` key, so we cant change that without it being a breaking change. At the same time some commands output arbitrary keys at the top level of the output, such as package names.
+    // JSON output has always been keyed at the root with an `error` key, so we can't change that without it being a breaking change. At the same time some commands output arbitrary keys at the top level of the output, such as package names.
     // So the output could already have the same key. The choice here is to overwrite it with our error since that is (probably?) more important.
     // XXX(BREAKING_CHANGE): all json output should be keyed under well known keys, eg `result` and `error`
     if (res[ERROR_KEY]) {

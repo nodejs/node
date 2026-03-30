@@ -317,7 +317,7 @@ try {
 }
 
 
-// Redifine with the same descriptor - should succeed (step 6).
+// Redefine with the same descriptor - should succeed (step 6).
 Object.defineProperty(obj1, "foobar", dataNoConfigurable);
 desc = Object.getOwnPropertyDescriptor(obj1, "foobar");
 assertEquals(obj1.foobar, 2000);

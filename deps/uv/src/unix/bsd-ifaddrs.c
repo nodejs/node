@@ -93,7 +93,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
     return 0;
   }
 
-  /* Make sure the memory is initiallized to zero using calloc() */
+  /* Make sure the memory is initialized to zero using calloc() */
   *addresses = uv__calloc(1, *count * sizeof(**addresses) + namelen);
   if (*addresses == NULL) {
     freeifaddrs(addrs);

@@ -9,7 +9,7 @@
 #
 # Usage:
 # Most of the times its usage will be similar to the example below but all
-# the arguments avilable in source_set are also available for absl_source_set.
+# the arguments available in source_set are also available for absl_source_set.
 #
 #  absl_source_set("foo") {
 #    sources = [ "foo.cc" ]

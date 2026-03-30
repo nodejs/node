@@ -121,7 +121,7 @@ def parse_args():
       "--filter",
       dest="filter",
       action="append",
-      help="useable with --group to only show buckets specified by filter")
+      help="usable with --group to only show buckets specified by filter")
   parser.add_argument(
       "--retain",
       dest="retain",

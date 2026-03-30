@@ -1456,7 +1456,7 @@ error:
 }
 
 /*
- * Reset an initialized and used SSL context for re-use while retaining
+ * Reset an initialized and used SSL context for reuse while retaining
  * all application-set variables, function pointers and data.
  *
  * If partial is non-zero, keep data in the input buffer and client ID.
@@ -1603,7 +1603,7 @@ int mbedtls_ssl_session_reset_int(mbedtls_ssl_context *ssl, int partial)
 }
 
 /*
- * Reset an initialized and used SSL context for re-use while retaining
+ * Reset an initialized and used SSL context for reuse while retaining
  * all application-set variables, function pointers and data.
  */
 int mbedtls_ssl_session_reset(mbedtls_ssl_context *ssl)

@@ -265,7 +265,7 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
     static const TSCallDescriptor* MakeSimpleTSCallDescriptor(
         Zone* zone, MachineSignature* msig) {
       return TSCallDescriptor::Create(MakeSimpleCallDescriptor(zone, msig),
-                                      CanThrow::kYes, LazyDeoptOnThrow::kNo,
+                                      CanThrow::kYes, LazyDeoptOnThrow::know,
                                       zone);
     }
 

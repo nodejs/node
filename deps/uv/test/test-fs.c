@@ -810,7 +810,7 @@ TEST_FS_IMPL(fs_file_loop) {
   r = uv_fs_symlink(NULL, &req, "test_symlink", "test_symlink", 0, NULL);
 #ifdef _WIN32
   /*
-   * Symlinks are only suported but only when elevated, otherwise
+   * Symlinks are only supported but only when elevated, otherwise
    * we'll see UV_EPERM.
    */
   if (r == UV_EPERM)
@@ -4728,7 +4728,7 @@ TEST_FS_IMPL(fs_open_readonly_acl) {
         Based on Node.js test from
         https://github.com/nodejs/node/commit/3ba81e34e86a5c32658e218cb6e65b13e8326bc5
 
-        If anything goes wrong, you can delte the test_fle_icacls with:
+        If anything goes wrong, you can delete the test_fle_icacls with:
 
             icacls test_file_icacls /remove "%USERNAME%" /inheritance:e
             attrib -r test_file_icacls

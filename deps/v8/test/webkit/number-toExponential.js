@@ -33,14 +33,14 @@ shouldBeEqualToString("(-0.0).toExponential()", "0e+0");
 // From http://bugs.webkit.org/show_bug.cgi?id=5259
 shouldBeEqualToString("(123.456).toExponential()", "1.23456e+2");
 shouldBeEqualToString("(123.456).toExponential(0)", "1e+2");
-// 0 equivilents
+// 0 equivalents
 shouldBeEqualToString("(123.456).toExponential(null)", "1e+2");
 shouldBeEqualToString("(123.456).toExponential(false)", "1e+2");
 shouldBeEqualToString("(123.456).toExponential('foo')", "1e+2");
 shouldBeEqualToString("(123.456).toExponential(nan)", "1e+2"); // nan is treated like 0
 
 shouldBeEqualToString("(123.456).toExponential(1)", "1.2e+2");
-// 1 equivilents
+// 1 equivalents
 shouldBeEqualToString("(123.456).toExponential(true)", "1.2e+2"); // just like 1
 shouldBeEqualToString("(123.456).toExponential('1')", "1.2e+2");
 

@@ -668,7 +668,7 @@ for ($i=8;$i<=32;$i+=8) {
 #
 # copy of bn_mul_mont_vis3 adjusted for vectors of 64-bit values
 #
-($n0,$m0,$m1,$lo0,$hi0, $lo1,$hi1,$aj,$alo,$nj,$nlo,$tj)=
+($n0,$m0,$m1,$lo0,$hi0, $lo1,$hi1,$aj,$also,$nj,$nlo,$tj)=
 	(map("%g$_",(1..5)),map("%o$_",(0..5,7)));
 
 # int bn_mul_mont(
@@ -725,7 +725,7 @@ $code.=<<___;
 
 	mulx	$lo0,	$n0,	$m1	! "tp[0]"*n0
 
-	mulx	$aj,	$m0,	$alo	! ap[1]*bp[0]
+	mulx	$aj,	$m0,	$also	! ap[1]*bp[0]
 	umulxhi	$aj,	$m0,	$aj	! ahi=aj
 
 	mulx	$nj,	$m1,	$lo1	! np[0]*m1
@@ -745,7 +745,7 @@ $code.=<<___;
 
 .align	16
 .L1st:
-	addcc	$alo,	$hi0,	$lo0
+	addcc	$also,	$hi0,	$lo0
 	addxc	$aj,	%g0,	$hi0
 
 	ldx	[$ap+0],	$aj	! ap[j]
@@ -754,7 +754,7 @@ $code.=<<___;
 	addxc	$nj,	%g0,	$hi1	! nhi=nj
 
 	ldx	[$np+0],	$nj	! np[j]
-	mulx	$aj,	$m0,	$alo	! ap[j]*bp[0]
+	mulx	$aj,	$m0,	$also	! ap[j]*bp[0]
 	add	$np,	8,	$np
 	umulxhi	$aj,	$m0,	$aj	! ahi=aj
 
@@ -768,7 +768,7 @@ $code.=<<___;
 	brnz,pt	$cnt,	.L1st
 	sub	$cnt,	8,	$cnt	! j--
 !.L1st
-	addcc	$alo,	$hi0,	$lo0
+	addcc	$also,	$hi0,	$lo0
 	addxc	$aj,	%g0,	$hi0	! ahi=aj
 
 	addcc	$nlo,	$hi1,	$lo1
@@ -803,7 +803,7 @@ $code.=<<___;
 	umulxhi	$aj,	$m0,	$hi0
 	ldx	[$ap+8],	$aj	! ap[1]
 	addcc	$lo0,	$tj,	$lo0	! ap[0]*bp[i]+tp[0]
-	mulx	$aj,	$m0,	$alo	! ap[1]*bp[i]
+	mulx	$aj,	$m0,	$also	! ap[1]*bp[i]
 	addxc	%g0,	$hi0,	$hi0
 	mulx	$lo0,	$n0,	$m1	! tp[0]*n0
 	umulxhi	$aj,	$m0,	$aj	! ahi=aj
@@ -821,13 +821,13 @@ $code.=<<___;
 	sub	$num,	24,	$cnt	! cnt=num-3
 .align	16
 .Linner:
-	addcc	$alo,	$hi0,	$lo0
+	addcc	$also,	$hi0,	$lo0
 	ldx	[$tp+8],	$tj	! tp[j]
 	addxc	$aj,	%g0,	$hi0	! ahi=aj
 	ldx	[$ap+0],	$aj	! ap[j]
 	add	$ap,	8,	$ap
 	addcc	$nlo,	$hi1,	$lo1
-	mulx	$aj,	$m0,	$alo	! ap[j]*bp[i]
+	mulx	$aj,	$m0,	$also	! ap[j]*bp[i]
 	addxc	$nj,	%g0,	$hi1	! nhi=nj
 	ldx	[$np+0],	$nj	! np[j]
 	add	$np,	8,	$np
@@ -844,7 +844,7 @@ $code.=<<___;
 	sub	$cnt,	8,	$cnt
 !.Linner
 	ldx	[$tp+8],	$tj	! tp[j]
-	addcc	$alo,	$hi0,	$lo0
+	addcc	$also,	$hi0,	$lo0
 	addxc	$aj,	%g0,	$hi0	! ahi=aj
 	addcc	$lo0,	$tj,	$lo0	! ap[j]*bp[i]+tp[j]
 	addxc	%g0,	$hi0,	$hi0
@@ -970,7 +970,7 @@ $code.=<<___;
 
 	mulx	$lo0,	$n0,	$m1	! "tp[0]"*n0
 
-	mulx	$aj,	$m0,	$alo	! ap[1]*bp[0]
+	mulx	$aj,	$m0,	$also	! ap[1]*bp[0]
 	umulxhi	$aj,	$m0,	$aj	! ahi=aj
 
 	mulx	$nj,	$m1,	$lo1	! np[0]*m1
@@ -990,7 +990,7 @@ $code.=<<___;
 
 .align	16
 .L1st_g5:
-	addcc	$alo,	$hi0,	$lo0
+	addcc	$also,	$hi0,	$lo0
 	addxc	$aj,	%g0,	$hi0
 
 	ldx	[$ap+0],	$aj	! ap[j]
@@ -999,7 +999,7 @@ $code.=<<___;
 	addxc	$nj,	%g0,	$hi1	! nhi=nj
 
 	ldx	[$np+0],	$nj	! np[j]
-	mulx	$aj,	$m0,	$alo	! ap[j]*bp[0]
+	mulx	$aj,	$m0,	$also	! ap[j]*bp[0]
 	add	$np,	8,	$np
 	umulxhi	$aj,	$m0,	$aj	! ahi=aj
 
@@ -1013,7 +1013,7 @@ $code.=<<___;
 	brnz,pt	$cnt,	.L1st_g5
 	sub	$cnt,	8,	$cnt	! j--
 !.L1st_g5
-	addcc	$alo,	$hi0,	$lo0
+	addcc	$also,	$hi0,	$lo0
 	addxc	$aj,	%g0,	$hi0	! ahi=aj
 
 	addcc	$nlo,	$hi1,	$lo1
@@ -1049,7 +1049,7 @@ $code.=<<___;
 	umulxhi	$aj,	$m0,	$hi0
 	ldx	[$ap+8],	$aj	! ap[1]
 	addcc	$lo0,	$tj,	$lo0	! ap[0]*bp[i]+tp[0]
-	mulx	$aj,	$m0,	$alo	! ap[1]*bp[i]
+	mulx	$aj,	$m0,	$also	! ap[1]*bp[i]
 	addxc	%g0,	$hi0,	$hi0
 	mulx	$lo0,	$n0,	$m1	! tp[0]*n0
 	umulxhi	$aj,	$m0,	$aj	! ahi=aj
@@ -1067,13 +1067,13 @@ $code.=<<___;
 	sub	$num,	24,	$cnt	! cnt=num-3
 .align	16
 .Linner_g5:
-	addcc	$alo,	$hi0,	$lo0
+	addcc	$also,	$hi0,	$lo0
 	ldx	[$tp+8],	$tj	! tp[j]
 	addxc	$aj,	%g0,	$hi0	! ahi=aj
 	ldx	[$ap+0],	$aj	! ap[j]
 	add	$ap,	8,	$ap
 	addcc	$nlo,	$hi1,	$lo1
-	mulx	$aj,	$m0,	$alo	! ap[j]*bp[i]
+	mulx	$aj,	$m0,	$also	! ap[j]*bp[i]
 	addxc	$nj,	%g0,	$hi1	! nhi=nj
 	ldx	[$np+0],	$nj	! np[j]
 	add	$np,	8,	$np
@@ -1090,7 +1090,7 @@ $code.=<<___;
 	sub	$cnt,	8,	$cnt
 !.Linner_g5
 	ldx	[$tp+8],	$tj	! tp[j]
-	addcc	$alo,	$hi0,	$lo0
+	addcc	$also,	$hi0,	$lo0
 	addxc	$aj,	%g0,	$hi0	! ahi=aj
 	addcc	$lo0,	$tj,	$lo0	! ap[j]*bp[i]+tp[j]
 	addxc	%g0,	$hi0,	$hi0

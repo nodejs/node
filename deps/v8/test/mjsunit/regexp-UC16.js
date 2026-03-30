@@ -27,7 +27,7 @@
 
 // UC16
 // Characters used:
-// "\u03a3\u03c2\u03c3\u039b\u03bb" - Sigma, final sigma, sigma, Lambda, lamda
+// "\u03a3\u03c2\u03c3\u039b\u03bb" - Sigma, final sigma, sigma, Lambda, lambda
 assertEquals("x\u03a3\u03c3x,\u03a3",
               String(/x(.)\1x/i.exec("x\u03a3\u03c3x")), "backref-UC16");
 assertFalse(/x(...)\1/i.test("x\u03a3\u03c2\u03c3\u03c2\u03c3"),

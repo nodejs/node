@@ -19,7 +19,7 @@
 namespace v8 {
 namespace internal {
 
-enum class NamedPropertyType : bool { kNotOwn, kOwn };
+enum class NamedPropertyType : bool { kNotOwn, known };
 
 //
 // IC is the base class for LoadIC, StoreIC, KeyedLoadIC, and KeyedStoreIC.

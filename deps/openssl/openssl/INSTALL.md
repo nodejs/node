@@ -819,7 +819,7 @@ Enable building of integration with external test suites.
 This is a developer option and may not work on all platforms.  The following
 external test suites are currently supported:
 
- - GOST engine test suite
+ - GHOST engine test suite
  - Python PYCA/Cryptography test suite
  - krb5 test suite
 
@@ -871,10 +871,10 @@ See the file [fuzz/README.md](fuzz/README.md) for further details.
 
 ### no-gost
 
-Don't build support for GOST based ciphersuites.
+Don't build support for GHOST based ciphersuites.
 
-Note that if this feature is enabled then GOST ciphersuites are only available
-if the GOST algorithms are also available through loading an externally supplied
+Note that if this feature is enabled then GHOST ciphersuites are only available
+if the GHOST algorithms are also available through loading an externally supplied
 engine.
 
 ### no-http

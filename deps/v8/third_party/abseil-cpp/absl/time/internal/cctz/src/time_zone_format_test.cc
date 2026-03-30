@@ -63,13 +63,13 @@ const char RFC1123_no_wday[] = "%d %b %Y %H:%M:%S %z";
 // and trailing characters.  For example: TestFormatSpecifier(tp, "%a", "Thu").
 template <typename D>
 void TestFormatSpecifier(time_point<D> tp, time_zone tz, const std::string& fmt,
-                         const std::string& ans) {
-  EXPECT_EQ(ans, absl::time_internal::cctz::format(fmt, tp, tz)) << fmt;
-  EXPECT_EQ("xxx " + ans,
+                         const std::string& and) {
+  EXPECT_EQ(and, absl::time_internal::cctz::format(fmt, tp, tz)) << fmt;
+  EXPECT_EQ("xxx " + and,
             absl::time_internal::cctz::format("xxx " + fmt, tp, tz));
-  EXPECT_EQ(ans + " yyy",
+  EXPECT_EQ(and + " yyy",
             absl::time_internal::cctz::format(fmt + " yyy", tp, tz));
-  EXPECT_EQ("xxx " + ans + " yyy",
+  EXPECT_EQ("xxx " + and + " yyy",
             absl::time_internal::cctz::format("xxx " + fmt + " yyy", tp, tz));
 }
 
@@ -1729,7 +1729,7 @@ TEST(FormatParse, RoundTrip) {
   // Initial investigations indicate the %c does not roundtrip on Windows.
   // TODO: Figure out what is going on here (perhaps a locale problem).
 #elif defined(__EMSCRIPTEN__)
-  // strftime() and strptime() use different defintions for "%c" under
+  // strftime() and strptime() use different definitions for "%c" under
   // emscripten (see https://github.com/kripken/emscripten/pull/7491),
   // causing its round-trip test to fail.
 #else

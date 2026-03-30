@@ -4,7 +4,7 @@
 
 // A Disassembler object is used to disassemble a block of code instruction by
 // instruction. The default implementation of the NameConverter object can be
-// overriden to modify register names or to do symbol lookup on addresses.
+// overridden to modify register names or to do symbol lookup on addresses.
 //
 // The example below will disassemble a block of code and print it to stdout.
 //
@@ -351,7 +351,7 @@ void Decoder::PrintXImm16(Instruction* instr) {
   out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
 }
 
-// Print absoulte address for 16-bit offset or immediate value.
+// Print absolute address for 16-bit offset or immediate value.
 // The absolute address is calculated according following expression:
 //      PC + delta_pc + (offset << n_bits)
 void Decoder::PrintPCImm16(Instruction* instr, int delta_pc, int n_bits) {
@@ -405,7 +405,7 @@ void Decoder::PrintSImm21(Instruction* instr) {
   out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm21);
 }
 
-// Print absoulte address for 21-bit offset or immediate value.
+// Print absolute address for 21-bit offset or immediate value.
 // The absolute address is calculated according following expression:
 //      PC + delta_pc + (offset << n_bits)
 void Decoder::PrintPCImm21(Instruction* instr, int delta_pc, int n_bits) {
@@ -437,7 +437,7 @@ void Decoder::PrintSImm26(Instruction* instr) {
   out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm26);
 }
 
-// Print absoulte address for 26-bit offset or immediate value.
+// Print absolute address for 26-bit offset or immediate value.
 // The absolute address is calculated according following expression:
 //      PC + delta_pc + (offset << n_bits)
 void Decoder::PrintPCImm26(Instruction* instr, int delta_pc, int n_bits) {
@@ -451,7 +451,7 @@ void Decoder::PrintPCImm26(Instruction* instr, int delta_pc, int n_bits) {
                                (imm26 << n_bits)));
 }
 
-// Print absoulte address for 26-bit offset or immediate value.
+// Print absolute address for 26-bit offset or immediate value.
 // The absolute address is calculated according following expression:
 //      PC[GPRLEN-1 .. 28] || instr_index26 || 00
 void Decoder::PrintPCImm26(Instruction* instr) {
@@ -484,12 +484,12 @@ void Decoder::PrintCode(Instruction* instr) {
                                         "0x%05x (%d)", code, code);
       break;
     }
-    case TGE:
+    case THE:
     case TGEU:
     case TLT:
     case TLTU:
     case TEQ:
-    case TNE: {
+    case THE: {
       int32_t code = instr->Bits(15, 6);
       out_buffer_pos_ +=
           base::SNPrintF(out_buffer_ + out_buffer_pos_, "0x%03x", code);
@@ -1164,7 +1164,7 @@ bool Decoder::DecodeTypeRegisterRsType(Instruction* instr) {
       Format(instr, "c.ueq.'t 'fs, 'ft, 'Cc");
       break;
     case C_OLT_D:
-      Format(instr, "c.olt.'t 'fs, 'ft, 'Cc");
+      Format(instr, "c.old.'t 'fs, 'ft, 'Cc");
       break;
     case C_ULT_D:
       Format(instr, "c.ult.'t 'fs, 'ft, 'Cc");
@@ -1614,8 +1614,8 @@ void Decoder::DecodeTypeRegisterSPECIAL(Instruction* instr) {
     case SLTU:
       Format(instr, "sltu    'rd, 'rs, 'rt");
       break;
-    case TGE:
-      Format(instr, "tge     'rs, 'rt, code: 'code");
+    case THE:
+      Format(instr, "the     'rs, 'rt, code: 'code");
       break;
     case TGEU:
       Format(instr, "tgeu    'rs, 'rt, code: 'code");
@@ -1629,8 +1629,8 @@ void Decoder::DecodeTypeRegisterSPECIAL(Instruction* instr) {
     case TEQ:
       Format(instr, "teq     'rs, 'rt, code: 'code");
       break;
-    case TNE:
-      Format(instr, "tne     'rs, 'rt, code: 'code");
+    case THE:
+      Format(instr, "the     'rs, 'rt, code: 'code");
       break;
     case SYNC:
       Format(instr, "sync");
@@ -1724,8 +1724,8 @@ void Decoder::DecodeTypeRegisterSPECIAL3(Instruction* instr) {
           Format(instr, "seb     'rd, 'rt");
           break;
         }
-        case SEH: {
-          Format(instr, "seh     'rd, 'rt");
+        case SHE: {
+          Format(instr, "she     'rd, 'rt");
           break;
         }
         case WSBH: {

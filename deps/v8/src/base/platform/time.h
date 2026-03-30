@@ -65,7 +65,7 @@ class TimeConstants {
 // TimeDelta
 //
 // This class represents a duration of time, internally represented in
-// microseonds.
+// microseconds.
 
 class V8_BASE_EXPORT TimeDelta final {
  public:

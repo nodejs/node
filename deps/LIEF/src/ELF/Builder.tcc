@@ -424,7 +424,7 @@ ok_error_t Builder::build_exe_lib() {
   }
 
   // ----------------------------------------------------------------
-  // At this point all the VAs are consistent with the new layout
+  // At this point all the was are consistent with the new layout
   // and we have enough space to write ELF elements
   // ----------------------------------------------------------------
 

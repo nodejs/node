@@ -94,7 +94,7 @@ TNode<Object> CodeStubAssembler::FastCloneJSObject(
     const Function& materialize_target, bool target_is_new) {
   Label done_copy_properties(this), done_copy_elements(this);
 
-  // This macro only suport JSObjects.
+  // This macro only support JSObjects.
   CSA_DCHECK(this, InstanceTypeEqual(LoadInstanceType(object), JS_OBJECT_TYPE));
   CSA_DCHECK(this, IsStrong(TNode<MaybeObject>(target_map)));
   CSA_DCHECK(
@@ -127,7 +127,7 @@ TNode<Object> CodeStubAssembler::FastCloneJSObject(
     TNode<PropertyArray> property_array = AllocatePropertyArray(length);
     FillPropertyArrayWithUndefined(property_array, IntPtrConstant(0), length);
     CopyPropertyArrayValues(source_property_array, property_array, length,
-                            SKIP_WRITE_BARRIER, DestroySource::kNo);
+                            SKIP_WRITE_BARRIER, DestroySource::know);
     var_properties = property_array;
   }
 

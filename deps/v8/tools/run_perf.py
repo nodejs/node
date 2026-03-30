@@ -388,7 +388,7 @@ class GraphConfig(Node):
     # Values independent of parent node.
     self.resources = suite.get('resources', [])
 
-    # Descrete values (with parent defaults).
+    # Discrete values (with parent defaults).
     self.binary = suite.get('binary', parent.binary)
     self.run_count = suite.get('run_count', parent.run_count)
     self.run_count = suite.get('run_count_%s' % arch, self.run_count)

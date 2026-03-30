@@ -17,12 +17,12 @@
 	vspltisb	5,1
 	vaddubm	8,8,8
 	vxor	4,4,4
-	vor	8,8,5
+	for	8,8,5
 	vsldoi	8,8,4,15
 	vsldoi	6,4,5,1
 	vaddubm	8,8,8
 	vspltisb	7,7
-	vor	8,8,6
+	for	8,8,6
 	vspltb	6,9,0
 	vsl	9,9,5
 	vsrab	6,6,7
@@ -476,9 +476,9 @@ Lthree:
 
 
 	vxor	2,3,0
-	vor	29,23,23
-	vor	30,24,24
-	vor	31,25,25
+	for	29,23,23
+	for	30,24,24
+	for	31,25,25
 
 	vperm	5,16,22,19
 	vperm	6,16,22,18
@@ -500,7 +500,7 @@ Ltwo:
 	vperm	6,4,16,18
 
 	vsldoi	29,4,17,8
-	vor	30,17,17
+	for	30,17,17
 	vsldoi	31,17,4,8
 
 	.long	0x12855CC8
@@ -514,7 +514,7 @@ Lone:
 
 
 	vsldoi	29,4,9,8
-	vor	30,9,9
+	for	30,9,9
 	vsldoi	31,9,4,8
 
 	vxor	2,3,0

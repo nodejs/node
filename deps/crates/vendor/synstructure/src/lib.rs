@@ -253,7 +253,7 @@ fn fetch_generics<'a>(set: &[bool], generics: &'a Generics) -> Vec<&'a Ident> {
 
 // Internal method to merge two Generics objects together intelligently.
 fn merge_generics(into: &mut Generics, from: &Generics) -> Result<()> {
-    // Try to add the param into `into`, and merge parmas with identical names.
+    // Try to add the param into `into`, and merge params with identical names.
     for p in &from.params {
         for op in &into.params {
             match (op, p) {
@@ -333,7 +333,7 @@ pub struct BindingInfo<'a> {
 
     field: &'a Field,
 
-    // These are used to determine which type parameters are avaliable.
+    // These are used to determine which type parameters are available.
     generics: &'a Generics,
     seen_generics: Vec<bool>,
     // The original index of the binding
@@ -1637,7 +1637,7 @@ impl<'a> Structure<'a> {
         self
     }
 
-    /// Returns a list of the type parameters which are refrenced in the types
+    /// Returns a list of the type parameters which are referenced in the types
     /// of non-filtered fields / variants.
     ///
     /// # Caveat
@@ -1715,7 +1715,7 @@ impl<'a> Structure<'a> {
         self
     }
 
-    /// Add trait bounds for a trait with the given path for each type parmaeter
+    /// Add trait bounds for a trait with the given path for each type parameter
     /// referenced in the types of non-filtered fields.
     ///
     /// # Caveat
@@ -1795,13 +1795,13 @@ impl<'a> Structure<'a> {
         self
     }
 
-    /// > NOTE: This methods' features are superceded by `Structure::gen_impl`.
+    /// > NOTE: This methods' features are superseded by `Structure::gen_impl`.
     ///
     /// Creates an `impl` block with the required generic type fields filled in
     /// to implement the trait `path`.
     ///
     /// This method also adds where clauses to the impl requiring that all
-    /// referenced type parmaeters implement the trait `path`.
+    /// referenced type parameters implement the trait `path`.
     ///
     /// # Hygiene and Paths
     ///
@@ -1863,13 +1863,13 @@ impl<'a> Structure<'a> {
         )
     }
 
-    /// > NOTE: This methods' features are superceded by `Structure::gen_impl`.
+    /// > NOTE: This methods' features are superseded by `Structure::gen_impl`.
     ///
     /// Creates an `impl` block with the required generic type fields filled in
     /// to implement the unsafe trait `path`.
     ///
     /// This method also adds where clauses to the impl requiring that all
-    /// referenced type parmaeters implement the trait `path`.
+    /// referenced type parameters implement the trait `path`.
     ///
     /// # Hygiene and Paths
     ///
@@ -1931,7 +1931,7 @@ impl<'a> Structure<'a> {
         )
     }
 
-    /// > NOTE: This methods' features are superceded by `Structure::gen_impl`.
+    /// > NOTE: This methods' features are superseded by `Structure::gen_impl`.
     ///
     /// Creates an `impl` block with the required generic type fields filled in
     /// to implement the trait `path`.
@@ -1989,7 +1989,7 @@ impl<'a> Structure<'a> {
         )
     }
 
-    /// > NOTE: This methods' features are superceded by `Structure::gen_impl`.
+    /// > NOTE: This methods' features are superseded by `Structure::gen_impl`.
     ///
     /// Creates an `impl` block with the required generic type fields filled in
     /// to implement the unsafe trait `path`.
@@ -2168,7 +2168,7 @@ impl<'a> Structure<'a> {
     /// You should generally avoid using absolute paths in your generated code,
     /// as they will resolve very differently when using the stable and nightly
     /// versions of `proc-macro2`. Instead, load the crates you need to use
-    /// explictly with `extern crate` and
+    /// explicitly with `extern crate` and
     ///
     /// # Trait Bounds
     ///

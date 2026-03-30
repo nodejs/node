@@ -160,21 +160,21 @@ class LIEF_API DyldSharedCache {
   /// True if the subcaches are associated with this cache
   bool has_subcaches() const;
 
-  /// Return an interator over the libraries embedded in this dyld shared cache.
+  /// Return an iterator over the libraries embedded in this dyld shared cache.
   ///
   /// This iterator implements the *random access* trait. Thus, one can use
   /// iterator_range::size, iterator_range::at, iterator_range::operator[] to a
   /// access Dylib at an arbitrary index:
   ///
   /// ```cpp
-  /// auto libraries = cache.libaries();
+  /// auto libraries = cache.libraries();
   /// for (size_t i = 0; i < libraries.size(); ++i) {
-  ///   std::string path = libaries[i]->path();
+  ///   std::string path = libraries[i]->path();
   /// }
   /// ```
   dylib_iterator libraries() const;
 
-  /// Return an interator over the mapping information of this dyld shared cache.
+  /// Return an iterator over the mapping information of this dyld shared cache.
   ///
   /// This iterator implements the *random access* trait. Thus, one can use
   /// iterator_range::size, iterator_range::at, iterator_range::operator[] to
@@ -188,7 +188,7 @@ class LIEF_API DyldSharedCache {
   /// ```
   mapping_info_iterator mapping_info() const;
 
-  /// Return an interator over the subcaches associated with this (main) dyld shared
+  /// Return an iterator over the subcaches associated with this (main) dyld shared
   /// cache.
   ///
   /// This iterator implements the *random access* trait. Thus, one can use
@@ -266,7 +266,7 @@ class LIEF_API DyldSharedCache {
 ///
 /// In the case where multiple architectures are
 /// available in the \p path directory, the \p arch parameter can be used to
-/// define which architecture should be prefered.
+/// define which architecture should be preferred.
 ///
 /// **Example:**
 ///

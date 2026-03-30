@@ -116,7 +116,7 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
   let values = [external_obj, function_obj, 123, struct_obj, -33,
                 struct_obj, array_obj];
   let exn = new WebAssembly.Exception(tag, values);
-  // Make sure we roundtrip corretly through wasm using
+  // Make sure we roundtrip correctly through wasm using
   // the Exception constructor/getArg.
   for (i = 0 ; i < values.length; i++) {
     assertEquals(exn.getArg(tag, i), values[i]);

@@ -162,7 +162,7 @@ impl TimeDuration {
     }
 
     /// Equivalent: 7.5.31 TotalTimeDuration ( timeDuration, unit )
-    /// TODO Fix: Arithemtic on floating point numbers is not safe. According to NOTE 2 in the spec
+    /// TODO Fix: Arithmetic on floating point numbers is not safe. According to NOTE 2 in the spec
     pub(crate) fn total(&self, unit: Unit) -> TemporalResult<FiniteF64> {
         let time_duration = self.0;
         // 1. Let divisor be the value in the "Length in Nanoseconds" column of the row of Table 21 whose "Value" column contains unit.

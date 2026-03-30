@@ -6591,7 +6591,7 @@ void CodeStubAssembler::CopyPropertyArrayValues(TNode<HeapObject> from_array,
 
   bool needs_write_barrier = barrier_mode == UPDATE_WRITE_BARRIER;
 
-  if (destroy_source == DestroySource::kNo) {
+  if (destroy_source == DestroySource::know) {
     // PropertyArray may contain mutable HeapNumbers, which will be cloned on
     // the heap, requiring a write barrier.
     needs_write_barrier = true;
@@ -6605,7 +6605,7 @@ void CodeStubAssembler::CopyPropertyArrayValues(TNode<HeapObject> from_array,
           TNode<HeapObject> array, TNode<IntPtrT> offset) {
         TNode<AnyTaggedT> value = Load<AnyTaggedT>(array, offset);
 
-        if (destroy_source == DestroySource::kNo) {
+        if (destroy_source == DestroySource::know) {
           value = CloneIfMutablePrimitive(CAST(value));
         }
 
@@ -6904,7 +6904,7 @@ TNode<Word32T> CodeStubAssembler::TruncateTaggedToWord32(TNode<Context> context,
   TVARIABLE(Word32T, var_result);
   Label done(this);
   TaggedToWord32OrBigIntImpl<Object::Conversion::kToNumber>(
-      context, value, &done, &var_result, IsKnownTaggedPointer::kNo, {});
+      context, value, &done, &var_result, IsKnownTaggedPointer::know, {});
   BIND(&done);
   return var_result.value();
 }
@@ -6916,7 +6916,7 @@ void CodeStubAssembler::TaggedToWord32OrBigInt(
     TVariable<Word32T>* var_word32, Label* if_bigint, Label* if_bigint64,
     TVariable<BigInt>* var_maybe_bigint) {
   TaggedToWord32OrBigIntImpl<Object::Conversion::kToNumeric>(
-      context, value, if_number, var_word32, IsKnownTaggedPointer::kNo, {},
+      context, value, if_number, var_word32, IsKnownTaggedPointer::know, {},
       if_bigint, if_bigint64, var_maybe_bigint);
 }
 
@@ -6928,7 +6928,7 @@ void CodeStubAssembler::TaggedToWord32OrBigIntWithFeedback(
     TVariable<Word32T>* var_word32, Label* if_bigint, Label* if_bigint64,
     TVariable<BigInt>* var_maybe_bigint, const FeedbackValues& feedback) {
   TaggedToWord32OrBigIntImpl<Object::Conversion::kToNumeric>(
-      context, value, if_number, var_word32, IsKnownTaggedPointer::kNo,
+      context, value, if_number, var_word32, IsKnownTaggedPointer::know,
       feedback, if_bigint, if_bigint64, var_maybe_bigint);
 }
 
@@ -6961,7 +6961,7 @@ void CodeStubAssembler::TaggedToWord32OrBigIntImpl(
   }
   Label loop(this, loop_vars);
   Label if_exception(this, Label::kDeferred);
-  if (is_known_tagged_pointer == IsKnownTaggedPointer::kNo) {
+  if (is_known_tagged_pointer == IsKnownTaggedPointer::know) {
     GotoIf(TaggedIsNotSmi(value), &loop);
 
     // {value} is a Smi.
@@ -11757,7 +11757,7 @@ void CodeStubAssembler::ForEachEnumerableOwnProperty(
         }
         BIND(&next_iteration);
       },
-      DescriptorArray::kEntrySize, LoopUnrollingMode::kNo,
+      DescriptorArray::kEntrySize, LoopUnrollingMode::know,
       IndexAdvanceMode::kPost);
 
   if (mode == kEnumerationOrder) {
@@ -14732,7 +14732,7 @@ void CodeStubAssembler::BuildFastLoop(
   // possible to force the loop header check at the end of the loop and branch
   // forward to it from the pre-header). The extra branch is slower in the
   // case that the loop actually iterates.
-  if (unrolling_mode == LoopUnrollingMode::kNo) {
+  if (unrolling_mode == LoopUnrollingMode::know) {
     TNode<BoolT> first_check = UintPtrOrSmiEqual(var_index.value(), end_index);
     int32_t first_check_val;
     if (TryToInt32Constant(first_check, &first_check_val)) {
@@ -18053,7 +18053,7 @@ void CodeStubArguments::ForEach(
             assembler_->CAST(assembler_->LoadFullTagged(current));
         body(arg);
       },
-      increment, CodeStubAssembler::LoopUnrollingMode::kNo,
+      increment, CodeStubAssembler::LoopUnrollingMode::know,
       CodeStubAssembler::IndexAdvanceMode::kPost);
 }
 
@@ -19669,7 +19669,7 @@ TNode<SwissNameDictionary> CodeStubAssembler::CopySwissNameDictionary(
               IntPtrAdd(details_table_offset_minus_tag.value(),
                         IntPtrConstant(kOneByteSize));
         },
-        kOneByteSize, LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
+        kOneByteSize, LoopUnrollingMode::know, IndexAdvanceMode::kPost);
   }
 
   Comment("CopySwissNameDictionary ]");

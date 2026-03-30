@@ -73,7 +73,7 @@ ChaCha20_ctr32_vsx_p10:
 	vspltw	10,18,2
 	vspltw	11,18,3
 
-	vor	12,26,26
+	for	12,26,26
 	vspltw	13,19,1
 	vspltw	14,19,2
 	vspltw	15,19,3

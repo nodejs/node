@@ -130,7 +130,7 @@ class Logger {
   }
 
   template <typename... Args>
-  void critial(const char *fmt, const Args &... args) {
+  void critical(const char *fmt, const Args &... args) {
     if constexpr (lief_logging_support) {
       sink_->critical(fmt::runtime(fmt), args...);
     }
@@ -156,12 +156,12 @@ class Logger {
 };
 
 
-inline void critial(const char *msg) {
+inline void critical(const char *msg) {
   LIEF::logging::log(LIEF::logging::LEVEL::CRITICAL, msg);
 }
 
 template <typename... Args>
-void critial(const char *fmt, const Args &... args) {
+void critical(const char *fmt, const Args &... args) {
   LIEF::logging::log(LIEF::logging::LEVEL::CRITICAL,
     fmt::format(fmt::runtime(fmt), args...)
   );
@@ -172,13 +172,13 @@ void critial(const char *fmt, const Args &... args) {
 }
 
 [[noreturn]] inline void fatal_error(const char* msg) {
-  critial(msg);
+  critical(msg);
   terminate();
 }
 
 template <typename... Args>
 [[noreturn]] void fatal_error(const char *fmt, const Args &... args) {
-  critial(fmt, args...);
+  critical(fmt, args...);
   terminate();
 }
 

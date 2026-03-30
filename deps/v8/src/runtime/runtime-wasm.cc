@@ -1375,7 +1375,7 @@ class PrototypesSetup : public wasm::Decoder {
           DCHECK(isolate()->has_exception());
           return ReadOnlyRoots(isolate()).exception();
         }
-        uint32_t num_statics = consume_u32v("number of statics");
+        uint32_t num_statics = consume_u32v("number of statistics");
         if (!ok()) break;
         if (num_statics != 0) {
           ToDictionaryMode(wrapped_constructor, num_statics);

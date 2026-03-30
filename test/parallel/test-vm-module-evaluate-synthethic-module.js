@@ -62,12 +62,12 @@ const vm = require('vm');
 // in a _synchronously_ rejected promise.
 {
   const mod = new vm.SyntheticModule(['a'], common.mustCall(() => {
-    throw new Error('synchronous synthethic module');
+    throw new Error('synchronous synthetic module');
   }));
   const promise = mod.evaluate();
   assert.match(inspect(promise), /rejected/);
   assert(mod.error, 'Expected mod.error to be set');
-  assert.strictEqual(mod.error.message, 'synchronous synthethic module');
+  assert.strictEqual(mod.error.message, 'synchronous synthetic module');
 
   promise.catch(common.mustCall((err) => {
     assert.strictEqual(err, mod.error);

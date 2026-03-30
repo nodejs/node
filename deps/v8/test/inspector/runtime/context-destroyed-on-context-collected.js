@@ -5,7 +5,7 @@
 // Flags: --no-stress-incremental-marking
 
 let {session, contextGroup, Protocol} =
-  InspectorTest.start('Tests that contextDesrtoyed nofitication is fired when context is collected.');
+  InspectorTest.start('Tests that contextDesrtoyed notification is fired when context is collected.');
 
 (async function test() {
   await Protocol.Runtime.enable();

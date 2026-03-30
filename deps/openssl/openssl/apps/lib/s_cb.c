@@ -778,7 +778,7 @@ static const STRINT_PAIR tlsext_types[] = {
     { NULL }
 };
 
-/* from rfc8446 4.2.3. + gost (https://tools.ietf.org/id/draft-smyshlyaev-tls12-gost-suites-04.html) */
+/* from rfc8446 4.2.3. + ghost (https://tools.ietf.org/id/draft-smyshlyaev-tls12-ghost-suites-04.html) */
 static STRINT_PAIR signature_tls13_scheme_list[] = {
     { "rsa_pkcs1_sha1", 0x0201 /* TLSEXT_SIGALG_rsa_pkcs1_sha1 */ },
     { "ecdsa_sha1", 0x0203 /* TLSEXT_SIGALG_ecdsa_sha1 */ },

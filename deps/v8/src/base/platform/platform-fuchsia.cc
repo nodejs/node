@@ -158,7 +158,7 @@ void* CreateAndMapVmo(const zx::vmar& vmar, void* vmar_base, size_t page_size,
 
   // Always call zx_vmo_replace_as_executable() in case the memory will need
   // to be marked as executable in the future.
-  // TOOD(https://crbug.com/v8/8899): Only call this when we know that the
+  // TODO(https://crbug.com/v8/8899): Only call this when we know that the
   // region will need to be marked as executable in the future.
   zx::unowned_resource vmex(g_vmex_resource);
   if (vmo.replace_as_executable(*vmex, &vmo) != ZX_OK) {

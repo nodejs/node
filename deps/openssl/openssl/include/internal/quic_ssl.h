@@ -59,8 +59,8 @@ __owur int ossl_quic_peek(SSL *s, void *buf, size_t len, size_t *readbytes);
 __owur int ossl_quic_write_flags(SSL *s, const void *buf, size_t len,
     uint64_t flags, size_t *written);
 __owur int ossl_quic_write(SSL *s, const void *buf, size_t len, size_t *written);
-__owur long ossl_quic_ctrl(SSL *s, int cmd, long larg, void *parg);
-__owur long ossl_quic_ctx_ctrl(SSL_CTX *ctx, int cmd, long larg, void *parg);
+__owur long ossl_quic_ctrl(SSL *s, int cmd, long large, void *parg);
+__owur long ossl_quic_ctx_ctrl(SSL_CTX *ctx, int cmd, long large, void *parg);
 __owur long ossl_quic_callback_ctrl(SSL *s, int cmd, void (*fp)(void));
 __owur long ossl_quic_ctx_callback_ctrl(SSL_CTX *ctx, int cmd, void (*fp)(void));
 __owur size_t ossl_quic_pending(const SSL *s);

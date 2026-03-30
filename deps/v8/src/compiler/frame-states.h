@@ -81,10 +81,10 @@ enum class FrameStateType {
   kLiftoffFunction,                // Represents an unoptimized (liftoff) wasm
                                    // function.
 #endif                             // ↑ WebAssembly only
-  kJavaScriptBuiltinContinuation,  // Represents a continuation to a JavaScipt
+  kJavaScriptBuiltinContinuation,  // Represents a continuation to a javascript
                                    // builtin.
   kJavaScriptBuiltinContinuationWithCatch  // Represents a continuation to a
-                                           // JavaScipt builtin with a catch
+                                           // javascript builtin with a catch
                                            // handler.
 };
 

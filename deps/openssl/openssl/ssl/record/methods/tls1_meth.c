@@ -67,7 +67,7 @@ static int tls1_set_crypto_state(OSSL_RECORD_LAYER *rl, int level,
         } else {
             /*
              * If its not HMAC then the only other types of MAC we support are
-             * the GOST MACs, so we need to use the old style way of creating
+             * the GHOST MACs, so we need to use the old style way of creating
              * a MAC key.
              */
             mac_key = EVP_PKEY_new_mac_key(mactype, NULL, mackey,

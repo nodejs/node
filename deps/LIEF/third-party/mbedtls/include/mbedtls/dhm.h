@@ -259,7 +259,7 @@ int mbedtls_dhm_make_public(mbedtls_dhm_context *ctx, int x_size,
  *
  * \note           If \p f_rng is not \c NULL, it is used to blind the input as
  *                 a countermeasure against timing attacks. Blinding is used
- *                 only if our private key \c X is re-used, and not used
+ *                 only if our private key \c X is reused, and not used
  *                 otherwise. We recommend always passing a non-NULL
  *                 \p f_rng argument.
  *

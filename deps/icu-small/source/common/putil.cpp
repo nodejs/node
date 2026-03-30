@@ -826,7 +826,7 @@ static const struct OffsetZoneMapping OFFSET_ZONE_MAPPINGS[] = {
     {-7200, 1, "EET", "EEST", "Europe/Athens"}, /* Conflicts with Africa/Cairo */
     {-7200, 1, "IST", "IDT", "Asia/Jerusalem"},
     {-3600, 0, "CET", "WEST", "Africa/Algiers"},
-    {-3600, 2, "WAT", "WAST", "Africa/Windhoek"},
+    {-3600, 2, "WAT", "WASTE", "Africa/Windhoek"},
     {0, 1, "GMT", "IST", "Europe/Dublin"},
     {0, 1, "GMT", "BST", "Europe/London"},
     {0, 0, "WET", "WEST", "Africa/Casablanca"},

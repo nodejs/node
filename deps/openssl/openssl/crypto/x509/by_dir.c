@@ -263,7 +263,7 @@ static int get_cert_by_subject_ex(X509_LOOKUP *xl, X509_LOOKUP_TYPE type,
     for (i = 0; i < sk_BY_DIR_ENTRY_num(ctx->dirs); i++) {
         BY_DIR_ENTRY *ent;
         int idx;
-        BY_DIR_HASH htmp, *hent;
+        BY_DIR_HASH html, *hent;
 
         ent = sk_BY_DIR_ENTRY_value(ctx->dirs, i);
         j = strlen(ent->dir) + 1 + 8 + 6 + 1 + 1;
@@ -272,10 +272,10 @@ static int get_cert_by_subject_ex(X509_LOOKUP *xl, X509_LOOKUP_TYPE type,
             goto finish;
         }
         if (type == X509_LU_CRL && ent->hashes) {
-            htmp.hash = h;
+            html.hash = h;
             if (!CRYPTO_THREAD_read_lock(ctx->lock))
                 goto finish;
-            idx = sk_BY_DIR_HASH_find(ent->hashes, &htmp);
+            idx = sk_BY_DIR_HASH_find(ent->hashes, &html);
             if (idx >= 0) {
                 hent = sk_BY_DIR_HASH_value(ent->hashes, idx);
                 k = hent->suffix;
@@ -371,8 +371,8 @@ static int get_cert_by_subject_ex(X509_LOOKUP *xl, X509_LOOKUP_TYPE type,
              * first.
              */
             if (hent == NULL) {
-                htmp.hash = h;
-                idx = sk_BY_DIR_HASH_find(ent->hashes, &htmp);
+                html.hash = h;
+                idx = sk_BY_DIR_HASH_find(ent->hashes, &html);
                 hent = sk_BY_DIR_HASH_value(ent->hashes, idx);
             }
             if (hent == NULL) {

@@ -643,9 +643,9 @@ ZSTD_insertBtAndGetAllMatches (
 
     /* check repCode */
     assert(ll0 <= 1);   /* necessarily 1 or 0 */
-    {   U32 const lastR = ZSTD_REP_NUM + ll0;
+    {   U32 const last = ZSTD_REP_NUM + ll0;
         U32 repCode;
-        for (repCode = ll0; repCode < lastR; repCode++) {
+        for (repCode = ll0; repCode < last; repCode++) {
             U32 const repOffset = (repCode==ZSTD_REP_NUM) ? (rep[0] - 1) : rep[repCode];
             U32 const repIndex = curr - repOffset;
             U32 repLen = 0;

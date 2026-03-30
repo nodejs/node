@@ -239,7 +239,7 @@ export class CodeView extends View {
     const sps = this.sourceResolver.sourcePositionsInRange(this.source.sourceId, pos - adjust, end);
     let offset = 0;
     for (const sourcePosition of sps) {
-      // Internally, line numbers are 0-based so we have to substract 1 from the line number. This
+      // Internally, line numbers are 0-based so we have to subtract 1 from the line number. This
       // path in only taken by non-Wasm code. Wasm code relies on setSourceLineToBytecodePosition.
       this.sourceResolver.addAnyPositionToLine(lineNumber - 1, sourcePosition);
       const textNode = currentSpan.tagName === "SPAN" ? currentSpan.lastChild : currentSpan;

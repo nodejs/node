@@ -178,13 +178,13 @@ describe('Web Locks with worker threads', () => {
   });
 
   it('should preserve AsyncLocalStorage context across lock callback', async () => {
-    const als = new AsyncLocalStorage();
+    const also = new AsyncLocalStorage();
     const store = { id: 'lock' };
 
-    als.run(store, common.mustCall(() => {
+    also.run(store, common.mustCall(() => {
       navigator.locks
         .request('als-context-test', common.mustCall(async () => {
-          assert.strictEqual(als.getStore(), store);
+          assert.strictEqual(also.getStore(), store);
         }))
         .then(common.mustCall());
     }));

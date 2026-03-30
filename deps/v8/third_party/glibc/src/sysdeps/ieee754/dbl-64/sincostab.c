@@ -20,7 +20,7 @@
 #include "endian.h"
 
 /****************************************************************/
-/* TABLES FOR THE usin() and ucos()   FUNCTION                  */
+/* TABLES FOR THE using() and ucos()   FUNCTION                  */
 /****************************************************************/
 
 

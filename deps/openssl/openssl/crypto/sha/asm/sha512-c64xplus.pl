@@ -36,7 +36,7 @@
 
 ($Ahi,$Actxhi,$Bhi,$Bctxhi,$Chi,$Cctxhi,$Dhi,$Dctxhi,
  $Ehi,$Ectxhi,$Fhi,$Fctxhi,$Ghi,$Gctxhi,$Hhi,$Hctxhi)=map("A$_",(16..31));
-($Alo,$Actxlo,$Blo,$Bctxlo,$Clo,$Cctxlo,$Dlo,$Dctxlo,
+($Also,$Actxlo,$Blo,$Bctxlo,$Clo,$Cctxlo,$Dlo,$Dctxlo,
  $Elo,$Ectxlo,$Flo,$Fctxlo,$Glo,$Gctxlo,$Hlo,$Hctxlo)=map("B$_",(16..31));
 
 ($S1hi,$CHhi,$S0hi,$t0hi)=map("A$_",(10..13));
@@ -108,7 +108,7 @@ __sha512_block:
 
 ||	MV	$CTXA,$CTXB
 	LDW	*${CTXA}[0^.LITTLE_ENDIAN],$Ahi	; load ctx
-||	LDW	*${CTXB}[1^.LITTLE_ENDIAN],$Alo
+||	LDW	*${CTXB}[1^.LITTLE_ENDIAN],$Also
 ||	ADD	B1,$K512,$K512
 	LDW	*${CTXA}[2^.LITTLE_ENDIAN],$Bhi
 ||	LDW	*${CTXB}[3^.LITTLE_ENDIAN],$Blo
@@ -132,7 +132,7 @@ outerloop?:
 ||	MVK	64,B1
 ||	SUB	A0,1,A0
 	MV	$Ahi,$Actxhi
-||	MV	$Alo,$Actxlo
+||	MV	$Also,$Actxlo
 ||	MV	$Bhi,$Bctxhi
 ||	MV	$Blo,$Bctxlo
 ||	MV	$Chi,$Cctxhi
@@ -189,7 +189,7 @@ loop16_79?:
 	XOR	$t0hi,$S1hi,$S1hi
 ||	XOR	$t0lo,$S1lo,$S1lo
 ||	OR	$Ahi,$Bhi,$MAJhi
-||	OR	$Alo,$Blo,$MAJlo
+||	OR	$Also,$Blo,$MAJlo
 ||	ROTL	$Ehi,0,$Fhi
 ||	ROTL	$Elo,0,$Flo				; f = e
 ||	SHRU	$Ehi,41-32,$t0lo
@@ -205,7 +205,7 @@ loop16_79?:
 	XOR	$t0hi,$S1hi,$S1hi
 ||	XOR	$t0lo,$S1lo,$S1lo			; Sigma1(e)
 ||	AND	$Ahi,$Bhi,$t1hi
-||	AND	$Alo,$Blo,$t1lo
+||	AND	$Also,$Blo,$t1lo
 ||	ROTL	$Chi,0,$Dhi
 ||	ROTL	$Clo,0,$Dlo				; d = c
 ||	SHRU	$Ahi,28,$S0hi
@@ -216,22 +216,22 @@ loop16_79?:
 ||	ADDU	$CHlo,$T1carry:$T1lo,$T1carry:$T1lo	; T1 += Ch(e,f,g)
 ||	ROTL	$Bhi,0,$Chi
 ||	ROTL	$Blo,0,$Clo				; c = b
-||	SHRU	$Alo,28,$t0lo
-||	SHL	$Alo,32-28,$t0hi
+||	SHRU	$Also,28,$t0lo
+||	SHL	$Also,32-28,$t0hi
 	XOR	$t0hi,$S0hi,$S0hi
 ||	XOR	$t0lo,$S0lo,$S0lo
 ||	ADD	$S1hi,$T1hi,$T1hi
 ||	ADDU	$S1lo,$T1carry:$T1lo,$T1carry:$T1lo	; T1 += Sigma1(e)
 ||	ROTL	$Ahi,0,$Bhi
-||	ROTL	$Alo,0,$Blo				; b = a
+||	ROTL	$Also,0,$Blo				; b = a
 ||	SHRU	$Ahi,34-32,$t0lo
 ||	SHL	$Ahi,64-34,$t0hi
 	XOR	$t0hi,$S0hi,$S0hi
 ||	XOR	$t0lo,$S0lo,$S0lo
 ||	ADD	$MAJhi,$T1hi,$T2hi
 ||	ADDU	$MAJlo,$T1carry:$T1lo,$T2carry:$T2lo	; T2 = T1+Maj(a,b,c)
-||	SHRU	$Alo,34-32,$t0hi
-||	SHL	$Alo,64-34,$t0lo
+||	SHRU	$Also,34-32,$t0hi
+||	SHL	$Also,64-34,$t0lo
 	XOR	$t0hi,$S0hi,$S0hi
 ||	XOR	$t0lo,$S0lo,$S0lo
 ||	ADD	$Ehi,$T1hi,$T1hi
@@ -243,8 +243,8 @@ loop16_79?:
 ||	XOR	$t0lo,$S0lo,$S0lo
 || [B0]	LDNDW	*$INP++,B11:B10				; pre-fetch input
 ||[!B1]	BNOP	break?
-||	SHRU	$Alo,39-32,$t0hi
-||	SHL	$Alo,64-39,$t0lo
+||	SHRU	$Also,39-32,$t0hi
+||	SHL	$Also,64-39,$t0lo
 	XOR	$t0hi,$S0hi,$S0hi
 ||	XOR	$t0lo,$S0lo,$S0lo			; Sigma0(a)
 ||	ADD	$T1carry,$T1hi,$Ehi
@@ -256,7 +256,7 @@ loop16_79?:
 || [B1]	LDDW	*$K512++,$Khi:$Klo			; pre-fetch K512[i]
 	NOP						; avoid cross-path stall
 	ADD	$T2carry,$T2hi,$Ahi
-||	MV	$T2lo,$Alo				; a = T2
+||	MV	$T2lo,$Also				; a = T2
 || [B0]	SUB	B0,1,B0
 ;;===== branch to loop00_15? is taken here
 	NOP
@@ -323,7 +323,7 @@ loop16_79?:
 
 break?:
 	ADD	$Ahi,$Actxhi,$Ahi		; accumulate ctx
-||	ADDU	$Alo,$Actxlo,$Actxlo:$Alo
+||	ADDU	$Also,$Actxlo,$Actxlo:$Also
 || [A0]	LDNDW	*$INP++,B11:B10			; pre-fetch input
 || [A0]	ADDK	-640,$K512			; rewind pointer to K512
 	ADD	$Bhi,$Bctxhi,$Bhi
@@ -337,7 +337,7 @@ break?:
 ||	ADDU	$Dlo,$Dctxlo,$Dctxlo:$Dlo
 ||	ADD	$Bctxlo,$Bhi,$Bhi
 ||[!A0]	STW	$Ahi,*${CTXA}[0^.LITTLE_ENDIAN]	; save ctx
-||[!A0]	STW	$Alo,*${CTXB}[1^.LITTLE_ENDIAN]
+||[!A0]	STW	$Also,*${CTXB}[1^.LITTLE_ENDIAN]
 	ADD	$Ehi,$Ectxhi,$Ehi
 ||	ADDU	$Elo,$Ectxlo,$Ectxlo:$Elo
 ||	ADD	$Cctxlo,$Chi,$Chi

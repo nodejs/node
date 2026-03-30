@@ -68,7 +68,7 @@ Downstream (in Chromium, V8, etc.), they ensure that the library behaves
 correctly within each specific code base. We have seen bugs from different
 architectures / compilers / etc. in the past. We have also seen
 that a tweaked downstream crdtp_platform library did not behave correctly,
-becaues V8's strtod routine interprets out of range literals as 'inf'.
+because V8's strtod routine interprets out of range literals as 'inf'.
 Thus, the unittests function as a conformance test suite for such code-base
 specific tweaks downstream.
 

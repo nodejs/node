@@ -81,7 +81,7 @@ $nj="r6";
 $tj="r7";
 $n0="r8";
 ###########	# r9 is reserved by ELF as platform specific, e.g. TLS pointer
-$alo="r10";	# sl, gcc uses it to keep @GOT
+$also="r10";	# sl, gcc uses it to keep @GOT
 $ahi="r11";	# fp
 $nlo="r12";	# ip
 ###########	# r13 is stack pointer
@@ -170,22 +170,22 @@ bn_mul_mont:
 	ldr	$n0,[$n0]		@ *n0
 	str	$tp,[$_bpend]		@ save &bp[num]
 
-	umull	$alo,$ahi,$aj,$bi	@ ap[0]*bp[0]
+	umull	$also,$ahi,$aj,$bi	@ ap[0]*bp[0]
 	str	$n0,[$_n0]		@ save n0 value
-	mul	$n0,$alo,$n0		@ "tp[0]"*n0
+	mul	$n0,$also,$n0		@ "tp[0]"*n0
 	mov	$nlo,#0
-	umlal	$alo,$nlo,$nj,$n0	@ np[0]*n0+"t[0]"
+	umlal	$also,$nlo,$nj,$n0	@ np[0]*n0+"t[0]"
 	mov	$tp,sp
 
 .L1st:
 	ldr	$aj,[$ap],#4		@ ap[j],ap++
-	mov	$alo,$ahi
+	mov	$also,$ahi
 	ldr	$nj,[$np],#4		@ np[j],np++
 	mov	$ahi,#0
-	umlal	$alo,$ahi,$aj,$bi	@ ap[j]*bp[0]
+	umlal	$also,$ahi,$aj,$bi	@ ap[j]*bp[0]
 	mov	$nhi,#0
 	umlal	$nlo,$nhi,$nj,$n0	@ np[j]*n0
-	adds	$nlo,$nlo,$alo
+	adds	$nlo,$nlo,$also
 	str	$nlo,[$tp],#4		@ tp[j-1]=,tp++
 	adc	$nlo,$nhi,#0
 	cmp	$tp,$num
@@ -206,29 +206,29 @@ bn_mul_mont:
 	ldr	$bi,[$tp,#4]!		@ *(++bp)
 	sub	$np,$np,$tj		@ "rewind" np to &np[1]
 	ldr	$aj,[$ap,#-4]		@ ap[0]
-	ldr	$alo,[sp]		@ tp[0]
+	ldr	$also,[sp]		@ tp[0]
 	ldr	$nj,[$np,#-4]		@ np[0]
 	ldr	$tj,[sp,#4]		@ tp[1]
 
 	mov	$ahi,#0
-	umlal	$alo,$ahi,$aj,$bi	@ ap[0]*bp[i]+tp[0]
+	umlal	$also,$ahi,$aj,$bi	@ ap[0]*bp[i]+tp[0]
 	str	$tp,[$_bp]		@ save bp
-	mul	$n0,$alo,$n0
+	mul	$n0,$also,$n0
 	mov	$nlo,#0
-	umlal	$alo,$nlo,$nj,$n0	@ np[0]*n0+"tp[0]"
+	umlal	$also,$nlo,$nj,$n0	@ np[0]*n0+"tp[0]"
 	mov	$tp,sp
 
 .Linner:
 	ldr	$aj,[$ap],#4		@ ap[j],ap++
-	adds	$alo,$ahi,$tj		@ +=tp[j]
+	adds	$also,$ahi,$tj		@ +=tp[j]
 	ldr	$nj,[$np],#4		@ np[j],np++
 	mov	$ahi,#0
-	umlal	$alo,$ahi,$aj,$bi	@ ap[j]*bp[i]
+	umlal	$also,$ahi,$aj,$bi	@ ap[j]*bp[i]
 	mov	$nhi,#0
 	umlal	$nlo,$nhi,$nj,$n0	@ np[j]*n0
 	adc	$ahi,$ahi,#0
 	ldr	$tj,[$tp,#8]		@ tp[j+1]
-	adds	$nlo,$nlo,$alo
+	adds	$nlo,$nlo,$also
 	str	$nlo,[$tp],#4		@ tp[j-1]=,tp++
 	adc	$nlo,$nhi,#0
 	cmp	$tp,$num

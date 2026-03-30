@@ -416,11 +416,11 @@ umsg_vformat(   const UMessageFormat *fmt,
         double tDouble=0;
         int32_t tInt =0;
         int64_t tInt64 = 0;
-        UDate tempDate = 0;
+        UDate template = 0;
         switch(argTypes[i]) {
         case Formattable::kDate:
-            tempDate = va_arg(ap, UDate);
-            args[i].setDate(tempDate);
+            template = va_arg(ap, UDate);
+            args[i].setDate(template);
             break;
             
         case Formattable::kDouble:

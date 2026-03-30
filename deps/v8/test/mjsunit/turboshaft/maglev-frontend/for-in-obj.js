@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax --turbolev --turbofan
 
-function forin(o) {
+function foreign(o) {
   let s = 0;
   for (let i in o) {
     s += o[i];
@@ -14,8 +14,8 @@ function forin(o) {
 
 let o = { x : 42, y : 19, z: 5 };
 
-%PrepareFunctionForOptimization(forin);
-assertEquals(66, forin(o));
-%OptimizeFunctionOnNextCall(forin);
-assertEquals(66, forin(o));
-assertOptimized(forin);
+%PrepareFunctionForOptimization(foreign);
+assertEquals(66, foreign(o));
+%OptimizeFunctionOnNextCall(foreign);
+assertEquals(66, foreign(o));
+assertOptimized(foreign);

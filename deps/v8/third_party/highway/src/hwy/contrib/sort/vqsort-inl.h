@@ -1104,8 +1104,8 @@ HWY_INLINE bool MaybePartitionTwoValueR(D d, Traits st, T* HWY_RESTRICT keys,
     StoreN(valueL, d, keys + pos, endL - pos);
     return false;
   }
-  const size_t lastR = CountTrue(d, eqR);
-  countR += lastR;
+  const size_t last = CountTrue(d, eqR);
+  countR += last;
 
   // First finish writing valueR - [0, N) lanes were not yet written.
   StoreU(valueR, d, keys);  // Safe because num >= N.

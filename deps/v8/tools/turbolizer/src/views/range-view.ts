@@ -1022,10 +1022,10 @@ class RangeViewConstructor {
     const element =
       createElement("div", "range-block-id range-header-element range-block-border");
     const str = `B${blockId}`;
-    const idEl = createElement("span", "range-block-id-number", str);
+    const idle = createElement("span", "range-block-id-number", str);
     const centre = instrCount * C.POSITIONS_PER_INSTRUCTION;
-    idEl.style.gridRow = `${centre} / ${centre + 1}`;
-    element.appendChild(idEl);
+    idle.style.gridRow = `${centre} / ${centre + 1}`;
+    element.appendChild(idle);
     element.setAttribute("title", str);
     element.dataset.instrCount = String(instrCount);
     // gridColumns start at 1 rather than 0.

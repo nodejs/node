@@ -859,7 +859,7 @@ fn resolve_posix_tz_string_for_epoch_seconds(
     //
     // This is primarily due to the summer / winter months of those areas.
     //
-    // For the northern hemispere, we can check if the range contains the seconds. For the
+    // For the northern hemisphere, we can check if the range contains the seconds. For the
     // southern hemisphere, we check if the range does no contain the value.
     let should_return_dst = (!dst_is_inversed
         && (dst_start_seconds..dst_end_seconds).contains(&seconds))
@@ -1906,7 +1906,7 @@ mod tests {
         );
     }
 
-    // This test mimicks the operations present in `temporal_rs`'s `disambiguate_possible_epoch_nanoseconds`
+    // This test mimics the operations present in `temporal_rs`'s `disambiguate_possible_epoch_nanoseconds`
     #[test]
     fn disambiguate_ambiguous_posix_time() {
         let provider = CompiledTzdbProvider::default();

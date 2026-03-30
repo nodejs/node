@@ -1363,7 +1363,7 @@ As per the release schedule, Node.js 21 will be ‘Current' release for the next
 * \[[`6ffacbf0f9`](https://github.com/nodejs/node/commit/6ffacbf0f9)] - **(SEMVER-MAJOR)** **node-api**: rename internal NAPI\_VERSION definition (Chengzhong Wu) [#48501](https://github.com/nodejs/node/pull/48501)
 * \[[`11af089b14`](https://github.com/nodejs/node/commit/11af089b14)] - **(SEMVER-MAJOR)** **src**: update NODE\_MODULE\_VERSION to 120 (Michaël Zasso) [#49639](https://github.com/nodejs/node/pull/49639)
 * \[[`d920b7c94b`](https://github.com/nodejs/node/commit/d920b7c94b)] - **(SEMVER-MAJOR)** **src**: throw DOMException on cloning non-serializable objects (Chengzhong Wu) [#47839](https://github.com/nodejs/node/pull/47839)
-* \[[`64549731b6`](https://github.com/nodejs/node/commit/64549731b6)] - **(SEMVER-MAJOR)** **src**: throw DataCloneError on transfering untransferable objects (Chengzhong Wu) [#47604](https://github.com/nodejs/node/pull/47604)
+* \[[`64549731b6`](https://github.com/nodejs/node/commit/64549731b6)] - **(SEMVER-MAJOR)** **src**: throw DataCloneError on transferring untransferable objects (Chengzhong Wu) [#47604](https://github.com/nodejs/node/pull/47604)
 * \[[`dac8de689b`](https://github.com/nodejs/node/commit/dac8de689b)] - **(SEMVER-MAJOR)** **stream**: use private properties for strategies (Yagiz Nizipli) [#47218](https://github.com/nodejs/node/pull/47218)
 * \[[`1fa084ecdf`](https://github.com/nodejs/node/commit/1fa084ecdf)] - **(SEMVER-MAJOR)** **stream**: use private properties for encoding (Yagiz Nizipli) [#47218](https://github.com/nodejs/node/pull/47218)
 * \[[`4e93247079`](https://github.com/nodejs/node/commit/4e93247079)] - **(SEMVER-MAJOR)** **stream**: use private properties for compression (Yagiz Nizipli) [#47218](https://github.com/nodejs/node/pull/47218)
@@ -1383,7 +1383,7 @@ As per the release schedule, Node.js 21 will be ‘Current' release for the next
 
 ### Semver-Patch Commits
 
-* \[[`33c87ec096`](https://github.com/nodejs/node/commit/33c87ec096)] - **benchmark**: fix race condition on fs benchs (Vinicius Lourenço) [#50035](https://github.com/nodejs/node/pull/50035)
+* \[[`33c87ec096`](https://github.com/nodejs/node/commit/33c87ec096)] - **benchmark**: fix race condition on fs benches (Vinicius Lourenço) [#50035](https://github.com/nodejs/node/pull/50035)
 * \[[`3c0ec61c4b`](https://github.com/nodejs/node/commit/3c0ec61c4b)] - **benchmark**: add warmup to accessSync bench (Rafael Gonzaga) [#50073](https://github.com/nodejs/node/pull/50073)
 * \[[`1a839f388e`](https://github.com/nodejs/node/commit/1a839f388e)] - **benchmark**: improved config for blob,file benchmark (Vinícius Lourenço) [#49730](https://github.com/nodejs/node/pull/49730)
 * \[[`86fe5a80f3`](https://github.com/nodejs/node/commit/86fe5a80f3)] - **benchmark**: added new benchmarks for blob (Vinícius Lourenço) [#49730](https://github.com/nodejs/node/pull/49730)
@@ -1429,7 +1429,7 @@ As per the release schedule, Node.js 21 will be ‘Current' release for the next
 * \[[`3c430212c3`](https://github.com/nodejs/node/commit/3c430212c3)] - **doc**: add command to get patch minors and majors (Rafael Gonzaga) [#50067](https://github.com/nodejs/node/pull/50067)
 * \[[`e43bf4c31d`](https://github.com/nodejs/node/commit/e43bf4c31d)] - **doc**: use precise promise terminology in fs (Benjamin Gruenbaum) [#50029](https://github.com/nodejs/node/pull/50029)
 * \[[`d3a5f1fb5f`](https://github.com/nodejs/node/commit/d3a5f1fb5f)] - **doc**: use precise terminology in test runner (Benjamin Gruenbaum) [#50028](https://github.com/nodejs/node/pull/50028)
-* \[[`24dea2348d`](https://github.com/nodejs/node/commit/24dea2348d)] - **doc**: clarify explaination text on how to run the example (Anshul Sinha) [#39020](https://github.com/nodejs/node/pull/39020)
+* \[[`24dea2348d`](https://github.com/nodejs/node/commit/24dea2348d)] - **doc**: clarify explanation text on how to run the example (Anshul Sinha) [#39020](https://github.com/nodejs/node/pull/39020)
 * \[[`f3ed57bd8b`](https://github.com/nodejs/node/commit/f3ed57bd8b)] - **doc**: reserve 119 for Electron 28 (David Sanders) [#50020](https://github.com/nodejs/node/pull/50020)
 * \[[`85c09f178c`](https://github.com/nodejs/node/commit/85c09f178c)] - **doc**: update Collaborator pronouns (Tierney Cyren) [#50005](https://github.com/nodejs/node/pull/50005)
 * \[[`099e2f7bce`](https://github.com/nodejs/node/commit/099e2f7bce)] - **doc**: update link to Abstract Modules Records spec (Rich Trott) [#49961](https://github.com/nodejs/node/pull/49961)
@@ -1536,7 +1536,7 @@ As per the release schedule, Node.js 21 will be ‘Current' release for the next
 * \[[`8c36168b42`](https://github.com/nodejs/node/commit/8c36168b42)] - **test**: update flag to disable SharedArrayBuffer (Michaël Zasso) [#49639](https://github.com/nodejs/node/pull/49639)
 * \[[`6ccb15f7ef`](https://github.com/nodejs/node/commit/6ccb15f7ef)] - **test**: adapt debugger tests to V8 11.4 (Philip Pfaffe) [#49639](https://github.com/nodejs/node/pull/49639)
 * \[[`c5de3b49e8`](https://github.com/nodejs/node/commit/c5de3b49e8)] - **test,crypto**: update WebCryptoAPI WPT (Filip Skokan) [#50039](https://github.com/nodejs/node/pull/50039)
-* \[[`4b35a9cfda`](https://github.com/nodejs/node/commit/4b35a9cfda)] - **test\_runner**: add test location for FileTests (Colin Ihrig) [#49999](https://github.com/nodejs/node/pull/49999)
+* \[[`4b35a9cfda`](https://github.com/nodejs/node/commit/4b35a9cfda)] - **test\_runner**: add test location for file tests (Colin Ihrig) [#49999](https://github.com/nodejs/node/pull/49999)
 * \[[`c935d4c8fa`](https://github.com/nodejs/node/commit/c935d4c8fa)] - **test\_runner**: replace spurious if with else (Colin Ihrig) [#49943](https://github.com/nodejs/node/pull/49943)
 * \[[`a4c7f81241`](https://github.com/nodejs/node/commit/a4c7f81241)] - **test\_runner**: catch reporter errors (Moshe Atlow) [#49646](https://github.com/nodejs/node/pull/49646)
 * \[[`bb52656fc6`](https://github.com/nodejs/node/commit/bb52656fc6)] - _**Revert**_ "**test\_runner**: run global after() hook earlier" (Joyee Cheung) [#49110](https://github.com/nodejs/node/pull/49110)

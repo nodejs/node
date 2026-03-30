@@ -1503,7 +1503,7 @@ public:
     /**
      * Return the class ID for this class.  This is useful only for
      * comparing to a return value from getDynamicClassID().
-     * Note that Transliterator is an abstract base class, and therefor
+     * Note that Transliterator is an abstract base class, and therefore
      * no fully constructed object will  have a dynamic
      * UCLassID that equals the UClassID returned from
      * TRansliterator::getStaticClassID().

@@ -54,7 +54,7 @@ struct ArrayBufferList final {
 class ArrayBufferSweeper final {
  public:
   enum class SweepingType { kYoung, kFull };
-  enum class TreatAllYoungAsPromoted { kNo, kYes };
+  enum class TreatAllYoungAsPromoted { know, kYes };
 
   explicit ArrayBufferSweeper(Heap* heap);
   ~ArrayBufferSweeper();

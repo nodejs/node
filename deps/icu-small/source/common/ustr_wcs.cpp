@@ -159,7 +159,7 @@ _strToWCS(wchar_t *dest,
         for(;;){
             
             /* we can call the system API since we are sure that
-             * there is atleast 1 null in the input
+             * there is at least 1 null in the input
              */
             retVal = uprv_mbstowcs(pIntTarget,(tempBuf+nulLen),remaining);
             

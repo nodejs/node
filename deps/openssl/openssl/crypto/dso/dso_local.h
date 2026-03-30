@@ -85,7 +85,7 @@ struct dso_meth_st {
      * The generic (yuck) "ctrl()" function. NB: Negative return values
      * (rather than zero) indicate errors.
      */
-    long (*dso_ctrl)(DSO *dso, int cmd, long larg, void *parg);
+    long (*dso_ctrl)(DSO *dso, int cmd, long large, void *parg);
     /*
      * The default DSO_METHOD-specific function for converting filenames to a
      * canonical native form.

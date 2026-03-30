@@ -400,7 +400,7 @@ const getJsonOutputItem = (node, { global, long }) => {
   return augmentItemWithIncludeMetadata(node, item)
 }
 
-// In linked strategy, two types of edges produce false UNMET DEPENDENCYs:
+// In linked strategy, two types of edges produce false UNMET dependencies:
 // 1. Workspace edges for undeclared workspaces: the lockfile records edges from root to ALL workspaces, but only declared workspaces are hoisted to root/node_modules in linked mode.  Undeclared ones are intentionally absent.
 // 2. Dev edges on non-root packages: store package link targets have no parent in the node tree, so they are treated as "top" nodes and their devDependencies are loaded as edges.  Those devDeps are never installed.
 const filterLinkedStrategyEdges = ({ node, currentDepth }) => {

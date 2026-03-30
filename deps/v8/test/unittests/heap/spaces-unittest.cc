@@ -96,7 +96,7 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
 }
 
 TEST_F(SpacesTest, WriteBarriers) {
-  // Test allocates a real page in OLD_SPACE to check various flag combinaton.
+  // Test allocates a real page in OLD_SPACE to check various flag combination.
   Heap* heap = i_isolate()->heap();
   OldSpace* old_space = heap->old_space();
   EXPECT_TRUE(old_space != nullptr);

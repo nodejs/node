@@ -7,7 +7,7 @@ use core::fmt;
 use core::marker::PhantomData;
 use core::ops::Deref;
 use serde_core::de::{Error, SeqAccess, Visitor};
-use serde_core::ser::SerializeTuple;
+use serde_core::set::SerializeTuple;
 use serde_core::{Deserialize, Deserializer, Serialize, Serializer};
 
 impl<const N: usize> Serialize for TinyAsciiStr<N> {

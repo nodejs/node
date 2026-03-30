@@ -47,23 +47,23 @@ void Return239Callback(Local<Name> name,
 
 v8::Intercepted EmptyInterceptorGetter(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted EmptyInterceptorSetter(
     Local<Name> name, Local<Value> value,
     const v8::PropertyCallbackInfo<void>& info) {
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted EmptyInterceptorQuery(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Integer>& info) {
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted EmptyInterceptorDeleter(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Boolean>& info) {
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 void EmptyInterceptorEnumerator(
@@ -77,7 +77,7 @@ v8::Intercepted EmptyInterceptorDefinerWithSideEffect(
   if (!result->IsNull()) {
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 void SimpleGetterImpl(Local<String> name_str,
@@ -130,14 +130,14 @@ void SymbolSetterCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 v8::Intercepted InterceptorGetter(
     Local<Name> generic_name, const v8::PropertyCallbackInfo<v8::Value>& info) {
-  if (generic_name->IsSymbol()) return v8::Intercepted::kNo;
+  if (generic_name->IsSymbol()) return v8::Intercepted::know;
   Local<String> name = generic_name.As<String>();
   String::Utf8Value utf8(info.GetIsolate(), name);
   char* name_str = *utf8;
   char prefix[] = "interceptor_";
   int i;
   for (i = 0; name_str[i] && prefix[i]; ++i) {
-    if (name_str[i] != prefix[i]) return v8::Intercepted::kNo;
+    if (name_str[i] != prefix[i]) return v8::Intercepted::know;
   }
   Local<Object> self = info.This().As<Object>();
   info.GetReturnValue().Set(
@@ -150,7 +150,7 @@ v8::Intercepted InterceptorGetter(
 
 v8::Intercepted InterceptorSetter(Local<Name> generic_name, Local<Value> value,
                                   const v8::PropertyCallbackInfo<void>& info) {
-  if (generic_name->IsSymbol()) return v8::Intercepted::kNo;
+  if (generic_name->IsSymbol()) return v8::Intercepted::know;
   Local<String> name = generic_name.As<String>();
   // Intercept accesses that set certain integer values, for which the name does
   // not start with 'accessor_'.
@@ -161,7 +161,7 @@ v8::Intercepted InterceptorSetter(Local<Name> generic_name, Local<Value> value,
   for (i = 0; name_str[i] && prefix[i]; ++i) {
     if (name_str[i] != prefix[i]) break;
   }
-  if (!prefix[i]) return v8::Intercepted::kNo;
+  if (!prefix[i]) return v8::Intercepted::know;
 
   Local<Context> context = info.GetIsolate()->GetCurrentContext();
   if (value->IsInt32() && value->Int32Value(context).FromJust() < 10000) {
@@ -170,7 +170,7 @@ v8::Intercepted InterceptorSetter(Local<Name> generic_name, Local<Value> value,
     self->SetPrivate(context, symbol, value).FromJust();
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted GenericInterceptorGetter(
@@ -179,13 +179,13 @@ v8::Intercepted GenericInterceptorGetter(
   Local<String> str;
   if (generic_name->IsSymbol()) {
     Local<Value> name = generic_name.As<Symbol>()->Description(isolate);
-    if (name->IsUndefined()) return v8::Intercepted::kNo;
+    if (name->IsUndefined()) return v8::Intercepted::know;
     str = String::Concat(info.GetIsolate(), v8_str("_sym_"), name.As<String>());
   } else {
     Local<String> name = generic_name.As<String>();
     String::Utf8Value utf8(info.GetIsolate(), name);
     char* name_str = *utf8;
-    if (*name_str == '_') return v8::Intercepted::kNo;
+    if (*name_str == '_') return v8::Intercepted::know;
     str = String::Concat(info.GetIsolate(), v8_str("_str_"), name);
   }
 
@@ -202,13 +202,13 @@ v8::Intercepted GenericInterceptorSetter(
   Local<String> str;
   if (generic_name->IsSymbol()) {
     Local<Value> name = generic_name.As<Symbol>()->Description(isolate);
-    if (name->IsUndefined()) return v8::Intercepted::kNo;
+    if (name->IsUndefined()) return v8::Intercepted::know;
     str = String::Concat(info.GetIsolate(), v8_str("_sym_"), name.As<String>());
   } else {
     Local<String> name = generic_name.As<String>();
     String::Utf8Value utf8(info.GetIsolate(), name);
     char* name_str = *utf8;
-    if (*name_str == '_') return v8::Intercepted::kNo;
+    if (*name_str == '_') return v8::Intercepted::know;
     str = String::Concat(info.GetIsolate(), v8_str("_str_"), name);
   }
 
@@ -254,7 +254,7 @@ v8::Intercepted CheckThisIndexedPropertyHandler(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted CheckThisNamedPropertyHandler(
@@ -265,7 +265,7 @@ v8::Intercepted CheckThisNamedPropertyHandler(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted CheckThisIndexedPropertyDefiner(
@@ -277,7 +277,7 @@ v8::Intercepted CheckThisIndexedPropertyDefiner(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted CheckThisNamedPropertyDefiner(
@@ -289,7 +289,7 @@ v8::Intercepted CheckThisNamedPropertyDefiner(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted CheckThisIndexedPropertySetter(
@@ -301,7 +301,7 @@ v8::Intercepted CheckThisIndexedPropertySetter(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted CheckThisNamedPropertySetter(
@@ -313,7 +313,7 @@ v8::Intercepted CheckThisNamedPropertySetter(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted CheckThisIndexedPropertyDescriptor(
@@ -324,7 +324,7 @@ v8::Intercepted CheckThisIndexedPropertyDescriptor(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted CheckThisNamedPropertyDescriptor(
@@ -335,7 +335,7 @@ v8::Intercepted CheckThisNamedPropertyDescriptor(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted CheckThisIndexedPropertyQuery(
@@ -346,7 +346,7 @@ v8::Intercepted CheckThisIndexedPropertyQuery(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted CheckThisNamedPropertyQuery(
@@ -357,7 +357,7 @@ v8::Intercepted CheckThisNamedPropertyQuery(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted CheckThisIndexedPropertyDeleter(
@@ -368,7 +368,7 @@ v8::Intercepted CheckThisIndexedPropertyDeleter(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted CheckThisNamedPropertyDeleter(
@@ -379,7 +379,7 @@ v8::Intercepted CheckThisNamedPropertyDeleter(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 void CheckThisIndexedPropertyEnumerator(
@@ -420,14 +420,14 @@ v8::Intercepted EchoNamedProperty(
 v8::Intercepted InterceptorHasOwnPropertyGetter(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted InterceptorHasOwnPropertyGetterGC(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
   i::heap::InvokeMajorGC(CcTest::heap());
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 int query_counter_int = 0;
@@ -435,7 +435,7 @@ int query_counter_int = 0;
 v8::Intercepted QueryCallback(
     Local<Name> property, const v8::PropertyCallbackInfo<v8::Integer>& info) {
   query_counter_int++;
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 }  // namespace
@@ -534,14 +534,14 @@ int set_was_called_counter = 0;
 v8::Intercepted GetterCallback(
     Local<Name> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
   get_was_called = true;
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted SetterCallback(Local<Name> property, Local<Value> value,
                                const v8::PropertyCallbackInfo<void>& info) {
   set_was_called = true;
   set_was_called_counter++;
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted InterceptingSetterCallback(
@@ -778,7 +778,7 @@ v8::Intercepted DefinerCallbackOrder(
   // Get called before DefineProperty because we query the descriptor first.
   CHECK(get_was_called_in_order);
   define_was_called_in_order = true;
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 }  // namespace
@@ -824,7 +824,7 @@ v8::Intercepted ReturnUndefinedGetterCallback(
     info.GetReturnValue().SetUndefined();
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 }  // namespace
@@ -1014,7 +1014,7 @@ v8::Intercepted InterceptorLoadXICGetter(
     info.GetReturnValue().Set(42);
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted InterceptorLoadXICGetterWithSideEffects(
@@ -1029,7 +1029,7 @@ v8::Intercepted InterceptorLoadXICGetterWithSideEffects(
     info.GetReturnValue().Set(42);
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 }  // namespace
@@ -1145,7 +1145,7 @@ int interceptor_load_not_handled_calls = 0;
 v8::Intercepted InterceptorLoadNotHandled(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   ++interceptor_load_not_handled_calls;
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 }  // namespace
 
@@ -1550,7 +1550,7 @@ v8::Intercepted HasICQuery(TKey name,
     info.GetReturnValue().Set(attribute);
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 template <typename TKey>
@@ -1566,7 +1566,7 @@ v8::Intercepted HasICQueryToggle(
     info.GetReturnValue().Set(v8::None);
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 template <typename TKey, v8::internal::PropertyAttributes attribute>
@@ -1583,14 +1583,14 @@ v8::Intercepted HasICQuerySideEffect(
     info.GetReturnValue().Set(attribute);
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 int named_query_counter = 0;
 v8::Intercepted NamedQueryCallback(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Integer>& info) {
   named_query_counter++;
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 }  // namespace
@@ -2027,7 +2027,7 @@ namespace {
 v8::Intercepted NotInterceptingPropertyDefineCallback(
     Local<Name> name, const v8::PropertyDescriptor& desc,
     const v8::PropertyCallbackInfo<void>& info) {
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted InterceptingPropertyDefineCallback(
@@ -2136,7 +2136,7 @@ namespace {
 v8::Intercepted NotInterceptingPropertyDefineCallbackIndexed(
     uint32_t index, const v8::PropertyDescriptor& desc,
     const v8::PropertyCallbackInfo<void>& info) {
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted InterceptingPropertyDefineCallbackIndexed(
@@ -2464,7 +2464,7 @@ v8::Intercepted LogDefinerCallsAndContinueCallback(
     const v8::PropertyCallbackInfo<void>& info) {
   String::Utf8Value utf8(info.GetIsolate(), name);
   definer_calls.push_back(*utf8);
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 v8::Intercepted LogDefinerCallsAndStopCallback(
     Local<Name> name, const v8::PropertyDescriptor& desc,
@@ -2658,7 +2658,7 @@ THREADED_TEST(PropertyDefinerCallbackInDefineNamedOwnIC) {
 namespace {
 v8::Intercepted EmptyPropertyDescriptorCallback(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted InterceptingPropertyDescriptorCallback(
@@ -2891,7 +2891,7 @@ v8::Intercepted PrePropertyHandlerGet(
     info.GetReturnValue().Set(v8_str("PrePropertyHandler: pre"));
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted PrePropertyHandlerQuery(
@@ -2903,7 +2903,7 @@ v8::Intercepted PrePropertyHandlerQuery(
     info.GetReturnValue().Set(v8::None);
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 }  // namespace
 
@@ -3231,7 +3231,7 @@ bool interceptor_for_hidden_properties_called;
 v8::Intercepted InterceptorForHiddenProperties(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   interceptor_for_hidden_properties_called = true;
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 }  // namespace
 
@@ -3446,7 +3446,7 @@ v8::Intercepted SetXOnPrototypeGetter(
       ->Set(info.GetIsolate()->GetCurrentContext(), v8_str("x"),
             v8::Integer::New(info.GetIsolate(), 23))
       .FromJust();
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 }  // namespace
 
@@ -3482,7 +3482,7 @@ v8::Intercepted IndexedPropertyGetter(
     info.GetReturnValue().Set(v8_num(625));
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted IndexedPropertySetter(
@@ -3493,7 +3493,7 @@ v8::Intercepted IndexedPropertySetter(
     ApiTestFuzzer::Fuzz();
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 }  // namespace
 
@@ -3538,7 +3538,7 @@ v8::Intercepted UnboxedDoubleIndexedPropertyGetter(
     info.GetReturnValue().Set(v8_num(index));
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted UnboxedDoubleIndexedPropertySetter(
@@ -3549,7 +3549,7 @@ v8::Intercepted UnboxedDoubleIndexedPropertySetter(
     ApiTestFuzzer::Fuzz();
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 void UnboxedDoubleIndexedPropertyEnumerator(
@@ -3627,7 +3627,7 @@ v8::Intercepted SloppyIndexedPropertyGetter(
     info.GetReturnValue().Set(v8_num(index));
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 }  // namespace
 
@@ -3959,7 +3959,7 @@ int indexed_query_counter = 0;
 v8::Intercepted IndexedQueryCallback(
     uint32_t index, const v8::PropertyCallbackInfo<v8::Integer>& info) {
   indexed_query_counter++;
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted IndexHasICQueryAbsent(
@@ -3970,7 +3970,7 @@ v8::Intercepted IndexHasICQueryAbsent(
   // TODO(ishell): the PropertyAttributes::ABSENT is not exposed in the Api,
   // so it can't be officially returned. We should fix the tests instead.
   info.GetReturnValue().Set(v8::internal::ABSENT);
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 }  // namespace
@@ -4039,19 +4039,19 @@ THREADED_TEST(IndexedInterceptorHasICQueryToggle) {
 namespace {
 v8::Intercepted NoBlockGetterX(Local<Name> name,
                                const v8::PropertyCallbackInfo<v8::Value>&) {
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted NoBlockGetterI(uint32_t index,
                                const v8::PropertyCallbackInfo<v8::Value>&) {
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted PDeleter(Local<Name> name,
                          const v8::PropertyCallbackInfo<v8::Boolean>& info) {
   if (!name->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("foo"))
            .FromJust()) {
-    return v8::Intercepted::kNo;
+    return v8::Intercepted::know;
   }
 
   // Intercepted, but property deletion failed.
@@ -4062,7 +4062,7 @@ v8::Intercepted PDeleter(Local<Name> name,
 v8::Intercepted IDeleter(uint32_t index,
                          const v8::PropertyCallbackInfo<v8::Boolean>& info) {
   if (index != 2) {
-    return v8::Intercepted::kNo;
+    return v8::Intercepted::know;
   }
 
   // Intercepted, but property deletion failed.
@@ -4138,7 +4138,7 @@ v8::Intercepted GetK(Local<Name> name,
     info.GetReturnValue().SetUndefined();
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted IndexedGetK(uint32_t index,
@@ -4149,7 +4149,7 @@ v8::Intercepted IndexedGetK(uint32_t index,
     info.GetReturnValue().SetUndefined();
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 }  // namespace
 
@@ -4488,7 +4488,7 @@ v8::Intercepted InterceptorCallICGetter5(
     info.GetReturnValue().Set(call_ic_function5_global);
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 }  // namespace
 
@@ -4533,7 +4533,7 @@ v8::Intercepted InterceptorCallICGetter6(
     info.GetReturnValue().Set(call_ic_function6_global);
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 }  // namespace
 
@@ -4686,7 +4686,7 @@ v8::Intercepted InterceptorKeyedCallICGetter(
     info.GetReturnValue().Set(keyed_call_ic_function_global);
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 }  // namespace
 
@@ -4907,7 +4907,7 @@ v8::Intercepted InterceptorICRefErrorGetter(
     info.GetReturnValue().Set(call_ic_function2_global);
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 }  // namespace
 
@@ -4955,7 +4955,7 @@ int interceptor_ic_exception_get_count = 0;
 
 v8::Intercepted InterceptorICExceptionGetter(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
-  if (is_bootstrapping) return v8::Intercepted::kNo;
+  if (is_bootstrapping) return v8::Intercepted::know;
   if (v8_str("x")
           ->Equals(info.GetIsolate()->GetCurrentContext(), name)
           .FromJust() &&
@@ -4970,7 +4970,7 @@ v8::Intercepted InterceptorICExceptionGetter(
     info.GetIsolate()->ThrowException(v8_num(42));
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 }  // namespace
 
@@ -5025,7 +5025,7 @@ v8::Intercepted InterceptorICExceptionSetter(
     info.GetIsolate()->ThrowException(v8_num(42));
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 }  // namespace
 
@@ -6027,7 +6027,7 @@ v8::Intercepted ShouldNamedInterceptor(
     Local<Name> name, const v8::PropertyCallbackInfo<Value>& info) {
   CheckReturnValue(info, FUNCTION_ADDR(ShouldNamedInterceptor));
   auto data = GetWrappedObject<ShouldInterceptData>(info.Data());
-  if (!data->should_intercept) return v8::Intercepted::kNo;
+  if (!data->should_intercept) return v8::Intercepted::know;
   // Side effects are allowed only when the property is present or throws.
   ApiTestFuzzer::Fuzz();
   info.GetReturnValue().Set(v8_num(data->value));
@@ -6307,7 +6307,7 @@ v8::Intercepted QueryInterceptorForFoo(
   if (!v8_str("foo")
            ->Equals(info.GetIsolate()->GetCurrentContext(), property)
            .FromJust()) {
-    return v8::Intercepted::kNo;
+    return v8::Intercepted::know;
   }
   // "foo" is enumerable.
   info.GetReturnValue().Set(v8::PropertyAttribute::None);
@@ -6444,9 +6444,9 @@ v8::Intercepted DatabaseGetter(Local<Name> name,
   auto context = info.GetIsolate()->GetCurrentContext();
   v8::MaybeLocal<Value> maybe_db =
       info.HolderV2()->GetRealNamedProperty(context, v8_str("db"));
-  if (maybe_db.IsEmpty()) return v8::Intercepted::kNo;
+  if (maybe_db.IsEmpty()) return v8::Intercepted::know;
   Local<v8::Object> db = maybe_db.ToLocalChecked().As<v8::Object>();
-  if (!db->Has(context, name).FromJust()) return v8::Intercepted::kNo;
+  if (!db->Has(context, name).FromJust()) return v8::Intercepted::know;
 
   // Side effects are allowed only when the property is present or throws.
   ApiTestFuzzer::Fuzz();
@@ -6458,7 +6458,7 @@ v8::Intercepted DatabaseSetter(Local<Name> name, Local<Value> value,
                                const v8::PropertyCallbackInfo<void>& info) {
   auto context = info.GetIsolate()->GetCurrentContext();
   if (name->Equals(context, v8_str("db")).FromJust())
-    return v8::Intercepted::kNo;
+    return v8::Intercepted::know;
 
   // Side effects are allowed only when the property is present or throws.
   ApiTestFuzzer::Fuzz();
@@ -6513,7 +6513,7 @@ namespace {
 v8::Intercepted CheckReceiver(Local<Name> name,
                               const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(info.This()->IsObject());
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 }  // namespace
 
@@ -6547,7 +6547,7 @@ v8::Intercepted Regress42204611_Getter(
       info.Data().As<v8::External>()->Value(kCallsTag));
 
   calls->push_back("getter");
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 v8::Intercepted Regress42204611_Setter(
     Local<Name> name, Local<Value> value,
@@ -6556,7 +6556,7 @@ v8::Intercepted Regress42204611_Setter(
       info.Data().As<v8::External>()->Value(kCallsTag));
 
   calls->push_back("setter");
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 v8::Intercepted Regress42204611_Definer(
     Local<Name> name, const v8::PropertyDescriptor& descriptor,
@@ -6565,7 +6565,7 @@ v8::Intercepted Regress42204611_Definer(
       info.Data().As<v8::External>()->Value(kCallsTag));
 
   calls->push_back("definer");
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 }  // namespace

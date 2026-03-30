@@ -52,7 +52,7 @@ int32_t NumberFormatterImpl::getPrefixSuffixStatic(const MacroProps& macros, Sig
 
 // NOTE: C++ SPECIFIC DIFFERENCE FROM JAVA:
 // The "safe" apply method uses a new MicroProps. In the MicroPropsGenerator, fMicros is copied into the new instance.
-// The "unsafe" method simply re-uses fMicros, eliminating the extra copy operation.
+// The "unsafe" method simply reuses fMicros, eliminating the extra copy operation.
 // See MicroProps::processQuantity() for details.
 
 int32_t NumberFormatterImpl::format(UFormattedNumberData *results, UErrorCode &status) const {

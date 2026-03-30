@@ -1078,7 +1078,7 @@ class Graph {
     DCHECK_EQ(generation_ + 1, companion.generation_);
     generation_ = companion.generation_++;
 #endif  // DEBUG
-    // Reseting phase-specific fields.
+    // Resetting phase-specific fields.
     loop_unrolling_analyzer_ = nullptr;
     stack_checks_to_remove_.clear();
   }
@@ -1159,7 +1159,7 @@ class Graph {
   }
 
   // Allocates pointer-stable storage for new blocks, and pushes the pointers
-  // to that storage to `bound_blocks_`. Initialization of the blocks is defered
+  // to that storage to `bound_blocks_`. Initialization of the blocks is deferred
   // to when they are actually constructed in `NewBlocks`.
   V8_NOINLINE V8_PRESERVE_MOST void AllocateNewBlocks() {
     constexpr size_t kMinCapacity = 32;
@@ -1264,7 +1264,7 @@ V8_INLINE Operation& Block::LastOperation(Graph& graph) const {
 
 V8_INLINE bool Block::HasPhis(const Graph& graph) const {
   // TODO(dmercadier): consider re-introducing the invariant that Phis are
-  // always at the begining of a block to speed up such functions. Currently,
+  // always at the beginning of a block to speed up such functions. Currently,
   // in practice, Phis do not appear after the first non-FrameState non-Constant
   // operation, but this is not enforced.
   DCHECK_EQ(graph_generation_, graph.generation());

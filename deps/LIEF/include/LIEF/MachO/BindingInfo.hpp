@@ -47,7 +47,7 @@ class LIEF_API BindingInfo : public Object {
     DYLD_INFO,       /// Binding associated with the Dyld info opcodes
     CHAINED,         /// Binding associated with the chained fixups
     CHAINED_LIST,    /// Internal use
-    INDIRECT_SYMBOL, /// Infered from the indirect symbols table
+    INDIRECT_SYMBOL, /// Inferred from the indirect symbols table
   };
 
   BindingInfo() = default;

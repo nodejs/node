@@ -491,7 +491,7 @@ Section* Binary::add_section(const Section& section) {
   }
 
   if (sections_.size() >= std::numeric_limits<uint16_t>::max()) {
-    LIEF_INFO("Binary reachs its maximum number of sections");
+    LIEF_INFO("Binary reaches its maximum number of sections");
     return nullptr;
   }
 
@@ -1496,5 +1496,5 @@ std::ostream& Binary::print(std::ostream& os) const {
   return os;
 }
 
-} // namesapce PE
+} // namespace PE
 } // namespace LIEF

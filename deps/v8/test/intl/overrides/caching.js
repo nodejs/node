@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Performance test for overriden methods. Makes sure that default case
+// Performance test for overridden methods. Makes sure that default case
 // is faster (cached) than the general case.
 
 // Default, cached.

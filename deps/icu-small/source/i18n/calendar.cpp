@@ -3393,7 +3393,7 @@ int32_t Calendar::handleComputeJulianDay(UCalendarDateFields bestField, UErrorCo
     }
 
     internalSet(UCAL_EXTENDED_YEAR, year);
-    // Return U_ILLEGAL_ARGUMENT_ERROR if year is too large that may cuase int32_t overflow
+    // Return U_ILLEGAL_ARGUMENT_ERROR if year is too large that may cause int32_t overflow
     // later.
     if (year > INT32_MAX / 400) {
         status = U_ILLEGAL_ARGUMENT_ERROR;
@@ -4176,7 +4176,7 @@ Calendar::setWeekData(const Locale& desiredLocale, const char *type, UErrorCode&
         }
 
         // Check if the locale has a "fw" u extension and we honor it if present.
-        // And we don't change the overal status, as the presence / lack of "fw" is not an error.
+        // And we don't change the overall status, as the presence / lack of "fw" is not an error.
         UErrorCode fwStatus = U_ZERO_ERROR;
         char fwExt[ULOC_FULLNAME_CAPACITY] = "";
         desiredLocale.getKeywordValue("fw", fwExt, ULOC_FULLNAME_CAPACITY, fwStatus);

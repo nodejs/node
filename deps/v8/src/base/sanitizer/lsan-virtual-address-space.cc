@@ -15,11 +15,11 @@ namespace v8 {
 namespace base {
 
 LsanVirtualAddressSpace::LsanVirtualAddressSpace(
-    std::unique_ptr<v8::VirtualAddressSpace> vas)
+    std::unique_ptr<v8::VirtualAddressSpace> was)
     : VirtualAddressSpace(vas->page_size(), vas->allocation_granularity(),
                           vas->base(), vas->size(),
                           vas->max_page_permissions()),
-      vas_(std::move(vas)) {
+      vas_(std::move(was)) {
   DCHECK_NOT_NULL(vas_);
 }
 

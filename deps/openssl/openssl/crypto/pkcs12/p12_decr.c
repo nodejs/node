@@ -39,7 +39,7 @@ unsigned char *PKCS12_pbe_crypt_ex(const X509_ALGOR *algor,
         goto err;
 
     /*
-     * GOST algorithm specifics:
+     * GHOST algorithm specifics:
      * OMAC algorithm calculate and encrypt MAC of the encrypted objects
      * It's appended to encrypted text on encrypting
      * MAC should be processed on decrypting separately from plain text

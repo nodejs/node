@@ -2071,7 +2071,7 @@ ZSTD_reset_matchState(ZSTD_MatchState_t* ms,
 /* ZSTD_indexTooCloseToMax() :
  * minor optimization : prefer memset() rather than reduceIndex()
  * which is measurably slow in some circumstances (reported for Visual Studio).
- * Works when re-using a context for a lot of smallish inputs :
+ * Works when reusing a context for a lot of smallish inputs :
  * if all inputs are smaller than ZSTD_INDEXOVERFLOW_MARGIN,
  * memset() will be triggered before reduceIndex().
  */
@@ -4365,7 +4365,7 @@ ZSTD_compressBlock_splitBlock(ZSTD_CCtx* zc,
         if (bss == ZSTDbss_noCompress) {
             if (zc->blockState.prevCBlock->entropy.fse.offcode_repeatMode == FSE_repeat_valid)
                 zc->blockState.prevCBlock->entropy.fse.offcode_repeatMode = FSE_repeat_check;
-            RETURN_ERROR_IF(zc->seqCollector.collectSequences, sequenceProducer_failed, "Uncompressible block");
+            RETURN_ERROR_IF(zc->seqCollector.collectSequences, sequenceProducer_failed, "Incompressible block");
             cSize = ZSTD_noCompressBlock(dst, dstCapacity, src, srcSize, lastBlock);
             FORWARD_IF_ERROR(cSize, "ZSTD_noCompressBlock failed");
             DEBUGLOG(5, "ZSTD_compressBlock_splitBlock: Nocompress block");
@@ -4399,7 +4399,7 @@ ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
     {   const size_t bss = ZSTD_buildSeqStore(zc, src, srcSize);
         FORWARD_IF_ERROR(bss, "ZSTD_buildSeqStore failed");
         if (bss == ZSTDbss_noCompress) {
-            RETURN_ERROR_IF(zc->seqCollector.collectSequences, sequenceProducer_failed, "Uncompressible block");
+            RETURN_ERROR_IF(zc->seqCollector.collectSequences, sequenceProducer_failed, "Incompressible block");
             cSize = 0;
             goto out;
         }
@@ -7126,7 +7126,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* cctx,
  * we use _mm256_permute4x64_epi64(..., 0xE8) to move lane2 into lane1,
  * then store the lower 16 bytes in one go.
  *
- * @returns 0 on succes, with no long length detected
+ * @returns 0 on success, with no long length detected
  * @returns > 0 if there is one long length (> 65535),
  * indicating the position, and type.
  */

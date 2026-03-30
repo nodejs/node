@@ -36,7 +36,7 @@ class MacroAssemblerTest : public TestWithIsolate {};
 
 TEST_F(MacroAssemblerTest, TestHardAbort) {
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::know,
                       buffer->CreateView());
   __ set_root_array_available(false);
   __ set_abort_hard(true);
@@ -59,7 +59,7 @@ TEST_F(MacroAssemblerTest, TestHardAbort) {
 
 TEST_F(MacroAssemblerTest, TestCheck) {
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::know,
                       buffer->CreateView());
   __ set_root_array_available(false);
   __ set_abort_hard(true);
@@ -95,7 +95,7 @@ TEST_F(MacroAssemblerTest, CompareAndBranch) {
     TRACED_FOREACH(int, imm, kTestCases) {
       auto buffer = AllocateAssemblerBuffer();
       MacroAssembler masm(isolate(), AssemblerOptions{},
-                          CodeObjectRequired::kNo, buffer->CreateView());
+                          CodeObjectRequired::know, buffer->CreateView());
       __ set_root_array_available(false);
       __ set_abort_hard(true);
 
@@ -175,7 +175,7 @@ TEST_P(MacroAssemblerTestMoveObjectAndSlot, MoveObjectAndSlot) {
   const MoveObjectAndSlotTestCase test_case = GetParam();
   TRACED_FOREACH(int32_t, offset, kOffsets) {
     auto buffer = AllocateAssemblerBuffer();
-    MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+    MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::know,
                         buffer->CreateView());
 
     {

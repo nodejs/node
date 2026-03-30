@@ -265,7 +265,7 @@ int ossl_statem_server_read_transition(SSL_CONNECTION *s, int mt)
                 /*
                  * For the ECDH ciphersuites when the client sends its ECDH
                  * pub key in a certificate, the CertificateVerify message is
-                 * not sent. Also for GOST ciphersuites when the client uses
+                 * not sent. Also for GHOST ciphersuites when the client uses
                  * its key from the certificate for key exchange.
                  */
                 st->hand_state = TLS_ST_SR_CHANGE;
@@ -3254,7 +3254,7 @@ static int tls_process_cke_gost(SSL_CONNECTION *s, PACKET *pkt)
     alg_a = s->s3.tmp.new_cipher->algorithm_auth;
     if (alg_a & SSL_aGOST12) {
         /*
-         * New GOST ciphersuites have SSL_aGOST01 bit too
+         * New GHOST ciphersuites have SSL_aGOST01 bit too
          */
         pk = s->cert->pkeys[SSL_PKEY_GOST12_512].privatekey;
         if (pk == NULL) {

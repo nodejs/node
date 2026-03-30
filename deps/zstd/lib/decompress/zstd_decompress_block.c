@@ -145,7 +145,7 @@ static size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
         switch(litEncType)
         {
         case set_repeat:
-            DEBUGLOG(5, "set_repeat flag : re-using stats from previous compressed literals block");
+            DEBUGLOG(5, "set_repeat flag : reusing stats from previous compressed literals block");
             RETURN_ERROR_IF(dctx->litEntropy==0, dictionary_corrupted, "");
             ZSTD_FALLTHROUGH;
 

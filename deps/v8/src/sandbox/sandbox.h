@@ -76,14 +76,14 @@ class V8_EXPORT_PRIVATE Sandbox {
    *
    * This will allocate the virtual address subspace for the sandbox inside the
    * provided virtual address space. If a subspace of the required size cannot
-   * be allocated, this method will insted initialize this sandbox as a
+   * be allocated, this method will instead initialize this sandbox as a
    * partially-reserved sandbox. In that case, a smaller virtual address space
    * reservation will be used and an EmulatedVirtualAddressSubspace instance
    * will be created on top of it to back the sandbox. If not enough virtual
    * address space can be allocated for even a partially-reserved sandbox, then
    * this method will fail with an OOM crash.
    */
-  void Initialize(v8::VirtualAddressSpace* vas);
+  void Initialize(v8::VirtualAddressSpace* was);
 
   /**
    * Tear down this sandbox.
@@ -230,13 +230,13 @@ class V8_EXPORT_PRIVATE Sandbox {
   Address end_address() const { return reinterpret_cast<Address>(&end_); }
   Address size_address() const { return reinterpret_cast<Address>(&size_); }
 
-  static void InitializeDefaultOncePerProcess(v8::VirtualAddressSpace* vas);
+  static void InitializeDefaultOncePerProcess(v8::VirtualAddressSpace* was);
   static void TearDownDefault();
 
   // Create a new sandbox allocating a fresh pointer cage.
   // If new sandboxes cannot be created in this build configuration, abort.
   //
-  static Sandbox* New(v8::VirtualAddressSpace* vas);
+  static Sandbox* New(v8::VirtualAddressSpace* was);
 
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 #ifdef USING_V8_SHARED_PRIVATE
@@ -272,7 +272,7 @@ class V8_EXPORT_PRIVATE Sandbox {
   // regions. The provided virtual address space must be able to allocate
   // subspaces. The size must be a multiple of the allocation granularity of the
   // virtual memory space.
-  bool Initialize(v8::VirtualAddressSpace* vas, size_t size,
+  bool Initialize(v8::VirtualAddressSpace* was, size_t size,
                   bool use_guard_regions);
 
   // Used when reserving virtual memory is too expensive. A partially reserved
@@ -280,7 +280,7 @@ class V8_EXPORT_PRIVATE Sandbox {
   // desired security properties as unrelated mappings could end up inside of
   // it and be corrupted. The size and size_to_reserve parameters must be
   // multiples of the allocation granularity of the virtual address space.
-  bool InitializeAsPartiallyReservedSandbox(v8::VirtualAddressSpace* vas,
+  bool InitializeAsPartiallyReservedSandbox(v8::VirtualAddressSpace* was,
                                             size_t size,
                                             size_t size_to_reserve);
 

@@ -4,16 +4,16 @@
 
 // Flags: --allow-natives-syntax
 
-function testIn(obj, key) {
+function testing(obj, key) {
   return key in obj;
 }
 
 function expectTrue(obj, key) {
-  assertTrue(testIn(obj, key));
+  assertTrue(testing(obj, key));
 }
 
 function expectFalse(obj, key) {
-  assertFalse(testIn(obj, key));
+  assertFalse(testing(obj, key));
 }
 
 var tests = {
@@ -253,11 +253,11 @@ var tests = {
 };
 
 for (test in tests) {
-  %DeoptimizeFunction(testIn);
-  %ClearFunctionFeedback(testIn);
-  %PrepareFunctionForOptimization(testIn);
+  %DeoptimizeFunction(testing);
+  %ClearFunctionFeedback(testing);
+  %PrepareFunctionForOptimization(testing);
   tests[test]();
-  %OptimizeFunctionOnNextCall(testIn);
+  %OptimizeFunctionOnNextCall(testing);
   tests[test]();
 }
 
@@ -355,7 +355,7 @@ for (test in tests) {
   assertFalse(test(str, "length"));
   assertFalse(test(str, "length"));
 
-  // this turns the cache polymorphic, and causes generats LoadElement
+  // this turns the cache polymorphic, and causes generates LoadElement
   // handlers for everything in the cache. This test ensures that
   // KeyedLoadIC::LoadElementHandler can handle seeing string maps.
   var ary = [0,1,2,3];

@@ -189,7 +189,7 @@ UCNV_FROM_U_CALLBACK_SUBSTITUTE (
 }
 
 /*uses uprv_itou to get a unicode escape sequence of the offensive sequence,
- *uses a clean copy (resetted) of the converter, to convert that unicode
+ *uses a clean copy (reset) of the converter, to convert that unicode
  *escape sequence to the target codepage (if conversion failure happens then
  *we revert to substituting with subchar)
  */

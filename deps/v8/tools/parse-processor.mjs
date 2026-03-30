@@ -97,7 +97,7 @@ class CompilationUnit {
     this.firstCompileEventTimestamp = this.rawTimestampMin(
         this.deserializationTimestamp, this.compileTimestamp,
         this.baselineTimestamp, this.lazyCompileTimestamp);
-    // Any excuted script needs to be compiled.
+    // Any executed script needs to be compiled.
     if (this.hasBeenExecuted() &&
         (this.firstCompileEventTimestamp <= 0 ||
          this.executionTimestamp < this.firstCompileTimestamp)) {
@@ -160,7 +160,7 @@ class Script extends CompilationUnit {
     this.isBackgroundCompiled = false;
     this.isStreamingCompiled = false;
 
-    this.funktions = [];
+    this.functions = [];
     this.metrics = new Map();
     this.maxNestingLevel = 0;
 
@@ -177,7 +177,7 @@ class Script extends CompilationUnit {
   }
 
   isEmpty() {
-    return this.funktions.length === 0;
+    return this.functions.length === 0;
   }
 
   getFunktionAtStartPosition(start) {
@@ -185,17 +185,17 @@ class Script extends CompilationUnit {
       throw 'position 0 is reserved for the script';
     }
     if (this.finalized) {
-      return this.funktions.find(funktion => funktion.start == start);
+      return this.functions.find(function => function.start == start);
     }
-    return this.funktions[start];
+    return this.functions[start];
   }
 
   // Return the innermost function at the given source position.
   getFunktionForPosition(position) {
     if (!this.finalized) throw 'Incomplete script';
-    for (let i = this.funktions.length - 1; i >= 0; i--) {
-      let funktion = this.funktions[i];
-      if (funktion.containsPosition(position)) return funktion;
+    for (let i = this.functions.length - 1; i >= 0; i--) {
+      let function = this.functions[i];
+      if (function.containsPosition(position)) return function;
     }
     return undefined;
   }
@@ -203,7 +203,7 @@ class Script extends CompilationUnit {
   addMissingFunktions(list) {
     if (this.finalized) throw 'script is finalized!';
     list.forEach(fn => {
-      if (this.funktions[fn.start] === undefined) {
+      if (this.functions[fn.start] === undefined) {
         this.addFunktion(fn);
       }
     });
@@ -211,27 +211,27 @@ class Script extends CompilationUnit {
 
   addFunktion(fn) {
     if (this.finalized) throw 'script is finalized!';
-    if (fn.start === undefined) throw "Funktion has no start position";
-    if (this.funktions[fn.start] !== undefined) {
+    if (fn.start === undefined) throw "Function has no start position";
+    if (this.functions[fn.start] !== undefined) {
       fn.print();
       throw "adding same function twice to script";
     }
-    this.funktions[fn.start] = fn;
+    this.functions[fn.start] = fn;
   }
 
   finalize() {
     this.finalized = true;
-    // Compact funktions as we no longer need access via start byte position.
-    this.funktions = this.funktions.filter(each => true);
+    // Compact functions as we no longer need access via start byte position.
+    this.functions = this.functions.filter(each => true);
     let parent = null;
     let maxNesting = 0;
-    // Iterate over the Funktions in byte position order.
-    this.funktions.forEach(fn => {
+    // Iterate over the Functions in byte position order.
+    this.functions.forEach(fn => {
       fn.isEval = this.isEval;
       if (parent === null) {
         parent = fn;
       } else {
-        // Walk up the nested chain of Funktions to find the parent.
+        // Walk up the nested chain of Functions to find the parent.
         while (parent !== null && !fn.isNestedIn(parent)) {
           parent = parent.parent;
         }
@@ -243,11 +243,11 @@ class Script extends CompilationUnit {
       }
     });
     // Sanity checks to ensure that scripts are executed and parsed before any
-    // of its funktions.
+    // of its functions.
     let funktionFirstParseEventTimestamp = -1;
-    // Second iteration step to finalize the funktions once the proper
+    // Second iteration step to finalize the functions once the proper
     // hierarchy has been set up.
-    this.funktions.forEach(fn => {
+    this.functions.forEach(fn => {
       fn.finalize();
 
       funktionFirstParseEventTimestamp = this.timestampMin(
@@ -263,11 +263,11 @@ class Script extends CompilationUnit {
 
     // Initialize sizes.
     if (this.ownBytes === -1) console.error('Invalid ownBytes');
-    if (this.funktions.length == 0) {
+    if (this.functions.length == 0) {
       this.bytesTotal = this.ownBytes = 0;
       return;
     }
-    let toplevelFunktionBytes = this.funktions.reduce(
+    let toplevelFunktionBytes = this.functions.reduce(
         (bytes, each) => bytes + (each.isToplevel() ? each.getBytes() : 0), 0);
     if (this.isDeserialized || this.isEval || this.isStreamingCompiled) {
       if (this.getBytes() === -1) {
@@ -291,8 +291,8 @@ class Script extends CompilationUnit {
 
   toString() {
     let str = `SCRIPT id=${this.id} file=${this.file}\n` +
-      `functions[${this.funktions.length}]:`;
-    this.funktions.forEach(fn => str += fn.toString());
+      `functions[${this.functions.length}]:`;
+    this.functions.forEach(fn => str += fn.toString());
     return str;
   }
 
@@ -304,7 +304,7 @@ class Script extends CompilationUnit {
     return this.ownBytes;
   }
 
-  // Also see Funktion.prototype.getMetricBytes
+  // Also see Function.prototype.getMetricBytes
   getMetricBytes(name) {
     if (name == 'lazyCompileTimestamp') return this.getOwnBytes();
     return this.getOwnBytes();
@@ -316,7 +316,7 @@ class Script extends CompilationUnit {
 
   forEach(fn) {
     fn(this);
-    this.funktions.forEach(fn);
+    this.functions.forEach(fn);
   }
 
   // Container helper for TotalScript / Script.
@@ -327,7 +327,7 @@ class Script extends CompilationUnit {
   calculateMetrics(printSummary) {
     let log = (str) => this.summary += str + '\n';
     log(`SCRIPT: ${this.id}`);
-    let all = this.funktions;
+    let all = this.functions;
     if (all.length === 0) return;
 
     let nofFunktions = all.length;
@@ -335,15 +335,15 @@ class Script extends CompilationUnit {
       return list.reduce((bytes, each) => bytes + each.getOwnBytes(), 0)
     };
 
-    let info = (name, funktions) => {
-      let ownBytes = ownBytesSum(funktions);
-      let nofPercent = Math.round(funktions.length / nofFunktions * 100);
-      let value = (funktions.length + "#").padStart(7) +
+    let info = (name, functions) => {
+      let ownBytes = ownBytesSum(functions);
+      let nofPercent = Math.round(functions.length / nofFunktions * 100);
+      let value = (functions.length + "#").padStart(7) +
         (nofPercent + "%").padStart(5) +
         BYTES(ownBytes, this.bytesTotal).padStart(16);
       log((`  - ${name}`).padEnd(20) + value);
       this.metrics.set(name + "-bytes", ownBytes);
-      this.metrics.set(name + "-count", funktions.length);
+      this.metrics.set(name + "-count", functions.length);
       this.metrics.set(name + "-count-percent", nofPercent);
       this.metrics.set(name + "-bytes-percent",
         Math.round(ownBytes / this.bytesTotal * 100));
@@ -404,8 +404,8 @@ class Script extends CompilationUnit {
     if (end <= start) throw `Invalid ranges [${start},${end}]`;
     const timespan = end - start;
     const kSteps = Math.ceil(timespan / delta);
-    // To reduce the time spent iterating over the funktions of this script
-    // we iterate once over all funktions and add the metric changes to each
+    // To reduce the time spent iterating over the functions of this script
+    // we iterate once over all functions and add the metric changes to each
     // timepoint:
     // [ [0, 300, ...], [1,  15, ...], [2, 100, ...], [3,   0, ...] ... ]
     // In a second step we accumulate all values:
@@ -426,7 +426,7 @@ class Script extends CompilationUnit {
     // Create rows with 0-time entry.
     let rows = new Array(rowTemplate.slice());
     for (let t = 1; t <= kSteps; t++) rows.push(null);
-    // Create the real metric's property name on the Funktion object.
+    // Create the real metric's property name on the Function object.
     // Add the increments of each Funktion's metric to the result.
     this.forEach(funktionOrScript => {
       // Iterate over the Funktion's metric names, skipping position 0 which
@@ -496,10 +496,10 @@ class Script extends CompilationUnit {
   }
 
   getFunktionsAtTime(time, delta, metric) {
-    // Returns a list of Funktions whose metric changed in the
+    // Returns a list of Functions whose metric changed in the
     // [time-delta, time+delta] range.
-    return this.funktions.filter(
-      funktion => funktion.didMetricChange(time, delta, metric));
+    return this.functions.filter(
+      function => function.didMetricChange(time, delta, metric));
   }
 }
 
@@ -511,14 +511,14 @@ class TotalScript extends Script {
   }
 
   addAllFunktions(script) {
-    // funktions is indexed by byte offset and as such not packed. Add every
-    // Funktion one by one to keep this.funktions packed.
-    script.funktions.forEach(fn => this.funktions.push(fn));
+    // functions is indexed by byte offset and as such not packed. Add every
+    // Function one by one to keep this.functions packed.
+    script.functions.forEach(fn => this.functions.push(fn));
     this.scripts.push(script);
     this.bytesTotal += script.bytesTotal;
   }
 
-  // Iterate over all Scripts and nested Funktions.
+  // Iterate over all Scripts and nested Functions.
   forEach(fn) {
     this.scripts.forEach(script => script.forEach(fn));
   }
@@ -532,7 +532,7 @@ class TotalScript extends Script {
 // ===========================================================================
 
 class NestingDistribution {
-  constructor(funktions) {
+  constructor(functions) {
     // Stores the nof bytes per function nesting level.
     this.accumulator = [0, 0, 0, 0, 0];
     // Max nof bytes encountered at any nesting level.
@@ -541,7 +541,7 @@ class NestingDistribution {
     this.avg = 0;
     this.totalBytes = 0;
 
-    funktions.forEach(each => each.accumulateNestingLevel(this.accumulator));
+    functions.forEach(each => each.accumulateNestingLevel(this.accumulator));
     this.max = this.accumulator.reduce((max, each) => Math.max(max, each), 0);
     this.totalBytes = this.accumulator.reduce((sum, each) => sum + each, 0);
     for (let i = 0; i < this.accumulator.length; i++) {
@@ -577,7 +577,7 @@ class NestingDistribution {
 }
 
 class ExecutionCost {
-  constructor(prefix, funktions, time_fn) {
+  constructor(prefix, functions, time_fn) {
     this.prefix = prefix;
     // Time spent on executed functions.
     this.executedCost = 0;
@@ -585,10 +585,10 @@ class ExecutionCost {
     this.nonExecutedCost = 0;
     this.maxDuration = 0;
 
-    for (let i = 0; i < funktions.length; i++) {
-      const funktion = funktions[i];
-      const value = time_fn(funktion);
-      if (funktion.hasBeenExecuted()) {
+    for (let i = 0; i < functions.length; i++) {
+      const function = functions[i];
+      const value = time_fn(function);
+      if (function.hasBeenExecuted()) {
         this.executedCost +=  value;
       } else {
         this.nonExecutedCost += value;
@@ -616,7 +616,7 @@ class ExecutionCost {
 
 // ===========================================================================
 
-class Funktion extends CompilationUnit {
+class Function extends CompilationUnit {
   constructor(name, start, end, script) {
     super();
     if (start < 0) throw `invalid start position: ${start}`;
@@ -666,9 +666,9 @@ class Funktion extends CompilationUnit {
     return this[name];
   }
 
-  isNestedIn(funktion) {
-    if (this.script != funktion.script) throw "Incompatible script";
-    return funktion.start < this.start && this.end <= funktion.end;
+  isNestedIn(function) {
+    if (this.script != function.script) throw "Incompatible script";
+    return function.start < this.start && this.end <= function.end;
   }
 
   isToplevel() {
@@ -898,20 +898,20 @@ export class ParseProcessor extends LogReader {
       return this.lookupFunktionByRange(startPosition, endPosition);
     }
     let script = this.lookupScript(scriptId);
-    let funktion = script.getFunktionAtStartPosition(startPosition);
-    if (funktion === undefined) {
-      funktion = new Funktion(functionName, startPosition, endPosition, script);
+    let function = script.getFunktionAtStartPosition(startPosition);
+    if (function === undefined) {
+      function = new Function(functionName, startPosition, endPosition, script);
     }
-    return funktion;
+    return function;
   }
 
   // Iterates over all functions and tries to find matching ones.
   lookupFunktionsByRange(start, end) {
     let results = [];
     this.idToScript.forEach(script => {
-      script.forEach(funktion => {
-        if (funktion.startPosition == start && funktion.endPosition == end) {
-          results.push(funktion);
+      script.forEach(function => {
+        if (function.startPosition == start && function.endPosition == end) {
+          results.push(function);
         }
       });
     });
@@ -987,19 +987,19 @@ export class ParseProcessor extends LogReader {
       script.isEval = true;
       return;
     }
-    let funktion = this.getOrCreateFunction(...arguments);
-    // TODO(cbruni): this should never happen, emit differen event from the
+    let function = this.getOrCreateFunction(...arguments);
+    // TODO(cbruni): this should never happen, emit different event from the
     // parser.
-    if (funktion.parseTimestamp > 0) return;
-    funktion.parseTimestamp = startOf(timestamp, duration);
-    funktion.parseDuration = duration;
+    if (function.parseTimestamp > 0) return;
+    function.parseTimestamp = startOf(timestamp, duration);
+    function.parseDuration = duration;
   }
 
   processParseFunction(
       scriptId, startPosition, endPosition, duration, timestamp, functionName) {
-    let funktion = this.getOrCreateFunction(...arguments);
-    funktion.parseTimestamp = startOf(timestamp, duration);
-    funktion.parseDuration = duration;
+    let function = this.getOrCreateFunction(...arguments);
+    function.parseTimestamp = startOf(timestamp, duration);
+    function.parseDuration = duration;
   }
 
   processParseScript(
@@ -1014,19 +1014,19 @@ export class ParseProcessor extends LogReader {
 
   processPreparseResolution(
       scriptId, startPosition, endPosition, duration, timestamp, functionName) {
-    let funktion = this.getOrCreateFunction(...arguments);
+    let function = this.getOrCreateFunction(...arguments);
     // TODO(cbruni): this should never happen, emit different event from the
     // parser.
-    if (funktion.resolutionTimestamp > 0) return;
-    funktion.resolutionTimestamp = startOf(timestamp, duration);
-    funktion.resolutionDuration = duration;
+    if (function.resolutionTimestamp > 0) return;
+    function.resolutionTimestamp = startOf(timestamp, duration);
+    function.resolutionDuration = duration;
   }
 
   processPreparseNoResolution(
       scriptId, startPosition, endPosition, duration, timestamp, functionName) {
-    let funktion = this.getOrCreateFunction(...arguments);
-    funktion.preparseTimestamp = startOf(timestamp, duration);
-    funktion.preparseDuration = duration;
+    let function = this.getOrCreateFunction(...arguments);
+    function.preparseTimestamp = startOf(timestamp, duration);
+    function.preparseDuration = duration;
   }
 
   processFirstExecution(
@@ -1038,20 +1038,20 @@ export class ParseProcessor extends LogReader {
         script.executionTimestamp = toTimestamp(timestamp);
       }
     } else {
-      let funktion = script.getFunktionAtStartPosition(startPosition);
-      if (funktion) {
-        funktion.executionTimestamp = toTimestamp(timestamp);
+      let function = script.getFunktionAtStartPosition(startPosition);
+      if (function) {
+        function.executionTimestamp = toTimestamp(timestamp);
       } else {
-        // TODO(cbruni): handle funktions from  compilation-cache hits.
+        // TODO(cbruni): handle functions from  compilation-cache hits.
       }
     }
   }
 
   processCompileLazy(
       scriptId, startPosition, endPosition, duration, timestamp, functionName) {
-    let funktion = this.getOrCreateFunction(...arguments);
-    funktion.lazyCompileTimestamp = startOf(timestamp, duration);
-    funktion.lazyCompileDuration = duration;
+    let function = this.getOrCreateFunction(...arguments);
+    function.lazyCompileTimestamp = startOf(timestamp, duration);
+    function.lazyCompileDuration = duration;
   }
 
   processCompile(
@@ -1063,15 +1063,15 @@ export class ParseProcessor extends LogReader {
       script.bytesTotal = endPosition;
       return script;
     } else {
-      let funktion = script.getFunktionAtStartPosition(startPosition);
-      if (funktion === undefined) {
-        // This should not happen since any funktion has to be parsed first.
-        console.error('processCompile funktion not found', ...arguments);
+      let function = script.getFunktionAtStartPosition(startPosition);
+      if (function === undefined) {
+        // This should not happen since any function has to be parsed first.
+        console.error('processCompile function not found', ...arguments);
         return;
       }
-      funktion.compileTimestamp = startOf(timestamp, duration);
-      funktion.compileDuration = duration;
-      return funktion;
+      function.compileTimestamp = startOf(timestamp, duration);
+      function.compileDuration = duration;
+      return function;
     }
   }
 
@@ -1088,8 +1088,8 @@ export class ParseProcessor extends LogReader {
       compilationUnit =
           compilationUnit.getFunktionAtStartPosition(startPosition);
       if (compilationUnit === undefined) {
-        // This should not happen since any funktion has to be parsed first.
-        console.error('processBaselineLazy funktion not found', ...arguments);
+        // This should not happen since any function has to be parsed first.
+        console.error('processBaselineLazy function not found', ...arguments);
         return;
       }
     }
@@ -1104,8 +1104,8 @@ export class ParseProcessor extends LogReader {
       compilationUnit =
           compilationUnit.getFunktionAtStartPosition(startPosition);
       if (compilationUnit === undefined) {
-        // This should not happen since any funktion has to be parsed first.
-        console.error('processOptimizeLazy funktion not found', ...arguments);
+        // This should not happen since any function has to be parsed first.
+        console.error('processOptimizeLazy function not found', ...arguments);
         return;
       }
     }

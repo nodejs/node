@@ -87,7 +87,7 @@ class LIEF_API Relocation : public LIEF::Relocation {
     return type_;
   }
 
-  /// Achitecture targeted by this relocation
+  /// Architecture targeted by this relocation
   Header::CPU_TYPE architecture() const {
     return architecture_;
   }

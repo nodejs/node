@@ -28,7 +28,7 @@ struct LoadStoreSimplificationConfiguration {
   // TODO(12783): This needs to be extended for all architectures that don't
   // have loads with the base + index * element_size + offset pattern.
 #if V8_TARGET_ARCH_RESTRICTIVE_LOAD_STORE
-  // As tagged loads result in modfiying the offset by -1, those loads are
+  // As tagged loads result in modifying the offset by -1, those loads are
   // converted into raw loads.
   static constexpr bool kNeedsUntaggedBase = true;
   // By setting {kMinOffset} > {kMaxOffset}, we ensure that all offsets
@@ -51,7 +51,7 @@ struct LoadStoreSimplificationConfiguration {
   static constexpr int kMaxElementSizeLog2 = 0;
 #else
   static constexpr bool kNeedsUntaggedBase = false;
-  // We don't want to encode INT32_MIN in the offset becauce instruction
+  // We don't want to encode INT32_MIN in the offset because instruction
   // selection might not be able to put this into an immediate operand.
   static constexpr int32_t kMinOffset = std::numeric_limits<int32_t>::min() + 1;
   static constexpr int32_t kMaxOffset = std::numeric_limits<int32_t>::max();

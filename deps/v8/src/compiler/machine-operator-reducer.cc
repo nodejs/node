@@ -2788,7 +2788,7 @@ struct SimplifiedCondition {
   bool is_inverted;
 };
 
-// Tries to simplifies |cond| by removing all top-level "== 0". Everytime such a
+// Tries to simplifies |cond| by removing all top-level "== 0". Every time such a
 // construction is removed, the meaning of the comparison is inverted. This is
 // recorded by the variable |is_inverted| throughout this function, and returned
 // at the end. If |is_inverted| is true at the end, the caller should invert the

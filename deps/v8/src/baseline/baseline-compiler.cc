@@ -289,7 +289,7 @@ BaselineCompiler::BaselineCompiler(
       masm_(
           local_isolate->GetMainThreadIsolateUnsafe(), &zone_,
           BaselineAssemblerOptions(local_isolate->GetMainThreadIsolateUnsafe()),
-          CodeObjectRequired::kNo, AllocateBuffer(bytecode)),
+          CodeObjectRequired::know, AllocateBuffer(bytecode)),
       basm_(&masm_),
       iterator_(bytecode_),
       labels_(zone_.AllocateArray<Label>(bytecode_->length())),

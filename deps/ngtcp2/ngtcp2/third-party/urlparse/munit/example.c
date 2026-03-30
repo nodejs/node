@@ -74,7 +74,7 @@ static MunitResult test_compare(const MunitParameter params[], void *data) {
 
   /* If you want to compare two doubles for equality, you might want
    * to consider using munit_assert_double_equal.  It compares two
-   * doubles for equality within a precison of 1.0 x 10^-(precision).
+   * doubles for equality within a precision of 1.0 x 10^-(precision).
    * Note that precision (the third argument to the macro) needs to be
    * fully evaluated to an integer by the preprocessor so µnit doesn't
    * have to depend pow, which is often in libm not libc. */
@@ -135,7 +135,7 @@ static MunitResult test_rand(const MunitParameter params[], void *user_data) {
    *
    * µnit's PRNG is re-seeded with the same value for each iteration
    * of each test.  The seed is retrieved from the MUNIT_SEED
-   * envirnment variable or, if none is provided, one will be
+   * environment variable or, if none is provided, one will be
    * (pseudo-)randomly generated. */
 
   /* If you need an integer in a given range */
@@ -199,7 +199,7 @@ static MunitResult test_parameters(const MunitParameter params[],
    * option.
    *
    * Possible values are:
-   *  - MUNIT_OK: Sucess
+   *  - MUNIT_OK: Success
    *  - MUNIT_FAIL: Failure
    *  - MUNIT_SKIP: The test was skipped; usually this happens when a
    *    particular feature isn't in use.  For example, if you're

@@ -687,7 +687,7 @@ TEST_F(RunBytecodeGraphBuilderTest, BytecodeGraphBuilderCallRuntime) {
 SHARD_TEST_BY_2(BytecodeGraphBuilderGlobals)
 
 TEST_F(RunBytecodeGraphBuilderTest, BytecodeGraphBuilderToObject) {
-  // TODO(mythria): tests for ToObject. Needs ForIn.
+  // TODO(mythria): tests for ToObject. Needs foreign.
 }
 
 TEST_F(RunBytecodeGraphBuilderTest, BytecodeGraphBuilderToName) {

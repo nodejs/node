@@ -43,7 +43,7 @@ pub(crate) fn parse_ambiguous_tz_annotation<'a>(
         .ok_or(ParseError::abrupt_end("AmbiguousAnnotation"))?;
 
     if is_tz_leading_char(leading_char) || is_ascii_sign(leading_char) {
-        // Ambigious start values when lowercase alpha that is shared between `TzLeadingChar` and `KeyLeadingChar`.
+        // Ambiguous start values when lowercase alpha that is shared between `TzLeadingChar` and `KeyLeadingChar`.
         if is_a_key_leading_char(leading_char) {
             let mut peek_pos = current_peek + 1;
             while let Some(ch) = cursor.peek_n(peek_pos) {

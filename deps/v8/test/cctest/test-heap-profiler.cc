@@ -3401,7 +3401,7 @@ TEST(TrackBumpPointerAllocations) {
   {
     heap_profiler->StartTrackingHeapObjects(true);
 
-    // Now check that not all allocations are tracked if we manually reenable
+    // Now check that not all allocations are tracked if we manually re-enable
     // inline allocations.
     CHECK(i::v8_flags.single_generation ||
           !CcTest::heap()->IsInlineAllocationEnabled());
@@ -4235,7 +4235,7 @@ TEST(SamplingHeapProfilerRateAgnosticEstimates) {
     // we will sample different numbers of objects at different rates,
     // the unsampling process should produce similar final estimates
     // at the true number of allocations. However, the process to
-    // determine these unsampled counts is probabilisitic so we need to
+    // determine these unsampled counts is probabilistic so we need to
     // account for error.
     double max_count = std::max(count_128, count_1024);
     double min_count = std::min(count_128, count_1024);

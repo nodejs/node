@@ -113,7 +113,7 @@ v8::Maybe<v8::PropertyAttribute> DebugPropertyIterator::attributes() {
   // This should almost never happen, however we have seen cases where we do
   // trigger this check. In these rare events, it typically is a
   // misconfiguration by an embedder (such as Blink) in how the embedder
-  // processes properities.
+  // processes properties.
   //
   // In the case of crbug.com/1262066 we discovered that Blink was returning
   // a list of properties to contain in an object, after which V8 queries each

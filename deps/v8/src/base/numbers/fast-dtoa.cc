@@ -649,7 +649,7 @@ static bool Grisu3(double v, char** outptr, int* decimal_exponent) {
   // the difference between w and boundary_minus/plus (a power of 2) and to
   // compute scaled_boundary_minus/plus by subtracting/adding from
   // scaled_w. However the code becomes much less readable and the speed
-  // enhancements are not terriffic.
+  // enhancements are not terrific.
   DiyFp scaled_boundary_minus = DiyFp::Times(boundary_minus, ten_mk);
   DiyFp scaled_boundary_plus = DiyFp::Times(boundary_plus, ten_mk);
 

@@ -276,7 +276,7 @@ OptionMap::Builder& OptionMap::Builder::operator=(OptionMap::Builder other) noex
 
 /* static */ OptionMap::Builder OptionMap::Builder::attributes(UErrorCode& status) {
     Builder b(status);
-    // The same code is re-used for representing attributes and options.
+    // The same code is reused for representing attributes and options.
     // Duplicate attributes are allowed, while duplicate options are disallowed.
     b.checkDuplicates = false;
     return b;

@@ -171,7 +171,7 @@ $t7="r31";
 #
 $ba="f0";	$bb="f1";	$bc="f2";	$bd="f3";
 $na="f4";	$nb="f5";	$nc="f6";	$nd="f7";
-$dota="f8";	$dotb="f9";
+$data="f8";	$dotb="f9";
 $A0="f10";	$A1="f11";	$A2="f12";	$A3="f13";
 $N0="f20";	$N1="f21";	$N2="f22";	$N3="f23";
 $T0a="f24";	$T0b="f25";
@@ -433,7 +433,7 @@ $code.=<<___;
 	fmadd	$T2b,$A1,$bd,$T2b
 	fmadd	$T3a,$A2,$bc,$T3a
 	fmadd	$T3b,$A2,$bd,$T3b
-	fmul	$dota,$A3,$bc
+	fmul	$data,$A3,$bc
 	fmul	$dotb,$A3,$bd
 
 	fmadd	$T1a,$N1,$na,$T1a
@@ -451,7 +451,7 @@ $code.=<<___;
 	fmadd	$T2b,$N1,$nd,$T2b
 	fmadd	$T3a,$N2,$nc,$T3a
 	fmadd	$T3b,$N2,$nd,$T3b
-	fmadd	$dota,$N3,$nc,$dota
+	fmadd	$data,$N3,$nc,$data
 	fmadd	$dotb,$N3,$nd,$dotb
 
 	fctid	$T0a,$T0a
@@ -556,7 +556,7 @@ $code.=<<___;
 	stfd	$A1,16($nap_d)
 	fmul	$T3a,$A3,$ba
 	fmul	$T3b,$A3,$bb
-	fmadd	$T0a,$A0,$ba,$dota
+	fmadd	$T0a,$A0,$ba,$data
 	fmadd	$T0b,$A0,$bb,$dotb
 	stfd	$A2,24($nap_d)		; save a[j+1] in double format
 	stfd	$A3,32($nap_d)
@@ -572,7 +572,7 @@ $code.=<<___;
 	fmadd	$T3a,$A2,$bc,$T3a
 	fmadd	$T3b,$A2,$bd,$T3b
 	 add	$t0,$t0,$carry		; can not overflow
-	fmul	$dota,$A3,$bc
+	fmul	$data,$A3,$bc
 	fmul	$dotb,$A3,$bd
 	stfd	$N2,56($nap_d)		; save n[j+1] in double format
 	stfdu	$N3,64($nap_d)
@@ -604,7 +604,7 @@ $code.=<<___;
 	fmadd	$T3a,$N2,$nc,$T3a
 	fmadd	$T3b,$N2,$nd,$T3b
 	 srdi	$carry,$t4,16
-	fmadd	$dota,$N3,$nc,$dota
+	fmadd	$data,$N3,$nc,$data
 	fmadd	$dotb,$N3,$nd,$dotb
 	 add	$t5,$t5,$carry
 	 srdi	$carry,$t5,16
@@ -654,7 +654,7 @@ $code.=<<___;
 	 addc	$t2,$t2,$carry
 	 adde	$t3,$t3,$c1
 	 srwi	$carry,$t2,16
-	fmul	$dota,$A3,$bc
+	fmul	$data,$A3,$bc
 	fmul	$dotb,$A3,$bd
 	stfd	$N2,56($nap_d)		; save n[j+1] in double format
 	stfdu	$N3,64($nap_d)
@@ -704,7 +704,7 @@ $code.=<<___;
 	 addc	$t6,$t6,$carry
 	 adde	$t7,$t7,$c1
 	 srwi	$carry,$t6,16
-	fmadd	$dota,$N3,$nc,$dota
+	fmadd	$data,$N3,$nc,$data
 	fmadd	$dotb,$N3,$nd,$dotb
 	 insrwi	$t2,$t6,16,0		; 64..95 bits
 	 srwi	$c1,$t7,16
@@ -747,7 +747,7 @@ ___
 $code.=<<___;
 	bdnz	L1st
 
-	fctid	$dota,$dota
+	fctid	$data,$data
 	fctid	$dotb,$dotb
 ___
 if ($SIZE_T==8 or $flavour =~ /osx/) {
@@ -760,7 +760,7 @@ $code.=<<___;
 	ld	$t5,`$FRAME+40`($sp)
 	ld	$t6,`$FRAME+48`($sp)
 	ld	$t7,`$FRAME+56`($sp)
-	stfd	$dota,`$FRAME+64`($sp)
+	stfd	$data,`$FRAME+64`($sp)
 	stfd	$dotb,`$FRAME+72`($sp)
 
 	add	$t0,$t0,$carry		; can not overflow
@@ -808,7 +808,7 @@ $code.=<<___;
 	lwz	$t4,`$FRAME+20^$LITTLE_ENDIAN`($sp)
 	lwz	$t7,`$FRAME+24^$LITTLE_ENDIAN`($sp)
 	lwz	$t6,`$FRAME+28^$LITTLE_ENDIAN`($sp)
-	stfd	$dota,`$FRAME+64`($sp)
+	stfd	$data,`$FRAME+64`($sp)
 	stfd	$dotb,`$FRAME+72`($sp)
 
 	addc	$t0,$t0,$carry
@@ -1014,7 +1014,7 @@ $code.=<<___;
 	fmadd	$T2b,$A1,$bd,$T2b
 	fmadd	$T3a,$A2,$bc,$T3a
 	fmadd	$T3b,$A2,$bd,$T3b
-	fmul	$dota,$A3,$bc
+	fmul	$data,$A3,$bc
 	fmul	$dotb,$A3,$bd
 
 	fmadd	$T1a,$N1,$na,$T1a
@@ -1036,7 +1036,7 @@ $code.=<<___;
 	fmadd	$T2b,$N1,$nd,$T2b
 	fmadd	$T3a,$N2,$nc,$T3a
 	fmadd	$T3b,$N2,$nd,$T3b
-	fmadd	$dota,$N3,$nc,$dota
+	fmadd	$data,$N3,$nc,$data
 	fmadd	$dotb,$N3,$nd,$dotb
 
 	fctid	$T0a,$T0a
@@ -1067,7 +1067,7 @@ Linner:
 	lfd	$N1,48($nap_d)
 	fmul	$T3a,$A3,$ba
 	fmul	$T3b,$A3,$bb
-	fmadd	$T0a,$A0,$ba,$dota
+	fmadd	$T0a,$A0,$ba,$data
 	fmadd	$T0b,$A0,$bb,$dotb
 	lfd	$N2,56($nap_d)		; load n[j+1] in double format
 	lfdu	$N3,64($nap_d)
@@ -1080,7 +1080,7 @@ Linner:
 	 lfd	$A1,16($nap_d)
 	fmadd	$T3a,$A2,$bc,$T3a
 	fmadd	$T3b,$A2,$bd,$T3b
-	fmul	$dota,$A3,$bc
+	fmul	$data,$A3,$bc
 	fmul	$dotb,$A3,$bd
 	 lfd	$A2,24($nap_d)		; load a[j+1] in double format
 	 lfd	$A3,32($nap_d)
@@ -1119,7 +1119,7 @@ $code.=<<___;
 	fmadd	$T3b,$N2,$nd,$T3b
 	 srdi	$carry,$t2,16
 	 insrdi	$t0,$t2,16,16
-	fmadd	$dota,$N3,$nc,$dota
+	fmadd	$data,$N3,$nc,$data
 	fmadd	$dotb,$N3,$nd,$dotb
 	 add	$t3,$t3,$carry
 	 ldu	$t2,16($tp)		; tp[j+1]
@@ -1215,7 +1215,7 @@ $code.=<<___;
 	 addc	$t4,$t4,$carry
 	 adde	$t5,$t5,$c1
 	 srwi	$carry,$t4,16
-	fmadd	$dota,$N3,$nc,$dota
+	fmadd	$data,$N3,$nc,$data
 	fmadd	$dotb,$N3,$nd,$dotb
 	 srwi	$c1,$t5,16
 	 insrwi	$carry,$t5,16,0
@@ -1293,7 +1293,7 @@ ___
 $code.=<<___;
 	bdnz	Linner
 
-	fctid	$dota,$dota
+	fctid	$data,$data
 	fctid	$dotb,$dotb
 ___
 if ($SIZE_T==8 or $flavour =~ /osx/) {
@@ -1306,7 +1306,7 @@ $code.=<<___;
 	ld	$t5,`$FRAME+40`($sp)
 	ld	$t6,`$FRAME+48`($sp)
 	ld	$t7,`$FRAME+56`($sp)
-	stfd	$dota,`$FRAME+64`($sp)
+	stfd	$data,`$FRAME+64`($sp)
 	stfd	$dotb,`$FRAME+72`($sp)
 
 	add	$t0,$t0,$carry		; can not overflow
@@ -1375,7 +1375,7 @@ $code.=<<___;
 	lwz	$t4,`$FRAME+20^$LITTLE_ENDIAN`($sp)
 	lwz	$t7,`$FRAME+24^$LITTLE_ENDIAN`($sp)
 	lwz	$t6,`$FRAME+28^$LITTLE_ENDIAN`($sp)
-	stfd	$dota,`$FRAME+64`($sp)
+	stfd	$data,`$FRAME+64`($sp)
 	stfd	$dotb,`$FRAME+72`($sp)
 
 	addc	$t0,$t0,$carry

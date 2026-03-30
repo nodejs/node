@@ -197,7 +197,7 @@ void AddTakeWithDiscardInBetween(bool decommit_pooled_pages) {
   EXPECT_EQ(size, pool.PooledMemory());
 
   backend.ReleasePooledPages();
-  // Not couting discarded memory.
+  // Not counting discarded memory.
   EXPECT_EQ(0u, pool.PooledMemory());
 
   auto* writable_base2 = backend.TryAllocateNormalPageMemory();

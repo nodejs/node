@@ -132,7 +132,7 @@ export class ProfileNode {
     const slicedStacks = [];
     let maxDepth = 0;
     for (let i = 0; i < this.ticksAndPosition.length; i += 2) {
-      // tick.stack = [topN, ..., top0, this.codeEntry, bottom0, ..., bottomN];
+      // tick.stack = [topN, ..., top0, this.codeEntry, bottom0, ..., bottom];
       const tick = this.ticksAndPosition[i];
       const stackIndex = this.ticksAndPosition[i + 1];
       // slice = [topN, ..., top0]
@@ -162,15 +162,15 @@ export class ProfileNode {
     const slicedStacks = [];
     let maxDepth = 0;
     for (let i = 0; i < this.ticksAndPosition.length; i += 2) {
-      // tick.stack = [topN, ..., top0, this.codeEntry, bottom0..., bottomN];
+      // tick.stack = [topN, ..., top0, this.codeEntry, bottom0..., bottom];
       const tick = this.ticksAndPosition[i];
       const stackIndex = this.ticksAndPosition[i + 1];
-      // slice = [bottom0, ..., bottomN]
+      // slice = [bottom0, ..., bottom]
       const slice = tick.stack.slice(stackIndex + 1);
       maxDepth = Math.max(maxDepth, slice.length);
       slicedStacks.push(slice);
     }
-    // Start storting at the top-most frame: bottom0 => bottomN
+    // Start storting at the top-most frame: bottom0 => bottom
     return StackSorter.fromTop(slicedStacks, maxDepth);
   }
 

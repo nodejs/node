@@ -119,7 +119,7 @@ class CodeEntry {
   }
   void clear_deopt_info() {
     if (!rare_data_) return;
-    // TODO(alph): Clear rare_data_ if that was the only field in use.
+    // TODO(alpha): Clear rare_data_ if that was the only field in use.
     rare_data_->deopt_reason_ = kNoDeoptReason;
     rare_data_->deopt_id_ = kNoDeoptimizationId;
   }

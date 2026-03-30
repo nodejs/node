@@ -271,7 +271,7 @@ foreach(split("\n",$code)) {
 	s/\.SUBSPA.*//			if ($gnuas && $SIZE_T==8);
 	s/cmpib,\*/comib,/		if ($SIZE_T==4);
 	s/,\*/,/			if ($SIZE_T==4);
-	s/\bbv\b/bve/			if ($SIZE_T==8);
+	s/\bbv\b/be/			if ($SIZE_T==8);
 
 	print $_,"\n";
 }

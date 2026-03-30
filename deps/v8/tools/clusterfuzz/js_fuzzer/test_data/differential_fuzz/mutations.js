@@ -6,7 +6,7 @@
 // Print after declaration.
 var __v_0 = [1, 2, 3];
 
-// Don't print after declarations or assigments in loops.
+// Don't print after declarations or assignments in loops.
 for (let __v_1 = 0; __v_1 < 3; __v_1 += 1) {
 
   // Print after multiple declarations.

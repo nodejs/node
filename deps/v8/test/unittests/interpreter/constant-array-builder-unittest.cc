@@ -144,7 +144,7 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithIdx8Reservations) {
       CHECK_EQ(index, k8BitCapacity - reserved + i);
     }
 
-    // Clear any remaining uncommited reservations.
+    // Clear any remaining uncommitted reservations.
     for (size_t i = 0; i < reserved - duplicates_in_idx8_space; i++) {
       builder.DiscardReservedEntry(OperandSize::kByte);
     }

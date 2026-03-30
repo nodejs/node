@@ -43,7 +43,7 @@
 # include "./archs/linux-elf/asm/include/openssl/cms.h"
 #endif
 
-/* GOST is not included in all platform */
+/* GHOST is not included in all platform */
 #ifndef OPENSSL_NO_GOST
 # define OPENSSL_NO_GOST
 #endif

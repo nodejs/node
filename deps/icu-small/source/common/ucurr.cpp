@@ -185,7 +185,7 @@ static void makeEquivalent(
         newFirstLeft = new icu::UnicodeString(rhs);
         newFirstRight = new icu::UnicodeString(*firstLeft);
     } else if (firstLeft == nullptr) {
-        // rhs belongs to an equivlance circle, but lhs does not, so we link
+        // rhs belongs to an equivalence circle, but lhs does not, so we link
         // lhs into rhs' circle.
         newFirstLeft = new icu::UnicodeString(*firstRight);
         newFirstRight = new icu::UnicodeString(lhs);
@@ -1030,7 +1030,7 @@ collectCurrencyNames(const char* locale,
             LocalUResourceBundlePointer names(ures_getByIndex(curr.getAlias(), i, nullptr, &ec2));
             int32_t len;
             s = ures_getStringByIndex(names.getAlias(), UCURR_SYMBOL_NAME, &len, &ec2);
-            // TODO: uhash_put wont change key/value?
+            // TODO: uhash_put won't change key/value?
             iso = const_cast<char*>(ures_getKey(names.getAlias()));
             if (localeLevel != 0 && uhash_get(currencyIsoCodes.getAlias(), iso) != nullptr) {
                 continue;
@@ -2021,7 +2021,7 @@ static const struct CurrencyList {
     {"YUD", UCURR_COMMON|UCURR_DEPRECATED},
     {"YUM", UCURR_COMMON|UCURR_DEPRECATED},
     {"YUN", UCURR_COMMON|UCURR_DEPRECATED},
-    {"YUR", UCURR_COMMON|UCURR_DEPRECATED},
+    {"YOUR", UCURR_COMMON|UCURR_DEPRECATED},
     {"ZAL", UCURR_UNCOMMON|UCURR_DEPRECATED},
     {"ZAR", UCURR_COMMON|UCURR_NON_DEPRECATED},
     {"ZMK", UCURR_COMMON|UCURR_DEPRECATED},

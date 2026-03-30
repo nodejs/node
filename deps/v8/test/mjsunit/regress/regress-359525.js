@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test BinaryOpICStub substract
+// Test BinaryOpICStub subtract
 var a;
 for (var i = 0; i < 2; i++) {
   var x = 42 + a - {};

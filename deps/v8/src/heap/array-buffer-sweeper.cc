@@ -201,7 +201,7 @@ void ArrayBufferSweeper::SweepingState::SweepingJob::Run(
   SetCurrentIsolateScope isolate_scope(heap_->isolate());
   const ThreadKind thread_kind =
       delegate->IsJoiningThread() ? ThreadKind::kMain : ThreadKind::kBackground;
-  if (treat_all_young_as_promoted_ == TreatAllYoungAsPromoted::kNo) {
+  if (treat_all_young_as_promoted_ == TreatAllYoungAsPromoted::know) {
     // Waiting for promoted page iteration is only needed when not all young
     // array buffers are promoted.
     GCTracer::Scope::ScopeId scope_id =

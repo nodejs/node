@@ -853,7 +853,7 @@ void Assembler::GeneralLi(Register rd, int64_t imm) {
   // 64-bit imm is put in the register rd.
   // In most cases the imm is 32 bit and 2 instructions are generated. If a
   // temporary register is available, in the worst case, 6 instructions are
-  // generated for a full 64-bit immediate. If temporay register is not
+  // generated for a full 64-bit immediate. If temporary register is not
   // available the maximum will be 8 instructions. If imm is more than 32 bits
   // and a temp register is available, imm is divided into two 32-bit parts,
   // low_32 and up_32. Each part is built in a separate register. low_32 is
@@ -861,7 +861,7 @@ void Assembler::GeneralLi(Register rd, int64_t imm) {
   // is subtracted from up_32 before up_32 is built. This compensates for 32
   // bits of 1's in the lower when the two registers are added. If no temp is
   // available, the upper 32 bit is built in rd, and the lower 32 bits are
-  // devided to 3 parts (11, 11, and 10 bits). The parts are shifted and added
+  // divided to 3 parts (11, 11, and 10 bits). The parts are shifted and added
   // to the upper part built in rd.
   if (is_int32(imm + 0x800)) {
     // 32-bit case. Maximum of 2 instructions generated

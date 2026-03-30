@@ -1230,7 +1230,7 @@ static size_t HUF_compressCTable_internal(
                          HUF_compress1X_usingCTable_internal(op, (size_t)(oend - op), src, srcSize, CTable, flags) :
                          HUF_compress4X_usingCTable_internal(op, (size_t)(oend - op), src, srcSize, CTable, flags);
     if (HUF_isError(cSize)) { return cSize; }
-    if (cSize==0) { return 0; }   /* uncompressible */
+    if (cSize==0) { return 0; }   /* incompressible */
     op += cSize;
     /* check compressibility */
     assert(op >= ostart);
@@ -1362,7 +1362,7 @@ HUF_compress_internal (void* dst, size_t dstSize,
                                            nbStreams, oldHufTable, flags);
     }
 
-    /* If uncompressible data is suspected, do a smaller sampling first */
+    /* If incompressible data is suspected, do a smaller sampling first */
     DEBUG_STATIC_ASSERT(SUSPECT_INCOMPRESSIBLE_SAMPLE_RATIO >= 2);
     if ((flags & HUF_flags_suspectUncompressible) && srcSize >= (SUSPECT_INCOMPRESSIBLE_SAMPLE_SIZE * SUSPECT_INCOMPRESSIBLE_SAMPLE_RATIO)) {
         size_t largestTotal = 0;

@@ -268,7 +268,7 @@ class Environment:
     sandboxed = False
 
     #: True if the environment is just an overlay
-    overlayed = False
+    overlaid = False
 
     #: the environment this environment is linked to if it is an overlay
     linked_to: t.Optional["Environment"] = None
@@ -408,7 +408,7 @@ class Environment:
     ) -> "Environment":
         """Create a new overlay environment that shares all the data with the
         current environment except for cache and the overridden attributes.
-        Extensions cannot be removed for an overlayed environment.  An overlayed
+        Extensions cannot be removed for an overlaid environment.  An overlaid
         environment automatically gets all the extensions of the environment it
         is linked to plus optional extra extensions.
 
@@ -426,7 +426,7 @@ class Environment:
 
         rv = object.__new__(self.__class__)
         rv.__dict__.update(self.__dict__)
-        rv.overlayed = True
+        rv.overlaid = True
         rv.linked_to = self
 
         for key, value in args.items():
@@ -1219,7 +1219,7 @@ class Template:
         environment: Environment,
         code: CodeType,
         globals: t.MutableMapping[str, t.Any],
-        uptodate: t.Optional[t.Callable[[], bool]] = None,
+        up-to-date: t.Optional[t.Callable[[], bool]] = None,
     ) -> "Template":
         """Creates a template object from compiled code and the globals.  This
         is used by the loaders and environment to create a template object.
@@ -1227,7 +1227,7 @@ class Template:
         namespace = {"environment": environment, "__file__": code.co_filename}
         exec(code, namespace)
         rv = cls._from_namespace(environment, namespace, globals)
-        rv._uptodate = uptodate
+        rv._uptodate = up-to-date
         return rv
 
     @classmethod

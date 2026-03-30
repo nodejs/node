@@ -9,7 +9,7 @@ description: Install a package
 ```bash
 npm install [<package-spec> ...]
 
-aliases: add, i, in, ins, inst, insta, instal, isnt, isnta, isntal, isntall
+aliases: add, i, in, ins, inst, insta, install, isn't, isnta, isntal, isntall
 ```
 
 ### Description

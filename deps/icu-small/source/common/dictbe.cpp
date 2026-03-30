@@ -1062,7 +1062,7 @@ CjkBreakEngine::CjkBreakEngine(DictionaryMatcher *adoptDictionary, LanguageType 
     // Korean dictionary only includes Hangul syllables
     fHangulWordSet.applyPattern(UnicodeString(u"[\\uac00-\\ud7a3]"), status);
     fHangulWordSet.compact();
-    // Digits, open puncutation and Alphabetic characters.
+    // Digits, open punctuation and Alphabetic characters.
     fDigitOrOpenPunctuationOrAlphabetSet.applyPattern(
         UnicodeString(u"[[:Nd:][:Pi:][:Ps:][:Alphabetic:]]"), status);
     fDigitOrOpenPunctuationOrAlphabetSet.compact();

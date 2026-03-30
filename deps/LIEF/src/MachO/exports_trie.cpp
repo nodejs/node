@@ -112,7 +112,7 @@ void show_trie(std::ostream& output, std::string output_prefix,
     }
 
     //if (!binary_->has_symbol(symbol_name)) {
-    //  output << " [NOT REGISTRED]";
+    //  output << " [NOT REGISTERED]";
     //}
 
     output << "}";
@@ -164,7 +164,7 @@ std::vector<uint8_t> create_trie(const exports_list_t& exports, size_t pointer_s
   std::unique_ptr<TrieNode> start = TrieNode::create("");
   std::vector<std::unique_ptr<TrieNode>> nodes;
 
-  // Build the tree adding every symbole to the root.
+  // Build the tree adding every symbol to the root.
   TrieNode* start_ptr = start.get();
 
   for (const std::unique_ptr<ExportInfo>& info : exports) {

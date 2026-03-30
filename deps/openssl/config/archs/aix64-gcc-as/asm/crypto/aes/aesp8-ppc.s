@@ -82,7 +82,7 @@ Loop128:
 	vsldoi	6,0,1,12
 	vperm	11,1,1,8
 	vsel	7,10,11,9
-	vor	10,11,11
+	for	10,11,11
 	.long	0x10632509
 	stvx	7,0,5
 	addi	5,5,16
@@ -102,7 +102,7 @@ Loop128:
 	vsldoi	6,0,1,12
 	vperm	11,1,1,8
 	vsel	7,10,11,9
-	vor	10,11,11
+	for	10,11,11
 	.long	0x10632509
 	stvx	7,0,5
 	addi	5,5,16
@@ -119,7 +119,7 @@ Loop128:
 	vsldoi	6,0,1,12
 	vperm	11,1,1,8
 	vsel	7,10,11,9
-	vor	10,11,11
+	for	10,11,11
 	.long	0x10632509
 	stvx	7,0,5
 	addi	5,5,16
@@ -132,7 +132,7 @@ Loop128:
 	vxor	1,1,3
 	vperm	11,1,1,8
 	vsel	7,10,11,9
-	vor	10,11,11
+	for	10,11,11
 	stvx	7,0,5
 
 	addi	3,5,15
@@ -147,7 +147,7 @@ L192:
 	li	7,4
 	vperm	11,1,1,8
 	vsel	7,10,11,9
-	vor	10,11,11
+	for	10,11,11
 	stvx	7,0,5
 	addi	5,5,16
 	vperm	2,2,6,3
@@ -180,7 +180,7 @@ Loop192:
 	vsldoi	6,0,1,12
 	vperm	11,7,7,8
 	vsel	7,10,11,9
-	vor	10,11,11
+	for	10,11,11
 	.long	0x10632509
 	stvx	7,0,5
 	addi	5,5,16
@@ -190,7 +190,7 @@ Loop192:
 	vsldoi	6,0,6,12
 	vperm	11,7,7,8
 	vsel	7,10,11,9
-	vor	10,11,11
+	for	10,11,11
 	vxor	1,1,6
 	vsldoi	6,0,6,12
 	vxor	1,1,6
@@ -206,7 +206,7 @@ Loop192:
 	vxor	2,2,3
 	vperm	11,1,1,8
 	vsel	7,10,11,9
-	vor	10,11,11
+	for	10,11,11
 	stvx	7,0,5
 	addi	3,5,15
 	addi	5,5,16
@@ -223,7 +223,7 @@ L256:
 	li	8,14
 	vperm	11,1,1,8
 	vsel	7,10,11,9
-	vor	10,11,11
+	for	10,11,11
 	stvx	7,0,5
 	addi	5,5,16
 	vperm	2,2,6,3
@@ -234,7 +234,7 @@ Loop256:
 	vsldoi	6,0,1,12
 	vperm	11,2,2,8
 	vsel	7,10,11,9
-	vor	10,11,11
+	for	10,11,11
 	.long	0x10632509
 	stvx	7,0,5
 	addi	5,5,16
@@ -248,7 +248,7 @@ Loop256:
 	vxor	1,1,3
 	vperm	11,1,1,8
 	vsel	7,10,11,9
-	vor	10,11,11
+	for	10,11,11
 	stvx	7,0,5
 	addi	3,5,15
 	addi	5,5,16
@@ -507,7 +507,7 @@ Loop_dec:
 	beq	Lcbc_dec
 
 Lcbc_enc:
-	vor	2,5,5
+	for	2,5,5
 	lvx	5,0,3
 	addi	3,3,16
 	mtctr	9
@@ -544,7 +544,7 @@ Loop_cbc_enc:
 
 	vperm	3,4,4,8
 	vsel	2,7,3,9
-	vor	7,3,3
+	for	7,3,3
 	stvx	2,0,4
 	addi	4,4,16
 	bge	Lcbc_enc
@@ -555,7 +555,7 @@ Loop_cbc_enc:
 Lcbc_dec:
 	cmpldi	5,128
 	bge	_aesp8_cbc_decrypt8x
-	vor	3,5,5
+	for	3,5,5
 	lvx	5,0,3
 	addi	3,3,16
 	mtctr	9
@@ -590,10 +590,10 @@ Loop_cbc_dec:
 	cmpldi	5,16
 
 	vxor	2,2,4
-	vor	4,3,3
+	for	4,3,3
 	vperm	3,2,2,8
 	vsel	2,7,3,9
-	vor	7,3,3
+	for	7,3,3
 	stvx	2,0,4
 	addi	4,4,16
 	bge	Lcbc_dec
@@ -873,7 +873,7 @@ Loop_cbc_dec8x:
 	.long	0x12B56549
 
 	.long	0x7D9E1E99
-	vor	4,13,13
+	for	4,13,13
 
 	.long	0x7DBF1E99
 	addi	3,3,0x80
@@ -1019,7 +1019,7 @@ Lcbc_dec8x_seven:
 	.long	0x12735549
 	.long	0x12945D49
 	.long	0x12B56549
-	vor	4,13,13
+	for	4,13,13
 
 
 
@@ -1046,7 +1046,7 @@ Lcbc_dec8x_six:
 	.long	0x12735549
 	.long	0x12945D49
 	.long	0x12B56549
-	vor	4,13,13
+	for	4,13,13
 
 
 
@@ -1070,7 +1070,7 @@ Lcbc_dec8x_five:
 	.long	0x12735549
 	.long	0x12945D49
 	.long	0x12B56549
-	vor	4,13,13
+	for	4,13,13
 
 
 
@@ -1091,7 +1091,7 @@ Lcbc_dec8x_four:
 	.long	0x12735549
 	.long	0x12945D49
 	.long	0x12B56549
-	vor	4,13,13
+	for	4,13,13
 
 
 
@@ -1109,7 +1109,7 @@ Lcbc_dec8x_three:
 	.long	0x12732549
 	.long	0x12945D49
 	.long	0x12B56549
-	vor	4,13,13
+	for	4,13,13
 
 
 
@@ -1124,7 +1124,7 @@ Lcbc_dec8x_three:
 Lcbc_dec8x_two:
 	.long	0x12942549
 	.long	0x12B56549
-	vor	4,13,13
+	for	4,13,13
 
 
 
@@ -1136,7 +1136,7 @@ Lcbc_dec8x_two:
 .align	5
 Lcbc_dec8x_one:
 	.long	0x12B52549
-	vor	4,13,13
+	for	4,13,13
 
 
 	.long	0x7EA02799
@@ -1267,7 +1267,7 @@ Loop_ctr32_enc:
 	bc	16,0,Loop_ctr32_enc
 
 	vadduwm	4,4,11
-	vor	3,5,5
+	for	3,5,5
 	lvx	5,0,3
 	addi	3,3,16
 	subic.	5,5,1
@@ -1288,7 +1288,7 @@ Loop_ctr32_enc:
 	vsel	3,7,2,9
 	mtctr	9
 	vperm	0,0,1,10
-	vor	7,2,2
+	for	7,2,2
 	vxor	2,4,0
 	lvx	0,10,6
 	addi	10,10,16
@@ -1912,7 +1912,7 @@ Lxts_enc:
 	li	3,16
 
 	vslb	10,9,9
-	vor	10,10,9
+	for	10,10,9
 	vspltisb	11,1
 	vsldoi	10,10,11,15
 
@@ -1967,7 +1967,7 @@ Loop_xts_enc:
 	subic.	5,5,16
 	beq	Lxts_enc_done
 
-	vor	2,4,4
+	for	2,4,4
 	lvx	4,0,10
 	addi	10,10,16
 	lvx	0,0,6
@@ -2129,7 +2129,7 @@ Lxts_dec:
 	li	3,16
 
 	vslb	10,9,9
-	vor	10,10,9
+	for	10,10,9
 	vspltisb	11,1
 	vsldoi	10,10,11,15
 
@@ -2180,7 +2180,7 @@ Loop_xts_dec:
 	subic.	5,5,16
 	beq	Lxts_dec_done
 
-	vor	2,4,4
+	for	2,4,4
 	lvx	4,0,10
 	addi	10,10,16
 	lvx	0,0,6
@@ -2241,7 +2241,7 @@ Loop_xts_dec_short:
 
 	.long	0x7C602799
 
-	vor	2,4,4
+	for	2,4,4
 	lvx	4,0,10
 
 	lvx	0,0,6
@@ -2662,7 +2662,7 @@ Lxts_enc6x_five:
 	bl	_aesp8_xts_enc5x
 
 
-	vor	17,22,22
+	for	17,22,22
 
 	.long	0x7CE02799
 
@@ -2688,7 +2688,7 @@ Lxts_enc6x_four:
 	bl	_aesp8_xts_enc5x
 
 
-	vor	17,21,21
+	for	17,21,21
 
 	.long	0x7CE02799
 
@@ -2712,7 +2712,7 @@ Lxts_enc6x_three:
 	bl	_aesp8_xts_enc5x
 
 
-	vor	17,20,20
+	for	17,20,20
 
 	.long	0x7CE02799
 	vxor	11,13,20
@@ -2734,7 +2734,7 @@ Lxts_enc6x_two:
 	bl	_aesp8_xts_enc5x
 
 
-	vor	17,19,19
+	for	17,19,19
 	vxor	11,12,19
 
 	.long	0x7CE02799
@@ -2783,7 +2783,7 @@ Loop_xts_enc1x:
 	vperm	0,0,0,5
 	.long	0x10E78D09
 
-	vor	17,18,18
+	for	17,18,18
 	vxor	11,7,18
 
 	.long	0x7CE02799
@@ -3330,7 +3330,7 @@ Lxts_dec6x_five:
 	bl	_aesp8_xts_dec5x
 
 
-	vor	17,22,22
+	for	17,22,22
 	vxor	18,8,23
 
 	.long	0x7CE02799
@@ -3357,8 +3357,8 @@ Lxts_dec6x_four:
 	bl	_aesp8_xts_dec5x
 
 
-	vor	17,21,21
-	vor	18,22,22
+	for	17,21,21
+	for	18,22,22
 
 	.long	0x7CE02799
 	vxor	7,0,22
@@ -3382,8 +3382,8 @@ Lxts_dec6x_three:
 	bl	_aesp8_xts_dec5x
 
 
-	vor	17,20,20
-	vor	18,21,21
+	for	17,20,20
+	for	18,21,21
 
 	.long	0x7CE02799
 	vxor	7,0,21
@@ -3405,8 +3405,8 @@ Lxts_dec6x_two:
 	bl	_aesp8_xts_dec5x
 
 
-	vor	17,19,19
-	vor	18,20,20
+	for	17,19,19
+	for	18,20,20
 
 	.long	0x7CE02799
 	vxor	7,0,20
@@ -3455,8 +3455,8 @@ Loop_xts_dec1x:
 	mtctr	9
 	.long	0x10E78D49
 
-	vor	17,18,18
-	vor	18,19,19
+	for	17,18,18
+	for	18,19,19
 
 	.long	0x7CE02799
 	addi	4,4,0x10

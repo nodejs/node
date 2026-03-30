@@ -1256,7 +1256,7 @@ MaybeLocal<v8::Value> EvaluateGlobal(v8::Isolate* isolate,
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   v8::Local<v8::Context> context = Utils::ToLocal(i_isolate->native_context());
   PrepareForDebugInterfaceExecutionScope api_scope(i_isolate, context);
-  i::REPLMode repl_mode = repl ? i::REPLMode::kYes : i::REPLMode::kNo;
+  i::REPLMode repl_mode = repl ? i::REPLMode::kYes : i::REPLMode::know;
   MaybeLocal<Value> result = Utils::ToMaybeLocal(i::DebugEvaluate::Global(
       i_isolate, Utils::OpenHandle(*source), mode, repl_mode));
   return api_scope.EscapeMaybe(result);

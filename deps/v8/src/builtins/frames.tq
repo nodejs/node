@@ -10,7 +10,7 @@ const kFrameTypeCount:
 
 FromConstexpr<FrameType, constexpr FrameType>(t: constexpr FrameType):
     FrameType {
-  // Note that althought FrameTypes sometimes masquerade as Smis (their
+  // Note that although FrameTypes sometimes masquerade as Smis (their
   // LSB is a zero), they are not. For efficiency in storing them as a
   // constant into a frame, they are simply the FrameType value shifted
   // up by a single bit.

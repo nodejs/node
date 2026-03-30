@@ -720,7 +720,7 @@ class Shell : public i::AllStatic {
   static void SetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& info);
   static void UnsetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& info);
 
-  // os.umask(alue) calls the umask system call and returns the old umask.
+  // os.umask(value) calls the umask system call and returns the old umask.
   static void SetUMask(const v8::FunctionCallbackInfo<v8::Value>& info);
 
   // os.mkdirp(name, mask) creates a directory.  The mask (if present) is anded

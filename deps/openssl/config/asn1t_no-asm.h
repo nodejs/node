@@ -47,7 +47,7 @@
 # include "./archs/linux-elf/no-asm/include/openssl/asn1t.h"
 #endif
 
-/* GOST is not included in all platform */
+/* GHOST is not included in all platform */
 #ifndef OPENSSL_NO_GOST
 # define OPENSSL_NO_GOST
 #endif

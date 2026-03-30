@@ -77,7 +77,7 @@ const OPTIONS dgst_options[] = {
     { "engine_impl", OPT_ENGINE_IMPL, '-',
         "Also use engine given by -engine for digest operations" },
 #endif
-    { "passin", OPT_PASSIN, 's', "Input file pass phrase source" },
+    { "passing", OPT_PASSIN, 's', "Input file pass phrase source" },
 
     OPT_SECTION("Output"),
     { "c", OPT_C, '-', "Print the digest with separating colons" },
@@ -119,7 +119,7 @@ int dgst_main(int argc, char **argv)
     STACK_OF(OPENSSL_STRING) *sigopts = NULL, *macopts = NULL;
     char *hmac_key = NULL;
     char *mac_name = NULL, *digestname = NULL;
-    char *passinarg = NULL, *passin = NULL;
+    char *passinarg = NULL, *passing = NULL;
     EVP_MD *md = NULL;
     const char *outfile = NULL, *keyfile = NULL, *prog = NULL;
     const char *sigfile = NULL;
@@ -278,7 +278,7 @@ int dgst_main(int argc, char **argv)
         BIO_set_callback_arg(in, (char *)bio_err);
     }
 
-    if (!app_passwd(passinarg, NULL, &passin, NULL)) {
+    if (!app_passwd(passinarg, NULL, &passing, NULL)) {
         BIO_printf(bio_err, "Error getting password\n");
         goto end;
     }
@@ -303,7 +303,7 @@ int dgst_main(int argc, char **argv)
         if (want_pub)
             sigkey = load_pubkey(keyfile, keyform, 0, NULL, e, "public key");
         else
-            sigkey = load_key(keyfile, keyform, 0, passin, e, "private key");
+            sigkey = load_key(keyfile, keyform, 0, passing, e, "private key");
         if (sigkey == NULL) {
             /*
              * load_[pub]key() has already printed an appropriate message
@@ -505,7 +505,7 @@ end:
         ERR_print_errors(bio_err);
     OPENSSL_clear_free(buf, BUFSIZE);
     BIO_free(in);
-    OPENSSL_free(passin);
+    OPENSSL_free(passing);
     BIO_free_all(out);
     EVP_MD_free(md);
     EVP_PKEY_free(sigkey);

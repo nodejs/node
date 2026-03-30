@@ -4176,7 +4176,7 @@ index 934dc03acec..a8ee0096ce2 100644
  #ifdef V8_TRACE_UNOPTIMIZED
    TraceBytecode(Runtime::kTraceUnoptimizedBytecodeEntry);
  #endif
-+  // we cant do this generally for temporary enable/disable
++  // we can't do this generally for temporary enable/disable
 +  // since we might have produced bytecode before the dumping
 +  // is enabled in the same function
 +  // this will introduce a little bit of overhead but its fine
@@ -4754,7 +4754,7 @@ index 6c99451fab8..9f8e4d00039 100644
 +          } else if (IsJSGlobalObject(*this)) {
 +            accumulator->Add("GlobalObject");
 +          } else {
-+            // Objects are serialized right now so we should't need to extra print
++            // Objects are serialized right now so we shouldn't need to extra print
 +            // accumulator->Add("Object");
 +          }
 +        }

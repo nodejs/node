@@ -62,7 +62,7 @@ class LIEF_API CoreSigInfo : public Note {
   protected:
   using Note::Note;
 };
-} // namepsace ELF
+} // namespace ELF
 } // namespace LIEF
 
 #endif

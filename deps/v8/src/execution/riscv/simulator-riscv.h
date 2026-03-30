@@ -723,7 +723,7 @@ class Simulator : public SimulatorBase {
 
   SimInstruction instr_;
 
-  // RISCV utlity API to access register value
+  // RISCV utility API to access register value
   inline int32_t rs1_reg() const { return instr_.Rs1Value(); }
   inline sreg_t rs1() const { return get_register(rs1_reg()); }
   inline float frs1() const { return get_fpu_register_float(rs1_reg()); }

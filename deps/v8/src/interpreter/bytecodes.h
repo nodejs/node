@@ -324,7 +324,7 @@ namespace interpreter {
     OperandType::kReg, OperandType::kIdx)                                      \
   V(TestInstanceOf, ImplicitRegisterUse::kReadWriteAccumulator,                \
     OperandType::kReg, OperandType::kIdx)                                      \
-  V(TestIn, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg,     \
+  V(testing, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg,     \
     OperandType::kIdx)                                                         \
                                                                                \
   /* Cast operators */                                                         \

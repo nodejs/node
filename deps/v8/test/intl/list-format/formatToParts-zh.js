@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// The following test are not part of the comformance. Just some output in
+// The following test are not part of the conformance. Just some output in
 // Chinese to verify the format does return something reasonable for Chinese.
 // It may be changed when we update the CLDR data.
 // NOTE: These are UNSPECIFIED behavior in

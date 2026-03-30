@@ -330,7 +330,7 @@ public:
      * Set the target text to be searched.
      * Text iteration will hence begin at the start of the text string. 
      * This method is 
-     * useful if you want to re-use an iterator to search for the same 
+     * useful if you want to reuse an iterator to search for the same 
      * pattern within a different body of text.
      * @param text text string to be searched
      * @param status for errors if any. If the text length is 0 then an 
@@ -343,7 +343,7 @@ public:
      * Set the target text to be searched.
      * Text iteration will hence begin at the start of the text string. 
      * This method is 
-     * useful if you want to re-use an iterator to search for the same 
+     * useful if you want to reuse an iterator to search for the same 
      * pattern within a different body of text.
      * Note: No parsing of the text within the <tt>CharacterIterator</tt> 
      * will be done during searching for this version. The block of text 

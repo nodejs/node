@@ -40,7 +40,7 @@ $aj="t4";
 $bi="t5";
 $nj="t6";
 $tp="t7";
-$alo="t8";
+$also="t8";
 $ahi="t9";
 $nlo="t10";
 $nhi="t11";
@@ -107,7 +107,7 @@ bn_mul_mont:
 	cmpult	$lo1,$lo0,AT
 	addq	$hi1,AT,$hi1
 
-	mulq	$aj,$bi,$alo
+	mulq	$aj,$bi,$also
 	mov	2,$j
 	umulh	$aj,$bi,$ahi
 	mov	sp,$tp
@@ -124,8 +124,8 @@ bn_mul_mont:
 	ldq	$nj,0($nj)
 	lda	$tp,8($tp)
 
-	addq	$alo,$hi0,$lo0
-	mulq	$aj,$bi,$alo
+	addq	$also,$hi0,$lo0
+	mulq	$aj,$bi,$also
 	cmpult	$lo0,$hi0,AT
 	addq	$nlo,$hi1,$lo1
 
@@ -150,7 +150,7 @@ bn_mul_mont:
 	bne	$tj,.L1st
 	.set	reorder
 
-	addq	$alo,$hi0,$lo0
+	addq	$also,$hi0,$lo0
 	addq	$nlo,$hi1,$lo1
 	cmpult	$lo0,$hi0,AT
 	cmpult	$lo1,$hi1,v0
@@ -196,7 +196,7 @@ bn_mul_mont:
 	mov	2,$j
 	addq	$hi1,AT,$hi1
 
-	mulq	$aj,$bi,$alo
+	mulq	$aj,$bi,$also
 	mov	sp,$tp
 	umulh	$aj,$bi,$ahi
 
@@ -213,10 +213,10 @@ bn_mul_mont:
 
 	ldq	$nj,0($nj)	#L0
 	nop			#U1
-	addq	$alo,$hi0,$lo0	#L1
+	addq	$also,$hi0,$lo0	#L1
 	lda	$tp,8($tp)
 
-	mulq	$aj,$bi,$alo	#U1
+	mulq	$aj,$bi,$also	#U1
 	cmpult	$lo0,$hi0,AT	#L0
 	addq	$nlo,$hi1,$lo1	#L1
 	addl	$j,1,$j
@@ -243,7 +243,7 @@ bn_mul_mont:
 	.set	reorder
 
 	ldq	$tj,8($tp)
-	addq	$alo,$hi0,$lo0
+	addq	$also,$hi0,$lo0
 	addq	$nlo,$hi1,$lo1
 	cmpult	$lo0,$hi0,AT
 	cmpult	$lo1,$hi1,v0

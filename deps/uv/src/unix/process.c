@@ -875,7 +875,7 @@ static int uv__spawn_and_init_child(
   /* Special child process spawn case for macOS Big Sur (11.0) onwards
    *
    * Big Sur introduced a significant performance degradation on a call to
-   * fork/exec when the process has many pages mmaped in with MAP_JIT, like, say
+   * fork/exec when the process has many pages mapped in with MAP_JIT, like, say
    * a javascript interpreter. Electron-based applications, for example,
    * are impacted; though the magnitude of the impact depends on how much the
    * app relies on subprocesses.

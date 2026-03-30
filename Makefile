@@ -14,7 +14,7 @@ OSTYPE := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 ifeq ($(findstring os/390,$OSTYPE),os/390)
 OSTYPE ?= os390
 endif
-ARCHTYPE := $(shell uname -m | tr '[:upper:]' '[:lower:]')
+ARCHETYPE := $(shell uname -m | tr '[:upper:]' '[:lower:]')
 COVTESTS ?= test-cov
 COV_SKIP_TESTS ?= core_line_numbers.js,testFinalizer.js,test_function/test.js
 GTEST_FILTER ?= *
@@ -1114,9 +1114,9 @@ ifneq ($(OSTYPE),darwin)
 	$(warning Invalid OSTYPE)
 	$(error OSTYPE should be `darwin` currently is $(OSTYPE))
 endif
-ifneq ($(ARCHTYPE),arm64)
-	$(warning Invalid ARCHTYPE)
-	$(error ARCHTYPE should be `arm64` currently is $(ARCHTYPE))
+ifneq ($(ARCHETYPE),arm64)
+	$(warning Invalid ARCHETYPE)
+	$(error ARCHETYPE should be `arm64` currently is $(ARCHETYPE))
 endif
 	$(RM) -r $(MACOSOUTDIR)
 	mkdir -p $(MACOSOUTDIR)/installer/productbuild

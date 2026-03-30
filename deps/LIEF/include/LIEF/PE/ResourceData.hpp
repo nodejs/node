@@ -136,5 +136,5 @@ class LIEF_API ResourceData : public ResourceNode {
 };
 
 } // namespace PE
-} // namepsace LIEF
+} // namespace LIEF
 #endif /* RESOURCEDATA_H */

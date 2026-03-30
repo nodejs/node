@@ -120,7 +120,7 @@ class LifetimePosition final {
   // instruction.
   LifetimePosition() : value_(-1) {}
 
-  // Returns true if this lifetime positions corrensponds to some
+  // Returns true if this lifetime positions corresponds to some
   // instruction.
   bool IsValid() const { return value_ != -1; }
 
@@ -654,7 +654,7 @@ class DoubleEndedSplitVector {
     DCHECK_LE(split_begin, data_end_);
     size_t old_size = size();
 
-    // NOTE: The splitted allocation might no longer fulfill alignment
+    // NOTE: The split allocation might no longer fulfill alignment
     // requirements by the Zone allocator, so do not delete it!
     DoubleEndedSplitVector split_off;
     split_off.storage_begin_ = split_begin;
@@ -1070,7 +1070,7 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   void SetSpillRange(SpillRange* spill_range);
 
   // Encodes whether a range is also available from a memory location:
-  //   kNoSpillType: not availble in memory location.
+  //   kNoSpillType: not available in memory location.
   //   kSpillOperand: computed in a memory location at range start.
   //   kSpillRange: copied (spilled) to memory location at the definition,
   //                or at the beginning of some later blocks if
@@ -1292,7 +1292,7 @@ std::ostream& operator<<(std::ostream& os,
 // Represent the spill operand of a LiveRange and its use intervals. After
 // register allocation, disjoint spill ranges are merged and they get assigned
 // the same spill slot by OperandAssigner::AssignSpillSlots().
-// TODO(dlehmann): `SpillRange`s seem awefully similar to `LiveRangeBundle`s,
+// TODO(dlehmann): `SpillRange`s seem awfully similar to `LiveRangeBundle`s,
 // especially since both store `ranges_` and `intervals_` and check for
 // intersection in exactly the same way. I wonder if we can merge those two
 // concepts and save a bunch of memory by not storing ranges and intervals

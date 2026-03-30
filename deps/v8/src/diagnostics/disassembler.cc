@@ -382,7 +382,7 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
     std::vector<const char*> comments;
     std::vector<Address> pcs;
     std::vector<RelocInfo::Mode> rmodes;
-    std::vector<intptr_t> datas;
+    std::vector<intptr_t> data;
     while (!rit.done() &&
            (rit.rinfo()->pc() < reinterpret_cast<Address>(pc) ||
             (rit.rinfo()->pc() == reinterpret_cast<Address>(pc) &&
@@ -391,7 +391,7 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
       // not before the pc.
       pcs.push_back(rit.rinfo()->pc());
       rmodes.push_back(rit.rinfo()->rmode());
-      datas.push_back(rit.rinfo()->data());
+      data.push_back(rit.rinfo()->data());
       rit.next();
     }
     while (cit.HasCurrent()) {
@@ -435,7 +435,7 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
       Address constant_pool =
           host.is_null() ? kNullAddress : host.constant_pool();
       if (host.is_code()) {
-        RelocInfo relocinfo(pcs[i], rmodes[i], datas[i], constant_pool);
+        RelocInfo relocinfo(pcs[i], rmodes[i], data[i], constant_pool);
         bool first_reloc_info = (i == 0);
         PrintRelocInfo(out, isolate, ref_encoder, os, code, &relocinfo,
                        first_reloc_info);

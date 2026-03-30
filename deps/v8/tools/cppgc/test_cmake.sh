@@ -56,4 +56,4 @@ ninja cppgc_unittests || fail "Failed to build unittests"
 # Run unittests.
 ./cppgc_unittests || fail "Failed to run unittests"
 
-echo -e "\033[0;32mThe test has succesfully passed\033[0m"
+echo -e "\033[0;32mThe test has successfully passed\033[0m"

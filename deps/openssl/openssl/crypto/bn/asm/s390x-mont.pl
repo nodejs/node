@@ -83,7 +83,7 @@ $bi="%r2";	# zaps rp
 $j="%r7";
 
 $ahi="%r8";
-$alo="%r9";
+$also="%r9";
 $nhi="%r10";
 $nlo="%r11";
 $AHI="%r12";
@@ -132,18 +132,18 @@ $code.=<<___;
 
 	lg	$bi,0($bp)
 	_dswap	$bi
-	lg	$alo,0($ap)
-	_dswap	$alo
+	lg	$also,0($ap)
+	_dswap	$also
 	mlgr	$ahi,$bi	# ap[0]*bp[0]
 	lgr	$AHI,$ahi
 
-	lgr	$mn0,$alo	# "tp[0]"*n0
+	lgr	$mn0,$also	# "tp[0]"*n0
 	msgr	$mn0,$n0
 
 	lg	$nlo,0($np)	#
 	_dswap	$nlo
 	mlgr	$nhi,$mn0	# np[0]*m1
-	algr	$nlo,$alo	# +="tp[0]"
+	algr	$nlo,$also	# +="tp[0]"
 	lghi	$NHI,0
 	alcgr	$NHI,$nhi
 
@@ -152,10 +152,10 @@ $code.=<<___;
 
 .align	16
 .L1st:
-	lg	$alo,0($j,$ap)
-	_dswap	$alo
+	lg	$also,0($j,$ap)
+	_dswap	$also
 	mlgr	$ahi,$bi	# ap[j]*bp[0]
-	algr	$alo,$AHI
+	algr	$also,$AHI
 	lghi	$AHI,0
 	alcgr	$AHI,$ahi
 
@@ -165,7 +165,7 @@ $code.=<<___;
 	algr	$nlo,$NHI
 	lghi	$NHI,0
 	alcgr	$nhi,$NHI	# +="tp[j]"
-	algr	$nlo,$alo
+	algr	$nlo,$also
 	alcgr	$NHI,$nhi
 
 	stg	$nlo,$stdframe-8($j,$sp)	# tp[j-1]=
@@ -182,20 +182,20 @@ $code.=<<___;
 .Louter:
 	lg	$bi,0($bp)	# bp[i]
 	_dswap	$bi
-	lg	$alo,0($ap)
-	_dswap	$alo
+	lg	$also,0($ap)
+	_dswap	$also
 	mlgr	$ahi,$bi	# ap[0]*bp[i]
-	alg	$alo,$stdframe($sp)	# +=tp[0]
+	alg	$also,$stdframe($sp)	# +=tp[0]
 	lghi	$AHI,0
 	alcgr	$AHI,$ahi
 
-	lgr	$mn0,$alo
+	lgr	$mn0,$also
 	msgr	$mn0,$n0	# tp[0]*n0
 
 	lg	$nlo,0($np)	# np[0]
 	_dswap	$nlo
 	mlgr	$nhi,$mn0	# np[0]*m1
-	algr	$nlo,$alo	# +="tp[0]"
+	algr	$nlo,$also	# +="tp[0]"
 	lghi	$NHI,0
 	alcgr	$NHI,$nhi
 
@@ -204,13 +204,13 @@ $code.=<<___;
 
 .align	16
 .Linner:
-	lg	$alo,0($j,$ap)
-	_dswap	$alo
+	lg	$also,0($j,$ap)
+	_dswap	$also
 	mlgr	$ahi,$bi	# ap[j]*bp[i]
-	algr	$alo,$AHI
+	algr	$also,$AHI
 	lghi	$AHI,0
 	alcgr	$ahi,$AHI
-	alg	$alo,$stdframe($j,$sp)# +=tp[j]
+	alg	$also,$stdframe($j,$sp)# +=tp[j]
 	alcgr	$AHI,$ahi
 
 	lg	$nlo,0($j,$np)
@@ -219,7 +219,7 @@ $code.=<<___;
 	algr	$nlo,$NHI
 	lghi	$NHI,0
 	alcgr	$nhi,$NHI
-	algr	$nlo,$alo	# +="tp[j]"
+	algr	$nlo,$also	# +="tp[j]"
 	alcgr	$NHI,$nhi
 
 	stg	$nlo,$stdframe-8($j,$sp)	# tp[j-1]=
@@ -245,11 +245,11 @@ $code.=<<___;
 
 	la	$j,0
 	lr	$count,$num
-.Lsub:	lg	$alo,0($j,$ap)
+.Lsub:	lg	$also,0($j,$ap)
 	lg	$nlo,0($j,$np)
 	_dswap	$nlo
-	slbgr	$alo,$nlo
-	stg	$alo,0($j,$rp)
+	slbgr	$also,$nlo
+	stg	$also,0($j,$rp)
 	la	$j,8($j)
 	brct	$count,.Lsub
 	lghi	$ahi,0
@@ -260,13 +260,13 @@ $code.=<<___;
 	la	$j,0
 	lgr	$count,$num
 .Lcopy:	lg	$ahi,$stdframe($j,$sp)	# conditional copy
-	lg	$alo,0($j,$rp)
+	lg	$also,0($j,$rp)
 	ngr	$ahi,$AHI
-	ngr	$alo,$NHI
-	ogr	$alo,$ahi
-	_dswap	$alo
+	ngr	$also,$NHI
+	ogr	$also,$ahi
+	_dswap	$also
 	stg	$j,$stdframe($j,$sp)	# zap tp
-	stg	$alo,0($j,$rp)
+	stg	$also,0($j,$rp)
 	la	$j,8($j)
 	brct	$count,.Lcopy
 

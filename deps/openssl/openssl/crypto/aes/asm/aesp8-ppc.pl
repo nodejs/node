@@ -2019,7 +2019,7 @@ Lxts_enc:
 	li		$idx,16
 
 	vslb		$eighty7,$seven,$seven		# 0x808080..80
-	vor		$eighty7,$eighty7,$seven	# 0x878787..87
+	for		$eighty7,$eighty7,$seven	# 0x878787..87
 	vspltisb	$tmp,1				# 0x010101..01
 	vsldoi		$eighty7,$eighty7,$tmp,15	# 0x870101..01
 
@@ -2236,7 +2236,7 @@ Lxts_dec:
 	li		$idx,16
 
 	vslb		$eighty7,$seven,$seven		# 0x808080..80
-	vor		$eighty7,$eighty7,$seven	# 0x878787..87
+	for		$eighty7,$eighty7,$seven	# 0x878787..87
 	vspltisb	$tmp,1				# 0x010101..01
 	vsldoi		$eighty7,$eighty7,$tmp,15	# 0x870101..01
 

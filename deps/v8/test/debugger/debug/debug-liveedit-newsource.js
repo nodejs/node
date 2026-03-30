@@ -66,6 +66,6 @@ print("new source: " + new_source);
 assertEquals("Capybara", ChooseAnimal());
 // Global variable do not get changed (without restarting script).
 assertEquals(25, something1);
-// We should support changes in oneliners.
+// We should support changes in one-liners.
 assertEquals(18, ChooseNumber());
 assertEquals("Hello Peter", ChooseAnimal.Factory()("Peter"));

@@ -20,7 +20,7 @@ using namespace icu::number::impl;
 //
 // During formatting, we need to provide an object with state (the exponent) as the inner modifier.
 //
-// In Java, where the priority is put on reducing object creations, the unsafe code path re-uses the
+// In Java, where the priority is put on reducing object creations, the unsafe code path reuses the
 // ScientificHandler as a ScientificModifier, and the safe code path pre-computes 25 ScientificModifier
 // instances.  This scheme reduces the number of object creations by 1 in both safe and unsafe.
 //

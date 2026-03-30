@@ -102,7 +102,7 @@ namespace v8::internal::compiler::turboshaft {
 //     p = Phi(b, c)
 //     p.x = a
 //
-// The reason being that the store_graph sturcture isn't well suited for this,
+// The reason being that the store_graph structure isn't well suited for this,
 // since an edge Phi->Node can mean either that Node is stored (via a StoreOp)
 // in Phi, or that Node is an input of Phi. The `store_graph_` for the example
 // above will thus look like:
@@ -194,7 +194,7 @@ class PretenuringPropagationAnalyzer {
   Graph& input_graph_;
   ZoneVector<OpIndex> old_allocs_;
 
-  // (see main comment at the begining of this file for the role of
+  // (see main comment at the beginning of this file for the role of
   // `store_graph_`)
   // `store_graph_` contains mapping from OpIndex to vector<OpIndex>. If for an
   // entry `a` it contains a vector `v`, it means that `a` has edges to all of
@@ -213,7 +213,7 @@ class PretenuringPropagationAnalyzer {
   ZoneVector<OpIndex> queue_;
 };
 
-// Forward delcaration
+// Forward declaration
 template <class Next>
 class MemoryOptimizationReducer;
 

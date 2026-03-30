@@ -756,7 +756,7 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
       result->set_post_loop_type(unmerged_type);
       if (optimistic_loop_phis) {
         // In the case of optimistic loop headers we try to speculatively use
-        // the type of the incomming argument as the phi type. We verify if that
+        // the type of the incoming argument as the phi type. We verify if that
         // happened to be true before allowing the loop to conclude in
         // `TryMergeLoop`. Some types which are known to cause issues are
         // generalized here.

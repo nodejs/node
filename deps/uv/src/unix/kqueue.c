@@ -193,11 +193,11 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     uv__queue_init(q);
 
     w = uv__queue_data(q, uv__io_t, watcher_queue);
-    assert(w->pevents != 0);
+    assert(w->prevents != 0);
     assert(w->fd >= 0);
     assert(w->fd < (int) loop->nwatchers);
 
-    if ((w->events & POLLIN) == 0 && (w->pevents & POLLIN) != 0) {
+    if ((w->events & POLLIN) == 0 && (w->prevents & POLLIN) != 0) {
       filter = EVFILT_READ;
       fflags = 0;
       op = EV_ADD;
@@ -218,7 +218,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       }
     }
 
-    if ((w->events & POLLOUT) == 0 && (w->pevents & POLLOUT) != 0) {
+    if ((w->events & POLLOUT) == 0 && (w->prevents & POLLOUT) != 0) {
       EV_SET(events + nevents, w->fd, EVFILT_WRITE, EV_ADD, 0, 0, 0);
 
       if (++nevents == ARRAY_SIZE(events)) {
@@ -228,7 +228,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       }
     }
 
-   if ((w->events & UV__POLLPRI) == 0 && (w->pevents & UV__POLLPRI) != 0) {
+   if ((w->events & UV__POLLPRI) == 0 && (w->prevents & UV__POLLPRI) != 0) {
       EV_SET(events + nevents, w->fd, EV_OOBAND, EV_ADD, 0, 0, 0);
 
       if (++nevents == ARRAY_SIZE(events)) {
@@ -238,7 +238,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       }
     }
 
-    w->events = w->pevents;
+    w->events = w->prevents;
   }
 
   pset = NULL;
@@ -350,7 +350,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
       if (ev->filter == EVFILT_VNODE) {
         assert(w->events == POLLIN);
-        assert(w->pevents == POLLIN);
+        assert(w->prevents == POLLIN);
         uv__metrics_update_idle_time(loop);
         uv__io_cb(loop, w, ev->fflags); /* XXX always uv__fs_event() */
         nevents++;
@@ -360,24 +360,24 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       revents = 0;
 
       if (ev->filter == EVFILT_READ) {
-        if (w->pevents & POLLIN)
+        if (w->prevents & POLLIN)
           revents |= POLLIN;
         else
           uv__kqueue_delete(loop->backend_fd, ev);
 
-        if ((ev->flags & EV_EOF) && (w->pevents & UV__POLLRDHUP))
+        if ((ev->flags & EV_EOF) && (w->prevents & UV__POLLRDHUP))
           revents |= UV__POLLRDHUP;
       }
 
       if (ev->filter == EV_OOBAND) {
-        if (w->pevents & UV__POLLPRI)
+        if (w->prevents & UV__POLLPRI)
           revents |= UV__POLLPRI;
         else
           uv__kqueue_delete(loop->backend_fd, ev);
       }
 
       if (ev->filter == EVFILT_WRITE) {
-        if (w->pevents & POLLOUT)
+        if (w->prevents & POLLOUT)
           revents |= POLLOUT;
         else
           uv__kqueue_delete(loop->backend_fd, ev);

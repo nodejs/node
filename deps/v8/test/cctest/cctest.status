@@ -132,7 +132,7 @@
 
   # TODO(nicohartmann@): Turboshaft's LateLoadElimination is currently not able
   # to verify this tests assumptions (static_assert). We should improve it and
-  # reenable this test.
+  # re-enable this test.
   'test-torque/TestLoadEliminationVariable': [SKIP],
 
   # TODO(391750831, nicohartmann): Currently broken with Turboshaft backend.
@@ -475,7 +475,7 @@
 ##############################################################################
 ['system == aix or (arch == ppc64 and byteorder == big)', {
 
-  # TODO(ppc): Fix for platforms with function desciptors.
+  # TODO(ppc): Fix for platforms with function descriptors.
   'test-run-machops/RunComputedCodeObject' : [SKIP],
   'test-run-wasm-module/Run_WasmModule_Return114' : [SKIP],
   'test-run-wasm-module/Run_WasmModule_CallAdd' : [SKIP],

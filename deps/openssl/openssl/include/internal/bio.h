@@ -90,7 +90,7 @@ int ossl_core_bio_write_ex(OSSL_CORE_BIO *cb, const void *data, size_t dlen,
     size_t *written);
 int ossl_core_bio_gets(OSSL_CORE_BIO *cb, char *buf, int size);
 int ossl_core_bio_puts(OSSL_CORE_BIO *cb, const char *buf);
-long ossl_core_bio_ctrl(OSSL_CORE_BIO *cb, int cmd, long larg, void *parg);
+long ossl_core_bio_ctrl(OSSL_CORE_BIO *cb, int cmd, long large, void *parg);
 int ossl_core_bio_up_ref(OSSL_CORE_BIO *cb);
 int ossl_core_bio_free(OSSL_CORE_BIO *cb);
 int ossl_core_bio_vprintf(OSSL_CORE_BIO *cb, const char *format, va_list args);

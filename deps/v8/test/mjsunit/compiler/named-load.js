@@ -24,7 +24,7 @@ for (var i = 0.25; i < 6.25; i++) {
   assertEquals(i + i + 2, f.x);
 }
 
-// stirngs
+// strings
 for (var i = 0; i < 6; i++) {
   var f = new Foo(i + "", (i + 2) + "");
   assertEquals((i + "") + ((i + 2) + ""), f.x);

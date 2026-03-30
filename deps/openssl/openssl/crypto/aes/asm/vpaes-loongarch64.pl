@@ -211,7 +211,7 @@ _vpaes_decrypt_core:
     addi.d     $a5,$a5,	16		# next round key
     vbsrl.v    $vr16,$vr5,0xc
     vbsll.v    $vr5,$vr5,0x4
-    vor.v      $vr5,$vr5,$vr16
+    for.v      $vr5,$vr5,$vr16
     vxor.v     $vr0,$vr0,$vr1		# 0 = ch
     addi.d     $t5,$t5,-1		# nr--
 
@@ -348,7 +348,7 @@ _vpaes_schedule_core:
      bl         _vpaes_schedule_round
      vbsrl.v    $vr16,$vr6,0x8
      vbsll.v    $vr0,$vr0,0x8
-     vor.v      $vr0,$vr0,$vr16
+     for.v      $vr0,$vr0,$vr16
 
      bl         _vpaes_schedule_mangle  	# save key n
      bl         _vpaes_schedule_192_smear
@@ -498,10 +498,10 @@ _vpaes_schedule_round:
     vxor.v      $vr1,$vr1,$vr1
     vbsrl.v     $vr16,$vr8,0xf
     vbsll.v     $vr1,$vr1,0x1
-    vor.v       $vr1,$vr1,$vr16
+    for.v       $vr1,$vr1,$vr16
     vbsrl.v     $vr16,$vr8,0xf
     vbsll.v     $vr8,$vr8,0x1
-    vor.v       $vr8,$vr8,$vr16
+    for.v       $vr8,$vr8,$vr16
 
     vxor.v      $vr7,$vr7,$vr1
 
@@ -509,7 +509,7 @@ _vpaes_schedule_round:
     vshuf4i.w   $vr0,$vr0,0xff  		#put $vr0 lowest 32 bit to each words
     vbsrl.v     $vr16,$vr0,0x1
     vbsll.v     $vr0,$vr0,0xf
-    vor.v       $vr0,$vr0,$vr16
+    for.v       $vr0,$vr0,$vr16
 
     # fall through...
 

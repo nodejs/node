@@ -583,10 +583,10 @@ assertDoesNotThrow(gaga);
     return x;
   }
 
-  var ans;
-  f2().then(x => ans = x).catch(e => ans = e);
+  var and;
+  f2().then(x => and = x).catch(e => and = e);
   %PerformMicrotaskCheckpoint();
-  assertEquals([0], ans);
+  assertEquals([0], and);
 }
 
 {

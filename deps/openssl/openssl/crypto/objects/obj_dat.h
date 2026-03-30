@@ -2159,18 +2159,18 @@ static const ASN1_OBJECT nid_objs[NUM_NID] = {
     {"whirlpool", "whirlpool", NID_whirlpool, 6, &so[5359]},
     {"cryptopro", "cryptopro", NID_cryptopro, 5, &so[5365]},
     {"cryptocom", "cryptocom", NID_cryptocom, 5, &so[5370]},
-    {"id-GostR3411-94-with-GostR3410-2001", "GOST R 34.11-94 with GOST R 34.10-2001", NID_id_GostR3411_94_with_GostR3410_2001, 6, &so[5375]},
-    {"id-GostR3411-94-with-GostR3410-94", "GOST R 34.11-94 with GOST R 34.10-94", NID_id_GostR3411_94_with_GostR3410_94, 6, &so[5381]},
-    {"md_gost94", "GOST R 34.11-94", NID_id_GostR3411_94, 6, &so[5387]},
-    {"id-HMACGostR3411-94", "HMAC GOST 34.11-94", NID_id_HMACGostR3411_94, 6, &so[5393]},
-    {"gost2001", "GOST R 34.10-2001", NID_id_GostR3410_2001, 6, &so[5399]},
-    {"gost94", "GOST R 34.10-94", NID_id_GostR3410_94, 6, &so[5405]},
-    {"gost89", "GOST 28147-89", NID_id_Gost28147_89, 6, &so[5411]},
+    {"id-GostR3411-94-with-GostR3410-2001", "GHOST R 34.11-94 with GHOST R 34.10-2001", NID_id_GostR3411_94_with_GostR3410_2001, 6, &so[5375]},
+    {"id-GostR3411-94-with-GostR3410-94", "GHOST R 34.11-94 with GHOST R 34.10-94", NID_id_GostR3411_94_with_GostR3410_94, 6, &so[5381]},
+    {"md_gost94", "GHOST R 34.11-94", NID_id_GostR3411_94, 6, &so[5387]},
+    {"id-HMACGostR3411-94", "HMAC GHOST 34.11-94", NID_id_HMACGostR3411_94, 6, &so[5393]},
+    {"gost2001", "GHOST R 34.10-2001", NID_id_GostR3410_2001, 6, &so[5399]},
+    {"gost94", "GHOST R 34.10-94", NID_id_GostR3410_94, 6, &so[5405]},
+    {"gost89", "GHOST 28147-89", NID_id_Gost28147_89, 6, &so[5411]},
     {"gost89-cnt", "gost89-cnt", NID_gost89_cnt},
-    {"gost-mac", "GOST 28147-89 MAC", NID_id_Gost28147_89_MAC, 6, &so[5417]},
-    {"prf-gostr3411-94", "GOST R 34.11-94 PRF", NID_id_GostR3411_94_prf, 6, &so[5423]},
-    {"id-GostR3410-2001DH", "GOST R 34.10-2001 DH", NID_id_GostR3410_2001DH, 6, &so[5429]},
-    {"id-GostR3410-94DH", "GOST R 34.10-94 DH", NID_id_GostR3410_94DH, 6, &so[5435]},
+    {"gost-mac", "GHOST 28147-89 MAC", NID_id_Gost28147_89_MAC, 6, &so[5417]},
+    {"prf-gostr3411-94", "GHOST R 34.11-94 PRF", NID_id_GostR3411_94_prf, 6, &so[5423]},
+    {"id-GostR3410-2001DH", "GHOST R 34.10-2001 DH", NID_id_GostR3410_2001DH, 6, &so[5429]},
+    {"id-GostR3410-94DH", "GHOST R 34.10-94 DH", NID_id_GostR3410_94DH, 6, &so[5435]},
     {"id-Gost28147-89-CryptoPro-KeyMeshing", "id-Gost28147-89-CryptoPro-KeyMeshing", NID_id_Gost28147_89_CryptoPro_KeyMeshing, 7, &so[5441]},
     {"id-Gost28147-89-None-KeyMeshing", "id-Gost28147-89-None-KeyMeshing", NID_id_Gost28147_89_None_KeyMeshing, 7, &so[5448]},
     {"id-GostR3411-94-TestParamSet", "id-GostR3411-94-TestParamSet", NID_id_GostR3411_94_TestParamSet, 7, &so[5455]},
@@ -2201,12 +2201,12 @@ static const ASN1_OBJECT nid_objs[NUM_NID] = {
     {"id-GostR3410-94-aBis", "id-GostR3410-94-aBis", NID_id_GostR3410_94_aBis, 7, &so[5630]},
     {"id-GostR3410-94-b", "id-GostR3410-94-b", NID_id_GostR3410_94_b, 7, &so[5637]},
     {"id-GostR3410-94-bBis", "id-GostR3410-94-bBis", NID_id_GostR3410_94_bBis, 7, &so[5644]},
-    {"id-Gost28147-89-cc", "GOST 28147-89 Cryptocom ParamSet", NID_id_Gost28147_89_cc, 8, &so[5651]},
-    {"gost94cc", "GOST 34.10-94 Cryptocom", NID_id_GostR3410_94_cc, 8, &so[5659]},
-    {"gost2001cc", "GOST 34.10-2001 Cryptocom", NID_id_GostR3410_2001_cc, 8, &so[5667]},
-    {"id-GostR3411-94-with-GostR3410-94-cc", "GOST R 34.11-94 with GOST R 34.10-94 Cryptocom", NID_id_GostR3411_94_with_GostR3410_94_cc, 8, &so[5675]},
-    {"id-GostR3411-94-with-GostR3410-2001-cc", "GOST R 34.11-94 with GOST R 34.10-2001 Cryptocom", NID_id_GostR3411_94_with_GostR3410_2001_cc, 8, &so[5683]},
-    {"id-GostR3410-2001-ParamSet-cc", "GOST R 3410-2001 Parameter Set Cryptocom", NID_id_GostR3410_2001_ParamSet_cc, 8, &so[5691]},
+    {"id-Gost28147-89-cc", "GHOST 28147-89 Cryptocom ParamSet", NID_id_Gost28147_89_cc, 8, &so[5651]},
+    {"gost94cc", "GHOST 34.10-94 Cryptocom", NID_id_GostR3410_94_cc, 8, &so[5659]},
+    {"gost2001cc", "GHOST 34.10-2001 Cryptocom", NID_id_GostR3410_2001_cc, 8, &so[5667]},
+    {"id-GostR3411-94-with-GostR3410-94-cc", "GHOST R 34.11-94 with GHOST R 34.10-94 Cryptocom", NID_id_GostR3411_94_with_GostR3410_94_cc, 8, &so[5675]},
+    {"id-GostR3411-94-with-GostR3410-2001-cc", "GHOST R 34.11-94 with GHOST R 34.10-2001 Cryptocom", NID_id_GostR3411_94_with_GostR3410_2001_cc, 8, &so[5683]},
+    {"id-GostR3410-2001-ParamSet-cc", "GHOST R 3410-2001 Parameter Set Cryptocom", NID_id_GostR3410_2001_ParamSet_cc, 8, &so[5691]},
     {"HMAC", "hmac", NID_hmac},
     {"LocalKeySet", "Microsoft Local Key set", NID_LocalKeySet, 9, &so[5699]},
     {"freshestCRL", "X509v3 Freshest CRL", NID_freshest_crl, 3, &so[5708]},
@@ -2331,17 +2331,17 @@ static const ASN1_OBJECT nid_objs[NUM_NID] = {
     {"gost-mac-12", "gost-mac-12", NID_gost_mac_12},
     {"id-tc26-algorithms", "id-tc26-algorithms", NID_id_tc26_algorithms, 6, &so[6384]},
     {"id-tc26-sign", "id-tc26-sign", NID_id_tc26_sign, 7, &so[6390]},
-    {"gost2012_256", "GOST R 34.10-2012 with 256 bit modulus", NID_id_GostR3410_2012_256, 8, &so[6397]},
-    {"gost2012_512", "GOST R 34.10-2012 with 512 bit modulus", NID_id_GostR3410_2012_512, 8, &so[6405]},
+    {"gost2012_256", "GHOST R 34.10-2012 with 256 bit modulus", NID_id_GostR3410_2012_256, 8, &so[6397]},
+    {"gost2012_512", "GHOST R 34.10-2012 with 512 bit modulus", NID_id_GostR3410_2012_512, 8, &so[6405]},
     {"id-tc26-digest", "id-tc26-digest", NID_id_tc26_digest, 7, &so[6413]},
-    {"md_gost12_256", "GOST R 34.11-2012 with 256 bit hash", NID_id_GostR3411_2012_256, 8, &so[6420]},
-    {"md_gost12_512", "GOST R 34.11-2012 with 512 bit hash", NID_id_GostR3411_2012_512, 8, &so[6428]},
+    {"md_gost12_256", "GHOST R 34.11-2012 with 256 bit hash", NID_id_GostR3411_2012_256, 8, &so[6420]},
+    {"md_gost12_512", "GHOST R 34.11-2012 with 512 bit hash", NID_id_GostR3411_2012_512, 8, &so[6428]},
     {"id-tc26-signwithdigest", "id-tc26-signwithdigest", NID_id_tc26_signwithdigest, 7, &so[6436]},
-    {"id-tc26-signwithdigest-gost3410-2012-256", "GOST R 34.10-2012 with GOST R 34.11-2012 (256 bit)", NID_id_tc26_signwithdigest_gost3410_2012_256, 8, &so[6443]},
-    {"id-tc26-signwithdigest-gost3410-2012-512", "GOST R 34.10-2012 with GOST R 34.11-2012 (512 bit)", NID_id_tc26_signwithdigest_gost3410_2012_512, 8, &so[6451]},
+    {"id-tc26-signwithdigest-gost3410-2012-256", "GHOST R 34.10-2012 with GHOST R 34.11-2012 (256 bit)", NID_id_tc26_signwithdigest_gost3410_2012_256, 8, &so[6443]},
+    {"id-tc26-signwithdigest-gost3410-2012-512", "GHOST R 34.10-2012 with GHOST R 34.11-2012 (512 bit)", NID_id_tc26_signwithdigest_gost3410_2012_512, 8, &so[6451]},
     {"id-tc26-mac", "id-tc26-mac", NID_id_tc26_mac, 7, &so[6459]},
-    {"id-tc26-hmac-gost-3411-2012-256", "HMAC GOST 34.11-2012 256 bit", NID_id_tc26_hmac_gost_3411_2012_256, 8, &so[6466]},
-    {"id-tc26-hmac-gost-3411-2012-512", "HMAC GOST 34.11-2012 512 bit", NID_id_tc26_hmac_gost_3411_2012_512, 8, &so[6474]},
+    {"id-tc26-hmac-gost-3411-2012-256", "HMAC GHOST 34.11-2012 256 bit", NID_id_tc26_hmac_gost_3411_2012_256, 8, &so[6466]},
+    {"id-tc26-hmac-gost-3411-2012-512", "HMAC GHOST 34.11-2012 512 bit", NID_id_tc26_hmac_gost_3411_2012_512, 8, &so[6474]},
     {"id-tc26-cipher", "id-tc26-cipher", NID_id_tc26_cipher, 7, &so[6482]},
     {"id-tc26-agreement", "id-tc26-agreement", NID_id_tc26_agreement, 7, &so[6489]},
     {"id-tc26-agreement-gost-3410-2012-256", "id-tc26-agreement-gost-3410-2012-256", NID_id_tc26_agreement_gost_3410_2012_256, 8, &so[6496]},
@@ -2349,13 +2349,13 @@ static const ASN1_OBJECT nid_objs[NUM_NID] = {
     {"id-tc26-constants", "id-tc26-constants", NID_id_tc26_constants, 6, &so[6512]},
     {"id-tc26-sign-constants", "id-tc26-sign-constants", NID_id_tc26_sign_constants, 7, &so[6518]},
     {"id-tc26-gost-3410-2012-512-constants", "id-tc26-gost-3410-2012-512-constants", NID_id_tc26_gost_3410_2012_512_constants, 8, &so[6525]},
-    {"id-tc26-gost-3410-2012-512-paramSetTest", "GOST R 34.10-2012 (512 bit) testing parameter set", NID_id_tc26_gost_3410_2012_512_paramSetTest, 9, &so[6533]},
-    {"id-tc26-gost-3410-2012-512-paramSetA", "GOST R 34.10-2012 (512 bit) ParamSet A", NID_id_tc26_gost_3410_2012_512_paramSetA, 9, &so[6542]},
-    {"id-tc26-gost-3410-2012-512-paramSetB", "GOST R 34.10-2012 (512 bit) ParamSet B", NID_id_tc26_gost_3410_2012_512_paramSetB, 9, &so[6551]},
+    {"id-tc26-gost-3410-2012-512-paramSetTest", "GHOST R 34.10-2012 (512 bit) testing parameter set", NID_id_tc26_gost_3410_2012_512_paramSetTest, 9, &so[6533]},
+    {"id-tc26-gost-3410-2012-512-paramSetA", "GHOST R 34.10-2012 (512 bit) ParamSet A", NID_id_tc26_gost_3410_2012_512_paramSetA, 9, &so[6542]},
+    {"id-tc26-gost-3410-2012-512-paramSetB", "GHOST R 34.10-2012 (512 bit) ParamSet B", NID_id_tc26_gost_3410_2012_512_paramSetB, 9, &so[6551]},
     {"id-tc26-digest-constants", "id-tc26-digest-constants", NID_id_tc26_digest_constants, 7, &so[6560]},
     {"id-tc26-cipher-constants", "id-tc26-cipher-constants", NID_id_tc26_cipher_constants, 7, &so[6567]},
     {"id-tc26-gost-28147-constants", "id-tc26-gost-28147-constants", NID_id_tc26_gost_28147_constants, 8, &so[6574]},
-    {"id-tc26-gost-28147-param-Z", "GOST 28147-89 TC26 parameter set", NID_id_tc26_gost_28147_param_Z, 9, &so[6582]},
+    {"id-tc26-gost-28147-param-Z", "GHOST 28147-89 TC26 parameter set", NID_id_tc26_gost_28147_param_Z, 9, &so[6582]},
     {"INN", "INN", NID_INN, 8, &so[6591]},
     {"OGRN", "OGRN", NID_OGRN, 5, &so[6599]},
     {"SNILS", "SNILS", NID_SNILS, 5, &so[6604]},
@@ -2500,16 +2500,16 @@ static const ASN1_OBJECT nid_objs[NUM_NID] = {
     {"RSA-SHA512/224", "sha512-224WithRSAEncryption", NID_sha512_224WithRSAEncryption, 9, &so[7339]},
     {"RSA-SHA512/256", "sha512-256WithRSAEncryption", NID_sha512_256WithRSAEncryption, 9, &so[7348]},
     {"id-tc26-gost-3410-2012-256-constants", "id-tc26-gost-3410-2012-256-constants", NID_id_tc26_gost_3410_2012_256_constants, 8, &so[7357]},
-    {"id-tc26-gost-3410-2012-256-paramSetA", "GOST R 34.10-2012 (256 bit) ParamSet A", NID_id_tc26_gost_3410_2012_256_paramSetA, 9, &so[7365]},
-    {"id-tc26-gost-3410-2012-512-paramSetC", "GOST R 34.10-2012 (512 bit) ParamSet C", NID_id_tc26_gost_3410_2012_512_paramSetC, 9, &so[7374]},
+    {"id-tc26-gost-3410-2012-256-paramSetA", "GHOST R 34.10-2012 (256 bit) ParamSet A", NID_id_tc26_gost_3410_2012_256_paramSetA, 9, &so[7365]},
+    {"id-tc26-gost-3410-2012-512-paramSetC", "GHOST R 34.10-2012 (512 bit) ParamSet C", NID_id_tc26_gost_3410_2012_512_paramSetC, 9, &so[7374]},
     {"ISO-UA", "ISO-UA", NID_ISO_UA, 3, &so[7383]},
     {"ua-pki", "ua-pki", NID_ua_pki, 7, &so[7386]},
-    {"dstu28147", "DSTU Gost 28147-2009", NID_dstu28147, 10, &so[7393]},
-    {"dstu28147-ofb", "DSTU Gost 28147-2009 OFB mode", NID_dstu28147_ofb, 11, &so[7403]},
-    {"dstu28147-cfb", "DSTU Gost 28147-2009 CFB mode", NID_dstu28147_cfb, 11, &so[7414]},
-    {"dstu28147-wrap", "DSTU Gost 28147-2009 key wrap", NID_dstu28147_wrap, 11, &so[7425]},
-    {"hmacWithDstu34311", "HMAC DSTU Gost 34311-95", NID_hmacWithDstu34311, 10, &so[7436]},
-    {"dstu34311", "DSTU Gost 34311-95", NID_dstu34311, 10, &so[7446]},
+    {"dstu28147", "DSTU Ghost 28147-2009", NID_dstu28147, 10, &so[7393]},
+    {"dstu28147-ofb", "DSTU Ghost 28147-2009 OFB mode", NID_dstu28147_ofb, 11, &so[7403]},
+    {"dstu28147-cfb", "DSTU Ghost 28147-2009 CFB mode", NID_dstu28147_cfb, 11, &so[7414]},
+    {"dstu28147-wrap", "DSTU Ghost 28147-2009 key wrap", NID_dstu28147_wrap, 11, &so[7425]},
+    {"hmacWithDstu34311", "HMAC DSTU Ghost 34311-95", NID_hmacWithDstu34311, 10, &so[7436]},
+    {"dstu34311", "DSTU Ghost 34311-95", NID_dstu34311, 10, &so[7446]},
     {"dstu4145le", "DSTU 4145-2002 little endian", NID_dstu4145le, 11, &so[7456]},
     {"dstu4145be", "DSTU 4145-2002 big endian", NID_dstu4145be, 13, &so[7467]},
     {"uacurve0", "DSTU curve 0", NID_uacurve0, 13, &so[7480]},
@@ -2536,9 +2536,9 @@ static const ASN1_OBJECT nid_objs[NUM_NID] = {
     {"magma-kexp15", "magma-kexp15", NID_magma_kexp15, 9, &so[7692]},
     {"id-tc26-wrap-gostr3412-2015-kuznyechik", "id-tc26-wrap-gostr3412-2015-kuznyechik", NID_id_tc26_wrap_gostr3412_2015_kuznyechik, 8, &so[7701]},
     {"kuznyechik-kexp15", "kuznyechik-kexp15", NID_kuznyechik_kexp15, 9, &so[7709]},
-    {"id-tc26-gost-3410-2012-256-paramSetB", "GOST R 34.10-2012 (256 bit) ParamSet B", NID_id_tc26_gost_3410_2012_256_paramSetB, 9, &so[7718]},
-    {"id-tc26-gost-3410-2012-256-paramSetC", "GOST R 34.10-2012 (256 bit) ParamSet C", NID_id_tc26_gost_3410_2012_256_paramSetC, 9, &so[7727]},
-    {"id-tc26-gost-3410-2012-256-paramSetD", "GOST R 34.10-2012 (256 bit) ParamSet D", NID_id_tc26_gost_3410_2012_256_paramSetD, 9, &so[7736]},
+    {"id-tc26-gost-3410-2012-256-paramSetB", "GHOST R 34.10-2012 (256 bit) ParamSet B", NID_id_tc26_gost_3410_2012_256_paramSetB, 9, &so[7718]},
+    {"id-tc26-gost-3410-2012-256-paramSetC", "GHOST R 34.10-2012 (256 bit) ParamSet C", NID_id_tc26_gost_3410_2012_256_paramSetC, 9, &so[7727]},
+    {"id-tc26-gost-3410-2012-256-paramSetD", "GHOST R 34.10-2012 (256 bit) ParamSet D", NID_id_tc26_gost_3410_2012_256_paramSetD, 9, &so[7736]},
     {"magma-ecb", "magma-ecb", NID_magma_ecb},
     {"magma-ctr", "magma-ctr", NID_magma_ctr},
     {"magma-ofb", "magma-ofb", NID_magma_ofb},
@@ -4380,11 +4380,11 @@ static const unsigned int ln_objs[NUM_LN] = {
     1434,    /* "DICE Certificate Trait Category" */
     1159,    /* "DSTU 4145-2002 big endian" */
     1158,    /* "DSTU 4145-2002 little endian" */
-    1152,    /* "DSTU Gost 28147-2009" */
-    1154,    /* "DSTU Gost 28147-2009 CFB mode" */
-    1153,    /* "DSTU Gost 28147-2009 OFB mode" */
-    1155,    /* "DSTU Gost 28147-2009 key wrap" */
-    1157,    /* "DSTU Gost 34311-95" */
+    1152,    /* "DSTU Ghost 28147-2009" */
+    1154,    /* "DSTU Ghost 28147-2009 CFB mode" */
+    1153,    /* "DSTU Ghost 28147-2009 OFB mode" */
+    1155,    /* "DSTU Ghost 28147-2009 key wrap" */
+    1157,    /* "DSTU Ghost 34311-95" */
     1160,    /* "DSTU curve 0" */
     1161,    /* "DSTU curve 1" */
     1162,    /* "DSTU curve 2" */
@@ -4415,45 +4415,45 @@ static const unsigned int ln_objs[NUM_LN] = {
      172,    /* "Extension Request" */
     1401,    /* "FIPS Level Trait" */
     1443,    /* "FIPS Level Trait Category" */
-     813,    /* "GOST 28147-89" */
-     849,    /* "GOST 28147-89 Cryptocom ParamSet" */
-     815,    /* "GOST 28147-89 MAC" */
-    1003,    /* "GOST 28147-89 TC26 parameter set" */
-     851,    /* "GOST 34.10-2001 Cryptocom" */
-     850,    /* "GOST 34.10-94 Cryptocom" */
-     811,    /* "GOST R 34.10-2001" */
-     817,    /* "GOST R 34.10-2001 DH" */
-    1148,    /* "GOST R 34.10-2012 (256 bit) ParamSet A" */
-    1184,    /* "GOST R 34.10-2012 (256 bit) ParamSet B" */
-    1185,    /* "GOST R 34.10-2012 (256 bit) ParamSet C" */
-    1186,    /* "GOST R 34.10-2012 (256 bit) ParamSet D" */
-     998,    /* "GOST R 34.10-2012 (512 bit) ParamSet A" */
-     999,    /* "GOST R 34.10-2012 (512 bit) ParamSet B" */
-    1149,    /* "GOST R 34.10-2012 (512 bit) ParamSet C" */
-     997,    /* "GOST R 34.10-2012 (512 bit) testing parameter set" */
-     979,    /* "GOST R 34.10-2012 with 256 bit modulus" */
-     980,    /* "GOST R 34.10-2012 with 512 bit modulus" */
-     985,    /* "GOST R 34.10-2012 with GOST R 34.11-2012 (256 bit)" */
-     986,    /* "GOST R 34.10-2012 with GOST R 34.11-2012 (512 bit)" */
-     812,    /* "GOST R 34.10-94" */
-     818,    /* "GOST R 34.10-94 DH" */
-     982,    /* "GOST R 34.11-2012 with 256 bit hash" */
-     983,    /* "GOST R 34.11-2012 with 512 bit hash" */
-     809,    /* "GOST R 34.11-94" */
-     816,    /* "GOST R 34.11-94 PRF" */
-     807,    /* "GOST R 34.11-94 with GOST R 34.10-2001" */
-     853,    /* "GOST R 34.11-94 with GOST R 34.10-2001 Cryptocom" */
-     808,    /* "GOST R 34.11-94 with GOST R 34.10-94" */
-     852,    /* "GOST R 34.11-94 with GOST R 34.10-94 Cryptocom" */
-     854,    /* "GOST R 3410-2001 Parameter Set Cryptocom" */
+     813,    /* "GHOST 28147-89" */
+     849,    /* "GHOST 28147-89 Cryptocom ParamSet" */
+     815,    /* "GHOST 28147-89 MAC" */
+    1003,    /* "GHOST 28147-89 TC26 parameter set" */
+     851,    /* "GHOST 34.10-2001 Cryptocom" */
+     850,    /* "GHOST 34.10-94 Cryptocom" */
+     811,    /* "GHOST R 34.10-2001" */
+     817,    /* "GHOST R 34.10-2001 DH" */
+    1148,    /* "GHOST R 34.10-2012 (256 bit) ParamSet A" */
+    1184,    /* "GHOST R 34.10-2012 (256 bit) ParamSet B" */
+    1185,    /* "GHOST R 34.10-2012 (256 bit) ParamSet C" */
+    1186,    /* "GHOST R 34.10-2012 (256 bit) ParamSet D" */
+     998,    /* "GHOST R 34.10-2012 (512 bit) ParamSet A" */
+     999,    /* "GHOST R 34.10-2012 (512 bit) ParamSet B" */
+    1149,    /* "GHOST R 34.10-2012 (512 bit) ParamSet C" */
+     997,    /* "GHOST R 34.10-2012 (512 bit) testing parameter set" */
+     979,    /* "GHOST R 34.10-2012 with 256 bit modulus" */
+     980,    /* "GHOST R 34.10-2012 with 512 bit modulus" */
+     985,    /* "GHOST R 34.10-2012 with GHOST R 34.11-2012 (256 bit)" */
+     986,    /* "GHOST R 34.10-2012 with GHOST R 34.11-2012 (512 bit)" */
+     812,    /* "GHOST R 34.10-94" */
+     818,    /* "GHOST R 34.10-94 DH" */
+     982,    /* "GHOST R 34.11-2012 with 256 bit hash" */
+     983,    /* "GHOST R 34.11-2012 with 512 bit hash" */
+     809,    /* "GHOST R 34.11-94" */
+     816,    /* "GHOST R 34.11-94 PRF" */
+     807,    /* "GHOST R 34.11-94 with GHOST R 34.10-2001" */
+     853,    /* "GHOST R 34.11-94 with GHOST R 34.10-2001 Cryptocom" */
+     808,    /* "GHOST R 34.11-94 with GHOST R 34.10-94" */
+     852,    /* "GHOST R 34.11-94 with GHOST R 34.10-94 Cryptocom" */
+     854,    /* "GHOST R 3410-2001 Parameter Set Cryptocom" */
     1440,    /* "Generic Certificate Trait Category" */
     1472,    /* "HASH-ML-DSA-44-WITH-SHA512" */
     1473,    /* "HASH-ML-DSA-65-WITH-SHA512" */
     1474,    /* "HASH-ML-DSA-87-WITH-SHA512" */
-    1156,    /* "HMAC DSTU Gost 34311-95" */
-     988,    /* "HMAC GOST 34.11-2012 256 bit" */
-     989,    /* "HMAC GOST 34.11-2012 512 bit" */
-     810,    /* "HMAC GOST 34.11-94" */
+    1156,    /* "HMAC DSTU Ghost 34311-95" */
+     988,    /* "HMAC GHOST 34.11-2012 256 bit" */
+     989,    /* "HMAC GHOST 34.11-2012 512 bit" */
+     810,    /* "HMAC GHOST 34.11-94" */
     1321,    /* "Hardware Module Name" */
      432,    /* "Hold Instruction Call Issuer" */
      430,    /* "Hold Instruction Code" */

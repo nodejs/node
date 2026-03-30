@@ -515,7 +515,7 @@ class Macro(object):
         # check here.
         #
         # This is considered safe because an eval context is not a valid
-        # argument to callables otherwise anwyays.  Worst case here is
+        # argument to callables otherwise anyways.  Worst case here is
         # that if no eval context is passed we fall back to the compile
         # time autoescape flag.
         if args and isinstance(args[0], EvalContext):

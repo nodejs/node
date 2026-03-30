@@ -167,7 +167,7 @@ class TaggedImpl {
   // The following set of methods get HeapObject out of the tagged value
   // which may involve decompression in which case the isolate root is required.
   // If the pointer compression is not enabled then the variants with
-  // isolate parameter will be exactly the same as the ones witout isolate
+  // isolate parameter will be exactly the same as the ones without isolate
   // parameter.
   //
 

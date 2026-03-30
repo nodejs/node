@@ -86,7 +86,7 @@ class IsolateSafepoint final {
     void NotifyPark();
   };
 
-  enum class IncludeMainThread { kYes, kNo };
+  enum class IncludeMainThread { kYes, know };
 
   // Wait until unpark operation is safe again.
   void WaitInUnpark();

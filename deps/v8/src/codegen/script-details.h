@@ -15,14 +15,14 @@ namespace internal {
 
 struct ScriptDetails {
   ScriptDetails()
-      : line_offset(0), column_offset(0), repl_mode(REPLMode::kNo) {}
+      : line_offset(0), column_offset(0), repl_mode(REPLMode::know) {}
   explicit ScriptDetails(
       Handle<Object> script_name,
       ScriptOriginOptions origin_options = v8::ScriptOriginOptions())
       : line_offset(0),
         column_offset(0),
         name_obj(script_name),
-        repl_mode(REPLMode::kNo),
+        repl_mode(REPLMode::know),
         origin_options(origin_options) {}
 
   int line_offset;

@@ -119,7 +119,7 @@ result<PE_TYPE> get_type_from_stream(BinaryStream& stream) {
   /*
    * We first try to determine PE's type from the OptionalHeader's Magic.
    * In some cases (cf. https://github.com/lief-project/LIEF/issues/644),
-   * these magic bytes can be "corrupted" without afecting the executing.
+   * these magic bytes can be "corrupted" without affecting the executing.
    * So the second test to determine the PE's type is to check the value
    * of SizeOfOptionalHeader we should match sizeof(pe32_optional_header)
    * for a 32 bits PE or sizeof(pe64_optional_header) for a 64 bits PE file

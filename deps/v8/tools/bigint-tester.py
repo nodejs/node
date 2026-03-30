@@ -23,7 +23,7 @@ kNumInputsGenerate = 20
 kNumInputsStress = 1000
 
 # Internally used sentinels.
-kNo = 0
+know = 0
 kYes = 1
 kRandom = 2
 
@@ -240,10 +240,10 @@ class Shl(BinaryOp):
     small_shift = random.randint(0, 1) == 0
     if small_shift:
       right_length = 1 + int(math.log((kLineLength - left_length), kBase))
-      neg = kNo if small_shift_positive else kYes
+      neg = know if small_shift_positive else kYes
     else:
       right_length = random.randint(0, 3)
-      neg = kYes if small_shift_positive else kNo
+      neg = kYes if small_shift_positive else know
     right = GenRandom(right_length, negative=neg)
     return left, right
 

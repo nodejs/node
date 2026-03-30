@@ -243,7 +243,7 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
   }
   // Remove unreachable catch block if no throwable nodes were added during
   // inlining.
-  // TODO(victorgomes): Improve this: track if we didnt indeed add a throwable
+  // TODO(victorgomes): Improve this: track if we didn't indeed add a throwable
   // node.
   if (catch_block_might_be_unreachable) {
     graph_->set_may_have_unreachable_blocks(true);

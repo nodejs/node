@@ -117,7 +117,7 @@ function extractBody (object, keepalive = false) {
 
     // Set action to this step: run the multipart/form-data
     // encoding algorithm, with object’s entry list and UTF-8.
-    // - This ensures that the body is immutable and can't be changed afterwords
+    // - This ensures that the body is immutable and can't be changed afterwards
     // - That the content-length is calculated in advance.
     // - And that all parts are pre-encoded and ready to be sent.
 

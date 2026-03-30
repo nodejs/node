@@ -26,7 +26,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   // Truncation:
   assertEquals(0x1234, instance.exports.signed(0x80001234));
   assertEquals(0x1234, instance.exports.unsigned(0x80001234));
-  // Sign/zero extention:
+  // Sign/zero extension:
   assertEquals(-1, instance.exports.signed(0x7fffffff));
   assertEquals(0x7fffffff, instance.exports.unsigned(0x7fffffff));
 })();
@@ -109,7 +109,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertTraps(kTrapIllegalCast, () => instance.exports.unsigned(-0x40000001));
   assertEquals(0x3fffffff, instance.exports.new(-0x40000001));
 
-  // Sign/zero extention.
+  // Sign/zero extension.
   assertEquals(-2, instance.exports.roundtrip(-2));
   assertEquals(-2, instance.exports.signed(-2));
   assertEquals(0x7ffffffe, instance.exports.unsigned(-2));

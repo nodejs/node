@@ -555,8 +555,8 @@ __webpack_require__.r(__webpack_exports__);
  * @param {string} text
  */
 function lastLine(text) {
-  const splitted = text.split("\n");
-  return splitted[splitted.length - 1];
+  const split = text.split("\n");
+  return split[split.length - 1];
 }
 
 function appendIfExist(base, target) {
@@ -3312,11 +3312,11 @@ function* checkInterfaceMemberDuplication(defs, i) {
   const mixins = defs.mixinMap.get(i.name) || [];
   for (const ext of [...partials, ...mixins]) {
     const additions = getOperations(ext);
-    const statics = additions.filter((a) => a.special === "static");
+    const statistics = additions.filter((a) => a.special === "static");
     const nonstatics = additions.filter((a) => a.special !== "static");
-    yield* checkAdditions(statics, opNames.statics, ext, i);
+    yield* checkAdditions(statistics, opNames.statistics, ext, i);
     yield* checkAdditions(nonstatics, opNames.nonstatics, ext, i);
-    statics.forEach((op) => opNames.statics.add(op.name));
+    statistics.forEach((op) => opNames.statistics.add(op.name));
     nonstatics.forEach((op) => opNames.nonstatics.add(op.name));
   }
 
@@ -3356,7 +3356,7 @@ function* checkInterfaceMemberDuplication(defs, i) {
   function groupOperationNames(i) {
     const ops = getOperations(i);
     return {
-      statics: new Set(
+      statistics: new Set(
         ops.filter((op) => op.special === "static").map((op) => op.name),
       ),
       nonstatics: new Set(

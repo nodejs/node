@@ -508,9 +508,9 @@ console.log(values.random);
   }, async () => {
     const dependency = tmpdir.resolve(`${tmpFiles++}.js`);
     const relativeDependencyPath = `./${path.basename(dependency)}`;
-    const dependant = createTmpFile(`console.log(require('${relativeDependencyPath}'))`);
+    const dependent = createTmpFile(`console.log(require('${relativeDependencyPath}'))`);
 
-    await failWriteSucceed({ file: dependant, watchedFile: dependency });
+    await failWriteSucceed({ file: dependent, watchedFile: dependency });
   });
 
   it('should watch changes to previously missing ESM dependency', {
@@ -518,9 +518,9 @@ console.log(values.random);
   }, async () => {
     const relativeDependencyPath = `./${tmpFiles++}.mjs`;
     const dependency = tmpdir.resolve(relativeDependencyPath);
-    const dependant = createTmpFile(`import ${JSON.stringify(relativeDependencyPath)}`, '.mjs');
+    const dependent = createTmpFile(`import ${JSON.stringify(relativeDependencyPath)}`, '.mjs');
 
-    await failWriteSucceed({ file: dependant, watchedFile: dependency });
+    await failWriteSucceed({ file: dependent, watchedFile: dependency });
   });
 
   it('should clear output between runs', async () => {

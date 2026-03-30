@@ -460,7 +460,7 @@ using IsJSApiWrapperNativeErrorCallback = bool (*)(Isolate* isolate,
 /**
  * PrepareStackTraceCallback is called when the stack property of an error is
  * first accessed. The return value will be used as the stack value. If this
- * callback is registed, the |Error.prepareStackTrace| API will be disabled.
+ * callback is registered, the |Error.prepareStackTrace| API will be disabled.
  * |sites| is an array of call sites, specified in
  * https://v8.dev/docs/stack-trace-api
  */

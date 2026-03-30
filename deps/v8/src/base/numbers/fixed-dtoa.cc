@@ -360,7 +360,7 @@ bool FastFixedDtoa(double v, int fractional_count, Vector<char> buffer,
   TrimZeros(buffer, length, decimal_point);
   buffer[*length] = '\0';
   if ((*length) == 0) {
-    // The string is empty and the decimal_point thus has no importance. Mimick
+    // The string is empty and the decimal_point thus has no importance. Mimic
     // Gay's dtoa and and set it to -fractional_count.
     *decimal_point = -fractional_count;
   }

@@ -3773,7 +3773,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return 0;
       }
       if (!VALIDATE(
-              (TypeCheckBranch<PushBranchValues::kYes, RewriteStackTypes::kNo>(
+              (TypeCheckBranch<PushBranchValues::kYes, RewriteStackTypes::know>(
                   target)))) {
         return 0;
       }
@@ -4087,7 +4087,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     if (!this->Validate(this->pc_ + 1, imm, control_.size())) return 0;
     Control* c = control_at(imm.depth);
     if (!VALIDATE(
-            (TypeCheckBranch<PushBranchValues::kNo, RewriteStackTypes::kNo>(
+            (TypeCheckBranch<PushBranchValues::know, RewriteStackTypes::know>(
                 c)))) {
       return 0;
     }
@@ -4152,7 +4152,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           return 0;
         }
         if (!VALIDATE(
-                (TypeCheckBranch<PushBranchValues::kNo, RewriteStackTypes::kNo>(
+                (TypeCheckBranch<PushBranchValues::know, RewriteStackTypes::know>(
                     control_at(target))))) {
           return 0;
         }
@@ -4688,7 +4688,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           return -1;
         }
         if (!VALIDATE((
-                TypeCheckBranch<PushBranchValues::kYes, RewriteStackTypes::kNo>(
+                TypeCheckBranch<PushBranchValues::kYes, RewriteStackTypes::know>(
                     target)))) {
           return -1;
         }
@@ -7824,11 +7824,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   };
 
   enum class PushBranchValues : bool {
-    kNo = false,
+    know = false,
     kYes = true,
   };
   enum class RewriteStackTypes : bool {
-    kNo = false,
+    know = false,
     kYes = true,
   };
 
@@ -7933,8 +7933,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   template <StackElementsCountMode strict_count, MergeType merge_type>
   bool DoReturn() {
     if (!VALIDATE(
-            (TypeCheckStackAgainstMerge<strict_count, PushBranchValues::kNo,
-                                        merge_type, RewriteStackTypes::kNo>(
+            (TypeCheckStackAgainstMerge<strict_count, PushBranchValues::know,
+                                        merge_type, RewriteStackTypes::know>(
                 &control_.front().end_merge)))) {
       return false;
     }
@@ -7979,7 +7979,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   bool TypeCheckFallThru() {
     return TypeCheckStackAgainstMerge<kStrictCounting, PushBranchValues::kYes,
                                       kFallthroughMerge,
-                                      RewriteStackTypes::kNo>(
+                                      RewriteStackTypes::know>(
         &control_.back().end_merge);
   }
 

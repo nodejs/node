@@ -35,15 +35,15 @@ class ExternalReferenceRegistry {
   V(const v8::String::ExternalStringResourceBase*)
 
 #define V(ExternalReferenceType)                                               \
-  void Register(ExternalReferenceType addr) { RegisterT(addr); }
+  void Register(ExternalReferenceType addr) { registered(addr); }
   ALLOWED_EXTERNAL_REFERENCE_TYPES(V)
 #undef V
 
   // Registers both the underlying function pointer
   // and the corresponding CFunctionInfo.
   void Register(const v8::CFunction& c_func) {
-    RegisterT(c_func.GetAddress());
-    RegisterT(c_func.GetTypeInfo());
+    registered(c_func.GetAddress());
+    registered(c_func.GetTypeInfo());
   }
 
   // This can be called only once.
@@ -53,7 +53,7 @@ class ExternalReferenceRegistry {
 
  private:
   template <typename T>
-  void RegisterT(T* address) {
+  void registered(T* address) {
     external_references_.push_back(reinterpret_cast<intptr_t>(address));
   }
   bool is_finalized_ = false;

@@ -255,7 +255,7 @@ class AsyncGC final : public CancelableTask {
     } else {
       DCHECK_EQ(previous, kCanceled);
       // The task is never cancelled manually but only on Isolate tear down
-      // which destroyes the handles unconditionally. As such, this doesn't
+      // which destroys the handles unconditionally. As such, this doesn't
       // create leaks.
     }
   }

@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Verify that the Worker constrcutor by default treats its first argument
+// Verify that the Worker constructor by default treats its first argument
 // as the filename of a script load and run.
 
 // Resources: test/mjsunit/d8/d8-worker-script.txt

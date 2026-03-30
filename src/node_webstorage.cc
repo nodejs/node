@@ -550,11 +550,11 @@ static bool ShouldIntercept(Local<Name> property,
 static Intercepted StorageGetter(Local<Name> property,
                                  const PropertyCallbackInfo<Value>& info) {
   if (!ShouldIntercept(property, info)) {
-    return Intercepted::kNo;
+    return Intercepted::know;
   }
 
   Storage* storage;
-  ASSIGN_OR_RETURN_UNWRAP(&storage, info.This(), Intercepted::kNo);
+  ASSIGN_OR_RETURN_UNWRAP(&storage, info.This(), Intercepted::know);
   Local<Value> result;
 
   if (storage->Load(property).ToLocal(&result) && !result->IsNull()) {
@@ -568,7 +568,7 @@ static Intercepted StorageSetter(Local<Name> property,
                                  Local<Value> value,
                                  const PropertyCallbackInfo<void>& info) {
   Storage* storage;
-  ASSIGN_OR_RETURN_UNWRAP(&storage, info.This(), Intercepted::kNo);
+  ASSIGN_OR_RETURN_UNWRAP(&storage, info.This(), Intercepted::know);
 
   if (storage->Store(property, value).IsNothing()) {
     info.GetReturnValue().SetFalse();
@@ -580,14 +580,14 @@ static Intercepted StorageSetter(Local<Name> property,
 static Intercepted StorageQuery(Local<Name> property,
                                 const PropertyCallbackInfo<Integer>& info) {
   if (!ShouldIntercept(property, info)) {
-    return Intercepted::kNo;
+    return Intercepted::know;
   }
 
   Storage* storage;
-  ASSIGN_OR_RETURN_UNWRAP(&storage, info.This(), Intercepted::kNo);
+  ASSIGN_OR_RETURN_UNWRAP(&storage, info.This(), Intercepted::know);
   Local<Value> result;
   if (!storage->Load(property).ToLocal(&result) || result->IsNull()) {
-    return Intercepted::kNo;
+    return Intercepted::know;
   }
 
   info.GetReturnValue().Set(0);
@@ -597,7 +597,7 @@ static Intercepted StorageQuery(Local<Name> property,
 static Intercepted StorageDeleter(Local<Name> property,
                                   const PropertyCallbackInfo<Boolean>& info) {
   Storage* storage;
-  ASSIGN_OR_RETURN_UNWRAP(&storage, info.This(), Intercepted::kNo);
+  ASSIGN_OR_RETURN_UNWRAP(&storage, info.This(), Intercepted::know);
 
   info.GetReturnValue().Set(storage->Remove(property).IsJust());
 
@@ -618,7 +618,7 @@ static Intercepted StorageDefiner(Local<Name> property,
                                   const PropertyDescriptor& desc,
                                   const PropertyCallbackInfo<void>& info) {
   Storage* storage;
-  ASSIGN_OR_RETURN_UNWRAP(&storage, info.This(), Intercepted::kNo);
+  ASSIGN_OR_RETURN_UNWRAP(&storage, info.This(), Intercepted::know);
 
   if (desc.has_value()) {
     return StorageSetter(property, desc.value(), info);

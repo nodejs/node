@@ -53,7 +53,7 @@ pub(crate) fn parse_ambiguous_tz_annotation<'a, T: EncodingType>(
         .peek_n(current_peek)?
         .ok_or(ParseError::abrupt_end("AmbiguousAnnotation"))?;
 
-    // Ambigious start values when lowercase alpha that is shared between `TzLeadingChar` and `KeyLeadingChar`.
+    // Ambiguous start values when lowercase alpha that is shared between `TzLeadingChar` and `KeyLeadingChar`.
     if is_a_key_leading_char(leading_char) {
         let mut peek_pos = current_peek + 1;
         // Go through looking for `=`

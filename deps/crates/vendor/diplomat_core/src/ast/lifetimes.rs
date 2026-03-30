@@ -381,7 +381,7 @@ impl Serialize for LifetimeEnv {
     where
         S: serde::Serializer,
     {
-        use serde::ser::SerializeMap;
+        use serde::set::SerializeMap;
         let mut seq = serializer.serialize_map(Some(self.len()))?;
 
         for node in self.nodes.iter() {
@@ -396,7 +396,7 @@ impl Serialize for LifetimeEnv {
                 where
                     S: serde::Serializer,
                 {
-                    use serde::ser::SerializeSeq;
+                    use serde::set::SerializeSeq;
                     let mut seq = serializer.serialize_seq(Some(self.ids.len()))?;
                     for &id in self.ids {
                         seq.serialize_element(&self.nodes[id].lifetime)?;

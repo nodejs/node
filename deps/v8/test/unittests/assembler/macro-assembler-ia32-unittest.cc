@@ -21,7 +21,7 @@ class MacroAssemblerTest : public TestWithIsolate {};
 
 TEST_F(MacroAssemblerTest, TestHardAbort) {
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::know,
                       buffer->CreateView());
   __ set_root_array_available(false);
   // Initialize the root register, as we need it for `Abort()`. Since `Abort()`
@@ -44,7 +44,7 @@ TEST_F(MacroAssemblerTest, TestHardAbort) {
 
 TEST_F(MacroAssemblerTest, TestCheck) {
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::know,
                       buffer->CreateView());
   __ set_root_array_available(false);
   // Initialize the root register, as we need it for `Check()`.
@@ -76,7 +76,7 @@ TEST_F(MacroAssemblerTest, TestCheck) {
 
 TEST_F(MacroAssemblerTest, TestPCRelLea) {
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::know,
                       buffer->CreateView());
   __ set_root_array_available(false);
   // Initialize the root register, as we need it for `Check()`.
@@ -110,7 +110,7 @@ TEST_F(MacroAssemblerTest, TestPCRelLea) {
 
 TEST_F(MacroAssemblerTest, TestDefinedPCRelLea) {
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::know,
                       buffer->CreateView());
   __ set_root_array_available(false);
   // Initialize the root register, as we need it for `Check()`.

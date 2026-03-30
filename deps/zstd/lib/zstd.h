@@ -272,7 +272,7 @@ ZSTDLIB_API int          ZSTD_defaultCLevel(void);         /*!< default compress
  *  it is recommended to allocate a compression context just once,
  *  and reuse it for each successive compression operation.
  *  This will make the workload easier for system's memory.
- *  Note : re-using context is just a speed / resource optimization.
+ *  Note : reusing context is just a speed / resource optimization.
  *         It doesn't change the compression ratio, which remains identical.
  *  Note 2: For parallel execution in multi-threaded environments,
  *         use one different context per thread .
@@ -718,7 +718,7 @@ typedef struct ZSTD_outBuffer_s {
 *  A ZSTD_CStream object is required to track streaming operation.
 *  Use ZSTD_createCStream() and ZSTD_freeCStream() to create/release resources.
 *  ZSTD_CStream objects can be reused multiple times on consecutive compression operations.
-*  It is recommended to reuse ZSTD_CStream since it will play nicer with system's memory, by re-using already allocated memory.
+*  It is recommended to reuse ZSTD_CStream since it will play nicer with system's memory, by reusing already allocated memory.
 *
 *  For parallel execution, use one separate ZSTD_CStream per thread.
 *
@@ -941,7 +941,7 @@ ZSTDLIB_API size_t ZSTD_initDStream(ZSTD_DStream* zds);
  *
  * Note: when an operation returns with an error code, the @zds state may be left in undefined state.
  *       It's UB to invoke `ZSTD_decompressStream()` on such a state.
- *       In order to re-use such a state, it must be first reset,
+ *       In order to reuse such a state, it must be first reset,
  *       which can be done explicitly (`ZSTD_DCtx_reset()`),
  *       or is implied for operations starting some new decompression job (`ZSTD_initDStream`, `ZSTD_decompressDCtx()`, `ZSTD_decompress_usingDict()`)
  */

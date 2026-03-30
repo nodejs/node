@@ -165,7 +165,7 @@ BROTLI_BOOL BrotliDecoderHuffmanTreeGroupInit(BrotliDecoderState* s,
     brotli_reg_t alphabet_size_limit, brotli_reg_t ntrees) {
   /* 376 = 256 (1-st level table) + 4 + 7 + 15 + 31 + 63 (2-nd level mix-tables)
      This number is discovered "unlimited" "enough" calculator; it is actually
-     a wee bigger than required in several cases (especially for alphabets with
+     a we bigger than required in several cases (especially for alphabets with
      less than 16 symbols). */
   const size_t max_table_size = alphabet_size_limit + 376;
   const size_t code_size = sizeof(HuffmanCode) * ntrees * max_table_size;

@@ -30,7 +30,7 @@
  * providing for each field its type (using values that are specific to the
  * particular format type, such as date or number formats), as well as the
  * start and end positions of the field in the formatted string.
- * A given UFieldPositionIterator can be re-used for different format calls;
+ * A given UFieldPositionIterator can be reused for different format calls;
  * each such call resets it to apply to that format string.
  * ufieldpositer_close should be called to dispose of the UFieldPositionIterator
  * when it is no longer needed.

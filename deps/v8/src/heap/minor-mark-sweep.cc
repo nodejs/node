@@ -510,7 +510,7 @@ void MinorMarkSweepCollector::ClearNonLiveReferences() {
   if (V8_UNLIKELY(v8_flags.always_use_string_forwarding_table)) {
     TRACE_GC(heap_->tracer(),
              GCTracer::Scope::MINOR_MS_CLEAR_STRING_FORWARDING_TABLE);
-    // Clear non-live objects in the string fowarding table.
+    // Clear non-live objects in the string forwarding table.
     YoungStringForwardingTableCleaner forwarding_table_cleaner(heap_);
     forwarding_table_cleaner.ProcessYoungObjects();
   }
@@ -1114,7 +1114,7 @@ void MinorMarkSweepCollector::Sweep() {
   heap_->array_buffer_sweeper()->RequestSweep(
       ArrayBufferSweeper::SweepingType::kYoung,
       empty_new_space ? ArrayBufferSweeper::TreatAllYoungAsPromoted::kYes
-                      : ArrayBufferSweeper::TreatAllYoungAsPromoted::kNo);
+                      : ArrayBufferSweeper::TreatAllYoungAsPromoted::know);
 }
 
 void MinorMarkSweepCollector::RequestGC() {

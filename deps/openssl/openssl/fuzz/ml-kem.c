@@ -66,7 +66,7 @@ static int select_keytype_and_size(uint8_t **buf, size_t *len,
     uint16_t modulus = 6;
 
     /*
-     * Note: We don't really care about endianess here, we just
+     * Note: We don't really care about endianness here, we just
      * want a random 16 bit value
      */
     *buf = (uint8_t *)OPENSSL_load_u16_le(&keysize, *buf);

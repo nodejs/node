@@ -25,7 +25,7 @@ namespace {
 enum TestValue {
   kTestUsingNull,   // no callback.
   kTestUsingFalse,  // callback returning false.
-  kTestUsingTrue,   // callbacl returning true.
+  kTestUsingTrue,   // callback returning true.
 };
 
 constexpr int kNumTestValues = 3;

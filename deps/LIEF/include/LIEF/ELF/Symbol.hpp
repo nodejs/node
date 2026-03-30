@@ -63,7 +63,7 @@ class LIEF_API Symbol : public LIEF::Symbol {
     DEFAULT   = 0,  ///< Visibility is specified by binding type
     INTERNAL  = 1,  ///< Defined by processor supplements
     HIDDEN    = 2,  ///< Not visible to other components
-    PROTECTED = 3   ///< Visible in other components but not preemptable
+    PROTECTED = 3   ///< Visible in other components but not preemptible
   };
 
   /// Special section indices

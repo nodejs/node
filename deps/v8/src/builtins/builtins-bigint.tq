@@ -180,7 +180,7 @@ builtin BigIntAddNoThrow(implicit context: Context)(x: BigInt,
   try {
     return BigIntAddImpl(x, y) otherwise BigIntTooBig;
   } label BigIntTooBig {
-    // Smi sentinal is used to signal BigIntTooBig exception.
+    // Smi sentinel is used to signal BigIntTooBig exception.
     return Convert<Smi>(0);
   }
 }
@@ -222,7 +222,7 @@ builtin BigIntSubtractNoThrow(
   try {
     return BigIntSubtractImpl(x, y) otherwise BigIntTooBig;
   } label BigIntTooBig {
-    // Smi sentinal is used to signal BigIntTooBig exception.
+    // Smi sentinel is used to signal BigIntTooBig exception.
     return Convert<Smi>(0);
   }
 }

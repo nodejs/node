@@ -1060,7 +1060,7 @@ class SetOrCopyDataPropertiesAssembler : public CodeStubAssembler {
                       BranchIfSameValue(key, property, &skip, &continue_label);
                       Bind(&continue_label);
                     },
-                    1, LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
+                    1, LoopUnrollingMode::know, IndexAdvanceMode::kPost);
               }
 
               CallBuiltin(Builtin::kCreateDataProperty, context, target, key,

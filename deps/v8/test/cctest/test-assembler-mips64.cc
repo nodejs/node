@@ -630,10 +630,10 @@ TEST(MIPS7) {
   __ bind(&neither_is_nan);
 
   if (kArchVariant == kMips64r6) {
-    __ cmp(OLT, L, f2, f6, f4);
+    __ cmp(OLD, L, f2, f6, f4);
     __ bc1nez(&less_than, f2);
   } else {
-    __ c(OLT, D, f6, f4, 2);
+    __ c(OLD, D, f6, f4, 2);
     __ bc1t(&less_than, 2);
   }
 
@@ -3883,7 +3883,7 @@ TEST(C_COND_FMT) {
       uint32_t fOlt;
       uint32_t fUlt;
       uint32_t fOle;
-      uint32_t fUle;
+      uint32_t file;
     };
 
     TestFloat test;
@@ -3934,8 +3934,8 @@ TEST(C_COND_FMT) {
 
     __ mov(t2, zero_reg);
     __ mov(t3, zero_reg);
-    __ c_d(OLT, f4, f6, 0);
-    __ c_s(OLT, f14, f16, 2);
+    __ c_d(OLD, f4, f6, 0);
+    __ c_s(OLD, f14, f16, 2);
     __ movt(t2, t1, 0);
     __ movt(t3, t1, 2);
     __ Sw(t2, MemOperand(a0, offsetof(TestFloat, dOlt)));
@@ -3966,7 +3966,7 @@ TEST(C_COND_FMT) {
     __ movt(t2, t1, 6);
     __ movt(t3, t1, 0);
     __ Sw(t2, MemOperand(a0, offsetof(TestFloat, dUle)));
-    __ Sw(t3, MemOperand(a0, offsetof(TestFloat, fUle)));
+    __ Sw(t3, MemOperand(a0, offsetof(TestFloat, file)));
 
     __ jr(ra);
     __ nop();
@@ -3996,7 +3996,7 @@ TEST(C_COND_FMT) {
     CHECK_EQ(test.fOlt, 1U);
     CHECK_EQ(test.fUlt, 1U);
     CHECK_EQ(test.fOle, 1U);
-    CHECK_EQ(test.fUle, 1U);
+    CHECK_EQ(test.file, 1U);
 
     test.dOp1 = std::numeric_limits<double>::max();
     test.dOp2 = std::numeric_limits<double>::min();
@@ -4018,7 +4018,7 @@ TEST(C_COND_FMT) {
     CHECK_EQ(test.fOlt, 0U);
     CHECK_EQ(test.fUlt, 0U);
     CHECK_EQ(test.fOle, 0U);
-    CHECK_EQ(test.fUle, 0U);
+    CHECK_EQ(test.file, 0U);
 
     test.dOp1 = -std::numeric_limits<double>::max();  // lowest()
     test.dOp2 = -std::numeric_limits<double>::max();  // lowest()
@@ -4040,7 +4040,7 @@ TEST(C_COND_FMT) {
     CHECK_EQ(test.fOlt, 0U);
     CHECK_EQ(test.fUlt, 0U);
     CHECK_EQ(test.fOle, 1U);
-    CHECK_EQ(test.fUle, 1U);
+    CHECK_EQ(test.file, 1U);
 
     test.dOp1 = std::numeric_limits<double>::quiet_NaN();
     test.dOp2 = 0.0;
@@ -4062,7 +4062,7 @@ TEST(C_COND_FMT) {
     CHECK_EQ(test.fOlt, 0U);
     CHECK_EQ(test.fUlt, 1U);
     CHECK_EQ(test.fOle, 0U);
-    CHECK_EQ(test.fUle, 1U);
+    CHECK_EQ(test.file, 1U);
   }
 }
 
@@ -4087,7 +4087,7 @@ TEST(CMP_COND_FMT) {
       double dUle;
       double dOr;
       double dUne;
-      double dNe;
+      double done;
       float fOp1;
       float fOp2;
       float fF;
@@ -4097,7 +4097,7 @@ TEST(CMP_COND_FMT) {
       float fOlt;
       float fUlt;
       float fOle;
-      float fUle;
+      float file;
       float fOr;
       float fUne;
       float fNe;
@@ -4151,7 +4151,7 @@ TEST(CMP_COND_FMT) {
     __ cmp_d(ULE, f2, f4, f6);
     __ cmp_s(ULE, f12, f14, f16);
     __ Sdc1(f2, MemOperand(a0, offsetof(TestFloat, dUle)));
-    __ Swc1(f12, MemOperand(a0, offsetof(TestFloat, fUle)));
+    __ Swc1(f12, MemOperand(a0, offsetof(TestFloat, file)));
 
     __ cmp_d(ORD, f2, f4, f6);
     __ cmp_s(ORD, f12, f14, f16);
@@ -4165,7 +4165,7 @@ TEST(CMP_COND_FMT) {
 
     __ cmp_d(NE, f2, f4, f6);
     __ cmp_s(NE, f12, f14, f16);
-    __ Sdc1(f2, MemOperand(a0, offsetof(TestFloat, dNe)));
+    __ Sdc1(f2, MemOperand(a0, offsetof(TestFloat, done)));
     __ Swc1(f12, MemOperand(a0, offsetof(TestFloat, fNe)));
 
     __ jr(ra);
@@ -4196,7 +4196,7 @@ TEST(CMP_COND_FMT) {
     CHECK_EQ(base::bit_cast<uint64_t>(test.dUle), dTrue);
     CHECK_EQ(base::bit_cast<uint64_t>(test.dOr), dTrue);
     CHECK_EQ(base::bit_cast<uint64_t>(test.dUne), dTrue);
-    CHECK_EQ(base::bit_cast<uint64_t>(test.dNe), dTrue);
+    CHECK_EQ(base::bit_cast<uint64_t>(test.done), dTrue);
     CHECK_EQ(base::bit_cast<uint32_t>(test.fF), fFalse);
     CHECK_EQ(base::bit_cast<uint32_t>(test.fUn), fFalse);
     CHECK_EQ(base::bit_cast<uint32_t>(test.fEq), fFalse);
@@ -4204,7 +4204,7 @@ TEST(CMP_COND_FMT) {
     CHECK_EQ(base::bit_cast<uint32_t>(test.fOlt), fTrue);
     CHECK_EQ(base::bit_cast<uint32_t>(test.fUlt), fTrue);
     CHECK_EQ(base::bit_cast<uint32_t>(test.fOle), fTrue);
-    CHECK_EQ(base::bit_cast<uint32_t>(test.fUle), fTrue);
+    CHECK_EQ(base::bit_cast<uint32_t>(test.file), fTrue);
 
     test.dOp1 = std::numeric_limits<double>::max();
     test.dOp2 = std::numeric_limits<double>::min();
@@ -4221,7 +4221,7 @@ TEST(CMP_COND_FMT) {
     CHECK_EQ(base::bit_cast<uint64_t>(test.dUle), dFalse);
     CHECK_EQ(base::bit_cast<uint64_t>(test.dOr), dTrue);
     CHECK_EQ(base::bit_cast<uint64_t>(test.dUne), dTrue);
-    CHECK_EQ(base::bit_cast<uint64_t>(test.dNe), dTrue);
+    CHECK_EQ(base::bit_cast<uint64_t>(test.done), dTrue);
     CHECK_EQ(base::bit_cast<uint32_t>(test.fF), fFalse);
     CHECK_EQ(base::bit_cast<uint32_t>(test.fUn), fFalse);
     CHECK_EQ(base::bit_cast<uint32_t>(test.fEq), fFalse);
@@ -4229,7 +4229,7 @@ TEST(CMP_COND_FMT) {
     CHECK_EQ(base::bit_cast<uint32_t>(test.fOlt), fFalse);
     CHECK_EQ(base::bit_cast<uint32_t>(test.fUlt), fFalse);
     CHECK_EQ(base::bit_cast<uint32_t>(test.fOle), fFalse);
-    CHECK_EQ(base::bit_cast<uint32_t>(test.fUle), fFalse);
+    CHECK_EQ(base::bit_cast<uint32_t>(test.file), fFalse);
 
     test.dOp1 = -std::numeric_limits<double>::max();  // lowest()
     test.dOp2 = -std::numeric_limits<double>::max();  // lowest()
@@ -4246,7 +4246,7 @@ TEST(CMP_COND_FMT) {
     CHECK_EQ(base::bit_cast<uint64_t>(test.dUle), dTrue);
     CHECK_EQ(base::bit_cast<uint64_t>(test.dOr), dTrue);
     CHECK_EQ(base::bit_cast<uint64_t>(test.dUne), dFalse);
-    CHECK_EQ(base::bit_cast<uint64_t>(test.dNe), dFalse);
+    CHECK_EQ(base::bit_cast<uint64_t>(test.done), dFalse);
     CHECK_EQ(base::bit_cast<uint32_t>(test.fF), fFalse);
     CHECK_EQ(base::bit_cast<uint32_t>(test.fUn), fFalse);
     CHECK_EQ(base::bit_cast<uint32_t>(test.fEq), fTrue);
@@ -4254,7 +4254,7 @@ TEST(CMP_COND_FMT) {
     CHECK_EQ(base::bit_cast<uint32_t>(test.fOlt), fFalse);
     CHECK_EQ(base::bit_cast<uint32_t>(test.fUlt), fFalse);
     CHECK_EQ(base::bit_cast<uint32_t>(test.fOle), fTrue);
-    CHECK_EQ(base::bit_cast<uint32_t>(test.fUle), fTrue);
+    CHECK_EQ(base::bit_cast<uint32_t>(test.file), fTrue);
 
     test.dOp1 = std::numeric_limits<double>::quiet_NaN();
     test.dOp2 = 0.0;
@@ -4271,7 +4271,7 @@ TEST(CMP_COND_FMT) {
     CHECK_EQ(base::bit_cast<uint64_t>(test.dUle), dTrue);
     CHECK_EQ(base::bit_cast<uint64_t>(test.dOr), dFalse);
     CHECK_EQ(base::bit_cast<uint64_t>(test.dUne), dTrue);
-    CHECK_EQ(base::bit_cast<uint64_t>(test.dNe), dFalse);
+    CHECK_EQ(base::bit_cast<uint64_t>(test.done), dFalse);
     CHECK_EQ(base::bit_cast<uint32_t>(test.fF), fFalse);
     CHECK_EQ(base::bit_cast<uint32_t>(test.fUn), fTrue);
     CHECK_EQ(base::bit_cast<uint32_t>(test.fEq), fFalse);
@@ -4279,7 +4279,7 @@ TEST(CMP_COND_FMT) {
     CHECK_EQ(base::bit_cast<uint32_t>(test.fOlt), fFalse);
     CHECK_EQ(base::bit_cast<uint32_t>(test.fUlt), fTrue);
     CHECK_EQ(base::bit_cast<uint32_t>(test.fOle), fFalse);
-    CHECK_EQ(base::bit_cast<uint32_t>(test.fUle), fTrue);
+    CHECK_EQ(base::bit_cast<uint32_t>(test.file), fTrue);
   }
 }
 
@@ -6447,8 +6447,8 @@ TEST(Subu) {
       {0x7FFFFFFF,   0xFFFFFFFF80000001,         3},  // max_int32
       // Generates lui + ori + subu
       {0xFFFFFFFF80000000, 0xFFFFFFFF80000000,   2},  // min_int32
-      // The test case above generates lui + subu intruction sequence.
-      // The result of 0 - min_int32 eqauls max_int32 + 1, which wraps around to
+      // The test case above generates lui + subu instruction sequence.
+      // The result of 0 - min_int32 equals max_int32 + 1, which wraps around to
       // min_int32 again.
   };
   // clang-format on
@@ -6530,7 +6530,7 @@ TEST(Dsubu) {
       // Generates lui + ori + dsubu
       {0xFFFFFFFF80000000, 0x0000000080000000, 2},  // min_int32
       // Generates lui + dsubu
-      // The result of 0 - min_int32 eqauls max_int32 + 1, which fits into a 64
+      // The result of 0 - min_int32 equals max_int32 + 1, which fits into a 64
       // bit register, Dsubu gives a different result here.
       {0x7FFFFFFFFFFFFFFF, 0x8000000000000001, 3},  // max_int64
       // r2 - Generates daddiu + dsrl + dsubu
@@ -6539,7 +6539,7 @@ TEST(Dsubu) {
       // The test case above generates:
       // r2 - daddiu + dsll32 + dsubu instruction sequence,
       // r6 - ori + dati + dsubu.
-      // The result of 0 - min_int64 eqauls max_int64 + 1, which wraps around to
+      // The result of 0 - min_int64 equals max_int64 + 1, which wraps around to
       // min_int64 again.
       {0xFFFF0000FFFFFFFF, 0x0000FFFF00000001, 4},
       // The test case above generates:
@@ -6800,7 +6800,7 @@ TEST(MSA_fill_copy) {
 }
 
 TEST(MSA_fill_copy_2) {
-  // Similar to MSA_fill_copy test, but also check overlaping between MSA and
+  // Similar to MSA_fill_copy test, but also check overlapping between MSA and
   // FPU registers with same numbers
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -6860,7 +6860,7 @@ TEST(MSA_fill_copy_2) {
 }
 
 TEST(MSA_fill_copy_3) {
-  // Similar to MSA_fill_copy test, but also check overlaping between MSA and
+  // Similar to MSA_fill_copy test, but also check overlapping between MSA and
   // FPU registers with same numbers
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();

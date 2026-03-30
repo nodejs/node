@@ -397,7 +397,7 @@ case $UNAME_MACHINE:$UNAME_SYSTEM:$UNAME_RELEASE:$UNAME_VERSION in
 	GUESS=hppa1.1-hitachi-hiuxmpp
 	;;
     Pyramid*:OSx*:*:* | MIS*:OSx*:*:* | MIS*:SMP_DC-OSx*:*:*)
-	# akee@wpdis03.wpafb.af.mil (Earle F. Ake) contributed MIS and NILE.
+	# akee@wpdis03.wpafb.af.mil (Earle F. Ache) contributed MIS and NILE.
 	case `(/bin/universe) 2>/dev/null` in
 	    att) GUESS=pyramid-pyramid-sysv3 ;;
 	    *)   GUESS=pyramid-pyramid-bsd   ;;

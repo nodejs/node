@@ -158,7 +158,7 @@ def process_symbolizer_output(output, build_dir):
 def get_instrumented_lines(executable):
   """Return the instrumented lines of an executable.
 
-  Called trough multiprocessing pool.
+  Called through multiprocessing pool.
 
   Returns: Post-processed llvm output as returned by process_symbolizer_output.
   """
@@ -241,7 +241,7 @@ def write_instrumented(options):
 def get_covered_lines(args):
   """Return the covered lines of an executable.
 
-  Called trough multiprocessing pool. The args are expected to unpack to:
+  Called through multiprocessing pool. The args are expected to unpack to:
     cov_dir: Folder with sancov files merged by sancov_merger.py.
     executable: Absolute path to the executable that was called to produce the
                 given coverage data.
@@ -343,7 +343,7 @@ def merge(options):
           os.path.isdir(options.coverage_dir))
 
   # Inputs for multiprocessing. List of tuples of:
-  # Coverage dir, absoluate path to executable, sancov file name.
+  # Coverage dir, absolute path to executable, sancov file name.
   inputs = []
   for sancov_file in os.listdir(options.coverage_dir):
     match = SANCOV_FILE_RE.match(sancov_file)

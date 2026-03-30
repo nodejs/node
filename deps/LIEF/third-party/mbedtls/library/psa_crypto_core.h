@@ -32,7 +32,7 @@
  *
  * \param cipher_alg  The cipher algorithm (ignored for now).
  *
- * \return 1 if the driver subsytem is ready, 0 otherwise.
+ * \return 1 if the driver subsystem is ready, 0 otherwise.
  */
 int psa_can_do_cipher(psa_key_type_t key_type, psa_algorithm_t cipher_alg);
 
@@ -78,7 +78,7 @@ typedef struct {
      * (including keys being created or destroyed), and can be either
      * filled or 0 when the slot is free.
      *
-     * In most cases, the slice index can be deduced from the key identifer.
+     * In most cases, the slice index can be deduced from the key identifier.
      * We keep it in a separate field for robustness (it reduces the chance
      * that a coding mistake in the key store will result in accessing the
      * wrong slice), and also so that it's available even on code paths

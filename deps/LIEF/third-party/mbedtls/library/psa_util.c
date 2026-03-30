@@ -477,7 +477,7 @@ int mbedtls_ecdsa_raw_to_der(size_t bits, const unsigned char *raw, size_t raw_l
                                                      MBEDTLS_ASN1_CONSTRUCTED |
                                                      MBEDTLS_ASN1_SEQUENCE));
 
-    /* memmove the content of der buffer to its beginnig. */
+    /* memmove the content of der buffer to its beginning. */
     memmove(der, p, len);
     *der_len = len;
 

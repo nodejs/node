@@ -53,7 +53,7 @@ TEST_F(PointerTableTest, ExternalPointerTableCompaction) {
     {
       v8::HandleScope inner_scope(reinterpret_cast<v8::Isolate*>(iso));
 
-      // Allocate one additional external poiner table entry, which should now
+      // Allocate one additional external pointer table entry, which should now
       // end up on a new segment.
       CHECK_EQ(1, space->NumSegmentsForTesting());
       DirectHandle<JSExternalObject> obj =

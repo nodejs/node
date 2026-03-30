@@ -31,7 +31,7 @@ class X {                                  // 000
   );
 
   await TestCoverage(
-    "class with field thats not called",
+    "class with field that's not called",
     `
 class X {                                  // 000
   x = function() { }                       // 050
@@ -77,7 +77,7 @@ x.y();                                     // 350
   );
 
   await TestCoverage(
-    "non contiguous class field thats called",
+    "non contiguous class field that's called",
     `
 class X {                                  // 000
   x = function() { }                       // 050

@@ -1861,7 +1861,7 @@ DyldInfo& DyldInfo::update_standard_bindings_v2(const DyldInfo::bind_container_t
       address = info->address();
       SegmentCommand* segment = info->segment();
       if (segment == nullptr) {
-        LIEF_ERR("Can't find the segment associated with the binding info. Can't udpate binding v2");
+        LIEF_ERR("Can't find the segment associated with the binding info. Can't update binding v2");
         return *this;
       }
       size_t index = segment->index();

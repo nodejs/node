@@ -1263,7 +1263,7 @@ getTrailSingle:
                     goto outputBytes;
                 }
             } else if (c - 0x3400 >= 0xf300 - 0x3400 /* c<0x3400 || c>=0xf300 */) {
-                /* compress BMP character if the following one is not an uncompressible ideograph */
+                /* compress BMP character if the following one is not an incompressible ideograph */
                 if(!(source<sourceLimit && (uint32_t)(*source-0x3400)<(0xd800-0x3400))) {
                     if (c - 0x30 < 10 || c - 0x61 < 26 || c - 0x41 < 26) {
                         /* ASCII digit or letter */
@@ -1332,7 +1332,7 @@ getTrailUnicode:
                 ) {
                     /*
                      * there is a dynamic window that contains this character and
-                     * the following character is not uncompressible,
+                     * the following character is not incompressible,
                      * change to the window
                      */
                     isSingleByteMode=true;
@@ -1740,7 +1740,7 @@ getTrailSingle:
                     goto outputBytes;
                 }
             } else if (c - 0x3400 >= 0xf300 - 0x3400 /* c<0x3400 || c>=0xf300 */) {
-                /* compress BMP character if the following one is not an uncompressible ideograph */
+                /* compress BMP character if the following one is not an incompressible ideograph */
                 if(!(source<sourceLimit && (uint32_t)(*source-0x3400)<(0xd800-0x3400))) {
                     if (c - 0x30 < 10 || c - 0x61 < 26 || c - 0x41 < 26) {
                         /* ASCII digit or letter */
@@ -1808,7 +1808,7 @@ getTrailUnicode:
                 ) {
                     /*
                      * there is a dynamic window that contains this character and
-                     * the following character is not uncompressible,
+                     * the following character is not incompressible,
                      * change to the window
                      */
                     isSingleByteMode=true;

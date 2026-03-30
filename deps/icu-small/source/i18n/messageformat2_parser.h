@@ -45,7 +45,7 @@ namespace message2 {
     // Used for parameterizing attributes parsing code
     // over the two builders that use it (Expression and Markup)
     // Unfortunately the same OptionAdder class can't just be reused,
-    // becaues duplicate options are forbidden while duplicate attributes are not
+    // because duplicate options are forbidden while duplicate attributes are not
     template <class T>
     class AttributeAdder {
         private:

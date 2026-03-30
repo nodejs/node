@@ -13,7 +13,7 @@ tmpdir.refresh();
 
 let tmpFiles = 0;
 describe('node:test reporters', { concurrency: true }, () => {
-  it('should default to outputing TAP to stdout', async () => {
+  it('should default to outputting TAP to stdout', async () => {
     const child = spawnSync(process.execPath, ['--test', testFile]);
     assert.strictEqual(child.stderr.toString(), '');
     assert.match(child.stdout.toString(), /✖ failing tests:/);

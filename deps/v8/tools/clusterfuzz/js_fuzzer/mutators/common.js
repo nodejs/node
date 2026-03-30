@@ -384,7 +384,7 @@ function concatFlags(inputs) {
 }
 
 function concatPrograms(inputs) {
-  // Concatentate programs.
+  // Concatenate programs.
   const resultProgram = babelTypes.program([]);
   const result = babelTypes.file(resultProgram, [], null);
 

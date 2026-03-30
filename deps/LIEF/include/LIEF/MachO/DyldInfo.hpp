@@ -191,7 +191,7 @@ class LIEF_API DyldInfo : public LoadCommand {
   ///    <seg-index, seg-offset, type, symbol-library-ordinal, symbol-name, addend>
   /// The opcodes are a compressed way to encode the table by only
   /// encoding when a column changes.  In addition simple patterns
-  /// like for runs of pointers initialzed to the same value can be
+  /// like for runs of pointers initialized to the same value can be
   /// encoded in a few bytes.
   ///
   /// @see ``/usr/include/mach-o/loader.h``

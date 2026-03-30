@@ -1079,7 +1079,7 @@ void FunctionTemplate::SetPrototypeProviderTemplate(
       Utils::OpenDirectHandle(*prototype_provider);
   Utils::ApiCheck(i::IsUndefined(self->GetPrototypeTemplate(), i_isolate),
                   "v8::FunctionTemplate::SetPrototypeProviderTemplate",
-                  "Protoype must be undefined");
+                  "Prototype must be undefined");
   Utils::ApiCheck(i::IsUndefined(self->GetParentTemplate(), i_isolate),
                   "v8::FunctionTemplate::SetPrototypeProviderTemplate",
                   "Prototype provider must be empty");
@@ -1134,7 +1134,7 @@ void FunctionTemplate::Inherit(v8::Local<FunctionTemplate> value) {
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
   Utils::ApiCheck(
       i::IsUndefined(info->GetPrototypeProviderTemplate(), i_isolate),
-      "v8::FunctionTemplate::Inherit", "Protoype provider must be empty");
+      "v8::FunctionTemplate::Inherit", "Prototype provider must be empty");
   i::FunctionTemplateInfo::SetParentTemplate(i_isolate, info,
                                              Utils::OpenDirectHandle(*value));
 }
@@ -2935,7 +2935,7 @@ void ScriptOrigin::VerifyHostDefinedOptions() const {
       Utils::OpenDirectHandle(*host_defined_options_.As<FixedArray>());
   for (int i = 0; i < options->length(); i++) {
     Utils::ApiCheck(i::IsPrimitive(options->get(i)), "ScriptOrigin()",
-                    "PrimitiveArray can only contain primtive values");
+                    "PrimitiveArray can only contain primitive values");
   }
 }
 

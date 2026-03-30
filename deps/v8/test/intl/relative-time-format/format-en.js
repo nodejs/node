@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// The following test are not part of the comformance. Just some output in
+// The following test are not part of the conformance. Just some output in
 // English to verify the format does return something reasonable for English.
 // It may be changed when we update the CLDR data.
 // NOTE: These are UNSPECIFIED behavior in
@@ -158,7 +158,7 @@ assertEquals('next yr.', shortAuto.format(1, 'year'));
 assertEquals('in 2 yr.', shortAuto.format(2, 'year'));
 assertEquals('in 345 yr.', shortAuto.format(345, 'year'));
 
-// Somehow in the 'en' locale, there are no valeu for -narrow
+// Somehow in the 'en' locale, there are no value for -narrow
 let narrowAuto = new Intl.RelativeTimeFormat(
     "en", {style: "narrow", localeMatcher: 'lookup', numeric: 'auto'});
 
@@ -384,7 +384,7 @@ assertEquals('in 1 yr.', shortAlways.format(1, 'year'));
 assertEquals('in 2 yr.', shortAlways.format(2, 'year'));
 assertEquals('in 345 yr.', shortAlways.format(345, 'year'));
 
-// Somehow in the 'en' locale, there are no valeu for -narrow
+// Somehow in the 'en' locale, there are no value for -narrow
 let narrowAlways = new Intl.RelativeTimeFormat(
     "en", {style: "narrow", localeMatcher: 'lookup', numeric: 'always'});
 

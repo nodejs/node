@@ -5,7 +5,7 @@
 let array = [
   {
     'Text':
-        `Wikipédia est un projet d’encyclopédie collective en ligne, universelle.`
+        `Wikipédia est un project d’encyclopédie collective en ligne, universelle.`
   },
   {
     'Text': `Wikipédia est définie par des principes fondateurs. Son contenu est

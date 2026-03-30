@@ -9,7 +9,7 @@ use core::fmt;
 use core::marker::PhantomData;
 use serde_core::{
     de::{MapAccess, SeqAccess, Visitor},
-    ser::{SerializeMap, SerializeSeq},
+    set::{SerializeMap, SerializeSeq},
     Deserialize, Deserializer, Serialize, Serializer,
 };
 

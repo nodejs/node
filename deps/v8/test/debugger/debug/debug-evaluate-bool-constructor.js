@@ -59,6 +59,6 @@ function callDebugger() {
 callDebugger();
 
 
-// Make sure that the debug event listener vas invoked.
+// Make sure that the debug event listener was invoked.
 assertFalse(exceptionThrown, "exception in listener")
 assertTrue(listenerComplete, "listener did not run to completion");

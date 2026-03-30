@@ -128,7 +128,7 @@ function TestTypedArrayForEach(constructor) {
   assertThrows(function () { constructor.prototype.forEach.call({}, function (x) {}) }, TypeError);
   assertThrows(function () { constructor.prototype.forEach.call(0, function (x) {}) }, TypeError);
 
-  // Method must be useable on instances of other typed arrays.
+  // Method must be usable on instances of other typed arrays.
   for (var i = 0; i < typedArrayConstructors.length; i++) {
     count = 0;
     a = new typedArrayConstructors[i](4);

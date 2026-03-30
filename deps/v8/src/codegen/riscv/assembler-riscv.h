@@ -378,7 +378,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // Bits available for offset field in jump
   static constexpr int kJumpOffsetBits = 21;
 
-  // Bits available for offset field in compresed jump
+  // Bits available for offset field in compressed jump
   static constexpr int kCJalOffsetBits = 12;
 
   // Bits available for offset field in compressed branch
@@ -410,7 +410,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // of m. m must be a power of 2 (>= 4).
   void Align(int m);
   // Insert the smallest number of zero bytes possible to align the pc offset
-  // to a mulitple of m. m must be a power of 2 (>= 2).
+  // to a multiple of m. m must be a power of 2 (>= 2).
   void DataAlign(int m);
   // Aligns code to something that's optimal for a jump target for the platform.
   void CodeTargetAlign();
@@ -731,7 +731,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     TWO_ACCESSES = true
   };
 
-  // Determine whether need to adjust base and offset of memroy load/store
+  // Determine whether need to adjust base and offset of memory load/store
   bool NeedAdjustBaseAndOffset(
       const MemOperand& src, OffsetAccessType = OffsetAccessType::SINGLE_ACCESS,
       int second_Access_add_to_offset = 4);

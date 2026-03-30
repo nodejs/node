@@ -692,7 +692,7 @@ static int64_t DetectTargets() {
         ".option pop"
         : "=r"(e8m1_vec_len), "=r"(vtype_reg_val));
 
-    // The RVV target is supported if the VILL bit of VTYPE (the MSB bit of
+    // The RVV target is supported if the WILL bit of VTYPE (the MSB bit of
     // VTYPE) is not set and the length of a vuint8m1_t vector is at least 16
     // bytes
     if (vtype_reg_val >= 0 && e8m1_vec_len >= 16) {

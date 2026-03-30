@@ -20,7 +20,7 @@ class Visitor;
  * left-most base class.
  *
  * Types inheriting from GarbageCollected must provide a method of
- * signature `void Trace(cppgc::Visitor*) const` that dispatchs all managed
+ * signature `void Trace(cppgc::Visitor*) const` that dispatches all managed
  * pointers to the visitor and delegates to garbage-collected base classes.
  * The method must be virtual if the type is not directly a child of
  * GarbageCollected and marked as final.
@@ -78,7 +78,7 @@ class GarbageCollected {
  * GarbageCollected object.
  *
  * Types inheriting from GarbageCollectedMixin must override a virtual method
- * of signature `void Trace(cppgc::Visitor*) const` that dispatchs all managed
+ * of signature `void Trace(cppgc::Visitor*) const` that dispatches all managed
  * pointers to the visitor and delegates to base classes.
  *
  * \code
@@ -98,12 +98,12 @@ class GarbageCollectedMixin {
   void* operator new(size_t) = delete;
   void* operator new[](size_t) = delete;
   // The garbage collector is taking care of reclaiming the object.
-  // Not override the non-array varaint of `delete` to not conflict with the
+  // Not override the non-array variant of `delete` to not conflict with the
   // operator in GarbageCollected above.
   void operator delete[](void*) = delete;
 
   /**
-   * This Trace method must be overriden by objects inheriting from
+   * This Trace method must be overridden by objects inheriting from
    * GarbageCollectedMixin.
    */
   virtual void Trace(cppgc::Visitor*) const {}

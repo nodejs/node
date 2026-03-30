@@ -1,14 +1,14 @@
 /**
  * \file psa/crypto_legacy.h
  *
- * \brief Add temporary suppport for deprecated symbols before they are
+ * \brief Add temporary support for deprecated symbols before they are
  *        removed from the library.
  *
  * PSA_WANT_KEY_TYPE_xxx_KEY_PAIR and MBEDTLS_PSA_ACCEL_KEY_TYPE_xxx_KEY_PAIR
  * symbols are deprecated.
- * New symols add a suffix to that base name in order to clearly state what is
+ * New symbols add a suffix to that base name in order to clearly state what is
  * the expected use for the key (use, import, export, generate, derive).
- * Here we define some backward compatibility support for uses stil using
+ * Here we define some backward compatibility support for uses still using
  * the legacy symbols.
  */
 /*

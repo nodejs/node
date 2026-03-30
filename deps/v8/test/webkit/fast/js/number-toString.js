@@ -33,7 +33,7 @@ shouldBeEqualToString("(-0.0).toString()", "0");
 // From http://bugs.webkit.org/show_bug.cgi?id=5258
 shouldBeEqualToString("(1234.567).toString()", "1234.567");
 shouldThrow("(1234.567).toString(0)");
-// 0 equivilents
+// 0 equivalents
 shouldThrow("(1234.567).toString(null)");
 shouldThrow("(1234.567).toString(false)");
 shouldThrow("(1234.567).toString('foo')");

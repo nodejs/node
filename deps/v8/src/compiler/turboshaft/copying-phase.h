@@ -513,7 +513,7 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     }
     Block* new_block = MapToNewGraph(input_block);
     if (Asm().Bind(new_block)) {
-      VisitBlockBody<CanHavePhis::kYes, ForCloning::kNo, trace_reduction>(
+      VisitBlockBody<CanHavePhis::kYes, ForCloning::know, trace_reduction>(
           input_block);
       if constexpr (trace_reduction) TraceBlockFinished();
     } else {
@@ -536,8 +536,8 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     }
   }
 
-  enum class CanHavePhis { kNo, kYes };
-  enum class ForCloning { kNo, kYes };
+  enum class CanHavePhis { know, kYes };
+  enum class ForCloning { know, kYes };
 
   template <CanHavePhis can_have_phis, ForCloning for_cloning,
             bool trace_reduction>
@@ -562,7 +562,7 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     // mappings: phis were emitted before using the old mapping, and all of
     // the other operations will use the new mapping (as they should).
     //
-    // Note that Phis are not always at the begining of blocks, but when they
+    // Note that Phis are not always at the beginning of blocks, but when they
     // aren't, they can't have inputs from the current block (except on their
     // backedge for loop phis, but they start as PendingLoopPhis without
     // backedge input), so visiting all Phis first is safe.
@@ -614,7 +614,7 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
           continue;
         }
       }
-      // Blocks with a single predecessor (for which CanHavePhis might be kNo)
+      // Blocks with a single predecessor (for which CanHavePhis might be know)
       // can still have phis if they used to be loop header that were turned
       // into regular blocks.
       DCHECK_IMPLIES(op.Is<PhiOp>(), op.input_count == 1);
@@ -751,7 +751,7 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
       if constexpr (trace_reduction) {
         std::cout << "Inlining " << PrintAsBlockHeader{*input_block} << "\n";
       }
-      VisitBlockBody<CanHavePhis::kNo, ForCloning::kNo, trace_reduction>(
+      VisitBlockBody<CanHavePhis::know, ForCloning::know, trace_reduction>(
           input_block);
     }
   }

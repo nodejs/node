@@ -48,48 +48,48 @@ test(check_v4, true);
 
 // Test loading from arrays with different prototypes.
 (function() {
-  function testIn(index, array) {
+  function testing(index, array) {
     return index in array;
   }
-  %PrepareFunctionForOptimization(testIn);
+  %PrepareFunctionForOptimization(testing);
 
   let a = [];
   a.__proto__ = [0,1,2];
   a[1] = 3;
 
   // First load will set IC to Load handle with allow hole to undefined conversion false.
-  assertTrue(testIn(0, a));
+  assertTrue(testing(0, a));
   // Second load will hit ICMiss when hole is loaded. Seeing the same map twice, the IC will be set megamorphic.
-  assertTrue(testIn(0, a));
-  %OptimizeFunctionOnNextCall(testIn);
+  assertTrue(testing(0, a));
+  %OptimizeFunctionOnNextCall(testing);
   // Test JIT to ensure proper handling.
-  assertTrue(testIn(0, a));
+  assertTrue(testing(0, a));
 
-  %ClearFunctionFeedback(testIn);
-  %DeoptimizeFunction(testIn);
-  %PrepareFunctionForOptimization(testIn);
+  %ClearFunctionFeedback(testing);
+  %DeoptimizeFunction(testing);
+  %PrepareFunctionForOptimization(testing);
 
   // First load will set IC to Load handle with allow hole to undefined conversion false.
-  assertTrue(testIn(0, a));
-  %OptimizeFunctionOnNextCall(testIn);
+  assertTrue(testing(0, a));
+  %OptimizeFunctionOnNextCall(testing);
   // Test JIT to ensure proper handling if hole is loaded.
-  assertTrue(testIn(0, a));
+  assertTrue(testing(0, a));
 
   // Repeat the same testing for access out-of-bounds of the array, but in bounds of its prototype.
-  %ClearFunctionFeedback(testIn);
-  %DeoptimizeFunction(testIn);
-  %PrepareFunctionForOptimization(testIn);
+  %ClearFunctionFeedback(testing);
+  %DeoptimizeFunction(testing);
+  %PrepareFunctionForOptimization(testing);
 
-  assertTrue(testIn(2, a));
-  assertTrue(testIn(2, a));
-  %OptimizeFunctionOnNextCall(testIn);
-  assertTrue(testIn(2, a));
+  assertTrue(testing(2, a));
+  assertTrue(testing(2, a));
+  %OptimizeFunctionOnNextCall(testing);
+  assertTrue(testing(2, a));
 
-  %ClearFunctionFeedback(testIn);
-  %DeoptimizeFunction(testIn);
-  %PrepareFunctionForOptimization(testIn);
+  %ClearFunctionFeedback(testing);
+  %DeoptimizeFunction(testing);
+  %PrepareFunctionForOptimization(testing);
 
-  assertTrue(testIn(2, a));
-  %OptimizeFunctionOnNextCall(testIn);
-  assertTrue(testIn(2, a));
+  assertTrue(testing(2, a));
+  %OptimizeFunctionOnNextCall(testing);
+  assertTrue(testing(2, a));
 })();

@@ -1846,7 +1846,7 @@ void WasmFrame::Iterate(RootVisitor* v) const {
   }
 
   // Visit tagged parameters that have been passed to the function of this
-  // frame. Conceptionally these parameters belong to the parent frame. However,
+  // frame. Conceptually these parameters belong to the parent frame. However,
   // the exact count is only known by this frame (in the presence of tail calls,
   // this information cannot be derived from the call site).
   if (wasm_code->num_tagged_parameter_slots() > 0) {
@@ -3958,7 +3958,7 @@ void WasmLiftoffSetupFrame::Iterate(RootVisitor* v) const {
   uint32_t num_tagged_stack_slots = wasm_code->num_tagged_parameter_slots();
 
   // Visit tagged parameters that have been passed to the function of this
-  // frame. Conceptionally these parameters belong to the parent frame.
+  // frame. Conceptually these parameters belong to the parent frame.
   // However, the exact count is only known by this frame (in the presence of
   // tail calls, this information cannot be derived from the call site).
   if (num_tagged_stack_slots > 0) {

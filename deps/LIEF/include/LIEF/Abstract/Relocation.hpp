@@ -66,22 +66,22 @@ class LIEF_API Relocation : public Object {
   void accept(Visitor& visitor) const override;
 
 
-  /// Comparaison based on the Relocation's **address**
+  /// Comparison based on the Relocation's **address**
   virtual bool operator<(const Relocation& rhs) const {
     return address() < rhs.address();
   }
 
-  /// Comparaison based on the Relocation's **address**
+  /// Comparison based on the Relocation's **address**
   virtual bool operator<=(const Relocation& rhs) const {
     return !(address() > rhs.address());
   }
 
-  /// Comparaison based on the Relocation's **address**
+  /// Comparison based on the Relocation's **address**
   virtual bool operator>(const Relocation& rhs) const {
     return address() > rhs.address();
   }
 
-  /// Comparaison based on the Relocation's **address**
+  /// Comparison based on the Relocation's **address**
   virtual bool operator>=(const Relocation& rhs) const {
     return !(address() < rhs.address());
   }

@@ -822,7 +822,7 @@ TF_BUILTIN(CallFunctionTemplate_Generic, CallOrConstructBuiltinsAssembler) {
   auto argc = UncheckedParameter<Int32T>(Descriptor::kArgumentsCount);
   // This builtin is called from IC where the topmost script-having context is
   // known precisely and from Builtin::kHandleApiCallOrConstruct where the
-  // caller context is not guranteed to be known.
+  // caller context is not guaranteed to be known.
   auto topmost_script_having_context =
       Parameter<Object>(Descriptor::kTopmostScriptHavingContext);
   CallFunctionTemplate(CallFunctionTemplateMode::kGeneric,

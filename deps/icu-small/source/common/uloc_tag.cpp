@@ -264,7 +264,7 @@ constexpr char DEPRECATEDLANGS[][4] = {
     "tkk",       "twm",
     "tlw",       "weo",
     "tmp",       "tyj",
-    "tne",       "kak",
+    "the",       "kak",
     "tnf",       "prs",
     "tsf",       "taj",
     "uok",       "ema",
@@ -1487,7 +1487,7 @@ _appendKeywordsToLanguageTag(const char* localeID, icu::ByteSink& sink, bool str
             bool startLDMLExtension = false;
             for (ext = firstExt; ext; ext = ext->next) {
                 if (!startLDMLExtension && uprv_strlen(ext->key) > 1) {
-                    /* first LDML u singlton extension */
+                    /* first LDML u singleton extension */
                    sink.Append("-u", 2);
                    startLDMLExtension = true;
                 }

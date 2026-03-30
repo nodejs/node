@@ -139,7 +139,7 @@
 //                  "arg1", std::string("string will be copied"));
 //
 //
-// Convertable notes:
+// Convertible notes:
 // Converting a large data type to a string can be costly. To help with this,
 // the trace framework provides an interface ConvertableToTraceFormat. If you
 // inherit from it and implement the AppendAsTraceFormat method the trace
@@ -207,7 +207,7 @@
 // Records a pair of begin and end events called "name" for the current
 // scope, with 0, 1 or 2 associated arguments. If the category is not
 // enabled, then this does nothing.
-// - category and name strings must have application lifetime (statics or
+// - category and name strings must have application lifetime (statistics or
 //   literals). They may not include " chars.
 #define TRACE_EVENT0(category_group, name)    \
   INTERNAL_TRACE_EVENT_ADD_SCOPED(category_group, name)
@@ -233,7 +233,7 @@
 // Records a single event called "name" immediately, with 0, 1 or 2
 // associated arguments. If the category is not enabled, then this
 // does nothing.
-// - category and name strings must have application lifetime (statics or
+// - category and name strings must have application lifetime (statistics or
 //   literals). They may not include " chars.
 #define TRACE_EVENT_INSTANT0(category_group, name, scope)                   \
   INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_INSTANT, category_group, name, \
@@ -274,7 +274,7 @@
 // Records a single BEGIN event called "name" immediately, with 0, 1 or 2
 // associated arguments. If the category is not enabled, then this
 // does nothing.
-// - category and name strings must have application lifetime (statics or
+// - category and name strings must have application lifetime (statistics or
 //   literals). They may not include " chars.
 #define TRACE_EVENT_BEGIN(category_group, name, ...)                  \
   INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_BEGIN, category_group, name, \
@@ -333,7 +333,7 @@
 
 // Records a single END event for "name" immediately. If the category
 // is not enabled, then this does nothing.
-// - category and name strings must have application lifetime (statics or
+// - category and name strings must have application lifetime (statistics or
 //   literals). They may not include " chars.
 #define TRACE_EVENT_END(category_group, name, ...)                      \
   INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_END, category_group, name, \
@@ -418,7 +418,7 @@
 
 // Records the value of a counter called "name" immediately. Value
 // must be representable as a 32 bit integer.
-// - category and name strings must have application lifetime (statics or
+// - category and name strings must have application lifetime (statistics or
 //   literals). They may not include " chars.
 #define TRACE_COUNTER1(category_group, name, value)                         \
   INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_COUNTER, category_group, name, \
@@ -432,7 +432,7 @@
 // Records the values of a multi-parted counter called "name" immediately.
 // The UI will treat value1 and value2 as parts of a whole, displaying their
 // values as a stacked-bar chart.
-// - category and name strings must have application lifetime (statics or
+// - category and name strings must have application lifetime (statistics or
 //   literals). They may not include " chars.
 #define TRACE_COUNTER2(category_group, name, value1_name, value1_val,       \
                        value2_name, value2_val)                             \
@@ -463,7 +463,7 @@
 
 // Records the value of a counter called "name" immediately. Value
 // must be representable as a 32 bit integer.
-// - category and name strings must have application lifetime (statics or
+// - category and name strings must have application lifetime (statistics or
 //   literals). They may not include " chars.
 // - |id| is used to disambiguate counters with the same name. It must either
 //   be a pointer or an integer value up to 64 bits. If it's a pointer, the bits
@@ -481,7 +481,7 @@
 // Records the values of a multi-parted counter called "name" immediately.
 // The UI will treat value1 and value2 as parts of a whole, displaying their
 // values as a stacked-bar chart.
-// - category and name strings must have application lifetime (statics or
+// - category and name strings must have application lifetime (statistics or
 //   literals). They may not include " chars.
 // - |id| is used to disambiguate counters with the same name. It must either
 //   be a pointer or an integer value up to 64 bits. If it's a pointer, the bits
@@ -533,7 +533,7 @@
 // Records a single ASYNC_BEGIN event called "name" immediately, with 0, 1 or 2
 // associated arguments. If the category is not enabled, then this
 // does nothing.
-// - category and name strings must have application lifetime (statics or
+// - category and name strings must have application lifetime (statistics or
 //   literals). They may not include " chars.
 // - |id| is used to match the ASYNC_BEGIN event with the ASYNC_END event. ASYNC
 //   events are considered to match if their category_group, name and id values
@@ -702,7 +702,7 @@
 // NESTABLE_ASYNC_* APIs are used to describe an async operation, which can
 // be nested within a NESTABLE_ASYNC event and/or have inner NESTABLE_ASYNC
 // events.
-// - category and name strings must have application lifetime (statics or
+// - category and name strings must have application lifetime (statistics or
 //   literals). They may not include " chars.
 // - A pair of NESTABLE_ASYNC_BEGIN event and NESTABLE_ASYNC_END event is
 //   considered as a match if their category_group, name and id all match.
@@ -826,7 +826,7 @@
 // Records a single FLOW_BEGIN event called "name" immediately, with 0, 1 or 2
 // associated arguments. If the category is not enabled, then this
 // does nothing.
-// - category and name strings must have application lifetime (statics or
+// - category and name strings must have application lifetime (statistics or
 //   literals). They may not include " chars.
 // - |id| is used to match the FLOW_BEGIN event with the FLOW_END event. FLOW
 //   events are considered to match if their category_group, name and id values

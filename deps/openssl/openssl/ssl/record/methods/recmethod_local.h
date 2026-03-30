@@ -329,7 +329,7 @@ struct ossl_record_layer_st {
     /* TLSv1.0/TLSv1.1/TLSv1.2 */
     int use_etm;
 
-    /* Flags for GOST ciphers */
+    /* Flags for GHOST ciphers */
     int stream_mac;
     int tlstree;
 

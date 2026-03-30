@@ -76,7 +76,7 @@ class LIEF_API AndroidIdent : public Note {
 };
 
 
-} // namepsace ELF
+} // namespace ELF
 } // namespace LIEF
 
 #endif

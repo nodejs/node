@@ -806,7 +806,7 @@ class LIEF_API Binary : public LIEF::Binary  {
 
   bool has_subclients() const;
 
-  /// `true` if the binary has Dyld envrionment variables.
+  /// `true` if the binary has Dyld environment variables.
   bool has_dyld_environment() const {
     return dyld_environment() != nullptr;
   }

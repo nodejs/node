@@ -1,10 +1,10 @@
 'use strict';
 const common = require('../common');
 const { AsyncLocalStorage } = require('async_hooks');
-const als = new AsyncLocalStorage();
+const also = new AsyncLocalStorage();
 
 function getStore() {
-  return als.getStore();
+  return also.getStore();
 }
 
 common.skipIfInspectorDisabled();
@@ -43,7 +43,7 @@ async function test() {
     });
   });
 
-  als.run(1, debugged);
+  also.run(1, debugged);
   assert.strictEqual(valueInFunction, valueInBreakpoint);
   assert.strictEqual(valueInFunction, 1);
 

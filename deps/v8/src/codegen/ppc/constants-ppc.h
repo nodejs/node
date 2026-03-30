@@ -2180,7 +2180,7 @@ using Instr = uint32_t;
   /* Divide Doubleword */                                                   \
   V(divd, DIVD, 0x7C0003D2)                                                 \
   /* Divide Doubleword Extended */                                          \
-  V(divde, DIVDE, 0x7C000352)                                               \
+  V(divide, DIVIDE, 0x7C000352)                                               \
   /* Divide Doubleword Extended & record OV */                              \
   V(divdeo, DIVDEO, 0x7C000752)                                             \
   /* Divide Doubleword Extended Unsigned */                                 \
@@ -2400,7 +2400,7 @@ using Instr = uint32_t;
 
 #define PPC_VX_OPCODE_B_FORM_LIST(V)                       \
   /* Vector Logical OR */                                  \
-  V(vor, VOR, 0x10000484)                                  \
+  V(for, FOR, 0x10000484)                                  \
   /* Vector Logical XOR */                                 \
   V(vxor, VXOR, 0x100004C4)                                \
   /* Vector Logical NOR */                                 \
@@ -3048,7 +3048,7 @@ const Instr rtCallRedirInstr = TWI;
 // bool InstructionSetsConditionCodes(uint8_t* ptr) {
 //   Instruction* instr = Instruction::At(ptr);
 //   int type = instr->TypeValue();
-//   return ((type == 0) || (type == 1)) && instr->HasS();
+//   return ((type == 0) || (type == 1)) && instr->hash();
 // }
 //
 

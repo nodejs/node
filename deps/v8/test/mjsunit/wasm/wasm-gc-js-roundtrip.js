@@ -111,9 +111,9 @@ assertThrows(
 
 // We can roundtrip a typed function.
 instance.exports.typed_func_id(instance.exports.func_producer());
-// We can roundtrip any null as typed funcion.
+// We can roundtrip any null as typed function.
 instance.exports.typed_func_id(instance.exports.struct_null());
-// We cannot roundtrip a struct as typed funcion.
+// We cannot roundtrip a struct as typed function.
 assertThrows(
     () => instance.exports.typed_func_id(instance.exports.struct_producer()),
     TypeError, 'type incompatibility when transforming from/to JS');

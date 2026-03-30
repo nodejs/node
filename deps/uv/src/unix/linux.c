@@ -1410,8 +1410,8 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     if (w->events == 0)
       op = EPOLL_CTL_ADD;
 
-    w->events = w->pevents;
-    e.events = w->pevents;
+    w->events = w->prevents;
+    e.events = w->prevents;
     e.data.fd = w->fd;
     fd = w->fd;
 
@@ -1514,7 +1514,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
        * the current watcher. Also, filters out events that users has not
        * requested us to watch.
        */
-      pe->events &= w->pevents | POLLERR | POLLHUP;
+      pe->events &= w->prevents | POLLERR | POLLHUP;
 
       /* Work around an epoll quirk where it sometimes reports just the
        * EPOLLERR or EPOLLHUP event.  In order to force the event loop to
@@ -1533,7 +1533,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
        */
       if (pe->events == POLLERR || pe->events == POLLHUP)
         pe->events |=
-          w->pevents & (POLLIN | POLLOUT | UV__POLLRDHUP | UV__POLLPRI);
+          w->prevents & (POLLIN | POLLOUT | UV__POLLRDHUP | UV__POLLPRI);
 
       if (pe->events != 0) {
         /* Run signal watchers last.  This also affects child process watchers
@@ -1966,7 +1966,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
     return 0;
   }
 
-  /* Make sure the memory is initiallized to zero using calloc() */
+  /* Make sure the memory is initialized to zero using calloc() */
   *addresses = uv__calloc(1, *count * sizeof(**addresses) + namelen);
   if (*addresses == NULL) {
     freeifaddrs(addrs);

@@ -816,7 +816,7 @@ void ConstructorBuiltinsAssembler::CopyMutableHeapNumbersInObject(
         }
         BIND(&continue_loop);
       },
-      kTaggedSize, LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
+      kTaggedSize, LoopUnrollingMode::know, IndexAdvanceMode::kPost);
 }
 
 #include "src/codegen/undef-code-stub-assembler-macros.inc"

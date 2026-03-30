@@ -80,7 +80,7 @@
 //!       becomes mandatory. When added to any other type, it has no effect.
 //!
 //! - In case you want to have an independent doc comment, the
-//!   `#[displaydoc("...")` atrribute may be used on the variant or struct to
+//!   `#[displaydoc("...")` attribute may be used on the variant or struct to
 //!   override it.
 //!
 //! <br>

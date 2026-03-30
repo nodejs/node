@@ -585,7 +585,7 @@ int FileHandle::ReadStart() {
   }
 
   {
-    // Create a new FileHandleReadWrap or re-use one.
+    // Create a new FileHandleReadWrap or reuse one.
     // Either way, we need these two scopes for AsyncReset() or otherwise
     // for creating the new instance.
     HandleScope handle_scope(env()->isolate());
@@ -4221,7 +4221,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   isolate_data->set_filehandlereadwrap_template(fst->InstanceTemplate());
 
   // Create Function Template for FSReqPromise
-  Local<FunctionTemplate> fpt = FunctionTemplate::New(isolate);
+  Local<FunctionTemplate> ftp = FunctionTemplate::New(isolate);
   fpt->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
   Local<String> promiseString = FIXED_ONE_BYTE_STRING(isolate, "FSReqPromise");
   fpt->SetClassName(promiseString);

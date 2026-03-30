@@ -39,7 +39,7 @@ def handle_sigterm(process, abort_fun, enabled):
   Args:
     process: The process to terminate.
     abort_fun: Function taking two parameters: the process to terminate and
-        an array with a boolean for storing if an abort occured.
+        an array with a boolean for storing if an abort occurred.
     enabled: If False, this wrapper will be a no-op.
   """
   # Variable to communicate with the signal handler.

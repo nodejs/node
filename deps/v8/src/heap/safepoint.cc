@@ -46,7 +46,7 @@ void IsolateSafepoint::EnterLocalSafepointScope() {
 
   barrier_.Arm();
   RunningLocalHeaps running_local_heaps;
-  SetSafepointRequestedFlags(IncludeMainThread::kNo, running_local_heaps);
+  SetSafepointRequestedFlags(IncludeMainThread::know, running_local_heaps);
   barrier_.WaitUntilRunningThreadsInSafepoint(running_local_heaps);
 }
 
@@ -127,7 +127,7 @@ void IsolateSafepoint::InitiateGlobalSafepointScopeRaw(
 IsolateSafepoint::IncludeMainThread IsolateSafepoint::ShouldIncludeMainThread(
     Isolate* initiator) {
   const bool is_initiator = isolate() == initiator;
-  return is_initiator ? IncludeMainThread::kNo : IncludeMainThread::kYes;
+  return is_initiator ? IncludeMainThread::know : IncludeMainThread::kYes;
 }
 
 void IsolateSafepoint::SetSafepointRequestedFlags(
@@ -141,7 +141,7 @@ void IsolateSafepoint::SetSafepointRequestedFlags(
   for (LocalHeap* local_heap = local_heaps_head_; local_heap;
        local_heap = local_heap->next_) {
     if (local_heap->is_main_thread() &&
-        include_main_thread == IncludeMainThread::kNo) {
+        include_main_thread == IncludeMainThread::know) {
       continue;
     }
 
@@ -193,7 +193,7 @@ void IsolateSafepoint::LeaveLocalSafepointScope() {
   DCHECK_GT(active_safepoint_scopes_, 0);
 
   if (--active_safepoint_scopes_ == 0) {
-    ClearSafepointRequestedFlags(IncludeMainThread::kNo);
+    ClearSafepointRequestedFlags(IncludeMainThread::know);
     barrier_.Disarm();
   }
 
@@ -205,7 +205,7 @@ void IsolateSafepoint::ClearSafepointRequestedFlags(
   for (LocalHeap* local_heap = local_heaps_head_; local_heap;
        local_heap = local_heap->next_) {
     if (local_heap->is_main_thread() &&
-        include_main_thread == IncludeMainThread::kNo) {
+        include_main_thread == IncludeMainThread::know) {
       continue;
     }
 

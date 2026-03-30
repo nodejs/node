@@ -800,31 +800,31 @@ def do_indent(
         Rename the ``indentfirst`` argument to ``first``.
     """
     if isinstance(width, str):
-        indention = width
+        indentation = width
     else:
-        indention = " " * width
+        indentation = " " * width
 
     newline = "\n"
 
     if isinstance(s, Markup):
-        indention = Markup(indention)
+        indentation = Markup(indentation)
         newline = Markup(newline)
 
     s += newline  # this quirk is necessary for splitlines method
 
     if blank:
-        rv = (newline + indention).join(s.splitlines())
+        rv = (newline + indentation).join(s.splitlines())
     else:
         lines = s.splitlines()
         rv = lines.pop(0)
 
         if lines:
             rv += newline + newline.join(
-                indention + line if line else line for line in lines
+                indentation + line if line else line for line in lines
             )
 
     if first:
-        rv = indention + rv
+        rv = indentation + rv
 
     return rv
 

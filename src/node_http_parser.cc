@@ -811,7 +811,7 @@ class Parser : public AsyncWrap, public StreamListener {
   void OnStreamRead(ssize_t nread, const uv_buf_t& buf) override {
     HandleScope scope(env()->isolate());
     // Once we’re done here, either indicate that the HTTP parser buffer
-    // is free for re-use, or free() the data if it didn’t come from there
+    // is free for reuse, or free() the data if it didn’t come from there
     // in the first place.
     auto on_scope_leave = OnScopeLeave([&]() {
       if (buf.base == binding_data_->parser_buffer.data())

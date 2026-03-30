@@ -24,7 +24,7 @@ process.on('warning', (e) => {
   lastWarning = e;
 });
 
-// Utility promise for parts of the test that need to wait for eachother -
+// Utility promise for parts of the test that need to wait for each other -
 // Namely tests for warning events
 /* eslint-disable no-unused-vars */
 let asyncTest = Promise.resolve();
@@ -492,7 +492,7 @@ let asyncTest = Promise.resolve();
 }
 
 {
-  // Event Statics
+  // Event Statistics
   assert.strictEqual(Event.NONE, 0);
   assert.strictEqual(Event.CAPTURING_PHASE, 1);
   assert.strictEqual(Event.AT_TARGET, 2);

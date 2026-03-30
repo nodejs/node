@@ -2542,7 +2542,7 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
     LoadU64(ip, MemOperand(function, 0));
     dest = ip;
   } else if (ABI_CALL_VIA_IP) {
-    // pLinux and Simualtor, not AIX
+    // pLinux and Simulator, not AIX
     Move(ip, function);
     dest = ip;
   }
@@ -3572,7 +3572,7 @@ void MacroAssembler::StoreF32LE(DoubleRegister dst, const MemOperand& mem,
   V(I8x16SubSatU, vsububs)         \
   V(I8x16RoundingAverageU, vavgub) \
   V(S128And, vand)                 \
-  V(S128Or, vor)                   \
+  V(S128Or, for)                   \
   V(S128Xor, vxor)                 \
   V(S128AndNot, vandc)
 
@@ -3702,13 +3702,13 @@ SIMD_ALL_TRUE_LIST(EMIT_SIMD_ALL_TRUE)
   V(I32x4BitMask, vextractwm, 0x8080808000204060) \
   V(I16x8BitMask, vextracthm, 0x10203040506070)
 
-#define EMIT_SIMD_BITMASK(name, op, indicies)                              \
+#define EMIT_SIMD_BITMASK(name, op, indices)                              \
   void MacroAssembler::name(Register dst, Simd128Register src,             \
                             Register scratch1, Simd128Register scratch2) { \
     if (CpuFeatures::IsSupported(PPC_10_PLUS)) {                           \
       op(dst, src);                                                        \
     } else {                                                               \
-      mov(scratch1, Operand(indicies)); /* Select 0 for the high bits. */  \
+      mov(scratch1, Operand(indices)); /* Select 0 for the high bits. */  \
       mtvsrd(scratch2, scratch1);                                          \
       vbpermq(scratch2, src, scratch2);                                    \
       vextractub(scratch2, scratch2, Operand(6));                          \
@@ -3731,12 +3731,12 @@ SIMD_BITMASK_LIST(EMIT_SIMD_BITMASK)
                             Simd128Register scratch) {                  \
     Simd128Register dest = dst;                                         \
     if (dst != src1) {                                                  \
-      vor(scratch, src1, src1);                                         \
+      for(scratch, src1, src1);                                         \
       dest = scratch;                                                   \
     }                                                                   \
     op(dest, src2, src3);                                               \
     if (dest != dst) {                                                  \
-      vor(dst, dest, dest);                                             \
+      for(dst, dest, dest);                                             \
     }                                                                   \
   }
 SIMD_QFM_LIST(EMIT_SIMD_QFM)
@@ -3760,7 +3760,7 @@ void MacroAssembler::I64x2ExtMulHighI32x4S(Simd128Register dst,
   constexpr int lane_width_in_bytes = 8;
   EXT_MUL(scratch, dst, vmulesw, vmulosw)
   vinsertd(scratch, dst, Operand(1 * lane_width_in_bytes));
-  vor(dst, scratch, scratch);
+  for(dst, scratch, scratch);
 }
 
 void MacroAssembler::I64x2ExtMulLowI32x4U(Simd128Register dst,
@@ -3780,7 +3780,7 @@ void MacroAssembler::I64x2ExtMulHighI32x4U(Simd128Register dst,
   constexpr int lane_width_in_bytes = 8;
   EXT_MUL(scratch, dst, vmuleuw, vmulouw)
   vinsertd(scratch, dst, Operand(1 * lane_width_in_bytes));
-  vor(dst, scratch, scratch);
+  for(dst, scratch, scratch);
 }
 #undef EXT_MUL
 
@@ -3912,7 +3912,7 @@ void MacroAssembler::F64x2ReplaceLane(Simd128Register dst, Simd128Register src1,
                                       Simd128Register scratch2) {
   constexpr int lane_width_in_bytes = 8;
   if (src1 != dst) {
-    vor(dst, src1, src1);
+    for(dst, src1, src1);
   }
   MovDoubleToInt64(scratch1, src2);
   if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
@@ -3930,7 +3930,7 @@ void MacroAssembler::F32x4ReplaceLane(Simd128Register dst, Simd128Register src1,
                                       Simd128Register scratch3) {
   constexpr int lane_width_in_bytes = 4;
   if (src1 != dst) {
-    vor(dst, src1, src1);
+    for(dst, src1, src1);
   }
   MovFloatToInt(scratch1, src2, scratch2);
   if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
@@ -3946,7 +3946,7 @@ void MacroAssembler::I64x2ReplaceLane(Simd128Register dst, Simd128Register src1,
                                       Simd128Register scratch) {
   constexpr int lane_width_in_bytes = 8;
   if (src1 != dst) {
-    vor(dst, src1, src1);
+    for(dst, src1, src1);
   }
   if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
     vinsd(dst, src2, Operand((1 - imm_lane_idx) * lane_width_in_bytes));
@@ -3961,7 +3961,7 @@ void MacroAssembler::I32x4ReplaceLane(Simd128Register dst, Simd128Register src1,
                                       Simd128Register scratch) {
   constexpr int lane_width_in_bytes = 4;
   if (src1 != dst) {
-    vor(dst, src1, src1);
+    for(dst, src1, src1);
   }
   if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
     vinsw(dst, src2, Operand((3 - imm_lane_idx) * lane_width_in_bytes));
@@ -3976,7 +3976,7 @@ void MacroAssembler::I16x8ReplaceLane(Simd128Register dst, Simd128Register src1,
                                       Simd128Register scratch) {
   constexpr int lane_width_in_bytes = 2;
   if (src1 != dst) {
-    vor(dst, src1, src1);
+    for(dst, src1, src1);
   }
   mtvsrd(scratch, src2);
   vinserth(dst, scratch, Operand((7 - imm_lane_idx) * lane_width_in_bytes));
@@ -3986,7 +3986,7 @@ void MacroAssembler::I8x16ReplaceLane(Simd128Register dst, Simd128Register src1,
                                       Register src2, uint8_t imm_lane_idx,
                                       Simd128Register scratch) {
   if (src1 != dst) {
-    vor(dst, src1, src1);
+    for(dst, src1, src1);
   }
   mtvsrd(scratch, src2);
   vinsertb(dst, scratch, Operand(15 - imm_lane_idx));
@@ -4110,7 +4110,7 @@ void MacroAssembler::I32x4GeU(Simd128Register dst, Simd128Register src1,
                               Simd128Register src2, Simd128Register scratch) {
   vcmpequw(scratch, src1, src2);
   vcmpgtuw(dst, src1, src2);
-  vor(dst, dst, scratch);
+  for(dst, dst, scratch);
 }
 
 void MacroAssembler::I16x8Ne(Simd128Register dst, Simd128Register src1,
@@ -4129,7 +4129,7 @@ void MacroAssembler::I16x8GeU(Simd128Register dst, Simd128Register src1,
                               Simd128Register src2, Simd128Register scratch) {
   vcmpequh(scratch, src1, src2);
   vcmpgtuh(dst, src1, src2);
-  vor(dst, dst, scratch);
+  for(dst, dst, scratch);
 }
 
 void MacroAssembler::I8x16Ne(Simd128Register dst, Simd128Register src1,
@@ -4148,7 +4148,7 @@ void MacroAssembler::I8x16GeU(Simd128Register dst, Simd128Register src1,
                               Simd128Register src2, Simd128Register scratch) {
   vcmpequb(scratch, src1, src2);
   vcmpgtub(dst, src1, src2);
-  vor(dst, dst, scratch);
+  for(dst, dst, scratch);
 }
 
 void MacroAssembler::I64x2Abs(Simd128Register dst, Simd128Register src,
@@ -4887,9 +4887,9 @@ void MacroAssembler::SwapDouble(MemOperand src, MemOperand dst,
 void MacroAssembler::SwapSimd128(Simd128Register src, Simd128Register dst,
                                  Simd128Register scratch) {
   if (src == dst) return;
-  vor(scratch, src, src);
-  vor(src, dst, dst);
-  vor(dst, scratch, scratch);
+  for(scratch, src, src);
+  for(src, dst, dst);
+  for(dst, scratch, scratch);
 }
 
 void MacroAssembler::SwapSimd128(Simd128Register src, MemOperand dst,
@@ -4897,7 +4897,7 @@ void MacroAssembler::SwapSimd128(Simd128Register src, MemOperand dst,
   DCHECK(src != scratch1);
   LoadSimd128(scratch1, dst, scratch2);
   StoreSimd128(src, dst, scratch2);
-  vor(src, scratch1, scratch1);
+  for(src, scratch1, scratch1);
 }
 
 void MacroAssembler::SwapSimd128(MemOperand src, MemOperand dst,

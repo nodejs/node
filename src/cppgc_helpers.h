@@ -49,7 +49,7 @@ class CppgcWrapperListNode;
  *
  *   ~MyWrap() { this->Destroy(); }
  *   void Clean(Realm* env) override {
- *     // Do cleanup that relies on a living Environemnt.
+ *     // Do cleanup that relies on a living Environment.
  *   }
  */
 class CppgcMixin : public cppgc::GarbageCollectedMixin, public MemoryRetainer {
@@ -90,7 +90,7 @@ class CppgcMixin : public cppgc::GarbageCollectedMixin, public MemoryRetainer {
   // during Realm shutdown. The destruction of the wrappers would happen later,
   // when the final garbage collection is triggered when CppHeap is torn down as
   // part of the Isolate teardown. If subclasses of CppgcMixin wish to perform
-  // cleanups that depend on the Realm during destruction, they should implment
+  // cleanups that depend on the Realm during destruction, they should implement
   // it in a Clean() override, and then call this->Finalize() from their
   // destructor. Outside of Finalize(), subclasses should avoid calling
   // into JavaScript or perform any operation that can trigger garbage

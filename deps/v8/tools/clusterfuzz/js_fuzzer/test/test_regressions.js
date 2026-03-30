@@ -106,7 +106,7 @@ describe('Regression tests', () => {
 
   it('mutates negative value', () => {
     // This tests that the combination of number, function call and expression
-    // mutator does't produce an update expression.
+    // mutator doesn't produce an update expression.
     // Previously the 1 in -1 was replaced with another negative number leading
     // to e.g. -/*comment/*-2. Then cloning the expression removed the
     // comment and produced --2 in the end.
@@ -398,7 +398,7 @@ describe('Regression tests', () => {
 
   // TODO(https://crbug.com/389069288): This still needs fixing, though it's
   // probably rare that usage of 'arguments' and assigning to 'arguments'
-  // happen in the same test case. Due to the assignment, all occurences
+  // happen in the same test case. Due to the assignment, all occurrences
   // are normalized. Such an assignment is not allowed in strict mode and
   // causes a syntax error in this case. We'd need to fix this in a way that
   // unnormalized argument assignment is not mixed with strict-mode cases.

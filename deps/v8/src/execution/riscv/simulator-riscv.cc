@@ -734,7 +734,7 @@ struct type_sew_t<128> {
   rvv_trace_vd();                                   \
   set_rvv_vstart(0);
 
-// comparision result to masking register
+// comparison result to masking register
 #define RVV_VI_VV_LOOP_CMP(BODY)  \
   RVV_VI_LOOP_CMP_BASE            \
   if (rvv_vsew() == E8) {         \
@@ -3652,7 +3652,7 @@ void Simulator::IncreaseStopCounter(reg_t code) {
   if ((watched_stops_[code].count & ~(1 << 31)) == 0x7FFFFFFF) {
     PrintF("Stop counter for code %" REGId_FORMAT
            "  has overflowed.\n"
-           "Enabling this code and reseting the counter to 0.\n",
+           "Enabling this code and resetting the counter to 0.\n",
            code);
     watched_stops_[code].count = 0;
     EnableStop(code);
@@ -4159,7 +4159,7 @@ bool Simulator::CompareFHelper(T input1, T input2, FPUCondition cc) {
   switch (cc) {
     case LT:
     case LE:
-      // FLT, FLE are signaling compares
+      // FLT, FILE are signaling compares
       if (std::isnan(input1) || std::isnan(input2)) {
         set_fflags(kInvalidOperation);
         result = false;
@@ -5708,7 +5708,7 @@ void Simulator::DecodeRVBType() {
   }
 }
 void Simulator::DecodeRVUType() {
-  // U Type doesn't have additoinal mask
+  // U Type doesn't have additional mask
   switch (instr_.BaseOpcodeFieldRaw()) {
     case LUI:
       set_rd(u_imm20());
@@ -6031,7 +6031,7 @@ void Simulator::DecodeCBType() {
  *
  * @link      https://github.com/riscv/riscv-isa-sim/
  * @copyright Copyright (c)  The Regents of the University of California
- * @license   hhttps://github.com/riscv/riscv-isa-sim/blob/master/LICENSE
+ * @license   https://github.com/riscv/riscv-isa-sim/blob/master/LICENSE
  */
 // ref:  https://locklessinc.com/articles/sat_arithmetic/
 template <typename T, typename UT>
@@ -8193,7 +8193,7 @@ void Simulator::DecodeVType() {
       break;
     }
     default:
-      FATAL("Error: Unsupport on FILE:%s:%d.", __FILE__, __LINE__);
+      FATAL("Error: Unsupported on FILE:%s:%d.", __FILE__, __LINE__);
   }
 }
 #endif

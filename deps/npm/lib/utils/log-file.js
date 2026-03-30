@@ -113,7 +113,7 @@ class LogFiles {
     }
 
     if (this.#isBuffered) {
-      // Cant do anything but buffer the output if we don't have a file stream yet
+      // Can't do anything but buffer the output if we don't have a file stream yet
       this.#logStream.push([level, ...args])
       return
     }

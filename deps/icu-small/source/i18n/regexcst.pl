@@ -20,7 +20,7 @@
 #
 #             See regexcst.txt for a description of the input format for this script.
 #
-#             This script is derived from rbbicst.pl, which peforms the same function
+#             This script is derived from rbbicst.pl, which performs the same function
 #             for the Rule Based Break Iterator Rule Parser.  Perhaps they could be
 #             merged?
 #

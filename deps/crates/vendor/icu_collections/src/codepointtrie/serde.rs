@@ -21,12 +21,12 @@ impl<T: TrieValue + Serialize> Serialize for CodePointTrie<'_, T> {
     where
         S: Serializer,
     {
-        let ser = CodePointTrieSerde {
+        let set = CodePointTrieSerde {
             header: self.header,
             index: ZeroFrom::zero_from(&self.index),
             data: ZeroFrom::zero_from(&self.data),
         };
-        ser.serialize(serializer)
+        set.serialize(serializer)
     }
 }
 

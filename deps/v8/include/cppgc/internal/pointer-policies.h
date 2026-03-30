@@ -186,7 +186,7 @@ class DisabledCheckingPolicy {
 };
 
 #ifdef CPPGC_ENABLE_SLOW_API_CHECKS
-// Off heap members are not connected to object graph and thus cannot ressurect
+// Off heap members are not connected to object graph and thus cannot resurrect
 // dead objects.
 using DefaultMemberCheckingPolicy =
     SameThreadEnabledCheckingPolicy<false /* kCheckOffHeapAssignments*/>;

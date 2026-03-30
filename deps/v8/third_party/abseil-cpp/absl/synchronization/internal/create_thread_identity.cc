@@ -39,7 +39,7 @@ ABSL_CONST_INIT static base_internal::SpinLock freelist_lock(
 ABSL_CONST_INIT static base_internal::ThreadIdentity* thread_identity_freelist;
 
 // A per-thread destructor for reclaiming associated ThreadIdentity objects.
-// Since we must preserve their storage, we cache them for re-use instead of
+// Since we must preserve their storage, we cache them for reuse instead of
 // truly destructing the object.
 static void ReclaimThreadIdentity(void* v) {
   base_internal::ThreadIdentity* identity =
@@ -107,7 +107,7 @@ static base_internal::ThreadIdentity* NewThreadIdentity() {
   base_internal::ThreadIdentity* identity = nullptr;
 
   {
-    // Re-use a previously released object if possible.
+    // Reuse a previously released object if possible.
     base_internal::SpinLockHolder l(freelist_lock);
     if (thread_identity_freelist) {
       identity = thread_identity_freelist;  // Take list-head.

@@ -5,7 +5,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 
 int main(int argc, char** argv) {
-  // Don't catch SEH exceptions and continue as the following tests might hang
+  // Don't catch SHE exceptions and continue as the following tests might hang
   // in an broken environment on windows.
   GTEST_FLAG_SET(catch_exceptions, false);
 

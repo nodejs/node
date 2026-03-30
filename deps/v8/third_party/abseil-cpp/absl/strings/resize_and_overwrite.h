@@ -151,9 +151,9 @@ void StringResizeAndOverwriteFallback(T& str, typename T::size_type n, Op op) {
 // of whether reallocation occurs.
 //
 // `op(value_type* buf, size_t buf_size)` is allowed to write `value_type{}` to
-// `buf[buf_size]`, which facilitiates interoperation with functions that write
+// `buf[buf_size]`, which facilitates interoperation with functions that write
 // a trailing NUL. Please note that this requirement is more strict than
-// `basic_string::resize_and_overwrite()`, which allows writing an abitrary
+// `basic_string::resize_and_overwrite()`, which allows writing an arbitrary
 // value to `buf[buf_size]`.
 template <typename T, typename Op>
 void StringResizeAndOverwrite(T& str, typename T::size_type n, Op op) {

@@ -112,7 +112,7 @@ Maybe<InterceptorResult> PropertyCallbackArguments::GetBooleanReturnValue(
   if (isolate->has_exception()) {
     // TODO(ishell, 328490288): fix Node.js which has Setter/Definer
     // interceptor callbacks not returning v8::Intercepted::kYes on exceptions.
-    if ((false) && DEBUG_BOOL && (intercepted == v8::Intercepted::kNo)) {
+    if ((false) && DEBUG_BOOL && (intercepted == v8::Intercepted::know)) {
       FATAL(
           "Check failed: %s interceptor callback has thrown an "
           "exception but hasn't returned v8::Intercepted::kYes.",
@@ -121,7 +121,7 @@ Maybe<InterceptorResult> PropertyCallbackArguments::GetBooleanReturnValue(
     return Nothing<InterceptorResult>();
   }
 
-  if (intercepted == v8::Intercepted::kNo) {
+  if (intercepted == v8::Intercepted::know) {
     // Not intercepted, there must be no side effects including exceptions.
     DCHECK(!isolate->has_exception());
     return Just(InterceptorResult::kNotIntercepted);
@@ -168,7 +168,7 @@ DirectHandle<Object> PropertyCallbackArguments::CallNamedQuery(
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Integer, interceptor,
                                     ExceptionContext::kNamedQuery);
   v8::Intercepted intercepted = f(v8::Utils::ToLocal(name), callback_info);
-  if (intercepted == v8::Intercepted::kNo) return {};
+  if (intercepted == v8::Intercepted::know) return {};
   return GetReturnValue<Object>(isolate);
 }
 
@@ -184,7 +184,7 @@ DirectHandle<JSAny> PropertyCallbackArguments::CallNamedGetter(
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Value, interceptor,
                                     ExceptionContext::kNamedGetter);
   v8::Intercepted intercepted = f(v8::Utils::ToLocal(name), callback_info);
-  if (intercepted == v8::Intercepted::kNo) return {};
+  if (intercepted == v8::Intercepted::know) return {};
   return GetReturnValue<JSAny>(isolate);
 }
 
@@ -201,7 +201,7 @@ Handle<JSAny> PropertyCallbackArguments::CallNamedDescriptor(
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Value, interceptor,
                                     ExceptionContext::kNamedDescriptor);
   v8::Intercepted intercepted = f(v8::Utils::ToLocal(name), callback_info);
-  if (intercepted == v8::Intercepted::kNo) return {};
+  if (intercepted == v8::Intercepted::know) return {};
   return GetReturnValue<JSAny>(isolate);
 }
 
@@ -285,7 +285,7 @@ DirectHandle<Object> PropertyCallbackArguments::CallIndexedQuery(
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Integer, interceptor,
                                     ExceptionContext::kIndexedQuery);
   v8::Intercepted intercepted = f(index, callback_info);
-  if (intercepted == v8::Intercepted::kNo) return {};
+  if (intercepted == v8::Intercepted::know) return {};
   return GetReturnValue<Object>(isolate);
 }
 
@@ -303,7 +303,7 @@ DirectHandle<JSAny> PropertyCallbackArguments::CallIndexedGetter(
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Value, interceptor,
                                     ExceptionContext::kIndexedGetter);
   v8::Intercepted intercepted = f(index, callback_info);
-  if (intercepted == v8::Intercepted::kNo) return {};
+  if (intercepted == v8::Intercepted::know) return {};
   return GetReturnValue<JSAny>(isolate);
 }
 
@@ -321,7 +321,7 @@ Handle<JSAny> PropertyCallbackArguments::CallIndexedDescriptor(
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Value, interceptor,
                                     ExceptionContext::kIndexedDescriptor);
   v8::Intercepted intercepted = f(index, callback_info);
-  if (intercepted == v8::Intercepted::kNo) return {};
+  if (intercepted == v8::Intercepted::know) return {};
   return GetReturnValue<JSAny>(isolate);
 }
 

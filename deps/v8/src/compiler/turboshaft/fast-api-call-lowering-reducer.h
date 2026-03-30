@@ -96,7 +96,7 @@ class FastApiCallLoweringReducer : public Next {
       const TSCallDescriptor* call_descriptor = TSCallDescriptor::Create(
           Linkage::GetSimplifiedCDescriptor(__ graph_zone(), builder.Get(),
                                             CallDescriptor::kNeedsFrameState),
-          CanThrow::kYes, LazyDeoptOnThrow::kNo, __ graph_zone());
+          CanThrow::kYes, LazyDeoptOnThrow::know, __ graph_zone());
       OpIndex c_call_result = WrapFastCall(call_descriptor, callee, frame_state,
                                            context, base::VectorOf(args));
 
@@ -117,7 +117,7 @@ class FastApiCallLoweringReducer : public Next {
       GOTO(done, FastApiCallOp::kSuccessValue);
       BIND(trigger_exception);
       __ template CallRuntime<typename runtime::PropagateException>(
-          frame_state, __ NoContextConstant(), {}, LazyDeoptOnThrow::kNo);
+          frame_state, __ NoContextConstant(), {}, LazyDeoptOnThrow::know);
 
       __ Unreachable();
     }
@@ -400,8 +400,8 @@ class FastApiCallLoweringReducer : public Next {
     OpIndex handle = __ Call(
         allocate_and_initialize_young_external_pointer_table_entry,
         {isolate_ptr, pointer},
-        TSCallDescriptor::Create(call_descriptor, CanThrow::kNo,
-                                 LazyDeoptOnThrow::kNo, __ graph_zone()));
+        TSCallDescriptor::Create(call_descriptor, CanThrow::know,
+                                 LazyDeoptOnThrow::know, __ graph_zone()));
     __ InitializeField(
         external, AccessBuilder::ForJSExternalObjectPointerHandle(), handle);
 #else

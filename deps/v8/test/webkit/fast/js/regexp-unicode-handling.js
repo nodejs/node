@@ -27,7 +27,7 @@ description(
 
 );
 
-// Regex to match Re in various languanges straight from Gmail source
+// Regex to match Re in various languages straight from Gmail source
 var I3=/^\s*(fwd|re|aw|antw|antwort|wg|sv|ang|odp|betreff|betr|transf|reenv\.|reenv|in|res|resp|resp\.|enc|\u8f6c\u53d1|\u56DE\u590D|\u041F\u0435\u0440\u0435\u0441\u043B|\u041E\u0442\u0432\u0435\u0442):\s*(.*)$/i;
 
 // Other RegExs from Gmail source

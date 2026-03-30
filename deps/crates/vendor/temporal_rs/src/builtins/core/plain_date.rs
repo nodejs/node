@@ -26,7 +26,7 @@ use writeable::Writeable;
 use super::{duration::normalized::InternalDurationRecord, PlainMonthDay, PlainYearMonth};
 use tinystr::TinyAsciiStr;
 
-// TODO (potentially): Bump era up to TinyAsciiStr<18> to accomodate
+// TODO (potentially): Bump era up to TinyAsciiStr<18> to accommodate
 // "ethiopic-amete-alem". TODO: PrepareTemporalFields expects a type
 // error to be thrown when all partial fields are None/undefined.
 /// A partial PlainDate that may or may not be complete.

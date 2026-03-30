@@ -2708,8 +2708,8 @@ TEST(FCMP_COND) {
   __ Fld_s(f14, MemOperand(a0, offsetof(TestFloat, fFalse)));
   __ Fld_s(f15, MemOperand(a0, offsetof(TestFloat, fTrue)));
 
-  __ fcmp_cond_d(CAF, f8, f9, FCC0);
-  __ fcmp_cond_s(CAF, f10, f11, FCC1);
+  __ fcmp_cond_d(CALF, f8, f9, FCC0);
+  __ fcmp_cond_s(CALF, f10, f11, FCC1);
   __ fsel(FCC0, f16, f12, f13);
   __ fsel(FCC1, f17, f14, f15);
   __ Fst_d(f16, MemOperand(a0, offsetof(TestFloat, dCaf)));

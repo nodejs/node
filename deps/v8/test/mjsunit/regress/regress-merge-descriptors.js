@@ -48,7 +48,7 @@ var Car = (function (Super) {
     });
 
     self.copy = function () {
-      throw new Error("Meant to be overriden");
+      throw new Error("Meant to be overridden");
     };
 
     return self;

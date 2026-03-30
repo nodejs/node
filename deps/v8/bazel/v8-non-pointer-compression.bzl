@@ -44,7 +44,7 @@ v8_binary_non_pointer_compression = rule(
     implementation = _v8_binary_non_pointer_compression,
     attrs = {
         # This is the cc_binary whose deps will select() on that feature.
-        # Note specificaly how it's configured with v8_target_cpu_transition, which
+        # Note specifically how it's configured with v8_target_cpu_transition, which
         # ensures that setting propagates down the graph.
         "binary": attr.label(cfg = v8_disable_pointer_compression),
     },

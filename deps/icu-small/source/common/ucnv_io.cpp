@@ -764,7 +764,7 @@ ucnv_io_getConverterName(const char *alias, UBool *containsOption, UErrorCode *p
     for (i = 0; i < 2; i++) {
         if (i == 1) {
             /*
-             * After the first unsuccess converter lookup, check to see if
+             * After the first unsuccessful converter lookup, check to see if
              * the name begins with 'x-'. If it does, strip it off and try
              * again.  This behaviour is similar to how ICU4J does it.
              */

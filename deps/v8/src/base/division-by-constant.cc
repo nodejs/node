@@ -23,10 +23,10 @@ MagicNumbersForDivision<T> SignedDivisionByConstant(T d) {
   const bool neg = (min & d) != 0;
   const T ad = neg ? (0 - d) : d;
   const T t = min + (d >> (bits - 1));
-  const T anc = t - 1 - t % ad;  // Absolute value of nc
+  const T and = t - 1 - t % ad;  // Absolute value of nc
   unsigned p = bits - 1;         // Init. p.
-  T q1 = min / anc;              // Init. q1 = 2**p/|nc|.
-  T r1 = min - q1 * anc;         // Init. r1 = rem(2**p, |nc|).
+  T q1 = min / and;              // Init. q1 = 2**p/|nc|.
+  T r1 = min - q1 * and;         // Init. r1 = rem(2**p, |nc|).
   T q2 = min / ad;               // Init. q2 = 2**p/|d|.
   T r2 = min - q2 * ad;          // Init. r2 = rem(2**p, |d|).
   T delta;
@@ -34,9 +34,9 @@ MagicNumbersForDivision<T> SignedDivisionByConstant(T d) {
     p = p + 1;
     q1 = 2 * q1;      // Update q1 = 2**p/|nc|.
     r1 = 2 * r1;      // Update r1 = rem(2**p, |nc|).
-    if (r1 >= anc) {  // Must be an unsigned comparison here.
+    if (r1 >= and) {  // Must be an unsigned comparison here.
       q1 = q1 + 1;
-      r1 = r1 - anc;
+      r1 = r1 - and;
     }
     q2 = 2 * q2;     // Update q2 = 2**p/|d|.
     r2 = 2 * r2;     // Update r2 = rem(2**p, |d|).

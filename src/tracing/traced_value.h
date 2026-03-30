@@ -54,7 +54,7 @@ class ProcessMeta {
 // a conversion method so that the class can be used with both V8 legacy
 // trace API and perfetto API.
 //
-// These classes provide a JSON-inspired way to write structed data into traces.
+// These classes provide a JSON-inspired way to write structured data into traces.
 //
 // To define how a custom class should be written into the trace, users should
 // define one of the two following functions:

@@ -1013,7 +1013,7 @@ String::ExternalStringResourceBase* String::GetExternalStringResourceBase(
   return resource;
 }
 
-// --- Statics ---
+// --- Statistics ---
 
 V8_INLINE Local<Primitive> Undefined(Isolate* isolate) {
   using S = internal::Address;

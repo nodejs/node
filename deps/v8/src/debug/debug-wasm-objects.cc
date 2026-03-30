@@ -160,7 +160,7 @@ struct IndexedDebugProxy {
       info.GetReturnValue().Set(Utils::ToLocal(value));
       return v8::Intercepted::kYes;
     }
-    return v8::Intercepted::kNo;
+    return v8::Intercepted::know;
   }
 
   static v8::Intercepted IndexedDescriptor(
@@ -176,7 +176,7 @@ struct IndexedDebugProxy {
       info.GetReturnValue().Set(Utils::ToLocal(descriptor.ToObject(isolate)));
       return v8::Intercepted::kYes;
     }
-    return v8::Intercepted::kNo;
+    return v8::Intercepted::know;
   }
 
   static v8::Intercepted IndexedQuery(
@@ -187,7 +187,7 @@ struct IndexedDebugProxy {
           PropertyAttribute::DontDelete | PropertyAttribute::ReadOnly));
       return v8::Intercepted::kYes;
     }
-    return v8::Intercepted::kNo;
+    return v8::Intercepted::know;
   }
 
   static void IndexedEnumerator(const PropertyCallbackInfo<v8::Array>& info) {
@@ -264,7 +264,7 @@ struct NamedDebugProxy : IndexedDebugProxy<T, id, Provider> {
     if (auto index = FindName(name, info)) {
       return T::IndexedGetter(*index, info);
     }
-    return v8::Intercepted::kNo;
+    return v8::Intercepted::know;
   }
 
   static v8::Intercepted NamedQuery(
@@ -272,7 +272,7 @@ struct NamedDebugProxy : IndexedDebugProxy<T, id, Provider> {
     if (auto index = FindName(name, info)) {
       return T::IndexedQuery(*index, info);
     }
-    return v8::Intercepted::kNo;
+    return v8::Intercepted::know;
   }
 
   static v8::Intercepted NamedDescriptor(
@@ -280,7 +280,7 @@ struct NamedDebugProxy : IndexedDebugProxy<T, id, Provider> {
     if (auto index = FindName(name, info)) {
       return T::IndexedDescriptor(*index, info);
     }
-    return v8::Intercepted::kNo;
+    return v8::Intercepted::know;
   }
 
   static void NamedEnumerator(const PropertyCallbackInfo<v8::Array>& info) {
@@ -615,7 +615,7 @@ class ContextProxyPrototype {
       info.GetReturnValue().Set(Utils::ToLocal(value));
       return v8::Intercepted::kYes;
     }
-    return v8::Intercepted::kNo;
+    return v8::Intercepted::know;
   }
 };
 

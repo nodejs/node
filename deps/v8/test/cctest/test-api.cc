@@ -3040,7 +3040,7 @@ v8::Intercepted ThrowingPropertyHandlerGet(
   // Since this interceptor is used on "with" objects, the runtime will look up
   // @@unscopables.  Punt.
   CHECK(i::ValidateCallbackInfo(info));
-  if (key->IsSymbol()) return v8::Intercepted::kNo;
+  if (key->IsSymbol()) return v8::Intercepted::know;
   ApiTestFuzzer::Fuzz();
   info.GetReturnValue().Set(info.GetIsolate()->ThrowException(key));
   return v8::Intercepted::kYes;
@@ -10833,7 +10833,7 @@ v8::Intercepted GlobalObjectInstancePropertiesGet(
     Local<Name> key, const v8::PropertyCallbackInfo<v8::Value>& info) {
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
   CHECK(i::ValidateCallbackInfo(info));
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 int script_execution_count = 0;
@@ -11102,13 +11102,13 @@ void ShadowYGetter(Local<Name> name,
 v8::Intercepted ShadowIndexedGet(
     uint32_t index, const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted ShadowNamedGet(
     Local<Name> key, const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 }  // namespace
 
@@ -12203,7 +12203,7 @@ v8::Intercepted InterceptorCallICFastApi(
   if ((*call_count) % 20 == 0) {
     i::heap::InvokeMajorGC(CcTest::heap());
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 void FastApiCallback_TrivialSignature(
@@ -18643,7 +18643,7 @@ v8::Intercepted FooGetInterceptor(
   CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.HolderV2())));
   if (!name->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("foo"))
            .FromJust()) {
-    return v8::Intercepted::kNo;
+    return v8::Intercepted::know;
   }
   info.GetReturnValue().Set(v8_num(42));
   return v8::Intercepted::kYes;
@@ -18656,7 +18656,7 @@ v8::Intercepted FooSetInterceptor(Local<Name> name, Local<Value> value,
   CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.HolderV2())));
   if (!name->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("foo"))
            .FromJust()) {
-    return v8::Intercepted::kNo;
+    return v8::Intercepted::know;
   }
   info.This()
       .As<Object>()
@@ -18726,7 +18726,7 @@ v8::Intercepted NamedPropertySetterWhichSetsYOnThisTo23(
     info.This().As<Object>()->Set(context, v8_str("y"), v8_num(23)).FromJust();
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 }  // namespace
 
@@ -20081,7 +20081,7 @@ v8::Intercepted HasOwnPropertyIndexedPropertyGetter(
     info.GetReturnValue().Set(v8_str("yes"));
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted HasOwnPropertyNamedPropertyGetter(
@@ -20092,7 +20092,7 @@ v8::Intercepted HasOwnPropertyNamedPropertyGetter(
     info.GetReturnValue().Set(v8_str("yes"));
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted HasOwnPropertyIndexedPropertyQuery(
@@ -20102,7 +20102,7 @@ v8::Intercepted HasOwnPropertyIndexedPropertyQuery(
     info.GetReturnValue().Set(v8::None);
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted HasOwnPropertyNamedPropertyQuery(
@@ -20113,7 +20113,7 @@ v8::Intercepted HasOwnPropertyNamedPropertyQuery(
     info.GetReturnValue().Set(v8::None);
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted HasOwnPropertyNamedPropertyQuery2(
@@ -20124,7 +20124,7 @@ v8::Intercepted HasOwnPropertyNamedPropertyQuery2(
     info.GetReturnValue().Set(v8::None);
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 void HasOwnPropertyAccessorGetter(
@@ -22246,7 +22246,7 @@ class RequestInterruptTestWithMethodCallAndInterceptor
   static v8::Intercepted EmptyInterceptor(
       Local<Name> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
     CHECK(i::ValidateCallbackInfo(info));
-    return v8::Intercepted::kNo;
+    return v8::Intercepted::know;
   }
 };
 
@@ -29999,7 +29999,7 @@ struct SeqOneByteStringChecker {
 
     CompileRun(
         "%OptimizeFunctionOnNextCall(func);"
-        "const fastr = func('');");
+        "const faster = func('');");
     CHECK(!try_catch.HasCaught());
     CHECK(checker.DidCallFast());
     checker.Reset();
@@ -30015,8 +30015,8 @@ struct SeqOneByteStringChecker {
           "object`) }");
     } else {
       CompileRun(
-          "if (!Object.is(fastr, slowr)) { throw new Error(`${slowr} is not "
-          "${fastr}`); }");
+          "if (!Object.is(faster, slowr)) { throw new Error(`${slowr} is not "
+          "${faster}`); }");
     }
     CHECK(!try_catch.HasCaught());
   }

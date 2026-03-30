@@ -149,7 +149,7 @@ class LIEF_API GnuHash : public Object {
 };
 
 
-} // namepsace ELF
+} // namespace ELF
 } // namespace LIEF
 
 #endif

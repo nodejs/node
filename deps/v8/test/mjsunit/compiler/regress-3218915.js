@@ -37,7 +37,7 @@ function side_effect() { try {} finally {} return "wrong"; }
 function observe(x, y) { try {} finally {} return x; }
 
 // If we optimize for x a smi, then x a string will deopt.  The side effect
-// immediately before the deopt is in a comma expresion in an effect context
+// immediately before the deopt is in a comma expression in an effect context
 // (i.e., itself the left subexpression of a comma expression).
 function test(x) { return observe(this, ((0, side_effect()), x + 1)); }
 

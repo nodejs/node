@@ -156,7 +156,7 @@ class LIEF_API Header : public Object {
   enum class CHARACTERISTICS {
     NONE                    = 0x0000,
     RELOCS_STRIPPED         = 0x0001, /**< The file does not contain base relocations and must be loaded at its preferred base. If this cannot be done, the loader will error.*/
-    EXECUTABLE_IMAGE        = 0x0002, /**< File is executable (i.e. no unresolved externel references). */
+    EXECUTABLE_IMAGE        = 0x0002, /**< File is executable (i.e. no unresolved external references). */
     LINE_NUMS_STRIPPED      = 0x0004, /**< COFF line numbers have been stripped. This is deprecated and should be 0 */
     LOCAL_SYMS_STRIPPED     = 0x0008, /**< COFF symbol table entries for local symbols have been removed. This is deprecated and should be 0.*/
     AGGRESSIVE_WS_TRIM      = 0x0010, /**< Aggressively trim working set. This is deprecated and must be 0. */

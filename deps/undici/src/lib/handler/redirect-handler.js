@@ -77,7 +77,7 @@ class RedirectHandler {
       util.isIterable(this.opts.body) &&
       !util.isFormDataLike(this.opts.body)
     ) {
-      // TODO: Should we allow re-using iterable if !this.opts.idempotent
+      // TODO: Should we allow reusing iterable if !this.opts.idempotent
       // or through some other flag?
       this.opts.body = new BodyAsyncIterable(this.opts.body)
     }
@@ -169,7 +169,7 @@ class RedirectHandler {
         For status 300, which is "Multiple Choices", the spec mentions both generating a Location
         response header AND a response body with the other possible location to follow.
         Since the spec explicitly chooses not to specify a format for such body and leave it to
-        servers and browsers implementors, we ignore the body as there is no specified way to eventually parse it.
+        servers and browsers implementers, we ignore the body as there is no specified way to eventually parse it.
       */
     } else {
       this.handler.onResponseData?.(controller, chunk)

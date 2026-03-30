@@ -977,7 +977,7 @@ impl Duration {
 
     /// Returns whether the current `Duration` is zero.
     ///
-    /// Equivalant to `Temporal.Duration.blank()`.
+    /// Equivalent to `Temporal.Duration.blank()`.
     #[inline]
     #[must_use]
     pub fn is_zero(&self) -> bool {
@@ -1287,7 +1287,7 @@ impl Duration {
         unit: Unit,
         relative_to: Option<RelativeTo>,
         provider: &impl TimeZoneProvider,
-        // Review question what is the return type of duration.prototye.total?
+        // Review question what is the return type of duration.prototype.total?
     ) -> TemporalResult<FiniteF64> {
         match relative_to {
             // 11. If zonedRelativeTo is not undefined, then

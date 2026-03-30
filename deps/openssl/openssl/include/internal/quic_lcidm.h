@@ -254,7 +254,7 @@ int ossl_quic_lcidm_debug_add(QUIC_LCIDM *lcidm, void *opaque,
 
 /*
  * Obtain a local connection id which is not used yet.
- * Returns 1 on succes, 0 on failure.
+ * Returns 1 on success, 0 on failure.
  */
 int ossl_quic_lcidm_get_unused_cid(QUIC_LCIDM *lcidm, QUIC_CONN_ID *cid);
 

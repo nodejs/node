@@ -252,7 +252,7 @@ static int poll_two_fds(int rfd, int rfd_want_read,
     fd_set rfd_set, wfd_set, efd_set;
     OSSL_TIME now, timeout;
     struct timeval tv, *ptv;
-    int maxfd, pres;
+    int maxfd, press;
 
 #ifndef OPENSSL_SYS_WINDOWS
     /*
@@ -325,17 +325,17 @@ static int poll_two_fds(int rfd, int rfd_want_read,
             ptv = &tv;
         }
 
-        pres = select(maxfd + 1, &rfd_set, &wfd_set, &efd_set, ptv);
-    } while (pres == -1 && get_last_socket_error_is_eintr());
+        press = select(maxfd + 1, &rfd_set, &wfd_set, &efd_set, ptv);
+    } while (press == -1 && get_last_socket_error_is_eintr());
 
 #if defined(OPENSSL_THREADS)
     if (mutex != NULL)
         ossl_crypto_mutex_lock(mutex);
 #endif
 
-    return pres < 0 ? 0 : 1;
+    return press < 0 ? 0 : 1;
 #else
-    int pres, timeout_ms;
+    int press, timeout_ms;
     OSSL_TIME now, timeout;
     struct pollfd pfds[3] = { 0 };
     size_t npfd = 0;
@@ -382,15 +382,15 @@ static int poll_two_fds(int rfd, int rfd_want_read,
             timeout_ms = ossl_time2ms(timeout);
         }
 
-        pres = poll(pfds, npfd, timeout_ms);
-    } while (pres == -1 && get_last_socket_error_is_eintr());
+        press = poll(pfds, npfd, timeout_ms);
+    } while (press == -1 && get_last_socket_error_is_eintr());
 
 #if defined(OPENSSL_THREADS)
     if (mutex != NULL)
         ossl_crypto_mutex_lock(mutex);
 #endif
 
-    return pres < 0 ? 0 : 1;
+    return press < 0 ? 0 : 1;
 #endif
 }
 

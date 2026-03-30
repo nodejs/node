@@ -4,7 +4,7 @@
 
 // A Disassembler object is used to disassemble a block of code instruction by
 // instruction. The default implementation of the NameConverter object can be
-// overriden to modify register names or to do symbol lookup on addresses.
+// overridden to modify register names or to do symbol lookup on addresses.
 //
 // The example below will disassemble a block of code and print it to stdout.
 //
@@ -1268,7 +1268,7 @@ void Decoder::DecodeRFPType(Instruction* instr) {
           Format(instr, "flt.s     'rd, 'fs1, 'fs2");
           break;
         case 0b000:  // RO_FLE_S
-          Format(instr, "fle.s     'rd, 'fs1, 'fs2");
+          Format(instr, "file.s     'rd, 'fs1, 'fs2");
           break;
         default:
           UNSUPPORTED_RISCV();
@@ -1393,7 +1393,7 @@ void Decoder::DecodeRFPType(Instruction* instr) {
           Format(instr, "flt.d     'rd, 'fs1, 'fs2");
           break;
         case 0b000:  // RO_FLE_D
-          Format(instr, "fle.d     'rd, 'fs1, 'fs2");
+          Format(instr, "file.d     'rd, 'fs1, 'fs2");
           break;
         default:
           UNSUPPORTED_RISCV();
@@ -1588,7 +1588,7 @@ void Decoder::DecodeRFPType(Instruction* instr) {
           Format(instr, "flt.h     'rd, 'fs1, 'fs2");
           break;
         case 0b000:  // RO_FLE_H
-          Format(instr, "fle.h     'rd, 'fs1, 'fs2");
+          Format(instr, "file.h     'rd, 'fs1, 'fs2");
           break;
         default:
           UNSUPPORTED_RISCV();
@@ -2385,7 +2385,7 @@ void Decoder::DecodeRvvIVV(Instruction* instr) {
       Format(instr, "vand.vv   'vd, 'vs2, 'vs1'vm");
       break;
     case RO_V_VOR_VV:
-      Format(instr, "vor.vv    'vd, 'vs2, 'vs1'vm");
+      Format(instr, "for.vv    'vd, 'vs2, 'vs1'vm");
       break;
     case RO_V_VXOR_VV:
       Format(instr, "vxor.vv   'vd, 'vs2, 'vs1'vm");
@@ -2474,7 +2474,7 @@ void Decoder::DecodeRvvIVI(Instruction* instr) {
       Format(instr, "vand.vi   'vd, 'vs2, 'simm5'vm");
       break;
     case RO_V_VOR_VI:
-      Format(instr, "vor.vi    'vd, 'vs2, 'simm5'vm");
+      Format(instr, "for.vi    'vd, 'vs2, 'simm5'vm");
       break;
     case RO_V_VXOR_VI:
       Format(instr, "vxor.vi   'vd, 'vs2, 'simm5'vm");
@@ -2587,7 +2587,7 @@ void Decoder::DecodeRvvIVX(Instruction* instr) {
       Format(instr, "vand.vx   'vd, 'vs2, 'rs1'vm");
       break;
     case RO_V_VOR_VX:
-      Format(instr, "vor.vx    'vd, 'vs2, 'rs1'vm");
+      Format(instr, "for.vx    'vd, 'vs2, 'rs1'vm");
       break;
     case RO_V_VXOR_VX:
       Format(instr, "vxor.vx   'vd, 'vs2, 'rs1'vm");

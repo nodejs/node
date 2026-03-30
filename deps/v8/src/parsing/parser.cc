@@ -308,7 +308,7 @@ bool Parser::ShortcutLiteralBinaryExpression(Expression** x, Expression* y,
   //   "abc" + "def" -> "abcdef"
   // Note that this only works for folding into the LHS of a left-associative
   // binary expression. String concatenation folding on the RHS is handled by
-  // `CollapseNaryExpression`, which can't re-use this method since non-string
+  // `CollapseNaryExpression`, which can't reuse this method since non-string
   // literal concatenation is not commutative.
   if (op == Token::kAdd) {
     // TODO(leszeks): We could also eagerly convert other literals to string if
@@ -645,7 +645,7 @@ void Parser::InitializeEmptyScopeChain(ParseInfo* info) {
   DCHECK_NULL(original_scope_);
   DCHECK_NULL(info->script_scope());
   DeclarationScope* script_scope =
-      NewScriptScope(flags().is_repl_mode() ? REPLMode::kYes : REPLMode::kNo);
+      NewScriptScope(flags().is_repl_mode() ? REPLMode::kYes : REPLMode::know);
   info->set_script_scope(script_scope);
   original_scope_ = script_scope;
 }

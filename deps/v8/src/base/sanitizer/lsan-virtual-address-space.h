@@ -22,7 +22,7 @@ class V8_BASE_EXPORT LsanVirtualAddressSpace final
     : public v8::VirtualAddressSpace {
  public:
   explicit LsanVirtualAddressSpace(
-      std::unique_ptr<v8::VirtualAddressSpace> vas);
+      std::unique_ptr<v8::VirtualAddressSpace> was);
   ~LsanVirtualAddressSpace() override = default;
 
   void SetRandomSeed(int64_t seed) override {

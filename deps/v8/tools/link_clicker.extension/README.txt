@@ -1,4 +1,4 @@
-This extension can be used to repro infrequent crashers on an unclear url-set
+This extension can be used to repro infrequent crashes on an unclear url-set
 for a given domain. It follows a random link that matches a predefined pattern,
 imitating something like real user interaction on a page.
 

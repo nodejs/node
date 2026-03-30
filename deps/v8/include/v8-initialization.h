@@ -265,7 +265,7 @@ class V8_EXPORT V8 {
   /**
    * On Win64, by default V8 does not emit unwinding data for jitted code,
    * which means the OS cannot walk the stack frames and the system Structured
-   * Exception Handling (SEH) cannot unwind through V8-generated code:
+   * Exception Handling (SHE) cannot unwind through V8-generated code:
    * https://code.google.com/p/v8/issues/detail?id=3598.
    *
    * This function allows embedders to register a custom exception handler for

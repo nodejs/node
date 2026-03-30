@@ -656,7 +656,7 @@ TEST(IntegralPowersOfTwo, Width) {
   }
 }
 
-// On GCC and Clang, anticiapte that implementations will be constexpr
+// On GCC and Clang, anticipate that implementations will be constexpr
 #if defined(__GNUC__)
 static_assert(ABSL_INTERNAL_HAS_CONSTEXPR_POPCOUNT,
               "popcount should be constexpr");

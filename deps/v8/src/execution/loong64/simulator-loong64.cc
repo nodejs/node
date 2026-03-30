@@ -2441,7 +2441,7 @@ void Simulator::IncreaseStopCounter(uint64_t code) {
   if ((watched_stops_[code].count & ~(1 << 31)) == 0x7FFFFFFF) {
     PrintF("Stop counter for code %" PRId64
            "  has overflowed.\n"
-           "Enabling this code and reseting the counter to 0.\n",
+           "Enabling this code and resetting the counter to 0.\n",
            code);
     watched_stops_[code].count = 0;
     EnableStop(code);
@@ -3237,7 +3237,7 @@ void Simulator::DecodeTypeOp12() {
       float fj = fj_float();
       float fk = fk_float();
       switch (cond()) {
-        case CAF: {
+        case CALF: {
           printf_instr("FCMP_CAF_S fcc%d\n", cd_reg());
           set_cf_register(cd_reg(), false);
           break;
@@ -3338,7 +3338,7 @@ void Simulator::DecodeTypeOp12() {
       double fj = fj_double();
       double fk = fk_double();
       switch (cond()) {
-        case CAF: {
+        case CALF: {
           printf_instr("FCMP_CAF_D fcc%d\n", cd_reg());
           set_cf_register(cd_reg(), false);
           break;

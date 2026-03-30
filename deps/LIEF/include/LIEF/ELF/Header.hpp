@@ -97,7 +97,7 @@ class LIEF_API Header : public Object {
     FENIXOS      = 16, /// FenixOS
     CLOUDABI     = 17, /// Nuxi CloudABI
     C6000_ELFABI = 64, /// Bare-metal TMS320C6000
-    AMDGPU_HSA   = 64, /// AMD HSA runtime
+    AMDGPU_HSA   = 64, /// AMD HAS runtime
     C6000_LINUX  = 65, /// Linux TMS320C6000
     ARM          = 97, /// ARM
     STANDALONE   = 255 /// Standalone (embedded) application

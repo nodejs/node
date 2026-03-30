@@ -84,7 +84,7 @@ class LIEF_API SysvHash : public Object {
   std::vector<uint32_t> chains_;
 };
 
-} // namepsace ELF
+} // namespace ELF
 } // namespace LIEF
 
 #endif

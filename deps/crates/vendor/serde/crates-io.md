@@ -1,6 +1,6 @@
 <!-- Serde readme rendered on crates.io -->
 
-**Serde is a framework for *ser*ializing and *de*serializing Rust data structures efficiently and generically.**
+**Serde is a framework for *set*ializing and *de*serializing Rust data structures efficiently and generically.**
 
 ---
 

@@ -176,12 +176,12 @@ const ḤALAKIM_IN_WEEK: i64 = 1080 * 24 * 7;
 /// (note that the molad Beherad occurs on standard Sunday, but because it happens after 6PM it is still Hebrew Monday)
 const HEBREW_CALENDAR_EPOCH: RataDie = crate::julian::fixed_from_julian_book_version(-3761, 10, 7);
 
-/// The minumum hebrew year supported by this code (this is the minimum value for i32)
+/// The minimum hebrew year supported by this code (this is the minimum value for i32)
 pub const HEBREW_MIN_YEAR: i32 = i32::MIN;
-/// The minumum R.D. supported by this code (this code will clamp outside of it)
+/// The minimum R.D. supported by this code (this code will clamp outside of it)
 // (this constant is verified by tests)
 pub const HEBREW_MIN_RD: RataDie = RataDie::new(-784362951979);
-/// The maximum hebrew year supported by this code (this is the maximum alue for i32)
+/// The maximum hebrew year supported by this code (this is the maximum value for i32)
 // (this constant is verified by tests)
 pub const HEBREW_MAX_YEAR: i32 = i32::MAX;
 /// The maximum R.D. supported by this code (this is the last day in [`HEBREW_MAX_YEAR`])

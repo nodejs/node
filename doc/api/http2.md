@@ -2024,7 +2024,7 @@ requests.
 The file descriptor or `FileHandle` is not closed when the stream is closed,
 so it will need to be closed manually once it is no longer needed.
 Using the same file descriptor concurrently for multiple streams
-is not supported and may result in data loss. Re-using a file descriptor
+is not supported and may result in data loss. Reusing a file descriptor
 after a stream has finished is supported.
 
 When the `options.waitForTrailers` option is set, the `'wantTrailers'` event

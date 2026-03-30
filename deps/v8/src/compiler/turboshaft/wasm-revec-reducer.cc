@@ -1380,7 +1380,7 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
 }
 
 void WasmRevecAnalyzer::MergeSLPTree(SLPTree& slp_tree) {
-  // We ensured the SLP trees are mergable when BuildTreeRec.
+  // We ensured the SLP trees are mergeable when BuildTreeRec.
   for (const auto& entry : slp_tree.GetIntersectNodeMapping()) {
     auto it = revectorizable_intersect_node_.find(entry.first);
     if (it == revectorizable_intersect_node_.end()) {

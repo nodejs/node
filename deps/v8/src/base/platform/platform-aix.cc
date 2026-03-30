@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Platform specific code for AIX goes here. For the POSIX comaptible parts
+// Platform specific code for AIX goes here. For the POSIX compatible parts
 // the implementation is in platform-posix.cc.
 
 #include <pthread.h>

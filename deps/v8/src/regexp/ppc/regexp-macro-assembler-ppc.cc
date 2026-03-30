@@ -750,7 +750,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerPPC::GetCode(
     // is MANUAL, no is generated.
     FrameScope scope(masm_.get(), StackFrame::MANUAL);
 
-    // Ensure register assigments are consistent with callee save mask
+    // Ensure register assignments are consistent with callee save mask
     DCHECK(kRegExpCalleeSaved.has(r25));
     DCHECK(kRegExpCalleeSaved.has(code_pointer()));
     DCHECK(kRegExpCalleeSaved.has(current_input_offset()));
@@ -1339,7 +1339,7 @@ void RegExpMacroAssemblerPPC::CallCFunctionFromIrregexpCode(
   //    fail.
   //
   // See also: crbug.com/v8/12670#c17.
-  __ CallCFunction(function, num_arguments, SetIsolateDataSlots::kNo);
+  __ CallCFunction(function, num_arguments, SetIsolateDataSlots::know);
 }
 
 void RegExpMacroAssemblerPPC::CheckPosition(int cp_offset,

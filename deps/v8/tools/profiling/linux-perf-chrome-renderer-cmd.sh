@@ -18,7 +18,7 @@ for i in "$@"; do
     -h|--help)
 cat <<EOF
 Usage: path/to/chrome --renderer-cmd-prefix='$0 [OPTION]' [CHROME OPTIONS]
-This script is mostly used in conjuction with linux_perf.py to run linux-perf
+This script is mostly used in conjunction with linux_perf.py to run linux-perf
 for each renderer process.
 It generates perf.data files that can be read by pprof or linux-perf.
 

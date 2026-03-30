@@ -77,10 +77,10 @@ void IsolateLoadScriptData::UpdateAllIsolates(bool etw_enabled,
       [etw_enabled, weak_monitor, options](auto& pair) {
         auto& isolate_data = pair.second;
         if (etw_enabled) {
-          ETWTRACEDBG << "UpdateAllIsolates enqueing enablelog" << std::endl;
+          ETWTRACEDBG << "UpdateAllIsolates enqueuing enablelog" << std::endl;
           isolate_data.EnqueueEnableLog(weak_monitor, options);
         } else {
-          ETWTRACEDBG << "UpdateAllIsolates enqueing disablelog" << std::endl;
+          ETWTRACEDBG << "UpdateAllIsolates enqueuing disablelog" << std::endl;
           isolate_data.EnqueueDisableLog();
         }
       });

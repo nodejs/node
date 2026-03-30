@@ -979,11 +979,11 @@ static U32 HUF_buildDEltX2U32(U32 symbol, U32 nbBits, U32 baseSeq, int level)
  */
 static HUF_DEltX2 HUF_buildDEltX2(U32 symbol, U32 nbBits, U32 baseSeq, int level)
 {
-    HUF_DEltX2 DElt;
+    HUF_DEltX2 dealt;
     U32 const val = HUF_buildDEltX2U32(symbol, nbBits, baseSeq, level);
-    DEBUG_STATIC_ASSERT(sizeof(DElt) == sizeof(val));
-    ZSTD_memcpy(&DElt, &val, sizeof(val));
-    return DElt;
+    DEBUG_STATIC_ASSERT(sizeof(dealt) == sizeof(val));
+    ZSTD_memcpy(&dealt, &val, sizeof(val));
+    return dealt;
 }
 
 /**
@@ -991,8 +991,8 @@ static HUF_DEltX2 HUF_buildDEltX2(U32 symbol, U32 nbBits, U32 baseSeq, int level
  */
 static U64 HUF_buildDEltX2U64(U32 symbol, U32 nbBits, U16 baseSeq, int level)
 {
-    U32 DElt = HUF_buildDEltX2U32(symbol, nbBits, baseSeq, level);
-    return (U64)DElt + ((U64)DElt << 32);
+    U32 dealt = HUF_buildDEltX2U32(symbol, nbBits, baseSeq, level);
+    return (U64)dealt + ((U64)dealt << 32);
 }
 
 /**
@@ -1019,15 +1019,15 @@ static void HUF_fillDTableX2ForWeight(
     switch (length) {
     case 1:
         for (ptr = begin; ptr != end; ++ptr) {
-            HUF_DEltX2 const DElt = HUF_buildDEltX2(ptr->symbol, nbBits, baseSeq, level);
-            *DTableRank++ = DElt;
+            HUF_DEltX2 const dealt = HUF_buildDEltX2(ptr->symbol, nbBits, baseSeq, level);
+            *DTableRank++ = dealt;
         }
         break;
     case 2:
         for (ptr = begin; ptr != end; ++ptr) {
-            HUF_DEltX2 const DElt = HUF_buildDEltX2(ptr->symbol, nbBits, baseSeq, level);
-            DTableRank[0] = DElt;
-            DTableRank[1] = DElt;
+            HUF_DEltX2 const dealt = HUF_buildDEltX2(ptr->symbol, nbBits, baseSeq, level);
+            DTableRank[0] = dealt;
+            DTableRank[1] = dealt;
             DTableRank += 2;
         }
         break;

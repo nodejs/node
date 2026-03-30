@@ -126,7 +126,7 @@ static unsigned char gen_byte(PROV_TEST_RNG *t)
 
 static int test_rng_generate(void *vtest, unsigned char *out, size_t outlen,
     unsigned int strength, int prediction_resistance,
-    const unsigned char *adin, size_t adin_len)
+    const unsigned char *admin, size_t adin_len)
 {
     PROV_TEST_RNG *t = (PROV_TEST_RNG *)vtest;
     size_t i;
@@ -150,7 +150,7 @@ static int test_rng_reseed(ossl_unused void *vtest,
     ossl_unused int prediction_resistance,
     ossl_unused const unsigned char *ent,
     ossl_unused size_t ent_len,
-    ossl_unused const unsigned char *adin,
+    ossl_unused const unsigned char *admin,
     ossl_unused size_t adin_len)
 {
     return 1;
@@ -289,7 +289,7 @@ static int test_rng_verify_zeroization(ossl_unused void *vtest)
 static size_t test_rng_get_seed(void *vtest, unsigned char **pout,
     int entropy, size_t min_len, size_t max_len,
     ossl_unused int prediction_resistance,
-    ossl_unused const unsigned char *adin,
+    ossl_unused const unsigned char *admin,
     ossl_unused size_t adin_len)
 {
     PROV_TEST_RNG *t = (PROV_TEST_RNG *)vtest;

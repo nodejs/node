@@ -93,6 +93,6 @@ Debug.setListener(listener);
 Debug.setBreakPoint(f, 0, 0);
 g();
 
-// Make sure that the debug event listener vas invoked.
+// Make sure that the debug event listener was invoked.
 assertFalse(exceptionThrown, "exception in listener");
 assertTrue(listenerCalled);

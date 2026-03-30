@@ -25,6 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Tests that we check if escaped characters are valid indentifier
+// Tests that we check if escaped characters are valid identifier
 // start characters.
 assertThrows('var \\u0030')

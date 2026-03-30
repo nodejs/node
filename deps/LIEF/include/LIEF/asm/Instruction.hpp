@@ -123,7 +123,7 @@ class LIEF_API Instruction {
   bool is_trap() const;
 
   /// True if the instruction prevents executing the instruction
-  /// that immediatly follows the current. This includes return
+  /// that immediately follows the current. This includes return
   /// or unconditional branch instructions
   bool is_barrier() const;
 

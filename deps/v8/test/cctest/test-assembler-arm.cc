@@ -3129,13 +3129,13 @@ TEST(ARMv8_float32_vrintX) {
 #endif
     auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
 
-#define CHECK_VRINT(input_val, ares, nres, mres, pres, zres) \
+#define CHECK_VRINT(input_val, ares, nres, mres, press, zres) \
   t.input = input_val;                                       \
   f.Call(&t, 0, 0, 0, 0);                                    \
   CHECK_EQ(ares, t.ar);                                      \
   CHECK_EQ(nres, t.nr);                                      \
   CHECK_EQ(mres, t.mr);                                      \
-  CHECK_EQ(pres, t.pr);                                      \
+  CHECK_EQ(press, t.pr);                                      \
   CHECK_EQ(zres, t.zr);
 
     CHECK_VRINT(-0.5, -1.0, -0.0, -1.0, -0.0, -0.0)
@@ -3230,13 +3230,13 @@ TEST(ARMv8_vrintX) {
 #endif
     auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
 
-#define CHECK_VRINT(input_val, ares, nres, mres, pres, zres) \
+#define CHECK_VRINT(input_val, ares, nres, mres, press, zres) \
   t.input = input_val;                                       \
   f.Call(&t, 0, 0, 0, 0);                                    \
   CHECK_EQ(ares, t.ar);                                      \
   CHECK_EQ(nres, t.nr);                                      \
   CHECK_EQ(mres, t.mr);                                      \
-  CHECK_EQ(pres, t.pr);                                      \
+  CHECK_EQ(press, t.pr);                                      \
   CHECK_EQ(zres, t.zr);
 
     CHECK_VRINT(-0.5, -1.0, -0.0, -1.0, -0.0, -0.0)

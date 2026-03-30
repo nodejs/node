@@ -18,14 +18,14 @@ class Foo {
   methodC () {
 
   }
-  methodD () {
+  method () {
 
   }
 }
 
 const a = new Foo(0)
 const b = new Foo(33)
-a.methodD()
+a.method()
 
 declare const module: {
   exports: any

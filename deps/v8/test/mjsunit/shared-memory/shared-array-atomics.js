@@ -65,7 +65,7 @@
 
   // Verify we can compare-exchange shared objects.
 
-  // Comparing to a different instance of the same type is not succesful.
+  // Comparing to a different instance of the same type is not successful.
   assertEquals(
       Atomics.compareExchange(arr, 0, new Struct(), 'exchanged'), shared_rhs);
   assertNotEquals(arr[0], 'exchanged');
@@ -74,7 +74,7 @@
       Atomics.compareExchange(arr, 0, shared_rhs, shared_rhs2), shared_rhs);
   assertEquals(arr[0], shared_rhs2);
 
-  // Comparing to a different instance of the same type is not succesful.
+  // Comparing to a different instance of the same type is not successful.
   assertEquals(
       Atomics.compareExchange(arr, 0, new SharedArray(10), 'exchanged'),
       shared_rhs2);

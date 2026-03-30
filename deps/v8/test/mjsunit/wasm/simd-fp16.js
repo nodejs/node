@@ -9,7 +9,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function TestFP16() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
-  const addRes = builder.addGlobal(kWasmF32, true).exportAs('add');
+  const address = builder.addGlobal(kWasmF32, true).exportAs('add');
   const subRes = builder.addGlobal(kWasmF32, true).exportAs('sub');
   const splatFloat = (f) => [wasmF32Const(f), kSimdPrefix, kExprF16x8Splat];
   const simdBin = (op, lhs, rhs) => [lhs, rhs, kSimdPrefix, op];
@@ -19,7 +19,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .addBody([
       simdBin(kExprF16x8Add, splatFloat(2), splatFloat(3)),
       kSimdPrefix, kExprF16x8ExtractLane, 1,
-      kExprGlobalSet, addRes.index,
+      kExprGlobalSet, address.index,
 
       simdBin(kExprF16x8Sub, localTee(0, splatFloat(5)), splatFloat(3)),
       kSimdPrefix, kExprF16x8ExtractLane, 1,

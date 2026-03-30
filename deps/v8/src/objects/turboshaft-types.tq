@@ -200,7 +200,7 @@ builtin CheckTurboshaftWord64Type(
   Print('Type assertion failed!');
   Print('Node id', nodeId);
   Print('Actual value (high)', Convert<Number>(valueHigh));
-  Print('Actual vlaue (low)', Convert<Number>(valueLow));
+  Print('Actual value (low)', Convert<Number>(valueLow));
   Print('Expected type', expectedType);
   Abort(AbortReason::kTurboshaftTypeAssertionFailed);
 }

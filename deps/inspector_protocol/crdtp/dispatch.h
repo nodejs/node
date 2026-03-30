@@ -169,7 +169,7 @@ CRDTP_EXPORT std::unique_ptr<Serializable> CreateNotification(
     std::unique_ptr<Serializable> params = nullptr);
 
 // =============================================================================
-// DomainDispatcher - Dispatching betwen protocol methods within a domain.
+// DomainDispatcher - Dispatching between protocol methods within a domain.
 // =============================================================================
 
 // This class is subclassed by |DomainDispatcherImpl|, which we generate per

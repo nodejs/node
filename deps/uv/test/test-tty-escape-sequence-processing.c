@@ -239,7 +239,7 @@ static void make_expect_screen_erase(struct captured_screen* cs,
       /* erase to end of line */
       end = start + cs->si.width;
     }
-    /* erase from postition of cursor */
+    /* erase from position of cursor */
     start += cursor_position.X - 1;
   } else if (dir == 1) {
     /* erase to position of cursor */
@@ -1605,7 +1605,7 @@ TEST_IMPL(tty_escape_sequence_processing) {
   capture_screen(&tty_out, &actual);
   ASSERT(compare_screen(&tty_out, &actual, &expect));
 
-  /* Finally byte immedately after CSI [ are also output(#1874 1.) */
+  /* Finally byte immediately after CSI [ are also output(#1874 1.) */
   cursor_pos.X = expect.si.width / 2;
   cursor_pos.Y = expect.si.height / 2;
   set_cursor_position(&tty_out, cursor_pos);

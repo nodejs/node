@@ -29,7 +29,7 @@ index 8bf93e524875..fc7ae45905ff 100644
      s->window = (Bytef *) ZALLOC(strm,
                                   s->w_size + window_padding,
                                   2*sizeof(Byte));
-+    /* Avoid use of unitialized values in the window, see crbug.com/1137613 and
++    /* Avoid use of uninitialized values in the window, see crbug.com/1137613 and
 +     * crbug.com/1144420 */
 +    zmemzero(s->window, (s->w_size + window_padding) * (2 * sizeof(Byte)));
      s->prev   = (Posf *)  ZALLOC(strm, s->w_size, sizeof(Pos));

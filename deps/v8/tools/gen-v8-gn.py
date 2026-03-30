@@ -24,10 +24,10 @@ def parse_args():
       '--positive-define',
       type=str,
       action='append',
-      help='Externally visibile positive definition in format NAME or NAME=VALUE'
+      help='Externally visible positive definition in format NAME or NAME=VALUE'
   )
   parser.add_argument('-n', '--negative-define', type=str, action='append',
-                      help='Externally visibile negative definition')
+                      help='Externally visible negative definition')
   args = parser.parse_args()
 
 

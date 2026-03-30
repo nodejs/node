@@ -1544,7 +1544,7 @@ const struct message responses[] =
 
 #define UNDERSTORE_HEADER_KEY 7
   // shown by
-  // curl -o /dev/null -v "http://ad.doubleclick.net/pfadx/DARTSHELLCONFIGXML;dcmt=text/xml;"
+  // curl -o /dev/null -v "http://ad.double-click.net/pfadx/DARTSHELLCONFIGXML;dcmt=text/xml;"
 , {.name="underscore header key"
   ,.type= HTTP_RESPONSE
   ,.raw= "HTTP/1.1 200 OK\r\n"
@@ -1887,7 +1887,7 @@ const struct message responses[] =
          "Date: Wed, 15 May 2013 17:06:33 GMT\r\n"
          "Server: Server\r\n"
          "x-amz-id-1: 0GPHKXSJQ826RK7GZEB2\r\n"
-         "p3p: policyref=\"http://www.amazon.com/w3c/p3p.xml\",CP=\"CAO DSP LAW CUR ADM IVAo IVDo CONo OTPo OUR DELi PUBi OTRi BUS PHY ONL UNI PUR FIN COM NAV INT DEM CNT STA HEA PRE LOC GOV OTC \"\r\n"
+         "p3p: policyref=\"http://www.amazon.com/w3c/p3p.xml\",CP=\"CAO DSP LAW CUR ADM IVAo IVDo CONo OTPo OUR DELi PUBi OTRi BUS PHY ONLY UNI PUR FIN COM NAV INT DEM CNT STA HEA PRE LOC GOV OTC \"\r\n"
          "x-amz-id-2: STN69VZxIFSz9YJLbz1GDbxpbjG6Qjmmq5E3DxRhOUw+Et0p4hr7c/Q8qNcx4oAD\r\n"
          "Location: http://www.amazon.com/Dan-Brown/e/B000AP9DSU/ref=s9_pop_gw_al1?_encoding=UTF8&refinementId=618073011&pf_rd_m=ATVPDKIKX0DER&pf_rd_s=center-2&pf_rd_r=0SHYY5BZXN3KR20BNFAY&pf_rd_t=101&pf_rd_p=1263340922&pf_rd_i=507846\r\n"
          "Vary: Accept-Encoding,User-Agent\r\n"
@@ -1909,7 +1909,7 @@ const struct message responses[] =
   ,.headers= { { "Date", "Wed, 15 May 2013 17:06:33 GMT" }
              , { "Server", "Server" }
              , { "x-amz-id-1", "0GPHKXSJQ826RK7GZEB2" }
-             , { "p3p", "policyref=\"http://www.amazon.com/w3c/p3p.xml\",CP=\"CAO DSP LAW CUR ADM IVAo IVDo CONo OTPo OUR DELi PUBi OTRi BUS PHY ONL UNI PUR FIN COM NAV INT DEM CNT STA HEA PRE LOC GOV OTC \"" }
+             , { "p3p", "policyref=\"http://www.amazon.com/w3c/p3p.xml\",CP=\"CAO DSP LAW CUR ADM IVAo IVDo CONo OTPo OUR DELi PUBi OTRi BUS PHY ONLY UNI PUR FIN COM NAV INT DEM CNT STA HEA PRE LOC GOV OTC \"" }
              , { "x-amz-id-2", "STN69VZxIFSz9YJLbz1GDbxpbjG6Qjmmq5E3DxRhOUw+Et0p4hr7c/Q8qNcx4oAD" }
              , { "Location", "http://www.amazon.com/Dan-Brown/e/B000AP9DSU/ref=s9_pop_gw_al1?_encoding=UTF8&refinementId=618073011&pf_rd_m=ATVPDKIKX0DER&pf_rd_s=center-2&pf_rd_r=0SHYY5BZXN3KR20BNFAY&pf_rd_t=101&pf_rd_p=1263340922&pf_rd_i=507846" }
              , { "Vary", "Accept-Encoding,User-Agent" }
@@ -2959,7 +2959,7 @@ test_preserve_data (void)
   parser.data = my_data;
   http_parser_init(&parser, HTTP_REQUEST);
   if (parser.data != my_data) {
-    printf("\n*** parser.data not preserved accross http_parser_init ***\n\n");
+    printf("\n*** parser.data not preserved across http_parser_init ***\n\n");
     abort();
   }
 }
@@ -3394,7 +3394,7 @@ const struct url_test url_tests[] =
   ,.rv=1 /* s_dead */
   }
 
-, {.name="proxy emtpy hostname"
+, {.name="proxy empty hostname"
   ,.url="http:///fo"
   ,.rv=1 /* s_dead */
   }

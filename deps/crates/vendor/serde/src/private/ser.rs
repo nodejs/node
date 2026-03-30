@@ -1,6 +1,6 @@
 use crate::lib::*;
 
-use crate::ser::{self, Impossible, Serialize, SerializeMap, SerializeStruct, Serializer};
+use crate::set::{self, Impossible, Serialize, SerializeMap, SerializeStruct, Serializer};
 
 #[cfg(any(feature = "std", feature = "alloc"))]
 use self::content::{
@@ -83,7 +83,7 @@ where
     S: Serializer,
 {
     fn bad_type(self, what: Unsupported) -> S::Error {
-        ser::Error::custom(format_args!(
+        set::Error::custom(format_args!(
             "cannot serialize tagged newtype variant {}::{} containing {}",
             self.type_ident, self.variant_ident, what
         ))
@@ -339,7 +339,7 @@ where
 mod content {
     use crate::lib::*;
 
-    use crate::ser::{self, Serialize, Serializer};
+    use crate::set::{self, Serialize, Serializer};
 
     pub struct SerializeTupleVariantAsMapValue<M> {
         map: M,
@@ -358,9 +358,9 @@ mod content {
     }
 
     #[cfg_attr(not(no_diagnostic_namespace), diagnostic::do_not_recommend)]
-    impl<M> ser::SerializeTupleVariant for SerializeTupleVariantAsMapValue<M>
+    impl<M> set::SerializeTupleVariant for SerializeTupleVariantAsMapValue<M>
     where
-        M: ser::SerializeMap,
+        M: set::SerializeMap,
     {
         type Ok = M::Ok;
         type Error = M::Error;
@@ -399,9 +399,9 @@ mod content {
     }
 
     #[cfg_attr(not(no_diagnostic_namespace), diagnostic::do_not_recommend)]
-    impl<M> ser::SerializeStructVariant for SerializeStructVariantAsMapValue<M>
+    impl<M> set::SerializeStructVariant for SerializeStructVariantAsMapValue<M>
     where
-        M: ser::SerializeMap,
+        M: set::SerializeMap,
     {
         type Ok = M::Ok;
         type Error = M::Error;
@@ -498,7 +498,7 @@ mod content {
                 }
                 Content::Seq(ref elements) => elements.serialize(serializer),
                 Content::Tuple(ref elements) => {
-                    use crate::ser::SerializeTuple;
+                    use crate::set::SerializeTuple;
                     let mut tuple = tri!(serializer.serialize_tuple(elements.len()));
                     for e in elements {
                         tri!(tuple.serialize_element(e));
@@ -506,7 +506,7 @@ mod content {
                     tuple.end()
                 }
                 Content::TupleStruct(n, ref fields) => {
-                    use crate::ser::SerializeTupleStruct;
+                    use crate::set::SerializeTupleStruct;
                     let mut ts = tri!(serializer.serialize_tuple_struct(n, fields.len()));
                     for f in fields {
                         tri!(ts.serialize_field(f));
@@ -514,7 +514,7 @@ mod content {
                     ts.end()
                 }
                 Content::TupleVariant(n, i, v, ref fields) => {
-                    use crate::ser::SerializeTupleVariant;
+                    use crate::set::SerializeTupleVariant;
                     let mut tv = tri!(serializer.serialize_tuple_variant(n, i, v, fields.len()));
                     for f in fields {
                         tri!(tv.serialize_field(f));
@@ -522,7 +522,7 @@ mod content {
                     tv.end()
                 }
                 Content::Map(ref entries) => {
-                    use crate::ser::SerializeMap;
+                    use crate::set::SerializeMap;
                     let mut map = tri!(serializer.serialize_map(Some(entries.len())));
                     for (k, v) in entries {
                         tri!(map.serialize_entry(k, v));
@@ -530,7 +530,7 @@ mod content {
                     map.end()
                 }
                 Content::Struct(n, ref fields) => {
-                    use crate::ser::SerializeStruct;
+                    use crate::set::SerializeStruct;
                     let mut s = tri!(serializer.serialize_struct(n, fields.len()));
                     for &(k, ref v) in fields {
                         tri!(s.serialize_field(k, v));
@@ -538,7 +538,7 @@ mod content {
                     s.end()
                 }
                 Content::StructVariant(n, i, v, ref fields) => {
-                    use crate::ser::SerializeStructVariant;
+                    use crate::set::SerializeStructVariant;
                     let mut sv = tri!(serializer.serialize_struct_variant(n, i, v, fields.len()));
                     for &(k, ref v) in fields {
                         tri!(sv.serialize_field(k, v));
@@ -562,7 +562,7 @@ mod content {
     #[cfg_attr(not(no_diagnostic_namespace), diagnostic::do_not_recommend)]
     impl<E> Serializer for ContentSerializer<E>
     where
-        E: ser::Error,
+        E: set::Error,
     {
         type Ok = Content;
         type Error = E;
@@ -772,9 +772,9 @@ mod content {
     }
 
     #[cfg_attr(not(no_diagnostic_namespace), diagnostic::do_not_recommend)]
-    impl<E> ser::SerializeSeq for SerializeSeq<E>
+    impl<E> set::SerializeSeq for SerializeSeq<E>
     where
-        E: ser::Error,
+        E: set::Error,
     {
         type Ok = Content;
         type Error = E;
@@ -799,9 +799,9 @@ mod content {
     }
 
     #[cfg_attr(not(no_diagnostic_namespace), diagnostic::do_not_recommend)]
-    impl<E> ser::SerializeTuple for SerializeTuple<E>
+    impl<E> set::SerializeTuple for SerializeTuple<E>
     where
-        E: ser::Error,
+        E: set::Error,
     {
         type Ok = Content;
         type Error = E;
@@ -827,9 +827,9 @@ mod content {
     }
 
     #[cfg_attr(not(no_diagnostic_namespace), diagnostic::do_not_recommend)]
-    impl<E> ser::SerializeTupleStruct for SerializeTupleStruct<E>
+    impl<E> set::SerializeTupleStruct for SerializeTupleStruct<E>
     where
-        E: ser::Error,
+        E: set::Error,
     {
         type Ok = Content;
         type Error = E;
@@ -857,9 +857,9 @@ mod content {
     }
 
     #[cfg_attr(not(no_diagnostic_namespace), diagnostic::do_not_recommend)]
-    impl<E> ser::SerializeTupleVariant for SerializeTupleVariant<E>
+    impl<E> set::SerializeTupleVariant for SerializeTupleVariant<E>
     where
-        E: ser::Error,
+        E: set::Error,
     {
         type Ok = Content;
         type Error = E;
@@ -890,9 +890,9 @@ mod content {
     }
 
     #[cfg_attr(not(no_diagnostic_namespace), diagnostic::do_not_recommend)]
-    impl<E> ser::SerializeMap for SerializeMap<E>
+    impl<E> set::SerializeMap for SerializeMap<E>
     where
-        E: ser::Error,
+        E: set::Error,
     {
         type Ok = Content;
         type Error = E;
@@ -942,9 +942,9 @@ mod content {
     }
 
     #[cfg_attr(not(no_diagnostic_namespace), diagnostic::do_not_recommend)]
-    impl<E> ser::SerializeStruct for SerializeStruct<E>
+    impl<E> set::SerializeStruct for SerializeStruct<E>
     where
-        E: ser::Error,
+        E: set::Error,
     {
         type Ok = Content;
         type Error = E;
@@ -972,9 +972,9 @@ mod content {
     }
 
     #[cfg_attr(not(no_diagnostic_namespace), diagnostic::do_not_recommend)]
-    impl<E> ser::SerializeStructVariant for SerializeStructVariant<E>
+    impl<E> set::SerializeStructVariant for SerializeStructVariant<E>
     where
-        E: ser::Error,
+        E: set::Error,
     {
         type Ok = Content;
         type Error = E;
@@ -1008,7 +1008,7 @@ where
     M: SerializeMap + 'a,
 {
     fn bad_type(what: Unsupported) -> M::Error {
-        ser::Error::custom(format_args!(
+        set::Error::custom(format_args!(
             "can only flatten structs and maps (got {})",
             what
         ))
@@ -1199,7 +1199,7 @@ pub struct FlatMapSerializeMap<'a, M: 'a>(&'a mut M);
 
 #[cfg(any(feature = "std", feature = "alloc"))]
 #[cfg_attr(not(no_diagnostic_namespace), diagnostic::do_not_recommend)]
-impl<'a, M> ser::SerializeMap for FlatMapSerializeMap<'a, M>
+impl<'a, M> set::SerializeMap for FlatMapSerializeMap<'a, M>
 where
     M: SerializeMap + 'a,
 {
@@ -1238,7 +1238,7 @@ pub struct FlatMapSerializeStruct<'a, M: 'a>(&'a mut M);
 
 #[cfg(any(feature = "std", feature = "alloc"))]
 #[cfg_attr(not(no_diagnostic_namespace), diagnostic::do_not_recommend)]
-impl<'a, M> ser::SerializeStruct for FlatMapSerializeStruct<'a, M>
+impl<'a, M> set::SerializeStruct for FlatMapSerializeStruct<'a, M>
 where
     M: SerializeMap + 'a,
 {
@@ -1280,7 +1280,7 @@ where
 
 #[cfg(any(feature = "std", feature = "alloc"))]
 #[cfg_attr(not(no_diagnostic_namespace), diagnostic::do_not_recommend)]
-impl<'a, M> ser::SerializeTupleVariant for FlatMapSerializeTupleVariantAsMapValue<'a, M>
+impl<'a, M> set::SerializeTupleVariant for FlatMapSerializeTupleVariantAsMapValue<'a, M>
 where
     M: SerializeMap + 'a,
 {
@@ -1327,7 +1327,7 @@ where
 
 #[cfg(any(feature = "std", feature = "alloc"))]
 #[cfg_attr(not(no_diagnostic_namespace), diagnostic::do_not_recommend)]
-impl<'a, M> ser::SerializeStructVariant for FlatMapSerializeStructVariantAsMapValue<'a, M>
+impl<'a, M> set::SerializeStructVariant for FlatMapSerializeStructVariantAsMapValue<'a, M>
 where
     M: SerializeMap + 'a,
 {

@@ -142,7 +142,7 @@ static int der_encode_sharedinfo(WPACKET *pkt, unsigned char *buf, size_t buflen
 /*
  * Encode the other info structure.
  *
- * The ANS X9.42-2003 standard uses OtherInfo:
+ * The AND X9.42-2003 standard uses OtherInfo:
  *
  *  OtherInfo ::= SEQUENCE {
  *      keyInfo KeySpecificInfo,

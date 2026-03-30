@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 @abstract
-// We normally don't generate a BodyDescriptor for an abstact class, but here we
+// We normally don't generate a BodyDescriptor for an abstract class, but here we
 // do since all context classes share the same BodyDescriptor.
 @generateBodyDescriptor
 extern class Context extends HeapObject {

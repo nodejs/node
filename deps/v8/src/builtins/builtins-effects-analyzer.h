@@ -32,7 +32,7 @@ namespace v8::internal {
 
 enum class BuiltinAllocateEffect {
   kUninitialized,
-  kNo,                   // This builtin cannot allocate.
+  know,                   // This builtin cannot allocate.
   kYes,                  // This builtin can allocate.
   kMaybeWithBuiltinCall  // This builtin cannot directly allocate, but it calls
                          // other builtins (and we don't know yet whether those

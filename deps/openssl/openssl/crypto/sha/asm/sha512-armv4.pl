@@ -80,7 +80,7 @@ $len="r2";
 
 $Tlo="r3";
 $Thi="r4";
-$Alo="r5";
+$Also="r5";
 $Ahi="r6";
 $Elo="r7";
 $Ehi="r8";
@@ -138,7 +138,7 @@ $code.=<<___;
 	eor	$t1,$t1,$t3
 	str	$Ehi,[sp,#$Eoff+4]
 	and	$t0,$t0,$Elo
-	str	$Alo,[sp,#$Aoff+0]
+	str	$Also,[sp,#$Aoff+0]
 	and	$t1,$t1,$Ehi
 	str	$Ahi,[sp,#$Aoff+4]
 	eor	$t0,$t0,$t2
@@ -166,31 +166,31 @@ $code.=<<___;
 	@ Sigma0(x)	(ROTR((x),28) ^ ROTR((x),34) ^ ROTR((x),39))
 	@ LO		lo>>28^hi<<4  ^ hi>>2^lo<<30 ^ hi>>7^lo<<25
 	@ HI		hi>>28^lo<<4  ^ lo>>2^hi<<30 ^ lo>>7^hi<<25
-	mov	$t0,$Alo,lsr#28
+	mov	$t0,$Also,lsr#28
 	mov	$t1,$Ahi,lsr#28
 	eor	$t0,$t0,$Ahi,lsl#4
-	eor	$t1,$t1,$Alo,lsl#4
+	eor	$t1,$t1,$Also,lsl#4
 	eor	$t0,$t0,$Ahi,lsr#2
-	eor	$t1,$t1,$Alo,lsr#2
-	eor	$t0,$t0,$Alo,lsl#30
+	eor	$t1,$t1,$Also,lsr#2
+	eor	$t0,$t0,$Also,lsl#30
 	eor	$t1,$t1,$Ahi,lsl#30
 	eor	$t0,$t0,$Ahi,lsr#7
-	eor	$t1,$t1,$Alo,lsr#7
-	eor	$t0,$t0,$Alo,lsl#25
+	eor	$t1,$t1,$Also,lsr#7
+	eor	$t0,$t0,$Also,lsl#25
 	eor	$t1,$t1,$Ahi,lsl#25	@ Sigma0(a)
 	adds	$Tlo,$Tlo,$t0
-	and	$t0,$Alo,$t2
+	and	$t0,$Also,$t2
 	adc	$Thi,$Thi,$t1		@ T += Sigma0(a)
 
 	ldr	$t1,[sp,#$Boff+4]	@ b.hi
-	orr	$Alo,$Alo,$t2
+	orr	$Also,$Also,$t2
 	ldr	$t2,[sp,#$Coff+4]	@ c.hi
-	and	$Alo,$Alo,$t3
+	and	$Also,$Also,$t3
 	and	$t3,$Ahi,$t1
 	orr	$Ahi,$Ahi,$t1
-	orr	$Alo,$Alo,$t0		@ Maj(a,b,c).lo
+	orr	$Also,$Also,$t0		@ Maj(a,b,c).lo
 	and	$Ahi,$Ahi,$t2
-	adds	$Alo,$Alo,$Tlo
+	adds	$Also,$Also,$Tlo
 	orr	$Ahi,$Ahi,$t3		@ Maj(a,b,c).hi
 	sub	sp,sp,#8
 	adc	$Ahi,$Ahi,$Thi		@ h += T
@@ -325,7 +325,7 @@ sha512_block_data_order:
 	str	$t1, [sp,#$Goff+4]
 	str	$t2, [sp,#$Hoff+0]
 	str	$t3, [sp,#$Hoff+4]
-	ldr	$Alo,[$ctx,#$Aoff+$lo]
+	ldr	$Also,[$ctx,#$Aoff+$lo]
 	ldr	$Ahi,[$ctx,#$Aoff+$hi]
 	ldr	$Tlo,[$ctx,#$Boff+$lo]
 	ldr	$Thi,[$ctx,#$Boff+$hi]
@@ -437,7 +437,7 @@ $code.=<<___;
 	ldr	$t1, [$ctx,#$Aoff+$hi]
 	ldr	$t2, [$ctx,#$Boff+$lo]
 	ldr	$t3, [$ctx,#$Boff+$hi]
-	adds	$t0,$Alo,$t0
+	adds	$t0,$Also,$t0
 	str	$t0, [$ctx,#$Aoff+$lo]
 	adc	$t1,$Ahi,$t1
 	str	$t1, [$ctx,#$Aoff+$hi]
@@ -446,7 +446,7 @@ $code.=<<___;
 	adc	$t3,$Thi,$t3
 	str	$t3, [$ctx,#$Boff+$hi]
 
-	ldr	$Alo,[sp,#$Coff+0]
+	ldr	$Also,[sp,#$Coff+0]
 	ldr	$Ahi,[sp,#$Coff+4]
 	ldr	$Tlo,[sp,#$Doff+0]
 	ldr	$Thi,[sp,#$Doff+4]
@@ -454,7 +454,7 @@ $code.=<<___;
 	ldr	$t1, [$ctx,#$Coff+$hi]
 	ldr	$t2, [$ctx,#$Doff+$lo]
 	ldr	$t3, [$ctx,#$Doff+$hi]
-	adds	$t0,$Alo,$t0
+	adds	$t0,$Also,$t0
 	str	$t0, [$ctx,#$Coff+$lo]
 	adc	$t1,$Ahi,$t1
 	str	$t1, [$ctx,#$Coff+$hi]
@@ -478,7 +478,7 @@ $code.=<<___;
 	adc	$t3,$Thi,$t3
 	str	$t3, [$ctx,#$Foff+$hi]
 
-	ldr	$Alo,[sp,#$Goff+0]
+	ldr	$Also,[sp,#$Goff+0]
 	ldr	$Ahi,[sp,#$Goff+4]
 	ldr	$Tlo,[sp,#$Hoff+0]
 	ldr	$Thi,[sp,#$Hoff+4]
@@ -486,7 +486,7 @@ $code.=<<___;
 	ldr	$t1, [$ctx,#$Goff+$hi]
 	ldr	$t2, [$ctx,#$Hoff+$lo]
 	ldr	$t3, [$ctx,#$Hoff+$hi]
-	adds	$t0,$Alo,$t0
+	adds	$t0,$Also,$t0
 	str	$t0, [$ctx,#$Goff+$lo]
 	adc	$t1,$Ahi,$t1
 	str	$t1, [$ctx,#$Goff+$hi]

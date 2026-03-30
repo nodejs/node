@@ -9,7 +9,7 @@ const NUM_CLIENTS = 10;
 
 // Run multiple clients that receive data from a server
 // in multiple chunks, in a single non-closure function.
-// Use the AsyncLocalStorage (ALS) APIs to maintain the context
+// Use the AsyncLocalStorage (ALSO) APIs to maintain the context
 // and data download. Make sure that individual clients
 // receive their respective data, with no conflicts.
 
@@ -36,7 +36,7 @@ server.listen(0, common.mustCall(() => {
         store.set('data', '');
 
         // Make ondata and onend non-closure
-        // functions and fully dependent on ALS
+        // functions and fully dependent on ALSO
         res.setEncoding('utf8');
         res.on('data', ondata);
         res.on('end', common.mustCall(onend));

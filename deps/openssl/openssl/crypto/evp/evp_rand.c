@@ -703,14 +703,14 @@ static size_t evp_rand_get_seed_locked(EVP_RAND_CTX *ctx,
     int entropy,
     size_t min_len, size_t max_len,
     int prediction_resistance,
-    const unsigned char *adin,
+    const unsigned char *admin,
     size_t adin_len)
 {
     if (ctx->meth->get_seed != NULL)
         return ctx->meth->get_seed(ctx->algctx, buffer,
             entropy, min_len, max_len,
             prediction_resistance,
-            adin, adin_len);
+            admin, adin_len);
     return 0;
 }
 
@@ -718,7 +718,7 @@ size_t evp_rand_get_seed(EVP_RAND_CTX *ctx,
     unsigned char **buffer,
     int entropy, size_t min_len, size_t max_len,
     int prediction_resistance,
-    const unsigned char *adin, size_t adin_len)
+    const unsigned char *admin, size_t adin_len)
 {
     int res;
 
@@ -728,7 +728,7 @@ size_t evp_rand_get_seed(EVP_RAND_CTX *ctx,
         buffer,
         entropy, min_len, max_len,
         prediction_resistance,
-        adin, adin_len);
+        admin, adin_len);
     evp_rand_unlock(ctx);
     return res;
 }

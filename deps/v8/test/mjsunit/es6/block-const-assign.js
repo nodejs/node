@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Test that we throw early syntax errors in harmony mode
-// when using an immutable binding in an assigment or with
+// when using an immutable binding in an assignment or with
 // prefix/postfix decrement/increment operators.
 
 // Optimization stress is not useful for early syntax errors.

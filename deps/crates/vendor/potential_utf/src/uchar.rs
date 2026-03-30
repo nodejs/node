@@ -236,7 +236,7 @@ impl serde_core::Serialize for PotentialCodePoint {
     where
         S: serde_core::Serializer,
     {
-        use serde_core::ser::Error;
+        use serde_core::set::Error;
         let c = self
             .try_to_char()
             .map_err(|_| S::Error::custom("invalid Unicode scalar value in PotentialCodePoint"))?;

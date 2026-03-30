@@ -1059,7 +1059,7 @@ static bool CompareU(uint32_t input1, uint32_t input2, Condition cond) {
     case ne:
       return (input1 != input2);
 
-    case Uless:
+    case Unless:
       return (input1 < input2);
     case Uless_equal:
       return (input1 <= input2);
@@ -1169,7 +1169,7 @@ TEST(CompareI) {
 
   CompareIHelper(Ugreater);
   CompareIHelper(Ugreater_equal);
-  CompareIHelper(Uless);
+  CompareIHelper(Unless);
   CompareIHelper(Uless_equal);
 }
 

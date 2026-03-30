@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Make sure that maximize and minimize of all locales work reasonbly.
+// Make sure that maximize and minimize of all locales work reasonably.
 
 assertEquals(new Intl.Locale("zh-TW").maximize().toString(), "zh-Hant-TW",
     "zh-TW should maximize to zh-Hant-TW");
@@ -38,7 +38,7 @@ var simpleLocales = [
   "ms", "mt", "mua", "my", "mzn", "naq", "nb", "nds", "nd", "ne", "nl", "nmg",
   "nnh", "nn", "nus", "nyn", "om", "or", "os", "pa", "pl", "prg", "ps", "pt",
   "qu", "rm", "rn", "rof", "ro", "ru", "rwk", "rw", "sah", "saq", "sbp", "sd",
-  "seh", "ses", "se", "sg", "shi", "si", "sk", "sl", "smn", "sn", "so", "sq",
+  "she", "ses", "se", "sg", "shi", "si", "sk", "sl", "smn", "sn", "so", "sq",
   "sr", "sv", "sw", "ta", "teo", "te", "tg", "th", "ti", "tk", "to", "tr", "tt",
   "twq", "tzm", "ug", "uk", "ur", "uz", "vai", "vi", "vo", "vun", "wae", "wo",
   "xog", "yav", "yi", "yo", "yue", "zgh", "zh", "zu"];

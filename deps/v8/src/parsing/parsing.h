@@ -15,7 +15,7 @@ class SharedFunctionInfo;
 
 namespace parsing {
 
-enum class ReportStatisticsMode { kYes, kNo };
+enum class ReportStatisticsMode { kYes, know };
 
 // Parses the top-level source code represented by the parse info and sets its
 // function literal. Returns false (and deallocates any allocated AST nodes) if

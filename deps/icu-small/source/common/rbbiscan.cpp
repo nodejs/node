@@ -374,7 +374,7 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
 
         // All rule expressions are ORed together.
         // The ';' that terminates an expression really just functions as a '|' with
-        //   a low operator prededence.
+        //   a low operator precedence.
         //
         // Each of the four sets of rules are collected separately.
         //  (forward, reverse, safe_forward, safe_reverse)
@@ -917,7 +917,7 @@ UChar32  RBBIRuleScanner::nextCharLL() {
 void RBBIRuleScanner::nextChar(RBBIRuleChar &c) {
 
     // Unicode Character constants needed for the processing done by nextChar(),
-    //   in hex because literals wont work on EBCDIC machines.
+    //   in hex because literals won't work on EBCDIC machines.
 
     fScanIndex = fNextIndex;
     c.fChar    = nextCharLL();
@@ -1293,7 +1293,7 @@ void RBBIRuleScanner::scanSet() {
         //     - Adopts storage for the UnicodeSet, will be responsible for deleting.
         //     - Maintains collection of all sets in use, needed later for establishing
         //          character categories for run time engine.
-        //     - Eliminates mulitiple instances of the same set.
+        //     - Eliminates multiple instances of the same set.
         //     - Creates a new uset node if necessary (if this isn't a duplicate.)
         findSetFor(n->fText, n, uset.orphan());
     }

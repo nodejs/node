@@ -1575,7 +1575,7 @@ class Typer {
       if (refinement.IsNone()) return Type::None();
       DCHECK(refinement.IsWord32());
       if constexpr (allow_implicit_word64_truncation) {
-        // Turboshaft allows implicit trunction of Word64 values to Word32. When
+        // Turboshaft allows implicit truncation of Word64 values to Word32. When
         // an operation on Word32 representation computes a refinement type,
         // this is going to be a Type::Word32() even if the actual {type} was
         // Word64 before truncation. To correctly refine this type, we need to

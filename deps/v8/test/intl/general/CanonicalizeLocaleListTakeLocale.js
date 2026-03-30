@@ -29,7 +29,7 @@ assertEquals(tag, nf.resolvedOptions().locale);
 assertDoesNotThrow(() => nf = new Intl.NumberFormat([l]));
 assertEquals(tag, nf.resolvedOptions().locale);
 
-// Test with an Array of one Locale and a Sring
+// Test with an Array of one Locale and a String
 assertDoesNotThrow(() => nf = new Intl.NumberFormat([l, "en"]));
 assertEquals(tag, nf.resolvedOptions().locale);
 

@@ -3,7 +3,7 @@ Change in 1.01e (12 feb 05)
 - Fix possible memory leak in unzip.c (Zoran Stevanovic)
 
 Change in 1.01b (20 may 04)
-- Integrate patch from Debian package (submited by Mark Brown)
+- Integrate patch from Debian package (submitted by Mark Brown)
 - Add tools mztools from Xavier Roche
 
 Change in 1.01 (8 may 04)

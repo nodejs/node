@@ -1534,7 +1534,7 @@ DateTimePatternGenerator::addPatternWithSkeleton(
 // (i.e. it was also from availableFormats), then the new entry does not override it regardless of the value of the override
 // parameter. This prevents later availableFormats entries from a parent locale overriding earlier ones from the actual
 // specified locale. However, availableFormats entries *should* override entries with matching skeleton whose skeleton was
-// derived (i.e. entries derived from the standard date/time patters for the specified locale).
+// derived (i.e. entries derived from the standard date/time patterns for the specified locale).
 // 3. When adding the pattern (patternMap->add), we set a new boolean to indicate that the added entry had a
 // specified skeleton (which sets a new field in the PtnElem in the PatternMap).
 UDateTimePatternConflict

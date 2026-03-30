@@ -1665,8 +1665,8 @@ class ScheduleLateNodeVisitor {
     }
 
     // Split {node} for uses according to the previously computed marking
-    // closure. Every marking partition has a unique dominator, which get's a
-    // copy of the {node} with the exception of the first partition, which get's
+    // closure. Every marking partition has a unique dominator, which gets a
+    // copy of the {node} with the exception of the first partition, which gets
     // the {node} itself.
     ZoneMap<BasicBlock*, Node*> dominators(scheduler_->zone_);
     for (Edge edge : node->use_edges()) {
@@ -1745,7 +1745,7 @@ class ScheduleLateNodeVisitor {
       if (scheduler_->GetPlacement(use) == Scheduler::kCoupled) {
         TRACE("  inspecting uses of coupled #%d:%s\n", use->id(),
               use->op()->mnemonic());
-        // TODO(titzer): reenable once above TODO is addressed.
+        // TODO(titzer): re-enable once above TODO is addressed.
         //        DCHECK_EQ(edge.to(), NodeProperties::GetControlInput(use));
         return GetCommonDominatorOfUses(use);
       }

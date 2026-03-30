@@ -168,7 +168,7 @@ class LIEF_API Section : public LIEF::Section {
     return symbols_;
   }
 
-  /// Return comdat infomration (only if the section has the
+  /// Return comdat information (only if the section has the
   /// CHARACTERISTICS::LNK_COMDAT characteristic)
   optional<ComdatInfo> comdat_info() const;
 

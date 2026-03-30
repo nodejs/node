@@ -994,7 +994,7 @@ class V8_EXPORT Isolate {
   /**
    * Returns the value set by `SetContinuationPreservedEmbedderDataV2()` or
    * restored during microtask execution for the currently running continuation,
-   * if any. Returns undefiend if no continuation preserved embedder data was
+   * if any. Returns undefined if no continuation preserved embedder data was
    * set.
    */
   Local<Data> GetContinuationPreservedEmbedderDataV2();
@@ -1619,7 +1619,7 @@ class V8_EXPORT Isolate {
    * V8's 'builtins' will not be in this range if embedded builtins is enabled.
    *
    * On Win64, embedders are advised to install function table callbacks for
-   * these ranges, as default SEH won't be able to unwind through jitted code.
+   * these ranges, as default SHE won't be able to unwind through jitted code.
    * The first page of the code range is reserved for the embedder and is
    * committed, writable, and executable, to be used to store unwind data, as
    * documented in

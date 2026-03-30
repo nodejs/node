@@ -471,7 +471,7 @@ struct FastApiCallbackOptions {
 
 namespace internal {
 
-// Helper to count the number of occurances of `T` in `List`
+// Helper to count the number of occurrences of `T` in `List`
 template <typename T, typename... List>
 struct count : std::integral_constant<int, 0> {};
 template <typename T, typename... Args>

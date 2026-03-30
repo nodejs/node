@@ -1261,7 +1261,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   } else {
     DCHECK_EQ(mode, InterpreterEntryTrampolineMode::kForProfiling);
     // Both versions must be the same up to this point otherwise the builtins
-    // will not be interchangable.
+    // will not be interchangeable.
     CHECK_EQ(
         masm->isolate()->heap()->interpreter_entry_return_pc_offset().value(),
         masm->pc_offset());
@@ -3852,7 +3852,7 @@ void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm, Register argc_input,
     __ Move(kCArgRegs[0], ER::isolate_address());
     __ Move(kCArgRegs[1], kOldSPRegister);
     __ CallCFunction(ER::wasm_switch_to_the_central_stack(), 2,
-                     SetIsolateDataSlots::kNo);
+                     SetIsolateDataSlots::know);
     __ Move(central_stack_sp, kReturnRegister0);
     __ Pop(argv_input);
     __ Pop(target_input);
@@ -3886,7 +3886,7 @@ void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm) {
     __ PrepareCallCFunction(1);
     __ Move(kCArgRegs[0], ER::isolate_address());
     __ CallCFunction(ER::wasm_switch_from_the_central_stack(), 1,
-                     SetIsolateDataSlots::kNo);
+                     SetIsolateDataSlots::know);
     __ Pop(kReturnRegister0, kReturnRegister1);
   }
 
@@ -4036,7 +4036,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ mov(kCArgRegs[1], Operand(0));
     __ Move(kCArgRegs[2], ER::isolate_address());
     __ CallCFunction(ER::Create(Runtime::kUnwindAndFindExceptionHandler), 3,
-                     SetIsolateDataSlots::kNo);
+                     SetIsolateDataSlots::know);
   }
 
   // Retrieve the handler context, SP and FP.

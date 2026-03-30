@@ -294,7 +294,7 @@ TEST_F(DeserializeTest, OffThreadDeserializeStartedFromBackgroundThread) {
                                                         cached_data.get());
     CHECK(deserialize_starter_thread.Start());
     {
-      // Check that code execution works wille the DeserializeStarterThread
+      // Check that code execution works will the DeserializeStarterThread
       // staring a ConsumeCodeCacheTask.
       Local<String> other_source_code =
           NewString("function bar() { return 21; }");

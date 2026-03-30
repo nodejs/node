@@ -42,7 +42,7 @@ Debug.setListener(listener);
 // Test function.
 function f() {a=1;b=2;};
 
-// This tests enabeling and disabling of break points including the case
+// This tests enabling and disabling of break points including the case
 // with several break points in the same location.
 break_point_hit_count = 0;
 

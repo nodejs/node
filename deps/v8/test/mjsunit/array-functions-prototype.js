@@ -29,7 +29,7 @@
 // interaction with properties in the prototype chain.
 //
 // The behavior of SpiderMonkey is slightly different for arrays (see
-// below).  Our behavior is consistent and matches the bahavior of
+// below).  Our behavior is consistent and matches the behavior of
 // KJS.
 
 var proto = { length:3, 0:'zero', 1:'one', 2:'two' }

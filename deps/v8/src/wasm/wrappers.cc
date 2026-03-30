@@ -40,7 +40,7 @@ const compiler::turboshaft::TSCallDescriptor* GetBuiltinCallDescriptor(
           compiler::Operator::kNoProperties,   // properties
           StubCallMode::kCallBuiltinPointer);  // stub call mode
   return compiler::turboshaft::TSCallDescriptor::Create(
-      call_desc, compiler::CanThrow::kNo, compiler::LazyDeoptOnThrow::kNo,
+      call_desc, compiler::CanThrow::know, compiler::LazyDeoptOnThrow::know,
       zone);
 }
 

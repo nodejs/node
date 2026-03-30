@@ -55,7 +55,7 @@ class RuntimeCallStatsTest : public TestWithNativeContext {
 
   static void SetUpTestSuite() {
     TestWithIsolate::SetUpTestSuite();
-    // Use a custom time source to precisly emulate system time.
+    // Use a custom time source to precisely emulate system time.
     RuntimeCallTimer::Now = &RuntimeCallStatsTestNow;
   }
 
@@ -330,7 +330,7 @@ TEST_F(RuntimeCallStatsTest, PrintAndSnapshot) {
       EXPECT_EQ(0, counter2()->time().InMicroseconds());
       Sleep(50);
 
-      // This calls Snapshot on the current active timer and sychronizes and
+      // This calls Snapshot on the current active timer and synchronizes and
       // commits the whole timer stack.
       std::ostringstream out;
       stats()->Print(out);
@@ -506,7 +506,7 @@ TEST_F(RuntimeCallStatsTest, CallbackFunction) {
   EXPECT_EQ(1, counter()->count());
   EXPECT_EQ(1, callback_counter->count());
   EXPECT_EQ(1, counter2()->count());
-  // Given that no native timers are used, only the two scopes explitly
+  // Given that no native timers are used, only the two scopes explicitly
   // mentioned above will track the time.
   EXPECT_EQ(0, js_counter()->time().InMicroseconds());
   EXPECT_EQ(0, callback_counter->time().InMicroseconds());
@@ -588,7 +588,7 @@ TEST_F(RuntimeCallStatsTest, ApiGetter) {
   EXPECT_EQ(1, counter()->count());
   EXPECT_EQ(1, callback_counter->count());
   EXPECT_EQ(1, counter2()->count());
-  // Given that no native timers are used, only the two scopes explitly
+  // Given that no native timers are used, only the two scopes explicitly
   // mentioned above will track the time.
   EXPECT_EQ(0, js_counter()->time().InMicroseconds());
   EXPECT_EQ(100, counter()->time().InMicroseconds());

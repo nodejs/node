@@ -126,7 +126,7 @@ TEST_IMPL(udp_connect6) {
 
   buf = uv_buf_init("EXIT", 4);
 
-  /* connect() to INADDR_ANY fails on Windows wih WSAEADDRNOTAVAIL */
+  /* connect() to INADDR_ANY fails on Windows with WSAEADDRNOTAVAIL */
   ASSERT_OK(uv_ip6_addr("::", TEST_PORT, &tmp_addr));
   r = uv_udp_connect(&client, (const struct sockaddr*) &tmp_addr);
 #ifdef _WIN32

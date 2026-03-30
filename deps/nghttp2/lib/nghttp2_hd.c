@@ -190,7 +190,7 @@ static int32_t lookup_token(const uint8_t *name, size_t namelen) {
       }
       break;
     case 'w':
-      if (memeq("allo", name, 4)) {
+      if (memeq("allow", name, 4)) {
         return NGHTTP2_TOKEN_ALLOW;
       }
       break;
@@ -209,10 +209,10 @@ static int32_t lookup_token(const uint8_t *name, size_t namelen) {
       }
       break;
     case 't':
-      if (memeq("accep", name, 5)) {
+      if (memeq("accept", name, 5)) {
         return NGHTTP2_TOKEN_ACCEPT;
       }
-      if (memeq("expec", name, 5)) {
+      if (memeq("expect", name, 5)) {
         return NGHTTP2_TOKEN_EXPECT;
       }
       break;
@@ -226,7 +226,7 @@ static int32_t lookup_token(const uint8_t *name, size_t namelen) {
       }
       break;
     case 'e':
-      if (memeq(":schem", name, 6)) {
+      if (memeq(":scheme", name, 6)) {
         return NGHTTP2_TOKEN__SCHEME;
       }
       if (memeq("upgrad", name, 6)) {
@@ -280,7 +280,7 @@ static int32_t lookup_token(const uint8_t *name, size_t namelen) {
   case 9:
     switch (name[8]) {
     case 'l':
-      if (memeq(":protoco", name, 8)) {
+      if (memeq(":protocol", name, 8)) {
         return NGHTTP2_TOKEN__PROTOCOL;
       }
       break;

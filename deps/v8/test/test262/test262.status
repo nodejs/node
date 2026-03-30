@@ -503,7 +503,7 @@
   'intl402/String/prototype/toLocaleUpperCase/special_casing_Lithuanian': [FAIL],
   'intl402/String/prototype/toLocaleUpperCase/special_casing_Turkish': [FAIL],
 
-  # Unicode features unavaible without i18n, e.g. property escapes.
+  # Unicode features unavailable without i18n, e.g. property escapes.
   'built-ins/RegExp/prototype/exec/regexp-builtin-exec-v-u-flag': [SKIP],
   'built-ins/RegExp/unicode_full_case_folding': [SKIP],
   'built-ins/RegExp/property-escapes/*': [SKIP],

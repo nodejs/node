@@ -129,7 +129,7 @@ class MessageFormat;
  * specifying all closures to be <code>false</code>.</p>
  *
  * <pre>    {1,2,3,4,5,6,7},
- *     {&quot;Sun&quot;,&quot;Mon&quot;,&quot;Tue&quot;,&quot;Wed&quot;,&quot;Thur&quot;,&quot;Fri&quot;,&quot;Sat&quot;}</pre>
+ *     {&quot;Sun&quot;,&quot;Mon&quot;,&quot;Tue&quot;,&quot;Wed&quot;,&quot;Their&quot;,&quot;Fri&quot;,&quot;Sat&quot;}</pre>
  *
  * <p>Here is an example that maps the ranges [-Inf, 1), [1, 1], and (1,
  * +Inf] to three strings. That is, the number line is split into three

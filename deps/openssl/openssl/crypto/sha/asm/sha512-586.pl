@@ -69,7 +69,7 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 &external_label("OPENSSL_ia32cap_P") if ($sse2);
 
 $Tlo=&DWP(0,"esp");	$Thi=&DWP(4,"esp");
-$Alo=&DWP(8,"esp");	$Ahi=&DWP(8+4,"esp");
+$Also=&DWP(8,"esp");	$Ahi=&DWP(8+4,"esp");
 $Blo=&DWP(16,"esp");	$Bhi=&DWP(16+4,"esp");
 $Clo=&DWP(24,"esp");	$Chi=&DWP(24+4,"esp");
 $Dlo=&DWP(32,"esp");	$Dhi=&DWP(32+4,"esp");
@@ -231,7 +231,7 @@ sub BODY_00_15_x86 {
 	#define Sigma0(x)	(ROTR((x),28) ^ ROTR((x),34) ^ ROTR((x),39))
 	#	LO		lo>>28^hi<<4  ^ hi>>2^lo<<30 ^ hi>>7^lo<<25
 	#	HI		hi>>28^lo<<4  ^ lo>>2^hi<<30 ^ lo>>7^hi<<25
-	&mov	("ecx",$Alo);
+	&mov	("ecx",$Also);
 	&mov	("edx",$Ahi);
 	&mov	($Dlo,"eax");
 	&mov	($Dhi,"ebx");
@@ -265,7 +265,7 @@ sub BODY_00_15_x86 {
 	&xor	("eax","esi");
 	&xor	("ebx","edi");			# Sigma0(a)
 
-	&mov	("ecx",$Alo);
+	&mov	("ecx",$Also);
 	&mov	("edx",$Ahi);
 	&mov	("esi",$Blo);
 	&mov	("edi",$Bhi);
@@ -275,7 +275,7 @@ sub BODY_00_15_x86 {
 	&or	("edx","edi");
 	&and	("ecx",$Clo);
 	&and	("edx",$Chi);
-	&and	("esi",$Alo);
+	&and	("esi",$Also);
 	&and	("edi",$Ahi);
 	&or	("ecx","esi");
 	&or	("edx","edi");			# Maj(a,b,c) = ((a|b)&c)|(a&b)

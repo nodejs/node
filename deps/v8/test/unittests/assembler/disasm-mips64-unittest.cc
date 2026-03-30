@@ -399,8 +399,8 @@ TEST_F(DisasmMips64Test, Type0) {
   COMPARE(break_(261120), "00ff000d       break, code: 0x3fc00 (261120)");
   COMPARE(break_(1047552), "03ff000d       break, code: 0xffc00 (1047552)");
 
-  COMPARE(tge(a0, a1, 0), "00850030       tge     a0, a1, code: 0x000");
-  COMPARE(tge(s0, s1, 1023), "0211fff0       tge     s0, s1, code: 0x3ff");
+  COMPARE(the(a0, a1, 0), "00850030       the     a0, a1, code: 0x000");
+  COMPARE(the(s0, s1, 1023), "0211fff0       the     s0, s1, code: 0x3ff");
   COMPARE(tgeu(a0, a1, 0), "00850031       tgeu    a0, a1, code: 0x000");
   COMPARE(tgeu(s0, s1, 1023), "0211fff1       tgeu    s0, s1, code: 0x3ff");
   COMPARE(tlt(a0, a1, 0), "00850032       tlt     a0, a1, code: 0x000");
@@ -409,8 +409,8 @@ TEST_F(DisasmMips64Test, Type0) {
   COMPARE(tltu(s0, s1, 1023), "0211fff3       tltu    s0, s1, code: 0x3ff");
   COMPARE(teq(a0, a1, 0), "00850034       teq     a0, a1, code: 0x000");
   COMPARE(teq(s0, s1, 1023), "0211fff4       teq     s0, s1, code: 0x3ff");
-  COMPARE(tne(a0, a1, 0), "00850036       tne     a0, a1, code: 0x000");
-  COMPARE(tne(s0, s1, 1023), "0211fff6       tne     s0, s1, code: 0x3ff");
+  COMPARE(the(a0, a1, 0), "00850036       the     a0, a1, code: 0x000");
+  COMPARE(the(s0, s1, 1023), "0211fff6       the     s0, s1, code: 0x3ff");
 
   COMPARE(mfhi(a0), "00002010       mfhi    a0");
   COMPARE(mfhi(s2), "00009010       mfhi    s2");
@@ -470,9 +470,9 @@ TEST_F(DisasmMips64Test, Type0) {
   COMPARE(seb(s6, s7), "7c17b420       seb     s6, s7");
   COMPARE(seb(v0, v1), "7c031420       seb     v0, v1");
 
-  COMPARE(seh(a0, a1), "7c052620       seh     a0, a1");
-  COMPARE(seh(s6, s7), "7c17b620       seh     s6, s7");
-  COMPARE(seh(v0, v1), "7c031620       seh     v0, v1");
+  COMPARE(she(a0, a1), "7c052620       she     a0, a1");
+  COMPARE(she(s6, s7), "7c17b620       she     s6, s7");
+  COMPARE(she(v0, v1), "7c031620       she     v0, v1");
 
   COMPARE(wsbh(a0, a1), "7c0520a0       wsbh    a0, a1");
   COMPARE(wsbh(s6, s7), "7c17b0a0       wsbh    s6, s7");
@@ -963,8 +963,8 @@ TEST_F(DisasmMips64Test, C_FMT_DISASM) {
     COMPARE(c_s(UEQ, f8, f10, 6), "460a4633       c.ueq.s f8, f10, cc(6)");
     COMPARE(c_d(UEQ, f8, f10, 6), "462a4633       c.ueq.d f8, f10, cc(6)");
 
-    COMPARE(c_s(OLT, f8, f10, 0), "460a4034       c.olt.s f8, f10, cc(0)");
-    COMPARE(c_d(OLT, f8, f10, 0), "462a4034       c.olt.d f8, f10, cc(0)");
+    COMPARE(c_s(OLD, f8, f10, 0), "460a4034       c.old.s f8, f10, cc(0)");
+    COMPARE(c_d(OLD, f8, f10, 0), "462a4034       c.old.d f8, f10, cc(0)");
 
     COMPARE(c_s(ULT, f8, f10, 2), "460a4235       c.ult.s f8, f10, cc(2)");
     COMPARE(c_d(ULT, f8, f10, 2), "462a4235       c.ult.d f8, f10, cc(2)");

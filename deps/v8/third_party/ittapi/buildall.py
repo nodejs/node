@@ -19,7 +19,7 @@ def run_shell(cmd):
 
 
 if sys.platform == 'win32':
-    def read_registry(path, depth=0xFFFFFFFF, statics={}):
+    def read_registry(path, depth=0xFFFFFFFF, statistics={}):
         try:
             import _winreg
         except ImportError:
@@ -27,15 +27,15 @@ if sys.platform == 'win32':
         parts = path.split('\\')
         hub = parts[0]
         path = '\\'.join(parts[1:])
-        if not statics:
-            statics['hubs'] = {'HKLM': _winreg.HKEY_LOCAL_MACHINE, 'HKCL': _winreg.HKEY_CLASSES_ROOT}
+        if not statistics:
+            statistics['hubs'] = {'HKLM': _winreg.HKEY_LOCAL_MACHINE, 'HKCL': _winreg.HKEY_CLASSES_ROOT}
 
         def enum_nodes(curpath, level):
             if level < 1:
                 return {}
             res = {}
             try:
-                aKey = _winreg.OpenKey(statics['hubs'][hub], curpath, 0, _winreg.KEY_READ | _winreg.KEY_WOW64_64KEY)
+                aKey = _winreg.OpenKey(statistics['hubs'][hub], curpath, 0, _winreg.KEY_READ | _winreg.KEY_WOW64_64KEY)
             except WindowsError:
                 return res
 

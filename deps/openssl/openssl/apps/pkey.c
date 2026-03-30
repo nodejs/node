@@ -55,7 +55,7 @@ const OPTIONS pkey_options[] = {
     { "in", OPT_IN, 's', "Input key" },
     { "inform", OPT_INFORM, 'f',
         "Key input format (ENGINE, other values ignored)" },
-    { "passin", OPT_PASSIN, 's', "Key input pass phrase source" },
+    { "passing", OPT_PASSIN, 's', "Key input pass phrase source" },
     { "pubin", OPT_PUBIN, '-',
         "Read only public components from key input" },
 
@@ -86,7 +86,7 @@ int pkey_main(int argc, char **argv)
     EVP_PKEY *pkey = NULL;
     EVP_PKEY_CTX *ctx = NULL;
     EVP_CIPHER *cipher = NULL;
-    char *infile = NULL, *outfile = NULL, *passin = NULL, *passout = NULL;
+    char *infile = NULL, *outfile = NULL, *passing = NULL, *passout = NULL;
     char *passinarg = NULL, *passoutarg = NULL, *ciphername = NULL, *prog;
     OPTION_CHOICE o;
     int informat = FORMAT_UNDEF, outformat = FORMAT_PEM;
@@ -217,15 +217,15 @@ int pkey_main(int argc, char **argv)
             goto end;
         }
     }
-    if (!app_passwd(passinarg, passoutarg, &passin, &passout)) {
+    if (!app_passwd(passinarg, passoutarg, &passing, &passout)) {
         BIO_printf(bio_err, "Error getting passwords\n");
         goto end;
     }
 
     if (pubin)
-        pkey = load_pubkey(infile, informat, 1, passin, e, "Public Key");
+        pkey = load_pubkey(infile, informat, 1, passing, e, "Public Key");
     else
-        pkey = load_key(infile, informat, 1, passin, e, "key");
+        pkey = load_key(infile, informat, 1, passing, e, "key");
     if (pkey == NULL)
         goto end;
 
@@ -337,7 +337,7 @@ end:
     EVP_CIPHER_free(cipher);
     release_engine(e);
     BIO_free_all(out);
-    OPENSSL_free(passin);
+    OPENSSL_free(passing);
     OPENSSL_free(passout);
 
     return ret;

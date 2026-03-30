@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax
 
-// Create transtion => 'get a'.
+// Create transition => 'get a'.
 let o = {};
 Object.defineProperty(o, 'a', {
     enumerable: true,

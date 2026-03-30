@@ -2165,7 +2165,7 @@ ParserBase<Impl>::ParsePrimaryExpression() {
       IdentifierT name = ParseAndClassifyIdentifier(token);
       ClassifyParameter(name, beg_pos, end_position());
       ExpressionT result =
-          impl()->ExpressionFromIdentifier(name, beg_pos, InferName::kNo);
+          impl()->ExpressionFromIdentifier(name, beg_pos, InferName::know);
       parsing_scope.SetInitializers(0, peek_position());
       next_arrow_function_info_.scope = parsing_scope.ValidateAndCreateScope();
       next_arrow_function_info_.function_literal_id =
@@ -3299,7 +3299,7 @@ ParserBase<Impl>::ParseAssignmentExpressionCoverGrammarContinuation(
     next_arrow_function_info_.Reset();
 
     impl()->DeclareArrowFunctionFormalParameters(&parameters, expression, loc);
-    // function_literal_id was reserved for the arrow function, but not actaully
+    // function_literal_id was reserved for the arrow function, but not actually
     // allocated. This comparison allocates a function literal id for the arrow
     // function, and checks whether it's still the function id we wanted. If
     // not, we'll reindex the arrow function formal parameters to shift them all
@@ -3505,7 +3505,7 @@ ParserBase<Impl>::ParseCoalesceExpression(ExpressionT expression) {
   //     BitwiseORExpression
 
   // We create a binary operation for the first nullish, otherwise collapse
-  // into an nary expresion.
+  // into an nary expression.
   bool first_nullish = true;
   while (peek() == Token::kNullish) {
     SourceRange right_range;
@@ -5129,7 +5129,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
           // function, since the function can declare itself strict.
           ValidateFormalParameters(language_mode(), formal_parameters, false);
         } else {
-          // In case we did not sucessfully preparse the function because of an
+          // In case we did not successfully preparse the function because of an
           // unidentified error we do a full reparse to return the error.
           // Parse again in the outer scope, since the language mode may change.
           BlockState block_state(&scope_, scope()->outer_scope());

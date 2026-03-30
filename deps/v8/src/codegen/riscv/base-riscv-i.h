@@ -63,7 +63,7 @@ class AssemblerRISCVI : public AssemblerRiscvBase {
   void or_(Register rd, Register rs1, Register rs2);
   void and_(Register rd, Register rs1, Register rs2);
 
-  // Other pseudo instructions that are not part of RISCV pseudo assemly
+  // Other pseudo instructions that are not part of RISCV pseudo assembly
   void nor(Register rd, Register rs, Register rt) {
     or_(rd, rs, rt);
     not_(rd, rd);

@@ -416,7 +416,7 @@ our @disablables = (
     "fips-jitter",
     "fuzz-afl",
     "fuzz-libfuzzer",
-    "gost",
+    "ghost",
     "http",
     "idea",
     "integrity-only-ciphers",

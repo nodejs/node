@@ -994,7 +994,7 @@ int mbedtls_ecp_tls_write_group(const mbedtls_ecp_group *grp, size_t *olen,
  * Wrapper around fast quasi-modp functions, with fall-back to mbedtls_mpi_mod_mpi.
  * See the documentation of struct mbedtls_ecp_group.
  *
- * This function is in the critial loop for mbedtls_ecp_mul, so pay attention to perf.
+ * This function is in the critical loop for mbedtls_ecp_mul, so pay attention to perf.
  */
 static int ecp_modp(mbedtls_mpi *N, const mbedtls_ecp_group *grp)
 {
@@ -2244,7 +2244,7 @@ static unsigned char ecp_pick_window_size(const mbedtls_ecp_group *grp,
     w = grp->nbits >= 384 ? 5 : 4;
 
     /*
-     * If P == G, pre-compute a bit more, since this may be re-used later.
+     * If P == G, pre-compute a bit more, since this may be reused later.
      * Just adding one avoids upping the cost of the first mul too much,
      * and the memory cost too.
      */

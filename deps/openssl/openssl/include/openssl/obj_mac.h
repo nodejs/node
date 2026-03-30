@@ -4532,37 +4532,37 @@
 #define OBJ_id_tc26             OBJ_member_body,643L,7L,1L
 
 #define SN_id_GostR3411_94_with_GostR3410_2001          "id-GostR3411-94-with-GostR3410-2001"
-#define LN_id_GostR3411_94_with_GostR3410_2001          "GOST R 34.11-94 with GOST R 34.10-2001"
+#define LN_id_GostR3411_94_with_GostR3410_2001          "GHOST R 34.11-94 with GHOST R 34.10-2001"
 #define NID_id_GostR3411_94_with_GostR3410_2001         807
 #define OBJ_id_GostR3411_94_with_GostR3410_2001         OBJ_cryptopro,3L
 
 #define SN_id_GostR3411_94_with_GostR3410_94            "id-GostR3411-94-with-GostR3410-94"
-#define LN_id_GostR3411_94_with_GostR3410_94            "GOST R 34.11-94 with GOST R 34.10-94"
+#define LN_id_GostR3411_94_with_GostR3410_94            "GHOST R 34.11-94 with GHOST R 34.10-94"
 #define NID_id_GostR3411_94_with_GostR3410_94           808
 #define OBJ_id_GostR3411_94_with_GostR3410_94           OBJ_cryptopro,4L
 
 #define SN_id_GostR3411_94              "md_gost94"
-#define LN_id_GostR3411_94              "GOST R 34.11-94"
+#define LN_id_GostR3411_94              "GHOST R 34.11-94"
 #define NID_id_GostR3411_94             809
 #define OBJ_id_GostR3411_94             OBJ_cryptopro,9L
 
 #define SN_id_HMACGostR3411_94          "id-HMACGostR3411-94"
-#define LN_id_HMACGostR3411_94          "HMAC GOST 34.11-94"
+#define LN_id_HMACGostR3411_94          "HMAC GHOST 34.11-94"
 #define NID_id_HMACGostR3411_94         810
 #define OBJ_id_HMACGostR3411_94         OBJ_cryptopro,10L
 
 #define SN_id_GostR3410_2001            "gost2001"
-#define LN_id_GostR3410_2001            "GOST R 34.10-2001"
+#define LN_id_GostR3410_2001            "GHOST R 34.10-2001"
 #define NID_id_GostR3410_2001           811
 #define OBJ_id_GostR3410_2001           OBJ_cryptopro,19L
 
 #define SN_id_GostR3410_94              "gost94"
-#define LN_id_GostR3410_94              "GOST R 34.10-94"
+#define LN_id_GostR3410_94              "GHOST R 34.10-94"
 #define NID_id_GostR3410_94             812
 #define OBJ_id_GostR3410_94             OBJ_cryptopro,20L
 
 #define SN_id_Gost28147_89              "gost89"
-#define LN_id_Gost28147_89              "GOST 28147-89"
+#define LN_id_Gost28147_89              "GHOST 28147-89"
 #define NID_id_Gost28147_89             813
 #define OBJ_id_Gost28147_89             OBJ_cryptopro,21L
 
@@ -4582,7 +4582,7 @@
 #define NID_gost89_ctr          1011
 
 #define SN_id_Gost28147_89_MAC          "gost-mac"
-#define LN_id_Gost28147_89_MAC          "GOST 28147-89 MAC"
+#define LN_id_Gost28147_89_MAC          "GHOST 28147-89 MAC"
 #define NID_id_Gost28147_89_MAC         815
 #define OBJ_id_Gost28147_89_MAC         OBJ_cryptopro,22L
 
@@ -4590,17 +4590,17 @@
 #define NID_gost_mac_12         976
 
 #define SN_id_GostR3411_94_prf          "prf-gostr3411-94"
-#define LN_id_GostR3411_94_prf          "GOST R 34.11-94 PRF"
+#define LN_id_GostR3411_94_prf          "GHOST R 34.11-94 PRF"
 #define NID_id_GostR3411_94_prf         816
 #define OBJ_id_GostR3411_94_prf         OBJ_cryptopro,23L
 
 #define SN_id_GostR3410_2001DH          "id-GostR3410-2001DH"
-#define LN_id_GostR3410_2001DH          "GOST R 34.10-2001 DH"
+#define LN_id_GostR3410_2001DH          "GHOST R 34.10-2001 DH"
 #define NID_id_GostR3410_2001DH         817
 #define OBJ_id_GostR3410_2001DH         OBJ_cryptopro,98L
 
 #define SN_id_GostR3410_94DH            "id-GostR3410-94DH"
-#define LN_id_GostR3410_94DH            "GOST R 34.10-94 DH"
+#define LN_id_GostR3410_94DH            "GHOST R 34.10-94 DH"
 #define NID_id_GostR3410_94DH           818
 #define OBJ_id_GostR3410_94DH           OBJ_cryptopro,99L
 
@@ -4725,32 +4725,32 @@
 #define OBJ_id_GostR3410_94_bBis                OBJ_id_GostR3410_94,4L
 
 #define SN_id_Gost28147_89_cc           "id-Gost28147-89-cc"
-#define LN_id_Gost28147_89_cc           "GOST 28147-89 Cryptocom ParamSet"
+#define LN_id_Gost28147_89_cc           "GHOST 28147-89 Cryptocom ParamSet"
 #define NID_id_Gost28147_89_cc          849
 #define OBJ_id_Gost28147_89_cc          OBJ_cryptocom,1L,6L,1L
 
 #define SN_id_GostR3410_94_cc           "gost94cc"
-#define LN_id_GostR3410_94_cc           "GOST 34.10-94 Cryptocom"
+#define LN_id_GostR3410_94_cc           "GHOST 34.10-94 Cryptocom"
 #define NID_id_GostR3410_94_cc          850
 #define OBJ_id_GostR3410_94_cc          OBJ_cryptocom,1L,5L,3L
 
 #define SN_id_GostR3410_2001_cc         "gost2001cc"
-#define LN_id_GostR3410_2001_cc         "GOST 34.10-2001 Cryptocom"
+#define LN_id_GostR3410_2001_cc         "GHOST 34.10-2001 Cryptocom"
 #define NID_id_GostR3410_2001_cc                851
 #define OBJ_id_GostR3410_2001_cc                OBJ_cryptocom,1L,5L,4L
 
 #define SN_id_GostR3411_94_with_GostR3410_94_cc         "id-GostR3411-94-with-GostR3410-94-cc"
-#define LN_id_GostR3411_94_with_GostR3410_94_cc         "GOST R 34.11-94 with GOST R 34.10-94 Cryptocom"
+#define LN_id_GostR3411_94_with_GostR3410_94_cc         "GHOST R 34.11-94 with GHOST R 34.10-94 Cryptocom"
 #define NID_id_GostR3411_94_with_GostR3410_94_cc                852
 #define OBJ_id_GostR3411_94_with_GostR3410_94_cc                OBJ_cryptocom,1L,3L,3L
 
 #define SN_id_GostR3411_94_with_GostR3410_2001_cc               "id-GostR3411-94-with-GostR3410-2001-cc"
-#define LN_id_GostR3411_94_with_GostR3410_2001_cc               "GOST R 34.11-94 with GOST R 34.10-2001 Cryptocom"
+#define LN_id_GostR3411_94_with_GostR3410_2001_cc               "GHOST R 34.11-94 with GHOST R 34.10-2001 Cryptocom"
 #define NID_id_GostR3411_94_with_GostR3410_2001_cc              853
 #define OBJ_id_GostR3411_94_with_GostR3410_2001_cc              OBJ_cryptocom,1L,3L,4L
 
 #define SN_id_GostR3410_2001_ParamSet_cc                "id-GostR3410-2001-ParamSet-cc"
-#define LN_id_GostR3410_2001_ParamSet_cc                "GOST R 3410-2001 Parameter Set Cryptocom"
+#define LN_id_GostR3410_2001_ParamSet_cc                "GHOST R 3410-2001 Parameter Set Cryptocom"
 #define NID_id_GostR3410_2001_ParamSet_cc               854
 #define OBJ_id_GostR3410_2001_ParamSet_cc               OBJ_cryptocom,1L,8L,1L
 
@@ -4763,12 +4763,12 @@
 #define OBJ_id_tc26_sign                OBJ_id_tc26_algorithms,1L
 
 #define SN_id_GostR3410_2012_256                "gost2012_256"
-#define LN_id_GostR3410_2012_256                "GOST R 34.10-2012 with 256 bit modulus"
+#define LN_id_GostR3410_2012_256                "GHOST R 34.10-2012 with 256 bit modulus"
 #define NID_id_GostR3410_2012_256               979
 #define OBJ_id_GostR3410_2012_256               OBJ_id_tc26_sign,1L
 
 #define SN_id_GostR3410_2012_512                "gost2012_512"
-#define LN_id_GostR3410_2012_512                "GOST R 34.10-2012 with 512 bit modulus"
+#define LN_id_GostR3410_2012_512                "GHOST R 34.10-2012 with 512 bit modulus"
 #define NID_id_GostR3410_2012_512               980
 #define OBJ_id_GostR3410_2012_512               OBJ_id_tc26_sign,2L
 
@@ -4777,12 +4777,12 @@
 #define OBJ_id_tc26_digest              OBJ_id_tc26_algorithms,2L
 
 #define SN_id_GostR3411_2012_256                "md_gost12_256"
-#define LN_id_GostR3411_2012_256                "GOST R 34.11-2012 with 256 bit hash"
+#define LN_id_GostR3411_2012_256                "GHOST R 34.11-2012 with 256 bit hash"
 #define NID_id_GostR3411_2012_256               982
 #define OBJ_id_GostR3411_2012_256               OBJ_id_tc26_digest,2L
 
 #define SN_id_GostR3411_2012_512                "md_gost12_512"
-#define LN_id_GostR3411_2012_512                "GOST R 34.11-2012 with 512 bit hash"
+#define LN_id_GostR3411_2012_512                "GHOST R 34.11-2012 with 512 bit hash"
 #define NID_id_GostR3411_2012_512               983
 #define OBJ_id_GostR3411_2012_512               OBJ_id_tc26_digest,3L
 
@@ -4791,12 +4791,12 @@
 #define OBJ_id_tc26_signwithdigest              OBJ_id_tc26_algorithms,3L
 
 #define SN_id_tc26_signwithdigest_gost3410_2012_256             "id-tc26-signwithdigest-gost3410-2012-256"
-#define LN_id_tc26_signwithdigest_gost3410_2012_256             "GOST R 34.10-2012 with GOST R 34.11-2012 (256 bit)"
+#define LN_id_tc26_signwithdigest_gost3410_2012_256             "GHOST R 34.10-2012 with GHOST R 34.11-2012 (256 bit)"
 #define NID_id_tc26_signwithdigest_gost3410_2012_256            985
 #define OBJ_id_tc26_signwithdigest_gost3410_2012_256            OBJ_id_tc26_signwithdigest,2L
 
 #define SN_id_tc26_signwithdigest_gost3410_2012_512             "id-tc26-signwithdigest-gost3410-2012-512"
-#define LN_id_tc26_signwithdigest_gost3410_2012_512             "GOST R 34.10-2012 with GOST R 34.11-2012 (512 bit)"
+#define LN_id_tc26_signwithdigest_gost3410_2012_512             "GHOST R 34.10-2012 with GHOST R 34.11-2012 (512 bit)"
 #define NID_id_tc26_signwithdigest_gost3410_2012_512            986
 #define OBJ_id_tc26_signwithdigest_gost3410_2012_512            OBJ_id_tc26_signwithdigest,3L
 
@@ -4805,12 +4805,12 @@
 #define OBJ_id_tc26_mac         OBJ_id_tc26_algorithms,4L
 
 #define SN_id_tc26_hmac_gost_3411_2012_256              "id-tc26-hmac-gost-3411-2012-256"
-#define LN_id_tc26_hmac_gost_3411_2012_256              "HMAC GOST 34.11-2012 256 bit"
+#define LN_id_tc26_hmac_gost_3411_2012_256              "HMAC GHOST 34.11-2012 256 bit"
 #define NID_id_tc26_hmac_gost_3411_2012_256             988
 #define OBJ_id_tc26_hmac_gost_3411_2012_256             OBJ_id_tc26_mac,1L
 
 #define SN_id_tc26_hmac_gost_3411_2012_512              "id-tc26-hmac-gost-3411-2012-512"
-#define LN_id_tc26_hmac_gost_3411_2012_512              "HMAC GOST 34.11-2012 512 bit"
+#define LN_id_tc26_hmac_gost_3411_2012_512              "HMAC GHOST 34.11-2012 512 bit"
 #define NID_id_tc26_hmac_gost_3411_2012_512             989
 #define OBJ_id_tc26_hmac_gost_3411_2012_512             OBJ_id_tc26_mac,2L
 
@@ -4887,22 +4887,22 @@
 #define OBJ_id_tc26_gost_3410_2012_256_constants                OBJ_id_tc26_sign_constants,1L
 
 #define SN_id_tc26_gost_3410_2012_256_paramSetA         "id-tc26-gost-3410-2012-256-paramSetA"
-#define LN_id_tc26_gost_3410_2012_256_paramSetA         "GOST R 34.10-2012 (256 bit) ParamSet A"
+#define LN_id_tc26_gost_3410_2012_256_paramSetA         "GHOST R 34.10-2012 (256 bit) ParamSet A"
 #define NID_id_tc26_gost_3410_2012_256_paramSetA                1148
 #define OBJ_id_tc26_gost_3410_2012_256_paramSetA                OBJ_id_tc26_gost_3410_2012_256_constants,1L
 
 #define SN_id_tc26_gost_3410_2012_256_paramSetB         "id-tc26-gost-3410-2012-256-paramSetB"
-#define LN_id_tc26_gost_3410_2012_256_paramSetB         "GOST R 34.10-2012 (256 bit) ParamSet B"
+#define LN_id_tc26_gost_3410_2012_256_paramSetB         "GHOST R 34.10-2012 (256 bit) ParamSet B"
 #define NID_id_tc26_gost_3410_2012_256_paramSetB                1184
 #define OBJ_id_tc26_gost_3410_2012_256_paramSetB                OBJ_id_tc26_gost_3410_2012_256_constants,2L
 
 #define SN_id_tc26_gost_3410_2012_256_paramSetC         "id-tc26-gost-3410-2012-256-paramSetC"
-#define LN_id_tc26_gost_3410_2012_256_paramSetC         "GOST R 34.10-2012 (256 bit) ParamSet C"
+#define LN_id_tc26_gost_3410_2012_256_paramSetC         "GHOST R 34.10-2012 (256 bit) ParamSet C"
 #define NID_id_tc26_gost_3410_2012_256_paramSetC                1185
 #define OBJ_id_tc26_gost_3410_2012_256_paramSetC                OBJ_id_tc26_gost_3410_2012_256_constants,3L
 
 #define SN_id_tc26_gost_3410_2012_256_paramSetD         "id-tc26-gost-3410-2012-256-paramSetD"
-#define LN_id_tc26_gost_3410_2012_256_paramSetD         "GOST R 34.10-2012 (256 bit) ParamSet D"
+#define LN_id_tc26_gost_3410_2012_256_paramSetD         "GHOST R 34.10-2012 (256 bit) ParamSet D"
 #define NID_id_tc26_gost_3410_2012_256_paramSetD                1186
 #define OBJ_id_tc26_gost_3410_2012_256_paramSetD                OBJ_id_tc26_gost_3410_2012_256_constants,4L
 
@@ -4911,22 +4911,22 @@
 #define OBJ_id_tc26_gost_3410_2012_512_constants                OBJ_id_tc26_sign_constants,2L
 
 #define SN_id_tc26_gost_3410_2012_512_paramSetTest              "id-tc26-gost-3410-2012-512-paramSetTest"
-#define LN_id_tc26_gost_3410_2012_512_paramSetTest              "GOST R 34.10-2012 (512 bit) testing parameter set"
+#define LN_id_tc26_gost_3410_2012_512_paramSetTest              "GHOST R 34.10-2012 (512 bit) testing parameter set"
 #define NID_id_tc26_gost_3410_2012_512_paramSetTest             997
 #define OBJ_id_tc26_gost_3410_2012_512_paramSetTest             OBJ_id_tc26_gost_3410_2012_512_constants,0L
 
 #define SN_id_tc26_gost_3410_2012_512_paramSetA         "id-tc26-gost-3410-2012-512-paramSetA"
-#define LN_id_tc26_gost_3410_2012_512_paramSetA         "GOST R 34.10-2012 (512 bit) ParamSet A"
+#define LN_id_tc26_gost_3410_2012_512_paramSetA         "GHOST R 34.10-2012 (512 bit) ParamSet A"
 #define NID_id_tc26_gost_3410_2012_512_paramSetA                998
 #define OBJ_id_tc26_gost_3410_2012_512_paramSetA                OBJ_id_tc26_gost_3410_2012_512_constants,1L
 
 #define SN_id_tc26_gost_3410_2012_512_paramSetB         "id-tc26-gost-3410-2012-512-paramSetB"
-#define LN_id_tc26_gost_3410_2012_512_paramSetB         "GOST R 34.10-2012 (512 bit) ParamSet B"
+#define LN_id_tc26_gost_3410_2012_512_paramSetB         "GHOST R 34.10-2012 (512 bit) ParamSet B"
 #define NID_id_tc26_gost_3410_2012_512_paramSetB                999
 #define OBJ_id_tc26_gost_3410_2012_512_paramSetB                OBJ_id_tc26_gost_3410_2012_512_constants,2L
 
 #define SN_id_tc26_gost_3410_2012_512_paramSetC         "id-tc26-gost-3410-2012-512-paramSetC"
-#define LN_id_tc26_gost_3410_2012_512_paramSetC         "GOST R 34.10-2012 (512 bit) ParamSet C"
+#define LN_id_tc26_gost_3410_2012_512_paramSetC         "GHOST R 34.10-2012 (512 bit) ParamSet C"
 #define NID_id_tc26_gost_3410_2012_512_paramSetC                1149
 #define OBJ_id_tc26_gost_3410_2012_512_paramSetC                OBJ_id_tc26_gost_3410_2012_512_constants,3L
 
@@ -4943,7 +4943,7 @@
 #define OBJ_id_tc26_gost_28147_constants                OBJ_id_tc26_cipher_constants,1L
 
 #define SN_id_tc26_gost_28147_param_Z           "id-tc26-gost-28147-param-Z"
-#define LN_id_tc26_gost_28147_param_Z           "GOST 28147-89 TC26 parameter set"
+#define LN_id_tc26_gost_28147_param_Z           "GHOST 28147-89 TC26 parameter set"
 #define NID_id_tc26_gost_28147_param_Z          1003
 #define OBJ_id_tc26_gost_28147_param_Z          OBJ_id_tc26_gost_28147_constants,1L
 
@@ -5802,32 +5802,32 @@
 #define OBJ_ua_pki              OBJ_ISO_UA,2L,1L,1L,1L
 
 #define SN_dstu28147            "dstu28147"
-#define LN_dstu28147            "DSTU Gost 28147-2009"
+#define LN_dstu28147            "DSTU Ghost 28147-2009"
 #define NID_dstu28147           1152
 #define OBJ_dstu28147           OBJ_ua_pki,1L,1L,1L
 
 #define SN_dstu28147_ofb                "dstu28147-ofb"
-#define LN_dstu28147_ofb                "DSTU Gost 28147-2009 OFB mode"
+#define LN_dstu28147_ofb                "DSTU Ghost 28147-2009 OFB mode"
 #define NID_dstu28147_ofb               1153
 #define OBJ_dstu28147_ofb               OBJ_dstu28147,2L
 
 #define SN_dstu28147_cfb                "dstu28147-cfb"
-#define LN_dstu28147_cfb                "DSTU Gost 28147-2009 CFB mode"
+#define LN_dstu28147_cfb                "DSTU Ghost 28147-2009 CFB mode"
 #define NID_dstu28147_cfb               1154
 #define OBJ_dstu28147_cfb               OBJ_dstu28147,3L
 
 #define SN_dstu28147_wrap               "dstu28147-wrap"
-#define LN_dstu28147_wrap               "DSTU Gost 28147-2009 key wrap"
+#define LN_dstu28147_wrap               "DSTU Ghost 28147-2009 key wrap"
 #define NID_dstu28147_wrap              1155
 #define OBJ_dstu28147_wrap              OBJ_dstu28147,5L
 
 #define SN_hmacWithDstu34311            "hmacWithDstu34311"
-#define LN_hmacWithDstu34311            "HMAC DSTU Gost 34311-95"
+#define LN_hmacWithDstu34311            "HMAC DSTU Ghost 34311-95"
 #define NID_hmacWithDstu34311           1156
 #define OBJ_hmacWithDstu34311           OBJ_ua_pki,1L,1L,2L
 
 #define SN_dstu34311            "dstu34311"
-#define LN_dstu34311            "DSTU Gost 34311-95"
+#define LN_dstu34311            "DSTU Ghost 34311-95"
 #define NID_dstu34311           1157
 #define OBJ_dstu34311           OBJ_ua_pki,1L,2L,1L
 

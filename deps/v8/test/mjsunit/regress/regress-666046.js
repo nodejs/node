@@ -37,7 +37,7 @@ assertEquals(!%IsDictPropertyConstTrackingEnabled(),
              %HasFastProperties(proto));
 
 
-// Contruct a double value that looks like a tagged pointer.
+// Construct a double value that looks like a tagged pointer.
 var buffer = new ArrayBuffer(8);
 var int32view = new Int32Array(buffer);
 var float64view = new Float64Array(buffer);

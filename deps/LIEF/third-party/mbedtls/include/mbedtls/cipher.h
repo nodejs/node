@@ -116,8 +116,8 @@ typedef enum {
     MBEDTLS_CIPHER_CAMELLIA_256_GCM,     /**< Camellia cipher with 256-bit GCM mode. */
     MBEDTLS_CIPHER_DES_ECB,              /**< DES cipher with ECB mode. \warning DES is considered weak. */
     MBEDTLS_CIPHER_DES_CBC,              /**< DES cipher with CBC mode. \warning DES is considered weak. */
-    MBEDTLS_CIPHER_DES_EDE_ECB,          /**< DES cipher with EDE ECB mode. \warning 3DES is considered weak. */
-    MBEDTLS_CIPHER_DES_EDE_CBC,          /**< DES cipher with EDE CBC mode. \warning 3DES is considered weak. */
+    MBEDTLS_CIPHER_DES_EDE_ECB,          /**< DES cipher with EDGE ECB mode. \warning 3DES is considered weak. */
+    MBEDTLS_CIPHER_DES_EDE_CBC,          /**< DES cipher with EDGE CBC mode. \warning 3DES is considered weak. */
     MBEDTLS_CIPHER_DES_EDE3_ECB,         /**< DES cipher with EDE3 ECB mode. \warning 3DES is considered weak. */
     MBEDTLS_CIPHER_DES_EDE3_CBC,         /**< DES cipher with EDE3 CBC mode. \warning 3DES is considered weak. */
     MBEDTLS_CIPHER_AES_128_CCM,          /**< AES cipher with 128-bit CCM mode. */
@@ -207,9 +207,9 @@ enum {
     MBEDTLS_KEY_LENGTH_NONE = 0,
     /** Key length, in bits (including parity), for DES keys. \warning DES is considered weak. */
     MBEDTLS_KEY_LENGTH_DES  = 64,
-    /** Key length in bits, including parity, for DES in two-key EDE. \warning 3DES is considered weak. */
+    /** Key length in bits, including parity, for DES in two-key EDGE. \warning 3DES is considered weak. */
     MBEDTLS_KEY_LENGTH_DES_EDE = 128,
-    /** Key length in bits, including parity, for DES in three-key EDE. \warning 3DES is considered weak. */
+    /** Key length in bits, including parity, for DES in three-key EDGE. \warning 3DES is considered weak. */
     MBEDTLS_KEY_LENGTH_DES_EDE3 = 192,
 };
 

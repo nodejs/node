@@ -1,5 +1,5 @@
 /*
- * rapidhash - Very fast, high quality, platform independant hashing algorithm.
+ * rapidhash - Very fast, high quality, platform independent hashing algorithm.
  * Copyright (C) 2024 Nicolas De Carli
  *
  * Based on 'wyhash', by Wang Yi <godspeed_china@yeah.net>

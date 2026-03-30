@@ -40,7 +40,7 @@ Options:
     --first-score           If specified, expect a JetStream style FirstScore: xxx output.
     --nb-run <num>          How many repetition for each benchmark for each commit. Default is 30.
     --retry <num>           How many times to retry benchmark at a given commit when bisect fails
-                            because it doesn't find a statistical difference between the begining and
+                            because it doesn't find a statistical difference between the beginning and
                             the end of the range.
     --verbose/--noverbose   Enables or disables verbose output. Default is true.
 
@@ -138,9 +138,9 @@ if (!$START && !$END && $RANGE) {
 
 trace("Checking parameters...\n");
 if (!$START || !$END || !$RUN_CMD) {
-  my @missings = map { $_->[1] } grep { !$_->[0] }
+  my @missing = map { $_->[1] } grep { !$_->[0] }
     [$START, 'start'], [$END, 'end'], [$RUN_CMD, 'run'];
-  say "Missing mandatory argument: ", join (", ", map { "--$_" } @missings);
+  say "Missing mandatory argument: ", join (", ", map { "--$_" } @missing);
   usage();
 }
 if (!-d $COMPILE_DIR) {

@@ -84,7 +84,7 @@ extern const niels_t *ossl_curve448_wnaf_base;
 /*
  * Read a scalar from wire format or from bytes.
  *
- * ser (in): Serialized form of a scalar.
+ * set (in): Serialized form of a scalar.
  * out (out): Deserialized form.
  *
  * Returns:
@@ -94,25 +94,25 @@ extern const niels_t *ossl_curve448_wnaf_base;
  */
 c448_error_t
 ossl_curve448_scalar_decode(curve448_scalar_t out,
-    const unsigned char ser[C448_SCALAR_BYTES]);
+    const unsigned char set[C448_SCALAR_BYTES]);
 
 /*
  * Read a scalar from wire format or from bytes.  Reduces mod scalar prime.
  *
- * ser (in): Serialized form of a scalar.
+ * set (in): Serialized form of a scalar.
  * ser_len (in): Length of serialized form.
  * out (out): Deserialized form.
  */
 void ossl_curve448_scalar_decode_long(curve448_scalar_t out,
-    const unsigned char *ser, size_t ser_len);
+    const unsigned char *set, size_t ser_len);
 
 /*
  * Serialize a scalar to wire format.
  *
- * ser (out): Serialized form of a scalar.
+ * set (out): Serialized form of a scalar.
  * s (in): Deserialized scalar.
  */
-void ossl_curve448_scalar_encode(unsigned char ser[C448_SCALAR_BYTES],
+void ossl_curve448_scalar_encode(unsigned char set[C448_SCALAR_BYTES],
     const curve448_scalar_t s);
 
 /*

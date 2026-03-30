@@ -27,7 +27,7 @@ function CreateRun() {
 function isOutputInvalid() {
   if (output.length !== input.length / 2) return true;
 
-  // Verfies every other (odd indexed) element has been filtered out.
+  // Verifies every other (odd indexed) element has been filtered out.
   for (let i = 0; i < SIZE / 2; i++) {
     if (output[i] !== input[i * 2]) return true;
   }

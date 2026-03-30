@@ -57,14 +57,14 @@ TODO: document EV_TSTAMP_T
 	- io_cancel can return EINTR, deal with it. also, assume
           io_submit also returns EINTR.
         - fix some other minor bugs in linuxaio backend.
-        - ev_tstamp type can now be overriden by defining EV_TSTAMP_T.
+        - ev_tstamp type can now be overridden by defining EV_TSTAMP_T.
         - cleanup: replace expect_true/false and noinline by their
           libecb counterparts.
         - move syscall infrastructure from ev_linuxaio.c to ev.c.
         - prepare io_uring integration.
         - tweak ev_floor.
         - epoll, poll, win32 Sleep and other places that use millisecond
-          reslution now all try to round up times.
+          resolution now all try to round up times.
         - solaris port backend didn't compile.
         - abstract time constants into their macros, for more flexibility.
 
@@ -181,7 +181,7 @@ TODO: document EV_TSTAMP_T
         - include sys/syscall.h instead of plain syscall.h.
         - check for io watcher loops in ev_verify, check for the most
           common reported usage bug in ev_io_start.
-        - choose socket vs. WSASocket at compiletime using EV_USE_WSASOCKET.
+        - choose socket vs. WSASocket at compile time using EV_USE_WSASOCKET.
         - always use WSASend/WSARecv directly on windows, hoping that this
           works in all cases (unlike read/write/send/recv...).
         - try to detect signals around a fork faster (test program by
@@ -203,7 +203,7 @@ TODO: document EV_TSTAMP_T
 4.11 Sat Feb  4 19:52:39 CET 2012
 	- INCOMPATIBLE CHANGE: ev_timer_again now clears the pending status, as
           was documented already, but not implemented in the repeating case.
-        - new compiletime symbols: EV_NO_SMP and EV_NO_THREADS.
+        - new compile time symbols: EV_NO_SMP and EV_NO_THREADS.
 	- fix a race where the workaround against the epoll fork bugs
           caused signals to not be handled anymore.
 	- correct backend_fudge for most backends, and implement a windows

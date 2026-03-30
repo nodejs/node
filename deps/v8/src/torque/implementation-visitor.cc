@@ -385,7 +385,7 @@ VisitResult ImplementationVisitor::InlineMacro(
     if (return_type->IsNever()) {
       std::stringstream s;
       s << "macro " << macro->ReadableName()
-        << " has implicit return at end of its declartion but return type "
+        << " has implicit return at end of its declaration but return type "
            "never";
       ReportError(s.str());
     } else if (!macro->signature().return_type->IsVoid()) {
@@ -2811,18 +2811,18 @@ VisitResult ImplementationVisitor::GenerateCall(
       implicit_arguments.push_back(
           GenerateFetchFromLocation((*val)->GetLocationReference(*val)));
     } else {
-      VisitResult unititialized = VisitResult::TopTypeResult(
+      VisitResult uninitialized = VisitResult::TopTypeResult(
           "implicit parameter '" + implicit_name +
               "' is not defined when invoking " + callable->ReadableName() +
               " at " + PositionAsString(CurrentSourcePosition::Get()),
           callable->signature().parameter_types.types[i]);
-      implicit_arguments.push_back(unititialized);
+      implicit_arguments.push_back(uninitialized);
     }
     const Type* type = implicit_arguments.back().type();
     if (const TopType* top_type = TopType::DynamicCast(type)) {
       if (!callable->IsMacro() || callable->IsExternal()) {
         ReportError(
-            "unititialized implicit parameters can only be passed to "
+            "uninitialized implicit parameters can only be passed to "
             "Torque-defined macros: the ",
             top_type->reason());
       }

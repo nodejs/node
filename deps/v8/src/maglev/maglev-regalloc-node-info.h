@@ -108,9 +108,9 @@ class RegallocNodeInfo {
     id_ = id;
   }
 
-  template <typename RegisterT>
-  RegListBase<RegisterT>& temporaries() {
-    if constexpr (std::is_same_v<RegisterT, Register>) {
+  template <typename registered>
+  RegListBase<registered>& temporaries() {
+    if constexpr (std::is_same_v<registered, Register>) {
       return temporaries_;
     } else {
       return double_temporaries_;
@@ -306,10 +306,10 @@ class RegallocValueNodeInfo : public RegallocNodeInfo {
     return hint_;
   }
 
-  template <typename RegisterT>
-  RegisterT GetRegisterHint() {
-    if (hint_.IsInvalid()) return RegisterT::no_reg();
-    return RegisterT::from_code(
+  template <typename registered>
+  registered GetRegisterHint() {
+    if (hint_.IsInvalid()) return registered::no_reg();
+    return registered::from_code(
         compiler::UnallocatedOperand::cast(hint_).fixed_register_index());
   }
 

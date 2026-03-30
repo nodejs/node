@@ -471,7 +471,7 @@ Local<Value> Context::GetEmbedderData(int index) {
   A value = I::ReadRawField<A>(embedder_data, value_offset);
 #ifdef V8_COMPRESS_POINTERS
   // We read the full pointer value and then decompress it in order to avoid
-  // dealing with potential endiannes issues.
+  // dealing with potential endianness issues.
   value = I::DecompressTaggedField(embedder_data, static_cast<uint32_t>(value));
 #endif
 

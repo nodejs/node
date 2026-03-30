@@ -1350,7 +1350,7 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
         !Asm().effect_handlers_for_next_call().empty()) {
       // TODO(nicohartmann@): Unfortunately, we have many descriptors where
       // effects are not set consistently with {can_throw}. We should fix those
-      // and reenable this DCHECK.
+      // and re-enable this DCHECK.
       // DCHECK(effects.is_required_when_unused());
       effects = effects.RequiredWhenUnused();
       has_catch_block = CatchIfInCatchScope(raw_call);
@@ -3584,7 +3584,7 @@ class TurboshaftAssemblerOpInterface
   detail::index_type_for_t<typename Descriptor::results_t> CallBuiltin(
       Isolate* isolate, FrameStateForCall frame_state, V<Context> context,
       const typename Descriptor::arguments_t& args,
-      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo)
+      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::know)
     requires(Descriptor::kNeedsFrameState && Descriptor::kNeedsContext)
   {
     using result_t = detail::index_type_for_t<typename Descriptor::results_t>;
@@ -3640,7 +3640,7 @@ class TurboshaftAssemblerOpInterface
   detail::index_type_for_t<typename Descriptor::results_t> CallBuiltin(
       Isolate* isolate, FrameStateForCall frame_state,
       const typename Descriptor::arguments_t& args,
-      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo)
+      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::know)
     requires(Descriptor::kNeedsFrameState && !Descriptor::kNeedsContext)
   {
     using result_t = detail::index_type_for_t<typename Descriptor::results_t>;
@@ -3794,7 +3794,7 @@ class TurboshaftAssemblerOpInterface
   detail::index_type_for_t<typename Desc::returns_t> CallBuiltin(
       OptionalV<turboshaft::FrameState> frame_state,
       const Desc::Arguments& args,
-      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo) {
+      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::know) {
     using result_t = detail::index_type_for_t<typename Desc::returns_t>;
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return result_t::Invalid();
@@ -3818,7 +3818,7 @@ class TurboshaftAssemblerOpInterface
   detail::index_type_for_t<typename Desc::returns_t> CallBuiltin(
       OptionalV<turboshaft::FrameState> frame_state, V<Context> context,
       const Desc::Arguments& args,
-      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo) {
+      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::know) {
     using result_t = detail::index_type_for_t<typename Desc::returns_t>;
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return result_t::Invalid();
@@ -3934,7 +3934,7 @@ class TurboshaftAssemblerOpInterface
   typename Desc::returns_t CallRuntime(V<Context> context,
                                        const Desc::Arguments& args) {
     return CallRuntimeImpl<Desc>(OptionalV<turboshaft::FrameState>::Nullopt(),
-                                 context, args, LazyDeoptOnThrow::kNo);
+                                 context, args, LazyDeoptOnThrow::know);
   }
 
   V<Any> CallBuiltinImpl(Isolate* isolate, Builtin builtin,
@@ -4046,7 +4046,7 @@ class TurboshaftAssemblerOpInterface
             CallDescriptor::kNoFlags);
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
         call_descriptor, compiler::CanThrow::kYes,
-        compiler::LazyDeoptOnThrow::kNo, __ graph_zone());
+        compiler::LazyDeoptOnThrow::know, __ graph_zone());
     return __ Call(centry_stub, OpIndex::Invalid(), base::VectorOf(centry_args),
                    ts_call_descriptor);
   }
@@ -4283,7 +4283,7 @@ class TurboshaftAssemblerOpInterface
   // such, when multiple CheckException go to the same catch handler,
   // Assembler::AddPredecessor and Assembler::SplitEdge take care of introducing
   // additional intermediate catch handlers, which are then wired to the
-  // original catch handler. When calling `__ CatchBlockBegin` at the begining
+  // original catch handler. When calling `__ CatchBlockBegin` at the beginning
   // of the original catch handler, a Phi of the CatchBlockBegin of the
   // predecessors is emitted instead. Here is an example:
   //
@@ -4420,7 +4420,7 @@ class TurboshaftAssemblerOpInterface
     DCHECK_EQ(call_descriptor->NeedsFrameState(), frame_state.valid());
 
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
-        call_descriptor, can_throw, LazyDeoptOnThrow::kNo, graph_zone);
+        call_descriptor, can_throw, LazyDeoptOnThrow::know, graph_zone);
 
     OpIndex callee = Asm().HeapConstant(callable.code());
 
@@ -5836,7 +5836,7 @@ class Assembler : public AssemblerData,
   //     __ Goto(B)
   //     __ Add(i, j)
   //
-  // The 2nd Add is unreachable, but this has to be a mistake, since we exitted
+  // The 2nd Add is unreachable, but this has to be a mistake, since we exited
   // the current block before emitting it, and forgot to Bind a new block.
   // On the other hand, consider this:
   //

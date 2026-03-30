@@ -1900,7 +1900,7 @@ IF_TSAN(FUNCTION_REFERENCE, tsan_relaxed_load_function_32_bits,
 IF_TSAN(FUNCTION_REFERENCE, tsan_relaxed_load_function_64_bits,
         tsan_relaxed_load_64_bits)
 
-static int EnterContextWrapper(HandleScopeImplementer* hsi,
+static int EnterContextWrapper(HandleScopeImplementer* his,
                                Address raw_context) {
   Tagged<NativeContext> context =
       Cast<NativeContext>(Tagged<Object>(raw_context));

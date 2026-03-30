@@ -56,7 +56,7 @@ void UpdateVLogSites();
 //
 // VLogSite objects must not be destroyed until the program exits. Doing so will
 // probably yield nasty segfaults in VLogSiteManager::UpdateLogSites(). The
-// recommendation is to make all such objects function-local statics.
+// recommendation is to make all such objects function-local statistics.
 class VLogSite final {
  public:
   // `f` must not be destroyed until the program exits.

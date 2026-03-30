@@ -1766,7 +1766,7 @@ HWY_API Vec256<int64_t> MulAdd(Vec256<int64_t> mul, Vec256<int64_t> x,
   return Vec256<int64_t>{__lasx_xvmadd_d(add.raw, mul.raw, x.raw)};
 }
 
-// unsigend
+// unsigned
 HWY_API Vec256<uint8_t> MulAdd(Vec256<uint8_t> mul, Vec256<uint8_t> x,
                                Vec256<uint8_t> add) {
   return Vec256<uint8_t>{__lasx_xvmadd_b(add.raw, mul.raw, x.raw)};

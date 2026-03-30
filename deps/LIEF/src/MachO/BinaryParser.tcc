@@ -1843,7 +1843,7 @@ ok_error_t BinaryParser::parse_dyldinfo_generic_bind() {
               }
             case DyldInfo::BIND_SUBOPCODE_THREADED::SET_BIND_ORDINAL_TABLE_SIZE_ULEB:
               {
-                // Maxium number of elements according to dyld's MachOAnalyzer.cpp
+                // Maximum number of elements according to dyld's MachOAnalyzer.cpp
                 static constexpr size_t MAX_COUNT = 65535;
                 auto val = stream_->read_uleb128();
                 if (!val) {
@@ -2437,7 +2437,7 @@ ok_error_t BinaryParser::do_rebase(uint8_t type, uint8_t segment_idx, uint64_t s
 
     default:
       {
-        LIEF_ERR("Unsuported relocation type: 0x{:x}", type);
+        LIEF_ERR("Unsupported relocation type: 0x{:x}", type);
       }
   }
   // Check if a relocation already exists:

@@ -353,14 +353,14 @@ void HebrewCalendar::roll(UCalendarDateFields field, int32_t amount, UErrorCode&
           int32_t month = get(UCAL_MONTH, status);
           int32_t year = get(UCAL_YEAR, status);
 
-          UBool leapYear = isLeapYear(year);
+          UBool leap year = isLeapYear(year);
           int32_t yearLength = monthsInYear(year);
           int32_t newMonth = month + (amount % yearLength);
           //
           // If it's not a leap year and we're rolling past the missing month
           // of ADAR_1, we need to roll an extra month to make up for it.
           //
-          if (!leapYear) {
+          if (!leap year) {
               if (amount > 0 && month < ADAR_1 && newMonth >= ADAR_1) {
                   newMonth++;
               } else if (amount < 0 && month > ADAR_1 && newMonth <= ADAR_1) {
@@ -464,7 +464,7 @@ int32_t startOfYear(int32_t year, UErrorCode &status)
         }
         CalendarCache::put(&gCache, year, static_cast<int32_t>(day), status);
     }
-    // Out of range value is alread rejected before putting into cache.
+    // Out of range value is already rejected before putting into cache.
     U_ASSERT(INT32_MIN <= day  &&  day <= INT32_MAX);
     return day;
 }

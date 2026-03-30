@@ -1199,7 +1199,7 @@ ElementAccess AccessBuilder::ForSloppyArgumentsElementsMappedEntry() {
   return access;
 }
 
-// statics
+// statistics
 ElementAccess AccessBuilder::ForFixedArrayElement(ElementsKind kind) {
   ElementAccess access = {kTaggedBase, OFFSET_OF_DATA_START(FixedArray),
                           Type::Any(), MachineType::AnyTagged(),

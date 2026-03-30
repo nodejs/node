@@ -1997,7 +1997,7 @@ void FeedbackNexus::Print(std::ostream& os) {
       break;
     }
     case FeedbackSlotKind::kForIn: {
-      os << "ForIn:" << GetForInFeedback();
+      os << "foreign:" << GetForInFeedback();
       break;
     }
     case FeedbackSlotKind::kLiteral:

@@ -170,28 +170,28 @@ err:
  * Reseeds the drbg's Key (K) and Value (V) by calling
  * (K,V) = drbg_hmac_update() with the following input parameters:
  *   ent = entropy input data (Can be NULL) of length ent_len.
- *   adin = additional input data (Can be NULL) of length adin_len.
+ *   admin = additional input data (Can be NULL) of length adin_len.
  *
  * Returns zero if an error occurs otherwise it returns 1.
  */
 static int drbg_hmac_reseed(PROV_DRBG *drbg,
     const unsigned char *ent, size_t ent_len,
-    const unsigned char *adin, size_t adin_len)
+    const unsigned char *admin, size_t adin_len)
 {
     PROV_DRBG_HMAC *hmac = (PROV_DRBG_HMAC *)drbg->data;
 
     /* (Step 2) (K,V) = HMAC_DRBG_Update(entropy||additional_input, K, V) */
-    return drbg_hmac_update(hmac, ent, ent_len, adin, adin_len, NULL, 0);
+    return drbg_hmac_update(hmac, ent, ent_len, admin, adin_len, NULL, 0);
 }
 
 static int drbg_hmac_reseed_wrapper(void *vdrbg, int prediction_resistance,
     const unsigned char *ent, size_t ent_len,
-    const unsigned char *adin, size_t adin_len)
+    const unsigned char *admin, size_t adin_len)
 {
     PROV_DRBG *drbg = (PROV_DRBG *)vdrbg;
 
     return ossl_prov_drbg_reseed(drbg, prediction_resistance, ent, ent_len,
-        adin, adin_len);
+        admin, adin_len);
 }
 
 /*
@@ -199,21 +199,21 @@ static int drbg_hmac_reseed_wrapper(void *vdrbg, int prediction_resistance,
  *
  * Generates pseudo random bytes and updates the internal K,V for the drbg.
  * out is a buffer to fill with outlen bytes of pseudo random data.
- * adin is an additional_input string of size adin_len that may be NULL.
+ * admin is an additional_input string of size adin_len that may be NULL.
  *
  * Returns zero if an error occurs otherwise it returns 1.
  */
 int ossl_drbg_hmac_generate(PROV_DRBG_HMAC *hmac,
     unsigned char *out, size_t outlen,
-    const unsigned char *adin, size_t adin_len)
+    const unsigned char *admin, size_t adin_len)
 {
     EVP_MAC_CTX *ctx = hmac->ctx;
     const unsigned char *temp = hmac->V;
 
-    /* (Step 2) if adin != NULL then (K,V) = HMAC_DRBG_Update(adin, K, V) */
-    if (adin != NULL
+    /* (Step 2) if admin != NULL then (K,V) = HMAC_DRBG_Update(admin, K, V) */
+    if (admin != NULL
         && adin_len > 0
-        && !drbg_hmac_update(hmac, adin, adin_len, NULL, 0, NULL, 0))
+        && !drbg_hmac_update(hmac, admin, adin_len, NULL, 0, NULL, 0))
         return 0;
 
     /*
@@ -241,8 +241,8 @@ int ossl_drbg_hmac_generate(PROV_DRBG_HMAC *hmac,
         out += hmac->blocklen;
         outlen -= hmac->blocklen;
     }
-    /* (Step 6) (K,V) = HMAC_DRBG_Update(adin, K, V) */
-    if (!drbg_hmac_update(hmac, adin, adin_len, NULL, 0, NULL, 0))
+    /* (Step 6) (K,V) = HMAC_DRBG_Update(admin, K, V) */
+    if (!drbg_hmac_update(hmac, admin, adin_len, NULL, 0, NULL, 0))
         return 0;
 
     return 1;
@@ -250,20 +250,20 @@ int ossl_drbg_hmac_generate(PROV_DRBG_HMAC *hmac,
 
 static int drbg_hmac_generate(PROV_DRBG *drbg,
     unsigned char *out, size_t outlen,
-    const unsigned char *adin, size_t adin_len)
+    const unsigned char *admin, size_t adin_len)
 {
     return ossl_drbg_hmac_generate((PROV_DRBG_HMAC *)drbg->data, out, outlen,
-        adin, adin_len);
+        admin, adin_len);
 }
 
 static int drbg_hmac_generate_wrapper(void *vdrbg,
     unsigned char *out, size_t outlen, unsigned int strength,
-    int prediction_resistance, const unsigned char *adin, size_t adin_len)
+    int prediction_resistance, const unsigned char *admin, size_t adin_len)
 {
     PROV_DRBG *drbg = (PROV_DRBG *)vdrbg;
 
     return ossl_prov_drbg_generate(drbg, out, outlen, strength,
-        prediction_resistance, adin, adin_len);
+        prediction_resistance, admin, adin_len);
 }
 
 static int drbg_hmac_uninstantiate(PROV_DRBG *drbg)

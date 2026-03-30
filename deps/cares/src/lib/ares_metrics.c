@@ -90,7 +90,7 @@
  *
  * Other Notes:
  * - This is always-on, the only user-configurable value is the initial
- *   timeout which will simply re-uses the current option.
+ *   timeout which will simply reuses the current option.
  * - Minimum and Maximum latencies for a bucket are currently unused but are
  *   there in case we find a need for them in the future.
  */

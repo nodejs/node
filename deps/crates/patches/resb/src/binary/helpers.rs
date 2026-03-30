@@ -105,7 +105,7 @@ pub unsafe fn cast_bytes_to_slice<T, E: serde_core::de::Error>(bytes: &[u8]) -> 
         return Err(E::custom("Wrong length or align"));
     }
 
-    // Safety: The check gurantees length and alignment
+    // Safety: The check guarantees length and alignment
     Ok(unsafe {
         core::slice::from_raw_parts(
             bytes.as_ptr() as *const T,

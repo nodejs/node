@@ -47,7 +47,7 @@ if (this.Worker) {
   const s1 = new ST();
   const s = new ST();
 
-  // Odd number of values so the main thread perfoms the last compareExchange.
+  // Odd number of values so the main thread performs the last compareExchange.
   let testValues =
       [0, 1.5, undefined, null, true, false, 'foo', s1, new SharedArray(1)];
   let sharedtestValues = new SharedArray(testValues.length);

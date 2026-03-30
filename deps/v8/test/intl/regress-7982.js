@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Make sure that maximize and minimize of locales work reasonbly.
+// Make sure that maximize and minimize of locales work reasonably.
 
 assertEquals("zh-Hans-CN-u-ca-chinese", new Intl.Locale("zh-u-ca-Chinese").maximize().toString());
 assertEquals("zh-u-ca-chinese", new Intl.Locale("zh-u-ca-Chinese").minimize().toString());

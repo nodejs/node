@@ -341,7 +341,7 @@ void NumberParserImpl::parseLongestRecursive(StringSegment& segment, ParsedNumbe
                 }
             }
 
-            // Since the segment can be re-used, reset the offset.
+            // Since the segment can be reused, reset the offset.
             // This does not have an effect if the matcher did not consume any chars.
             segment.setOffset(initialOffset);
 

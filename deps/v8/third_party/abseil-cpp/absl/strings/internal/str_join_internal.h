@@ -63,7 +63,7 @@ namespace strings_internal {
 // defined and documented in strings/join.h.
 //
 
-// The default formatter. Converts alpha-numeric types to strings.
+// The default formatter. Converts alphanumeric types to strings.
 struct AlphaNumFormatterImpl {
   // This template is needed in order to support passing in a dereferenced
   // vector<bool>::iterator

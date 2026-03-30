@@ -91,7 +91,7 @@ static void uv__pollfds_add(uv_loop_t* loop, uv__io_t* w) {
   assert(!loop->poll_fds_iterating);
   for (i = 0; i < loop->poll_fds_used; ++i) {
     if (loop->poll_fds[i].fd == w->fd) {
-      loop->poll_fds[i].events = w->pevents;
+      loop->poll_fds[i].events = w->prevents;
       return;
     }
   }
@@ -100,7 +100,7 @@ static void uv__pollfds_add(uv_loop_t* loop, uv__io_t* w) {
   uv__pollfds_maybe_resize(loop);
   pe = &loop->poll_fds[loop->poll_fds_used++];
   pe->fd = w->fd;
-  pe->events = w->pevents;
+  pe->events = w->prevents;
 }
 
 /* Remove a watcher's fd from our poll fds array.  */
@@ -162,13 +162,13 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     uv__queue_init(q);
 
     w = uv__queue_data(q, uv__io_t, watcher_queue);
-    assert(w->pevents != 0);
+    assert(w->prevents != 0);
     assert(w->fd >= 0);
     assert(w->fd < (int) loop->nwatchers);
 
     uv__pollfds_add(loop, w);
 
-    w->events = w->pevents;
+    w->events = w->prevents;
   }
 
   /* Prepare a set of signals to block around poll(), if any.  */
@@ -264,7 +264,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       /* Filter out events that user has not requested us to watch
        * (e.g. POLLNVAL).
        */
-      pe->revents &= w->pevents | POLLERR | POLLHUP;
+      pe->revents &= w->prevents | POLLERR | POLLHUP;
 
       if (pe->revents != 0) {
         /* Run signal watchers last.  */

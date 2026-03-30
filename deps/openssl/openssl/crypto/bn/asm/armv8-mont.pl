@@ -54,7 +54,7 @@ open OUT,"| \"$^X\" $xlate $flavour \"$output\""
     or die "can't call $xlate: $1";
 *STDOUT=*OUT;
 
-($lo0,$hi0,$aj,$m0,$alo,$ahi,
+($lo0,$hi0,$aj,$m0,$also,$ahi,
  $lo1,$hi1,$nj,$m1,$nlo,$nhi,
  $ovf, $i,$j,$tp,$tj) = map("x$_",6..17,19..24);
 
@@ -116,7 +116,7 @@ bn_mul_mont:
 	mul	$lo0,$hi0,$m0		// ap[0]*bp[0]
 	sub	$j,$num,#16		// j=num-2
 	umulh	$hi0,$hi0,$m0
-	mul	$alo,$aj,$m0		// ap[1]*bp[0]
+	mul	$also,$aj,$m0		// ap[1]*bp[0]
 	umulh	$ahi,$aj,$m0
 
 	mul	$m1,$lo0,$n0		// "tp[0]"*n0
@@ -142,13 +142,13 @@ bn_mul_mont:
 
 .L1st:
 	ldr	$aj,[$ap],#8
-	adds	$lo0,$alo,$hi0
+	adds	$lo0,$also,$hi0
 	sub	$j,$j,#8		// j--
 	adc	$hi0,$ahi,xzr
 
 	ldr	$nj,[$np],#8
 	adds	$lo1,$nlo,$hi1
-	mul	$alo,$aj,$m0		// ap[j]*bp[0]
+	mul	$also,$aj,$m0		// ap[j]*bp[0]
 	adc	$hi1,$nhi,xzr
 	umulh	$ahi,$aj,$m0
 
@@ -160,7 +160,7 @@ bn_mul_mont:
 	cbnz	$j,.L1st
 
 .L1st_skip:
-	adds	$lo0,$alo,$hi0
+	adds	$lo0,$also,$hi0
 	sub	$ap,$ap,$num		// rewind $ap
 	adc	$hi0,$ahi,xzr
 
@@ -185,7 +185,7 @@ bn_mul_mont:
 	sub	$j,$num,#16		// j=num-2
 	umulh	$hi0,$hi0,$m0
 	ldp	$hi1,$nj,[$np],#16
-	mul	$alo,$aj,$m0		// ap[1]*bp[i]
+	mul	$also,$aj,$m0		// ap[1]*bp[i]
 	adds	$lo0,$lo0,$tj
 	umulh	$ahi,$aj,$m0
 	adc	$hi0,$hi0,xzr
@@ -205,7 +205,7 @@ bn_mul_mont:
 	ldr	$aj,[$ap],#8
 	adc	$hi1,$hi1,xzr
 	ldr	$tj,[$tp],#8		// tp[j]
-	adds	$lo0,$alo,$hi0
+	adds	$lo0,$also,$hi0
 	sub	$j,$j,#8		// j--
 	adc	$hi0,$ahi,xzr
 
@@ -213,7 +213,7 @@ bn_mul_mont:
 	ldr	$nj,[$np],#8
 	adc	$hi1,$nhi,xzr
 
-	mul	$alo,$aj,$m0		// ap[j]*bp[i]
+	mul	$also,$aj,$m0		// ap[j]*bp[i]
 	adds	$lo0,$lo0,$tj
 	umulh	$ahi,$aj,$m0
 	adc	$hi0,$hi0,xzr
@@ -227,7 +227,7 @@ bn_mul_mont:
 .Linner_skip:
 	ldr	$tj,[$tp],#8		// tp[j]
 	adc	$hi1,$hi1,xzr
-	adds	$lo0,$alo,$hi0
+	adds	$lo0,$also,$hi0
 	sub	$ap,$ap,$num		// rewind $ap
 	adc	$hi0,$ahi,xzr
 

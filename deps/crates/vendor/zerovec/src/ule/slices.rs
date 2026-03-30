@@ -14,7 +14,7 @@ use crate::ule::*;
 unsafe impl<T: ULE, const N: usize> ULE for [T; N] {
     #[inline]
     fn validate_bytes(bytes: &[u8]) -> Result<(), UleError> {
-        // a slice of multiple Selfs is equivalent to just a larger slice of Ts
+        // a slice of multiple Self is equivalent to just a larger slice of Ts
         T::validate_bytes(bytes)
     }
 }

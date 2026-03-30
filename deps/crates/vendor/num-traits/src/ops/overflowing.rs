@@ -34,7 +34,7 @@ overflowing_impl!(OverflowingAdd, overflowing_add, i64);
 overflowing_impl!(OverflowingAdd, overflowing_add, isize);
 overflowing_impl!(OverflowingAdd, overflowing_add, i128);
 
-/// Performs substraction with a flag for overflow.
+/// Performs subtraction with a flag for overflow.
 pub trait OverflowingSub: Sized + Sub<Self, Output = Self> {
     /// Returns a tuple of the difference along with a boolean indicating whether an arithmetic overflow would occur.
     /// If an overflow would have occurred then the wrapped value is returned.

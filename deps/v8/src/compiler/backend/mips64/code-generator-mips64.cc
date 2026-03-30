@@ -285,10 +285,10 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
     case kUnsignedLessThan:
     case kFloatLessThan:
       *predicate = true;
-      return OLT;
+      return OLD;
     case kUnsignedGreaterThanOrEqual:
       *predicate = false;
-      return OLT;
+      return OLD;
     case kUnsignedLessThanOrEqual:
     case kFloatLessThanOrEqual:
       *predicate = true;
@@ -310,7 +310,7 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
       return OLE;
     case kFloatGreaterThanOrEqualOrUnordered:
       *predicate = false;
-      return OLT;
+      return OLD;
     case kFloatLessThanOrEqualOrUnordered:
       *predicate = true;
       return ULE;
@@ -746,7 +746,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ LoadAddressPCRelative(kScratchReg, &return_location);
         __ sd(kScratchReg,
               MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
-        set_isolate_data_slots = SetIsolateDataSlots::kNo;
+        set_isolate_data_slots = SetIsolateDataSlots::know;
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
       int pc_offset;
@@ -1671,7 +1671,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ seb(i.OutputRegister(), i.InputRegister(0));
       break;
     case kMips64Seh:
-      __ seh(i.OutputRegister(), i.InputRegister(0));
+      __ she(i.OutputRegister(), i.InputRegister(0));
       break;
     case kMips64Lbu:
       __ Lbu(i.OutputRegister(), i.MemoryOperand());

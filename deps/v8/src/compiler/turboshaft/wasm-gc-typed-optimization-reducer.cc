@@ -388,7 +388,7 @@ wasm::ValueType WasmGCTypeAnalyzer::GetTypeForPhiInput(const PhiOp& phi,
 void WasmGCTypeAnalyzer::ProcessPhi(const PhiOp& phi) {
   // The result type of a phi is the union of all its input types.
   // If any of the inputs is the default value ValueType(), there isn't any type
-  // knowledge inferrable.
+  // knowledge inferable.
   DCHECK_GT(phi.input_count, 0);
   if (is_first_loop_header_evaluation_) {
     // We don't know anything about the backedge yet, so we only use the

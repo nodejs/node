@@ -27,7 +27,7 @@ namespace MachO {
 class BinaryParser;
 
 /// Class that represents the `LC_ROUTINE/LC_ROUTINE64` commands.
-/// Accodring to the Mach-O `loader.h` documentation:
+/// According to the Mach-O `loader.h` documentation:
 ///
 /// > The routines command contains the address of the dynamic shared library
 /// > initialization routine and an index into the module table for the module

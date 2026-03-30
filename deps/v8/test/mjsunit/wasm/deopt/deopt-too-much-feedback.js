@@ -9,7 +9,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 let createUniqueModule = (function() {
   // By using a different amount of locals on each module, they are going to be
-  // unique, so different test cases don't interfer with each other.
+  // unique, so different test cases don't interfere with each other.
   let localsCount = 0;
   return function createModule() {
     var builder = new WasmModuleBuilder();

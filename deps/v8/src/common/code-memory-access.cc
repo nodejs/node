@@ -473,7 +473,7 @@ void ThreadIsolation::UnregisterJitPage(Address address, size_t size) {
 bool ThreadIsolation::MakeExecutable(Address address, size_t size) {
   DCHECK(Enabled());
 
-  // TODO(sroettger): ensure that this can only happen at prcoess startup.
+  // TODO(sroettger): ensure that this can only happen at process startup.
 
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
   return base::MemoryProtectionKey::SetPermissionsAndKey(

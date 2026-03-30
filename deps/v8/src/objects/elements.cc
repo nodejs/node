@@ -898,7 +898,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
       } else {
         // Otherwise, assume we want exponential growing semantics, and grow as
         // if we were pushing. We might not grow enough for the length, so take
-        // the max of hte two values.
+        // the max of the two values.
         new_capacity = std::max(length, JSArray::NewElementsCapacity(capacity));
       }
       // Grow the array to the new capacity. Note that this code will allow

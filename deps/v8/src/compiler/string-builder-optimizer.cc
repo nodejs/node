@@ -818,7 +818,7 @@ void StringBuilderOptimizer::VisitNode(Node* node, BasicBlock* block) {
     if (IsLiteralString(lhs, broker())) {
       // This node could start a string builder. However, we won't know until
       // we've properly inspected its uses, found a Phi somewhere down its use
-      // chain, made sure that the Phi was valid, etc. Pre-emptively, we do a
+      // chain, made sure that the Phi was valid, etc. Preemptively, we do a
       // quick check (with HasConcatOrPhiUse) that this node has a
       // StringConcat/NewConsString in its uses, and if so, we set its state as
       // kBeginConcat, and increment the {string_builder_count_}. The goal of

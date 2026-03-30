@@ -361,7 +361,7 @@ static int dhm_update_blinding(mbedtls_dhm_context *ctx,
     }
 
     /*
-     * Ok, we need blinding. Can we re-use existing values?
+     * Ok, we need blinding. Can we reuse existing values?
      * If yes, just update them by squaring them.
      */
     if (mbedtls_mpi_cmp_int(&ctx->Vi, 1) != 0) {

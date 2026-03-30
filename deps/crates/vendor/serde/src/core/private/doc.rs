@@ -2,14 +2,14 @@
 
 use crate::lib::*;
 
-use crate::ser;
+use crate::set;
 
 #[doc(hidden)]
 #[derive(Debug)]
 pub struct Error;
 
 #[cfg_attr(not(no_diagnostic_namespace), diagnostic::do_not_recommend)]
-impl ser::Error for Error {
+impl set::Error for Error {
     fn custom<T>(_: T) -> Self
     where
         T: Display,
@@ -135,31 +135,31 @@ macro_rules! __serialize_unimplemented_helper {
         __serialize_unimplemented_method!(serialize_newtype_variant<T>(&str, u32, &str, &T) -> Ok);
     };
     (seq) => {
-        type SerializeSeq = $crate::ser::Impossible<Self::Ok, Self::Error>;
+        type SerializeSeq = $crate::set::Impossible<Self::Ok, Self::Error>;
         __serialize_unimplemented_method!(serialize_seq(Option<usize>) -> SerializeSeq);
     };
     (tuple) => {
-        type SerializeTuple = $crate::ser::Impossible<Self::Ok, Self::Error>;
+        type SerializeTuple = $crate::set::Impossible<Self::Ok, Self::Error>;
         __serialize_unimplemented_method!(serialize_tuple(usize) -> SerializeTuple);
     };
     (tuple_struct) => {
-        type SerializeTupleStruct = $crate::ser::Impossible<Self::Ok, Self::Error>;
+        type SerializeTupleStruct = $crate::set::Impossible<Self::Ok, Self::Error>;
         __serialize_unimplemented_method!(serialize_tuple_struct(&str, usize) -> SerializeTupleStruct);
     };
     (tuple_variant) => {
-        type SerializeTupleVariant = $crate::ser::Impossible<Self::Ok, Self::Error>;
+        type SerializeTupleVariant = $crate::set::Impossible<Self::Ok, Self::Error>;
         __serialize_unimplemented_method!(serialize_tuple_variant(&str, u32, &str, usize) -> SerializeTupleVariant);
     };
     (map) => {
-        type SerializeMap = $crate::ser::Impossible<Self::Ok, Self::Error>;
+        type SerializeMap = $crate::set::Impossible<Self::Ok, Self::Error>;
         __serialize_unimplemented_method!(serialize_map(Option<usize>) -> SerializeMap);
     };
     (struct) => {
-        type SerializeStruct = $crate::ser::Impossible<Self::Ok, Self::Error>;
+        type SerializeStruct = $crate::set::Impossible<Self::Ok, Self::Error>;
         __serialize_unimplemented_method!(serialize_struct(&str, usize) -> SerializeStruct);
     };
     (struct_variant) => {
-        type SerializeStructVariant = $crate::ser::Impossible<Self::Ok, Self::Error>;
+        type SerializeStructVariant = $crate::set::Impossible<Self::Ok, Self::Error>;
         __serialize_unimplemented_method!(serialize_struct_variant(&str, u32, &str, usize) -> SerializeStructVariant);
     };
 }

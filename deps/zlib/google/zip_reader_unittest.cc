@@ -996,7 +996,7 @@ class FileWriterDelegateTest : public ::testing::Test {
 };
 
 TEST_F(FileWriterDelegateTest, WriteToEnd) {
-  const std::string payload = "This is the actualy payload data.\n";
+  const std::string payload = "This is the actually payload data.\n";
 
   {
     FileWriterDelegate writer(&file_);
@@ -1010,7 +1010,7 @@ TEST_F(FileWriterDelegateTest, WriteToEnd) {
 }
 
 TEST_F(FileWriterDelegateTest, EmptyOnError) {
-  const std::string payload = "This is the actualy payload data.\n";
+  const std::string payload = "This is the actually payload data.\n";
 
   {
     FileWriterDelegate writer(&file_);

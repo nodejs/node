@@ -46,7 +46,7 @@ function UntaggedLarge() {
   result = `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus
  aliquam, elit euismod vestibulum ${0}lacinia, arcu odio sagittis mauris, id
  blandit dolor felis pretium nisl. Maecenas porttitor, nunc ut accumsan mollis,
- arcu metus rutrum arcu, ${1}ut varius dolor lorem nec risus. Integer convallis
+ arcu metus rutrum arcu, ${1}ut various dolor lorem nec risus. Integer convallis
  tristique ante, non pretium ante suscipit at. Sed egestas massa enim, convallis
  fermentum neque vehicula ac. Donec imperdiet a tortor ac semper. Morbi accumsan
  quam nec erat viverra iaculis. ${2}Donec a scelerisque cras amet.`;
@@ -57,7 +57,7 @@ function UntaggedLargeTearDown() {
       "Vivamus\n aliquam, elit euismod vestibulum " + 0 + "lacinia, arcu odio" +
       " sagittis mauris, id\n blandit dolor felis pretium nisl. Maecenas " +
       "porttitor, nunc ut accumsan mollis,\n arcu metus rutrum arcu, " + 1 +
-      "ut varius dolor lorem nec risus. Integer convallis\n tristique ante, " +
+      "ut various dolor lorem nec risus. Integer convallis\n tristique ante, " +
       "non pretium ante suscipit at. Sed egestas massa enim, convallis\n " +
       "fermentum neque vehicula ac. Donec imperdiet a tortor ac semper. Morbi" +
       " accumsan\n quam nec erat viverra iaculis. " + 2 + "Donec a " +

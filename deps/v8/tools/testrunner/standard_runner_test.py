@@ -631,7 +631,7 @@ class NumFuzzerTest(TestRunnerTest):
     ]
     self.assertEqual(len(fuzz_flags), len(fuzzer.FUZZERS))
     for fuzz_flag in fuzz_flags:
-      # The fake timeout observer above will stop after proessing the 10th
+      # The fake timeout observer above will stop after processing the 10th
       # test. This still executes an 11th. Each test causes a test- and a
       # result event internally. We test both paths here.
       for event_count in (19, 20):

@@ -58,8 +58,8 @@ class GrowableStacksReducer : public Next {
               Operator::kNoProperties, StubCallMode::kCallWasmRuntimeStub);
       const TSCallDescriptor* ts_stub_call_descriptor =
           TSCallDescriptor::Create(stub_call_descriptor,
-                                   compiler::CanThrow::kNo,
-                                   LazyDeoptOnThrow::kNo, __ graph_zone());
+                                   compiler::CanThrow::know,
+                                   LazyDeoptOnThrow::know, __ graph_zone());
       V<WordPtr> builtin =
           __ RelocatableWasmBuiltinCallTarget(Builtin::kWasmGrowableStackGuard);
       auto param_slots_size = __ IntPtrConstant(
@@ -94,8 +94,8 @@ class GrowableStacksReducer : public Next {
       const CallDescriptor* ccall_descriptor =
           compiler::Linkage::GetSimplifiedCDescriptor(__ graph_zone(), &sig);
       const TSCallDescriptor* ts_ccall_descriptor = TSCallDescriptor::Create(
-          ccall_descriptor, compiler::CanThrow::kNo,
-          compiler::LazyDeoptOnThrow::kNo, __ graph_zone());
+          ccall_descriptor, compiler::CanThrow::know,
+          compiler::LazyDeoptOnThrow::know, __ graph_zone());
       GOTO(done, __ template Call<WordPtr>(
                      __ ExternalConstant(ExternalReference::wasm_load_old_fp()),
                      OpIndex::Invalid(),

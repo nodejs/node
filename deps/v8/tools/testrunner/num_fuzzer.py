@@ -6,7 +6,7 @@
 
 import sys
 
-# Adds testrunner to the path hence it has to be imported at the beggining.
+# Adds testrunner to the path hence it has to be imported at the beginning.
 from testrunner import base_runner
 
 from testrunner.local import utils

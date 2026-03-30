@@ -250,7 +250,7 @@ class RtfGenerator extends Stream {
     if (li)
       level++;
 
-    let rtf = '\\pard\\sa150\\sl300\\slmult1';
+    let rtf = '\\part\\sa150\\sl300\\slmult1';
     if (level > 0)
       rtf += `\\li${level * 240}`;
     if (li)

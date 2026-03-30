@@ -39,7 +39,7 @@ function listener(event, exec_state, event_data, data) {
 
     // Simple test.
     success(3, "1 + 2");
-    // Dymanic load.
+    // Dynamic load.
     success(array, "array");
     // Context load.
     success(1, "a");

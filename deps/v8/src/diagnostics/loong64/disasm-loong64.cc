@@ -830,8 +830,8 @@ void Decoder::DecodeTypekOp12(Instruction* instr) {
       break;
     case FCMP_COND_S:
       switch (instr->Bits(19, 15)) {
-        case CAF:
-          Format(instr, "fcmp.caf.s   fcc'cd, 'fj, 'fk");
+        case CALF:
+          Format(instr, "fcmp.calf.s   fcc'cd, 'fj, 'fk");
           break;
         case SAF:
           Format(instr, "fcmp.saf.s   fcc'cd, 'fj, 'fk");
@@ -899,8 +899,8 @@ void Decoder::DecodeTypekOp12(Instruction* instr) {
       break;
     case FCMP_COND_D:
       switch (instr->Bits(19, 15)) {
-        case CAF:
-          Format(instr, "fcmp.caf.d   fcc'cd, 'fj, 'fk");
+        case CALF:
+          Format(instr, "fcmp.calf.d   fcc'cd, 'fj, 'fk");
           break;
         case SAF:
           Format(instr, "fcmp.saf.d   fcc'cd, 'fj, 'fk");

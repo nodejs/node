@@ -710,7 +710,7 @@ def main():
 
   # Command: stats.
   subparsers["stats"] = subparser_adder.add_parser(
-      "stats", help="Analize the results file create by the 'run' command.")
+      "stats", help="Analyze the results file create by the 'run' command.")
   subparsers["stats"].set_defaults(
       func=do_stats, error=subparsers["stats"].error)
   subparsers["stats"].add_argument(

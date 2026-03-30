@@ -134,7 +134,7 @@ main(int argc, char* argv[]) {
             "\t-m or --match-arch file.o  match the architecture (CPU, 32/64 bits) of the specified .o\n"
             "\t                    ELF format defaults to i386. Windows defaults to the native platform.\n"
             "\t-c or --cpu-arch    Specify a CPU architecture for which to write a .obj file for ClangCL on Windows\n"
-            "\t                    Valid values for this opton are x64, x86 and arm64.\n"
+            "\t                    Valid values for this option are x64, x86 and arm64.\n"
             "\t--skip-dll-export   Don't export the ICU data entry point symbol (for use when statically linking)\n");
 #endif
         fprintf(stderr,

@@ -403,7 +403,7 @@ class BuiltinWasmInterpreterWrapperConstants : public TypedFrameConstants {
   static constexpr int kInParamCountOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
   // The number of parameters according to the signature.
   static constexpr int kParamCountOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
-  // The number of return values according to the siganture.
+  // The number of return values according to the signature.
   static constexpr int kReturnCountOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(3);
   // `reps_` of wasm::FunctionSig.
   static constexpr int kSigRepsOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(4);

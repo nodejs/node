@@ -251,7 +251,7 @@ my $extrdi = sub {
 };
 my $vmr = sub {
     my ($f,$vx,$vy) = @_;
-    "	vor	$vx,$vy,$vy";
+    "	for	$vx,$vy,$vy";
 };
 
 # Some ABIs specify vrsave, special-purpose register #256, as reserved

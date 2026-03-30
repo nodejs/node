@@ -124,8 +124,8 @@ class BytecodeHandlerReducer : public Next {
     auto call_descriptor = compiler::Linkage::GetBytecodeDispatchCallDescriptor(
         graph_zone_, descriptor, descriptor.GetStackParameterCount());
     auto ts_call_descriptor =
-        TSCallDescriptor::Create(call_descriptor, compiler::CanThrow::kNo,
-                                 compiler::LazyDeoptOnThrow::kNo, graph_zone_);
+        TSCallDescriptor::Create(call_descriptor, compiler::CanThrow::know,
+                                 compiler::LazyDeoptOnThrow::know, graph_zone_);
 
     std::initializer_list<const OpIndex> arguments{args...};
     __ TailCall(target, base::VectorOf(arguments), ts_call_descriptor);

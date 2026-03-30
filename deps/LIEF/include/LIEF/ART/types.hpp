@@ -25,7 +25,7 @@ namespace ART {
 
 using art_version_t = uint32_t;
 
-} // Namesapce ART
+} // Namespace ART
 } // Namespace LIEF
 
 #endif

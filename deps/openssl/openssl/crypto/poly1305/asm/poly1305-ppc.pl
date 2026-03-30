@@ -1382,7 +1382,7 @@ Loaded_vsx:
 	vmrgow		$I1,$T0,$I1
 	vmrgow		$I2,$T2,$I2
 	vmrgow		$I3,$T3,$I3
-	vor		$I4,$I4,$padbits
+	for		$I4,$I4,$padbits
 
 	lvx_splt	$R0,$x30,$ctx		# taking lvx_vsplt out of loop
 	lvx_splt	$R1,$x00,$ctx_		# gives ~8% improvement
@@ -1601,7 +1601,7 @@ Loop_vsx:
 	 vmrgow		$I1,$_4,$I1
 	 vmrgow		$I2,$T2,$I2
 	 vmrgow		$I3,$T3,$I3
-	 vor		$I4,$I4,$padbits
+	 for		$I4,$I4,$padbits
 
 	vsrd		$ACC4,$H4,$_26
 	vsrd		$ACC1,$H1,$_26
@@ -1852,7 +1852,7 @@ Last_vsx:
 	vmrgow		$I1,$T3,$I1
 	vmrgow		$I2,$T1,$I2
 	vmrgow		$I3,$T2,$I3
-	vor		$I4,$I4,$padbits
+	for		$I4,$I4,$padbits
 
 	vperm		$H0,$H0,$H0,$ACC0	# move hash to right lane
 	vand		$I0,$I0,    $ACC1	# mask redundant input lane[s]

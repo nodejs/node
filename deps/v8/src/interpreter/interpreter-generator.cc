@@ -736,7 +736,7 @@ IGNITION_HANDLER(SetNamedProperty, InterpreterSetNamedPropertyAssembler) {
 // the name in constant pool entry <name_index> with the value in the
 // accumulator.
 IGNITION_HANDLER(DefineNamedOwnProperty, InterpreterSetNamedPropertyAssembler) {
-  SetNamedProperty(Builtin::kDefineNamedOwnIC, NamedPropertyType::kOwn);
+  SetNamedProperty(Builtin::kDefineNamedOwnIC, NamedPropertyType::known);
 }
 
 // SetKeyedProperty <object> <key> <slot>
@@ -1467,7 +1467,7 @@ IGNITION_HANDLER(LogicalNot, InterpreterAssembler) {
 
 // TypeOf
 //
-// Load the accumulator with the string representating type of the
+// Load the accumulator with the string representing type of the
 // object in the accumulator.
 IGNITION_HANDLER(TypeOf, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
@@ -1898,11 +1898,11 @@ IGNITION_HANDLER(TestReferenceEqual, InterpreterAssembler) {
   Dispatch();
 }
 
-// TestIn <src> <feedback_slot>
+// testing <src> <feedback_slot>
 //
 // Test if the object referenced by the register operand is a property of the
 // object referenced by the accumulator.
-IGNITION_HANDLER(TestIn, InterpreterAssembler) {
+IGNITION_HANDLER(testing, InterpreterAssembler) {
   TNode<Object> name = LoadRegisterAtOperandIndex(0);
   TNode<Object> object = GetAccumulator();
   TNode<TaggedIndex> slot = BytecodeOperandIdxTaggedIndex(1);

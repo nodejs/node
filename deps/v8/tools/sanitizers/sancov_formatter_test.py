@@ -33,7 +33,7 @@ def abs_line(line):
 #------------------------------------------------------------------------------
 
 # Data for test_process_symbolizer_output. This simulates output from the
-# llvm symbolizer. The paths are not normlized.
+# llvm symbolizer. The paths are not normalized.
 SYMBOLIZER_OUTPUT = (
   abs_line('../../src/foo.cc:87:7\n') +
   abs_line('../../src/foo.cc:92:0\n') + # Test sorting.

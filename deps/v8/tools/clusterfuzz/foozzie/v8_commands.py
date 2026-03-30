@@ -110,7 +110,7 @@ class Command(object):
     return self.common_flags + self.config_flags
 
   def remove_config_flag(self, remove_flag):
-    """Removes all occurences of `remove_flag` from the config flags."""
+    """Removes all occurrences of `remove_flag` from the config flags."""
     self.config_flags = [
         flag for flag in self.config_flags if flag != remove_flag
     ]

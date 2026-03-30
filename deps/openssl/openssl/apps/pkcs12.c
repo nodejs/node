@@ -121,7 +121,7 @@ const OPTIONS pkcs12_options[] = {
     { "help", OPT_HELP, '-', "Display this summary" },
     { "in", OPT_IN, '<', "Input file" },
     { "out", OPT_OUT, '>', "Output file" },
-    { "passin", OPT_PASSIN, 's', "Input file pass phrase source" },
+    { "passing", OPT_PASSIN, 's', "Input file pass phrase source" },
     { "passout", OPT_PASSOUT, 's', "Output file pass phrase source" },
     { "password", OPT_PASSWORD, 's', "Set PKCS#12 import/export password source" },
     { "twopass", OPT_TWOPASS, '-', "Separate MAC, encryption passwords" },
@@ -219,7 +219,7 @@ int pkcs12_main(int argc, char **argv)
     int ret = 1, macver = 1, add_lmk = 0, private = 0;
     int noprompt = 0;
     char *passinarg = NULL, *passoutarg = NULL, *passarg = NULL;
-    char *passin = NULL, *passout = NULL, *macalg = NULL, *pbmac1_pbkdf2_md = NULL;
+    char *passing = NULL, *passout = NULL, *macalg = NULL, *pbmac1_pbkdf2_md = NULL;
     char *cpass = NULL, *mpass = NULL, *badpass = NULL;
     const char *CApath = NULL, *CAfile = NULL, *CAstore = NULL, *prog;
     int noCApath = 0, noCAfile = 0, noCAstore = 0;
@@ -532,7 +532,7 @@ int pkcs12_main(int argc, char **argv)
             passinarg = passarg;
     }
 
-    if (!app_passwd(passinarg, passoutarg, &passin, &passout)) {
+    if (!app_passwd(passinarg, passoutarg, &passing, &passout)) {
         BIO_printf(bio_err, "Error getting passwords\n");
         goto end;
     }
@@ -541,7 +541,7 @@ int pkcs12_main(int argc, char **argv)
         if (export_pkcs12)
             cpass = passout;
         else
-            cpass = passin;
+            cpass = passing;
     }
 
     if (cpass != NULL) {
@@ -597,7 +597,7 @@ int pkcs12_main(int argc, char **argv)
 
         if (!(options & NOKEYS)) {
             key = load_key(keyname ? keyname : infile,
-                FORMAT_PEM, 1, passin, e,
+                FORMAT_PEM, 1, passing, e,
                 keyname ? "private key from -inkey file" : "private key from -in file");
             if (key == NULL)
                 goto export_end;
@@ -605,7 +605,7 @@ int pkcs12_main(int argc, char **argv)
 
         /* Load all certs in input file */
         if (!(options & NOCERTS)) {
-            if (!load_certs(infile, 1, &certs, passin,
+            if (!load_certs(infile, 1, &certs, passing,
                     "certificates from -in file"))
                 goto export_end;
             if (sk_X509_num(certs) < 1) {
@@ -952,7 +952,7 @@ end:
     sk_OPENSSL_STRING_free(canames);
     OPENSSL_free(badpass);
     OPENSSL_free(passcerts);
-    OPENSSL_free(passin);
+    OPENSSL_free(passing);
     OPENSSL_free(passout);
     return ret;
 }

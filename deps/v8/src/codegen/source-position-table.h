@@ -158,7 +158,7 @@ class V8_EXPORT_PRIVATE SourcePositionTableIterator {
   }
 
  private:
-  // Initializes the source position interator with the first valid bytecode.
+  // Initializes the source position iterator with the first valid bytecode.
   // Also sets the FunctionEntry SourcePosition if it exists.
   void Initialize();
 

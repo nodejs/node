@@ -156,7 +156,7 @@ static MUNIT_THREAD_LOCAL jmp_buf munit_error_jmp_buf;
 #endif
 
 /* At certain warning levels, mingw will trigger warnings about
- * suggesting the format attribute, which we've explicity *not* set
+ * suggesting the format attribute, which we've explicitly *not* set
  * because it will then choke on our attempts to use the MS-specific
  * I64 modifier for size_t (which we have to use since MSVC doesn't
  * support the C99 z modifier). */
@@ -300,7 +300,7 @@ void *munit_malloc_ex(const char *filename, int line, size_t size) {
  * sync. */
 
 /* Clocks (v1)
- * Portable Snippets - https://gitub.com/nemequ/portable-snippets
+ * Portable Snippets - https://github.com/nemequ/portable-snippets
  * Created by Evan Nemerson <evan@nemerson.com>
  *
  *   To the extent possible under law, the authors have waived all
@@ -699,7 +699,7 @@ PSNIP_CLOCK__FUNCTION psnip_uint32_t psnip_clock_monotonic_get_precision(void) {
   };
   if (tbi.denom == 0)
     mach_timebase_info(&tbi);
-  return (psnip_uint32_t)(tbi.numer / tbi.denom);
+  return (psnip_uint32_t)(tbi.number / tbi.denom);
 #    elif defined(PSNIP_CLOCK_MONOTONIC_METHOD) &&                             \
       PSNIP_CLOCK_MONOTONIC_METHOD == PSNIP_CLOCK_METHOD_GETTICKCOUNT64
   return 1000;
@@ -732,7 +732,7 @@ psnip_clock_monotonic_get_time(struct PsnipClockTimespec *res) {
   };
   if (tbi.denom == 0)
     mach_timebase_info(&tbi);
-  nsec *= ((psnip_uint64_t)tbi.numer) / ((psnip_uint64_t)tbi.denom);
+  nsec *= ((psnip_uint64_t)tbi.number) / ((psnip_uint64_t)tbi.denom);
   res->seconds = nsec / PSNIP_CLOCK_NSEC_PER_SEC;
   res->nanoseconds = nsec % PSNIP_CLOCK_NSEC_PER_SEC;
 #    elif defined(PSNIP_CLOCK_MONOTONIC_METHOD) &&                             \
@@ -1142,7 +1142,7 @@ static void munit_print_time(FILE *fp, munit_uint64_t nanoseconds) {
 }
 #endif
 
-/* Add a paramter to an array of parameters. */
+/* Add a parameter to an array of parameters. */
 static MunitResult munit_parameters_add(size_t *params_size,
                                         MunitParameter **params, char *name,
                                         char *value) {
@@ -1189,7 +1189,7 @@ static char *munit_maybe_concat(size_t *len, char *prefix, char *suffix) {
   return res;
 }
 
-/* Possbily free a string returned by munit_maybe_concat. */
+/* Possibly free a string returned by munit_maybe_concat. */
 static void munit_maybe_free_concat(char *s, const char *prefix,
                                     const char *suffix) {
   if (prefix != s && suffix != s)
@@ -1828,7 +1828,7 @@ static void munit_print_help(int argc, char *const *argv, void *user_data,
     "decimal\n"
     "           notation with no separators (commas, decimals, spaces, "
     "etc.), or\n"
-    "           hexidecimal prefixed by \"0x\".\n"
+    "           hexadecimal prefixed by \"0x\".\n"
     " --iterations N\n"
     "           Run each test N times.  0 means the default number.\n"
     " --param name value\n"

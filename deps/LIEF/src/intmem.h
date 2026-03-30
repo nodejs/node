@@ -137,7 +137,7 @@ static T bswap_be(T const v)
   return v;
 }
 #else
-#error Unsupported endianess!
+#error Unsupported endianness!
 #endif
 
 template <class T>

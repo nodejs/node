@@ -49,6 +49,6 @@ function f(a = function modeFn(mode) { debugger; return mode; },
 
 f();
 
-// Make sure that the debug event listener vas invoked.
+// Make sure that the debug event listener was invoked.
 assertEquals(3, breakPointCount);
 assertNull(exception);

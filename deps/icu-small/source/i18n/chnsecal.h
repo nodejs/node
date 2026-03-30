@@ -76,7 +76,7 @@ class CalendarCache;
  * <li>Dershowitz and Reingold, <i>Calendrical Calculations</i>,
  * Cambridge University Press, 1997</li>
  * 
- * <li>The <a href="http://www.tondering.dk/claus/calendar.html">
+ * <li>The <a href="http://www.tondering.dk/clause/calendar.html">
  * Calendar FAQ</a></li>
  *
  * </ul>
@@ -179,7 +179,7 @@ class U_I18N_API ChineseCalendar : public Calendar {
   // current date.This is different from leap year because in some year, such as
   // 1813 and 2033, the leap month is after the Winter Solstice of that year. So
   // this value could be false for a date prior to the Winter Solstice of that
-  // year but that year still has a leap month and therefor is a leap year.
+  // year but that year still has a leap month and therefore is a leap year.
   UBool hasLeapMonthBetweenWinterSolstices;
 
   //----------------------------------------------------------------------

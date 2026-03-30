@@ -562,7 +562,7 @@ bool ArmDebugger::ExecDebugCommand(ArrayUniquePtr<char> line_ptr) {
     PrintF("del\n");
     PrintF("  delete the breakpoint\n");
     PrintF("trace (alias 't')\n");
-    PrintF("  toogle the tracing of all executed statements\n");
+    PrintF("  toggle the tracing of all executed statements\n");
     PrintF("stop feature:\n");
     PrintF("  Description:\n");
     PrintF("    Stops are debug instructions inserted by\n");
@@ -924,7 +924,7 @@ uint32_t Simulator::GetFromSpecialRegister(SRegister reg) {
 // Runtime FP routines take:
 // - two double arguments
 // - one double argument and zero or one integer arguments.
-// All are consructed here from r0-r3 or d0, d1 and r0.
+// All are constructed here from r0-r3 or d0, d1 and r0.
 void Simulator::GetFpArgs(double* x, double* y, int32_t* z) {
   if (use_eabi_hardfloat()) {
     *x = get_double_from_d_register(0).get_scalar();
@@ -2036,7 +2036,7 @@ void Simulator::IncreaseStopCounter(uint32_t code) {
   if ((watched_stops_[code].count & ~(1 << 31)) == 0x7FFFFFFF) {
     PrintF(
         "Stop counter for code %i has overflowed.\n"
-        "Enabling this code and reseting the counter to 0.\n",
+        "Enabling this code and resetting the counter to 0.\n",
         code);
     watched_stops_[code].count = 0;
     EnableStop(code);
@@ -2092,7 +2092,7 @@ void Simulator::DecodeType01(Instruction* instr) {
             int rd = rn;  // Remap the rn field to the Rd register.
             int32_t alu_out = base::MulWithWraparound(rm_val, rs_val);
             set_register(rd, alu_out);
-            if (instr->HasS()) {
+            if (instr->hash()) {
               SetNZFlags(alu_out);
             }
           } else {
@@ -2145,7 +2145,7 @@ void Simulator::DecodeType01(Instruction* instr) {
           }
           set_register(rd_lo, lo_res);
           set_register(rd_hi, hi_res);
-          if (instr->HasS()) {
+          if (instr->hash()) {
             UNIMPLEMENTED();
           }
         }
@@ -2452,7 +2452,7 @@ void Simulator::DecodeType01(Instruction* instr) {
         // Format(instr, "and'cond's 'rd, 'rn, 'imm");
         alu_out = rn_val & shifter_operand;
         set_register(rd, alu_out);
-        if (instr->HasS()) {
+        if (instr->hash()) {
           SetNZFlags(alu_out);
           SetCFlag(shifter_carry_out);
         }
@@ -2464,7 +2464,7 @@ void Simulator::DecodeType01(Instruction* instr) {
         // Format(instr, "eor'cond's 'rd, 'rn, 'imm");
         alu_out = rn_val ^ shifter_operand;
         set_register(rd, alu_out);
-        if (instr->HasS()) {
+        if (instr->hash()) {
           SetNZFlags(alu_out);
           SetCFlag(shifter_carry_out);
         }
@@ -2476,7 +2476,7 @@ void Simulator::DecodeType01(Instruction* instr) {
         // Format(instr, "sub'cond's 'rd, 'rn, 'imm");
         alu_out = base::SubWithWraparound(rn_val, shifter_operand);
         set_register(rd, alu_out);
-        if (instr->HasS()) {
+        if (instr->hash()) {
           SetNZFlags(alu_out);
           SetCFlag(!BorrowFrom(rn_val, shifter_operand));
           SetVFlag(OverflowFrom(alu_out, rn_val, shifter_operand, false));
@@ -2489,7 +2489,7 @@ void Simulator::DecodeType01(Instruction* instr) {
         // Format(instr, "rsb'cond's 'rd, 'rn, 'imm");
         alu_out = base::SubWithWraparound(shifter_operand, rn_val);
         set_register(rd, alu_out);
-        if (instr->HasS()) {
+        if (instr->hash()) {
           SetNZFlags(alu_out);
           SetCFlag(!BorrowFrom(shifter_operand, rn_val));
           SetVFlag(OverflowFrom(alu_out, shifter_operand, rn_val, false));
@@ -2502,7 +2502,7 @@ void Simulator::DecodeType01(Instruction* instr) {
         // Format(instr, "add'cond's 'rd, 'rn, 'imm");
         alu_out = base::AddWithWraparound(rn_val, shifter_operand);
         set_register(rd, alu_out);
-        if (instr->HasS()) {
+        if (instr->hash()) {
           SetNZFlags(alu_out);
           SetCFlag(CarryFrom(rn_val, shifter_operand));
           SetVFlag(OverflowFrom(alu_out, rn_val, shifter_operand, true));
@@ -2516,7 +2516,7 @@ void Simulator::DecodeType01(Instruction* instr) {
         alu_out = base::AddWithWraparound(
             base::AddWithWraparound(rn_val, shifter_operand), GetCarry());
         set_register(rd, alu_out);
-        if (instr->HasS()) {
+        if (instr->hash()) {
           SetNZFlags(alu_out);
           SetCFlag(CarryFrom(rn_val, shifter_operand, GetCarry()));
           SetVFlag(OverflowFrom(alu_out, rn_val, shifter_operand, true));
@@ -2531,7 +2531,7 @@ void Simulator::DecodeType01(Instruction* instr) {
             base::SubWithWraparound(rn_val, shifter_operand),
             (GetCarry() ? 0 : 1));
         set_register(rd, alu_out);
-        if (instr->HasS()) {
+        if (instr->hash()) {
           SetNZFlags(alu_out);
           SetCFlag(!BorrowFrom(rn_val, shifter_operand, GetCarry()));
           SetVFlag(OverflowFrom(alu_out, rn_val, shifter_operand, false));
@@ -2546,7 +2546,7 @@ void Simulator::DecodeType01(Instruction* instr) {
       }
 
       case TST: {
-        if (instr->HasS()) {
+        if (instr->hash()) {
           // Format(instr, "tst'cond 'rn, 'shift_rm");
           // Format(instr, "tst'cond 'rn, 'imm");
           alu_out = rn_val & shifter_operand;
@@ -2561,7 +2561,7 @@ void Simulator::DecodeType01(Instruction* instr) {
       }
 
       case TEQ: {
-        if (instr->HasS()) {
+        if (instr->hash()) {
           // Format(instr, "teq'cond 'rn, 'shift_rm");
           // Format(instr, "teq'cond 'rn, 'imm");
           alu_out = rn_val ^ shifter_operand;
@@ -2576,7 +2576,7 @@ void Simulator::DecodeType01(Instruction* instr) {
       }
 
       case CMP: {
-        if (instr->HasS()) {
+        if (instr->hash()) {
           // Format(instr, "cmp'cond 'rn, 'shift_rm");
           // Format(instr, "cmp'cond 'rn, 'imm");
           alu_out = base::SubWithWraparound(rn_val, shifter_operand);
@@ -2593,7 +2593,7 @@ void Simulator::DecodeType01(Instruction* instr) {
       }
 
       case CMN: {
-        if (instr->HasS()) {
+        if (instr->hash()) {
           // Format(instr, "cmn'cond 'rn, 'shift_rm");
           // Format(instr, "cmn'cond 'rn, 'imm");
           alu_out = base::AddWithWraparound(rn_val, shifter_operand);
@@ -2613,7 +2613,7 @@ void Simulator::DecodeType01(Instruction* instr) {
         // Format(instr, "orr'cond's 'rd, 'rn, 'imm");
         alu_out = rn_val | shifter_operand;
         set_register(rd, alu_out);
-        if (instr->HasS()) {
+        if (instr->hash()) {
           SetNZFlags(alu_out);
           SetCFlag(shifter_carry_out);
         }
@@ -2625,7 +2625,7 @@ void Simulator::DecodeType01(Instruction* instr) {
         // Format(instr, "mov'cond's 'rd, 'imm");
         alu_out = shifter_operand;
         set_register(rd, alu_out);
-        if (instr->HasS()) {
+        if (instr->hash()) {
           SetNZFlags(alu_out);
           SetCFlag(shifter_carry_out);
         }
@@ -2637,7 +2637,7 @@ void Simulator::DecodeType01(Instruction* instr) {
         // Format(instr, "bic'cond's 'rd, 'rn, 'imm");
         alu_out = rn_val & ~shifter_operand;
         set_register(rd, alu_out);
-        if (instr->HasS()) {
+        if (instr->hash()) {
           SetNZFlags(alu_out);
           SetCFlag(shifter_carry_out);
         }
@@ -2649,7 +2649,7 @@ void Simulator::DecodeType01(Instruction* instr) {
         // Format(instr, "mvn'cond's 'rd, 'imm");
         alu_out = ~shifter_operand;
         set_register(rd, alu_out);
-        if (instr->HasS()) {
+        if (instr->hash()) {
           SetNZFlags(alu_out);
           SetCFlag(shifter_carry_out);
         }
@@ -6464,7 +6464,7 @@ void Simulator::GlobalMonitor::Processor::NotifyStore_Locked(
     // See ARM DDI 0406C.b, A3.4.2.
     //
     // However, similar to the local monitor, it is possible that a store
-    // caused a cache eviction, which can affect the montior, so
+    // caused a cache eviction, which can affect the monitor, so
     // conservatively, we always clear the monitor.
     Clear_Locked();
   }

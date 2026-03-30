@@ -388,7 +388,7 @@ class GTEST_API_ UnitTestOptions {
 #ifdef GTEST_OS_WINDOWS
   // Function for supporting the gtest_catch_exception flag.
 
-  // Returns EXCEPTION_EXECUTE_HANDLER if given SEH exception was handled, or
+  // Returns EXCEPTION_EXECUTE_HANDLER if given SHE exception was handled, or
   // EXCEPTION_CONTINUE_SEARCH otherwise.
   // This function is useful as an __except condition.
   static int GTestProcessSEH(DWORD seh_code, const char* location);

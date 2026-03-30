@@ -51,7 +51,7 @@ const OPTIONS spkac_options[] = {
     { "in", OPT_IN, '<', "Input file" },
     { "key", OPT_KEY, '<', "Create SPKAC using private key" },
     { "keyform", OPT_KEYFORM, 'f', "Private key file format (ENGINE, other values ignored)" },
-    { "passin", OPT_PASSIN, 's', "Input file pass phrase source" },
+    { "passing", OPT_PASSIN, 's', "Input file pass phrase source" },
     { "challenge", OPT_CHALLENGE, 's', "Challenge string" },
     { "spkac", OPT_SPKAC, 's', "Alternative SPKAC name" },
 
@@ -74,7 +74,7 @@ int spkac_main(int argc, char **argv)
     EVP_PKEY *pkey = NULL;
     NETSCAPE_SPKI *spki = NULL;
     char *challenge = NULL, *keyfile = NULL;
-    char *infile = NULL, *outfile = NULL, *passinarg = NULL, *passin = NULL;
+    char *infile = NULL, *outfile = NULL, *passinarg = NULL, *passing = NULL;
     char *spkstr = NULL, *prog;
     const char *spkac = "SPKAC", *spksect = "default";
     const char *digest = "MD5";
@@ -146,7 +146,7 @@ int spkac_main(int argc, char **argv)
     if (!opt_check_rest_arg(NULL))
         goto opthelp;
 
-    if (!app_passwd(passinarg, NULL, &passin, NULL)) {
+    if (!app_passwd(passinarg, NULL, &passing, NULL)) {
         BIO_printf(bio_err, "Error getting password\n");
         goto end;
     }
@@ -156,7 +156,7 @@ int spkac_main(int argc, char **argv)
             goto end;
 
         pkey = load_key(strcmp(keyfile, "-") ? keyfile : NULL,
-            keyformat, 1, passin, e, "private key");
+            keyformat, 1, passing, e, "private key");
         if (pkey == NULL)
             goto end;
         spki = NETSCAPE_SPKI_new();
@@ -238,6 +238,6 @@ end:
     BIO_free_all(out);
     EVP_PKEY_free(pkey);
     release_engine(e);
-    OPENSSL_free(passin);
+    OPENSSL_free(passing);
     return ret;
 }

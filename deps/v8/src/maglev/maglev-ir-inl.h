@@ -199,7 +199,7 @@ void NodeBase::OverwriteWithReturnValue(ValueNode* node) {
   set_opcode(Opcode::kReturnedValue);
   set_properties(StaticPropertiesForOpcode(Opcode::kReturnedValue));
   bitfield_ = InputCountField::update(bitfield_, 1);
-  // After updating the input count, the possition of the register snapshot is
+  // After updating the input count, the position of the register snapshot is
   // wrong. We simply write a copy to the new location.
   set_register_snapshot(registers);
   set_input(0, node);

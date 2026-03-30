@@ -29,7 +29,7 @@
 // when setting properties.
 
 // Test that accessors added to the prototype chain are called
-// eventhough there are inline caches for setting the property
+// even though there are inline caches for setting the property
 
 function F() {
   this.x = 42;

@@ -31,7 +31,7 @@
  * In this use case we have lots of arrays that we need to iterate
  * sequentally. The internal Array implementation is horribly slow
  * when concatenating on large (10K items) arrays due to memory copying.
- * That's why we avoid copying memory and insead build a linked list
+ * That's why we avoid copying memory and instead build a linked list
  * of arrays to iterate through.
  *
  * @constructor

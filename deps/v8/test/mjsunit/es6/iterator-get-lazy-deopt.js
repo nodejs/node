@@ -45,7 +45,7 @@ iteratorAfterLazyDeopt = function() {
     }
 }
 // Here, retrieval of function at @@iterator has side effect (increments the
-// 'getIteratorCount').The lazy deoptimization is triggerred by setting the
+// 'getIteratorCount').The lazy deoptimization is triggered by setting the
 // 'triggerLazyDeopt' to true after the count is incremented. Now the deopt
 // cannot resume at the beginning of the bytecode because it would end up in
 // incrementing the count again.

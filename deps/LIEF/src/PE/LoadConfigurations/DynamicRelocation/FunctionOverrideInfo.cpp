@@ -147,7 +147,7 @@ std::unique_ptr<FunctionOverrideInfo>
   for (size_t i = 0; i < count; ++i) {
     auto RVA = strm.read<uint32_t>();
     if (!RVA) {
-      LIEF_WARN("Cant read IMAGE_FUNCTION_OVERRIDE_DYNAMIC_RELOCATION.RVAs[{}]", i);
+      LIEF_WARN("Can't read IMAGE_FUNCTION_OVERRIDE_DYNAMIC_RELOCATION.RVAs[{}]", i);
       return func_override_info;
     }
     LIEF_DEBUG("IMAGE_FUNCTION_OVERRIDE_DYNAMIC_RELOCATION.RVA[{}]: 0x{:08x}", i, *RVA);

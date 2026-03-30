@@ -2047,7 +2047,7 @@ U_CAPI UBool U_EXPORT2 usearch_search(UStringSearch  *strsrch,
     //
 
     if (U_FAILURE(*status)) {
-        found = false; // No match if a failure occured.
+        found = false; // No match if a failure occurred.
     }
 
     if (found==false) {
@@ -2348,7 +2348,7 @@ U_CAPI UBool U_EXPORT2 usearch_searchBackwards(UStringSearch  *strsrch,
     //
 
     if (U_FAILURE(*status)) {
-        found = false; // No match if a failure occured.
+        found = false; // No match if a failure occurred.
     }
 
     if (found==false) {

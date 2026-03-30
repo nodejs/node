@@ -88,7 +88,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 //   TURBOSHAFT_SIMPLIFIED_OPERATION_LIST etc), which defines
 //   `Opcode::kFoo` and whether the operation is a block terminator.
 // - A `struct FooOp`, which derives from either `OperationT<FooOp>` or
-//   `FixedArityOperationT<k, FooOp>` if the op always has excactly `k` inputs.
+//   `FixedArityOperationT<k, FooOp>` if the op always has exactly `k` inputs.
 // Furthermore, the struct has to contain:
 // - A bunch of options directly as public fields.
 // - A getter `options()` returning a tuple of all these options. This is used
@@ -610,9 +610,9 @@ static_assert(sizeof(EffectDimensions) == sizeof(EffectDimensions::Bits));
 // dimension and consume the `after_raw_heap_access` dimension to stay either
 // before or after a raw heap access. This means that there are no ordering
 // constraints between allocations themselves. Bitcasts should not
-// be moved accross an allocation. We treat them as raw heap access by letting
+// be moved across an allocation. We treat them as raw heap access by letting
 // them consume `before_raw_heap_access` and produce `after_raw_heap_access`.
-// This way, allocations cannot be moved across bitcasts. Similarily,
+// This way, allocations cannot be moved across bitcasts. Similarly,
 // initializing stores and uninitialized allocations are classified as raw heap
 // access, to prevent any operation that relies on a consistent heap state to be
 // scheduled in the middle of an inline allocation. As long as we didn't lower
@@ -690,11 +690,11 @@ struct OpEffects {
   constexpr OpEffects CanAllocate() const {
     return CanAllocateWithoutIdentity().CanCreateIdentity();
   }
-  // The operation can leave the heap in an incosistent state or have untagged
+  // The operation can leave the heap in an inconsistent state or have untagged
   // pointers into the heap as input or output.
   constexpr OpEffects CanDoRawHeapAccess() const {
     OpEffects result = *this;
-    // Do not move any operation that relies on a consistent heap state accross.
+    // Do not move any operation that relies on a consistent heap state across.
     result.produces.after_raw_heap_access = true;
     result.consumes.before_raw_heap_access = true;
     return result;
@@ -2310,7 +2310,7 @@ struct ChangeOp : FixedArityOperationT<1, ChangeOp> {
     DCHECK_NE(from, RegisterRepresentation::Tagged());
     DCHECK_NE(to, RegisterRepresentation::Tagged());
     // Bitcasts from and to Tagged should use a TaggedBitcast instead (which has
-    // different effects, since it's unsafe to reorder such bitcasts accross
+    // different effects, since it's unsafe to reorder such bitcasts across
     // GCs).
   }
   auto options() const { return std::tuple{kind, assumption, from, to}; }
@@ -3450,7 +3450,7 @@ struct StoreOp : OperationT<StoreOp> {
   OpEffects Effects() const {
     // Stores might depend on checks for pointer validity, object layout, bounds
     // checks, etc.
-    // TODO(tebbi): Distinghish between on-heap and off-heap stores.
+    // TODO(tebbi): Distinguish between on-heap and off-heap stores.
     OpEffects effects = OpEffects().CanWriteMemory().CanDependOnChecks();
     if (kind.with_trap_handler) effects = effects.CanLeaveCurrentFunction();
     if (maybe_initializing_or_transitioning) {
@@ -3556,7 +3556,7 @@ struct AllocateOp : FixedArityOperationT<1, AllocateOp> {
   static constexpr OpEffects effects =
       OpEffects()
           .CanAllocate()
-          // The resulting object is unitialized, which leaves the heap in an
+          // The resulting object is uninitialized, which leaves the heap in an
           // inconsistent state.
           .CanDoRawHeapAccess()
           // Do not move allocations before checks, to avoid OOM or invalid
@@ -4131,8 +4131,8 @@ struct TSCallDescriptor : public NON_EXPORTED_BASE(ZoneObject) {
       const CallDescriptor* descriptor, CanThrow can_throw,
       LazyDeoptOnThrow lazy_deopt_on_throw, Zone* graph_zone,
       const JSWasmCallParameters* js_wasm_call_parameters = nullptr) {
-    DCHECK_IMPLIES(can_throw == CanThrow::kNo,
-                   lazy_deopt_on_throw == LazyDeoptOnThrow::kNo);
+    DCHECK_IMPLIES(can_throw == CanThrow::know,
+                   lazy_deopt_on_throw == LazyDeoptOnThrow::know);
     base::Vector<RegisterRepresentation> in_reps =
         graph_zone->AllocateVector<RegisterRepresentation>(
             descriptor->ParameterCount());
@@ -6674,7 +6674,7 @@ struct FastApiCallOp : OperationT<FastApiCallOp> {
       : Base(kNumNonParamInputs + arguments.size()),
         parameters(parameters),
         out_reps(out_reps),
-        lazy_deopt_on_throw(LazyDeoptOnThrow::kNo) {
+        lazy_deopt_on_throw(LazyDeoptOnThrow::know) {
     base::Vector<OpIndex> inputs = this->inputs();
     inputs[0] = frame_state;
     inputs[1] = data_argument;
@@ -8583,7 +8583,7 @@ struct Simd128ReplaceLaneOp : FixedArityOperationT<2, Simd128ReplaceLaneOp> {
 };
 
 // If `mode` is `kLoad`, load a value from `base() + index() + offset`, whose
-// size is determinded by `lane_kind`, and return the Simd128 `value()` with
+// size is determined by `lane_kind`, and return the Simd128 `value()` with
 // the lane specified by `lane_kind` and `lane` replaced with the loaded value.
 // If `mode` is `kStore`, extract the lane specified by `lane` with size
 // `lane_kind` from `value()`, and store it to `base() + index() + offset`.
@@ -8675,7 +8675,7 @@ struct Simd128LaneMemoryOp : FixedArityOperationT<3, Simd128LaneMemoryOp> {
   V(32Zero)                                       \
   V(64Zero)
 
-// Load a value from `base() + index() + offset`, whose size is determinded by
+// Load a value from `base() + index() + offset`, whose size is determined by
 // `transform_kind`, and generate a Simd128 value as follows:
 // - From 8x8S to 32x2U (extend kinds), the loaded value has size 8. It is
 //   interpreted as a vector of values according to the size of the kind, which

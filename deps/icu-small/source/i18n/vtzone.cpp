@@ -1602,8 +1602,8 @@ VTimeZone::parse(UErrorCode& status) {
     }
 
     // Finally, create the RuleBasedTimeZone
-    // C++ awkwardness on memory allocation failure: the constructor wont be run, meaning
-    // that initialRule wont be adopted/deleted, as it normally would be.
+    // C++ awkwardness on memory allocation failure: the constructor won't be run, meaning
+    // that initialRule won't be adopted/deleted, as it normally would be.
     LocalPointer<RuleBasedTimeZone> rbtz(
         new RuleBasedTimeZone(tzid, initialRule.getAlias()), status);
     if (U_SUCCESS(status)) {

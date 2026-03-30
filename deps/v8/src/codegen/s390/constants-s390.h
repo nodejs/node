@@ -1630,8 +1630,8 @@ using SixByteInstr = uint64_t;
   V(sxr, SXR, 0x37)     /* type = RR    SUBTRACT NORMALIZED (extended HFP)  */ \
   V(ler, LER, 0x38)     /* type = RR    LOAD (short)  */                       \
   V(cer, CER, 0x39)     /* type = RR    COMPARE (short HFP)  */                \
-  V(aer, AER, 0x3A)     /* type = RR    ADD NORMALIZED (short HFP)  */         \
-  V(ser, SER, 0x3B)     /* type = RR    SUBTRACT NORMALIZED (short HFP)  */    \
+  V(are, ARE, 0x3A)     /* type = RR    ADD NORMALIZED (short HFP)  */         \
+  V(set, SET, 0x3B)     /* type = RR    SUBTRACT NORMALIZED (short HFP)  */    \
   V(mder, MDER, 0x3C)   /* type = RR    MULTIPLY (short to long HFP)  */       \
   V(der, DER, 0x3D)     /* type = RR    DIVIDE (short HFP)  */                 \
   V(aur, AUR, 0x3E)     /* type = RR    ADD UNNORMALIZED (short HFP)  */       \
@@ -2043,7 +2043,7 @@ class Instruction {
     if (sizeof(T) <= 4) {
       return *reinterpret_cast<const T*>(instr);
     } else {
-      // We cannot read 8-byte instructon address directly, because for a
+      // We cannot read 8-byte instruction address directly, because for a
       // six-byte instruction, the extra 2-byte address might not be
       // allocated.
       uint64_t fourBytes = *reinterpret_cast<const uint32_t*>(instr);
@@ -2076,7 +2076,7 @@ class Instruction {
     // The instruction bits are stored in big endian format even on little
     // endian hosts, in order to decode instruction length and opcode.
     // The following code will reverse the bytes so that the stores later
-    // (which are in native endianess) will effectively save the instruction
+    // (which are in native endianness) will effectively save the instruction
     // in big endian.
     if (sizeof(T) == 2) {
       // Two Byte Instruction

@@ -11,7 +11,7 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-// List of supported intrisics, with upper case name, lower case name and
+// List of supported intrinsics, with upper case name, lower case name and
 // expected number of arguments (-1 denoting argument count is variable).
 #define INTRINSICS_LIST(V)                                             \
   V(AsyncFunctionAwait, async_function_await_caught, 2)                \

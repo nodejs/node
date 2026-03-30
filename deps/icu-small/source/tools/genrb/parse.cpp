@@ -1902,7 +1902,7 @@ parseInteger(ParseState* state, char *tag, uint32_t startline, const struct UStr
         warning(startline, "Encountered empty integer. Default value is 0.");
     }
 
-    /* Allow integer support for hexdecimal, octal digit and decimal*/
+    /* Allow integer support for hexadecimal, octal digit and decimal*/
     /* and handle illegal char in the integer*/
     value = uprv_strtoul(string, &stopstring, 0);
     int32_t len = static_cast<int32_t>(stopstring - string);
@@ -2365,7 +2365,7 @@ parse(UCHARBUF *buf, const char *inputDir, const char *outputDir, const char *fi
 
     state.bundle->setLocale(tokenValue->fChars, *status);
 
-    /* The following code is to make Empty bundle work no matter with :table specifer or not */
+    /* The following code is to make Empty bundle work no matter with :table specifier or not */
     token = getToken(&state, nullptr, nullptr, &line, status);
     if(token==TOK_COLON) {
         *status=U_ZERO_ERROR;

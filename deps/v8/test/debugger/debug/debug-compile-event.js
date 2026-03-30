@@ -31,7 +31,7 @@ var exceptionThrown = false;  // Exception in debug event listener.
 var after_compile_count = 0;
 var compile_error_count = 0;
 var current_source = '';  // Current source being compiled.
-var source_count = 0;  // Total number of scources compiled.
+var source_count = 0;  // Total number of sources compiled.
 var mute_listener = false;
 
 function compileSource(source) {

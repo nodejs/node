@@ -72,7 +72,7 @@ static uv_sem_t start_io_thread_semaphore;
 #endif  // __POSIX__
 static uv_async_t start_io_thread_async;
 // This is just an additional check to make sure start_io_thread_async
-// is not accidentally re-used or used when uninitialized.
+// is not accidentally reused or used when uninitialized.
 static std::atomic_bool start_io_thread_async_initialized { false };
 // Protects the Agent* stored in start_io_thread_async.data.
 static Mutex start_io_thread_async_mutex;

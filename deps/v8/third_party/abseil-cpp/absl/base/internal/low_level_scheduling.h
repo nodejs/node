@@ -24,7 +24,7 @@
 
 // The following two declarations exist so SchedulingGuard may friend them with
 // the appropriate language linkage.  These callbacks allow libc internals, such
-// as function level statics, to schedule cooperatively when locking.
+// as function level statistics, to schedule cooperatively when locking.
 extern "C" bool __google_disable_rescheduling(void);
 extern "C" void __google_enable_rescheduling(bool disable_result);
 

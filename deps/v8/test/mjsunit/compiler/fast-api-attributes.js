@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// This file excercises basic fast API calls and enables fuzzing of this
+// This file exercises basic fast API calls and enables fuzzing of this
 // functionality.
 
 // Flags: --turbo-fast-api-calls --expose-fast-api --allow-natives-syntax --turbofan

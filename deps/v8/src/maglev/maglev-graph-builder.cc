@@ -3196,7 +3196,7 @@ bool MaglevGraphBuilder::ContextMayAlias(
     ValueNode* context, compiler::OptionalScopeInfoRef scope_info) {
   // Distinguishing contexts by their scope info only works if scope infos are
   // guaranteed to be unique.
-  // TODO(crbug.com/401059828): reenable when crashes are gone.
+  // TODO(crbug.com/401059828): re-enable when crashes are gone.
   if ((true) || !v8_flags.reuse_scope_infos) return true;
   if (!scope_info.has_value()) {
     return true;
@@ -6981,7 +6981,7 @@ MaglevGraphBuilder::FindContinuationForPolymorphicPropertyLoadImpl() {
         // TODO(leszeks): We could probably make loop peeling work happen on the
         // JumpLoop rather than loop header, and then this continuation code
         // would work. Only for the first peeled iteration though, not for
-        // speeling.
+        // spelling.
         if (loop_headers_to_peel_.Contains(offset)) return true;
 
         // Loop peeling should be the only reason there was no merge point for a
@@ -12881,7 +12881,7 @@ MaglevGraphBuilder::InferHasInPrototypeChain(
         break;
       }
       map = map_prototype.map(broker());
-      // TODO(v8:11457) Support dictionary mode protoypes here.
+      // TODO(v8:11457) Support dictionary mode prototypes here.
       if (!map.is_stable() || map.is_dictionary_map()) {
         return kMayBeInPrototypeChain;
       }
@@ -13227,7 +13227,7 @@ ReduceResult MaglevGraphBuilder::VisitTestInstanceOf() {
 }
 
 ReduceResult MaglevGraphBuilder::VisitTestIn() {
-  // TestIn <src> <feedback_slot>
+  // testing <src> <feedback_slot>
   ValueNode* object = GetAccumulator();
   ValueNode* name = LoadRegister(0);
   FeedbackSlot slot = GetSlotOperand(1);

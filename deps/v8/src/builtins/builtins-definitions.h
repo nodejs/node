@@ -349,7 +349,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFC(NewHeapNumber, NewHeapNumber)                                            \
                                                                                \
   /* TurboFan support builtins */                                              \
-  TFS(CopyFastSmiOrObjectElements, NeedsContext::kNo, kObject)                 \
+  TFS(CopyFastSmiOrObjectElements, NeedsContext::know, kObject)                 \
   TFC(GrowFastDoubleElements, GrowArrayElements)                               \
   TFC(GrowFastSmiOrObjectElements, GrowArrayElements)                          \
                                                                                \
@@ -1609,7 +1609,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   CPP(TemporalPlainDatePrototypeToPlainMonthDay, kDontAdaptArgumentsSentinel)  \
   /* Temporal #sec-temporal.plaindate.prototype.add */                         \
   CPP(TemporalPlainDatePrototypeAdd, kDontAdaptArgumentsSentinel)              \
-  /* Temporal #sec-temporal.plaindate.prototype.substract */                   \
+  /* Temporal #sec-temporal.plaindate.prototype.subtract */                   \
   CPP(TemporalPlainDatePrototypeSubtract, kDontAdaptArgumentsSentinel)         \
   /* Temporal #sec-temporal.plaindate.prototype.with */                        \
   CPP(TemporalPlainDatePrototypeWith, kDontAdaptArgumentsSentinel)             \

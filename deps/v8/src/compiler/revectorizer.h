@@ -75,7 +75,7 @@ class PackNode final : public NON_EXPORTED_BASE(ZoneObject) {
   Node* revectorized_node_;
 };
 
-// An auxillary tree structure with a set of PackNodes based on the Superword
+// An auxiliary tree structure with a set of PackNodes based on the Superword
 // Level Parallelism (SLP) vectorization technique. The BuildTree method will
 // start from a selected root, e.g. a group of consecutive stores, and extend
 // through value inputs to create new PackNodes if the inputs are valid, or
@@ -159,7 +159,7 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
 // The Revectorizer pass will firstly collect seeds with valid group of
 // consecutive stores as the root to build the SLPTree. If the SLPTree is built
 // successfully, it will estimate the cost of the 256-bit transformation for
-// each PackNode and conduct the final revectorization if benefitial.
+// each PackNode and conduct the final revectorization if beneficial.
 class V8_EXPORT_PRIVATE Revectorizer final
     : public NON_EXPORTED_BASE(ZoneObject) {
  public:

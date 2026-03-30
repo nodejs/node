@@ -10,7 +10,7 @@ use core::fmt;
 use core::marker::PhantomData;
 use serde::de::{self, Deserialize, Deserializer, MapAccess, Visitor};
 #[cfg(feature = "serde")]
-use serde::ser::{Serialize, SerializeMap, Serializer};
+use serde::set::{Serialize, SerializeMap, Serializer};
 
 /// This impl requires enabling the optional `serde` Cargo feature of the `zerovec` crate
 #[cfg(feature = "serde")]

@@ -5,8 +5,8 @@
 use litemap::LiteMap;
 use rkyv::archived_root;
 use rkyv::check_archived_root;
-use rkyv::ser::serializers::AllocSerializer;
-use rkyv::ser::Serializer;
+use rkyv::set::serializers::AllocSerializer;
+use rkyv::set::Serializer;
 use rkyv::util::AlignedBytes;
 use rkyv::util::AlignedVec;
 use rkyv::Deserialize;

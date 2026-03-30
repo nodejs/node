@@ -4,7 +4,7 @@
 
 // A Disassembler object is used to disassemble a block of code instruction by
 // instruction. The default implementation of the NameConverter object can be
-// overriden to modify register names or to do symbol lookup on addresses.
+// overridden to modify register names or to do symbol lookup on addresses.
 //
 // The example below will disassemble a block of code and print it to stdout.
 //

@@ -613,15 +613,15 @@ TZGNCore::formatGenericNonLocationName(const TimeZone& tz, UTimeZoneGenericNameT
     if (!mzID.isEmpty()) {
         UErrorCode status = U_ZERO_ERROR;
         UBool useStandard = false;
-        int32_t raw, sav;
+        int32_t raw, save;
         char16_t tmpNameBuf[ZONE_NAME_U16_MAX];
 
-        tz.getOffset(date, false, raw, sav, status);
+        tz.getOffset(date, false, raw, save, status);
         if (U_FAILURE(status)) {
             return name;
         }
 
-        if (sav == 0) {
+        if (save == 0) {
             useStandard = true;
 
             TimeZone *tmptz = tz.clone();
@@ -653,12 +653,12 @@ TZGNCore::formatGenericNonLocationName(const TimeZone& tz, UTimeZoneGenericNameT
             } else {
                 // If not BasicTimeZone... only if the instance is not an ICU's implementation.
                 // We may get a wrong answer in edge case, but it should practically work OK.
-                tmptz->getOffset(date - kDstCheckRange, false, raw, sav, status);
-                if (sav != 0) {
+                tmptz->getOffset(date - kDstCheckRange, false, raw, save, status);
+                if (save != 0) {
                     useStandard = false;
                 } else {
-                    tmptz->getOffset(date + kDstCheckRange, false, raw, sav, status);
-                    if (sav != 0){
+                    tmptz->getOffset(date + kDstCheckRange, false, raw, save, status);
+                    if (save != 0){
                         useStandard = false;
                     }
                 }
@@ -709,10 +709,10 @@ TZGNCore::formatGenericNonLocationName(const TimeZone& tz, UTimeZoneGenericNameT
                     // With getOffset(date, false, offsets1),
                     // you may get incorrect results because of time overlap at DST->STD
                     // transition.
-                    goldenZone->getOffset(date + raw + sav, true, raw1, sav1, status);
+                    goldenZone->getOffset(date + raw + save, true, raw1, sav1, status);
                     delete goldenZone;
                     if (U_SUCCESS(status)) {
-                        if (raw != raw1 || sav != sav1) {
+                        if (raw != raw1 || save != sav1) {
                             // Now we need to use a partial location format
                             getPartialLocationName(tzID, mzID, (nameType == UTZNM_LONG_GENERIC), mzName, name);
                         } else {

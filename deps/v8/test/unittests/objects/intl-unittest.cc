@@ -386,23 +386,23 @@ TEST_F(IntlTest, IntlMathematicalValueFromString) {
       {false, false, false, false, false, true, "  0b01010001 "},
       {false, false, false, false, false, true, "  0B01010001 "},
       {true, false, false, false, false, false,
-       "  -0b01010001 "},  // invalid binary becaues of -
+       "  -0b01010001 "},  // invalid binary because of -
       {true, false, false, false, false, false,
-       "  -0B01010001 "},  // invalid binary becaues of -
+       "  -0B01010001 "},  // invalid binary because of -
       {true, false, false, false, false, false,
-       "  0b01010002 "},  // invalid binary becaues of 2
+       "  0b01010002 "},  // invalid binary because of 2
       {true, false, false, false, false, false,
-       "  0B01010003 "},  // invalid binary becaues of 3
+       "  0B01010003 "},  // invalid binary because of 3
       {false, false, false, false, false, true, "  0o01234567 "},
       {false, false, false, false, false, true, "  0O76543210 "},
       {true, false, false, false, false, false,
-       "  -0o01234567 "},  // invalid oct becaues of -
+       "  -0o01234567 "},  // invalid oct because of -
       {true, false, false, false, false, false,
-       "  -0O76543210 "},  // invalid oct becaues of -
+       "  -0O76543210 "},  // invalid oct because of -
       {true, false, false, false, false, false,
-       "  0o012345678 "},  // invalid oct becaues of 8
+       "  0o012345678 "},  // invalid oct because of 8
       {true, false, false, false, false, false,
-       "  0O765432108 "},  // invalid oct becaues of 8
+       "  0O765432108 "},  // invalid oct because of 8
       {false, false, false, false, false, true, "  0x123456789aBcDeF "},
       {false, false, false, false, false, true, "  0X123456789AbCdEf "},
       {true, false, false, false, false, false,

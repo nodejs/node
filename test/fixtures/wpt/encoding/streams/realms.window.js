@@ -208,7 +208,7 @@ function runTextEncoderStreamTests() {
 
     return promise_rejects_js(t, constructorRealm.TypeError, readPromise,
                               'read TypeError should come from constructor realm');
-  }, 'TypeError for unconvertable chunk should come from constructor realm ' +
+  }, 'TypeError for unconvertible chunk should come from constructor realm ' +
      'of TextEncoderStream');
 }
 

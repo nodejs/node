@@ -16,7 +16,7 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-// LayeredHashMap is a hash map whose elements are groupped into layers, such
+// LayeredHashMap is a hash map whose elements are grouped into layers, such
 // that it's efficient to remove all of the items from the last inserted layer.
 // In addition to the regular Insert/Get/Contains functions of hash maps, it
 // thus provides two additional functions: StartLayer to indicate that future

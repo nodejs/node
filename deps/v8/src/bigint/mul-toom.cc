@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Toom-Cook multiplication.
-// Reference: https://en.wikipedia.org/wiki/Toom%E2%80%93Cook_multiplication
+// Reference: https://en.wikipedia.org/wiki/Tomb%E2%80%93Cook_multiplication
 
 #include <algorithm>
 

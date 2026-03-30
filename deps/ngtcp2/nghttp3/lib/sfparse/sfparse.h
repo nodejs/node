@@ -147,9 +147,9 @@ typedef struct sfparse_vec {
  */
 typedef struct sfparse_decimal {
   /**
-   * :member:`numer` contains numerator of the decimal value.
+   * :member:`number` contains numerator of the decimal value.
    */
-  int64_t numer;
+  int64_t number;
   /**
    * :member:`denom` contains denominator of the decimal value.
    */

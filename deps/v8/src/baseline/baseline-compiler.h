@@ -171,10 +171,10 @@ class BaselineCompiler {
 
   // Mark location as a jump target reachable via indirect branches, required
   // for CFI.
-  enum class MarkAsIndirectJumpTarget { kNo, kYes };
+  enum class MarkAsIndirectJumpTarget { know, kYes };
 
   Label* EnsureLabel(int offset, MarkAsIndirectJumpTarget mark =
-                                     MarkAsIndirectJumpTarget::kNo) {
+                                     MarkAsIndirectJumpTarget::know) {
     Label* label = &labels_[offset];
     if (!label_tags_.Contains(offset * 2)) {
       label_tags_.Add(offset * 2);

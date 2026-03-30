@@ -2510,7 +2510,7 @@ static const char* pre_profiling_osr_script = R"(
       %PrepareFunctionForOptimization(hot);
       for (let pass = 0; pass <= optDuration + deoptDuration; pass++) {
         const startTime = Date.now();
-        // Let a few passes go by to ensure we have enough feeback info
+        // Let a few passes go by to ensure we have enough feedback info
         if (pass == 3) %OptimizeOsr();
         // Force deoptimization. %DeoptimizeNow and %DeoptimizeFunction don't
         // doptimize OSRs.
@@ -3310,7 +3310,7 @@ TEST(NativeFrameStackTrace) {
     double valid_samples_ratio =
         1. * js_function_samples / (js_function_samples + program_samples);
     i::PrintF("Ratio: %f\n", valid_samples_ratio);
-    // TODO(alph): Investigate other causes of dropped frames. The ratio
+    // TODO(alpha): Investigate other causes of dropped frames. The ratio
     // should be close to 99%.
     CHECK_GE(valid_samples_ratio, 0.3);
   }
@@ -4503,7 +4503,7 @@ struct FastApiReceiver {
 
     // Artificially slow down the callback with a predictable amount of time.
     // This ensures the test has a relatively stable run time on various
-    // platforms and protects it from flakyness.
+    // platforms and protects it from flakiness.
     v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(100));
   }
 
@@ -4595,7 +4595,7 @@ TEST(NoProfilingProtectorCPUProfiler) {
         CHECK(i::ValidateCallbackInfo(info));
         // Artificially slow down the callback with a predictable amount of
         // time. This ensures the test has a relatively stable run time on
-        // various platforms and protects it from flakyness.
+        // various platforms and protects it from flakiness.
         v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(100));
       },
       v8::Local<v8::Value>(), v8::Local<v8::Signature>(), 1,

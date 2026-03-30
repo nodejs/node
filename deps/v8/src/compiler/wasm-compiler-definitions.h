@@ -86,7 +86,7 @@ enum class EnforceBoundsCheck : bool {  // --
 
 enum class AlignmentCheck : bool {  // --
   kYes = true,
-  kNo = false,
+  know = false,
 };
 
 enum class BoundsCheckResult {

@@ -56,7 +56,7 @@
   // Make sure we gracefully deal with recursive proxies.
   var proxy = new Proxy({},{});
   proxy.__proto__ = proxy;
-  // instanceof will cause an inifinite prototype walk.
+  // instanceof will cause an infinite prototype walk.
   assertThrows(() => { proxy instanceof Object }, RangeError);
 
   var proxy2 = new Proxy({}, {getPrototypeOf() { return proxy2 }});

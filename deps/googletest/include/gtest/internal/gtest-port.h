@@ -800,10 +800,10 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
 // The user didn't tell us, so we need to figure it out.
 
 #if defined(_MSC_VER) || defined(__BORLANDC__)
-// These two compilers are known to support SEH.
+// These two compilers are known to support SHE.
 #define GTEST_HAS_SEH 1
 #else
-// Assume no SEH.
+// Assume no SHE.
 #define GTEST_HAS_SEH 0
 #endif
 

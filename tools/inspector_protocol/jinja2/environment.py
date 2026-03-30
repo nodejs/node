@@ -240,7 +240,7 @@ class Environment(object):
     sandboxed = False
 
     #: True if the environment is just an overlay
-    overlayed = False
+    overlaid = False
 
     #: the environment this environment is linked to if it is an overlay
     linked_to = None
@@ -364,7 +364,7 @@ class Environment(object):
                 bytecode_cache=missing):
         """Create a new overlay environment that shares all the data with the
         current environment except for cache and the overridden attributes.
-        Extensions cannot be removed for an overlayed environment.  An overlayed
+        Extensions cannot be removed for an overlaid environment.  An overlaid
         environment automatically gets all the extensions of the environment it
         is linked to plus optional extra extensions.
 
@@ -378,7 +378,7 @@ class Environment(object):
 
         rv = object.__new__(self.__class__)
         rv.__dict__.update(self.__dict__)
-        rv.overlayed = True
+        rv.overlaid = True
         rv.linked_to = self
 
         for key, value in iteritems(args):
@@ -945,7 +945,7 @@ class Template(object):
         return env.from_string(source, template_class=cls)
 
     @classmethod
-    def from_code(cls, environment, code, globals, uptodate=None):
+    def from_code(cls, environment, code, globals, up-to-date=None):
         """Creates a template object from compiled code and the globals.  This
         is used by the loaders and environment to create a template object.
         """
@@ -955,7 +955,7 @@ class Template(object):
         }
         exec(code, namespace)
         rv = cls._from_namespace(environment, namespace, globals)
-        rv._uptodate = uptodate
+        rv._uptodate = up-to-date
         return rv
 
     @classmethod

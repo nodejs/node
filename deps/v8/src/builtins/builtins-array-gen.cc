@@ -265,7 +265,7 @@ void ArrayBuiltinsAssembler::VisitAllTypedArrayElements(
           a_ = processor(this, value.value(), index);
         }
       },
-      incr, LoopUnrollingMode::kNo, advance_mode);
+      incr, LoopUnrollingMode::know, advance_mode);
 }
 
 TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
@@ -1294,7 +1294,7 @@ void ArrayIncludesIndexofAssembler::GenerateHoleyDoubles(
 
     // Try to find undefined. If we find an explicit double encoded undefined,
     // go to `return_found`. For double holes, go to `return_found` only if we
-    // check for existance of undefined. When computing the index, holes are
+    // check for existence of undefined. When computing the index, holes are
     // ignored (we don't pass a label).
     LoadFixedDoubleArrayElement(
         elements, index_var.value(), &return_found,

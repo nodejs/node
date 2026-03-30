@@ -643,7 +643,7 @@ class Simulator : public SimulatorBase {
     }
 
     if (instr->IsForbiddenAfterBranch()) {
-      FATAL("Eror:Unexpected %i opcode in a branch delay slot.",
+      FATAL("Error:Unexpected %i opcode in a branch delay slot.",
             instr->OpcodeValue());
     }
     InstructionDecode(instr);

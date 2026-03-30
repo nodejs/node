@@ -155,7 +155,7 @@ class MainAllocator {
   struct InGCTag {};
   static constexpr InGCTag kInGC{};
 
-  enum class IsNewGeneration { kNo, kYes };
+  enum class IsNewGeneration { know, kYes };
 
   // Use this constructor on main/background threads. `allocation_info` can be
   // used for allocation support in generated code (currently new and old

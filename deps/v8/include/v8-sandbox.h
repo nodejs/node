@@ -83,7 +83,7 @@ struct CppHeapPointerTagRange {
   bool CheckTagOf(uint64_t entry) {
     // Note: the cast to uint32_t is important here. Otherwise, the uint16_t's
     // would be promoted to int in the range check below, which would result in
-    // undefined behavior (signed integer undeflow) if the actual value is less
+    // undefined behavior (signed integer underflow) if the actual value is less
     // than the lower bound. Then, the compiler would take advantage of the
     // undefined behavior and turn the range check into a simple
     // `actual_tag <= last_tag` comparison, which is incorrect.

@@ -36,7 +36,7 @@ class LIEF_API Variable {
   Variable(std::unique_ptr<details::Variable> impl);
 
   /// Set the global address of this variable. Setting this address is only
-  /// revelant in the case of a static global variable. For stack variable, you
+  /// relevant in the case of a static global variable. For stack variable, you
   /// should use set_stack_offset.
   ///
   /// This function set the `DW_AT_location` attribute

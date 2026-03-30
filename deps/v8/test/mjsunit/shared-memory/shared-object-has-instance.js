@@ -78,15 +78,15 @@ function BuildPrototypeChain(base_obj) {
 })();
 
 (function TestAtomicsConditionHasInstance() {
-  let conditon = new Atomics.Condition();
+  let condition = new Atomics.Condition();
   // Returns true for the original constructor.
-  assertTrue(conditon instanceof Atomics.Condition);
+  assertTrue(condition instanceof Atomics.Condition);
   // Returns false for a different object.
   assertFalse(other_obj instanceof Atomics.Condition);
   // Returns false for a different constructor.
-  assertFalse(conditon instanceof OtherConstructor);
+  assertFalse(condition instanceof OtherConstructor);
   // Returns true if the condition is in the prototype chain.
-  assertTrue(BuildPrototypeChain(conditon) instanceof Atomics.Condition);
+  assertTrue(BuildPrototypeChain(condition) instanceof Atomics.Condition);
 })();
 
 (function TestCallStaticHasInstance() {

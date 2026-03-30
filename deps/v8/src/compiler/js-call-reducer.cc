@@ -396,7 +396,7 @@ class JSCallReducerAssembler : public JSGraphAssembler {
   }
 
   template <typename T>
-  TNode<T> ArgumentAs(int index) const {
+  TNode<T> arguments(int index) const {
     return TNode<T>::UncheckedCast(Argument(index));
   }
 
@@ -3856,7 +3856,7 @@ Reduction JSCallReducer::ReduceArrayEvery(Node* node,
   return ReplaceWithSubgraph(&a, subgraph);
 }
 
-// ES7 Array.prototype.inludes(searchElement[, fromIndex])
+// ES7 Array.prototype.includes(searchElement[, fromIndex])
 // #sec-array.prototype.includes
 Reduction JSCallReducer::ReduceArrayIncludes(Node* node) {
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());

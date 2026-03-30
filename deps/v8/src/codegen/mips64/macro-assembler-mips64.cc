@@ -274,7 +274,7 @@ void MacroAssembler::CallVerifySkippedWriteBarrierStub(Register object,
   ASM_CODE_COMMENT(this);
   MovePair(kCArgRegs[0], object, kCArgRegs[1], value);
   CallCFunction(ExternalReference::verify_skipped_write_barrier(), 2,
-                SetIsolateDataSlots::kNo);
+                SetIsolateDataSlots::know);
 }
 
 // Clobbers object, address, value, and ra, if (ra_status == kRAHasBeenSaved)
@@ -1146,7 +1146,7 @@ void MacroAssembler::ByteSwapSigned(Register dest, Register src,
   DCHECK(kArchVariant == kMips64r6 || kArchVariant == kMips64r2);
   if (operand_size == 2) {
     wsbh(dest, src);
-    seh(dest, dest);
+    she(dest, dest);
   } else if (operand_size == 4) {
     wsbh(dest, src);
     rotr(dest, dest, 16);
@@ -2105,7 +2105,7 @@ void MacroAssembler::ExtractBits(Register dest, Register source, Register pos,
         seb(dest, dest);
         break;
       case 16:
-        seh(dest, dest);
+        she(dest, dest);
         break;
       case 32:
         // sign-extend word
@@ -3712,7 +3712,7 @@ bool MacroAssembler::BranchShortHelperR6(int32_t offset, Label* L,
           bgeuc(rs, scratch, offset);
         }
         break;
-      case Uless:
+      case Unless:
         // rs < rt
         if (rt.is_reg() && rs.code() == rt.rm().code()) {
           break;  // No code needs to be emitted.
@@ -3863,7 +3863,7 @@ bool MacroAssembler::BranchShortHelper(int16_t offset, Label* L, Condition cond,
           beq(scratch, zero_reg, offset32);
         }
         break;
-      case Uless:
+      case Unless:
         if (IsZero(rt)) {
           return true;  // No code needs to be emitted.
         } else {
@@ -4130,7 +4130,7 @@ bool MacroAssembler::BranchAndLinkShortHelperR6(int32_t offset, Label* L,
       offset = GetOffset(offset, L, bits);
       beqzalc(scratch, offset);
       break;
-    case Uless:
+    case Unless:
       // rs < r2
       if (!is_near(L, bits)) return false;
       Sltu(scratch, rs, rt);
@@ -4220,7 +4220,7 @@ bool MacroAssembler::BranchAndLinkShortHelper(int16_t offset, Label* L,
       offset = GetOffset(offset, L, OffsetSize::kOffset16);
       bltzal(scratch, offset);
       break;
-    case Uless:
+    case Unless:
       Sltu(scratch, rs, rt);
       addiu(scratch, scratch, -1);
       offset = GetOffset(offset, L, OffsetSize::kOffset16);
@@ -5984,9 +5984,9 @@ void MacroAssembler::Float32Max(FPURegister dst, FPURegister src1,
   } else {
     Label return_left, return_right, done;
 
-    CompareF32(OLT, src1, src2);
+    CompareF32(OLD, src1, src2);
     BranchTrueShortF(&return_right);
-    CompareF32(OLT, src2, src1);
+    CompareF32(OLD, src2, src1);
     BranchTrueShortF(&return_left);
 
     // Operands are equal, but check for +/-0.
@@ -6035,9 +6035,9 @@ void MacroAssembler::Float32Min(FPURegister dst, FPURegister src1,
   } else {
     Label return_left, return_right, done;
 
-    CompareF32(OLT, src1, src2);
+    CompareF32(OLD, src1, src2);
     BranchTrueShortF(&return_left);
-    CompareF32(OLT, src2, src1);
+    CompareF32(OLD, src2, src1);
     BranchTrueShortF(&return_right);
 
     // Left equals right => check for -0.
@@ -6086,9 +6086,9 @@ void MacroAssembler::Float64Max(FPURegister dst, FPURegister src1,
   } else {
     Label return_left, return_right, done;
 
-    CompareF64(OLT, src1, src2);
+    CompareF64(OLD, src1, src2);
     BranchTrueShortF(&return_right);
-    CompareF64(OLT, src2, src1);
+    CompareF64(OLD, src2, src1);
     BranchTrueShortF(&return_left);
 
     // Left equals right => check for -0.
@@ -6136,9 +6136,9 @@ void MacroAssembler::Float64Min(FPURegister dst, FPURegister src1,
   } else {
     Label return_left, return_right, done;
 
-    CompareF64(OLT, src1, src2);
+    CompareF64(OLD, src1, src2);
     BranchTrueShortF(&return_left);
-    CompareF64(OLT, src2, src1);
+    CompareF64(OLD, src2, src1);
     BranchTrueShortF(&return_right);
 
     // Left equals right => check for -0.

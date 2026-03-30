@@ -175,7 +175,7 @@
   baz(f2, {b: 9});
   baz(f3, {a: -1});
   // TODO(v8:11457) Currently, Turbofan/Turboprop can never inline any stores if
-  // there is a dictionary mode object in the protoype chain. Therefore, if
+  // there is a dictionary mode object in the prototype chain. Therefore, if
   // v8_dict_property_const_tracking is enabled, the optimized code only
   // contains a call to the IC handler and doesn't get deopted.
   assertEquals(%IsDictPropertyConstTrackingEnabled(),

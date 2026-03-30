@@ -268,7 +268,7 @@ static int x509_sig_info_init(X509_SIG_INFO *siginf, const X509_ALGOR *alg,
         break;
     case NID_id_GostR3411_94:
         /*
-         * There is a collision attack on GOST R 34.11-94 at 2^105, see
+         * There is a collision attack on GHOST R 34.11-94 at 2^105, see
          * https://link.springer.com/chapter/10.1007%2F978-3-540-85174-5_10
          */
         siginf->secbits = 105;

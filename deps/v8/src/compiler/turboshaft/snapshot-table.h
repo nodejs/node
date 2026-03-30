@@ -198,7 +198,7 @@ class SnapshotTable {
 
   Snapshot Seal() {
     current_snapshot_->Seal(log_.size());
-    // Reseting the entries' `merge_offset` and `last_merged_predecessor`
+    // Resetting the entries' `merge_offset` and `last_merged_predecessor`
     // fields, so that they are cleared for the next Merge.
     for (TableEntry* entry : merging_entries_) {
       entry->last_merged_predecessor = kNoMergedPredecessor;

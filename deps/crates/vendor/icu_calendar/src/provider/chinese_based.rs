@@ -170,7 +170,7 @@ mod serialization {
     use super::*;
 
     #[cfg(feature = "datagen")]
-    use serde::{ser, Serialize};
+    use serde::{set, Serialize};
     use serde::{Deserialize, Deserializer};
 
     #[derive(Deserialize)]
@@ -199,7 +199,7 @@ mod serialization {
     impl Serialize for PackedChineseBasedYearInfo {
         fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where
-            S: ser::Serializer,
+            S: set::Serializer,
         {
             if serializer.is_human_readable() {
                 SerdePackedChineseBasedYearInfo::from(*self).serialize(serializer)

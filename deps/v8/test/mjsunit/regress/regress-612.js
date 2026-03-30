@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Tests intercation between __defineGetter__/__defineSetter and fast and slow
+// Tests interaction between __defineGetter__/__defineSetter and fast and slow
 // mode of the objects due to series of assignments optimization.
 // (See http://code.google.com/p/v8/issues/detail?id=612)
 

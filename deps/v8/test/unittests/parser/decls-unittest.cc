@@ -190,7 +190,7 @@ v8::Intercepted DeclarationContext::HandleGet(
     info.GetReturnValue().SetNonEmpty(result);
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted DeclarationContext::HandleSet(
@@ -206,7 +206,7 @@ v8::Intercepted DeclarationContext::HandleSet(
     }
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted DeclarationContext::HandleQuery(
@@ -218,7 +218,7 @@ v8::Intercepted DeclarationContext::HandleQuery(
     info.GetReturnValue().SetNonEmpty(result);
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 DeclarationContext* DeclarationContext::GetInstance(Local<Value> data) {

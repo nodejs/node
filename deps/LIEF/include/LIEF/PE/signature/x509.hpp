@@ -138,10 +138,10 @@ class LIEF_API x509 : public Object {
   /// End time of certificate validity
   date_t valid_to() const;
 
-  /// Issuer informations
+  /// Issuer information
   std::string issuer() const;
 
-  /// Subject informations
+  /// Subject information
   std::string subject() const;
 
   /// Try to decrypt the given signature and check if it matches the given hash according to

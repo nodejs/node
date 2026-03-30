@@ -178,7 +178,7 @@ static int add_bytes(PROV_DRBG *drbg, unsigned char *dst,
 
 /* V = (V + Hash(inbyte || V  || [additional_input]) mod (2^seedlen) */
 static int add_hash_to_v(PROV_DRBG *drbg, unsigned char inbyte,
-    const unsigned char *adin, size_t adinlen)
+    const unsigned char *admin, size_t adinlen)
 {
     PROV_DRBG_HASH *hash = (PROV_DRBG_HASH *)drbg->data;
     EVP_MD_CTX *ctx = hash->ctx;
@@ -186,7 +186,7 @@ static int add_hash_to_v(PROV_DRBG *drbg, unsigned char inbyte,
     return EVP_DigestInit_ex(ctx, ossl_prov_digest_md(&hash->digest), NULL)
         && EVP_DigestUpdate(ctx, &inbyte, 1)
         && EVP_DigestUpdate(ctx, hash->V, drbg->seedlen)
-        && (adin == NULL || EVP_DigestUpdate(ctx, adin, adinlen))
+        && (admin == NULL || EVP_DigestUpdate(ctx, admin, adinlen))
         && EVP_DigestFinal(ctx, hash->vtmp, NULL)
         && add_bytes(drbg, hash->V, hash->vtmp, hash->blocklen);
 }
@@ -301,14 +301,14 @@ err:
  */
 static int drbg_hash_reseed(PROV_DRBG *drbg,
     const unsigned char *ent, size_t ent_len,
-    const unsigned char *adin, size_t adin_len)
+    const unsigned char *admin, size_t adin_len)
 {
     PROV_DRBG_HASH *hash = (PROV_DRBG_HASH *)drbg->data;
 
     /* (Step 1-2) V = Hash_df(0x01 || V || entropy_input || additional_input) */
     /* V about to be updated so use C as output instead */
     if (!hash_df(drbg, hash->C, 0x01, hash->V, drbg->seedlen, ent, ent_len,
-            adin, adin_len))
+            admin, adin_len))
         return 0;
     memcpy(hash->V, hash->C, drbg->seedlen);
     /* (Step 4) C = Hash_df(0x00||V, seedlen) */
@@ -317,12 +317,12 @@ static int drbg_hash_reseed(PROV_DRBG *drbg,
 
 static int drbg_hash_reseed_wrapper(void *vdrbg, int prediction_resistance,
     const unsigned char *ent, size_t ent_len,
-    const unsigned char *adin, size_t adin_len)
+    const unsigned char *admin, size_t adin_len)
 {
     PROV_DRBG *drbg = (PROV_DRBG *)vdrbg;
 
     return ossl_prov_drbg_reseed(drbg, prediction_resistance, ent, ent_len,
-        adin, adin_len);
+        admin, adin_len);
 }
 
 /*
@@ -336,7 +336,7 @@ static int drbg_hash_reseed_wrapper(void *vdrbg, int prediction_resistance,
  */
 static int drbg_hash_generate(PROV_DRBG *drbg,
     unsigned char *out, size_t outlen,
-    const unsigned char *adin, size_t adin_len)
+    const unsigned char *admin, size_t adin_len)
 {
     PROV_DRBG_HASH *hash = (PROV_DRBG_HASH *)drbg->data;
     unsigned char counter[4];
@@ -348,10 +348,10 @@ static int drbg_hash_generate(PROV_DRBG *drbg,
     counter[3] = (unsigned char)(reseed_counter & 0xff);
 
     return hash->ctx != NULL
-        && (adin == NULL
-            /* (Step 2) if adin != NULL then V = V + Hash(0x02||V||adin) */
+        && (admin == NULL
+            /* (Step 2) if admin != NULL then V = V + Hash(0x02||V||admin) */
             || adin_len == 0
-            || add_hash_to_v(drbg, 0x02, adin, adin_len))
+            || add_hash_to_v(drbg, 0x02, admin, adin_len))
         /* (Step 3) Hashgen(outlen, V) */
         && hash_gen(drbg, out, outlen)
         /* (Step 4/5) H = V = (V + Hash(0x03||V) mod (2^seedlen_bits) */
@@ -364,12 +364,12 @@ static int drbg_hash_generate(PROV_DRBG *drbg,
 }
 
 static int drbg_hash_generate_wrapper(void *vdrbg, unsigned char *out, size_t outlen, unsigned int strength,
-    int prediction_resistance, const unsigned char *adin, size_t adin_len)
+    int prediction_resistance, const unsigned char *admin, size_t adin_len)
 {
     PROV_DRBG *drbg = (PROV_DRBG *)vdrbg;
 
     return ossl_prov_drbg_generate(drbg, out, outlen, strength,
-        prediction_resistance, adin, adin_len);
+        prediction_resistance, admin, adin_len);
 }
 
 static int drbg_hash_uninstantiate(PROV_DRBG *drbg)

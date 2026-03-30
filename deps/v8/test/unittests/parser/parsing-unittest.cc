@@ -226,7 +226,7 @@ class ParsingTest : public TestWithContextAndZone {
     i::ReusableUnoptimizedCompileState reusable_state(isolate);
     i::UnoptimizedCompileFlags compile_flags =
         i::UnoptimizedCompileFlags::ForToplevelCompile(
-            isolate, true, LanguageMode::kSloppy, REPLMode::kNo,
+            isolate, true, LanguageMode::kSloppy, REPLMode::know,
             ScriptType::kClassic, v8_flags.lazy);
     SetParserFlags(&compile_flags, flags);
     compile_flags.set_is_module(is_module);
@@ -1317,7 +1317,7 @@ TEST_F(ParsingTest, RegExpScanning) {
   TestScanRegExp("/[\\u1]/flipperwald", "[\\u1]");
   TestScanRegExp("/[\\u12]/flipperwald", "[\\u12]");
   TestScanRegExp("/[\\u123]/flipperwald", "[\\u123]");
-  // Escaped ']'s wont end the character class.
+  // Escaped ']'s won't end the character class.
   TestScanRegExp("/[\\]/]/flipperwald", "[\\]/]");
   // Escaped slashes are not terminating.
   TestScanRegExp("/\\//flipperwald", "\\/");
@@ -3108,7 +3108,7 @@ TEST_F(ParsingTest, InvalidLeftHandSide) {
   const char* postfix_context_data[][2] = {
       {"", "++;"}, {"\"use strict\"; ", "++;"}, {nullptr, nullptr}};
 
-  // Good left hand sides for assigment or prefix / postfix operations.
+  // Good left hand sides for assignment or prefix / postfix operations.
   const char* good_statement_data[] = {"foo",
                                        "foo.bar",
                                        "foo[bar]",
@@ -3128,7 +3128,7 @@ TEST_F(ParsingTest, InvalidLeftHandSide) {
                                        "this.foo[foo].bar(this)(bar)[foo]()",
                                        nullptr};
 
-  // Bad left hand sides for assigment or prefix / postfix operations.
+  // Bad left hand sides for assignment or prefix / postfix operations.
   const char* bad_statement_data_common[] = {
       "2",
       "new foo",
@@ -6163,7 +6163,7 @@ TEST_F(ParsingTest, PrivateMembersNestedNoErrors) {
   RunParserSyncTest(context_data, class_body_data, kSuccess);
 }
 
-// Test that acessing undeclared private members result in early errors
+// Test that accessing undeclared private members result in early errors
 TEST_F(ParsingTest, PrivateMembersEarlyErrors) {
   // clang-format off
   const char* context_data[][2] = {{"(class {", "});"},
@@ -6183,7 +6183,7 @@ TEST_F(ParsingTest, PrivateMembersEarlyErrors) {
   RunParserSyncTest(context_data, class_body_data, kError);
 }
 
-// Test that acessing wrong kind private members do not error early.
+// Test that accessing wrong kind private members do not error early.
 // Instead these should be runtime errors.
 TEST_F(ParsingTest, PrivateMembersWrongAccessNoEarlyErrors) {
   // clang-format off
@@ -8521,7 +8521,7 @@ TEST_F(ParsingTest, ModuleParsingInternals) {
       "export var foo;"
       "export function goo() {};"
       "export let hoo;"
-      "export const joo = 42;"
+      "export const you = 42;"
       "export default (function koo() {});"
       "import 'q.js';"
       "let nonexport = 42;"
@@ -8588,7 +8588,7 @@ TEST_F(ParsingTest, ModuleParsingInternals) {
   CHECK(declarations->AtForTest(5)->var()->location() ==
         i::VariableLocation::MODULE);
 
-  CHECK(declarations->AtForTest(6)->var()->raw_name()->IsOneByteEqualTo("joo"));
+  CHECK(declarations->AtForTest(6)->var()->raw_name()->IsOneByteEqualTo("you"));
   CHECK(declarations->AtForTest(6)->var()->mode() == i::VariableMode::kConst);
   CHECK(declarations->AtForTest(6)->var()->binding_needs_init());
   CHECK(declarations->AtForTest(6)->var()->location() ==
@@ -8680,7 +8680,7 @@ TEST_F(ParsingTest, ModuleParsingInternals) {
   entry = descriptor->regular_exports()
               .find(declarations->AtForTest(6)->var()->raw_name())
               ->second;
-  CheckEntry(entry, "joo", "joo", nullptr, -1);
+  CheckEntry(entry, "you", "you", nullptr, -1);
   entry = descriptor->regular_exports()
               .find(declarations->AtForTest(7)->var()->raw_name())
               ->second;
@@ -12424,7 +12424,7 @@ TEST_F(ParsingTest, EscapedStrictReservedWord) {
                                   "(async function l\\u0065t() { })",
                                   "l\\u0065t => 42",
                                   "async l\\u0065t => 42",
-                                  "function packag\\u0065() {}",
+                                  "function package\\u0065() {}",
                                   "function impl\\u0065ments() {}",
                                   "function privat\\u0065() {}",
                                   nullptr};

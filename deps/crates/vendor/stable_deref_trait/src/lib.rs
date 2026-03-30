@@ -28,7 +28,7 @@ use core::ops::Deref;
 /**
 An unsafe marker trait for types that deref to a stable address, even when moved. For example, this is implemented by Box, Vec, Rc, Arc and String, among others. Even when a Box is moved, the underlying storage remains at a fixed location.
 
-More specifically, implementors must ensure that the result of calling deref() is valid for the lifetime of the object, not just the lifetime of the borrow, and that the deref is valid even if the object is moved. Also, it must be valid even after invoking arbitrary &self methods or doing anything transitively accessible from &Self. If Self also implements DerefMut, the same restrictions apply to deref_mut() and it must remain valid if anything transitively accessible from the result of deref_mut() is mutated/called. Additionally, multiple calls to deref, (and deref_mut if implemented) must return the same address. No requirements are placed on &mut self methods other than deref_mut() and drop(), if applicable.
+More specifically, implementers must ensure that the result of calling deref() is valid for the lifetime of the object, not just the lifetime of the borrow, and that the deref is valid even if the object is moved. Also, it must be valid even after invoking arbitrary &self methods or doing anything transitively accessible from &Self. If Self also implements DerefMut, the same restrictions apply to deref_mut() and it must remain valid if anything transitively accessible from the result of deref_mut() is mutated/called. Additionally, multiple calls to deref, (and deref_mut if implemented) must return the same address. No requirements are placed on &mut self methods other than deref_mut() and drop(), if applicable.
 
 Basically, it must be valid to convert the result of deref() to a pointer, and later dereference that pointer, as long as the original object is still live, even if it has been moved or &self methods have been called on it. If DerefMut is also implemented, it must be valid to get pointers from deref() and deref_mut() and dereference them while the object is live, as long as you don't simultaneously dereference both of them.
 
@@ -85,7 +85,7 @@ impl Deref for Foo {
     fn deref(&self) -> &Self::Target { &"Hello" }
 }
 ```
-Foo can safely implement StableDeref. It doesn't own the data being derefed, but the data is gaurenteed to live long enough, due to it being 'static.
+Foo can safely implement StableDeref. It doesn't own the data being derefed, but the data is guaranteed to live long enough, due to it being 'static.
 
 ```
 # use std::ops::Deref;

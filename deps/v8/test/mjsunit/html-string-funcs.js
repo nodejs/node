@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Spidermonkey and IE has some string functions useable for building
+// Spidermonkey and IE has some string functions usable for building
 // HTML.
 function CheckSimple(f, tag) {
   assertEquals('<' + tag + '>foo</' + tag + '>',

@@ -420,7 +420,7 @@ static int32_t qpack_lookup_token(const uint8_t *name, size_t namelen) {
       }
       break;
     case 't':
-      if (memeq("accep", name, 5)) {
+      if (memeq("accept", name, 5)) {
         return NGHTTP3_QPACK_TOKEN_ACCEPT;
       }
       break;
@@ -439,7 +439,7 @@ static int32_t qpack_lookup_token(const uint8_t *name, size_t namelen) {
       }
       break;
     case 'e':
-      if (memeq(":schem", name, 6)) {
+      if (memeq(":scheme", name, 6)) {
         return NGHTTP3_QPACK_TOKEN__SCHEME;
       }
       if (memeq("purpos", name, 6)) {
@@ -488,7 +488,7 @@ static int32_t qpack_lookup_token(const uint8_t *name, size_t namelen) {
       }
       break;
     case 'l':
-      if (memeq(":protoco", name, 8)) {
+      if (memeq(":protocol", name, 8)) {
         return NGHTTP3_QPACK_TOKEN__PROTOCOL;
       }
       break;

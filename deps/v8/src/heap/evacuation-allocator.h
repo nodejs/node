@@ -16,7 +16,7 @@
 namespace v8 {
 namespace internal {
 
-// Allocator encapsulating thread-local allocation durning collection. Assumes
+// Allocator encapsulating thread-local allocation during collection. Assumes
 // that all other allocations also go through EvacuationAllocator.
 class EvacuationAllocator {
  public:

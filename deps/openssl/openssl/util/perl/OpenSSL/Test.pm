@@ -878,7 +878,7 @@ An example:
 =item B<is_nofips EXPR1, EXPR2, TEST_NAME>
 
 C<is_nofips> is equivalent to using C<is> when the environment variable
-C<FIPS_MODE> is undefined, otherwise it is equivalent to C<isnt>. This can be
+C<FIPS_MODE> is undefined, otherwise it is equivalent to C<isn't>. This can be
 used for C<is> tests that must fail when testing a FIPS provider. The parameters
 are the same as used by C<is> which has 2 arguments EXPR1 and EXPR2 that can be
 compared using eq or ne, followed by a test description TEST_NAME.
@@ -889,10 +889,10 @@ An example:
 
 =item B<isnt_nofips EXPR1, EXPR2, TEST_NAME>
 
-C<isnt_nofips> is equivalent to using C<isnt> when the environment variable
+C<isnt_nofips> is equivalent to using C<isn't> when the environment variable
 C<FIPS_MODE> is undefined, otherwise it is equivalent to C<is>. This can be
-used for C<isnt> tests that must fail when testing a FIPS provider. The
-parameters are the same as used by C<isnt> which has 2 arguments EXPR1 and EXPR2
+used for C<isn't> tests that must fail when testing a FIPS provider. The
+parameters are the same as used by C<isn't> which has 2 arguments EXPR1 and EXPR2
 that can be compared using ne or eq, followed by a test description TEST_NAME.
 
 An example:
@@ -909,13 +909,13 @@ sub ok_nofips {
 }
 
 sub is_nofips {
-    return isnt($_[0], $_[1], @_[2..$#_]) if defined $ENV{FIPS_MODE};
+    return isn't($_[0], $_[1], @_[2..$#_]) if defined $ENV{FIPS_MODE};
     return is($_[0], $_[1], @_[2..$#_]);
 }
 
 sub isnt_nofips {
     return is($_[0], $_[1], @_[2..$#_]) if defined $ENV{FIPS_MODE};
-    return isnt($_[0], $_[1], @_[2..$#_]);
+    return isn't($_[0], $_[1], @_[2..$#_]);
 }
 
 ######################################################################

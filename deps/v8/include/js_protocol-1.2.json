@@ -355,7 +355,7 @@
             {
                 "name": "executionContextCreated",
                 "parameters": [
-                    { "name": "context", "$ref": "ExecutionContextDescription", "description": "A newly created execution contex." }
+                    { "name": "context", "$ref": "ExecutionContextDescription", "description": "A newly created execution context." }
                 ],
                 "description": "Issued when new execution context is created."
             },

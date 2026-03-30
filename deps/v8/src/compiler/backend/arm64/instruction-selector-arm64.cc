@@ -635,7 +635,7 @@ void VisitBinopImpl(InstructionSelector* selector, OpIndex binop_idx,
 
   if (cont->IsSelect()) {
     // Keep the values live until the end so that we can use operations that
-    // write registers to generate the condition, without accidently
+    // write registers to generate the condition, without accidentally
     // overwriting the inputs.
     inputs[input_count++] = g.UseRegisterAtEnd(cont->true_value());
     inputs[input_count++] = g.UseRegisterAtEnd(cont->false_value());

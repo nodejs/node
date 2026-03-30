@@ -12,10 +12,10 @@
 // REPRL = read-eval-print-reset-loop
 // These file descriptors are being opened when Fuzzilli uses fork & execve to
 // run V8.
-#define REPRL_CRFD 100  // Control read file decriptor
-#define REPRL_CWFD 101  // Control write file decriptor
-#define REPRL_DRFD 102  // Data read file decriptor
-#define REPRL_DWFD 103  // Data write file decriptor
+#define REPRL_CRFD 100  // Control read file descriptor
+#define REPRL_CWFD 101  // Control write file descriptor
+#define REPRL_DRFD 102  // Data read file descriptor
+#define REPRL_DWFD 103  // Data write file descriptor
 
 namespace v8 {
 namespace internal {

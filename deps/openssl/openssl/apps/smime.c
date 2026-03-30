@@ -113,7 +113,7 @@ const OPTIONS smime_options[] = {
     { "pk7out", OPT_PK7OUT, '-', "Output PKCS#7 structure" },
 
     OPT_SECTION("Signing/Encryption"),
-    { "passin", OPT_PASSIN, 's', "Input file pass phrase source" },
+    { "passing", OPT_PASSIN, 's', "Input file pass phrase source" },
     { "md", OPT_MD, 's', "Digest algorithm to use when signing or resigning" },
     { "", OPT_CIPHER, '-', "Any supported cipher" },
     { "nointern", OPT_NOINTERN, '-',
@@ -208,7 +208,7 @@ int smime_main(int argc, char **argv)
     const char *CAfile = NULL, *CApath = NULL, *CAstore = NULL, *prog = NULL;
     char *certfile = NULL, *keyfile = NULL, *contfile = NULL;
     char *infile = NULL, *outfile = NULL, *signerfile = NULL, *recipfile = NULL;
-    char *passinarg = NULL, *passin = NULL, *to = NULL, *from = NULL;
+    char *passinarg = NULL, *passing = NULL, *to = NULL, *from = NULL;
     char *subject = NULL, *digestname = NULL, *ciphername = NULL;
     OPTION_CHOICE o;
     int noCApath = 0, noCAfile = 0, noCAstore = 0;
@@ -489,7 +489,7 @@ int smime_main(int argc, char **argv)
         }
     }
 
-    if (!app_passwd(passinarg, NULL, &passin, NULL)) {
+    if (!app_passwd(passinarg, NULL, &passing, NULL)) {
         BIO_printf(bio_err, "Error getting password\n");
         goto end;
     }
@@ -554,7 +554,7 @@ int smime_main(int argc, char **argv)
     }
 
     if (keyfile != NULL) {
-        key = load_key(keyfile, keyform, 0, passin, e, "signing key");
+        key = load_key(keyfile, keyform, 0, passing, e, "signing key");
         if (key == NULL)
             goto end;
     }
@@ -647,7 +647,7 @@ int smime_main(int argc, char **argv)
             signer = load_cert(signerfile, FORMAT_UNDEF, "signer certificate");
             if (signer == NULL)
                 goto end;
-            key = load_key(keyfile, keyform, 0, passin, e, "signing key");
+            key = load_key(keyfile, keyform, 0, passing, e, "signing key");
             if (key == NULL)
                 goto end;
 
@@ -740,7 +740,7 @@ end:
     BIO_free(in);
     BIO_free(indata);
     BIO_free_all(out);
-    OPENSSL_free(passin);
+    OPENSSL_free(passing);
     NCONF_free(conf);
     return ret;
 }

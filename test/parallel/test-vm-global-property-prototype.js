@@ -41,7 +41,7 @@ const sandboxProto = {
 
 const sandbox = {
   __proto__: sandboxProto,
-  onSelf: 'onSelf',
+  oneself: 'oneself',
 };
 
 function onSelfGetter() {
@@ -95,7 +95,7 @@ Object.defineProperties(Object.prototype, {
 });
 
 const resultHasOwn = {
-  onSelf: Object.hasOwn(this, 'onSelf'),
+  oneself: Object.hasOwn(this, 'oneself'),
   onSelfGetter: Object.hasOwn(this, 'onSelfGetter'),
   onSelfIndexed: Object.hasOwn(this, 1),
   onOuterProto: Object.hasOwn(this, 'onOuterProto'),
@@ -111,7 +111,7 @@ const resultHasOwn = {
 
 const getDesc = (prop) => Object.getOwnPropertyDescriptor(this, prop);
 const resultDesc = {
-  onSelf: getDesc('onSelf'),
+  oneself: getDesc('oneself'),
   onSelfGetter: getDesc('onSelfGetter'),
   onSelfIndexed: getDesc(1),
   onOuterProto: getDesc('onOuterProto'),
@@ -125,7 +125,7 @@ const resultDesc = {
   bothProtoIndexed: getDesc(3),
 };
 const resultIn = {
-  onSelf: 'onSelf' in this,
+  oneself: 'oneself' in this,
   onSelfGetter: 'onSelfGetter' in this,
   onSelfIndexed: 1 in this,
   onOuterProto: 'onOuterProto' in this,
@@ -139,7 +139,7 @@ const resultIn = {
   bothProtoIndexed: 3 in this,
 };
 const resultValue = {
-  onSelf: this.onSelf,
+  oneself: this.oneself,
   onSelfGetter: this.onSelfGetter,
   onSelfIndexed: this[1],
   onOuterProto: this.onOuterProto,
@@ -163,7 +163,7 @@ const resultValue = {
 // eslint-disable-next-line no-restricted-properties
 assert.deepEqual(result, {
   resultHasOwn: {
-    onSelf: true,
+    oneself: true,
     onSelfGetter: true,
     onSelfIndexed: true,
 
@@ -179,7 +179,7 @@ assert.deepEqual(result, {
     bothProtoIndexed: false,
   },
   resultDesc: {
-    onSelf: { value: 'onSelf', writable: true, enumerable: true, configurable: true },
+    oneself: { value: 'oneself', writable: true, enumerable: true, configurable: true },
     onSelfGetter: { get: onSelfGetter, set: undefined, enumerable: false, configurable: false },
     onSelfIndexed: { value: 'onSelfIndexed', writable: false, enumerable: false, configurable: true },
 
@@ -195,7 +195,7 @@ assert.deepEqual(result, {
     bothProtoIndexed: undefined,
   },
   resultIn: {
-    onSelf: true,
+    oneself: true,
     onSelfGetter: true,
     onSelfIndexed: true,
 
@@ -223,7 +223,7 @@ assert.deepEqual(result, {
     bothProtoIndexed: true,
   },
   resultValue: {
-    onSelf: 'onSelf',
+    oneself: 'oneself',
     onSelfGetter: 'onSelfGetter',
     onSelfIndexed: 'onSelfIndexed',
 

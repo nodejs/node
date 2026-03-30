@@ -321,7 +321,7 @@ TEST_F(SweeperTest, LazySweepingDuringAllocation) {
   // trigger sweeping. All objects other than the 2nd object on each page are
   // marked. Lazy sweeping on allocation should reclaim the object on one of
   // the pages and reuse its memory. The object on the other page should remain
-  // un-reclaimed. To confirm: the newly object will be allcoated at one of the
+  // un-reclaimed. To confirm: the newly object will be allocated at one of the
   // expected addresses and the GCedObject destructor is only called once.
   GCedObject* new_object1 =
       MakeGarbageCollected<GCedObject>(GetAllocationHandle());

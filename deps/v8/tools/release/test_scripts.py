@@ -642,7 +642,7 @@ BUG=123,234,345,456,567,v8:123
           "-r \"reviewer@chromium.org\" --bypass-hooks", ""),
       Cmd("git checkout -f %s" % TEST_CONFIG["BRANCHNAME"], ""),
       RL("LGTM"),  # Enter LGTM for V8 CL.
-      Cmd("git cl presubmit", "Presubmit successfull\n"),
+      Cmd("git cl presubmit", "Presubmit successful\n"),
       Cmd("git cl land -f --bypass-hooks", "Closing issue\n",
           cb=VerifyLand),
       Cmd("git fetch", ""),
@@ -775,7 +775,7 @@ BUG=123,234,345,456,567,v8:123
           "-r \"reviewer@chromium.org\" --bypass-hooks", ""),
       Cmd("git checkout -f %s" % TEST_CONFIG["BRANCHNAME"], ""),
       RL("LGTM"),  # Enter LGTM for V8 CL.
-      Cmd("git cl presubmit", "Presubmit successfull\n"),
+      Cmd("git cl presubmit", "Presubmit successful\n"),
       Cmd("git cl land -f --bypass-hooks", "Closing issue\n",
           cb=VerifyLand),
       Cmd("git checkout -f origin/main", ""),

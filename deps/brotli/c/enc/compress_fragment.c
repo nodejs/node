@@ -381,7 +381,7 @@ static BROTLI_BOOL ShouldMergeBlock(BrotliOnePassArena* s,
   }
 }
 
-/* Acceptable loss for uncompressible speedup is 2% */
+/* Acceptable loss for incompressible speedup is 2% */
 #define MIN_RATIO 980
 
 static BROTLI_INLINE BROTLI_BOOL ShouldUseUncompressedMode(

@@ -280,6 +280,6 @@ class LIEF_API Note : public Object {
 LIEF_API const char* to_string(Note::TYPE type);
 
 
-} // namepsace ELF
+} // namespace ELF
 } // namespace LIEF
 #endif

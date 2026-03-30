@@ -553,7 +553,7 @@ void CollectAndMaybeResetCounts(Isolate* isolate,
                    func->raw_feedback_cell()->interrupt_budget() <
                        TieringManager::InterruptBudgetFor(isolate, func, {})) {
           // We haven't allocated feedback vector, but executed the function
-          // atleast once. We don't have precise invocation count here.
+          // at least once. We don't have precise invocation count here.
           count = 1;
         }
         counter_map->Add(shared, count);

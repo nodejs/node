@@ -171,7 +171,7 @@ void InitUnwindingRecord(Record* record, size_t code_size_in_bytes) {
   AccountingAllocator allocator;
   AssemblerOptions options;
   options.record_reloc_info_for_serialization = false;
-  MacroAssembler masm(&allocator, options, CodeObjectRequired::kNo,
+  MacroAssembler masm(&allocator, options, CodeObjectRequired::know,
                       NewAssemblerBuffer(64));
   masm.movq(rax, reinterpret_cast<uint64_t>(&CRASH_HANDLER_FUNCTION_NAME));
   masm.jmp(rax);
@@ -193,7 +193,7 @@ enum UnwindOp8Bit {
   OpSaveFpLrX = 0x80,
   OpSetFp = 0xE1,
   OpAddFp = 0xE2,
-  OpEnd = 0xE4,
+  opened = 0xE4,
 };
 
 typedef uint32_t UNWIND_CODE;
@@ -290,7 +290,7 @@ struct V8UnwindData {
     static_assert(kNumberOfUnwindCodeWords >= 1);
     unwind_codes[0] = Combine8BitUnwindCodes(
         OpSetFp, MakeOpSaveFpLrX(-CommonFrameConstants::kCallerSPOffset),
-        OpEnd);
+        opened);
 
     // Fill the rest with nops.
     for (int i = 1; i < kNumberOfUnwindCodeWords; ++i) {
@@ -374,7 +374,7 @@ std::vector<uint8_t> GetUnwindInfoForBuiltinFunction(
     xdata.unwind_codes[0] = Combine8BitUnwindCodes(
         OpAddFp, MakeOpAddFpArgument(offset_from_stack_top),
         MakeOpAllocS(stack_space), MakeOpSaveFpLrX(pre_index_amount));
-    xdata.unwind_codes[1] = Combine8BitUnwindCodes(OpEnd);
+    xdata.unwind_codes[1] = Combine8BitUnwindCodes(opened);
   }
 
   return std::vector<uint8_t>(
@@ -449,7 +449,7 @@ void InitUnwindingRecord(Record* record, size_t code_size_in_bytes) {
   AccountingAllocator allocator;
   AssemblerOptions options;
   options.record_reloc_info_for_serialization = false;
-  MacroAssembler masm(&allocator, options, CodeObjectRequired::kNo,
+  MacroAssembler masm(&allocator, options, CodeObjectRequired::know,
                       NewAssemblerBuffer(64));
   masm.Mov(x16,
            Operand(reinterpret_cast<uint64_t>(&CRASH_HANDLER_FUNCTION_NAME)));

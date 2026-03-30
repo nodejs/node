@@ -229,7 +229,7 @@ class UseInfo {
   }
   static UseInfo CheckedBigIntTruncatingWord64(const FeedbackSource& feedback) {
     DCHECK(Is64());
-    // Note that Trunction::Word64() can safely use kIdentifyZero, because
+    // Note that Truncation::Word64() can safely use kIdentifyZero, because
     // TypeCheckKind::kBigInt will make sure we deopt for anything other than
     // type BigInt anyway.
     return UseInfo(MachineRepresentation::kWord64, Truncation::Word64(),

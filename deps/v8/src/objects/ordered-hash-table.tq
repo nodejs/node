@@ -5,7 +5,7 @@
 #include 'src/objects/ordered-hash-table.h'
 
 // Using int as a dummy type-parameter to get access to these constants which
-// don't actually depend on the derived class. This avoids accidentially
+// don't actually depend on the derived class. This avoids accidentally
 // depending on something from a concrete derived class.
 const kSmallOrderedHashTableMaxCapacity: constexpr int31
     generates 'SmallOrderedHashTable<int>::kMaxCapacity';

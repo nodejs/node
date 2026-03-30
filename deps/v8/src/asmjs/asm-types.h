@@ -22,7 +22,7 @@ class AsmOverloadedFunctionType;
 
 // List of V(CamelName, string_name, number, parent_types)
 #define FOR_EACH_ASM_VALUE_TYPE_LIST(V)                                       \
-  /* These tags are not types that are expressable in the asm source. They */ \
+  /* These tags are not types that are expressible in the asm source. They */ \
   /* are used to express semantic information about the types they tag.    */ \
   V(Heap, "[]", 1, 0)                                                         \
   V(FloatishDoubleQ, "floatish|double?", 2, 0)                                \

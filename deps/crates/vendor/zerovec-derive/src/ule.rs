@@ -27,7 +27,7 @@ pub fn derive_impl(input: &DeriveInput) -> TokenStream2 {
         )
         .to_compile_error();
     }
-    let struc = if let Data::Struct(ref s) = input.data {
+    let struct = if let Data::Struct(ref s) = input.data {
         if s.fields.iter().next().is_none() {
             return Error::new(
                 input.span(),
@@ -41,7 +41,7 @@ pub fn derive_impl(input: &DeriveInput) -> TokenStream2 {
             .to_compile_error();
     };
 
-    let fields = FieldInfo::make_list(struc.fields.iter());
+    let fields = FieldInfo::make_list(struct.fields.iter());
     let (validators, remaining_offset) = generate_ule_validators(&fields);
 
     let name = &input.ident;

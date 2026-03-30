@@ -12243,7 +12243,7 @@ static constexpr std::array<uint8_t, 256> authority_delimiter = []() consteval {
 ada_really_inline size_t
 find_authority_delimiter(std::string_view view) noexcept {
   // performance note: we might be able to gain further performance
-  // with SIMD instrinsics.
+  // with SIMD intrinsics.
   for (auto pos = view.begin(); pos != view.end(); ++pos) {
     if (authority_delimiter[(uint8_t)*pos]) {
       return pos - view.begin();

@@ -590,7 +590,7 @@ class PageAllocator {
 
   /**
    * Decommits any wired memory pages in the given range, allowing the OS to
-   * reclaim them, and marks the region as inacessible (kNoAccess). The address
+   * reclaim them, and marks the region as inaccessible (kNoAccess). The address
    * range stays reserved and can be accessed again later by changing its
    * permissions. However, in that case the memory content is guaranteed to be
    * zero-initialized again. The memory must have been previously allocated by a
@@ -711,7 +711,7 @@ static constexpr PlatformSharedMemoryHandle kInvalidSharedMemoryHandle = -1;
 // into the opaque PlatformSharedMemoryHandle type. These use the underlying
 // types (e.g. unsigned int) instead of the typedef'd ones (e.g. mach_port_t)
 // to avoid pulling in large OS header files into this header file. Instead,
-// the users of these routines are expected to include the respecitve OS
+// the users of these routines are expected to include the respective OS
 // headers in addition to this one.
 #if V8_OS_DARWIN
 // Convert between a shared memory handle and a mach_port_t referencing a memory
@@ -1090,7 +1090,7 @@ class VirtualAddressSpace {
   }
   /**
    * Decommits any wired memory pages in the given range, allowing the OS to
-   * reclaim them, and marks the region as inacessible (kNoAccess). The address
+   * reclaim them, and marks the region as inaccessible (kNoAccess). The address
    * range stays reserved and can be accessed again later by changing its
    * permissions. However, in that case the memory content is guaranteed to be
    * zero-initialized again. The memory must have been previously allocated by a

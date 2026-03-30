@@ -663,7 +663,7 @@ TEST(Duration, InfinityIDiv) {
   const absl::Duration inf = absl::InfiniteDuration();
   const double dbl_inf = std::numeric_limits<double>::infinity();
 
-  // IDivDuration (int64_t return value + a remainer)
+  // IDivDuration (int64_t return value + a remainder)
   absl::Duration rem = absl::ZeroDuration();
   EXPECT_EQ(kint64max, absl::IDivDuration(inf, inf, &rem));
   EXPECT_EQ(inf, rem);

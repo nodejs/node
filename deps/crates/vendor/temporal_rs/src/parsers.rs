@@ -647,7 +647,7 @@ fn checked_write_u64_with_suffix<W: core::fmt::Write + ?Sized>(
 }
 
 // TODO: Determine if these should be separate structs, i.e. TemporalDateTimeParser/TemporalInstantParser, or
-// maybe on global `TemporalParser` around `IxdtfParser` that handles the Temporal idiosyncracies.
+// maybe on global `TemporalParser` around `IxdtfParser` that handles the Temporal idiosyncrasies.
 #[derive(PartialEq)]
 enum ParseVariant {
     YearMonth,
@@ -834,7 +834,7 @@ pub(crate) fn parse_year_month(source: &[u8]) -> TemporalResult<IxdtfParseRecord
     }
 }
 
-/// A utilty function for parsing a `MonthDay` String.
+/// A utility function for parsing a `MonthDay` String.
 pub(crate) fn parse_month_day(source: &[u8]) -> TemporalResult<IxdtfParseRecord<'_, Utf8>> {
     let md_record = parse_ixdtf(source, ParseVariant::MonthDay);
     let Err(e) = md_record else {

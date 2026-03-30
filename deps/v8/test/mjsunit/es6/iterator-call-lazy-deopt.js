@@ -26,7 +26,7 @@ function foo(obj) {
   }
 }
 
-// The lazy deoptimization is triggerred by setting the
+// The lazy deoptimization is triggered by setting the
 // 'triggerLazyDeopt' to true. And the lazy deopt should
 // goto continuation to check the call result is JSReceiver.
 var iterator =

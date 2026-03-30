@@ -1535,7 +1535,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   inline void Mrs(const Register& rt, SystemRegister sysreg);
   inline void Msr(SystemRegister sysreg, const Register& rt);
 
-  // Prologue claims an extra slot due to arm64's alignement constraints.
+  // Prologue claims an extra slot due to arm64's alignment constraints.
   static constexpr int kExtraSlotClaimedByPrologue = 1;
   // Generates function prologue code.
   void Prologue();
@@ -2138,7 +2138,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // enabled via --debug-code.
   void AssertUndefinedOrAllocationSite(Register object) NOOP_UNLESS_DEBUG_CODE;
 
-  // Abort execution if argument is not smi nor in the pointer compresssion
+  // Abort execution if argument is not smi nor in the pointer compression
   // cage, enabled via --debug-code.
   void AssertSmiOrHeapObjectInMainCompressionCage(Register object)
       NOOP_UNLESS_DEBUG_CODE;

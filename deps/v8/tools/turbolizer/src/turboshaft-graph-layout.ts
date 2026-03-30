@@ -68,7 +68,7 @@ export class TurboshaftGraphLayout {
       blocksHasNoInputs[edge.target.id] = false;
     }
 
-    // Finialize the list of blocks.
+    // Finalize the list of blocks.
     const blocks = new Array<TurboshaftGraphBlock>();
     const visited = new Array<boolean>();
     for (const block of this.graph.blocks()) {

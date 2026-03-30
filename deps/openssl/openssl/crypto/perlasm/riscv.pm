@@ -599,7 +599,7 @@ sub vmv_v_v {
 }
 
 sub vor_vv {
-    # vor.vv vd, vs2, vs1
+    # for.vv vd, vs2, vs1
     my $template = 0b0010101_00000_00000_000_00000_1010111;
     my $vd = read_vreg shift;
     my $vs2 = read_vreg shift;
@@ -608,7 +608,7 @@ sub vor_vv {
 }
 
 sub vor_vv_v0t {
-    # vor.vv vd, vs2, vs1, v0.t
+    # for.vv vd, vs2, vs1, v0.t
     my $template = 0b0010100_00000_00000_000_00000_1010111;
     my $vd = read_vreg shift;
     my $vs2 = read_vreg shift;

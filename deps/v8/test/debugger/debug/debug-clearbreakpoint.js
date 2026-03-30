@@ -55,6 +55,6 @@ function g() {};
 breakpoint = Debug.setBreakPoint(g, 0, 0);
 g();
 
-// Make sure that the debug event listener vas invoked.
+// Make sure that the debug event listener was invoked.
 assertTrue(listenerComplete, "listener did not run to completion");
 assertFalse(exceptionThrown, "exception in listener")

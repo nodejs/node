@@ -11,7 +11,7 @@ const builder = new WasmModuleBuilder();
 // We were hitting this DCHECK in assembler-arm64.cc:
 //    DCHECK(IsImmLSUnscaled(addr.offset()));
 // because the tiering budget array is accessed at offset 16384 for function
-// 4096, and that offset is neiter `IsImmLSScaled` or `IsImmLSUnscaled`.
+// 4096, and that offset is neither `IsImmLSScaled` or `IsImmLSUnscaled`.
 const num_functions = 4097;
 for (let j = 0; j < num_functions; ++j) {
   builder.addFunction(undefined, kSig_v_v)

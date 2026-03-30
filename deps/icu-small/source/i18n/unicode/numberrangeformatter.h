@@ -563,7 +563,7 @@ class U_I18N_API_CLASS LocalizedNumberRangeFormatter
   private:
     std::atomic<impl::NumberRangeFormatterImpl*> fAtomicFormatter = {};
 
-    const impl::NumberRangeFormatterImpl* getFormatter(UErrorCode& stauts) const;
+    const impl::NumberRangeFormatterImpl* getFormatter(UErrorCode& status) const;
 
     explicit LocalizedNumberRangeFormatter(
         const NumberRangeFormatterSettings<LocalizedNumberRangeFormatter>& other);

@@ -282,9 +282,9 @@ initFromResourceBundle(UErrorCode& sts) {
 
                     ures_resetIterator(typeAliasResByKey.getAlias());
                     while (ures_hasNext(typeAliasResByKey.getAlias()) && U_SUCCESS(sts)) {
-                        int32_t toLen;
+                        int32_t token;
                         typeAliasDataEntry.adoptInstead(ures_getNextResource(typeAliasResByKey.getAlias(), typeAliasDataEntry.orphan(), &sts));
-                        const char16_t* to = ures_getString(typeAliasDataEntry.getAlias(), &toLen, &sts);
+                        const char16_t* to = ures_getString(typeAliasDataEntry.getAlias(), &token, &sts);
                         if (U_FAILURE(sts)) {
                             break;
                         }
@@ -294,7 +294,7 @@ initFromResourceBundle(UErrorCode& sts) {
                                 t->legacyId.data(),
                                 static_cast<int32_t>(t->legacyId.size()),
                                 to,
-                                toLen) == 0) {
+                                token) == 0) {
                             const char* from = ures_getKey(typeAliasDataEntry.getAlias());
                             TypeAlias* alias = gTypeAliasEntries->create(TypeAlias{{}, from});
                             if (isTZ) {
@@ -327,9 +327,9 @@ initFromResourceBundle(UErrorCode& sts) {
 
                     ures_resetIterator(bcpTypeAliasResByKey.getAlias());
                     while (ures_hasNext(bcpTypeAliasResByKey.getAlias()) && U_SUCCESS(sts)) {
-                        int32_t toLen;
+                        int32_t token;
                         bcpTypeAliasDataEntry.adoptInstead(ures_getNextResource(bcpTypeAliasResByKey.getAlias(), bcpTypeAliasDataEntry.orphan(), &sts));
-                        const char16_t* to = ures_getString(bcpTypeAliasDataEntry.getAlias(), &toLen, &sts);
+                        const char16_t* to = ures_getString(bcpTypeAliasDataEntry.getAlias(), &token, &sts);
                         if (U_FAILURE(sts)) {
                             break;
                         }
@@ -339,7 +339,7 @@ initFromResourceBundle(UErrorCode& sts) {
                                 t->bcpId.data(),
                                 static_cast<int32_t>(t->bcpId.size()),
                                 to,
-                                toLen) == 0) {
+                                token) == 0) {
                             const char* from = ures_getKey(bcpTypeAliasDataEntry.getAlias());
                             TypeAlias* alias = gTypeAliasEntries->create(TypeAlias{{}, from});
                             uhash_put(typeDataMap, &alias->from, t, &sts);

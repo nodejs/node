@@ -390,13 +390,13 @@ void MicrotaskQueueBuiltinsAssembler::SetCurrentContext(
 
 TNode<IntPtrT> MicrotaskQueueBuiltinsAssembler::GetEnteredContextCount() {
   auto ref = ExternalReference::handle_scope_implementer_address(isolate());
-  TNode<RawPtrT> hsi = Load<RawPtrT>(ExternalConstant(ref));
+  TNode<RawPtrT> his = Load<RawPtrT>(ExternalConstant(ref));
 
   using ContextStack = DetachableVector<Context>;
   TNode<IntPtrT> size_offset =
       IntPtrConstant(HandleScopeImplementer::kEnteredContextsOffset +
                      ContextStack::kSizeOffset);
-  return Load<IntPtrT>(hsi, size_offset);
+  return Load<IntPtrT>(his, size_offset);
 }
 
 void MicrotaskQueueBuiltinsAssembler::EnterContext(
@@ -404,7 +404,7 @@ void MicrotaskQueueBuiltinsAssembler::EnterContext(
   CSA_DCHECK(this, IsNativeContext(native_context));
 
   auto ref = ExternalReference::handle_scope_implementer_address(isolate());
-  TNode<RawPtrT> hsi = Load<RawPtrT>(ExternalConstant(ref));
+  TNode<RawPtrT> his = Load<RawPtrT>(ExternalConstant(ref));
 
   using ContextStack = DetachableVector<Context>;
   TNode<IntPtrT> capacity_offset =
@@ -414,8 +414,8 @@ void MicrotaskQueueBuiltinsAssembler::EnterContext(
       IntPtrConstant(HandleScopeImplementer::kEnteredContextsOffset +
                      ContextStack::kSizeOffset);
 
-  TNode<IntPtrT> capacity = Load<IntPtrT>(hsi, capacity_offset);
-  TNode<IntPtrT> size = Load<IntPtrT>(hsi, size_offset);
+  TNode<IntPtrT> capacity = Load<IntPtrT>(his, capacity_offset);
+  TNode<IntPtrT> size = Load<IntPtrT>(his, size_offset);
 
   Label if_append(this), if_grow(this, Label::kDeferred), done(this);
   Branch(WordEqual(size, capacity), &if_grow, &if_append);
@@ -424,12 +424,12 @@ void MicrotaskQueueBuiltinsAssembler::EnterContext(
     TNode<IntPtrT> data_offset =
         IntPtrConstant(HandleScopeImplementer::kEnteredContextsOffset +
                        ContextStack::kDataOffset);
-    TNode<RawPtrT> data = Load<RawPtrT>(hsi, data_offset);
+    TNode<RawPtrT> data = Load<RawPtrT>(his, data_offset);
     StoreFullTaggedNoWriteBarrier(data, TimesSystemPointerSize(size),
                                   native_context);
 
     TNode<IntPtrT> new_size = IntPtrAdd(size, IntPtrConstant(1));
-    StoreNoWriteBarrier(MachineType::PointerRepresentation(), hsi, size_offset,
+    StoreNoWriteBarrier(MachineType::PointerRepresentation(), his, size_offset,
                         new_size);
     Goto(&done);
   }
@@ -439,7 +439,7 @@ void MicrotaskQueueBuiltinsAssembler::EnterContext(
     TNode<ExternalReference> function =
         ExternalConstant(ExternalReference::call_enter_context_function());
     CallCFunction(function, MachineType::Int32(),
-                  std::make_pair(MachineType::Pointer(), hsi),
+                  std::make_pair(MachineType::Pointer(), his),
                   std::make_pair(MachineType::Pointer(),
                                  BitcastTaggedToWord(native_context)));
     Goto(&done);
@@ -451,7 +451,7 @@ void MicrotaskQueueBuiltinsAssembler::EnterContext(
 void MicrotaskQueueBuiltinsAssembler::RewindEnteredContext(
     TNode<IntPtrT> saved_entered_context_count) {
   auto ref = ExternalReference::handle_scope_implementer_address(isolate());
-  TNode<RawPtrT> hsi = Load<RawPtrT>(ExternalConstant(ref));
+  TNode<RawPtrT> his = Load<RawPtrT>(ExternalConstant(ref));
 
   using ContextStack = DetachableVector<Context>;
   TNode<IntPtrT> size_offset =
@@ -459,12 +459,12 @@ void MicrotaskQueueBuiltinsAssembler::RewindEnteredContext(
                      ContextStack::kSizeOffset);
 
   if (DEBUG_BOOL) {
-    TNode<IntPtrT> size = Load<IntPtrT>(hsi, size_offset);
+    TNode<IntPtrT> size = Load<IntPtrT>(his, size_offset);
     CSA_CHECK(this, IntPtrLessThan(IntPtrConstant(0), size));
     CSA_CHECK(this, IntPtrLessThanOrEqual(saved_entered_context_count, size));
   }
 
-  StoreNoWriteBarrier(MachineType::PointerRepresentation(), hsi, size_offset,
+  StoreNoWriteBarrier(MachineType::PointerRepresentation(), his, size_offset,
                       saved_entered_context_count);
 }
 

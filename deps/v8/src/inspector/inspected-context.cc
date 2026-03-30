@@ -103,7 +103,7 @@ InspectedContext::InspectedContext(V8InspectorImpl* inspector,
 }
 
 InspectedContext::~InspectedContext() {
-  // If we destory InspectedContext before weak callback is invoked then we need
+  // If we destroy InspectedContext before weak callback is invoked then we need
   // to delete data here.
   if (!m_context.IsEmpty()) delete m_weakCallbackData;
 }

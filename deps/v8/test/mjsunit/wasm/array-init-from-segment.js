@@ -99,7 +99,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
               () => init_and_get_active(0, 1, 0));
 })();
 
-// TODO(14034): Reenable when we have constant array.new_elem.
+// TODO(14034): Re-enable when we have constant array.new_elem.
 /*
 (function TestArrayNewElemConstant() {
   print(arguments.callee.name);
@@ -208,7 +208,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
                /segment type.*is not a subtype of array element type.*/);
 })();
 
-// TODO(14034): Reenable when we have constant array.new_elem.
+// TODO(14034): Re-enable when we have constant array.new_elem.
 /*
 // Element segments are defined after globals, so currently it is not valid
 // to refer to an element segment in the global section.
@@ -366,7 +366,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     [dummy_byte, element_0 & 0xff, (element_0 >> 8) & 0xff,
      element_1 & 0xff, (element_1 >> 8) & 0xff]);
 
-  // TODO(14034): Reenable when we have constant array.new_data.
+  // TODO(14034): Re-enable when we have constant array.new_data.
   /*
   let global = builder.addGlobal(
     wasmRefType(array_type_index), true, false,
@@ -398,7 +398,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let instance = builder.instantiate();
 
-  // TODO(14034): Reenable when we have constant array.new_elem.
+  // TODO(14034): Re-enable when we have constant array.new_elem.
   // assertEquals(element_0, instance.exports.global_get(0));
   // assertEquals(element_1, instance.exports.global_get(1));
 

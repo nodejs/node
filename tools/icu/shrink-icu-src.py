@@ -39,8 +39,8 @@ if not os.path.isdir(options.icusrc):
 
 # compression stuff. Keep the suffix and the compression function in sync.
 compression_suffix = '.bz2'
-def compress_data(infp, outfp):
-    with open(infp, 'rb') as inf:
+def compress_data(info, outfp):
+    with open(info, 'rb') as inf:
         with bz2.BZ2File(outfp, 'wb') as outf:
             shutil.copyfileobj(inf, outf)
 

@@ -70,8 +70,8 @@ public:
     // On error close the connection and throw.
     void send(const char *data, size_t n_bytes) {
         ssize_t toslen = 0;
-        socklen_t tolen = sizeof(struct sockaddr);
-        if ((toslen = ::sendto(socket_, data, n_bytes, 0, (struct sockaddr *)&sockAddr_, tolen)) ==
+        socklen_t token = sizeof(struct sockaddr);
+        if ((toslen = ::sendto(socket_, data, n_bytes, 0, (struct sockaddr *)&sockAddr_, token)) ==
             -1) {
             throw_spdlog_ex("sendto(2) failed", errno);
         }

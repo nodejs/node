@@ -1,7 +1,7 @@
 #[cfg(not(no_serde_derive))]
 pub mod de;
 #[cfg(not(no_serde_derive))]
-pub mod ser;
+pub mod set;
 
 pub use crate::lib::clone::Clone;
 pub use crate::lib::convert::{From, Into, TryFrom};

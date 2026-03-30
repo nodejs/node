@@ -31,7 +31,7 @@ pub trait Euclid: Sized + Div<Self, Output = Self> + Rem<Self, Output = Self> {
     /// This result is not an element of the function's codomain, but it is the
     /// closest floating point number in the real numbers and thus fulfills the
     /// property `self == self.div_euclid(v) * v + self.rem_euclid(v)`
-    /// approximatively.
+    /// approximately.
     ///
     /// # Examples
     ///

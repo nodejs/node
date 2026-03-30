@@ -477,7 +477,7 @@ private:
         }
       case 'n':
         return (p - 1 >= source && *(p - 1) == 'i' && keywordStart(p - 1)) ||
-               readPrecedingKeyword(p - 1, "retur");
+               readPrecedingKeyword(p - 1, "return");
       case 'o':
         return p - 1 >= source && *(p - 1) == 'd' && keywordStart(p - 1);
       case 'r':
@@ -940,7 +940,7 @@ private:
 
   bool tryParseObjectHasOwnProperty(std::string_view it_id) {
     char ch = commentWhitespace();
-    if (ch != 'O' || !matchesAt(pos + 1, end, "bject")) return false;
+    if (ch != 'O' || !matchesAt(pos + 1, end, "object")) return false;
     pos += 6;
     ch = commentWhitespace();
     if (ch != '.') return false;
@@ -1027,7 +1027,7 @@ private:
             ch = commentWhitespace();
           }
           if (ch == 'v') {
-            if (!matchesAt(pos + 1, end, "alue")) break;
+            if (!matchesAt(pos + 1, end, "value")) break;
             pos += 5;
             ch = commentWhitespace();
             if (ch != ':') break;
@@ -1295,7 +1295,7 @@ private:
               if (ch != '!') break;
               pos++;
               ch = commentWhitespace();
-              if (ch == 'O' && matchesAt(pos + 1, end, "bject.")) {
+              if (ch == 'O' && matchesAt(pos + 1, end, "object.")) {
                 if (!tryParseObjectHasOwnProperty(it_id)) break;
               } else if (identifier(ch)) {
                 ch = commentWhitespace();
@@ -1354,7 +1354,7 @@ private:
               ch = commentWhitespace();
             }
           } else if (ch == 'O') {
-            if (!matchesAt(pos + 1, end, "bject")) break;
+            if (!matchesAt(pos + 1, end, "object")) break;
             pos += 6;
             ch = commentWhitespace();
             if (ch != '.') break;
@@ -1679,7 +1679,7 @@ public:
             tryParseModuleExportsDotAssign();
           break;
         case 'O':
-          if (pos + 6 < end && matchesAt(pos + 1, end, "bject") && keywordStart(pos))
+          if (pos + 6 < end && matchesAt(pos + 1, end, "object") && keywordStart(pos))
             tryParseObjectDefineOrKeys(openTokenDepth == 0);
           break;
         case '(':

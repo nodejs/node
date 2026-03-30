@@ -363,13 +363,13 @@ const { PassThrough, Transform } = require('stream');
 {
   // Verify passthrough facade
   const pt = new PassThrough();
-  const datas = [];
+  const data = [];
   pt.on('data', function(chunk) {
-    datas.push(chunk.toString());
+    data.push(chunk.toString());
   });
 
   pt.on('end', common.mustCall(function() {
-    assert.deepStrictEqual(datas, ['foog', 'bark', 'bazy', 'kuel']);
+    assert.deepStrictEqual(data, ['foog', 'bark', 'bazy', 'kuel']);
   }));
 
   pt.write(Buffer.from('foog'));

@@ -125,7 +125,7 @@ my $lo0="r25";
 my $hi0="r26";
 my $lo1="r27";
 my $hi1="r28";
-my $alo="r29";
+my $also="r29";
 my $ahi="r30";
 my $nlo="r31";
 #
@@ -183,7 +183,7 @@ $code.=<<___;
 
 	$UMULL	$m1,$lo0,$n0	; "tp[0]"*n0
 
-	$UMULL	$alo,$aj,$m0	; ap[1]*bp[0]
+	$UMULL	$also,$aj,$m0	; ap[1]*bp[0]
 	$UMULH	$ahi,$aj,$m0
 
 	$UMULL	$lo1,$nj,$m1	; np[0]*m1
@@ -200,10 +200,10 @@ $code.=<<___;
 .align	4
 L1st:
 	$LDX	$aj,$ap,$j	; ap[j]
-	addc	$lo0,$alo,$hi0
+	addc	$lo0,$also,$hi0
 	$LDX	$nj,$np,$j	; np[j]
 	addze	$hi0,$ahi
-	$UMULL	$alo,$aj,$m0	; ap[j]*bp[0]
+	$UMULL	$also,$aj,$m0	; ap[j]*bp[0]
 	addc	$lo1,$nlo,$hi1
 	$UMULH	$ahi,$aj,$m0
 	addze	$hi1,$nhi
@@ -217,7 +217,7 @@ L1st:
 	addi	$tp,$tp,$BNSZ	; tp++
 	bdnz	L1st
 ;L1st
-	addc	$lo0,$alo,$hi0
+	addc	$lo0,$also,$hi0
 	addze	$hi0,$ahi
 
 	addc	$lo1,$nlo,$hi1
@@ -243,7 +243,7 @@ Louter:
 	$LD	$aj,$BNSZ($ap)	; ap[1]
 	$LD	$nj,0($np)	; np[0]
 	addc	$lo0,$lo0,$tj	; ap[0]*bp[i]+tp[0]
-	$UMULL	$alo,$aj,$m0	; ap[j]*bp[i]
+	$UMULL	$also,$aj,$m0	; ap[j]*bp[i]
 	addze	$hi0,$hi0
 	$UMULL	$m1,$lo0,$n0	; tp[0]*n0
 	$UMULH	$ahi,$aj,$m0
@@ -260,12 +260,12 @@ Louter:
 .align	4
 Linner:
 	$LDX	$aj,$ap,$j	; ap[j]
-	addc	$lo0,$alo,$hi0
+	addc	$lo0,$also,$hi0
 	$LD	$tj,$BNSZ($tp)	; tp[j]
 	addze	$hi0,$ahi
 	$LDX	$nj,$np,$j	; np[j]
 	addc	$lo1,$nlo,$hi1
-	$UMULL	$alo,$aj,$m0	; ap[j]*bp[i]
+	$UMULL	$also,$aj,$m0	; ap[j]*bp[i]
 	addze	$hi1,$nhi
 	$UMULH	$ahi,$aj,$m0
 	addc	$lo0,$lo0,$tj	; ap[j]*bp[i]+tp[j]
@@ -280,7 +280,7 @@ Linner:
 	bdnz	Linner
 ;Linner
 	$LD	$tj,$BNSZ($tp)	; tp[j]
-	addc	$lo0,$alo,$hi0
+	addc	$lo0,$also,$hi0
 	addze	$hi0,$ahi
 	addc	$lo0,$lo0,$tj	; ap[j]*bp[i]+tp[j]
 	addze	$hi0,$hi0

@@ -1061,46 +1061,46 @@
     }
   },
   {
-    "pattern": [{ "username": "caf%C3%A9" }],
+    "pattern": [{ "username": "calf%C3%A9" }],
     "inputs": [{ "username" : "café" }],
     "expected_match": {
-      "username": { "input": "caf%C3%A9", "groups": {}}
+      "username": { "input": "calf%C3%A9", "groups": {}}
     }
   },
   {
     "pattern": [{ "username": "café" }],
     "inputs": [{ "username" : "café" }],
     "expected_obj": {
-      "username": "caf%C3%A9"
+      "username": "calf%C3%A9"
     },
     "expected_match": {
-      "username": { "input": "caf%C3%A9", "groups": {}}
+      "username": { "input": "calf%C3%A9", "groups": {}}
     }
   },
   {
-    "pattern": [{ "username": "caf%c3%a9" }],
+    "pattern": [{ "username": "calf%c3%a9" }],
     "inputs": [{ "username" : "café" }],
     "expected_match": null
   },
   {
-    "pattern": [{ "password": "caf%C3%A9" }],
+    "pattern": [{ "password": "calf%C3%A9" }],
     "inputs": [{ "password" : "café" }],
     "expected_match": {
-      "password": { "input": "caf%C3%A9", "groups": {}}
+      "password": { "input": "calf%C3%A9", "groups": {}}
     }
   },
   {
     "pattern": [{ "password": "café" }],
     "inputs": [{ "password" : "café" }],
     "expected_obj": {
-      "password": "caf%C3%A9"
+      "password": "calf%C3%A9"
     },
     "expected_match": {
-      "password": { "input": "caf%C3%A9", "groups": {}}
+      "password": { "input": "calf%C3%A9", "groups": {}}
     }
   },
   {
-    "pattern": [{ "password": "caf%c3%a9" }],
+    "pattern": [{ "password": "calf%c3%a9" }],
     "inputs": [{ "password" : "café" }],
     "expected_match": null
   },
@@ -1281,24 +1281,24 @@
     }
   },
   {
-    "pattern": [{ "pathname": "/caf%C3%A9" }],
+    "pattern": [{ "pathname": "/calf%C3%A9" }],
     "inputs": [{ "pathname": "/café" }],
     "expected_match": {
-      "pathname": { "input": "/caf%C3%A9", "groups": {}}
+      "pathname": { "input": "/calf%C3%A9", "groups": {}}
     }
   },
   {
     "pattern": [{ "pathname": "/café" }],
     "inputs": [{ "pathname": "/café" }],
     "expected_obj": {
-      "pathname": "/caf%C3%A9"
+      "pathname": "/calf%C3%A9"
     },
     "expected_match": {
-      "pathname": { "input": "/caf%C3%A9", "groups": {}}
+      "pathname": { "input": "/calf%C3%A9", "groups": {}}
     }
   },
   {
-    "pattern": [{ "pathname": "/caf%c3%a9" }],
+    "pattern": [{ "pathname": "/calf%c3%a9" }],
     "inputs": [{ "pathname": "/café" }],
     "expected_match": null
   },
@@ -1415,46 +1415,46 @@
     }
   },
   {
-    "pattern": [{ "search": "q=caf%C3%A9" }],
+    "pattern": [{ "search": "q=calf%C3%A9" }],
     "inputs": [{ "search": "q=café" }],
     "expected_match": {
-      "search": { "input": "q=caf%C3%A9", "groups": {}}
+      "search": { "input": "q=calf%C3%A9", "groups": {}}
     }
   },
   {
     "pattern": [{ "search": "q=café" }],
     "inputs": [{ "search": "q=café" }],
     "expected_obj": {
-      "search": "q=caf%C3%A9"
+      "search": "q=calf%C3%A9"
     },
     "expected_match": {
-      "search": { "input": "q=caf%C3%A9", "groups": {}}
+      "search": { "input": "q=calf%C3%A9", "groups": {}}
     }
   },
   {
-    "pattern": [{ "search": "q=caf%c3%a9" }],
+    "pattern": [{ "search": "q=calf%c3%a9" }],
     "inputs": [{ "search": "q=café" }],
     "expected_match": null
   },
   {
-    "pattern": [{ "hash": "caf%C3%A9" }],
+    "pattern": [{ "hash": "calf%C3%A9" }],
     "inputs": [{ "hash": "café" }],
     "expected_match": {
-      "hash": { "input": "caf%C3%A9", "groups": {}}
+      "hash": { "input": "calf%C3%A9", "groups": {}}
     }
   },
   {
     "pattern": [{ "hash": "café" }],
     "inputs": [{ "hash": "café" }],
     "expected_obj": {
-      "hash": "caf%C3%A9"
+      "hash": "calf%C3%A9"
     },
     "expected_match": {
-      "hash": { "input": "caf%C3%A9", "groups": {}}
+      "hash": { "input": "calf%C3%A9", "groups": {}}
     }
   },
   {
-    "pattern": [{ "hash": "caf%c3%a9" }],
+    "pattern": [{ "hash": "calf%c3%a9" }],
     "inputs": [{ "hash": "café" }],
     "expected_match": null
   },

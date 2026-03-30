@@ -105,10 +105,10 @@ base::AllocationResult<void*> AllocAtLeastWithRetry(size_t size);
 V8_EXPORT_PRIVATE void* AlignedAllocWithRetry(size_t size, size_t alignment);
 V8_EXPORT_PRIVATE void AlignedFree(void* ptr);
 
-// Returns platfrom page allocator instance. Guaranteed to be a valid pointer.
+// Returns platform page allocator instance. Guaranteed to be a valid pointer.
 V8_EXPORT_PRIVATE v8::PageAllocator* GetPlatformPageAllocator();
 
-// Returns platfrom virtual memory space instance. Guaranteed to be a valid
+// Returns platform virtual memory space instance. Guaranteed to be a valid
 // pointer.
 V8_EXPORT_PRIVATE v8::VirtualAddressSpace* GetPlatformVirtualAddressSpace();
 

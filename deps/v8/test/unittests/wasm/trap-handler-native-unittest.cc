@@ -294,7 +294,7 @@ DISABLE_CFI_ICALL void LandingPadTrampoline() { landing_pad(); }
 TEST_P(TrapHandlerTest, TestTrapHandlerRecovery) {
   // Test that the wasm trap handler can recover a memory access violation in
   // wasm code (we fake the wasm code and the access violation).
-  MacroAssembler masm(i_isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+  MacroAssembler masm(i_isolate(), AssemblerOptions{}, CodeObjectRequired::know,
                       buffer_->CreateView());
 #if V8_HOST_ARCH_X64
   __ Move(scratch, crash_address_, RelocInfo::NO_INFO);
@@ -344,7 +344,7 @@ TEST_P(TrapHandlerTest, TestTrapHandlerRecovery) {
 TEST_P(TrapHandlerTest, TestReleaseHandlerData) {
   // Test that after we release handler data in the trap handler, it cannot
   // recover from the specific memory access violation anymore.
-  MacroAssembler masm(i_isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+  MacroAssembler masm(i_isolate(), AssemblerOptions{}, CodeObjectRequired::know,
                       buffer_->CreateView());
 #if V8_HOST_ARCH_X64
   __ Move(scratch, crash_address_, RelocInfo::NO_INFO);
@@ -400,7 +400,7 @@ TEST_P(TrapHandlerTest, TestReleaseHandlerData) {
 TEST_P(TrapHandlerTest, TestCrashInWasmNoProtectedInstruction) {
   // Test that if the crash in wasm happened at an instruction which is not
   // protected, then the trap handler does not handle it.
-  MacroAssembler masm(i_isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+  MacroAssembler masm(i_isolate(), AssemblerOptions{}, CodeObjectRequired::know,
                       buffer_->CreateView());
 #if V8_HOST_ARCH_X64
   uint32_t no_crash_offset = __ pc_offset();
@@ -441,7 +441,7 @@ TEST_P(TrapHandlerTest, TestCrashInWasmNoProtectedInstruction) {
 TEST_P(TrapHandlerTest, TestCrashInWasmWrongCrashType) {
   // Test that if the crash reason is not a memory access violation, then the
   // wasm trap handler does not handle it.
-  MacroAssembler masm(i_isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+  MacroAssembler masm(i_isolate(), AssemblerOptions{}, CodeObjectRequired::know,
                       buffer_->CreateView());
 #if V8_HOST_ARCH_X64
   __ xorq(scratch, scratch);

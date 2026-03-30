@@ -1954,7 +1954,7 @@ processPropertySeq(UBiDi *pBiDi, LevState *pLevState, uint8_t _prop,
                 /* real AN */
                 if (pLevState->startL2EN == -1) /* if no relevant EN already found */
                 {
-                    /* just note the righmost digit as a strong RTL */
+                    /* just note the rightmost digit as a strong RTL */
                     pLevState->lastStrongRTL=limit - 1;
                     break;
                 }

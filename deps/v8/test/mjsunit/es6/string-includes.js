@@ -40,7 +40,7 @@ assertTrue(reString.includes("(asdf)?"));
 var twoByteString = "\u039a\u0391\u03a3\u03a3\u0395";
 
 // Test single char pattern
-assertTrue(twoByteString.includes("\u039a"), "Lamda");
+assertTrue(twoByteString.includes("\u039a"), "Lambda");
 assertTrue(twoByteString.includes("\u0391"), "Alpha");
 assertTrue(twoByteString.includes("\u03a3"), "First Sigma");
 assertTrue(twoByteString.includes("\u03a3",3), "Second Sigma");

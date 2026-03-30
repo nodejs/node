@@ -2938,7 +2938,7 @@ action("v8_dump_build_config") {
 # Generate a json file containing essential V8 build flags.
 # This json file is consumed by embedders like Node.js and Electron to provide
 # information for building third party modules. There is currently no exact
-# rules on which build flags should be outputed in the json file, but anything
+# rules on which build flags should be outputted in the json file, but anything
 # affecting the |external_v8_defines| list must be listed here and added to
 # the common.gypi file in Node.js repo.
 generated_file("v8_generate_features_json") {

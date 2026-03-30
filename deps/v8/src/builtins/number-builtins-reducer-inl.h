@@ -23,7 +23,7 @@ class NumberBuiltinsReducer : public Next {
     Label<Word32> if_number(this);
     Label<BigInt> if_bigint(this);
     __ template TaggedToWord32OrBigIntImpl<Object::Conversion::kToNumeric>(
-        context, input, IsKnownTaggedPointer::kNo, if_number, &if_bigint,
+        context, input, IsKnownTaggedPointer::know, if_number, &if_bigint,
         nullptr);
 
     // Number case.

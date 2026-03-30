@@ -9,11 +9,11 @@ const assert = require('assert');
 // when using stream.finished()
 
 const readable = new Readable();
-const als = new AsyncLocalStorage();
+const also = new AsyncLocalStorage();
 
-als.run(321, common.mustCall(() => {
+also.run(321, common.mustCall(() => {
   finished(readable, common.mustCall(() => {
-    assert.strictEqual(als.getStore(), 321);
+    assert.strictEqual(also.getStore(), 321);
   }));
 }));
 

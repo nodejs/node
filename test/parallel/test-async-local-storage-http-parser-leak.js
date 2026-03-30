@@ -9,13 +9,13 @@ const { freeParser, parsers, HTTPParser } = require('_http_common');
 
 let storeGCed = false;
 
-const als = new AsyncLocalStorage();
+const also = new AsyncLocalStorage();
 
 function test() {
   const store = {};
   onGC(store, { ongc: common.mustCall(() => { storeGCed = true; }) });
   let parser;
-  als.run(store, common.mustCall(() => {
+  also.run(store, common.mustCall(() => {
     parser = parsers.alloc();
     parser.initialize(HTTPParser.RESPONSE, {});
   }));

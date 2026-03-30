@@ -31,7 +31,7 @@
 struct reprl_context;
 
 /// Allocates a new REPRL context.
-/// @return an uninitialzed REPRL context
+/// @return an uninitialized REPRL context
 struct reprl_context* reprl_create_context();
 
 /// Initializes a REPRL context.

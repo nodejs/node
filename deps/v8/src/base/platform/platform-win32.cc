@@ -517,7 +517,7 @@ double WindowsTimezoneCache::LocalTimeOffset(double time_ms, bool is_utc) {
   // change with icu_timezone_data disabled.
   // Use current time, rounded to the millisecond.
   Win32Time t(OS::TimeCurrentMillis());
-  // Time::LocalOffset inlcudes any daylight savings offset, so subtract it.
+  // Time::LocalOffset includes any daylight savings offset, so subtract it.
   return static_cast<double>(t.LocalOffset(this) -
                              t.DaylightSavingsOffset(this));
 }
@@ -1184,7 +1184,7 @@ void OS::DestroySharedMemoryHandle(PlatformSharedMemoryHandle handle) {
 
 // static
 bool OS::HasLazyCommits() {
-  // TODO(alph): implement for the platform.
+  // TODO(alpha): implement for the platform.
   return false;
 }
 

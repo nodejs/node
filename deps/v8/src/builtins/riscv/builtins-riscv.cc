@@ -504,7 +504,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // (i.e. debug break and preemption) here, so check the "real stack limit".
   Label stack_overflow;
   __ LoadStackLimit(kScratchReg, StackLimitKind::kRealStackLimit);
-  __ Branch(&stack_overflow, Uless, sp, Operand(kScratchReg));
+  __ Branch(&stack_overflow, Unless, sp, Operand(kScratchReg));
 
   Register argc = kJavaScriptCallArgCountRegister;
   // Compute actual arguments count value as a formal parameter count without
@@ -1213,7 +1213,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     __ SubWord(sp_minus_frame_size, sp, frame_size);
     Register interrupt_limit = temps.Acquire();
     __ LoadStackLimit(interrupt_limit, StackLimitKind::kInterruptStackLimit);
-    __ Branch(&call_stack_guard, Uless, sp_minus_frame_size,
+    __ Branch(&call_stack_guard, Unless, sp_minus_frame_size,
               Operand(interrupt_limit));
   }
 
@@ -1401,7 +1401,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ SubWord(stack_addr, sp, Operand(scratch));
     DEFINE_REG(stack_limit);
     __ LoadStackLimit(stack_limit, StackLimitKind::kRealStackLimit);
-    __ Branch(&stack_overflow, Uless, stack_addr, Operand(stack_limit));
+    __ Branch(&stack_overflow, Unless, stack_addr, Operand(stack_limit));
 
     // If ok, push undefined as the initial value for all register file entries.
     Label loop_header;
@@ -1436,7 +1436,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   // TODO(solanes): Merge with the real stack limit check above.
   Label stack_check_interrupt, after_stack_check_interrupt;
   __ LoadStackLimit(scratch, StackLimitKind::kInterruptStackLimit);
-  __ Branch(&stack_check_interrupt, Uless, sp, Operand(scratch),
+  __ Branch(&stack_check_interrupt, Unless, sp, Operand(scratch),
             Label::Distance::kNear);
   __ bind(&after_stack_check_interrupt);
 
@@ -1461,7 +1461,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   } else {
     DCHECK_EQ(mode, InterpreterEntryTrampolineMode::kForProfiling);
     // Both versions must be the same up to this point otherwise the builtins
-    // will not be interchangable.
+    // will not be interchangeable.
     CHECK_EQ(
         masm->isolate()->heap()->interpreter_entry_return_pc_offset().value(),
         masm->pc_offset());
@@ -3417,7 +3417,7 @@ void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm, Register argc_input,
     __ li(kCArgRegs[0], ER::isolate_address(masm->isolate()));
     __ mv(kCArgRegs[1], kOldSPRegister);
     __ CallCFunction(ER::wasm_switch_to_the_central_stack(), 2,
-                     SetIsolateDataSlots::kNo);
+                     SetIsolateDataSlots::know);
     __ mv(central_stack_sp, kReturnRegister0);
     __ Pop(argc_input, target_input, argv_input);
   }
@@ -3454,7 +3454,7 @@ void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm) {
     DCHECK_NE(kReturnRegister1, kCArgRegs[0]);
     __ PrepareCallCFunction(1, kReturnRegister1);
     __ CallCFunction(ER::wasm_switch_from_the_central_stack(), 1,
-                     SetIsolateDataSlots::kNo);
+                     SetIsolateDataSlots::know);
     __ Pop(kReturnRegister0, kReturnRegister1);
   }
 
@@ -3572,7 +3572,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ Move(a0, zero_reg);
     __ Move(a1, zero_reg);
     __ li(a2, ER::isolate_address());
-    __ CallCFunction(find_handler, 3, SetIsolateDataSlots::kNo);
+    __ CallCFunction(find_handler, 3, SetIsolateDataSlots::know);
   }
 
   // Retrieve the handler context, SP and FP.

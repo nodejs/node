@@ -702,7 +702,7 @@ if (anAlwaysFalseCondition) {
 ```
 
 Coverage can also be disabled for a specified number of lines. After the
-specified number of lines, coverage will be automatically reenabled. If the
+specified number of lines, coverage will be automatically re-enabled. If the
 number of lines is not explicitly provided, a single line is ignored.
 
 ```js

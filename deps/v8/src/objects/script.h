@@ -137,7 +137,7 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   inline void set_compilation_state(CompilationState state);
 
   // [is_repl_mode]: whether this script originated from a REPL via debug
-  // evaluate and therefore has different semantics, e.g. re-declaring let.
+  // evaluate and therefore has different semantics, e.g. redeclaring let.
   inline bool is_repl_mode() const;
   inline void set_is_repl_mode(bool value);
 

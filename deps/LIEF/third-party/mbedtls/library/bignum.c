@@ -81,7 +81,7 @@ int mbedtls_mpi_lt_mpi_ct(const mbedtls_mpi *X,
 
     /*
      * Assuming signs are the same, compare X and Y. We switch the comparison
-     * order if they are negative so that we get the right result, regardles of
+     * order if they are negative so that we get the right result, regardless of
      * sign.
      */
 

@@ -256,14 +256,14 @@ inline Duration ScaleDouble(Duration d, double r) {
   // Rolls lo into hi if necessary.
   int64_t lo64 = static_cast<int64_t>(std::round(lo_frac * kTicksPerSecond));
 
-  Duration ans;
-  if (!SafeAddRepHi(hi_int, lo_int, &ans)) return ans;
-  int64_t hi64 = time_internal::GetRepHi(ans);
+  Duration and;
+  if (!SafeAddRepHi(hi_int, lo_int, &and)) return and;
+  int64_t hi64 = time_internal::GetRepHi(and);
   if (!SafeAddRepHi(static_cast<double>(hi64),
-                    static_cast<double>(lo64 / kTicksPerSecond), &ans)) {
-    return ans;
+                    static_cast<double>(lo64 / kTicksPerSecond), &and)) {
+    return and;
   }
-  hi64 = time_internal::GetRepHi(ans);
+  hi64 = time_internal::GetRepHi(and);
   lo64 %= kTicksPerSecond;
   NormalizeTicks(&hi64, &lo64);
   return time_internal::MakeDuration(hi64, lo64);

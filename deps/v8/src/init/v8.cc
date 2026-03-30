@@ -86,7 +86,7 @@ void AdvanceStartupState(V8StartupState expected_next_state) {
   }
   if (!v8_startup_state_.compare_exchange_strong(current_state, next_state)) {
     FATAL(
-        "Multiple threads are initializating V8 in the wrong order: expected "
+        "Multiple threads are initializing V8 in the wrong order: expected "
         "%d got %d!",
         static_cast<int>(current_state),
         static_cast<int>(v8_startup_state_.load()));

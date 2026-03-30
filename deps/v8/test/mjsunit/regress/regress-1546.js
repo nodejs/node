@@ -27,6 +27,6 @@
 
 // See: http://code.google.com/p/v8/issues/detail?id=1546
 
-// Should't throw. Scanner incorrectly truncated to char before comparing
+// Shouldn't throw. Scanner incorrectly truncated to char before comparing
 // with "*", so it ended the comment early.
 eval("/*\u822a/ */");

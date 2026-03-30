@@ -692,7 +692,7 @@ unsafe impl CloneableCart for () {}
 /// Clone requires that the cart type `C` derefs to the same address after it is cloned. This works for
 /// Rc, Arc, and &'a T.
 ///
-/// For other cart types, clone `.backing_cart()` and re-use `.attach_to_cart()`; however, doing
+/// For other cart types, clone `.backing_cart()` and reuse `.attach_to_cart()`; however, doing
 /// so may lose mutations performed via `.with_mut()`.
 ///
 /// Cloning a `Yoke` is often a cheap operation requiring no heap allocations, in much the same

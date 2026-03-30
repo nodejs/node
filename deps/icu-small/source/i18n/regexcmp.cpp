@@ -169,7 +169,7 @@ void    RegexCompile::compile(
     //      - an action to be performed.
     //      - pushing or popping a state to/from the local state return stack.
     //   file regexcst.txt is the source for the state table.  The logic behind
-    //     recongizing the pattern syntax is there, not here.
+    //     recognizing the pattern syntax is there, not here.
     //
     for (;;) {
         //  Bail out if anything has gone wrong.
@@ -2174,7 +2174,7 @@ int32_t   RegexCompile::blockTopLoc(UBool reserveLoc) {
 //                          and fix up any JMP or SAVE operations within the
 //                          parenthesized block that need to target the end
 //                          of the block.  The locations of these are kept on
-//                          the paretheses stack.
+//                          the parentheses stack.
 //
 //                          This function is called both when encountering a
 //                          real ) and at the end of the pattern.
@@ -4241,7 +4241,7 @@ UChar32  RegexCompile::scanNamedChar() {
 //------------------------------------------------------------------------------
 //
 //  scanProp   Construct a UnicodeSet from the text at the current scan
-//             position, which will be of the form \p{whaterver}
+//             position, which will be of the form \p{whatever}
 //
 //             The scan position will be at the 'p' or 'P'.  On return
 //             the scan position should be just after the '}'

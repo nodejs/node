@@ -38,7 +38,7 @@ namespace base_internal {
 
 #if ABSL_THREAD_IDENTITY_MODE != ABSL_THREAD_IDENTITY_MODE_USE_CPP11
 namespace {
-// Used to co-ordinate one-time creation of our pthread_key
+// Used to coordinate one-time creation of our pthread_key
 absl::once_flag init_thread_identity_key_once;
 pthread_key_t thread_identity_pthread_key;
 std::atomic<bool> pthread_key_initialized(false);

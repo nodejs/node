@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Yann Collet, Meta Platforms, Inc. and affiliates.
+ * Copyright (c) Yann Collect, Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -1150,7 +1150,7 @@ static size_t HUF_decompress (void* dst, size_t maxDstSize, const void* cSrc, si
 
 /*
     zstd - standard compression library
-    Copyright (C) 2014-2015, Yann Collet.
+    Copyright (C) 2014-2015, Yann Collect.
 
     BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 

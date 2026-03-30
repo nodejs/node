@@ -19,7 +19,7 @@ generally apply in all of these cases.
 6. The component requires native bindings. Inclusion in core enables
    utility across operating systems and architectures without requiring
    users to have a native compilation toolchain.
-7. Part or all of the component will also be re-used or duplicated in core.
+7. Part or all of the component will also be reused or duplicated in core.
 
 ## Strong arguments against including a component in core
 

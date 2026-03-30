@@ -73,10 +73,10 @@ module.exports = {
   create: function(context) {
     return {
       [`:function CallExpression:matches(${[
-        '[callee.type="Identifier"][callee.name=/^mustCall(AtLeast)?$/]',
+        '[callee.type="Identifier"][callee.name=/^mustCall(at least)?$/]',
         '[callee.type="Identifier"][callee.name="assert"]',
         '[callee.object.name="assert"][callee.property.name!="fail"]',
-        '[callee.object.name="common"][callee.property.name=/^mustCall(AtLeast)?$/]',
+        '[callee.object.name="common"][callee.property.name=/^mustCall(at least)?$/]',
       ].join(',')})`]: (node) => {
         const enclosingFn = findEnclosingFunction(node);
         const parent = enclosingFn?.parent;

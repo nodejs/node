@@ -820,7 +820,7 @@ TestTypeof()
 
 var key
 
-function TestIn(handler) {
+function testing(handler) {
   TestWithProxies(TestIn2, handler)
 }
 
@@ -862,16 +862,16 @@ function TestIn2(create, handler) {
   assertEquals("zzz", key)
 }
 
-TestIn({
+testing({
   has(t, k) { key = k; return k < "z" }
 })
 
-TestIn({
+testing({
   has(t, k) { return this.has2(k) },
   has2(k) { key = k; return k < "z" }
 })
 
-TestIn(new Proxy({},{
+testing(new Proxy({},{
   get(pt, pk, pr) {
     return (t, k) => { key = k; return k < "z" }
   }

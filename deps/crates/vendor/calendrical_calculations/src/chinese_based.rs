@@ -230,7 +230,7 @@ pub(crate) fn new_year_in_sui<C: ChineseBased>(prior_solstice: RataDie) -> (Rata
     // s1 is prior_solstice
     // Using 370 here since solstices are ~365 days apart
     // Both solstices should fall on December 20, 21, 22, or 23. The calendrical calculations
-    // drift away from this for large positive and negative years, so we artifically bind them
+    // drift away from this for large positive and negative years, so we artificially bind them
     // to this range in order for other code invariants to be upheld.
     let prior_solstice = bind_winter_solstice::<C>(prior_solstice);
     let following_solstice =
@@ -565,7 +565,7 @@ pub fn month_structure_for_year<C: ChineseBased>(
         // The leap month of a 13-month winter-solstice-to-winter-solstice period is the first month
         // that does not contain a major solar term — that is, the first lunar month that is wholly within a solar month.
         //
-        // As such, if a month without a solar term is found in a non-leap year, we just ingnore it.
+        // As such, if a month without a solar term is found in a non-leap year, we just ignore it.
         leap_month_index = None;
     } else {
         let diff = next_new_year - current_month_start;

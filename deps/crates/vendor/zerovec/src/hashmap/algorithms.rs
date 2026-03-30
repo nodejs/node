@@ -57,7 +57,7 @@ pub fn compute_index(f: (u32, u32), d: (u32, u32), m: u32) -> Option<usize> {
 /// 3. In decreasing order of bucket size, try until a (d0, d1) is found that splits the keys
 ///    in the bucket into distinct slots.
 /// 4. Mark the slots for current bucket as occupied and store the reverse mapping.
-/// 5. Repeat untill all the keys have been assigned distinct slots.
+/// 5. Repeat until all the keys have been assigned distinct slots.
 ///
 /// # Arguments
 ///

@@ -7,10 +7,10 @@ const { InvalidArgumentError } = require('./errors')
 
 let tls // include tls conditionally since it is not always available
 
-// TODO: session re-use does not wait for the first
+// TODO: session reuse does not wait for the first
 // connection to resolve the session and might therefore
 // resolve the same servername multiple times even when
-// re-use is enabled.
+// reuse is enabled.
 
 const SessionCache = class WeakSessionCache {
   constructor (maxCachedSessions) {

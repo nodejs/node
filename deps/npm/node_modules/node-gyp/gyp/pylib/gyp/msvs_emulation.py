@@ -198,7 +198,7 @@ def ExtractSharedMSVSSystemIncludes(configs, generator_flags):
 
 class MsvsSettings:
     """A class that understands the gyp 'msvs_...' values (especially the
-    msvs_settings field). They largely correpond to the VS2008 IDE DOM. This
+    msvs_settings field). They largely correspond to the VS2008 IDE DOM. This
     class helps map those settings to command line options."""
 
     def __init__(self, spec, generator_flags):

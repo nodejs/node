@@ -100,7 +100,7 @@ bool EmbedderDataSlot::ToAlignedPointer(
     ExternalPointerTagRange tag_range) const {
   // We don't care about atomicity of access here because embedder slots
   // are accessed this way only from the main thread via API during "mutator"
-  // phase which is propely synched with GC (concurrent marker may still look
+  // phase which is properly synched with GC (concurrent marker may still look
   // at the tagged part of the embedder slot but read-only access is ok).
 #ifdef V8_ENABLE_SANDBOX
   // The raw part must always contain a valid external pointer table index.

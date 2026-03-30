@@ -242,7 +242,7 @@ TEST_F(LateLoadEliminationReducerTest,
  *     BitcastTaggedToWordPtrForTagAndSmiBits(
  *         Load[Tagged]))
  * cannot be optimized because there is another non-truncated Load that is
- * elminated by LateLoadElimination that adds additional uses.
+ * eliminated by LateLoadElimination that adds additional uses.
  */
 TEST_F(LateLoadEliminationReducerTest,
        Int32TruncatedLoad_NonFoldable_ReplacingOtherLoad) {

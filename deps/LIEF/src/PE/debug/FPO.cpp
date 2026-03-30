@@ -30,7 +30,7 @@ struct FPO_DATA {
     uint16_t  cdwParams;              // # bytes in params/4
     uint16_t  cbProlog : 8;           // # bytes in prolog
     uint16_t  cbRegs   : 3;           // # regs saved
-    uint16_t  fHasSEH  : 1;           // TRUE if SEH in func
+    uint16_t  fHasSEH  : 1;           // TRUE if SHE in func
     uint16_t  fUseBP   : 1;           // TRUE if EBP has been allocated
     uint16_t  reserved : 1;           // reserved for future use
     uint16_t  cbFrame  : 2;           // frame type
@@ -82,7 +82,7 @@ std::string FPO::to_string() const {
   using namespace fmt;
   std::ostringstream os;
   os << format("{:10} {:13} {:9} {:8} {:9} {:5} {:6} {:8} {}\n", "RVA", "Proc Size",
-               "Locals", "Regs", "Prolog", "BP", "SEH", "Type", "Params");
+               "Locals", "Regs", "Prolog", "BP", "SHE", "Type", "Params");
   for (const entry_t& entry : entries()) {
     os << entry.to_string() << '\n';
   }

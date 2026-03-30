@@ -20,7 +20,7 @@ namespace v8 {
 namespace internal {
 
 // We protect writes to executable memory in some configurations and whenever
-// we write to it, we need to explicitely allow it first.
+// we write to it, we need to explicitly allow it first.
 //
 // For this purposed, there are a few scope objects with different semantics:
 //

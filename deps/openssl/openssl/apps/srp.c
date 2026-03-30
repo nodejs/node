@@ -60,11 +60,11 @@ static int get_index(CA_DB *db, char *id, char type)
     return -1;
 }
 
-static void print_entry(CA_DB *db, int indx, int verbose, char *s)
+static void print_entry(CA_DB *db, int index, int verbose, char *s)
 {
-    if (indx >= 0 && verbose) {
+    if (index >= 0 && verbose) {
         int j;
-        char **pp = sk_OPENSSL_PSTRING_value(db->db->data, indx);
+        char **pp = sk_OPENSSL_PSTRING_value(db->db->data, index);
         BIO_printf(bio_err, "%s \"%s\"\n", s, pp[DB_srpid]);
         for (j = 0; j < DB_NUMBER; j++) {
             BIO_printf(bio_err, "  %d = \"%s\"\n", j, pp[j]);
@@ -119,7 +119,7 @@ static char *lookup_conf(const CONF *conf, const char *section, const char *tag)
 
 static char *srp_verify_user(const char *user, const char *srp_verifier,
     char *srp_usersalt, const char *g, const char *N,
-    const char *passin, int verbose)
+    const char *passing, int verbose)
 {
     char password[1025];
     PW_CB_DATA cb_tmp;
@@ -128,7 +128,7 @@ static char *srp_verify_user(const char *user, const char *srp_verifier,
     int len;
 
     cb_tmp.prompt_info = user;
-    cb_tmp.password = passin;
+    cb_tmp.password = passing;
 
     len = password_callback(password, sizeof(password) - 1, 0, &cb_tmp);
     if (len > 0) {
@@ -229,7 +229,7 @@ const OPTIONS srp_options[] = {
     { "srpvfile", OPT_SRPVFILE, '<', "The srp verifier file name" },
     { "gn", OPT_GN, 's', "Set g and N values to be used for new verifier" },
     { "userinfo", OPT_USERINFO, 's', "Additional info to be set for user" },
-    { "passin", OPT_PASSIN, 's', "Input file pass phrase source" },
+    { "passing", OPT_PASSIN, 's', "Input file pass phrase source" },
     { "passout", OPT_PASSOUT, 's', "Output file pass phrase source" },
 
     OPT_R_OPTIONS,
@@ -248,7 +248,7 @@ int srp_main(int argc, char **argv)
     int gNindex = -1, maxgN = -1, ret = 1, errors = 0, verbose = 0, i;
     int doupdatedb = 0, mode = OPT_ERR;
     char *user = NULL, *passinarg = NULL, *passoutarg = NULL;
-    char *passin = NULL, *passout = NULL, *gN = NULL, *userinfo = NULL;
+    char *passing = NULL, *passout = NULL, *gN = NULL, *userinfo = NULL;
     char *section = NULL;
     char **gNrow = NULL, *configfile = NULL;
     char *srpvfile = NULL, **pp, *prog;
@@ -346,7 +346,7 @@ int srp_main(int argc, char **argv)
         goto opthelp;
     }
 
-    if (!app_passwd(passinarg, passoutarg, &passin, &passout)) {
+    if (!app_passwd(passinarg, passoutarg, &passing, &passout)) {
         BIO_printf(bio_err, "Error getting passwords\n");
         goto end;
     }
@@ -523,7 +523,7 @@ int srp_main(int argc, char **argv)
 
                         if (!srp_verify_user(user, row[DB_srpverifier], row[DB_srpsalt],
                                 irow ? irow[DB_srpsalt] : row[DB_srpgN],
-                                irow ? irow[DB_srpverifier] : NULL, passin,
+                                irow ? irow[DB_srpverifier] : NULL, passing,
                                 verbose)) {
                             BIO_printf(bio_err,
                                 "Invalid password for user \"%s\", operation abandoned.\n",
@@ -622,7 +622,7 @@ end:
     if (verbose)
         BIO_printf(bio_err, "SRP terminating with code %d.\n", ret);
 
-    OPENSSL_free(passin);
+    OPENSSL_free(passing);
     OPENSSL_free(passout);
     if (ret)
         ERR_print_errors(bio_err);

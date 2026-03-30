@@ -388,7 +388,7 @@
 })();
 
 
-// Array.prototype.includes does not skip holes; instead it treates them as
+// Array.prototype.includes does not skip holes; instead it treats them as
 // undefined
 (function() {
   assertTrue([,,,].includes(undefined));

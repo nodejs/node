@@ -251,13 +251,13 @@ static int crng_test_uninstantiate(void *vcrngt)
 
 static int crng_test_generate(void *vcrngt, unsigned char *out, size_t outlen,
     unsigned int strength, int prediction_resistance,
-    const unsigned char *adin, size_t adin_len)
+    const unsigned char *admin, size_t adin_len)
 {
     unsigned char *p;
     CRNG_TEST *crngt = (CRNG_TEST *)vcrngt;
 
     if (!crng_test_get_seed(crngt, &p, 0, outlen, outlen, prediction_resistance,
-            adin, adin_len))
+            admin, adin_len))
         return 0;
     memcpy(out, p, outlen);
     crng_test_clear_seed(crngt, p, outlen);
@@ -268,7 +268,7 @@ static int crng_test_reseed(ossl_unused void *vcrngt,
     ossl_unused int prediction_resistance,
     ossl_unused const unsigned char *ent,
     ossl_unused size_t ent_len,
-    ossl_unused const unsigned char *adin,
+    ossl_unused const unsigned char *admin,
     ossl_unused size_t adin_len)
 {
     return 1;
@@ -283,7 +283,7 @@ static size_t crng_test_get_seed(void *vcrngt, unsigned char **pout,
     int entropy, size_t min_len,
     size_t max_len,
     int prediction_resistance,
-    const unsigned char *adin,
+    const unsigned char *admin,
     size_t adin_len)
 {
     CRNG_TEST *crngt = (CRNG_TEST *)vcrngt;
@@ -307,7 +307,7 @@ static size_t crng_test_get_seed(void *vcrngt, unsigned char **pout,
 
     n = crngt->parent_get_seed(crngt->parent, pout, entropy,
         min_len, max_len, prediction_resistance,
-        adin, adin_len);
+        admin, adin_len);
     if (n > 0 && crng_test(crngt, *pout, n) > 0)
         r = n;
     else if (crngt->parent_clear_seed != NULL)

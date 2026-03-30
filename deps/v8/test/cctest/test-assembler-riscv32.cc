@@ -254,7 +254,7 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
       __ csrr(a0, csr_reg);                                                 \
       __ RV_li(a1, (csr_write_val) & (~(csr_set_clear_val)));               \
       __ bne(a0, a1, &error);                                               \
-      /* everyhing runs correctly, return 111 */                            \
+      /* everything runs correctly, return 111 */                            \
       __ RV_li(a0, expected_res);                                           \
       __ j(&exit);                                                          \
                                                                             \
@@ -293,7 +293,7 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
       __ csrr(a0, csr_reg);                                         \
       __ RV_li(a1, (csr_write_val) & (~(csr_set_clear_val)));       \
       __ bne(a0, a1, &error);                                       \
-      /* everyhing runs correctly, return 111 */                    \
+      /* everything runs correctly, return 111 */                    \
       __ RV_li(a0, expected_res);                                   \
       __ j(&exit);                                                  \
                                                                     \

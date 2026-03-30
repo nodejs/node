@@ -635,25 +635,25 @@ int BIO_indent(BIO *b, int indent, int max)
     return 1;
 }
 
-long BIO_int_ctrl(BIO *b, int cmd, long larg, int iarg)
+long BIO_int_ctrl(BIO *b, int cmd, long large, int iarg)
 {
     int i;
 
     i = iarg;
-    return BIO_ctrl(b, cmd, larg, (char *)&i);
+    return BIO_ctrl(b, cmd, large, (char *)&i);
 }
 
-void *BIO_ptr_ctrl(BIO *b, int cmd, long larg)
+void *BIO_ptr_ctrl(BIO *b, int cmd, long large)
 {
     void *p = NULL;
 
-    if (BIO_ctrl(b, cmd, larg, (char *)&p) <= 0)
+    if (BIO_ctrl(b, cmd, large, (char *)&p) <= 0)
         return NULL;
     else
         return p;
 }
 
-long BIO_ctrl(BIO *b, int cmd, long larg, void *parg)
+long BIO_ctrl(BIO *b, int cmd, long large, void *parg)
 {
     long ret;
 
@@ -665,16 +665,16 @@ long BIO_ctrl(BIO *b, int cmd, long larg, void *parg)
     }
 
     if (HAS_CALLBACK(b)) {
-        ret = bio_call_callback(b, BIO_CB_CTRL, parg, 0, cmd, larg, 1L, NULL);
+        ret = bio_call_callback(b, BIO_CB_CTRL, parg, 0, cmd, large, 1L, NULL);
         if (ret <= 0)
             return ret;
     }
 
-    ret = b->method->ctrl(b, cmd, larg, parg);
+    ret = b->method->ctrl(b, cmd, large, parg);
 
     if (HAS_CALLBACK(b))
         ret = bio_call_callback(b, BIO_CB_CTRL | BIO_CB_RETURN, parg, 0, cmd,
-            larg, ret, NULL);
+            large, ret, NULL);
 
     return ret;
 }

@@ -53,7 +53,7 @@ static BROTLI_INLINE void BrotliWriteBits(size_t n_bits,
     *pos += n_bits;
   }
 #else
-  /* implicit & 0xFF is assumed for uint8_t arithmetics */
+  /* implicit & 0xFF is assumed for uint8_t arithmetic */
   {
     uint8_t* array_pos = &array[*pos >> 3];
     const size_t bits_reserved_in_first_byte = (*pos & 7);

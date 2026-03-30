@@ -68,7 +68,7 @@ const OPTIONS rsautl_options[] = {
     { "pubin", OPT_PUBIN, '-', "Input key is an RSA public pkey" },
     { "certin", OPT_CERTIN, '-', "Input is a cert carrying an RSA public key" },
     { "rev", OPT_REV, '-', "Reverse the order of the input buffer" },
-    { "passin", OPT_PASSIN, 's', "Input file pass phrase source" },
+    { "passing", OPT_PASSIN, 's', "Input file pass phrase source" },
 
     OPT_SECTION("Output"),
     { "out", OPT_OUT, '>', "Output file" },
@@ -93,7 +93,7 @@ int rsautl_main(int argc, char **argv)
     EVP_PKEY_CTX *ctx = NULL;
     X509 *x;
     char *infile = NULL, *outfile = NULL, *keyfile = NULL;
-    char *passinarg = NULL, *passin = NULL, *prog;
+    char *passinarg = NULL, *passing = NULL, *prog;
     char rsa_mode = RSA_VERIFY, key_type = KEY_PRIVKEY;
     unsigned char *rsa_in = NULL, *rsa_out = NULL, pad = RSA_PKCS1_PADDING;
     size_t rsa_inlen, rsa_outlen = 0;
@@ -196,14 +196,14 @@ int rsautl_main(int argc, char **argv)
         goto end;
     }
 
-    if (!app_passwd(passinarg, NULL, &passin, NULL)) {
+    if (!app_passwd(passinarg, NULL, &passing, NULL)) {
         BIO_printf(bio_err, "Error getting password\n");
         goto end;
     }
 
     switch (key_type) {
     case KEY_PRIVKEY:
-        pkey = load_key(keyfile, keyformat, 0, passin, e, "private key");
+        pkey = load_key(keyfile, keyformat, 0, passing, e, "private key");
         break;
 
     case KEY_PUBKEY:
@@ -304,6 +304,6 @@ end:
     BIO_free_all(out);
     OPENSSL_free(rsa_in);
     OPENSSL_free(rsa_out);
-    OPENSSL_free(passin);
+    OPENSSL_free(passing);
     return ret;
 }

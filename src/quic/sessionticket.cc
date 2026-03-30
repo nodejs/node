@@ -91,16 +91,16 @@ Maybe<SessionTicket> SessionTicket::FromV8Value(Environment* env,
 
 MaybeLocal<Object> SessionTicket::encode(Environment* env) const {
   auto context = env->context();
-  ValueSerializer ser(env->isolate());
-  ser.WriteHeader();
+  ValueSerializer set(env->isolate());
+  set.WriteHeader();
 
-  if (ser.WriteValue(context, ticket_.ToUint8Array(env)).IsNothing() ||
-      ser.WriteValue(context, transport_params_.ToUint8Array(env))
+  if (set.WriteValue(context, ticket_.ToUint8Array(env)).IsNothing() ||
+      set.WriteValue(context, transport_params_.ToUint8Array(env))
           .IsNothing()) {
     return MaybeLocal<Object>();
   }
 
-  auto result = ser.Release();
+  auto result = set.Release();
 
   return Buffer::New(env, reinterpret_cast<char*>(result.first), result.second);
 }

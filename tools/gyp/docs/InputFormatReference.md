@@ -956,7 +956,7 @@ values, depending on the setting of `OS`:
 Note that when `OS` is `win`, the `include` for `_win.cc` files is
 processed after the `exclude` matching the same pattern, because the
 `sources/` list participates in [merging](#Merging) during
-[conditional evaluation](#Conditonals) just like any other list
+[conditional evaluation](#Conditionals) just like any other list
 would.  This guarantees that the `_win.cc` files, previously
 unconditionally excluded, will be re-included when `OS` is `win`.
 

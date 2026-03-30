@@ -47,7 +47,7 @@ enum class ComparisonMode {
 };
 
 enum class SetIsolateDataSlots {
-  kNo,
+  know,
   kYes,
 };
 

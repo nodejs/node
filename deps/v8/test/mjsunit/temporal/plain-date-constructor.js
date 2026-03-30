@@ -70,7 +70,7 @@ assertThrows(() => new Temporal.PlainDate(2021, 10, 32), RangeError);
 assertThrows(() => new Temporal.PlainDate(2021, 11, 31), RangeError);
 assertThrows(() => new Temporal.PlainDate(2021, 12, 32), RangeError);
 
-// Infinty
+// Infinity
 assertThrows(() => new Temporal.PlainDate(Infinity, 12, 1), RangeError);
 assertThrows(() => new Temporal.PlainDate(-Infinity, 12, 1), RangeError);
 assertThrows(() => new Temporal.PlainDate(2021, 12, Infinity), RangeError);

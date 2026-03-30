@@ -44,7 +44,7 @@ transitioning javascript builtin WeakRefConstructor(
   // and don't need generational barriers for the reference from `weakRef` to
   // `weakTarget`.
   weakRef.target = weakTarget;
-  // 4. Perfom ! AddToKeptObjects(target).
+  // 4. Perform ! AddToKeptObjects(target).
   runtime::JSWeakRefAddToKeptObjects(weakTarget);
   // 6. Return weakRef.
   return weakRef;

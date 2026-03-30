@@ -313,7 +313,7 @@ void log(const char* name, LEVEL level, const std::string& msg) {
     case LEVEL::ERR:
       return Logger::instance(name).err("{}", msg);
     case LEVEL::CRITICAL:
-      return Logger::instance(name).critial("{}", msg);
+      return Logger::instance(name).critical("{}", msg);
   }
 }
 

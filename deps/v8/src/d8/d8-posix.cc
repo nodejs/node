@@ -269,7 +269,7 @@ static void ExecSubprocess(int* exec_error_fds, int* stdout_fds,
 }
 
 // Runs in the parent process.  Checks that the child was able to exec (closing
-// the file desriptor), or reports an error if it failed.
+// the file descriptor), or reports an error if it failed.
 static bool ChildLaunchedOK(Isolate* isolate, int* exec_error_fds) {
   ssize_t bytes_read;
   int err;

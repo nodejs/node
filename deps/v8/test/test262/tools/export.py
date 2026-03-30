@@ -24,7 +24,7 @@ def main():
   parser.add_argument(
       '--approver',
       help="Flag indicating that this run will only approve and merge "
-      "exisiting PRs. Approval of these PRs needs to be done by an account "
+      "existing PRs. Approval of these PRs needs to be done by an account "
       "different from the one that created the PR.",
       action="store_true")
   args, exporter_args = parser.parse_known_args(sys.argv)

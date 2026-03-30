@@ -2351,7 +2351,7 @@
         /**
          * Gets the current globally-applied privacy control status
          *
-         * @param {bool} newValue - The a boolean that is true if the browers
+         * @param {bool} newValue - The a boolean that is true if the browsers
          *                          should convey a "do not sell or share" signal
          *                          and false otherwise
          *

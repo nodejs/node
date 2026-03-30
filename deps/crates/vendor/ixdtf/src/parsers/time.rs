@@ -166,7 +166,7 @@ pub(crate) fn parse_minute_second<T: EncodingType>(
 
 /// Parse a `Fraction` value
 ///
-/// This is primarily used in ISO8601 to add percision past
+/// This is primarily used in ISO8601 to add precision past
 /// a second.
 #[inline]
 pub(crate) fn parse_fraction<T: EncodingType>(

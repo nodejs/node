@@ -1124,7 +1124,7 @@ TEST(CivilTime, NormalizeWithHugeYear) {
   EXPECT_EQ("-9223372036854775807-01", absl::FormatCivilTime(c));
 }
 
-TEST(CivilTime, LeapYears) {
+TEST(CivilTime, leap years) {
   const absl::CivilSecond s1(2013, 2, 28 + 1, 0, 0, 0);
   EXPECT_EQ("2013-03-01T00:00:00", absl::FormatCivilTime(s1));
 

@@ -593,7 +593,7 @@ void PPCDebugger::Debug() {
         PrintF("del\n");
         PrintF("  delete the breakpoint\n");
         PrintF("trace (alias 't')\n");
-        PrintF("  toogle the tracing of all executed statements\n");
+        PrintF("  toggle the tracing of all executed statements\n");
         PrintF("stop feature:\n");
         PrintF("  Description:\n");
         PrintF("    Stops are debug instructions inserted by\n");
@@ -838,7 +838,7 @@ intptr_t Simulator::get_lr() const { return special_reg_lr_; }
 // Runtime FP routines take:
 // - two double arguments
 // - one double argument and zero or one integer arguments.
-// All are consructed here from d1, d2 and r3.
+// All are constructed here from d1, d2 and r3.
 void Simulator::GetFpArgs(double* x, double* y, intptr_t* z) {
   *x = get_double_from_d_register(1);
   *y = get_double_from_d_register(2);
@@ -1343,7 +1343,7 @@ void Simulator::IncreaseStopCounter(uint32_t code) {
   if ((watched_stops_[code].count & ~(1 << 31)) == 0x7FFFFFFF) {
     PrintF(
         "Stop counter for code %i has overflowed.\n"
-        "Enabling this code and reseting the counter to 0.\n",
+        "Enabling this code and resetting the counter to 0.\n",
         code);
     watched_stops_[code].count = 0;
     EnableStop(code);
@@ -4552,7 +4552,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       VECTOR_LOGICAL_OP(a_val & (~b_val))
       break;
     }
-    case VOR: {
+    case FOR: {
       VECTOR_LOGICAL_OP(a_val | b_val)
       break;
     }
@@ -5089,7 +5089,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       if (is_snan(b_val)) {
         float_bits &= 0xFFBFFFFFU;  // Clear bit 22.
       }
-      // fp result is placed in both 32bit halfs of the dst.
+      // fp result is placed in both 32bit halves of the dst.
       float_bits = (float_bits << 32) | float_bits;
       set_d_register(t, float_bits);
       break;
@@ -5300,11 +5300,11 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
     type a_val = get_simd_register_by_lane<type>(a, i);          \
     type b_val = get_simd_register_by_lane<type>(b, i);          \
     type t_val = get_simd_register_by_lane<type>(t, i);          \
-    type reuslt = sign * function(a_val, t_val, (sign * b_val)); \
-    if (isinf(a_val)) reuslt = a_val;                            \
-    if (isinf(b_val)) reuslt = b_val;                            \
-    if (isinf(t_val)) reuslt = t_val;                            \
-    set_simd_register_by_lane<type>(t, i, reuslt);               \
+    type result = sign * function(a_val, t_val, (sign * b_val)); \
+    if (isinf(a_val)) result = a_val;                            \
+    if (isinf(b_val)) result = b_val;                            \
+    if (isinf(t_val)) result = t_val;                            \
+    set_simd_register_by_lane<type>(t, i, result);               \
   }
     case XVMADDMDP: {
       VECTOR_FP_QF(double, +1, fma)

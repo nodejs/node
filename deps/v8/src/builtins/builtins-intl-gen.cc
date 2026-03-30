@@ -210,7 +210,7 @@ void IntlBuiltinsAssembler::ToLowerCaseImpl(
 
           Increment(&var_cursor);
         },
-        kCharSize, LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
+        kCharSize, LoopUnrollingMode::know, IndexAdvanceMode::kPost);
 
     // Return the original string if it remained unchanged in order to preserve
     // e.g. internalization and private symbols (such as the preserved object

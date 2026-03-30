@@ -3,7 +3,7 @@ use crate::lib::{Debug, Display};
 /// Either a re-export of std::error::Error or a new identical trait, depending
 /// on whether Serde's "std" feature is enabled.
 ///
-/// Serde's error traits [`serde::ser::Error`] and [`serde::de::Error`] require
+/// Serde's error traits [`serde::set::Error`] and [`serde::de::Error`] require
 /// [`std::error::Error`] as a supertrait, but only when Serde is built with
 /// "std" enabled. Data formats that don't care about no\_std support should
 /// generally provide their error types with a `std::error::Error` impl
@@ -13,7 +13,7 @@ use crate::lib::{Debug, Display};
 /// #[derive(Debug)]
 /// struct MySerError {...}
 ///
-/// impl serde::ser::Error for MySerError {...}
+/// impl serde::set::Error for MySerError {...}
 ///
 /// impl std::fmt::Display for MySerError {...}
 ///
@@ -38,7 +38,7 @@ use crate::lib::{Debug, Display};
 /// re-export:
 ///
 /// ```edition2021
-/// impl serde::ser::StdError for MySerError {}
+/// impl serde::set::StdError for MySerError {}
 /// ```
 pub trait Error: Debug + Display {
     /// The underlying cause of this error, if any.

@@ -14,7 +14,7 @@ class VTuneDomain {
    */
   static std::shared_ptr<VTuneDomain> createDomain(const char* domain_name);
 
-  /* destory vtune domain*/
+  /* destroy vtune domain*/
   static void destroyDomain(const char* domain_name);
 
   /* get a domain */

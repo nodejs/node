@@ -86,7 +86,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
                       ClearExceptionFlag flag,
                       IsCompiledScope* is_compiled_scope,
                       CreateSourcePositions create_source_positions_flag =
-                          CreateSourcePositions::kNo);
+                          CreateSourcePositions::know);
   static bool Compile(Isolate* isolate, DirectHandle<JSFunction> function,
                       ClearExceptionFlag flag,
                       IsCompiledScope* is_compiled_scope);
@@ -170,7 +170,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
                       ParseRestriction restriction, int parameters_end_pos,
                       int eval_position,
                       ParsingWhileDebugging parsing_while_debugging =
-                          ParsingWhileDebugging::kNo);
+                          ParsingWhileDebugging::know);
 
   // Create a function that results from wrapping |source| in a function,
   // with |arguments| being a list of parameters for that function.

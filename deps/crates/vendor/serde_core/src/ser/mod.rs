@@ -142,7 +142,7 @@ macro_rules! declare_error_trait {
         #[cfg_attr(
             not(no_diagnostic_namespace),
             diagnostic::on_unimplemented(
-                message = "the trait bound `{Self}: serde::ser::Error` is not satisfied",
+                message = "the trait bound `{Self}: serde::set::Error` is not satisfied",
             )
         )]
         pub trait Error: Sized $(+ $($supertrait)::+)* {
@@ -164,7 +164,7 @@ macro_rules! declare_error_trait {
             /// #     }
             /// # }
             /// #
-            /// use serde::ser::{self, Serialize, Serializer};
+            /// use serde::set::{self, Serialize, Serializer};
             ///
             /// impl Serialize for Path {
             ///     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -173,7 +173,7 @@ macro_rules! declare_error_trait {
             ///     {
             ///         match self.to_str() {
             ///             Some(s) => serializer.serialize_str(s),
-            ///             None => Err(ser::Error::custom("path contains invalid UTF-8 characters")),
+            ///             None => Err(set::Error::custom("path contains invalid UTF-8 characters")),
             ///         }
             ///     }
             /// }
@@ -200,7 +200,7 @@ declare_error_trait!(Error: Sized + Debug + Display);
 /// by Serde.
 ///
 /// Serde provides `Serialize` implementations for many Rust primitive and
-/// standard library types. The complete list is [here][crate::ser]. All of
+/// standard library types. The complete list is [here][crate::set]. All of
 /// these can be serialized using Serde out of the box.
 ///
 /// Additionally, Serde provides a procedural macro called [`serde_derive`] to
@@ -224,7 +224,7 @@ declare_error_trait!(Error: Sized + Debug + Display);
 #[cfg_attr(
     not(no_diagnostic_namespace),
     diagnostic::on_unimplemented(
-        // Prevents `serde_core::ser::Serialize` appearing in the error message
+        // Prevents `serde_core::set::Serialize` appearing in the error message
         // in projects with no direct dependency on serde_core.
         message = "the trait bound `{Self}: serde::Serialize` is not satisfied",
         note = "for local types consider adding `#[derive(serde::Serialize)]` to your `{Self}` type",
@@ -238,7 +238,7 @@ pub trait Serialize {
     /// information about how to implement this method.
     ///
     /// ```edition2021
-    /// use serde::ser::{Serialize, SerializeStruct, Serializer};
+    /// use serde::set::{Serialize, SerializeStruct, Serializer};
     ///
     /// struct Person {
     ///     name: String,
@@ -728,7 +728,7 @@ pub trait Serializer: Sized {
     /// like this:
     ///
     /// ```edition2021
-    /// # use serde::ser::{Serializer, SerializeSeq};
+    /// # use serde::set::{Serializer, SerializeSeq};
     /// # use serde_core::__private::doc::Error;
     /// #
     /// # struct MySerializer;
@@ -985,7 +985,7 @@ pub trait Serializer: Sized {
     /// #     }
     /// # }
     /// #
-    /// use serde::ser::{Serialize, SerializeSeq, Serializer};
+    /// use serde::set::{Serialize, SerializeSeq, Serializer};
     ///
     /// impl<T> Serialize for Vec<T>
     /// where
@@ -1011,7 +1011,7 @@ pub trait Serializer: Sized {
     /// then a call to `end`.
     ///
     /// ```edition2021
-    /// use serde::ser::{Serialize, SerializeTuple, Serializer};
+    /// use serde::set::{Serialize, SerializeTuple, Serializer};
     ///
     /// # mod fool {
     /// #     trait Serialize {}
@@ -1041,7 +1041,7 @@ pub trait Serializer: Sized {
     /// ```
     ///
     /// ```edition2021
-    /// use serde::ser::{Serialize, SerializeTuple, Serializer};
+    /// use serde::set::{Serialize, SerializeTuple, Serializer};
     ///
     /// const VRAM_SIZE: usize = 386;
     /// struct Vram([u16; VRAM_SIZE]);
@@ -1069,7 +1069,7 @@ pub trait Serializer: Sized {
     /// of data fields that will be serialized.
     ///
     /// ```edition2021
-    /// use serde::ser::{Serialize, SerializeTupleStruct, Serializer};
+    /// use serde::set::{Serialize, SerializeTupleStruct, Serializer};
     ///
     /// struct Rgb(u8, u8, u8);
     ///
@@ -1101,7 +1101,7 @@ pub trait Serializer: Sized {
     /// and the `len` is the number of data fields that will be serialized.
     ///
     /// ```edition2021
-    /// use serde::ser::{Serialize, SerializeTupleVariant, Serializer};
+    /// use serde::set::{Serialize, SerializeTupleVariant, Serializer};
     ///
     /// enum E {
     ///     T(u8, u8),
@@ -1166,7 +1166,7 @@ pub trait Serializer: Sized {
     /// #     }
     /// # }
     /// #
-    /// use serde::ser::{Serialize, SerializeMap, Serializer};
+    /// use serde::set::{Serialize, SerializeMap, Serializer};
     ///
     /// impl<K, V> Serialize for HashMap<K, V>
     /// where
@@ -1196,7 +1196,7 @@ pub trait Serializer: Sized {
     /// which are skipped with [`SerializeStruct::skip_field`].
     ///
     /// ```edition2021
-    /// use serde::ser::{Serialize, SerializeStruct, Serializer};
+    /// use serde::set::{Serialize, SerializeStruct, Serializer};
     ///
     /// struct Rgb {
     ///     r: u8,
@@ -1234,7 +1234,7 @@ pub trait Serializer: Sized {
     /// [`SerializeStructVariant::skip_field`].
     ///
     /// ```edition2021
-    /// use serde::ser::{Serialize, SerializeStructVariant, Serializer};
+    /// use serde::set::{Serialize, SerializeStructVariant, Serializer};
     ///
     /// enum E {
     ///     S { r: u8, g: u8, b: u8 },
@@ -1272,7 +1272,7 @@ pub trait Serializer: Sized {
     /// Collect an iterator as a sequence.
     ///
     /// The default implementation serializes each item yielded by the iterator
-    /// using [`serialize_seq`]. Implementors should not need to override this
+    /// using [`serialize_seq`]. Implementers should not need to override this
     /// method.
     ///
     /// ```edition2021
@@ -1307,7 +1307,7 @@ pub trait Serializer: Sized {
     /// Collect an iterator as a map.
     ///
     /// The default implementation serializes each pair yielded by the iterator
-    /// using [`serialize_map`]. Implementors should not need to override this
+    /// using [`serialize_map`]. Implementers should not need to override this
     /// method.
     ///
     /// ```edition2021
@@ -1484,7 +1484,7 @@ pub trait Serializer: Sized {
 /// #     }
 /// # }
 /// #
-/// use serde::ser::{Serialize, SerializeSeq, Serializer};
+/// use serde::set::{Serialize, SerializeSeq, Serializer};
 ///
 /// impl<T> Serialize for Vec<T>
 /// where
@@ -1512,7 +1512,7 @@ pub trait Serializer: Sized {
 #[cfg_attr(
     not(no_diagnostic_namespace),
     diagnostic::on_unimplemented(
-        message = "the trait bound `{Self}: serde::ser::SerializeSeq` is not satisfied",
+        message = "the trait bound `{Self}: serde::set::SerializeSeq` is not satisfied",
     )
 )]
 pub trait SerializeSeq {
@@ -1536,7 +1536,7 @@ pub trait SerializeSeq {
 /// # Example use
 ///
 /// ```edition2021
-/// use serde::ser::{Serialize, SerializeTuple, Serializer};
+/// use serde::set::{Serialize, SerializeTuple, Serializer};
 ///
 /// # mod fool {
 /// #     trait Serialize {}
@@ -1584,7 +1584,7 @@ pub trait SerializeSeq {
 /// #     }
 /// # }
 /// #
-/// use serde::ser::{Serialize, SerializeTuple, Serializer};
+/// use serde::set::{Serialize, SerializeTuple, Serializer};
 ///
 /// # mod fool {
 /// #     trait Serialize {}
@@ -1618,7 +1618,7 @@ pub trait SerializeSeq {
 #[cfg_attr(
     not(no_diagnostic_namespace),
     diagnostic::on_unimplemented(
-        message = "the trait bound `{Self}: serde::ser::SerializeTuple` is not satisfied",
+        message = "the trait bound `{Self}: serde::set::SerializeTuple` is not satisfied",
     )
 )]
 pub trait SerializeTuple {
@@ -1642,7 +1642,7 @@ pub trait SerializeTuple {
 /// # Example use
 ///
 /// ```edition2021
-/// use serde::ser::{Serialize, SerializeTupleStruct, Serializer};
+/// use serde::set::{Serialize, SerializeTupleStruct, Serializer};
 ///
 /// struct Rgb(u8, u8, u8);
 ///
@@ -1669,7 +1669,7 @@ pub trait SerializeTuple {
 #[cfg_attr(
     not(no_diagnostic_namespace),
     diagnostic::on_unimplemented(
-        message = "the trait bound `{Self}: serde::ser::SerializeTupleStruct` is not satisfied",
+        message = "the trait bound `{Self}: serde::set::SerializeTupleStruct` is not satisfied",
     )
 )]
 pub trait SerializeTupleStruct {
@@ -1693,7 +1693,7 @@ pub trait SerializeTupleStruct {
 /// # Example use
 ///
 /// ```edition2021
-/// use serde::ser::{Serialize, SerializeTupleVariant, Serializer};
+/// use serde::set::{Serialize, SerializeTupleVariant, Serializer};
 ///
 /// enum E {
 ///     T(u8, u8),
@@ -1733,7 +1733,7 @@ pub trait SerializeTupleStruct {
 #[cfg_attr(
     not(no_diagnostic_namespace),
     diagnostic::on_unimplemented(
-        message = "the trait bound `{Self}: serde::ser::SerializeTupleVariant` is not satisfied",
+        message = "the trait bound `{Self}: serde::set::SerializeTupleVariant` is not satisfied",
     )
 )]
 pub trait SerializeTupleVariant {
@@ -1776,7 +1776,7 @@ pub trait SerializeTupleVariant {
 /// #     }
 /// # }
 /// #
-/// use serde::ser::{Serialize, SerializeMap, Serializer};
+/// use serde::set::{Serialize, SerializeMap, Serializer};
 ///
 /// impl<K, V> Serialize for HashMap<K, V>
 /// where
@@ -1805,7 +1805,7 @@ pub trait SerializeTupleVariant {
 #[cfg_attr(
     not(no_diagnostic_namespace),
     diagnostic::on_unimplemented(
-        message = "the trait bound `{Self}: serde::ser::SerializeMap` is not satisfied",
+        message = "the trait bound `{Self}: serde::set::SerializeMap` is not satisfied",
     )
 )]
 pub trait SerializeMap {
@@ -1870,7 +1870,7 @@ pub trait SerializeMap {
 /// # Example use
 ///
 /// ```edition2021
-/// use serde::ser::{Serialize, SerializeStruct, Serializer};
+/// use serde::set::{Serialize, SerializeStruct, Serializer};
 ///
 /// struct Rgb {
 ///     r: u8,
@@ -1901,7 +1901,7 @@ pub trait SerializeMap {
 #[cfg_attr(
     not(no_diagnostic_namespace),
     diagnostic::on_unimplemented(
-        message = "the trait bound `{Self}: serde::ser::SerializeStruct` is not satisfied",
+        message = "the trait bound `{Self}: serde::set::SerializeStruct` is not satisfied",
     )
 )]
 pub trait SerializeStruct {
@@ -1934,7 +1934,7 @@ pub trait SerializeStruct {
 /// # Example use
 ///
 /// ```edition2021
-/// use serde::ser::{Serialize, SerializeStructVariant, Serializer};
+/// use serde::set::{Serialize, SerializeStructVariant, Serializer};
 ///
 /// enum E {
 ///     S { r: u8, g: u8, b: u8 },
@@ -1971,7 +1971,7 @@ pub trait SerializeStruct {
 #[cfg_attr(
     not(no_diagnostic_namespace),
     diagnostic::on_unimplemented(
-        message = "the trait bound `{Self}: serde::ser::SerializeStructVariant` is not satisfied",
+        message = "the trait bound `{Self}: serde::set::SerializeStructVariant` is not satisfied",
     )
 )]
 pub trait SerializeStructVariant {

@@ -176,7 +176,7 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<ConcreteVisitor> {
   }
 
   // Marks the object  and pushes it on the marking work list. The `host` is
-  // used for the reference summarizer to valide that the heap snapshot is in
+  // used for the reference summarizer to valid that the heap snapshot is in
   // sync with the marker.
   V8_INLINE bool MarkObject(Tagged<HeapObject> host, Tagged<HeapObject> obj,
                             MarkingHelper::WorklistTarget target_worklist);

@@ -149,7 +149,7 @@ void BaseCollectionsAssembler::AddConstructorEntries(
     BIND(&if_exception_during_fast_iteration);
     {
       // In case exception is thrown during collection population, materialize
-      // the iteator and execute iterator closing protocol. It might be
+      // the iterator and execute iterator closing protocol. It might be
       // non-trivial in case "return" callback is added somewhere in the
       // iterator's prototype chain.
       TNode<IntPtrT> next_index =
@@ -226,7 +226,7 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromFastJSArray(
     // to the collection does not call user code that could mutate the elements
     // or collection.
     BuildFastLoop<IntPtrT>(var_current_index, IntPtrConstant(0), length,
-                           set_entry, 1, LoopUnrollingMode::kNo,
+                           set_entry, 1, LoopUnrollingMode::know,
                            IndexAdvanceMode::kPost);
     Goto(&exit);
   }
@@ -248,7 +248,7 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromFastJSArray(
         AddConstructorEntry(variant, context, collection, add_func, entry);
       };
       BuildFastLoop<IntPtrT>(var_current_index, IntPtrConstant(0), length,
-                             set_entry, 1, LoopUnrollingMode::kNo,
+                             set_entry, 1, LoopUnrollingMode::know,
                              IndexAdvanceMode::kPost);
       Goto(&exit);
     }
@@ -706,7 +706,7 @@ void CollectionsBuiltinsAssembler::AddConstructorEntriesFromSet(
   // or collection. The iteration is based on the layout of the ordered hash
   // table.
   BuildFastLoop<IntPtrT>(loop_vars, number_of_buckets, loop_bound, set_entry,
-                         OrderedHashSet::kEntrySize, LoopUnrollingMode::kNo,
+                         OrderedHashSet::kEntrySize, LoopUnrollingMode::know,
                          IndexAdvanceMode::kPost);
   Goto(&exit);
   BIND(&exit);

@@ -364,7 +364,7 @@ void ResourcesManager::change_icon(const ResourceIcon& original, const ResourceI
     return;
   }
 
-  // Update group in which the icon is registred
+  // Update group in which the icon is registered
   for (ResourceNode& grp_icon_lvl2 : icon_grp_node->childs()) {
     for (ResourceNode& grp_icon_lvl3 : grp_icon_lvl2.childs()) {
       auto* icon_group_node = grp_icon_lvl3.cast<ResourceData>();

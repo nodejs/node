@@ -300,7 +300,7 @@ TEST_IMPL(fork_signal_to_child) {
 TEST_IMPL(fork_signal_to_child_closed) {
   /* A signal handler installed before forking
      doesn't get received anywhere when the child is signalled,
-     but isnt running the loop. */
+     but isn't running the loop. */
   uv_signal_t signal_handle;
   pid_t child_pid;
   int sync_pipe[2];
@@ -330,7 +330,7 @@ TEST_IMPL(fork_signal_to_child_closed) {
 
   if (child_pid != 0) {
     /* parent */
-    printf("Wating on child in parent\n");
+    printf("Waiting on child in parent\n");
     ASSERT_EQ(1, read(sync_pipe[0], sync_buf, 1)); /* wait for child */
     printf("Parent killing child\n");
     ASSERT_OK(kill(child_pid, SIGUSR1));

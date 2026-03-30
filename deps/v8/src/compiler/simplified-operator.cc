@@ -2391,7 +2391,7 @@ const Operator* SimplifiedOperatorBuilder::AllocateRaw(
       case NumberOperationHint::kNumber:                                      \
         return &cache_.k##Name##NumberOperator;                               \
       case NumberOperationHint::kNumberOrBoolean:                             \
-        /* Not used currenly. */                                              \
+        /* Not used currently. */                                              \
         UNREACHABLE();                                                        \
       case NumberOperationHint::kNumberOrOddball:                             \
         return &cache_.k##Name##NumberOrOddballOperator;                      \

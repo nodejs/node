@@ -18,7 +18,7 @@ const CWD = pathRegex(process.cwd())
 const TESTDIR = pathRegex(relative(process.cwd(), dirname(require.main.filename)))
 
 const cleanCwd = (path) => normalizePath(path)
-  // repalce CWD, TESTDIR, and TAPDIR separately
+  // replace CWD, TESTDIR, and TAPDIR separately
   .replace(CWD, '{CWD}')
   .replace(TESTDIR, '{TESTDIR}')
   .replace(/tap-testdir-[\w-.]+/gi, '{TAPDIR}')

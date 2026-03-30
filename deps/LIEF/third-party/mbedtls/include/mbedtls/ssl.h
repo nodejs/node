@@ -1557,7 +1557,7 @@ struct mbedtls_ssl_config {
 #if defined(MBEDTLS_X509_CRT_PARSE_C)
     /** Callback to customize X.509 certificate chain verification          */
     int(*MBEDTLS_PRIVATE(f_vrfy))(void *, mbedtls_x509_crt *, int, uint32_t *);
-    void *MBEDTLS_PRIVATE(p_vrfy);                   /*!< context for X.509 verify calllback */
+    void *MBEDTLS_PRIVATE(p_vrfy);                   /*!< context for X.509 verify callback */
 #endif
 
 #if defined(MBEDTLS_SSL_HANDSHAKE_WITH_PSK_ENABLED)
@@ -2075,7 +2075,7 @@ void mbedtls_ssl_init(mbedtls_ssl_context *ssl);
  *
  * \warning        After setting up a client context, if certificate-based
  *                 authentication is enabled, you should call
- *                 mbedtls_ssl_set_hostname() to specifiy the expected
+ *                 mbedtls_ssl_set_hostname() to specify the expected
  *                 name of the server. Without this, in most scenarios,
  *                 the TLS connection is insecure. See
  *                 #MBEDTLS_ERR_SSL_CERTIFICATE_VERIFICATION_WITHOUT_HOSTNAME
@@ -2095,7 +2095,7 @@ int mbedtls_ssl_setup(mbedtls_ssl_context *ssl,
                       const mbedtls_ssl_config *conf);
 
 /**
- * \brief          Reset an already initialized SSL context for re-use
+ * \brief          Reset an already initialized SSL context for reuse
  *                 while retaining application-set variables, function
  *                 pointers and data.
  *
@@ -2185,7 +2185,7 @@ void mbedtls_ssl_conf_authmode(mbedtls_ssl_config *conf, int authmode);
  *  MBEDTLS_SSL_EARLY_DATA_ENABLED:
  *  Early data functionality is enabled and may be negotiated in the handshake.
  *  Application using early data functionality needs to be aware that the
- *  security properties for early data (also refered to as 0-RTT data) are
+ *  security properties for early data (also referred to as 0-RTT data) are
  *  weaker than those for other kinds of TLS data. See the documentation of
  *  mbedtls_ssl_write_early_data() and mbedtls_ssl_read_early_data() for more
  *  information.
@@ -2817,7 +2817,7 @@ static inline size_t mbedtls_ssl_session_get_id_len(const mbedtls_ssl_session *s
  *
  * \param session  SSL session.
  *
- * \return         int represetation for ciphersuite.
+ * \return         int representation for ciphersuite.
  */
 static inline int mbedtls_ssl_session_get_ciphersuite_id(const mbedtls_ssl_session *session)
 {
@@ -5055,7 +5055,7 @@ int mbedtls_ssl_get_session(const mbedtls_ssl_context *ssl,
  *                 #MBEDTLS_ERR_SSL_RECEIVED_EARLY_DATA,
  *                 you must stop using the SSL context for reading or writing,
  *                 and either free it or call \c mbedtls_ssl_session_reset()
- *                 on it before re-using it for a new connection; the current
+ *                 on it before reusing it for a new connection; the current
  *                 connection must be closed.
  *
  * \note           If DTLS is in use, then you may choose to handle
@@ -5148,7 +5148,7 @@ static inline int mbedtls_ssl_is_handshake_over(mbedtls_ssl_context *ssl)
  *                 #MBEDTLS_ERR_SSL_RECEIVED_EARLY_DATA, you must stop using
  *                 the SSL context for reading or writing, and either free it
  *                 or call \c mbedtls_ssl_session_reset() on it before
- *                 re-using it for a new connection; the current connection
+ *                 reusing it for a new connection; the current connection
  *                 must be closed.
  */
 int mbedtls_ssl_handshake_step(mbedtls_ssl_context *ssl);
@@ -5173,7 +5173,7 @@ int mbedtls_ssl_handshake_step(mbedtls_ssl_context *ssl);
  *                 #MBEDTLS_ERR_SSL_CRYPTO_IN_PROGRESS, you must stop using
  *                 the SSL context for reading or writing, and either free it
  *                 or call \c mbedtls_ssl_session_reset() on it before
- *                 re-using it for a new connection; the current connection
+ *                 reusing it for a new connection; the current connection
  *                 must be closed.
  *
  */
@@ -5245,7 +5245,7 @@ int mbedtls_ssl_renegotiate(mbedtls_ssl_context *ssl);
  *                 #MBEDTLS_ERR_SSL_RECEIVED_EARLY_DATA,
  *                 you must stop using the SSL context for reading or writing,
  *                 and either free it or call \c mbedtls_ssl_session_reset()
- *                 on it before re-using it for a new connection; the current
+ *                 on it before reusing it for a new connection; the current
  *                 connection must be closed.
  *
  * \note           When this function returns #MBEDTLS_ERR_SSL_CLIENT_RECONNECT
@@ -5331,7 +5331,7 @@ int mbedtls_ssl_read(mbedtls_ssl_context *ssl, unsigned char *buf, size_t len);
  *                 #MBEDTLS_ERR_SSL_RECEIVED_EARLY_DATA,
  *                 you must stop using the SSL context for reading or writing,
  *                 and either free it or call \c mbedtls_ssl_session_reset()
- *                 on it before re-using it for a new connection; the current
+ *                 on it before reusing it for a new connection; the current
  *                 connection must be closed.
  *
  * \note           When this function returns #MBEDTLS_ERR_SSL_WANT_WRITE/READ,
@@ -5367,7 +5367,7 @@ int mbedtls_ssl_write(mbedtls_ssl_context *ssl, const unsigned char *buf, size_t
  * \note           If this function returns something other than 0 or
  *                 MBEDTLS_ERR_SSL_WANT_READ/WRITE, you must stop using
  *                 the SSL context for reading or writing, and either free it or
- *                 call \c mbedtls_ssl_session_reset() on it before re-using it
+ *                 call \c mbedtls_ssl_session_reset() on it before reusing it
  *                 for a new connection; the current connection must be closed.
  */
 int mbedtls_ssl_send_alert_message(mbedtls_ssl_context *ssl,
@@ -5383,7 +5383,7 @@ int mbedtls_ssl_send_alert_message(mbedtls_ssl_context *ssl,
  * \note           If this function returns something other than 0 or
  *                 MBEDTLS_ERR_SSL_WANT_READ/WRITE, you must stop using
  *                 the SSL context for reading or writing, and either free it or
- *                 call \c mbedtls_ssl_session_reset() on it before re-using it
+ *                 call \c mbedtls_ssl_session_reset() on it before reusing it
  *                 for a new connection; the current connection must be closed.
  */
 int mbedtls_ssl_close_notify(mbedtls_ssl_context *ssl);
@@ -5571,7 +5571,7 @@ void mbedtls_ssl_free(mbedtls_ssl_context *ssl);
 #if defined(MBEDTLS_SSL_CONTEXT_SERIALIZATION)
 /**
  * \brief          Save an active connection as serialized data in a buffer.
- *                 This allows the freeing or re-using of the SSL context
+ *                 This allows the freeing or reusing of the SSL context
  *                 while still picking up the connection later in a way that
  *                 it entirely transparent to the peer.
  *
@@ -5593,7 +5593,7 @@ void mbedtls_ssl_free(mbedtls_ssl_context *ssl);
  *                 mbedtls_ssl_session_reset() on \p ssl which as a result is
  *                 no longer associated with the connection that has been
  *                 serialized. This avoids creating copies of the connection
- *                 state. You're then free to either re-use the context
+ *                 state. You're then free to either reuse the context
  *                 structure for a different connection, or call
  *                 mbedtls_ssl_free() on it. See the documentation of
  *                 mbedtls_ssl_session_reset() for more details.

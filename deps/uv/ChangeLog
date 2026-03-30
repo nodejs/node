@@ -1211,7 +1211,7 @@ Changes since version 1.44.2:
 
 * macos: update minimum supported version (Santiago Gimeno)
 
-* docs: fix some typos (cui fliter)
+* docs: fix some typos (cui filter)
 
 * unix: use memcpy() instead of type punning (Ben Noordhuis)
 
@@ -1784,7 +1784,7 @@ Changes since version 1.40.0:
 
 * doc: clarify UDP errors and recvmmsg (Ethel Weston)
 
-* test-getaddrinfo: use example.invalid (Drew DeVault)
+* test-getaddrinfo: use example.invalid (Drew default)
 
 * Revert "build: fix android autotools build" (Bernardo Ramos)
 
@@ -1991,7 +1991,7 @@ Changes since version 1.37.0:
 
 * build,cmake: fix compilation on old MinGW (erw7)
 
-* build: remove unnessesary MSVC warnings (Bartosz Sosnowski)
+* build: remove unnecessary MSVC warnings (Bartosz Sosnowski)
 
 * win: make uv_udp_init_ex() accept UV_UDP_RECVMMSG (Ben Noordhuis)
 
@@ -3099,7 +3099,7 @@ Changes since version 1.20.3:
 
 * win,thread: remove fallback uv_cond implementation (Bert Belder)
 
-* src,test: s/olny/only (cjihrig)
+* src,test: s/only/only (cjihrig)
 
 * unix: close signal pipe fds on unload (Ben Noordhuis)
 
@@ -3283,7 +3283,7 @@ Changes since version 1.19.1:
 
 * win: CREATE_NO_WINDOW when stdio is not inherited (Nick Logan)
 
-* build: fix commmon.gypi comment (Ryuichi KAWAMATA)
+* build: fix common.gypi comment (Ryuichi KAWAMATA)
 
 * doc: document uv_timer_start() on an active timer (Vladimír Čunát)
 
@@ -3904,7 +3904,7 @@ Changes since version 1.10.2:
 
 * zos: make platform functional (John Barboza)
 
-* doc: add repitition qualifier to version regexs (Daniel Bevenius)
+* doc: add repetition qualifier to version regexs (Daniel Bevenius)
 
 * zos: use gyp OS label "os390" on z/OS (John Barboza)
 
@@ -5205,7 +5205,7 @@ Changes since version 1.0.0:
 
 * doc,build,include: update project links (Ben Noordhuis)
 
-* doc: fix typo: Strcutures -> Structures (Michael Ira Krufky)
+* doc: fix typo: Structures -> Structures (Michael Ira Krufky)
 
 * unix: fix processing process handles queue (Saúl Ibarra Corretgé)
 
@@ -5469,7 +5469,7 @@ Changes since version 0.11.26:
 * windows: don't use atexit for cleaning up the threadpool (Saúl Ibarra
   Corretgé)
 
-* windows: destroy work queue elements when colsing a loop (Saúl Ibarra
+* windows: destroy work queue elements when closing a loop (Saúl Ibarra
   Corretgé)
 
 * unix, windows: add uv_fs_mkdtemp (Pavel Platto)
@@ -5895,9 +5895,9 @@ Changes since version 0.11.14:
 
 * build: make systemtap probes work with gyp build (Ben Noordhuis)
 
-* unix: update events from pevents between polls (Fedor Indutny)
+* unix: update events from prevents between polls (Fedor Indutny)
 
-* fsevents: support japaneese characters in path (Chris Bank)
+* fsevents: support japanese characters in path (Chris Bank)
 
 * linux: don't turn on SO_REUSEPORT socket option (Ben Noordhuis)
 
@@ -5936,9 +5936,9 @@ Changes since version 0.10.18:
 
 * darwin: avoid calling GetCurrentProcess (Fedor Indutny)
 
-* unix: update events from pevents between polls (Fedor Indutny)
+* unix: update events from prevents between polls (Fedor Indutny)
 
-* fsevents: support japaneese characters in path (Chris Bank)
+* fsevents: support japanese characters in path (Chris Bank)
 
 * linux: don't turn on SO_REUSEPORT socket option (Ben Noordhuis)
 

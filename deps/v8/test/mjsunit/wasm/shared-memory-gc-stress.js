@@ -34,5 +34,5 @@ function RunSomeAllocs(total, retained, pages, max = pages) {
 RunSomeAllocs(10, 1, 1, 1);
 RunSomeAllocs(100, 3, 1, 1);
 RunSomeAllocs(1000, 10, 1, 1);
-// TODO(12278): Make this faster (by collection memories earlier?) and reenable.
+// TODO(12278): Make this faster (by collection memories earlier?) and re-enable.
 // RunSomeAllocs(10000, 20, 1, 1);

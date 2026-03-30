@@ -11,7 +11,7 @@ use core::fmt;
 
 /// A calendar implementation
 ///
-/// Only implementors of [`Calendar`] should care about these methods, in general users of
+/// Only implementers of [`Calendar`] should care about these methods, in general users of
 /// these calendars should use the methods on [`Date`](crate::Date) instead.
 ///
 /// Individual [`Calendar`] implementations may have inherent utility methods
@@ -19,7 +19,7 @@ use core::fmt;
 ///
 /// <div class="stab unstable">
 /// 🚫 This trait is sealed; it should not be implemented by user code. If an API requests an item that implements this
-/// trait, please consider using a type from the implementors listed below.
+/// trait, please consider using a type from the implementers listed below.
 ///
 /// It is still possible to implement this trait in userland (since `UnstableSealed` is public),
 /// do not do so unless you are prepared for things to occasionally break.

@@ -43,7 +43,7 @@
 # include "./archs/linux-elf/asm/include/openssl/pkcs7.h"
 #endif
 
-/* GOST is not included in all platform */
+/* GHOST is not included in all platform */
 #ifndef OPENSSL_NO_GOST
 # define OPENSSL_NO_GOST
 #endif

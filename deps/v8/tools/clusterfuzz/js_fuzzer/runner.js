@@ -20,7 +20,7 @@ const MAX_TEST_INPUTS_PER_TEST = 10;
 const MAX_WASM_TEST_INPUTS_PER_TEST = 5;
 
 /**
- * Returns an array of maxium `count` parsed input sources, randomly
+ * Returns an array of maximum `count` parsed input sources, randomly
  * selected from a primary corpus and a list of secondary corpora.
  */
 function getRandomInputs(primaryCorpus, secondaryCorpora, count) {

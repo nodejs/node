@@ -620,7 +620,7 @@ TEST(13) {
 
   Label done, error;
 
-  // vector loads, replicate, and arithmetics
+  // vector loads, replicate, and arithmetic
   __ vrepi(d2, Operand(100), Condition(2));
   __ lay(sp, MemOperand(sp, -4));
   __ sty(r3, MemOperand(sp));
@@ -912,7 +912,7 @@ TEST(17) {
 
   Label done, error;
 
-  // vector fp arithmetics
+  // vector fp arithmetic
   __ cdgbr(d1, r3);
   __ ldr(d2, d1);
   __ vfa(d1, d1, d2, Condition(0), Condition(0), Condition(3));

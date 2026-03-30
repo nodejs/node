@@ -10,7 +10,7 @@
 // shadowed by a stack-allocated variable.
 //
 // This test is an exact copy of `debug-evaluate-shadowed-context` modulo an
-// experimental flag. While the feature is in developement, we want to test both
+// experimental flag. While the feature is in development, we want to test both
 // configurations without having to introduce a separate bot.
 
 Debug = debug.Debug
@@ -111,7 +111,7 @@ function f2() {
   return y;
 };
 
-// Uses the same listener delgate as for `f1`.
+// Uses the same listener delegate as for `f1`.
 f2();
 assertEquals("A", a);
 EndTest();

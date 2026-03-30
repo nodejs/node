@@ -14,7 +14,7 @@ class Graph;
 // The purpose of decompression optimization is to avoid unnecessary pointer
 // decompression operations. If a compressed value loaded from the heap is only
 // used as a Smi or to store it back into the heap, then there is no need to add
-// the root pointer to make it dereferencable. By performing this optimization
+// the root pointer to make it dereferenceable. By performing this optimization
 // late in the pipeline, all the preceding phases can safely assume that
 // everything is decompressed and do not need to worry about the distinction
 // between compressed and uncompressed pointers.

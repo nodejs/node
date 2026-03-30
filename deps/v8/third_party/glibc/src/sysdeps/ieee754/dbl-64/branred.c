@@ -139,5 +139,5 @@ __branred(double x, double *a, double *aa)
  t=(b-s)+bb;
  *a=s;
  *aa=t;
- return ((int) sum)&3; /* return quater of unit circle */
+ return ((int) sum)&3; /* return quarter of unit circle */
 }

@@ -126,7 +126,7 @@ class ThreadLocalTop {
   //    the efforts of properly propagating the topmost user script-having
   //    context through a potential sequence of builtin function calls),
   //  - when execution crosses C++ to JS boundary (Execution::Call*/New),
-  //  - when execution crosses JS to Wasm boundary or Wasm to JS bounary
+  //  - when execution crosses JS to Wasm boundary or Wasm to JS boundary
   //    (it's not worth the efforts of propagating the caller context
   //    through Wasm, especially with Wasm stack switching),
   //  - when an optimized function is deoptimized (for simplicity),

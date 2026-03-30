@@ -2321,7 +2321,7 @@ ITT_STUBV(ITTAPI, void, task_end_overlapped,   (const __itt_domain *domain, __it
 
 /**
  * @defgroup markers Markers
- * Markers represent a single discreet event in time. Markers have a scope,
+ * Markers represent a single discrete event in time. Markers have a scope,
  * described by an enumerated type __itt_scope. Markers are created by
  * the API call __itt_marker. A marker instance can be given an ID for use in
  * adding metadata.
@@ -3633,7 +3633,7 @@ ITT_STUBV(ITTAPI, void, enable_attach, (void))
 /**
  * @brief Module load notification
  * This API is used to report necessary information in case of bypassing default system loader.
- * Notification should be done immidiatelly after this module is loaded to process memory.
+ * Notification should be done immediately after this module is loaded to process memory.
  * @param[in] start_addr - module start address
  * @param[in] end_addr - module end address
  * @param[in] path - file system full path to the module
@@ -4280,7 +4280,7 @@ typedef enum __itt_error_code
 {
     __itt_error_success       = 0, /*!< no error */
     __itt_error_no_module     = 1, /*!< module can't be loaded */
-    /* %1$s -- library name; win: %2$d -- system error code; unx: %2$s -- system error message. */
+    /* %1$s -- library name; win: %2$d -- system error code; unix: %2$s -- system error message. */
     __itt_error_no_symbol     = 2, /*!< symbol not found */
     /* %1$s -- library name, %2$s -- symbol name. */
     __itt_error_unknown_group = 3, /*!< unknown group specified */

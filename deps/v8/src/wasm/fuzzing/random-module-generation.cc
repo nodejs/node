@@ -196,7 +196,7 @@ class DataRange {
 template <>
 bool DataRange::get() {
   // The general implementation above is not instantiable for bool, as that
-  // would cause undefinied behaviour when memcpy'ing random bytes to the
+  // would cause undefined behaviour when memcpy'ing random bytes to the
   // bool. This can result in different observable side effects when invoking
   // get<bool> between debug and release version, which eventually makes the
   // code output different as well as raising various unrecoverable errors on
@@ -4445,7 +4445,7 @@ class ModuleGen {
         // It'd be nice to support descriptors that have descriptors themselves,
         // but this fuzzer is currently too limited for that: in particular,
         // {can_have_descriptor} would need to look more than one type ahead,
-        // or the pre-selected number of structs would need to be allowed to
+        // or the preselected number of structs would need to be allowed to
         // be exceeded.
         have_descriptor = false;
         // If the described type isn't final, we won't make the descriptor

@@ -161,7 +161,7 @@ events:
 * \[[`069515153f`](https://github.com/nodejs/node/commit/069515153f)] - **src**: remove usage of `std::shared_ptr<T>::unique()` (Darshan Sen) [#47315](https://github.com/nodejs/node/pull/47315)
 * \[[`4405fc879a`](https://github.com/nodejs/node/commit/4405fc879a)] - **src**: use stricter compile-time guidance (Tobias Nießen) [#46509](https://github.com/nodejs/node/pull/46509)
 * \[[`bbde68e5de`](https://github.com/nodejs/node/commit/bbde68e5de)] - **src**: remove unused variable in crypto\_x509.cc (Michaël Zasso) [#47344](https://github.com/nodejs/node/pull/47344)
-* \[[`7a80312e19`](https://github.com/nodejs/node/commit/7a80312e19)] - **src**: don't reset embeder signal handlers (Dmitry Vyukov) [#47188](https://github.com/nodejs/node/pull/47188)
+* \[[`7a80312e19`](https://github.com/nodejs/node/commit/7a80312e19)] - **src**: don't reset embedder signal handlers (Dmitry Vyukov) [#47188](https://github.com/nodejs/node/pull/47188)
 * \[[`d0a5e7e342`](https://github.com/nodejs/node/commit/d0a5e7e342)] - **src**: fix some recently introduced coverity issues (Michael Dawson) [#47240](https://github.com/nodejs/node/pull/47240)
 * \[[`0a4ff2f9a0`](https://github.com/nodejs/node/commit/0a4ff2f9a0)] - **src**: replace impossible THROW with CHECK (Tobias Nießen) [#47168](https://github.com/nodejs/node/pull/47168)
 * \[[`2fd0f79963`](https://github.com/nodejs/node/commit/2fd0f79963)] - **src**: fix duplication of externalized builtin code (Keyhan Vakil) [#47079](https://github.com/nodejs/node/pull/47079)
@@ -271,7 +271,7 @@ Fixes: <https://github.com/nodejs/node/issues/47096>
 * \[[`7f85a2cb6f`](https://github.com/nodejs/node/commit/7f85a2cb6f)] - **assert,util**: improve deep equal comparison performance (Ruben Bridgewater) [#46593](https://github.com/nodejs/node/pull/46593)
 * \[[`7cfd31a753`](https://github.com/nodejs/node/commit/7cfd31a753)] - **benchmark**: add a benchmark for URLSearchParams creation and toString() (Debadree Chatterjee) [#46810](https://github.com/nodejs/node/pull/46810)
 * \[[`258d5f7b3c`](https://github.com/nodejs/node/commit/258d5f7b3c)] - **benchmark**: replace table in docs with description of file tree structure (Theodor Steiner) [#46991](https://github.com/nodejs/node/pull/46991)
-* \[[`0617c5e81b`](https://github.com/nodejs/node/commit/0617c5e81b)] - **benchmark**: stablize encode benchmark (Joyee Cheung) [#46658](https://github.com/nodejs/node/pull/46658)
+* \[[`0617c5e81b`](https://github.com/nodejs/node/commit/0617c5e81b)] - **benchmark**: stabilize encode benchmark (Joyee Cheung) [#46658](https://github.com/nodejs/node/pull/46658)
 * \[[`04166fe2fa`](https://github.com/nodejs/node/commit/04166fe2fa)] - **benchmark**: split `Buffer.byteLength` benchmark (Joyee Cheung) [#46616](https://github.com/nodejs/node/pull/46616)
 * \[[`760a35144f`](https://github.com/nodejs/node/commit/760a35144f)] - **benchmark**: add benchmark for EventTarget add and remove (Debadree Chatterjee) [#46779](https://github.com/nodejs/node/pull/46779)
 * \[[`9890eaa23d`](https://github.com/nodejs/node/commit/9890eaa23d)] - **benchmark**: fix worker startup benchmark (Joyee Cheung) [#46680](https://github.com/nodejs/node/pull/46680)
@@ -389,7 +389,7 @@ Fixes: <https://github.com/nodejs/node/issues/47096>
 * \[[`4ad48d9cb9`](https://github.com/nodejs/node/commit/4ad48d9cb9)] - **stream**: always delay construct callback by a nextTick (Matteo Collina) [#46818](https://github.com/nodejs/node/pull/46818)
 * \[[`93e91f3dde`](https://github.com/nodejs/node/commit/93e91f3dde)] - **stream**: fix respondWithNewView() errors when view\.byteOffset != 0 (Debadree Chatterjee) [#46465](https://github.com/nodejs/node/pull/46465)
 * \[[`1f386570af`](https://github.com/nodejs/node/commit/1f386570af)] - **stream**: fix pipeline callback not called on ended stream (Debadree Chatterjee) [#46600](https://github.com/nodejs/node/pull/46600)
-* \[[`c972612c9d`](https://github.com/nodejs/node/commit/c972612c9d)] - **test**: fix flakyness in test-runner reporter test (Moshe Atlow) [#45930](https://github.com/nodejs/node/pull/45930)
+* \[[`c972612c9d`](https://github.com/nodejs/node/commit/c972612c9d)] - **test**: fix flakiness in test-runner reporter test (Moshe Atlow) [#45930](https://github.com/nodejs/node/pull/45930)
 * \[[`11509a4a2d`](https://github.com/nodejs/node/commit/11509a4a2d)] - **test**: move `test-tls-autoselectfamily-servername` to `test/internet` (Antoine du Hamel) [#47029](https://github.com/nodejs/node/pull/47029)
 * \[[`9556d98054`](https://github.com/nodejs/node/commit/9556d98054)] - **test**: fallback to IPv4 if IPv6 is unavailable (Abdirahim Musse) [#47017](https://github.com/nodejs/node/pull/47017)
 * \[[`5b81689efa`](https://github.com/nodejs/node/commit/5b81689efa)] - **test**: simplify test-tls-ecdh-multiple (Tobias Nießen) [#46963](https://github.com/nodejs/node/pull/46963)
@@ -586,7 +586,7 @@ Fixes: <https://github.com/nodejs/node/issues/47096>
 * \[[`f91260b32a`](https://github.com/nodejs/node/commit/f91260b32a)] - **stream**: refactor to use `validateAbortSignal` (Antoine du Hamel) [#46520](https://github.com/nodejs/node/pull/46520)
 * \[[`6bf7388b62`](https://github.com/nodejs/node/commit/6bf7388b62)] - **stream**: allow transfer of readable byte streams (MrBBot) [#45955](https://github.com/nodejs/node/pull/45955)
 * \[[`c2068537fa`](https://github.com/nodejs/node/commit/c2068537fa)] - **stream**: add pipeline() for webstreams (Debadree Chatterjee) [#46307](https://github.com/nodejs/node/pull/46307)
-* \[[`4cf4b41c56`](https://github.com/nodejs/node/commit/4cf4b41c56)] - **stream**: add suport for abort signal in finished() for webstreams (Debadree Chatterjee) [#46403](https://github.com/nodejs/node/pull/46403)
+* \[[`4cf4b41c56`](https://github.com/nodejs/node/commit/4cf4b41c56)] - **stream**: add support for abort signal in finished() for webstreams (Debadree Chatterjee) [#46403](https://github.com/nodejs/node/pull/46403)
 * \[[`b844a09fa5`](https://github.com/nodejs/node/commit/b844a09fa5)] - **stream**: dont access Object.prototype.type during TransformStream init (Debadree Chatterjee) [#46389](https://github.com/nodejs/node/pull/46389)
 * \[[`6ad01fd7b5`](https://github.com/nodejs/node/commit/6ad01fd7b5)] - **test**: fix `test-net-autoselectfamily` for kernel without IPv6 support (Livia Medeiros) [#45856](https://github.com/nodejs/node/pull/45856)
 * \[[`2239e24306`](https://github.com/nodejs/node/commit/2239e24306)] - **test**: fix assertions in test-snapshot-dns-lookup\* (Tobias Nießen) [#46618](https://github.com/nodejs/node/pull/46618)
@@ -603,7 +603,7 @@ Fixes: <https://github.com/nodejs/node/issues/47096>
 * \[[`ddf5002782`](https://github.com/nodejs/node/commit/ddf5002782)] - **test\_runner**: parse non-ascii character correctly (Mert Can Altın) [#45736](https://github.com/nodejs/node/pull/45736)
 * \[[`5b748114d2`](https://github.com/nodejs/node/commit/5b748114d2)] - **test\_runner**: allow nesting test within describe (Moshe Atlow) [#46544](https://github.com/nodejs/node/pull/46544)
 * \[[`c526f9f70a`](https://github.com/nodejs/node/commit/c526f9f70a)] - **test\_runner**: fix missing test diagnostics (Moshe Atlow) [#46450](https://github.com/nodejs/node/pull/46450)
-* \[[`b31aabb101`](https://github.com/nodejs/node/commit/b31aabb101)] - **test\_runner**: top-level diagnostics not ommited when running with --test (Pulkit Gupta) [#46441](https://github.com/nodejs/node/pull/46441)
+* \[[`b31aabb101`](https://github.com/nodejs/node/commit/b31aabb101)] - **test\_runner**: top-level diagnostics not omitted when running with --test (Pulkit Gupta) [#46441](https://github.com/nodejs/node/pull/46441)
 * \[[`6119289251`](https://github.com/nodejs/node/commit/6119289251)] - **test\_runner**: add initial code coverage support (Colin Ihrig) [#46017](https://github.com/nodejs/node/pull/46017)
 * \[[`6f24f0621e`](https://github.com/nodejs/node/commit/6f24f0621e)] - **timers**: cleanup no-longer relevant TODOs in timers/promises (James M Snell) [#46499](https://github.com/nodejs/node/pull/46499)
 * \[[`1cd22e7d19`](https://github.com/nodejs/node/commit/1cd22e7d19)] - **tools**: fix bug in `prefer-primordials` lint rule (Antoine du Hamel) [#46659](https://github.com/nodejs/node/pull/46659)
@@ -795,7 +795,7 @@ Added `--install-strategy=linked` option for installations similar to pnpm.
 * \[[`1b45713b00`](https://github.com/nodejs/node/commit/1b45713b00)] - **doc**: https update default request timeout (Marco Ippolito) [#46184](https://github.com/nodejs/node/pull/46184)
 * \[[`4c88721e2f`](https://github.com/nodejs/node/commit/4c88721e2f)] - **doc**: make options of readableStream.pipeTo as optional (Deokjin Kim) [#46180](https://github.com/nodejs/node/pull/46180)
 * \[[`538c53f010`](https://github.com/nodejs/node/commit/538c53f010)] - **doc**: add PerformanceObserver.supportedEntryTypes to doc (theanarkh) [#45962](https://github.com/nodejs/node/pull/45962)
-* \[[`eef7489d24`](https://github.com/nodejs/node/commit/eef7489d24)] - **doc**: duplex and readable from uncaught execption warning (Marco Ippolito) [#46135](https://github.com/nodejs/node/pull/46135)
+* \[[`eef7489d24`](https://github.com/nodejs/node/commit/eef7489d24)] - **doc**: duplex and readable from uncaught exception warning (Marco Ippolito) [#46135](https://github.com/nodejs/node/pull/46135)
 * \[[`686fe585b5`](https://github.com/nodejs/node/commit/686fe585b5)] - **doc**: remove outdated sections from `maintaining-v8` (Antoine du Hamel) [#46137](https://github.com/nodejs/node/pull/46137)
 * \[[`2e826ad528`](https://github.com/nodejs/node/commit/2e826ad528)] - **doc**: fix (EC)DHE remark in TLS docs (Tobias Nießen) [#46114](https://github.com/nodejs/node/pull/46114)
 * \[[`2e22b29add`](https://github.com/nodejs/node/commit/2e22b29add)] - **doc**: fix ERR\_TLS\_RENEGOTIATION\_DISABLED text (Tobias Nießen) [#46122](https://github.com/nodejs/node/pull/46122)
@@ -1046,7 +1046,7 @@ breaking changes.
 
 ##### Login
 
-> Explanation: the default `auth-type` has changed and users can opt back into the old behavior with `npm config set auth-type=legacy`. `login` and `adduser` have also been seperated making each command more closely match it's name instead of being aliases for each other.
+> Explanation: the default `auth-type` has changed and users can opt back into the old behavior with `npm config set auth-type=legacy`. `login` and `adduser` have also been separated making each command more closely match it's name instead of being aliases for each other.
 
 * Legacy auth types `sso`, `saml` & `legacy` have been consolidated into `"legacy"`.
 * `auth-type` defaults to `"web"`
@@ -1763,7 +1763,7 @@ Contributed by Paolo Insogna in [#44967](https://github.com/nodejs/node/pull/449
 * \[[`3c040348fe`](https://github.com/nodejs/node/commit/3c040348fe)] - _**Revert**_ "**esm**: convert `resolve` hook to synchronous" (Jacob Smith) [#43526](https://github.com/nodejs/node/pull/43526)
 * \[[`90b634a5a5`](https://github.com/nodejs/node/commit/90b634a5a5)] - **esm**: convert `resolve` hook to synchronous (Jacob Smith) [#43363](https://github.com/nodejs/node/pull/43363)
 * \[[`7c06eab1dc`](https://github.com/nodejs/node/commit/7c06eab1dc)] - _**Revert**_ "**http**: do not leak error listeners" (Luigi Pinca) [#44921](https://github.com/nodejs/node/pull/44921)
-* \[[`464d1c1558`](https://github.com/nodejs/node/commit/464d1c1558)] - **lib**: reset `RegExp` statics before running user code (Antoine du Hamel) [#43741](https://github.com/nodejs/node/pull/43741)
+* \[[`464d1c1558`](https://github.com/nodejs/node/commit/464d1c1558)] - **lib**: reset `RegExp` statistics before running user code (Antoine du Hamel) [#43741](https://github.com/nodejs/node/pull/43741)
 * \[[`15f10515e3`](https://github.com/nodejs/node/commit/15f10515e3)] - **module**: fix segment deprecation for imports field (Guy Bedford) [#44883](https://github.com/nodejs/node/pull/44883)
 * \[[`7cdf745fdd`](https://github.com/nodejs/node/commit/7cdf745fdd)] - **perf\_hooks**: convert maxSize to IDL value in setResourceTimingBufferSize (Chengzhong Wu) [#44902](https://github.com/nodejs/node/pull/44902)
 * \[[`be525d7d04`](https://github.com/nodejs/node/commit/be525d7d04)] - **src**: consolidate exit codes in the code base (Joyee Cheung) [#44746](https://github.com/nodejs/node/pull/44746)

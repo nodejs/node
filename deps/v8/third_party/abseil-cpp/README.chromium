@@ -23,7 +23,7 @@ How to update Abseil:
 
 2. Update BUILD.gn files to match changes in BUILD.bazel
 
-If there is a new test, add dependcy on it from absl_tests in the
+If there is a new test, add dependency on it from absl_tests in the
 third_party/abseil-cpp/BUILD.gn target
 
 3. From your source root run third_party/abseil-cpp/generate_def_files.py to

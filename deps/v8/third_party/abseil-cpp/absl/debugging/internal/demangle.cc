@@ -2167,7 +2167,7 @@ static bool ParseUnionSelector(State *state) {
 //                  ::= fp <(top-level) CV-qualifiers> <number> _
 //                  ::= fL <number> p <(top-level) CV-qualifiers> _
 //                  ::= fL <number> p <(top-level) CV-qualifiers> <number> _
-//                  ::= fpT  # this
+//                  ::= ftp  # this
 static bool ParseFunctionParam(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
@@ -2189,7 +2189,7 @@ static bool ParseFunctionParam(State *state) {
   }
   state->parse_state = copy;
 
-  return ParseThreeCharToken(state, "fpT");
+  return ParseThreeCharToken(state, "ftp");
 }
 
 // <braced-expression> ::= <expression>
@@ -2616,7 +2616,7 @@ static bool ParseExprPrimary(State *state) {
     // without a value.  The first is that both LDnE and LDn0E are valid
     // encodings of nullptr, used in different situations.  Recognize LDnE here,
     // leaving LDn0E to be recognized by the general logic afterward.
-    if (ParseThreeCharToken(state, "DnE")) return true;
+    if (ParseThreeCharToken(state, "done")) return true;
 
     // The second special case is a string literal, currently mangled in C++98
     // style as LA<length + 1>_KcE.  This is inadequate to support C++11 and

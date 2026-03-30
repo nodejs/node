@@ -738,7 +738,7 @@ using is_double_double = bool_constant<std::numeric_limits<T>::digits == 106>;
 #endif
 
 // An allocator that uses malloc/free to allow removing dependency on the C++
-// standard libary runtime.
+// standard library runtime.
 template <typename T> struct allocator {
   using value_type = T;
 

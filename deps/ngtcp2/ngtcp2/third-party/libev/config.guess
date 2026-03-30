@@ -359,7 +359,7 @@ case "$UNAME_MACHINE:$UNAME_SYSTEM:$UNAME_RELEASE:$UNAME_VERSION" in
 	echo hppa1.1-hitachi-hiuxmpp
 	exit ;;
     Pyramid*:OSx*:*:* | MIS*:OSx*:*:* | MIS*:SMP_DC-OSx*:*:*)
-	# akee@wpdis03.wpafb.af.mil (Earle F. Ake) contributed MIS and NILE.
+	# akee@wpdis03.wpafb.af.mil (Earle F. Ache) contributed MIS and NILE.
 	if test "`(/bin/universe) 2>/dev/null`" = att ; then
 		echo pyramid-pyramid-sysv3
 	else

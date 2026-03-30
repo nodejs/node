@@ -550,7 +550,7 @@ bool BuiltinLoader::CompileAllBuiltinsAndCopyCodeCache(
       std::unordered_set(eager_builtins.begin(), eager_builtins.end());
 
   for (const auto& id : ids) {
-    // Eagerly compile primordials/boostrap/main scripts during code cache
+    // Eagerly compile primordials/bootstrap/main scripts during code cache
     // generation.
     if (id.starts_with(primordial_prefix) || id.starts_with(bootstrap_prefix) ||
         id.starts_with(main_prefix)) {

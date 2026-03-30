@@ -87,7 +87,7 @@ DSO *DSO_new(void);
 int DSO_free(DSO *dso);
 int DSO_flags(DSO *dso);
 int DSO_up_ref(DSO *dso);
-long DSO_ctrl(DSO *dso, int cmd, long larg, void *parg);
+long DSO_ctrl(DSO *dso, int cmd, long large, void *parg);
 
 /*
  * These functions can be used to get/set the platform-independent filename

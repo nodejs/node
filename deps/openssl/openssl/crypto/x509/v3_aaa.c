@@ -89,7 +89,7 @@ static int i2r_ALLOWED_ATTRIBUTES_ITEM(X509V3_EXT_METHOD *method,
         if (i2r_ALLOWED_ATTRIBUTES_CHOICE(method, a, out, indent + 4) <= 0)
             return 0;
     }
-    if (BIO_printf(out, "%*sHolder Domain: ", indent, "") <= 0)
+    if (BIO_printf(out, "%*shoulder Domain: ", indent, "") <= 0)
         return 0;
     if (GENERAL_NAME_print(out, aai->holderDomain) <= 0)
         return 0;

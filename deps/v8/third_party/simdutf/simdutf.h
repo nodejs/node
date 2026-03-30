@@ -6217,7 +6217,7 @@ public:
    * Provide the base64 length in bytes given the length of a binary input.
    *
    * @param length        the length of the input in bytes
-   * @parem options       the base64 options to use, can be base64_default or
+   * @param options       the base64 options to use, can be base64_default or
    * base64_url, is base64_default by default.
    * @return number of base64 bytes
    */

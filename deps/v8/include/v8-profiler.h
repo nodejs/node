@@ -847,7 +847,7 @@ class V8_EXPORT EmbedderGraph {
    public:
     /**
      * Detachedness specifies whether an object is attached or detached from the
-     * main application state. While unkown in general, there may be objects
+     * main application state. While unknown in general, there may be objects
      * that specifically know their state. V8 passes this information along in
      * the snapshot. Users of the snapshot may use it to annotate the object
      * graph.
@@ -883,7 +883,7 @@ class V8_EXPORT EmbedderGraph {
     virtual NativeObject GetNativeObject() { return nullptr; }
 
     /**
-     * Detachedness state of a given object. While unkown in general, there may
+     * Detachedness state of a given object. While unknown in general, there may
      * be objects that specifically know their state. V8 passes this information
      * along in the snapshot. Users of the snapshot may use it to annotate the
      * object graph.
@@ -1167,7 +1167,7 @@ class V8_EXPORT HeapProfiler {
                                        bool capture_numeric_value = false);
 
   /**
-   * Obtains list of Detached JS Wrapper Objects. This functon calls garbage
+   * Obtains list of Detached JS Wrapper Objects. This function calls garbage
    * collection, then iterates over traced handles in the isolate
    */
   std::vector<v8::Local<v8::Value>> GetDetachedJSWrapperObjects();

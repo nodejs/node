@@ -137,12 +137,12 @@ std::string FunctionVariants::RuntimeTableEntry::to_string() const {
     oss << " 00: default";
   } else {
     std::vector<uint8_t> raw;
-    std::vector<const char*> formated;
+    std::vector<const char*> formatted;
     for (FLAGS f : flags) {
       raw.push_back(get_raw(f));
-      formated.push_back(pretty_name(f));
+      formatted.push_back(pretty_name(f));
     }
-    oss << fmt::format(" {:02x}: {}", fmt::join(raw, " "), fmt::join(formated, ", "));
+    oss << fmt::format(" {:02x}: {}", fmt::join(raw, " "), fmt::join(formatted, ", "));
   }
 
   return oss.str();

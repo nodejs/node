@@ -70,7 +70,7 @@ class BaseLoader(object):
     def get_source(self, environment, template):
         """Get the template source, filename and reload helper for a template.
         It's passed the environment and template name and has to return a
-        tuple in the form ``(source, filename, uptodate)`` or raise a
+        tuple in the form ``(source, filename, up-to-date)`` or raise a
         `TemplateNotFound` error if it can't locate the template.
 
         The source part of the returned tuple must be the source of the
@@ -79,7 +79,7 @@ class BaseLoader(object):
         otherwise `None`.  The filename is used by python for the tracebacks
         if no loader extension is used.
 
-        The last item in the tuple is the `uptodate` function.  If auto
+        The last item in the tuple is the `up-to-date` function.  If auto
         reloading is enabled it's always called to check if the template
         changed.  No arguments are passed so the function must store the
         old state somewhere (for example in a closure).  If it returns `False`
@@ -109,8 +109,8 @@ class BaseLoader(object):
             globals = {}
 
         # first we try to get the source for this template together
-        # with the filename and the uptodate function.
-        source, filename, uptodate = self.get_source(environment, name)
+        # with the filename and the up-to-date function.
+        source, filename, up-to-date = self.get_source(environment, name)
 
         # try to load the code from the bytecode cache if there is a
         # bytecode cache configured.
@@ -132,7 +132,7 @@ class BaseLoader(object):
             bcc.set_bucket(bucket)
 
         return environment.template_class.from_code(environment, code,
-                                                    globals, uptodate)
+                                                    globals, up-to-date)
 
 
 class FileSystemLoader(BaseLoader):
@@ -178,12 +178,12 @@ class FileSystemLoader(BaseLoader):
 
             mtime = path.getmtime(filename)
 
-            def uptodate():
+            def up-to-date():
                 try:
                     return path.getmtime(filename) == mtime
                 except OSError:
                     return False
-            return contents, filename, uptodate
+            return contents, filename, up-to-date
         raise TemplateNotFound(template)
 
     def list_templates(self):
@@ -234,18 +234,18 @@ class PackageLoader(BaseLoader):
         if not self.provider.has_resource(p):
             raise TemplateNotFound(template)
 
-        filename = uptodate = None
+        filename = up-to-date = None
         if self.filesystem_bound:
             filename = self.provider.get_resource_filename(self.manager, p)
             mtime = path.getmtime(filename)
-            def uptodate():
+            def up-to-date():
                 try:
                     return path.getmtime(filename) == mtime
                 except OSError:
                     return False
 
         source = self.provider.get_resource_string(self.manager, p)
-        return source.decode(self.encoding), filename, uptodate
+        return source.decode(self.encoding), filename, up-to-date
 
     def list_templates(self):
         path = self.package_path

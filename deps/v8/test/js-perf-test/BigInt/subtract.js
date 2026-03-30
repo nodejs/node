@@ -68,7 +68,7 @@ function TestSubtractSameSign() {
 
 function SetUpTestSubtractDifferentSign(bits) {
   // Subtract a small random negative value from a small positive value so that
-  // the differnce stays positive but does not grow in digits.
+  // the difference stays positive but does not grow in digits.
   initial_diff = SmallRandomBigIntWithBits(bits);
   a = -SmallRandomBigIntWithBits(bits);
 }

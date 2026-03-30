@@ -950,7 +950,7 @@ public:
      * getDisplayCountry(), and getDisplayVariant() to do its work, and outputs the display
      * name in the format "language (country[,variant])".  For example, if displayLocale is
      * fr_FR, then en_US's display name would be "Anglais (&Eacute;tats-Unis)", and no_NO_NY's
-     * display name would be "norv&eacute;gien (Norv&egrave;ge,NY)".
+     * display name would be "norv&eacute;given (Norv&egrave;ge,NY)".
      * @param displayLocale  Specifies the locale to be used to display the name.
      * @param name      Receives the locale's display name.
      * @return          A reference to "name".

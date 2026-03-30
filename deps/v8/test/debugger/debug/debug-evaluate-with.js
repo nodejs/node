@@ -77,6 +77,6 @@ f();
 var foo = "global";
 eval("with({bar:'with'}) { (function g() { var foo = 'local'; debugger; })(); }");
 
-// Make sure that the debug event listener vas invoked.
+// Make sure that the debug event listener was invoked.
 assertEquals(3, breakPointCount);
 assertFalse(exceptionThrown, "exception in listener");

@@ -320,7 +320,7 @@ class ZoneScope final {
 // allocated in the Zone. Use it as a base class; see ast.h.
 class ZoneObject {
  public:
-  // The accidential old-style pattern
+  // The accidental old-style pattern
   //    new (zone) SomeObject(...)
   // now produces compilation error. The proper way of allocating objects in
   // Zones looks like this:
@@ -370,7 +370,7 @@ class ZoneAllocationPolicy {
 }  // namespace internal
 }  // namespace v8
 
-// The accidential old-style pattern
+// The accidental old-style pattern
 //    new (zone) SomeObject(...)
 // now produces compilation error. The proper way of allocating objects in
 // Zones looks like this:

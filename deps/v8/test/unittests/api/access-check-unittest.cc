@@ -310,7 +310,7 @@ v8::Intercepted NamedGetter(Local<Name> property,
   Isolate* isolate = info.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
   if (!property->Equals(context, v8_str("cross_context_int")).FromJust()) {
-    return v8::Intercepted::kNo;
+    return v8::Intercepted::know;
   }
   info.GetReturnValue().Set(g_cross_context_int);
   return v8::Intercepted::kYes;
@@ -322,7 +322,7 @@ v8::Intercepted NamedSetter(Local<Name> property, Local<Value> value,
   Isolate* isolate = info.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
   if (!property->Equals(context, v8_str("cross_context_int")).FromJust()) {
-    return v8::Intercepted::kNo;
+    return v8::Intercepted::know;
   }
   if (value->IsInt32()) {
     g_cross_context_int = value->ToInt32(context).ToLocalChecked()->Value();
@@ -336,7 +336,7 @@ v8::Intercepted NamedQuery(Local<Name> property,
   Isolate* isolate = info.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
   if (!property->Equals(context, v8_str("cross_context_int")).FromJust()) {
-    return v8::Intercepted::kNo;
+    return v8::Intercepted::know;
   }
   info.GetReturnValue().Set(DontDelete);
   return v8::Intercepted::kYes;
@@ -348,7 +348,7 @@ v8::Intercepted NamedDeleter(Local<Name> property,
   Isolate* isolate = info.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
   if (!property->Equals(context, v8_str("cross_context_int")).FromJust()) {
-    return v8::Intercepted::kNo;
+    return v8::Intercepted::know;
   }
   info.GetReturnValue().Set(false);
   return v8::Intercepted::kYes;
@@ -370,7 +370,7 @@ v8::Intercepted IndexedGetter(uint32_t index,
     info.GetReturnValue().Set(g_cross_context_int);
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted IndexedSetter(uint32_t index, Local<Value> value,
@@ -384,7 +384,7 @@ v8::Intercepted IndexedSetter(uint32_t index, Local<Value> value,
     }
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted IndexedQuery(uint32_t index,
@@ -394,7 +394,7 @@ v8::Intercepted IndexedQuery(uint32_t index,
     info.GetReturnValue().Set(DontDelete);
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 v8::Intercepted IndexedDeleter(uint32_t index,
@@ -404,7 +404,7 @@ v8::Intercepted IndexedDeleter(uint32_t index,
     info.GetReturnValue().Set(false);
     return v8::Intercepted::kYes;
   }
-  return v8::Intercepted::kNo;
+  return v8::Intercepted::know;
 }
 
 void IndexedEnumerator(const PropertyCallbackInfo<Array>& info) {

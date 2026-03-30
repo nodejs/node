@@ -121,7 +121,7 @@
  * The following symbols extend and deprecate the legacy
  * PSA_WANT_KEY_TYPE_xxx_KEY_PAIR ones. They include the usage of that key in
  * the name's suffix. "_USE" is the most generic and it can be used to describe
- * a generic suport, whereas other ones add more features on top of that and
+ * a generic support, whereas other ones add more features on top of that and
  * they are more specific.
  */
 #define PSA_WANT_KEY_TYPE_ECC_KEY_PAIR_BASIC      1

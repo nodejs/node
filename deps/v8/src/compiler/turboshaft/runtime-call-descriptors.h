@@ -42,7 +42,7 @@ struct runtime : CallDescriptorBuilder {
       Derived::Verify(descriptor, caller_can_deopt);
 #endif  // DEBUG
       CanThrow can_throw = (Derived::kProperties & Operator::kNoThrow)
-                               ? CanThrow::kNo
+                               ? CanThrow::know
                                : CanThrow::kYes;
       return TSCallDescriptor::Create(descriptor, can_throw,
                                       lazy_deopt_on_throw, zone);

@@ -54,7 +54,7 @@ pub struct IsoDateTime {
 }
 
 impl IsoDateTime {
-    /// Creates a new `IsoDateTime` without any validaiton.
+    /// Creates a new `IsoDateTime` without any validation.
     pub(crate) fn new_unchecked(date: IsoDate, time: IsoTime) -> Self {
         Self { date, time }
     }

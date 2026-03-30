@@ -288,7 +288,7 @@ impl<'a, T: EncodingType> TimeZoneParser<'a, T> {
     }
 
     /// Parse a time zone identifier that can be either an
-    /// IANA identifer name or minute precision offset.
+    /// IANA identifier name or minute precision offset.
     ///
     /// ## IANA identifier example
     ///

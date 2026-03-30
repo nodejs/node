@@ -143,7 +143,7 @@ class WasmGCTypeAnalyzer {
   // For any operation that could potentially refined, this map stores an entry
   // to the inferred input type based on the analysis.
   ZoneUnorderedMap<OpIndex, wasm::ValueType> input_type_map_{phase_zone_};
-  // Marker wheteher it is the first time visiting a loop header. In that case,
+  // Marker whether it is the first time visiting a loop header. In that case,
   // loop phis can only use type information based on the forward edge of the
   // loop. The value is false outside of loop headers.
   bool is_first_loop_header_evaluation_ = false;

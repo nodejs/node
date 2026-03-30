@@ -723,7 +723,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerS390::GetCode(
   // is MANUAL, no is generated.
   FrameScope scope(masm_.get(), StackFrame::MANUAL);
 
-  // Ensure register assigments are consistent with callee save mask
+  // Ensure register assignments are consistent with callee save mask
   DCHECK(kRegExpCalleeSaved.has(r6));
   DCHECK(kRegExpCalleeSaved.has(code_pointer()));
   DCHECK(kRegExpCalleeSaved.has(current_input_offset()));
@@ -1287,7 +1287,7 @@ void RegExpMacroAssemblerS390::CallCheckStackGuardState(Register scratch,
   __ mov(r3, r4);
 
   // XPLINK treats r7 as voliatile return register, but r14 as preserved
-  // Since Linux is the other way around, perserve r7 value in r14 across
+  // Since Linux is the other way around, preserve r7 value in r14 across
   // the call.
   __ mov(r14, r7);
   const int stack_slots = kXPLINKStackFrameExtraParamSlot + num_arguments;
@@ -1448,7 +1448,7 @@ void RegExpMacroAssemblerS390::CallCFunctionFromIrregexpCode(
   //
   // See also: crbug.com/v8/12670#c17.
   __ CallCFunction(function, num_arguments, ABI_USES_FUNCTION_DESCRIPTORS,
-                   SetIsolateDataSlots::kNo);
+                   SetIsolateDataSlots::know);
 }
 
 void RegExpMacroAssemblerS390::CheckPreemption() {

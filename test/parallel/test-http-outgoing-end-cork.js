@@ -10,7 +10,7 @@ const REQ_TIMEOUT = common.platformTimeout(500); // Set max ms of request time b
 const TOTAL_TEST_TIMEOUT = common.platformTimeout(1000);
 
 // Placeholder for sockets handled, to make sure that we
-// will reach a socket re-use case.
+// will reach a socket reuse case.
 const handledSockets = new Set();
 
 let metReusedSocket = false; // Flag for request loop termination.
@@ -20,7 +20,7 @@ const doubleEndResponse = common.mustCall((res) => {
   res.end('regular end of request', 'utf8', common.mustCall());
   // Make sure the response socket is uncorked after first call of end
   assert.strictEqual(res.writableCorked, 0);
-  res.end(); // Double end the response to prep for next socket re-use.
+  res.end(); // Double end the response to prep for next socket reuse.
 });
 
 const sendDrainNeedingData = common.mustCall((res) => {
@@ -36,7 +36,7 @@ const sendDrainNeedingData = common.mustCall((res) => {
 
 const server = http.createServer((req, res) => {
   const { socket: responseSocket } = res;
-  if (handledSockets.has(responseSocket)) { // re-used socket, send big data!
+  if (handledSockets.has(responseSocket)) { // reused socket, send big data!
     metReusedSocket = true; // stop request loop
     console.debug('FOUND REUSED SOCKET!');
     sendDrainNeedingData(res);
@@ -68,7 +68,7 @@ const sendRequest = common.mustCallAtLeast((agent) => new Promise((resolve) => {
 
 server.once('listening', async () => {
   const testTimeout = setTimeout(
-    common.mustNotCall('Test running for a while but could not met re-used socket'),
+    common.mustNotCall('Test running for a while but could not met reused socket'),
     TOTAL_TEST_TIMEOUT,
   );
   // Explicitly start agent to force socket reuse.

@@ -94,7 +94,7 @@ Address AllocateJumpTableThunk(
 void CompileJumpTableThunk(Address thunk, Address jump_target) {
   RwxMemoryWriteScopeForTesting write_scope;
   MacroAssembler masm(CcTest::i_isolate()->allocator(), AssemblerOptions{},
-                      CodeObjectRequired::kNo,
+                      CodeObjectRequired::know,
                       ExternalAssemblerBuffer(reinterpret_cast<void*>(thunk),
                                               kThunkBufferSize));
 

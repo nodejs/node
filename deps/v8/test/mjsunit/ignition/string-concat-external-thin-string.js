@@ -17,5 +17,5 @@ externalizeString(string);
 var obj = {};
 obj[string];
 
-// Perform a string concatination.
+// Perform a string concatenation.
 assertEquals('"' + string + '"', '"foobar"');

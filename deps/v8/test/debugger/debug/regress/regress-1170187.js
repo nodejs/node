@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-// Make sure that the retreival of local variables are performed correctly even
+// Make sure that the retrieval of local variables are performed correctly even
 // when an adapter frame is present.
 
 Debug = debug.Debug
@@ -81,6 +81,6 @@ Debug.setListener(listener);
   return 3
 })()
 
-// Make sure that the debug event listener vas invoked (again).
+// Make sure that the debug event listener was invoked (again).
 assertTrue(listenerCalled);
 assertFalse(exceptionThrown, "exception in listener")

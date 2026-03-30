@@ -6,7 +6,7 @@
 conso\u006c\u{65}.l\u006fg("\x68ello");
 function test(p\u0061ram) {
   var \u006d\u{79}Var\u0069ab\u{6c}e = 1;
-  return argumen\u{74}s[0];
+  return argument\u{74}s[0];
 }
 test("f\u{6f}o");
 eval("\u0076ar z\x20= 1\x3b");

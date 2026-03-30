@@ -945,7 +945,7 @@ void uv__io_init(uv__io_t* w, uv__io_cb_t cb, int fd) {
   w->fd = fd;
   w->bits = 0;
   w->events = 0;
-  w->pevents = 0;
+  w->prevents = 0;
   uv__io_cb_set(w, cb);
 }
 
@@ -960,7 +960,7 @@ int uv__io_start(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
   assert(w->fd >= 0);
   assert(w->fd < INT_MAX);
 
-  w->pevents |= events;
+  w->prevents |= events;
   err = maybe_resize(loop, w->fd + 1);
   if (err)
     return err;
@@ -970,7 +970,7 @@ int uv__io_start(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
    * every tick of the event loop but the other backends allow us to
    * short-circuit here if the event mask is unchanged.
    */
-  if (w->events == w->pevents)
+  if (w->events == w->prevents)
     return 0;
 #endif
 
@@ -1015,9 +1015,9 @@ void uv__io_stop(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
   if ((unsigned) w->fd >= loop->nwatchers)
     return;
 
-  w->pevents &= ~events;
+  w->prevents &= ~events;
 
-  if (w->pevents == 0) {
+  if (w->prevents == 0) {
     uv__queue_remove(&w->watcher_queue);
     uv__queue_init(&w->watcher_queue);
     w->events = 0;
@@ -1052,7 +1052,7 @@ void uv__io_feed(uv_loop_t* loop, uv__io_t* w) {
 int uv__io_active(const uv__io_t* w, unsigned int events) {
   assert(0 == (events & ~(POLLIN | POLLOUT | UV__POLLRDHUP | UV__POLLPRI)));
   assert(0 != events);
-  return 0 != (w->pevents & events);
+  return 0 != (w->prevents & events);
 }
 
 

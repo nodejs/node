@@ -19,9 +19,9 @@ class TestPrefixesAndSuffixes(unittest.TestCase):
         # correctly handle variable expansion.
         if sys.platform.startswith("win"):
             writer = ninja.NinjaWriter(
-                "foo", "wee", ".", ".", "build.ninja", ".", "build.ninja", "win"
+                "foo", "we", ".", ".", "build.ninja", ".", "build.ninja", "win"
             )
-            spec = {"target_name": "wee"}
+            spec = {"target_name": "we"}
             self.assertTrue(
                 writer.ComputeOutputFileName(spec, "executable").endswith(".exe")
             )
@@ -34,9 +34,9 @@ class TestPrefixesAndSuffixes(unittest.TestCase):
 
     def test_BinaryNamesLinux(self):
         writer = ninja.NinjaWriter(
-            "foo", "wee", ".", ".", "build.ninja", ".", "build.ninja", "linux"
+            "foo", "we", ".", ".", "build.ninja", ".", "build.ninja", "linux"
         )
-        spec = {"target_name": "wee"}
+        spec = {"target_name": "we"}
         self.assertTrue("." not in writer.ComputeOutputFileName(spec, "executable"))
         self.assertTrue(
             writer.ComputeOutputFileName(spec, "shared_library").startswith("lib")

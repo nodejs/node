@@ -2499,7 +2499,7 @@ typedef enum ULineBreak {
     U_LB_GLUE = 12,              /*[GL]*/
     U_LB_HYPHEN = 13,            /*[HY]*/
     U_LB_IDEOGRAPHIC = 14,       /*[ID]*/
-    /** Renamed from the misspelled "inseperable" in Unicode 4.0.1/ICU 3.0 @stable ICU 3.0 */
+    /** Renamed from the misspelled "inseparable" in Unicode 4.0.1/ICU 3.0 @stable ICU 3.0 */
     U_LB_INSEPARABLE = 15,       /*[IN]*/
     U_LB_INSEPERABLE = U_LB_INSEPARABLE,
     U_LB_INFIX_NUMERIC = 16,     /*[IS]*/

@@ -7,7 +7,7 @@ let fileName = 'mjsunit-assertion-error.js';
 function addDefaultFrames(frameExpectations) {
   // The last frame contains the error instantiation.
   frameExpectations.unshift('assertTrue.*mjsunit.js');
-  // Frist frame is the top-level script.
+  // First frame is the top-level script.
   frameExpectations.push(fileName);
 }
 
@@ -88,13 +88,13 @@ try {
 
 
 (function testConstructor() {
-  class Failer {
+  class Failure {
     constructor() {
       assertTrue(false);
     }
   }
   try {
-    new Failer();
+    new Failure();
     assertUnreachable();
   } catch(e) {
     assertErrorMessage(['new Failer', 'testConstructor'], e);

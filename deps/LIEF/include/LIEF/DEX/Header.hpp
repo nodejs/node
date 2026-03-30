@@ -67,7 +67,7 @@ class LIEF_API Header : public Object {
   /// Size of this header. It should be 0x70
   uint32_t header_size() const;
 
-  /// File endianess of the file
+  /// File endianness of the file
   uint32_t endian_tag() const;
 
   /// Offset from the start of the file to the map list (see: DEX::MapList)

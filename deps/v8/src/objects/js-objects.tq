@@ -159,7 +159,7 @@ extern class JSDate extends JSObject {
   min: Smi|NaN;
   sec: Smi|NaN;
 
-  // Sample of the date cache stamp at the moment when chached fields were
+  // Sample of the date cache stamp at the moment when cached fields were
   // cached.
   cache_stamp: Smi|NaN;
 }

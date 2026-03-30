@@ -33,7 +33,7 @@ function TestBooleanConstructor() {
   let kl = true;
   for (let i = 0; i < ITERATIONS; ++i) {
     // Store to a variable to prevent elimination.
-    // Keep a depedency on the loop counter to prevent hoisting.
+    // Keep a dependency on the loop counter to prevent hoisting.
     kl = Boolean(i % 2 == 0 ? 42n : 32n);
   }
   return kl;
@@ -44,7 +44,7 @@ function TestNewBooleanConstructor() {
   let kl = true;
   for (let i = 0; i < ITERATIONS; ++i) {
     // Store to a variable to prevent elimination.
-    // Keep a depedency on the loop counter to prevent hoisting.
+    // Keep a dependency on the loop counter to prevent hoisting.
     kl = new Boolean(i % 2 == 0 ? 42n : 32n);
   }
   return kl;
@@ -55,7 +55,7 @@ function TestToBoolean() {
   let kl = true;
   for (let i = 0; i < ITERATIONS; ++i) {
     // Store to a variable to prevent elimination.
-    // Keep a depedency on the loop counter to prevent hoisting.
+    // Keep a dependency on the loop counter to prevent hoisting.
     kl = (i % 2 == 0 ? 42n : 32n) ? true : false;
   }
   return kl;

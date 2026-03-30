@@ -38,7 +38,7 @@ class WasmModuleCoverageData;
 // The Arm architecture does not specify the results in memory of
 // partially-in-bound writes, which does not align with the wasm spec. This
 // affects when trap handlers can be used for OOB detection; however, Mac
-// systems with Apple silicon currently do provide trapping beahviour for
+// systems with Apple silicon currently do provide trapping behaviour for
 // partially-out-of-bound writes, so we assume we can rely on that on MacOS,
 // since doing so provides better performance for writes.
 #if V8_TARGET_ARCH_ARM64 && !V8_OS_MACOS

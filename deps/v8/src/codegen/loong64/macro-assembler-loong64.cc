@@ -655,7 +655,7 @@ void MacroAssembler::CallVerifySkippedWriteBarrierStub(Register object,
   PrepareCallCFunction(2, scratch);
   MovePair(kCArgRegs[0], object, kCArgRegs[1], value);
   CallCFunction(ExternalReference::verify_skipped_write_barrier(), 2,
-                SetIsolateDataSlots::kNo);
+                SetIsolateDataSlots::know);
 }
 
 void MacroAssembler::CallVerifySkippedIndirectWriteBarrierStubSaveRegisters(
@@ -674,7 +674,7 @@ void MacroAssembler::CallVerifySkippedIndirectWriteBarrierStub(Register object,
   PrepareCallCFunction(2, scratch);
   MovePair(kCArgRegs[0], object, kCArgRegs[1], value);
   CallCFunction(ExternalReference::verify_skipped_indirect_write_barrier(), 2,
-                SetIsolateDataSlots::kNo);
+                SetIsolateDataSlots::know);
 }
 
 void MacroAssembler::MoveObjectAndSlot(Register dst_object, Register dst_slot,
@@ -2330,7 +2330,7 @@ void MacroAssembler::BranchFalseShortF(Label* target, CFRegister cj) {
 }
 
 void MacroAssembler::BranchTrueF(Label* target, CFRegister cj) {
-  // TODO(yuyin): can be optimzed
+  // TODO(yuyin): can be optimized
   bool long_branch = target->is_bound()
                          ? !is_near(target, OffsetSize::kOffset21)
                          : is_trampoline_emitted();
@@ -2945,7 +2945,7 @@ bool MacroAssembler::BranchShortOrFallback(Label* L, Condition cond,
           bgeu(rj, sc, offset);
         }
         break;
-      case Uless:
+      case Unless:
         // rj < rk
         if (rk.is_reg() && rj.code() == rk.rm().code()) {
           // No code needs to be emitted.

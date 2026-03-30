@@ -10,7 +10,7 @@ tmpdir.refresh();
 
 // See https://github.com/nodejs/node/pull/48409
 if (isInsideDirWithUnusualChars) {
-  skip('Test is borken in directories with unusual characters');
+  skip('Test is broken in directories with unusual characters');
 }
 
 const src = fixtures.path('copy/kitchen-sink/README.md');

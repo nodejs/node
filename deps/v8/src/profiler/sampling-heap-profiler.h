@@ -85,7 +85,7 @@ class SamplingHeapProfiler {
     }
 
    private:
-    // TODO(alph): make use of unordered_map's here. Pay attention to
+    // TODO(alpha): make use of unordered_map's here. Pay attention to
     // iterator invalidation during TranslateAllocationNode.
     std::map<size_t, unsigned int> allocations_;
     std::map<FunctionId, std::unique_ptr<AllocationNode>> children_;

@@ -247,7 +247,7 @@ int RSA_padding_check_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
 
     /*
      * The first byte must be zero, however we must not leak if this is
-     * true. See James H. Manger, "A Chosen Ciphertext  Attack on RSA
+     * true. See James H. Manager, "A Chosen Ciphertext  Attack on RSA
      * Optimal Asymmetric Encryption Padding (OAEP) [...]", CRYPTO 2001).
      */
     good = constant_time_is_zero(em[0]);

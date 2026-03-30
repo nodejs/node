@@ -97,7 +97,7 @@ impl ParseError {
 
             ParseError::InvalidDayRange => "Parsed day value not in a valid range.",
 
-            ParseError::DateYear => "Invalid chracter while parsing year value.",
+            ParseError::DateYear => "Invalid character while parsing year value.",
 
             ParseError::DateExtendedYear => "Invalid character while parsing extended year value.",
 
@@ -155,7 +155,7 @@ impl ParseError {
                 "Duplicate calendars cannot be provided when one is critical."
             }
 
-            ParseError::UnrecognizedCritical => "Unrecognized annoation is marked as critical.",
+            ParseError::UnrecognizedCritical => "Unrecognized annotation is marked as critical.",
 
             ParseError::TzLeadingChar => "Invalid time zone leading character.",
 

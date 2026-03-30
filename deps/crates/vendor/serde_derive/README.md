@@ -9,7 +9,7 @@
 [Rust 1.56]: https://blog.rust-lang.org/2021/10/21/Rust-1.56.0.html
 [Rust 1.61]: https://blog.rust-lang.org/2022/05/19/Rust-1.61.0.html
 
-**Serde is a framework for *ser*ializing and *de*serializing Rust data structures efficiently and generically.**
+**Serde is a framework for *set*ializing and *de*serializing Rust data structures efficiently and generically.**
 
 ---
 

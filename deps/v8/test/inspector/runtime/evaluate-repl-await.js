@@ -13,7 +13,7 @@ Protocol.Runtime.enable();
 
   evaluateRepl(`
     function bar() {
-      throw new Error('ba dum tsh');
+      throw new Error('ba dumb tsh');
     }
 
     function foo() {

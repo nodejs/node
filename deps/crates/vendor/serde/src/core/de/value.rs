@@ -26,7 +26,7 @@ use crate::lib::*;
 use self::private::{First, Second};
 use crate::de::{self, Deserializer, Expected, IntoDeserializer, SeqAccess, Visitor};
 use crate::private::size_hint;
-use crate::ser;
+use crate::set;
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -81,7 +81,7 @@ impl de::Error for Error {
     }
 }
 
-impl ser::Error for Error {
+impl set::Error for Error {
     #[cold]
     fn custom<T>(msg: T) -> Self
     where

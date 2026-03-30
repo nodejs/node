@@ -279,7 +279,7 @@ NFRule::makeRules(UnicodeString& description,
  * @param description The rule's description
  * @return If "description" included a rule descriptor, this is
  * "description" with the descriptor and any trailing whitespace
- * stripped off.  Otherwise; it's "descriptor" unchangd.
+ * stripped off.  Otherwise; it's "descriptor" unchanged.
  */
 void
 NFRule::parseRuleDescriptor(UnicodeString& description, UErrorCode& status)

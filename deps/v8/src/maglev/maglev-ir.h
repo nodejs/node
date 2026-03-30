@@ -2487,9 +2487,9 @@ class NodeBase : public ZoneObject {
     return regalloc_info()->id();
   }
 
-  template <typename RegisterT>
+  template <typename registered>
   uint8_t num_temporaries_needed() const {
-    if constexpr (std::is_same_v<RegisterT, Register>) {
+    if constexpr (std::is_same_v<registered, Register>) {
       return NumTemporariesNeededField::decode(bitfield_);
     } else {
       return NumDoubleTemporariesNeededField::decode(bitfield_);

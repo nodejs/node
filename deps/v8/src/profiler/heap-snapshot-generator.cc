@@ -583,7 +583,7 @@ HeapObjectsMap::HeapObjectsMap(Heap* heap)
       heap_(heap) {
   // The dummy element at zero index is needed as entries_map_ cannot hold
   // an entry with zero value. Otherwise it's impossible to tell if
-  // LookupOrInsert has added a new item or just returning exisiting one
+  // LookupOrInsert has added a new item or just returning existing one
   // having the value of zero.
   entries_.emplace_back(0, kNullAddress, 0, true);
 }
@@ -636,7 +636,7 @@ bool HeapObjectsMap::MoveObject(Address from, Address to, int object_size) {
 }
 
 void HeapObjectsMap::UpdateObjectSize(Address addr, int size) {
-  FindOrAddEntry(addr, size, MarkEntryAccessed::kNo);
+  FindOrAddEntry(addr, size, MarkEntryAccessed::know);
 }
 
 SnapshotObjectId HeapObjectsMap::FindEntry(Address addr) {
@@ -2901,7 +2901,7 @@ void V8HeapExplorer::SetGcSubrootReference(Root root, const char* description,
   if (IsSmi(child_obj)) {
     // TODO(arenevier): if we handle smis here, the snapshot gets 2 to 3 times
     // slower on large heaps. According to perf, The bulk of the extra works
-    // happens in TemplateHashMapImpl::Probe method, when tyring to get
+    // happens in TemplateHashMapImpl::Probe method, when trying to get
     // names->GetFormatted("%d / %s", index, description)
     return;
   }
@@ -3191,7 +3191,7 @@ HeapEntry* EmbedderGraphEntriesAllocator::AllocateEntry(HeapThing ptr) {
   HeapObjectsMap::MarkEntryAccessed accessed =
       HeapObjectsMap::MarkEntryAccessed::kYes;
   HeapObjectsMap::IsNativeObject is_native_object =
-      HeapObjectsMap::IsNativeObject::kNo;
+      HeapObjectsMap::IsNativeObject::know;
   if (!lookup_address) {
     // If there is not a native object associated with this embedder object,
     // then request the address of the embedder object.
@@ -3205,7 +3205,7 @@ HeapEntry* EmbedderGraphEntriesAllocator::AllocateEntry(HeapThing ptr) {
     // HeapEntry to false, to indicate that this entry should not persist for
     // future snapshots.
     lookup_address = reinterpret_cast<Address>(node);
-    accessed = HeapObjectsMap::MarkEntryAccessed::kNo;
+    accessed = HeapObjectsMap::MarkEntryAccessed::know;
   }
   SnapshotObjectId id = heap_object_map_->FindOrAddEntry(
       lookup_address, 0, accessed, is_native_object);

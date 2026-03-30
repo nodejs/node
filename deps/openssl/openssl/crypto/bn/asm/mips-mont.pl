@@ -112,7 +112,7 @@ $aj=$s0;
 $bi=$s1;
 $nj=$s2;
 $tp=$s3;
-$alo=$s4;
+$also=$s4;
 $ahi=$s5;
 $nlo=$s6;
 $nhi=$s7;
@@ -197,7 +197,7 @@ $code.=<<___;
 	mflo	($m1,$lo0,$n0)
 
 	$MULTU	($ahi,$bi)
-	mflo	($alo,$ahi,$bi)
+	mflo	($also,$ahi,$bi)
 	mfhi	($ahi,$ahi,$bi)
 
 	$MULTU	($nj,$m1)
@@ -221,13 +221,13 @@ $code.=<<___;
 	$LD	$nj,($nj)
 
 	$MULTU	($aj,$bi)
-	$ADDU	$lo0,$alo,$hi0
+	$ADDU	$lo0,$also,$hi0
 	$ADDU	$lo1,$nlo,$hi1
 	sltu	$at,$lo0,$hi0
 	sltu	$t0,$lo1,$hi1
 	$ADDU	$hi0,$ahi,$at
 	$ADDU	$hi1,$nhi,$t0
-	mflo	($alo,$aj,$bi)
+	mflo	($also,$aj,$bi)
 	mfhi	($ahi,$aj,$bi)
 
 	$ADDU	$lo1,$lo0
@@ -244,7 +244,7 @@ $code.=<<___;
 	$PTR_ADD $tp,$BNSZ
 	.set	reorder
 
-	$ADDU	$lo0,$alo,$hi0
+	$ADDU	$lo0,$also,$hi0
 	sltu	$at,$lo0,$hi0
 	$ADDU	$hi0,$ahi,$at
 
@@ -283,7 +283,7 @@ $code.=<<___;
 	mflo	($m1,$lo0,$n0)
 
 	$MULTU	($ahi,$bi)
-	mflo	($alo,$ahi,$bi)
+	mflo	($also,$ahi,$bi)
 	mfhi	($ahi,$ahi,$bi)
 
 	$MULTU	($nj,$m1)
@@ -309,13 +309,13 @@ $code.=<<___;
 	$LD	$nj,($nj)
 
 	$MULTU	($aj,$bi)
-	$ADDU	$lo0,$alo,$hi0
+	$ADDU	$lo0,$also,$hi0
 	$ADDU	$lo1,$nlo,$hi1
 	sltu	$at,$lo0,$hi0
 	sltu	$t0,$lo1,$hi1
 	$ADDU	$hi0,$ahi,$at
 	$ADDU	$hi1,$nhi,$t0
-	mflo	($alo,$aj,$bi)
+	mflo	($also,$aj,$bi)
 	mfhi	($ahi,$aj,$bi)
 
 	$ADDU	$lo0,$tj
@@ -335,7 +335,7 @@ $code.=<<___;
 	$PTR_ADD $tp,$BNSZ
 	.set	reorder
 
-	$ADDU	$lo0,$alo,$hi0
+	$ADDU	$lo0,$also,$hi0
 	sltu	$at,$lo0,$hi0
 	$ADDU	$hi0,$ahi,$at
 	$ADDU	$lo0,$tj

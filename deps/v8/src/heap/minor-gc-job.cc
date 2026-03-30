@@ -45,7 +45,7 @@ size_t YoungGenerationSize(Heap* heap) {
 // A task should be scheduled when young generation size reaches the task
 // trigger, but may also occur before the trigger is reached. For example,
 // this method is called from the allocation observer for new space. The
-// observer step size is detemine based on the current task trigger. However,
+// observer step size is determine based on the current task trigger. However,
 // due to refining allocated bytes after sweeping (allocated bytes after
 // sweeping may be less than live bytes during marking), new space size may
 // decrease while the observer step size remains the same.

@@ -370,7 +370,7 @@ LocaleBuilder& LocaleBuilder::removeUnicodeLocaleAttribute(
     if (attributes.isEmpty()) { return *this; }
 
     char* p = attributes.data();
-    // Replace null terminiator in place for _ and - so later
+    // Replace null terminator in place for _ and - so later
     // we can use uprv_strcmp to compare.
     for (int32_t i = 0; i < attributes.length(); i++, p++) {
         *p = (*p == '_' || *p == '-') ? '\0' : uprv_tolower(*p);

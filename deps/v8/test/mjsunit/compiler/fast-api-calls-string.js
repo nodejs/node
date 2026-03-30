@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// This file excercises one byte string support for fast API calls.
+// This file exercises one byte string support for fast API calls.
 
 // Flags: --turbo-fast-api-calls --expose-fast-api --allow-natives-syntax --turbofan
 // The test relies on optimizing/deoptimizing at predictable moments, so

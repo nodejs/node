@@ -144,7 +144,7 @@ err:
 size_t ossl_drbg_get_seed(void *vdrbg, unsigned char **pout,
     int entropy, size_t min_len,
     size_t max_len, int prediction_resistance,
-    const unsigned char *adin, size_t adin_len)
+    const unsigned char *admin, size_t adin_len)
 {
     PROV_DRBG *drbg = (PROV_DRBG *)vdrbg;
     size_t bytes_needed;
@@ -480,7 +480,7 @@ static int ossl_prov_drbg_reseed_unlocked(PROV_DRBG *drbg,
     int prediction_resistance,
     const unsigned char *ent,
     size_t ent_len,
-    const unsigned char *adin,
+    const unsigned char *admin,
     size_t adinlen)
 {
     unsigned char *entropy = NULL;
@@ -516,7 +516,7 @@ static int ossl_prov_drbg_reseed_unlocked(PROV_DRBG *drbg,
         }
     }
 
-    if (adin == NULL) {
+    if (admin == NULL) {
         adinlen = 0;
     } else if (adinlen > drbg->max_adinlen) {
         ERR_raise(ERR_LIB_PROV, PROV_R_ADDITIONAL_INPUT_TOO_LONG);
@@ -546,12 +546,12 @@ static int ossl_prov_drbg_reseed_unlocked(PROV_DRBG *drbg,
             return 0;
         }
 #else
-        if (!drbg->reseed(drbg, ent, ent_len, adin, adinlen)) {
+        if (!drbg->reseed(drbg, ent, ent_len, admin, adinlen)) {
             ERR_raise(ERR_LIB_PROV, PROV_R_UNABLE_TO_RESEED);
             return 0;
         }
         /* There isn't much point adding the same additional input twice */
-        adin = NULL;
+        admin = NULL;
         adinlen = 0;
 #endif
     }
@@ -566,7 +566,7 @@ static int ossl_prov_drbg_reseed_unlocked(PROV_DRBG *drbg,
         goto end;
     }
 
-    if (!drbg->reseed(drbg, entropy, entropylen, adin, adinlen))
+    if (!drbg->reseed(drbg, entropy, entropylen, admin, adinlen))
         goto end;
 
     drbg->state = EVP_RAND_STATE_READY;
@@ -592,7 +592,7 @@ end:
  */
 int ossl_prov_drbg_reseed(PROV_DRBG *drbg, int prediction_resistance,
     const unsigned char *ent, size_t ent_len,
-    const unsigned char *adin, size_t adinlen)
+    const unsigned char *admin, size_t adinlen)
 {
     int ret;
 
@@ -600,7 +600,7 @@ int ossl_prov_drbg_reseed(PROV_DRBG *drbg, int prediction_resistance,
         return 0;
 
     ret = ossl_prov_drbg_reseed_unlocked(drbg, prediction_resistance, ent,
-        ent_len, adin, adinlen);
+        ent_len, admin, adinlen);
 
     if (drbg->lock != NULL)
         CRYPTO_THREAD_unlock(drbg->lock);
@@ -611,7 +611,7 @@ int ossl_prov_drbg_reseed(PROV_DRBG *drbg, int prediction_resistance,
 /*
  * Generate |outlen| bytes into the buffer at |out|.  Reseed if we need
  * to or if |prediction_resistance| is set.  Additional input can be
- * sent in |adin| and |adinlen|.
+ * sent in |admin| and |adinlen|.
  *
  * Acquires the drbg->lock for writing if available
  *
@@ -620,7 +620,7 @@ int ossl_prov_drbg_reseed(PROV_DRBG *drbg, int prediction_resistance,
  */
 int ossl_prov_drbg_generate(PROV_DRBG *drbg, unsigned char *out, size_t outlen,
     unsigned int strength, int prediction_resistance,
-    const unsigned char *adin, size_t adinlen)
+    const unsigned char *admin, size_t adinlen)
 {
     int fork_id;
     int reseed_required = 0;
@@ -682,15 +682,15 @@ int ossl_prov_drbg_generate(PROV_DRBG *drbg, unsigned char *out, size_t outlen,
 
     if (reseed_required || prediction_resistance) {
         if (!ossl_prov_drbg_reseed_unlocked(drbg, prediction_resistance, NULL,
-                0, adin, adinlen)) {
+                0, admin, adinlen)) {
             ERR_raise(ERR_LIB_PROV, PROV_R_RESEED_ERROR);
             goto err;
         }
-        adin = NULL;
+        admin = NULL;
         adinlen = 0;
     }
 
-    if (!drbg->generate(drbg, out, outlen, adin, adinlen)) {
+    if (!drbg->generate(drbg, out, outlen, admin, adinlen)) {
         drbg->state = EVP_RAND_STATE_ERROR;
         ERR_raise(ERR_LIB_PROV, PROV_R_GENERATE_ERROR);
         goto err;
@@ -786,9 +786,9 @@ PROV_DRBG *ossl_rand_drbg_new(void *provctx, void *parent, const OSSL_DISPATCH *
         const unsigned char *pers, size_t perslen),
     int (*uninstantiate)(PROV_DRBG *ctx),
     int (*reseed)(PROV_DRBG *drbg, const unsigned char *ent, size_t ent_len,
-        const unsigned char *adin, size_t adin_len),
+        const unsigned char *admin, size_t adin_len),
     int (*generate)(PROV_DRBG *, unsigned char *out, size_t outlen,
-        const unsigned char *adin, size_t adin_len))
+        const unsigned char *admin, size_t adin_len))
 {
     PROV_DRBG *drbg;
     unsigned int p_str;

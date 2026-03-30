@@ -112,7 +112,7 @@ utext_setNativeIndex(UText *ut, int64_t index) {
     if(index<ut->chunkNativeStart || index>=ut->chunkNativeLimit) {
         // The desired position is outside of the current chunk.
         // Access the new position.  Assume a forward iteration from here,
-        // which will also be optimimum for a single random access.
+        // which will also be optimum for a single random access.
         // Reverse iterations may suffer slightly.
         ut->pFuncs->access(ut, index, true);
     } else if((int32_t)(index - ut->chunkNativeStart) <= ut->nativeIndexingLimit) {
@@ -1001,7 +1001,7 @@ utf8TextAccess(UText *ut, int64_t index, UBool forward) {
             }
         }
 
-        // A random access.  Desired index could be in either or niether buf.
+        // A random access.  Desired index could be in either or neither buf.
         // For optimizing the order of testing, first check for the index
         //    being in the other buffer.  This will be the case for uses that
         //    move back and forth over a fairly limited range
@@ -1069,7 +1069,7 @@ utf8TextAccess(UText *ut, int64_t index, UBool forward) {
         }
     }
 
-    // A random access.  Desired index could be in either or niether buf.
+    // A random access.  Desired index could be in either or neither buf.
     // For optimizing the order of testing,
     //    Most likely case:  in the other buffer.
     //    Second most likely: in neither buffer.
@@ -2466,7 +2466,7 @@ ucstrTextAccess(UText *ut, int64_t index, UBool  forward) {
         U16_SET_CP_START(str, 0, index);
         if (chunkLimit == INT32_MAX) {
             // Scanned to the limit of a 32 bit length.
-            // Forceably trim the overlength string back so length fits in int32
+            // Forcibly trim the overlength string back so length fits in int32
             //  TODO:  add support for 64 bit strings.
             ut->a = chunkLimit;
             ut->chunkLength = chunkLimit;

@@ -264,7 +264,7 @@ typedef enum _iJIT_IsProfilingActiveFlags
  */
 typedef struct _LineNumberInfo
 {
-    unsigned int Offset;     /**<\brief Offset from the begining of the code region. */
+    unsigned int Offset;     /**<\brief Offset from the beginning of the code region. */
     unsigned int LineNumber; /**<\brief Matching source line number offset (from beginning of source file). */
 
 } *pLineNumberInfo, LineNumberInfo;
@@ -618,7 +618,7 @@ unsigned int JITAPI iJIT_GetNewMethodID(void);
 iJIT_IsProfilingActiveFlags JITAPI iJIT_IsProfilingActive(void);
 
 /**
- * @brief Reports infomation about JIT-compiled code to the agent.
+ * @brief Reports information about JIT-compiled code to the agent.
  *
  * The reported information is used to attribute samples obtained from any
  * Intel(R) VTune(TM) Amplifier collector. This API needs to be called

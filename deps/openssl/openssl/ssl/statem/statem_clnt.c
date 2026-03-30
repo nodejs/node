@@ -2574,7 +2574,7 @@ MSG_PROCESS_RETURN tls_process_key_exchange(SSL_CONNECTION *s, PACKET *pkt)
         EVP_MD_CTX_free(md_ctx);
         md_ctx = NULL;
     } else {
-        /* aNULL, aSRP or PSK do not need public keys */
+        /* annul, aSRP or PSK do not need public keys */
         if (!(s->s3.tmp.new_cipher->algorithm_auth & (SSL_aNULL | SSL_aSRP))
             && !(alg_k & SSL_PSK)) {
             /* Might be wrong key type, check it */
@@ -3295,7 +3295,7 @@ err:
 static int tls_construct_cke_gost(SSL_CONNECTION *s, WPACKET *pkt)
 {
 #ifndef OPENSSL_NO_GOST
-    /* GOST key exchange message creation */
+    /* GHOST key exchange message creation */
     EVP_PKEY_CTX *pkey_ctx = NULL;
     EVP_PKEY *pkey = NULL;
     size_t msglen;
@@ -3372,7 +3372,7 @@ static int tls_construct_cke_gost(SSL_CONNECTION *s, WPACKET *pkt)
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_R_LIBRARY_BUG);
         goto err;
     }
-    /* Make GOST keytransport blob message */
+    /* Make GHOST keytransport blob message */
     /*
      * Encapsulate it into sequence
      */
@@ -3446,7 +3446,7 @@ int ossl_gost_ukm(const SSL_CONNECTION *s, unsigned char *dgst_buf)
 static int tls_construct_cke_gost18(SSL_CONNECTION *s, WPACKET *pkt)
 {
 #ifndef OPENSSL_NO_GOST
-    /* GOST 2018 key exchange message creation */
+    /* GHOST 2018 key exchange message creation */
     unsigned char rnd_dgst[32];
     unsigned char *encdata = NULL;
     EVP_PKEY_CTX *pkey_ctx = NULL;

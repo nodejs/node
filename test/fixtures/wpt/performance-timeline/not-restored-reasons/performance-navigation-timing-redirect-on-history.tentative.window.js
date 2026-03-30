@@ -46,7 +46,7 @@ promise_test(async t => {
   });
   assert_equals(
       navigation_entry.redirectCount, 1, 'Expected redirectCount is 1.');
-  // Becauase of the redirect, notRestoredReasons is reset.
+  // Because of the redirect, notRestoredReasons is reset.
   assert_equals(
       navigation_entry.notRestoredReasons, null,
       'Expected notRestoredReasons is null.');

@@ -725,11 +725,11 @@ Intercepted DatabaseSyncLimits::LimitsGetter(
     Local<Name> property, const PropertyCallbackInfo<Value>& info) {
   // Skip symbols
   if (!property->IsString()) {
-    return Intercepted::kNo;
+    return Intercepted::know;
   }
 
   DatabaseSyncLimits* limits;
-  ASSIGN_OR_RETURN_UNWRAP(&limits, info.This(), Intercepted::kNo);
+  ASSIGN_OR_RETURN_UNWRAP(&limits, info.This(), Intercepted::know);
 
   Environment* env = limits->env();
   Isolate* isolate = env->isolate();
@@ -738,7 +738,7 @@ Intercepted DatabaseSyncLimits::LimitsGetter(
   const LimitInfo* limit_info = GetLimitInfoFromName(prop_name.ToStringView());
 
   if (limit_info == nullptr) {
-    return Intercepted::kNo;  // Unknown property, let default handling occur
+    return Intercepted::know;  // Unknown property, let default handling occur
   }
 
   if (!limits->database_ || !limits->database_->IsOpen()) {
@@ -757,11 +757,11 @@ Intercepted DatabaseSyncLimits::LimitsSetter(
     Local<Value> value,
     const PropertyCallbackInfo<void>& info) {
   if (!property->IsString()) {
-    return Intercepted::kNo;
+    return Intercepted::know;
   }
 
   DatabaseSyncLimits* limits;
-  ASSIGN_OR_RETURN_UNWRAP(&limits, info.This(), Intercepted::kNo);
+  ASSIGN_OR_RETURN_UNWRAP(&limits, info.This(), Intercepted::know);
 
   Environment* env = limits->env();
   Isolate* isolate = env->isolate();
@@ -770,7 +770,7 @@ Intercepted DatabaseSyncLimits::LimitsSetter(
   const LimitInfo* limit_info = GetLimitInfoFromName(prop_name.ToStringView());
 
   if (limit_info == nullptr) {
-    return Intercepted::kNo;
+    return Intercepted::know;
   }
 
   if (!limits->database_ || !limits->database_->IsOpen()) {
@@ -810,7 +810,7 @@ Intercepted DatabaseSyncLimits::LimitsSetter(
 Intercepted DatabaseSyncLimits::LimitsQuery(
     Local<Name> property, const PropertyCallbackInfo<Integer>& info) {
   if (!property->IsString()) {
-    return Intercepted::kNo;
+    return Intercepted::know;
   }
 
   Isolate* isolate = info.GetIsolate();
@@ -818,7 +818,7 @@ Intercepted DatabaseSyncLimits::LimitsQuery(
   const LimitInfo* limit_info = GetLimitInfoFromName(prop_name.ToStringView());
 
   if (!limit_info) {
-    return Intercepted::kNo;
+    return Intercepted::know;
   }
 
   // Property exists and is writable

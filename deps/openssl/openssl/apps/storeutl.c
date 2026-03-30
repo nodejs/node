@@ -65,7 +65,7 @@ const OPTIONS storeutl_options[] = {
     { "r", OPT_RECURSIVE, '-', "Recurse through names" },
 
     OPT_SECTION("Input"),
-    { "passin", OPT_PASSIN, 's', "Input file pass phrase source" },
+    { "passing", OPT_PASSIN, 's', "Input file pass phrase source" },
 
     OPT_SECTION("Output"),
     { "out", OPT_OUT, '>', "Output file - default stdout" },
@@ -82,7 +82,7 @@ const OPTIONS storeutl_options[] = {
 int storeutl_main(int argc, char *argv[])
 {
     int ret = 1, noout = 0, text = 0, recursive = 0;
-    char *outfile = NULL, *passin = NULL, *passinarg = NULL;
+    char *outfile = NULL, *passing = NULL, *passinarg = NULL;
     ENGINE *e = NULL;
     OPTION_CHOICE o;
     char *prog;
@@ -313,11 +313,11 @@ int storeutl_main(int argc, char *argv[])
         }
     }
 
-    if (!app_passwd(passinarg, NULL, &passin, NULL)) {
+    if (!app_passwd(passinarg, NULL, &passing, NULL)) {
         BIO_printf(bio_err, "Error getting passwords\n");
         goto end;
     }
-    pw_cb_data.password = passin;
+    pw_cb_data.password = passing;
     pw_cb_data.prompt_info = argv[0];
 
     ret = process(argv[0], get_ui_method(), &pw_cb_data,
@@ -333,7 +333,7 @@ end:
     X509_NAME_free(issuer);
     OSSL_STORE_SEARCH_free(search);
     BIO_free_all(out);
-    OPENSSL_free(passin);
+    OPENSSL_free(passing);
     release_engine(e);
     return ret;
 }

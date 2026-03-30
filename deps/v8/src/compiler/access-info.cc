@@ -1040,7 +1040,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
           // progress, we may still see fast mode objects on the chain prior to
           // reaching a dictionary mode prototype holding the property . Due to
           // this only being an intermediate state, we don't stupport these kind
-          // of heterogenous prototype chains.
+          // of heterogeneous prototype chains.
           return Invalid();
         }
 
@@ -1063,7 +1063,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
         // are always in dictionary mode, making this case unreachable. However,
         // due to the complications of checking dictionary mode prototypes for
         // modification, we don't attempt to support dictionary mode prototypes
-        // occuring before a fast mode holder on the chain.
+        // occurring before a fast mode holder on the chain.
         return Invalid();
       }
 

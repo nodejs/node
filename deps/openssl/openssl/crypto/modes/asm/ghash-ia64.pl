@@ -262,7 +262,7 @@ ___
 $in="r15";
 @xi=("r16","r17");
 @rem=("r18","r19");
-($Alo,$Ahi,$Blo,$Bhi,$Zlo,$Zhi)=("r20","r21","r22","r23","r24","r25");
+($Also,$Ahi,$Blo,$Bhi,$Zlo,$Zhi)=("r20","r21","r22","r23","r24","r25");
 ($Atbl,$Btbl)=("r26","r27");
 
 $code.=<<___;	# (p16)
@@ -288,13 +288,13 @@ ___
 push (@xi,shift(@xi)); push (@rem,shift(@rem));	# "rotate" registers
 
 $code.=<<___;	# (p16),(p17),(p18)
-{ .mmi;	ld8	$Alo=[$Atbl],8			//(p18) Htable[nlo].lo,&Htable[nlo].hi
+{ .mmi;	ld8	$Also=[$Atbl],8			//(p18) Htable[nlo].lo,&Htable[nlo].hi
 	ld8	$rem[0]=[$Btbl],-256		//(p18) Htable[nhi].lo,&Hshr4[nhi].lo
 	xor	$xi[1]=$xi[1],$in	};;	//(p17) xi=$xi[i]^inp[i]
 { .mfi;	ld8	$Ahi=[$Atbl]			//(p18) Htable[nlo].hi
 	dep	$Atbl=$xi[1],$Htbl,4,4	}	//(p17) &Htable[nlo].lo
 { .mfi;	shladd	$rem[0]=$rem[0],4,r0		//(p18) Htable[nhi].lo<<4
-	xor	$Zlo=$Zlo,$Alo		};;	//(p18) Z.lo^=Htable[nlo].lo
+	xor	$Zlo=$Zlo,$Also		};;	//(p18) Z.lo^=Htable[nlo].lo
 { .mmi;	ld8	$Blo=[$Btbl],8			//(p18) Hshr4[nhi].lo,&Hshr4[nhi].hi
 	ld1	$in=[$inp],-1		}	//(p16) *inp--
 { .mmi;	xor	$rem[0]=$rem[0],$Zlo		//(p18) Z.lo^(Htable[nhi].lo<<4)
@@ -312,7 +312,7 @@ for ($i=1;$i<14;$i++) {
 # Above and below fragments are derived from this one by removing
 # unsuitable (p??) instructions.
 $code.=<<___;	# (p16),(p17),(p18),(p19)
-{ .mmi;	ld8	$Alo=[$Atbl],8			//(p18) Htable[nlo].lo,&Htable[nlo].hi
+{ .mmi;	ld8	$Also=[$Atbl],8			//(p18) Htable[nlo].lo,&Htable[nlo].hi
 	ld8	$rem[0]=[$Btbl],-256		//(p18) Htable[nhi].lo,&Hshr4[nhi].lo
 	shr.u	$Zhi=$Zhi,8		}	//(p19) Z.hi>>=8
 { .mmi;	shladd	$rem[1]=$rem[1],1,$rem_8bit	//(p19) &rem_8bit[rem]
@@ -322,7 +322,7 @@ $code.=<<___;	# (p16),(p17),(p18),(p19)
 	ld2	$rem[1]=[$rem[1]]		//(p19) rem_8bit[rem]
 	dep	$Atbl=$xi[1],$Htbl,4,4	}	//(p17) &Htable[nlo].lo
 { .mmi;	shladd	$rem[0]=$rem[0],4,r0		//(p18) Htable[nhi].lo<<4
-	xor	$Zlo=$Zlo,$Alo			//(p18) Z.lo^=Htable[nlo].lo
+	xor	$Zlo=$Zlo,$Also			//(p18) Z.lo^=Htable[nlo].lo
 	xor	$Zhi=$Zhi,$Bhi		};;	//(p19) Z.hi^=Hshr4[nhi].hi
 { .mmi;	ld8	$Blo=[$Btbl],8			//(p18) Hshr4[nhi].lo,&Hshr4[nhi].hi
 	ld1	$in=[$inp],-1			//(p16) *inp--
@@ -341,7 +341,7 @@ push (@xi,shift(@xi)); push (@rem,shift(@rem));	# "rotate" registers
 }
 
 $code.=<<___;	# (p17),(p18),(p19)
-{ .mmi;	ld8	$Alo=[$Atbl],8			//(p18) Htable[nlo].lo,&Htable[nlo].hi
+{ .mmi;	ld8	$Also=[$Atbl],8			//(p18) Htable[nlo].lo,&Htable[nlo].hi
 	ld8	$rem[0]=[$Btbl],-256		//(p18) Htable[nhi].lo,&Hshr4[nhi].lo
 	shr.u	$Zhi=$Zhi,8		}	//(p19) Z.hi>>=8
 { .mmi;	shladd	$rem[1]=$rem[1],1,$rem_8bit	//(p19) &rem_8bit[rem]
@@ -351,7 +351,7 @@ $code.=<<___;	# (p17),(p18),(p19)
 	ld2	$rem[1]=[$rem[1]]		//(p19) rem_8bit[rem]
 	dep	$Atbl=$xi[1],$Htbl,4,4	};;	//(p17) &Htable[nlo].lo
 { .mmi;	shladd	$rem[0]=$rem[0],4,r0		//(p18) Htable[nhi].lo<<4
-	xor	$Zlo=$Zlo,$Alo			//(p18) Z.lo^=Htable[nlo].lo
+	xor	$Zlo=$Zlo,$Also			//(p18) Z.lo^=Htable[nlo].lo
 	xor	$Zhi=$Zhi,$Bhi		};;	//(p19) Z.hi^=Hshr4[nhi].hi
 { .mmi;	ld8	$Blo=[$Btbl],8			//(p18) Hshr4[nhi].lo,&Hshr4[nhi].hi
 	shl	$rem[1]=$rem[1],48	}	//(p19) rem_8bit[rem]<<48
@@ -367,12 +367,12 @@ ___
 push (@xi,shift(@xi)); push (@rem,shift(@rem));	# "rotate" registers
 
 $code.=<<___;	# (p18),(p19)
-{ .mfi;	ld8	$Alo=[$Atbl],8			//(p18) Htable[nlo].lo,&Htable[nlo].hi
+{ .mfi;	ld8	$Also=[$Atbl],8			//(p18) Htable[nlo].lo,&Htable[nlo].hi
 	shr.u	$Zhi=$Zhi,8		}	//(p19) Z.hi>>=8
 { .mfi;	shladd	$rem[1]=$rem[1],1,$rem_8bit	//(p19) &rem_8bit[rem]
 	xor	$Zlo=$Zlo,$Blo		};;	//(p19) Z.lo^=Hshr4[nhi].lo
 { .mfi;	ld8	$Ahi=[$Atbl]			//(p18) Htable[nlo].hi
-	xor	$Zlo=$Zlo,$Alo		}	//(p18) Z.lo^=Htable[nlo].lo
+	xor	$Zlo=$Zlo,$Also		}	//(p18) Z.lo^=Htable[nlo].lo
 { .mfi;	ld2	$rem[1]=[$rem[1]]		//(p19) rem_8bit[rem]
 	xor	$Zhi=$Zhi,$Bhi		};;	//(p19) Z.hi^=Hshr4[nhi].hi
 { .mfi;	ld8	$Blo=[$Btbl],8			//(p18) Htable[nhi].lo,&Htable[nhi].hi

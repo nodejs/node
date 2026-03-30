@@ -57,7 +57,7 @@ SANCOV_RESULTS_FILE_RE = re.compile(r'^.*\.result\.sancov$')
 def merge(args):
   """Merge several sancov files into one.
 
-  Called trough multiprocessing pool. The args are expected to unpack to:
+  Called through multiprocessing pool. The args are expected to unpack to:
     keep: Option if source and intermediate sancov files should be kept.
     coverage_dir: Folder where to find the sancov files.
     executable: Name of the executable whose sancov files should be merged.
@@ -160,7 +160,7 @@ def merge_test_runner_output(options):
 def merge_two(args):
   """Merge two sancov files.
 
-  Called trough multiprocessing pool. The args are expected to unpack to:
+  Called through multiprocessing pool. The args are expected to unpack to:
     swarming_output_dir: Folder where to find the new file.
     coverage_dir: Folder where to find the existing file.
     f: File name of the file to be merged.

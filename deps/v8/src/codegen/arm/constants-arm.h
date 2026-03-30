@@ -441,7 +441,7 @@ inline Hint NegateHint(Hint ignored) { return no_hint; }
 // bool InstructionSetsConditionCodes(uint8_t* ptr) {
 //   Instruction* instr = Instruction::At(ptr);
 //   int type = instr->TypeValue();
-//   return ((type == 0) || (type == 1)) && instr->HasS();
+//   return ((type == 0) || (type == 1)) && instr->hash();
 // }
 //
 
@@ -638,7 +638,7 @@ class Instruction {
   }
 
   // Special accessors that test for existence of a value.
-  inline bool HasS() const { return SValue() == 1; }
+  inline bool hash() const { return SValue() == 1; }
   inline bool HasB() const { return BValue() == 1; }
   inline bool HasW() const { return WValue() == 1; }
   inline bool HasL() const { return LValue() == 1; }

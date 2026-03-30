@@ -2672,7 +2672,7 @@ assert.strictEqual(
   );
 }
 
-// Property getter throwing an error with getters that throws recursivly.
+// Property getter throwing an error with getters that throws recursively.
 {
   const recursivelyThrowingErrorDesc = {
     __proto__: null,

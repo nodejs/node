@@ -395,7 +395,7 @@ void StringBuiltinsAssembler::StringEqual_Loop(
         // advanced along loop's {var_index}.
         Increment(&rhs_ptr, ElementSizeInBytes(rhs_type.representation()));
       },
-      ElementSizeInBytes(lhs_type.representation()), LoopUnrollingMode::kNo,
+      ElementSizeInBytes(lhs_type.representation()), LoopUnrollingMode::know,
       IndexAdvanceMode::kPost);
 
   // All characters are checked and no difference was found, so the strings
@@ -1562,7 +1562,7 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
           // be safe to skip the write barriers.
           StoreFixedArrayElement(elements, index, entry);
         },
-        1, LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
+        1, LoopUnrollingMode::know, IndexAdvanceMode::kPost);
 
     TNode<Map> array_map = LoadJSArrayElementsMap(PACKED_ELEMENTS, context);
     result_array = AllocateJSArray(array_map, elements, length_smi);
@@ -2011,7 +2011,7 @@ TNode<String> StringBuiltinsAssembler::AllocAndCopyStringCharacters(
     };
     BuildFastLoop<IntPtrT>(vars, var_cursor, var_cursor.value(), end_offset,
                            one_char_loop, sizeof(uint16_t),
-                           LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
+                           LoopUnrollingMode::know, IndexAdvanceMode::kPost);
     GotoIf(Uint32GreaterThan(var_bits.value(), Uint32Constant(0xFF)), &twobyte);
     // Fallthrough: only one-byte characters in the to-be-copied range.
     {

@@ -68,7 +68,7 @@ static void make_ocsp_response(BIO *err, OCSP_RESPONSE **resp, OCSP_REQUEST *req
     int nmin, int ndays, int badsig,
     const EVP_MD *resp_md);
 
-static char **lookup_serial(CA_DB *db, ASN1_INTEGER *ser);
+static char **lookup_serial(CA_DB *db, ASN1_INTEGER *set);
 static int do_responder(OCSP_REQUEST **preq, BIO **pcbio, BIO *acbio,
     int timeout);
 static int send_ocsp_response(BIO *cbio, const OCSP_RESPONSE *resp);
@@ -187,7 +187,7 @@ const OPTIONS ocsp_options[] = {
     { "rsigner", OPT_RSIGNER, '<',
         "Responder certificate to sign responses with" },
     { "rkey", OPT_RKEY, '<', "Responder key to sign responses with" },
-    { "passin", OPT_PASSIN, 's', "Responder key pass phrase source" },
+    { "passing", OPT_PASSIN, 's', "Responder key pass phrase source" },
     { "rother", OPT_ROTHER, '<', "Other certificates to include in response" },
     { "rmd", OPT_RMD, 's', "Digest Algorithm to use in signature of OCSP response" },
     { "rsigopt", OPT_RSIGOPT, 's', "OCSP response signature parameter in n:v form" },
@@ -283,7 +283,7 @@ int ocsp_main(int argc, char **argv)
     char *rca_filename = NULL, *reqin = NULL, *respin = NULL;
     char *reqout = NULL, *respout = NULL, *ridx_filename = NULL;
     char *rsignfile = NULL, *rkeyfile = NULL;
-    char *passinarg = NULL, *passin = NULL;
+    char *passinarg = NULL, *passing = NULL;
     char *sign_certfile = NULL, *verify_certfile = NULL, *rcertfile = NULL;
     char *signfile = NULL, *keyfile = NULL;
     char *thost = NULL, *tport = NULL, *tpath = NULL;
@@ -638,11 +638,11 @@ int ocsp_main(int argc, char **argv)
                     "responder other certificates"))
                 goto end;
         }
-        if (!app_passwd(passinarg, NULL, &passin, NULL)) {
+        if (!app_passwd(passinarg, NULL, &passing, NULL)) {
             BIO_printf(bio_err, "Error getting password\n");
             goto end;
         }
-        rkey = load_key(rkeyfile, FORMAT_UNDEF, 0, passin, NULL,
+        rkey = load_key(rkeyfile, FORMAT_UNDEF, 0, passing, NULL,
             "responder private key");
         if (rkey == NULL)
             goto end;
@@ -1228,14 +1228,14 @@ end:
     OCSP_BASICRESP_free(bs);
 }
 
-static char **lookup_serial(CA_DB *db, ASN1_INTEGER *ser)
+static char **lookup_serial(CA_DB *db, ASN1_INTEGER *set)
 {
     int i;
     BIGNUM *bn = NULL;
     char *itmp, *row[DB_NUMBER], **rrow;
     for (i = 0; i < DB_NUMBER; i++)
         row[i] = NULL;
-    bn = ASN1_INTEGER_to_BN(ser, NULL);
+    bn = ASN1_INTEGER_to_BN(set, NULL);
     OPENSSL_assert(bn); /* FIXME: should report an error at this
                          * point and abort */
     if (BN_is_zero(bn)) {

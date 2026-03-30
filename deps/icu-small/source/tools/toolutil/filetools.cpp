@@ -104,7 +104,7 @@ isFileModTimeLater(const char *filePath, const char *checkAgainst, UBool isDir) 
     return isLatest;
 }
 
-/* Compares the mod time of both files returning a number indicating which one is later. -1 if error ocurs. */
+/* Compares the mod time of both files returning a number indicating which one is later. -1 if error occurs. */
 static int32_t whichFileModTimeIsLater(const char *file1, const char *file2) {
     int32_t result = 0;
     struct stat stbuf1, stbuf2;

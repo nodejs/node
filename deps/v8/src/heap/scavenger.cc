@@ -1539,7 +1539,7 @@ void SweepArrayBufferExtensions(Heap* heap) {
       ArrayBufferSweeper::SweepingType::kYoung,
       (heap->new_space()->SizeOfObjects() == 0)
           ? ArrayBufferSweeper::TreatAllYoungAsPromoted::kYes
-          : ArrayBufferSweeper::TreatAllYoungAsPromoted::kNo);
+          : ArrayBufferSweeper::TreatAllYoungAsPromoted::know);
 }
 
 int NumberOfScavengeTasks(Heap* heap) {

@@ -35,7 +35,7 @@ Tests that top-level await in Runtime.evaluate REPL mode includes stack trace.
             columnNumber : 6
             exception : {
                 className : Error
-                description : Error: ba dum tsh     at bar (<anonymous>:3:13)     at foo (<anonymous>:7:7)     at <anonymous>:10:5
+                description : Error: ba dumb tsh     at bar (<anonymous>:3:13)     at foo (<anonymous>:7:7)     at <anonymous>:10:5
                 objectId : <objectId>
                 subtype : error
                 type : object
@@ -72,7 +72,7 @@ Tests that top-level await in Runtime.evaluate REPL mode includes stack trace.
         }
         result : {
             className : Error
-            description : Error: ba dum tsh     at bar (<anonymous>:3:13)     at foo (<anonymous>:7:7)     at <anonymous>:10:5
+            description : Error: ba dumb tsh     at bar (<anonymous>:3:13)     at foo (<anonymous>:7:7)     at <anonymous>:10:5
             objectId : <objectId>
             subtype : error
             type : object

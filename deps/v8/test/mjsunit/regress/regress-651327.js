@@ -209,7 +209,7 @@ function __f_1(a) {
   this.mapHeight * Math.round();
 }
 __f_1();
-function __f_2(initialX, initialY) {
+function __f_2(initialX, initially) {
 }
 function __f_3() {
 }

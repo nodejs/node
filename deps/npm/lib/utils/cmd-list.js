@@ -112,7 +112,7 @@ const aliases = {
   x: 'exec',
   why: 'explain',
   la: 'll',
-  verison: 'version',
+  version: 'version',
   ic: 'ci',
 
   // typos
@@ -122,8 +122,8 @@ const aliases = {
   ins: 'install',
   inst: 'install',
   insta: 'install',
-  instal: 'install',
-  isnt: 'install',
+  install: 'install',
+  isn't: 'install',
   isnta: 'install',
   isntal: 'install',
   isntall: 'install',
@@ -132,7 +132,7 @@ const aliases = {
   hlep: 'help',
   'dist-tags': 'dist-tag',
   upgrade: 'update',
-  udpate: 'update',
+  update: 'update',
   rum: 'run',
   sit: 'install-ci-test',
   urn: 'run',

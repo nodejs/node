@@ -260,7 +260,7 @@ ALLOWLIST = [
     # It is pinned and always present.
     "DirectCEntryStub.*,GenerateCall",
     # TODO GCMole currently is sensitive enough to understand that certain
-    #    functions only cause GC and return Failure simulataneously.
+    #    functions only cause GC and return Failure simultaneously.
     #    Callsites of such functions are safe as long as they are properly
     #    check return value and propagate the Failure to the caller.
     #    It should be possible to extend GCMole to understand this.

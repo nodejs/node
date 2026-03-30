@@ -317,7 +317,7 @@ struct PushAllHelper<> {
   static int PushReverse(BaselineAssembler* basm) { return 0; }
 };
 // TODO(ishell): try to pack sequence of pushes into one instruction by
-// looking at regiser codes. For example, Push(r1, r2, r5, r0, r3, r4)
+// looking at register codes. For example, Push(r1, r2, r5, r0, r3, r4)
 // could be generated as two pushes: Push(r1, r2, r5) and Push(r0, r3, r4).
 template <typename Arg>
 struct PushAllHelper<Arg> {
@@ -331,7 +331,7 @@ struct PushAllHelper<Arg> {
   }
 };
 // TODO(ishell): try to pack sequence of pushes into one instruction by
-// looking at regiser codes. For example, Push(r1, r2, r5, r0, r3, r4)
+// looking at register codes. For example, Push(r1, r2, r5, r0, r3, r4)
 // could be generated as two pushes: Push(r1, r2, r5) and Push(r0, r3, r4).
 template <typename Arg, typename... Args>
 struct PushAllHelper<Arg, Args...> {
@@ -370,7 +370,7 @@ struct PopAllHelper<> {
   static void Pop(BaselineAssembler* basm) {}
 };
 // TODO(ishell): try to pack sequence of pops into one instruction by
-// looking at regiser codes. For example, Pop(r1, r2, r5, r0, r3, r4)
+// looking at register codes. For example, Pop(r1, r2, r5, r0, r3, r4)
 // could be generated as two pops: Pop(r1, r2, r5) and Pop(r0, r3, r4).
 template <>
 struct PopAllHelper<Register> {

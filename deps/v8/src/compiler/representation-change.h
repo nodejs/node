@@ -14,7 +14,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-// Foward declarations.
+// Forward declarations.
 class SimplifiedLoweringVerifier;
 class TypeCache;
 

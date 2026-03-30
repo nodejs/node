@@ -664,7 +664,7 @@ const tests = [
       `${prompt}a = \`I am a multiline strong`, // This is the history being shown and navigated
       `\n| which ends here\``,
 
-      `${prompt}a = \`I am a multiline strng`, // This is the history being shown and edited
+      `${prompt}a = \`I am a multiline string`, // This is the history being shown and edited
       `\n| which ends here\``,
 
       `${prompt}a = \`I am a multiline string`, // This is the history being shown and edited
@@ -725,7 +725,7 @@ const tests = [
       `\n| which ends here\``,
       `${prompt}b = \`I am a multiline strong`, // This is the history being shown and edited
       `\n| which ends here\``,
-      `${prompt}b = \`I am a multiline strng`, // This is the history being shown and edited
+      `${prompt}b = \`I am a multiline string`, // This is the history being shown and edited
       `\n| which ends here\``,
 
       `${prompt}b = \`I am a multiline string`, // This is the history being shown and edited

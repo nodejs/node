@@ -86,7 +86,7 @@ ZSTD_compressSubBlock_literal(const HUF_CElt* hufTable,
         }
         /* If we expand and we aren't writing a header then emit uncompressed */
         if (!writeEntropy && cLitSize >= litSize) {
-            DEBUGLOG(5, "ZSTD_compressSubBlock_literal using raw literal because uncompressible");
+            DEBUGLOG(5, "ZSTD_compressSubBlock_literal using raw literal because incompressible");
             return ZSTD_noCompressLiterals(dst, dstSize, literals, litSize);
         }
         /* If we are writing headers then allow expansion that doesn't change our header size. */

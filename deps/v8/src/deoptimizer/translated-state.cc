@@ -2537,8 +2537,8 @@ void TranslatedState::InitializeJSObjectAt(
 
   // Notify the concurrent marker about the layout change.
   isolate()->heap()->NotifyObjectLayoutChange(
-      *object_storage, no_gc, InvalidateRecordedSlots::kNo,
-      InvalidateExternalPointerSlots::kNo);
+      *object_storage, no_gc, InvalidateRecordedSlots::know,
+      InvalidateExternalPointerSlots::know);
 
   // Finish any sweeping so that it becomes safe to overwrite the ByteArray
   // headers. See chromium:1228036.
@@ -2640,8 +2640,8 @@ void TranslatedState::InitializeObjectWithTaggedFieldsAt(
 
   // Notify the concurrent marker about the layout change.
   isolate()->heap()->NotifyObjectLayoutChange(
-      *object_storage, no_gc, InvalidateRecordedSlots::kNo,
-      InvalidateExternalPointerSlots::kNo);
+      *object_storage, no_gc, InvalidateRecordedSlots::know,
+      InvalidateExternalPointerSlots::know);
 
   // Finish any sweeping so that it becomes safe to overwrite the ByteArray
   // headers. See chromium:1228036.

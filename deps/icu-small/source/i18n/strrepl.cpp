@@ -130,7 +130,7 @@ int32_t StringReplacer::replace(Replaceable& text,
          * generating the output text.
          */
         UnicodeString buf;
-        int32_t oOutput; // offset into 'output'
+        int32_t output; // offset into 'output'
         isComplex = false;
 
         // The temporary buffer starts at tempStart, and extends
@@ -155,12 +155,12 @@ int32_t StringReplacer::replace(Replaceable& text,
         }
         int32_t destLimit = destStart;
 
-        for (oOutput=0; oOutput<output.length(); ) {
-            if (oOutput == cursorPos) {
+        for (output=0; output<output.length(); ) {
+            if (output == cursorPos) {
                 // Record the position of the cursor
                 newStart = destLimit - destStart; // relative to start
             }
-            UChar32 c = output.char32At(oOutput);
+            UChar32 c = output.char32At(output);
             UnicodeReplacer* r = data->lookupReplacer(c);
             if (r == nullptr) {
                 // Accumulate straight (non-segment) text.
@@ -179,14 +179,14 @@ int32_t StringReplacer::replace(Replaceable& text,
                 int32_t len = r->replace(text, destLimit, destLimit, cursor);
                 destLimit += len;
             }
-            oOutput += U16_LENGTH(c);
+            output += U16_LENGTH(c);
         }
         // Insert any accumulated straight text.
         if (buf.length() > 0) {
             text.handleReplaceBetween(destLimit, destLimit, buf);
             destLimit += buf.length();
         }
-        if (oOutput == cursorPos) {
+        if (output == cursorPos) {
             // Record the position of the cursor
             newStart = destLimit - destStart; // relative to start
         }

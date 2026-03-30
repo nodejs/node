@@ -99,7 +99,7 @@ void Item::CheckAmbiguity(const Item& other, const LexerResult& tokens) const {
   DCHECK(*this == other);
   if (child_ != other.child_) {
     std::stringstream s;
-    s << "Ambiguous grammer rules for \""
+    s << "Ambiguous grammar rules for \""
       << child_->GetMatchedInput(tokens).ToString() << "\":\n   "
       << child_->SplitByChildren(tokens) << "\nvs\n   "
       << other.child_->SplitByChildren(tokens);
@@ -107,7 +107,7 @@ void Item::CheckAmbiguity(const Item& other, const LexerResult& tokens) const {
   }
   if (prev_ != other.prev_) {
     std::stringstream s;
-    s << "Ambiguous grammer rules for \"" << GetMatchedInput(tokens).ToString()
+    s << "Ambiguous grammar rules for \"" << GetMatchedInput(tokens).ToString()
       << "\":\n   " << SplitByChildren(tokens) << "  ...\nvs\n   "
       << other.SplitByChildren(tokens) << "  ...";
     ReportError(s.str());

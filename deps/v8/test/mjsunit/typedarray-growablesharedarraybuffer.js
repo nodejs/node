@@ -3502,7 +3502,7 @@ Reverse(ArrayReverseHelper);
   }
 })();
 
-// This function cannot be reused between TypedArray.protoype.sort and
+// This function cannot be reused between TypedArray.prototype.sort and
 // Array.prototype.sort, since the default sorting functions differ.
 (function SortWithDefaultComparison() {
   for (let ctor of ctors) {

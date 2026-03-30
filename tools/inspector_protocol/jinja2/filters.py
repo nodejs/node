@@ -400,7 +400,7 @@ def do_join(eval_ctx, value, d=u'', attribute=None):
     if attribute is not None:
         value = imap(make_attrgetter(eval_ctx.environment, attribute), value)
 
-    # no automatic escaping?  joining is a lot eaiser then
+    # no automatic escaping?  joining is a lot easier then
     if not eval_ctx.autoescape:
         return text_type(d).join(imap(text_type, value))
 
@@ -555,21 +555,21 @@ def do_indent(
         first = indentfirst
 
     s += u'\n'  # this quirk is necessary for splitlines method
-    indention = u' ' * width
+    indentation = u' ' * width
 
     if blank:
-        rv = (u'\n' + indention).join(s.splitlines())
+        rv = (u'\n' + indentation).join(s.splitlines())
     else:
         lines = s.splitlines()
         rv = lines.pop(0)
 
         if lines:
             rv += u'\n' + u'\n'.join(
-                indention + line if line else line for line in lines
+                indentation + line if line else line for line in lines
             )
 
     if first:
-        rv = indention + rv
+        rv = indentation + rv
 
     return rv
 

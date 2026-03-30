@@ -89,7 +89,7 @@ mod de;
 mod deprecated;
 mod dummy;
 mod pretend;
-mod ser;
+mod set;
 mod this;
 
 #[allow(non_camel_case_types)]
@@ -113,7 +113,7 @@ impl ToTokens for private {
 #[proc_macro_derive(Serialize, attributes(serde))]
 pub fn derive_serialize(input: TokenStream) -> TokenStream {
     let mut input = parse_macro_input!(input as DeriveInput);
-    ser::expand_derive_serialize(&mut input)
+    set::expand_derive_serialize(&mut input)
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }

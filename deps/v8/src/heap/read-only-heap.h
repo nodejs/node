@@ -125,7 +125,7 @@ class ReadOnlyHeap final {
 
 enum class SkipFreeSpaceOrFiller {
   kYes,
-  kNo,
+  know,
 };
 
 // This class enables iterating over all read-only heap objects on a

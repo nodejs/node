@@ -1285,7 +1285,7 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   // We remember the end address of the last allocated code space and use that
   // as a hint for the next code space. As the WasmCodeManager is shared by the
   // whole process this ensures that Wasm code spaces are allocated next to each
-  // other with a high likelyhood. This improves the performance of cross-module
+  // other with a high likelihood. This improves the performance of cross-module
   // calls as the branch predictor can only predict indirect call targets within
   // a certain range around the call instruction.
   std::atomic<Address> next_code_space_hint_;

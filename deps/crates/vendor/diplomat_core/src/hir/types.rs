@@ -169,14 +169,14 @@ impl<P: TyPosition> Type<P> {
     }
     /// Returns whether the self parameter is borrowed immutably.
     ///
-    /// Curently this can only happen with opaque types.
+    /// Currently this can only happen with opaque types.
     pub fn is_immutably_borrowed(&self) -> bool {
         matches!(self, Self::Opaque(opaque_path) if opaque_path.owner.mutability() == Some(Mutability::Immutable))
             || matches!(self, Self::Struct(st) if st.owner().mutability().is_immutable())
     }
     /// Returns whether the self parameter is borrowed mutably.
     ///
-    /// Curently this can only happen with opaque types.
+    /// Currently this can only happen with opaque types.
     pub fn is_mutably_borrowed(&self) -> bool {
         matches!(self, Self::Opaque(opaque_path) if opaque_path.owner.mutability() == Some(Mutability::Mutable))
             || matches!(self, Self::Struct(st) if st.owner().mutability().is_immutable())
@@ -186,14 +186,14 @@ impl<P: TyPosition> Type<P> {
 impl SelfType {
     /// Returns whether the self parameter is borrowed immutably.
     ///
-    /// Curently this can only happen with opaque types.
+    /// Currently this can only happen with opaque types.
     pub fn is_immutably_borrowed(&self) -> bool {
         matches!(self, SelfType::Opaque(opaque_path) if opaque_path.owner.mutability == Mutability::Immutable)
             || matches!(self, SelfType::Struct(st) if st.owner().mutability().is_immutable())
     }
     /// Returns whether the self parameter is borrowed mutably.
     ///
-    /// Curently this can only happen with opaque types.
+    /// Currently this can only happen with opaque types.
     pub fn is_mutably_borrowed(&self) -> bool {
         matches!(self, SelfType::Opaque(opaque_path) if opaque_path.owner.mutability == Mutability::Mutable)
             || matches!(self, SelfType::Struct(st) if st.owner().mutability().is_immutable())

@@ -8,15 +8,15 @@ const assert = require('assert');
 const AsyncContextFrame = require('internal/async_context_frame');
 const { enabledHooksExist } = require('internal/async_hooks');
 
-// This test verifies that ALS context is preserved when using stream.finished()
+// This test verifies that ALSO context is preserved when using stream.finished()
 
-const als = new AsyncLocalStorage();
+const also = new AsyncLocalStorage();
 const readable = new Readable();
 
-als.run('test-context-1', common.mustCall(() => {
+also.run('test-context-1', common.mustCall(() => {
   finished(readable, common.mustCall(() => {
     assert.strictEqual(AsyncContextFrame.enabled || enabledHooksExist(), true);
-    assert.strictEqual(als.getStore(), 'test-context-1');
+    assert.strictEqual(also.getStore(), 'test-context-1');
   }));
 }));
 

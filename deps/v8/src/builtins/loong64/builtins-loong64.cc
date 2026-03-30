@@ -1093,7 +1093,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     Register interrupt_limit = temps.Acquire();
     __ LoadStackLimit(interrupt_limit,
                       MacroAssembler::StackLimitKind::kInterruptStackLimit);
-    __ Branch(&call_stack_guard, Uless, sp_minus_frame_size,
+    __ Branch(&call_stack_guard, Unless, sp_minus_frame_size,
               Operand(interrupt_limit));
   }
 
@@ -1326,7 +1326,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   } else {
     DCHECK_EQ(mode, InterpreterEntryTrampolineMode::kForProfiling);
     // Both versions must be the same up to this point otherwise the builtins
-    // will not be interchangable.
+    // will not be interchangeable.
     CHECK_EQ(
         masm->isolate()->heap()->interpreter_entry_return_pc_offset().value(),
         masm->pc_offset());
@@ -3244,7 +3244,7 @@ class RegisterAllocator {
 
   void Pinned(const Register& requested, Register* reg) {
     if (!registerIsAvailable(requested)) {
-      printf("%s register is ocupied!", RegisterName(requested));
+      printf("%s register is occupied!", RegisterName(requested));
     }
     DCHECK(registerIsAvailable(requested));
     *reg = requested;
@@ -4039,7 +4039,7 @@ void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm, Register argc_input,
     __ li(kCArgRegs[0], ER::isolate_address(masm->isolate()));
     __ mov(kCArgRegs[1], kOldSPRegister);
     __ CallCFunction(ER::wasm_switch_to_the_central_stack(), 2,
-                     SetIsolateDataSlots::kNo);
+                     SetIsolateDataSlots::know);
     __ mov(central_stack_sp, kReturnRegister0);
     __ Pop(argc_input, target_input, argv_input);
   }
@@ -4070,7 +4070,7 @@ void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm) {
     __ PrepareCallCFunction(1, a0);
     __ li(kCArgRegs[0], ER::isolate_address(masm->isolate()));
     __ CallCFunction(ER::wasm_switch_from_the_central_stack(), 1,
-                     SetIsolateDataSlots::kNo);
+                     SetIsolateDataSlots::know);
     __ Pop(kReturnRegister0, kReturnRegister1);
   }
 
@@ -4210,7 +4210,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ mov(kCArgRegs[1], zero_reg);
     __ li(kCArgRegs[2], ER::isolate_address());
     __ CallCFunction(ER::Create(Runtime::kUnwindAndFindExceptionHandler), 3,
-                     SetIsolateDataSlots::kNo);
+                     SetIsolateDataSlots::know);
   }
 
   // Retrieve the handler context, SP and FP.
@@ -4324,7 +4324,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   Register input_high = scratch2;
   Register input_low = scratch3;
 
-  // TryInlineTruncateDoubleToI destory kScratchDoubleReg, so reload it.
+  // TryInlineTruncateDoubleToI destroy kScratchDoubleReg, so reload it.
   __ Ld_d(result_reg, MemOperand(sp, kArgumentOffset));
 
   // Extract the biased exponent in result.

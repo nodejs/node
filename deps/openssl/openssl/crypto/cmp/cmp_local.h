@@ -581,7 +581,7 @@ DECLARE_ASN1_FUNCTIONS(OSSL_CMP_GENREPCONTENT)
  *           ccr      [13] CertReqMessages,            --Cross-Cert. Request
  *           ccp      [14] CertRepMessage,             --Cross-Cert. Response
  *           ckuann   [15] CAKeyUpdAnnContent,         --CA Key Update Ann.
- *           cann     [16] CertAnnContent,             --Certificate Ann.
+ *           can     [16] CertAnnContent,             --Certificate Ann.
  *           rann     [17] RevAnnContent,              --Revocation Ann.
  *           crlann   [18] CRLAnnContent,              --CRL Announcement
  *           pkiconf  [19] PKIConfirmContent,          --Confirmation
@@ -649,10 +649,10 @@ typedef struct ossl_cmp_pkibody_st {
          */
         OSSL_CMP_CAKEYUPDANNCONTENT *ckuann; /* 15 */
         /*-
-         * cann       [16] CertAnnContent,           --Certificate Ann.
+         * can       [16] CertAnnContent,           --Certificate Ann.
          * OSSL_CMP_CMPCERTIFICATE is effectively X509 so it is used directly
          */
-        X509 *cann; /* 16 */
+        X509 *can; /* 16 */
         /*-
          * rann       [17] RevAnnContent,            --Revocation Ann.
          */

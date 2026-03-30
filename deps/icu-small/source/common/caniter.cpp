@@ -270,7 +270,7 @@ void U_EXPORT2 CanonicalIterator::permute(UnicodeString &source, UBool skipZeros
     // To avoid infinity loop caused by permute, we limit the depth of recursive
     // call to permute and return U_UNSUPPORTED_ERROR.
     // We know in some unit test we need at least 4. Set to 8 just in case some
-    // unforseen use cases.
+    // unforeseen use cases.
     constexpr int32_t kPermuteDepthLimit = 8;
     if (depth > kPermuteDepthLimit) {
         status = U_UNSUPPORTED_ERROR;

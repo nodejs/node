@@ -29,7 +29,7 @@ function foo(obj) {
     }
 }
 
-// This iterator retuns '1' which is not a valid JSReceiver
+// This iterator returns '1' which is not a valid JSReceiver
 var iterator = function() {
     iteratorCount++;
     return 1;

@@ -351,7 +351,7 @@ void ReadOnlySegmentForSerialization::EncodeTaggedSlots(Isolate* isolate) {
   DCHECK_GE(segment_start, page->area_start());
   const Address segment_end = segment_start + segment_size;
   ReadOnlyPageObjectIterator it(page, segment_start,
-                                SkipFreeSpaceOrFiller::kNo);
+                                SkipFreeSpaceOrFiller::know);
   for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
     if (o.address() >= segment_end) break;
     VisitObject(isolate, o, &v);
@@ -443,7 +443,7 @@ class ReadOnlyHeapImageSerializer {
              reinterpret_cast<char*>(page->HighWaterMark()));
     }
 
-    ReadOnlyPageObjectIterator it(page, SkipFreeSpaceOrFiller::kNo);
+    ReadOnlyPageObjectIterator it(page, SkipFreeSpaceOrFiller::know);
     while (true) {
       Tagged<HeapObject> obj = it.Next();
       if (obj.is_null() || obj->address() == page->HighWaterMark()) {

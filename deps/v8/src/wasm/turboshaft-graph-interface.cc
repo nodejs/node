@@ -1255,7 +1255,7 @@ class TurboshaftGraphBuildingInterface
     auto [final_index, strategy] =
         BoundsCheckMem(imm.memory, repr, index.op, imm.offset,
                        compiler::EnforceBoundsCheck::kCanOmitBoundsCheck,
-                       compiler::AlignmentCheck::kNo);
+                       compiler::AlignmentCheck::know);
 
     V<WordPtr> mem_start = MemStart(imm.mem_index);
 
@@ -1303,7 +1303,7 @@ class TurboshaftGraphBuildingInterface
     auto [final_index, strategy] =
         BoundsCheckMem(imm.memory, repr, index.op, imm.offset,
                        compiler::EnforceBoundsCheck::kCanOmitBoundsCheck,
-                       compiler::AlignmentCheck::kNo);
+                       compiler::AlignmentCheck::know);
 
     compiler::turboshaft::Simd128LoadTransformOp::LoadKind load_kind =
         GetMemoryAccessKind(repr, strategy);
@@ -1374,7 +1374,7 @@ class TurboshaftGraphBuildingInterface
     auto [final_index, strategy] =
         BoundsCheckMem(imm.memory, repr, index.op, imm.offset,
                        compiler::EnforceBoundsCheck::kCanOmitBoundsCheck,
-                       compiler::AlignmentCheck::kNo);
+                       compiler::AlignmentCheck::know);
     Simd128LaneMemoryOp::Kind kind = GetMemoryAccessKind(repr, strategy);
 
     Simd128LaneMemoryOp::LaneKind lane_kind;
@@ -1430,7 +1430,7 @@ class TurboshaftGraphBuildingInterface
 
     auto [final_index, strategy] =
         BoundsCheckMem(imm.memory, repr, index.op, imm.offset,
-                       enforce_bounds_check, compiler::AlignmentCheck::kNo);
+                       enforce_bounds_check, compiler::AlignmentCheck::know);
 
     V<WordPtr> mem_start = MemStart(imm.mem_index);
 
@@ -1479,7 +1479,7 @@ class TurboshaftGraphBuildingInterface
 
     auto [final_index, strategy] =
         BoundsCheckMem(imm.memory, repr, index.op, imm.offset,
-                       enforce_bounds_check, compiler::AlignmentCheck::kNo);
+                       enforce_bounds_check, compiler::AlignmentCheck::know);
     Simd128LaneMemoryOp::Kind kind = GetMemoryAccessKind(repr, strategy);
 
     Simd128LaneMemoryOp::LaneKind lane_kind;
@@ -2005,8 +2005,8 @@ class TurboshaftGraphBuildingInterface
         compiler::Linkage::GetSimplifiedCDescriptor(__ graph_zone(),
                                                     builder.Get());
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
-        call_descriptor, compiler::CanThrow::kNo,
-        compiler::LazyDeoptOnThrow::kNo, __ graph_zone());
+        call_descriptor, compiler::CanThrow::know,
+        compiler::LazyDeoptOnThrow::know, __ graph_zone());
     OpIndex target_address = __ ExternalConstant(ExternalReference::Create(
         env_->fast_api_targets[func_index].load(std::memory_order_relaxed),
         ExternalReference::FAST_C_CALL));
@@ -4051,7 +4051,7 @@ class TurboshaftGraphBuildingInterface
         BoundsCheckMem(imm.memory, info.memory_rep, args[0].op, imm.offset,
                        compiler::EnforceBoundsCheck::kCanOmitBoundsCheck,
                        compiler::AlignmentCheck::kYes);
-    // MemoryAccessKind::kUnaligned is impossible due to explicit aligment
+    // MemoryAccessKind::kUnaligned is impossible due to explicit alignment
     // check.
     MemoryAccessKind access_kind =
         bounds_check_result == compiler::BoundsCheckResult::kTrapHandler
@@ -6053,7 +6053,7 @@ class TurboshaftGraphBuildingInterface
 #endif
   };
 
-  enum class CheckForException { kNo, kCatchInThisFrame, kCatchInParentFrame };
+  enum class CheckForException { know, kCatchInThisFrame, kCatchInParentFrame };
 
  private:
   // Holds phi inputs for a specific block. These include SSA values, stack
@@ -6169,7 +6169,7 @@ class TurboshaftGraphBuildingInterface
     // constructing this, but grows over time as new incoming edges for a given
     // block are created.
     // After such an edge is created, each phi has the same number of inputs.
-    // When eventually creating a phi, we also need all inputs layed out
+    // When eventually creating a phi, we also need all inputs laid out
     // contiguously.
     // Due to those requirements, we write our own little container, see below.
 
@@ -6230,7 +6230,7 @@ class TurboshaftGraphBuildingInterface
       phi_inputs_ = zone()->AllocateArray<OpIndex>(phi_inputs_capacity_total_);
 
       // This is essentially a strided copy, where we expand the storage by
-      // "inserting" unitialized elements in between contiguous stretches of
+      // "inserting" uninitialized elements in between contiguous stretches of
       // inputs belonging to the same phi.
 #ifdef DEBUG
       EnsureAllPhisHaveSameInputCount();
@@ -7976,7 +7976,7 @@ class TurboshaftGraphBuildingInterface
           CheckForException::kCatchInThisFrame) {
     const TSCallDescriptor* descriptor = TSCallDescriptor::Create(
         compiler::GetWasmCallDescriptor(__ graph_zone(), sig, call_kind),
-        compiler::CanThrow::kYes, compiler::LazyDeoptOnThrow::kNo,
+        compiler::CanThrow::kYes, compiler::LazyDeoptOnThrow::know,
         __ graph_zone());
 
     SmallZoneVector<OpIndex, 16> arg_indices(sig->parameter_count() + 1,
@@ -8011,7 +8011,7 @@ class TurboshaftGraphBuildingInterface
     if (mode_ == kRegular || mode_ == kInlinedTailCall) {
       const TSCallDescriptor* descriptor = TSCallDescriptor::Create(
           compiler::GetWasmCallDescriptor(__ graph_zone(), sig, call_kind),
-          compiler::CanThrow::kYes, compiler::LazyDeoptOnThrow::kNo,
+          compiler::CanThrow::kYes, compiler::LazyDeoptOnThrow::know,
           __ graph_zone());
 
       SmallZoneVector<OpIndex, 16> arg_indices(sig->parameter_count() + 1,
@@ -8041,12 +8041,12 @@ class TurboshaftGraphBuildingInterface
     }
   }
 
-  enum HandleEffects : bool { kYes = true, kNo = false };
-  template <typename Descriptor, HandleEffects handle_effects = kNo>
+  enum HandleEffects : bool { kYes = true, know = false };
+  template <typename Descriptor, HandleEffects handle_effects = know>
   compiler::turboshaft::detail::index_type_for_t<typename Descriptor::results_t>
   CallBuiltinThroughJumptable(
       FullDecoder* decoder, const typename Descriptor::arguments_t& args,
-      CheckForException check_for_exception = CheckForException::kNo)
+      CheckForException check_for_exception = CheckForException::know)
     requires(!Descriptor::kNeedsContext)
   {
     DCHECK_NE(check_for_exception, CheckForException::kCatchInParentFrame);
@@ -8073,7 +8073,7 @@ class TurboshaftGraphBuildingInterface
   CallBuiltinThroughJumptable(
       FullDecoder* decoder, V<Context> context,
       const typename Descriptor::arguments_t& args,
-      CheckForException check_for_exception = CheckForException::kNo)
+      CheckForException check_for_exception = CheckForException::know)
     requires Descriptor::kNeedsContext
   {
     DCHECK_NE(check_for_exception, CheckForException::kCatchInParentFrame);
@@ -8099,7 +8099,7 @@ class TurboshaftGraphBuildingInterface
   compiler::turboshaft::detail::index_type_for_t<typename Descriptor::results_t>
   CallBuiltinByPointer(
       FullDecoder* decoder, const typename Descriptor::arguments_t& args,
-      CheckForException check_for_exception = CheckForException::kNo)
+      CheckForException check_for_exception = CheckForException::know)
     requires(!Descriptor::kNeedsContext)
   {
     DCHECK_NE(check_for_exception, CheckForException::kCatchInParentFrame);
@@ -8134,13 +8134,13 @@ class TurboshaftGraphBuildingInterface
     }
   }
 
-  template <HandleEffects handle_effects = kNo>
+  template <HandleEffects handle_effects = know>
   OpIndex CallAndMaybeCatchException(FullDecoder* decoder, V<CallTarget> callee,
                                      base::Vector<const OpIndex> args,
                                      const TSCallDescriptor* descriptor,
                                      CheckForException check_for_exception,
                                      OpEffects effects) {
-    if (check_for_exception == CheckForException::kNo) {
+    if (check_for_exception == CheckForException::know) {
       return __ Call(callee, OpIndex::Invalid(), args, descriptor, effects);
     }
     bool handled_in_this_frame =

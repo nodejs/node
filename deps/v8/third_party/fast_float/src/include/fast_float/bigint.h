@@ -336,7 +336,7 @@ FASTFLOAT_CONSTEXPR20 bool long_mul(stackvec<size> &x, limb_span y) noexcept {
       limb yi = y[index];
       stackvec<size> zi;
       if (yi != 0) {
-        // re-use the same buffer throughout
+        // reuse the same buffer throughout
         zi.set_len(0);
         FASTFLOAT_TRY(zi.try_extend(zs));
         FASTFLOAT_TRY(small_mul(zi, yi));

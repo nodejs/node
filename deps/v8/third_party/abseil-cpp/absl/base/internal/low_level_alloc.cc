@@ -152,7 +152,7 @@ static int LLA_SkiplistLevels(size_t size, size_t base, uint32_t *random) {
   return level;
 }
 
-// Return "atleast", the first element of AllocList *head s.t. *atleast >= *e.
+// Return "at least", the first element of AllocList *head s.t. *at least >= *e.
 // For 0 <= i < head->levels, set prev[i] to "no_greater", where no_greater
 // points to the last element at level i in the AllocList less than *e, or is
 // head if no such element exists.
@@ -263,7 +263,7 @@ alignas(
 #endif
 
 // We must use LowLevelCallOnce here to construct the global arenas, rather than
-// using function-level statics, to avoid recursively invoking the scheduler.
+// using function-level statistics, to avoid recursively invoking the scheduler.
 absl::once_flag create_globals_once;
 
 void CreateGlobalArenas() {

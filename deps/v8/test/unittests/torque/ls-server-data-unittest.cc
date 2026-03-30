@@ -50,7 +50,7 @@ TEST(LanguageServer, GotoTypeDefinition) {
             (SourcePosition{id, LineAndColumn::WithUnknownOffset(2, 5),
                             LineAndColumn::WithUnknownOffset(2, 7)}));
 
-  // Find the defintion for type 'T2' of argument 'b' on line 4.
+  // Find the definition for type 'T2' of argument 'b' on line 4.
   maybe_position = LanguageServerData::FindDefinition(
       id, LineAndColumn::WithUnknownOffset(4, 26));
   ASSERT_TRUE(maybe_position.has_value());

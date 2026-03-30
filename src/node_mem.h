@@ -10,7 +10,7 @@ namespace mem {
 
 // nghttp2 allows custom allocators that
 // follow exactly the same structure and behavior, but
-// use different struct names. To allow for code re-use,
+// use different struct names. To allow for code reuse,
 // the NgLibMemoryManager template class can be used for both.
 
 struct NgLibMemoryManagerBase {

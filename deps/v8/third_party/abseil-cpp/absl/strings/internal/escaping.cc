@@ -111,7 +111,7 @@ size_t Base64EscapeInternal(const unsigned char* src, size_t szsrc, char* dest,
   // If do_padding is true, padding at the end of the data is performed. This
   // output padding uses the '=' character.
 
-  // Three bytes of data encodes to four characters of cyphertext.
+  // Three bytes of data encodes to four characters of ciphertext.
   // So we can pump through three-byte chunks atomically.
   if (szsrc >= 3) {                    // "limit_src - 3" is UB if szsrc < 3.
     while (cur_src < limit_src - 3) {  // While we have >= 32 bits.

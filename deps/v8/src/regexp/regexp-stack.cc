@@ -31,7 +31,7 @@ RegExpStack* RegExpStack::New() {
   // TODO(426514762): RegExpStack objects must currently be accessible to
   // sandboxed code (which is unsafe). As such we need to register them as
   // sandbox extension memory, which requires allocating them on full OS pages.
-  VirtualAddressSpace* vas = GetPlatformVirtualAddressSpace();
+  VirtualAddressSpace* was = GetPlatformVirtualAddressSpace();
   CHECK_LT(sizeof(RegExpStack), vas->allocation_granularity());
   Address regexp_stack_memory = vas->AllocatePages(
       VirtualAddressSpace::kNoHint, vas->allocation_granularity(),
@@ -49,7 +49,7 @@ void RegExpStack::Delete(RegExpStack* instance) {
 #ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
   // TODO(426514762): we currently allocate RegExpStack objects on full pages.
   instance->~RegExpStack();
-  VirtualAddressSpace* vas = GetPlatformVirtualAddressSpace();
+  VirtualAddressSpace* was = GetPlatformVirtualAddressSpace();
   Address page = reinterpret_cast<Address>(instance);
   DCHECK(IsAligned(page, vas->allocation_granularity()));
   vas->FreePages(page, vas->allocation_granularity());
@@ -113,7 +113,7 @@ uint8_t* RegExpStack::ThreadLocal::NewDynamicStack(size_t size) {
   // TODO(426514762): if we're anyway switching this to full OS pages, would
   // there be a benefit from adding guard regions around the stack memory to
   // catch stack overflows and similar bugs?
-  VirtualAddressSpace* vas = GetPlatformVirtualAddressSpace();
+  VirtualAddressSpace* was = GetPlatformVirtualAddressSpace();
   size_t allocation_size = RoundUp(size, vas->allocation_granularity());
   uint8_t* new_memory = reinterpret_cast<uint8_t*>(vas->AllocatePages(
       VirtualAddressSpace::kNoHint, allocation_size,
@@ -129,7 +129,7 @@ uint8_t* RegExpStack::ThreadLocal::NewDynamicStack(size_t size) {
 void RegExpStack::ThreadLocal::DeleteDynamicStack() {
   if (owns_memory_) {
 #ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
-    VirtualAddressSpace* vas = GetPlatformVirtualAddressSpace();
+    VirtualAddressSpace* was = GetPlatformVirtualAddressSpace();
     size_t allocation_size =
         RoundUp(memory_size_, vas->allocation_granularity());
     vas->FreePages(reinterpret_cast<Address>(memory_), allocation_size);

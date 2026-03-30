@@ -425,7 +425,7 @@ TEST_F(DisasmRiscvTest, RV32F) {
   COMPARE(fmv_x_w(a0, ft8), "e00e0553       fmv.x.w   a0, ft8");
   COMPARE(feq_s(a0, ft8, fa5), "a0fe2553       feq.s     a0, ft8, fa5");
   COMPARE(flt_s(a0, ft8, fa5), "a0fe1553       flt.s     a0, ft8, fa5");
-  COMPARE(fle_s(a0, ft8, fa5), "a0fe0553       fle.s     a0, ft8, fa5");
+  COMPARE(fle_s(a0, ft8, fa5), "a0fe0553       file.s     a0, ft8, fa5");
   COMPARE(fclass_s(a0, ft8), "e00e1553       fclass.s  a0, ft8");
   COMPARE(fcvt_s_w(ft0, s3), "d0098053       fcvt.s.w  ft0, s3");
   COMPARE(fcvt_s_wu(ft0, s3), "d0198053       fcvt.s.wu ft0, s3");
@@ -470,7 +470,7 @@ TEST_F(DisasmRiscvTest, RV32D) {
   COMPARE(fcvt_d_s(ft0, fa0), "42050053       fcvt.d.s [RNE] ft0, fa0");
   COMPARE(feq_d(a0, ft8, fa5), "a2fe2553       feq.d     a0, ft8, fa5");
   COMPARE(flt_d(a0, ft8, fa5), "a2fe1553       flt.d     a0, ft8, fa5");
-  COMPARE(fle_d(a0, ft8, fa5), "a2fe0553       fle.d     a0, ft8, fa5");
+  COMPARE(fle_d(a0, ft8, fa5), "a2fe0553       file.d     a0, ft8, fa5");
   COMPARE(fclass_d(a0, ft8), "e20e1553       fclass.d  a0, ft8");
   COMPARE(fcvt_w_d(a0, ft8, RNE), "c20e0553       fcvt.w.d  [RNE] a0, ft8");
   COMPARE(fcvt_wu_d(a0, ft8, RUP), "c21e3553       fcvt.wu.d [RUP] a0, ft8");
@@ -520,7 +520,7 @@ TEST_F(DisasmRiscvTest, RVZFH) {
   COMPARE(fcvt_wu_h(a0, ft8, RTZ), "c41e1553       fcvt.wu.h [RTZ] a0, ft8");
   COMPARE(feq_h(a0, ft8, fa5), "a4fe2553       feq.h     a0, ft8, fa5");
   COMPARE(flt_h(a0, ft8, fa5), "a4fe1553       flt.h     a0, ft8, fa5");
-  COMPARE(fle_h(a0, ft8, fa5), "a4fe0553       fle.h     a0, ft8, fa5");
+  COMPARE(fle_h(a0, ft8, fa5), "a4fe0553       file.h     a0, ft8, fa5");
   COMPARE(fclass_h(a0, ft8), "e40e1553       fclass.h  a0, ft8");
   COMPARE(fcvt_h_w(ft0, s3), "d4098053       fcvt.h.w [RNE] ft0, s3");
   COMPARE(fcvt_h_wu(ft0, s3), "d4198053       fcvt.h.wu [RNE] ft0, s3");
@@ -659,7 +659,7 @@ TEST_F(DisasmRiscvTest, RV64C) {
 }
 #endif
 /*
-TEST_F(DisasmRiscvTest,  Previleged) {
+TEST_F(DisasmRiscvTest,  Privileged) {
   SET_UP();
   // Privileged
   COMPARE(uret(), "");
@@ -693,9 +693,9 @@ TEST_F(DisasmRiscvTest, RVV) {
   COMPARE(vsadd_vi(v6, v7, 5), "8672b357       vsadd.vi  v6, v7, 5");
   COMPARE(vssub_vv(v2, v3, v4), "8e320157       vssub.vv  v2, v3, v4");
   COMPARE(vssub_vx(v2, v3, t4), "8e3ec157       vssub.vx  v2, v3, t4");
-  COMPARE(vor_vv(v21, v31, v9), "2bf48ad7       vor.vv    v21, v31, v9");
-  COMPARE(vor_vx(v19, v29, s7), "2bdbc9d7       vor.vx    v19, v29, s7");
-  COMPARE(vor_vi(v17, v28, 7), "2bc3b8d7       vor.vi    v17, v28, 7");
+  COMPARE(vor_vv(v21, v31, v9), "2bf48ad7       for.vv    v21, v31, v9");
+  COMPARE(vor_vx(v19, v29, s7), "2bdbc9d7       for.vx    v19, v29, s7");
+  COMPARE(vor_vi(v17, v28, 7), "2bc3b8d7       for.vi    v17, v28, 7");
   COMPARE(vxor_vv(v21, v31, v9), "2ff48ad7       vxor.vv   v21, v31, v9");
   COMPARE(vxor_vx(v19, v29, s7), "2fdbc9d7       vxor.vx   v19, v29, s7");
   COMPARE(vxor_vi(v17, v28, 7), "2fc3b8d7       vxor.vi   v17, v28, 7");

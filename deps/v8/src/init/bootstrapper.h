@@ -41,7 +41,7 @@ class SourceCodeCache final {
   Tagged<FixedArray> cache_;
 };
 
-// The Boostrapper is the public interface for creating a JavaScript global
+// The Bootstrapper is the public interface for creating a JavaScript global
 // context.
 class Bootstrapper final {
  public:

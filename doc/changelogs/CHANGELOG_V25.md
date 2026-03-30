@@ -579,7 +579,7 @@ This is a security release.
 * \[[`399ac68427`](https://github.com/nodejs/node/commit/399ac68427)] - **test\_runner**: fix coverage report when a directory is named file (Heath Dutton🕴️) [#61169](https://github.com/nodejs/node/pull/61169)
 * \[[`6e1beda333`](https://github.com/nodejs/node/commit/6e1beda333)] - **test\_runner**: print info when test restarts (Xavier Stouder) [#61160](https://github.com/nodejs/node/pull/61160)
 * \[[`f5803ccb86`](https://github.com/nodejs/node/commit/f5803ccb86)] - **test\_runner**: fix rerun ambiguous test failures (Moshe Atlow) [#61392](https://github.com/nodejs/node/pull/61392)
-* \[[`a5a4c3eb44`](https://github.com/nodejs/node/commit/a5a4c3eb44)] - **test\_runner**: nix dead reporter code (Vas Sudanagunta) [#59700](https://github.com/nodejs/node/pull/59700)
+* \[[`a5a4c3eb44`](https://github.com/nodejs/node/commit/a5a4c3eb44)] - **test\_runner**: nix dead reporter code (Was Sudanagunta) [#59700](https://github.com/nodejs/node/pull/59700)
 * \[[`ff1fcabfc9`](https://github.com/nodejs/node/commit/ff1fcabfc9)] - **(SEMVER-MINOR)** **test\_runner**: support expecting a test-case to fail (Jacob Smith) [#60669](https://github.com/nodejs/node/pull/60669)
 * \[[`ade4fc2338`](https://github.com/nodejs/node/commit/ade4fc2338)] - **tools**: copyedit Nix files (Antoine du Hamel) [#61447](https://github.com/nodejs/node/pull/61447)
 * \[[`7c2242beb9`](https://github.com/nodejs/node/commit/7c2242beb9)] - **tools**: validate release commit diff as part of `lint-release-proposal` (Antoine du Hamel) [#61440](https://github.com/nodejs/node/pull/61440)
@@ -655,7 +655,7 @@ This is a security release.
 * \[[`56a6513648`](https://github.com/nodejs/node/commit/56a6513648)] - **deps**: update nghttp2 to 1.68.0 (nodejs-github-bot) [#61136](https://github.com/nodejs/node/pull/61136)
 * \[[`f2692c5534`](https://github.com/nodejs/node/commit/f2692c5534)] - **deps**: remove independent temporal (Chengzhong Wu) [#61072](https://github.com/nodejs/node/pull/61072)
 * \[[`3acbf3f129`](https://github.com/nodejs/node/commit/3acbf3f129)] - **deps**: apply cargo vendor (Chengzhong Wu) [#61072](https://github.com/nodejs/node/pull/61072)
-* \[[`d2759f4805`](https://github.com/nodejs/node/commit/d2759f4805)] - **deps**: add vendor depenency crate (Chengzhong Wu) [#61072](https://github.com/nodejs/node/pull/61072)
+* \[[`d2759f4805`](https://github.com/nodejs/node/commit/d2759f4805)] - **deps**: add vendor dependency crate (Chengzhong Wu) [#61072](https://github.com/nodejs/node/pull/61072)
 * \[[`6330385174`](https://github.com/nodejs/node/commit/6330385174)] - **deps**: update simdjson to 4.2.4 (Node.js GitHub Bot) [#61056](https://github.com/nodejs/node/pull/61056)
 * \[[`9835860115`](https://github.com/nodejs/node/commit/9835860115)] - **deps**: update googletest to 065127f1e4b46c5f14fc73cf8d323c221f9dc68e (Node.js GitHub Bot) [#61055](https://github.com/nodejs/node/pull/61055)
 * \[[`d2e6dff2f9`](https://github.com/nodejs/node/commit/d2e6dff2f9)] - **deps**: brotli: cherry-pick e230f474b87 (liujiahui) [#61003](https://github.com/nodejs/node/pull/61003)
@@ -819,7 +819,7 @@ This is a security release.
 * \[[`c08afc5712`](https://github.com/nodejs/node/commit/c08afc5712)] - **test**: check util.parseArgs argv parsing with actual process execution (René) [#61089](https://github.com/nodejs/node/pull/61089)
 * \[[`182f2e4b5a`](https://github.com/nodejs/node/commit/182f2e4b5a)] - **test**: update WPT for urlpattern to a2e15ad405 (Node.js GitHub Bot) [#61134](https://github.com/nodejs/node/pull/61134)
 * \[[`9f7cc779f5`](https://github.com/nodejs/node/commit/9f7cc779f5)] - **test**: make buffer sizes 32bit-aware in test-internal-util-construct-sab (René) [#61026](https://github.com/nodejs/node/pull/61026)
-* \[[`c6a8234963`](https://github.com/nodejs/node/commit/c6a8234963)] - **test**: remove unneccessary repl magic\_mode tests (Dario Piotrowicz) [#61053](https://github.com/nodejs/node/pull/61053)
+* \[[`c6a8234963`](https://github.com/nodejs/node/commit/c6a8234963)] - **test**: remove unnecessary repl magic\_mode tests (Dario Piotrowicz) [#61053](https://github.com/nodejs/node/pull/61053)
 * \[[`fa2fe0930f`](https://github.com/nodejs/node/commit/fa2fe0930f)] - **test**: skip sea tests on riscv64 (Stewart X Addison) [#61111](https://github.com/nodejs/node/pull/61111)
 * \[[`b209f6ba19`](https://github.com/nodejs/node/commit/b209f6ba19)] - **test**: simplify `test-cli-node-options-docs` (Antoine du Hamel) [#61006](https://github.com/nodejs/node/pull/61006)
 * \[[`c9153c7d4f`](https://github.com/nodejs/node/commit/c9153c7d4f)] - **test**: mark stringbytes-external-max flaky on AIX (Stewart X Addison) [#60995](https://github.com/nodejs/node/pull/60995)
@@ -959,7 +959,7 @@ This is a security release.
 
 ### Commits
 
-* \[[`d5158a0a2d`](https://github.com/nodejs/node/commit/d5158a0a2d)] - **benchmark**: focus on import.meta intialization in import-meta benchmark (Joyee Cheung) [#60603](https://github.com/nodejs/node/pull/60603)
+* \[[`d5158a0a2d`](https://github.com/nodejs/node/commit/d5158a0a2d)] - **benchmark**: focus on import.meta initialization in import-meta benchmark (Joyee Cheung) [#60603](https://github.com/nodejs/node/pull/60603)
 * \[[`26a5305fa9`](https://github.com/nodejs/node/commit/26a5305fa9)] - **benchmark**: add per-suite setup option (Joyee Cheung) [#60574](https://github.com/nodejs/node/pull/60574)
 * \[[`4810e4b82d`](https://github.com/nodejs/node/commit/4810e4b82d)] - **buffer**: speed up concat via TypedArray#set (Gürgün Dayıoğlu) [#60399](https://github.com/nodejs/node/pull/60399)
 * \[[`94a94a6b3a`](https://github.com/nodejs/node/commit/94a94a6b3a)] - **console**: optimize single-string logging (Gürgün Dayıoğlu) [#60422](https://github.com/nodejs/node/pull/60422)
@@ -991,7 +991,7 @@ This is a security release.
 * \[[`3446cf375f`](https://github.com/nodejs/node/commit/3446cf375f)] - **doc**: update devcontainer.json and add documentation (Joyee Cheung) [#60472](https://github.com/nodejs/node/pull/60472)
 * \[[`519c537875`](https://github.com/nodejs/node/commit/519c537875)] - **doc**: add haramj as triager (Haram Jeong) [#60348](https://github.com/nodejs/node/pull/60348)
 * \[[`62889d7e99`](https://github.com/nodejs/node/commit/62889d7e99)] - **doc**: clarify require(esm) description (dynst) [#60520](https://github.com/nodejs/node/pull/60520)
-* \[[`0b9ef68705`](https://github.com/nodejs/node/commit/0b9ef68705)] - **doc**: instantiate resolver object (Donghoon Nam) [#60476](https://github.com/nodejs/node/pull/60476)
+* \[[`0b9ef68705`](https://github.com/nodejs/node/commit/0b9ef68705)] - **doc**: instantiate resolver object (Donghoon Name) [#60476](https://github.com/nodejs/node/pull/60476)
 * \[[`cd5c1ad29f`](https://github.com/nodejs/node/commit/cd5c1ad29f)] - **doc**: correct module loading descriptions (Joyee Cheung) [#60346](https://github.com/nodejs/node/pull/60346)
 * \[[`74719dad7a`](https://github.com/nodejs/node/commit/74719dad7a)] - **doc**: clarify Linux runtime requirements for >=25 (Joyee Cheung) [#60484](https://github.com/nodejs/node/pull/60484)
 * \[[`ca39540785`](https://github.com/nodejs/node/commit/ca39540785)] - **doc**: clarify --use-system-ca support status (Joyee Cheung) [#60340](https://github.com/nodejs/node/pull/60340)
@@ -1085,7 +1085,7 @@ This is a security release.
 
 ### Commits
 
-* \[[`bb27766bd5`](https://github.com/nodejs/node/commit/bb27766bd5)] - **benchmark**: improve cpu.sh for safety and usability (Nam Yooseong) [#60162](https://github.com/nodejs/node/pull/60162)
+* \[[`bb27766bd5`](https://github.com/nodejs/node/commit/bb27766bd5)] - **benchmark**: improve cpu.sh for safety and usability (Name Yooseong) [#60162](https://github.com/nodejs/node/pull/60162)
 * \[[`e600711c20`](https://github.com/nodejs/node/commit/e600711c20)] - **benchmark**: add benchmark for leaf source text modules (Joyee Cheung) [#60205](https://github.com/nodejs/node/pull/60205)
 * \[[`1bbcdf9039`](https://github.com/nodejs/node/commit/1bbcdf9039)] - **benchmark**: add vm.SourceTextModule benchmark (Joyee Cheung) [#59396](https://github.com/nodejs/node/pull/59396)
 * \[[`22fa6bd28b`](https://github.com/nodejs/node/commit/22fa6bd28b)] - **build**: ibmi follow aix visibility (SRAVANI GUNDEPALLI) [#60360](https://github.com/nodejs/node/pull/60360)
@@ -1237,7 +1237,7 @@ and added quality-of-life improvements like a portable compile cache and JSPI fo
 * \[[`5623194a6b`](https://github.com/nodejs/node/commit/5623194a6b)] - **(SEMVER-MAJOR)** **doc,src,test**: replace use of deprecated `GetIsolate` (Michaël Zasso) [#59805](https://github.com/nodejs/node/pull/59805)
 * \[[`823ca6991f`](https://github.com/nodejs/node/commit/823ca6991f)] - **(SEMVER-MAJOR)** **fs**: make `processReadResult()` and `readSyncRecursive()` private (Livia Medeiros) [#58672](https://github.com/nodejs/node/pull/58672)
 * \[[`a273674dee`](https://github.com/nodejs/node/commit/a273674dee)] - **(SEMVER-MAJOR)** **fs**: move fs stream open method to eol (James M Snell) [#58529](https://github.com/nodejs/node/pull/58529)
-* \[[`39d73036e7`](https://github.com/nodejs/node/commit/39d73036e7)] - **(SEMVER-MAJOR)** **lib**: use validators for argument validation (Nam Yooseong) [#59416](https://github.com/nodejs/node/pull/59416)
+* \[[`39d73036e7`](https://github.com/nodejs/node/commit/39d73036e7)] - **(SEMVER-MAJOR)** **lib**: use validators for argument validation (Name Yooseong) [#59416](https://github.com/nodejs/node/pull/59416)
 * \[[`cd68e35704`](https://github.com/nodejs/node/commit/cd68e35704)] - **(SEMVER-MAJOR)** **lib**: deprecate `_stream_*` modules (Dario Piotrowicz) [#58337](https://github.com/nodejs/node/pull/58337)
 * \[[`a822a1cbe7`](https://github.com/nodejs/node/commit/a822a1cbe7)] - **(SEMVER-MAJOR)** **lib**: deprecate \_tls\_common and \_tls\_wrap (Dario Piotrowicz) [#57643](https://github.com/nodejs/node/pull/57643)
 * \[[`705bcc2a00`](https://github.com/nodejs/node/commit/705bcc2a00)] - **(SEMVER-MAJOR)** **module**: move Module.\_debug to end-of-life (James M Snell) [#58473](https://github.com/nodejs/node/pull/58473)

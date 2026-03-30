@@ -134,8 +134,8 @@ macro_rules! crate_root {
 
         #[cfg_attr(all(docsrs, if_docsrs_then_no_serde_core), path = "core/de/mod.rs")]
         pub mod de;
-        #[cfg_attr(all(docsrs, if_docsrs_then_no_serde_core), path = "core/ser/mod.rs")]
-        pub mod ser;
+        #[cfg_attr(all(docsrs, if_docsrs_then_no_serde_core), path = "core/set/mod.rs")]
+        pub mod set;
 
         #[cfg_attr(all(docsrs, if_docsrs_then_no_serde_core), path = "core/format.rs")]
         mod format;
@@ -143,7 +143,7 @@ macro_rules! crate_root {
         #[doc(inline)]
         pub use crate::de::{Deserialize, Deserializer};
         #[doc(inline)]
-        pub use crate::ser::{Serialize, Serializer};
+        pub use crate::set::{Serialize, Serializer};
 
         // Used by generated code. Not public API.
         #[doc(hidden)]

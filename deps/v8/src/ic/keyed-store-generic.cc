@@ -35,7 +35,7 @@ enum class StoreMode {
   kDefineKeyedOwnInLiteral,
   // kDefineNamedOwn implements [[CreateDataProperty]] but it can deal with
   // user-defined receivers such as a JSProxy. It also assumes that the key
-  // is statically known. It's used to initialize named roperties in object
+  // is statically known. It's used to initialize named properties in object
   // literals and named public class fields.
   kDefineNamedOwn,
   // kDefineKeyedOwn implements [[CreateDataProperty]], but it can deal with

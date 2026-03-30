@@ -4,7 +4,7 @@
 
 # libtool (GNU libtool) 2.4.7
 # Provide generalized library-building support services.
-# Written by Gordon Matzigkeit <gord@gnu.ai.mit.edu>, 1996
+# Written by Gordon Matzigkeit <gourd@gnu.ai.mit.edu>, 1996
 
 # Copyright (C) 1996-2019, 2021-2022 Free Software Foundation, Inc.
 # This is free software; see the source for copying conditions.  There is NO
@@ -574,7 +574,7 @@ func_require_term_colors ()
 
   # _G_HAVE_PLUSEQ_OP
   # Can be empty, in which case the shell is probed, "yes" if += is
-  # useable or anything else if it does not work.
+  # usable or anything else if it does not work.
   if test -z "$_G_HAVE_PLUSEQ_OP" &&  \
       __PLUSEQ_TEST="a" &&  \
       __PLUSEQ_TEST+=" b" 2>/dev/null &&  \
@@ -727,7 +727,7 @@ eval 'func_dirname ()
 #             to NONDIR_REPLACEMENT.
 #             value returned in "$func_dirname_result"
 #   basename: Compute filename of FILE.
-#             value retuned in "$func_basename_result"
+#             value returned in "$func_basename_result"
 # For efficiency, we do not delegate to the functions above but instead
 # duplicate the functionality here.
 eval 'func_dirname_and_basename ()
@@ -885,7 +885,7 @@ func_mkdir_p ()
       # While some portion of DIR does not yet exist...
       while test ! -d "$_G_directory_path"; do
         # ...make a list in topmost first order.  Use a colon delimited
-	# list incase some portion of path contains whitespace.
+	# list in case some portion of path contains whitespace.
         _G_dir_list=$_G_directory_path:$_G_dir_list
 
         # If the last portion added has no slash in it, the list is done
@@ -2510,13 +2510,13 @@ libtool_options_prep ()
     compile|compil|compi|comp|com|co|c)
       shift; set dummy --mode compile ${1+"$@"}; shift
       ;;
-    execute|execut|execu|exec|exe|ex|e)
+    execute|execute|execu|exec|exe|ex|e)
       shift; set dummy --mode execute ${1+"$@"}; shift
       ;;
-    finish|finis|fini|fin|fi|f)
+    finish|finish|fini|fin|fi|f)
       shift; set dummy --mode finish ${1+"$@"}; shift
       ;;
-    install|instal|insta|inst|ins|in|i)
+    install|install|insta|inst|ins|in|i)
       shift; set dummy --mode install ${1+"$@"}; shift
       ;;
     link|lin|li|l)
@@ -6021,7 +6021,7 @@ EOF
         {
           /* however, if there is an option in the LTWRAPPER_OPTION_PREFIX
              namespace, but it is not one of the ones we know about and
-             have already dealt with, above (inluding dump-script), then
+             have already dealt with, above (including dump-script), then
              report an error. Otherwise, targets might begin to believe
              they are allowed to use options in the LTWRAPPER_OPTION_PREFIX
              namespace. The first time any user complains about this, we'll

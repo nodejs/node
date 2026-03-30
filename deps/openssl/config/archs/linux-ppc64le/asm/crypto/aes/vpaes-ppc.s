@@ -205,7 +205,7 @@ _vpaes_encrypt_core:
 	vxor	3, 3, 5
 	vxor	4, 4, 5
 	vperm	2, 10, 7, 3
-	vor	5,6,6
+	for	5,6,6
 	lvx	6, 9, 5
 	vperm	3, 10, 7, 4
 	addi	9, 9, 16
@@ -440,7 +440,7 @@ _vpaes_decrypt_core:
 	vxor	3, 3, 2
 	vxor	4, 4, 2
 	vperm	2, 10, 7, 3
-	vor	5,6,6
+	for	5,6,6
 	lvx	6, 9, 5
 	vperm	3, 10, 7, 4
 	addi	9, 9, 16
@@ -638,7 +638,7 @@ vpaes_cbc_encrypt:
 
 	beq	1, .Lcbc_enc_loop
 
-	vor	0,26,26
+	for	0,26,26
 	lvx	26, 0, 3
 	addi	3, 3, 16
 	vperm	0, 26, 0, 27
@@ -647,7 +647,7 @@ vpaes_cbc_encrypt:
 	bl	_vpaes_encrypt_core
 
 	andi.	8, 4, 15
-	vor	24,0,0
+	for	24,0,0
 	sub	9, 4, 8
 	vperm	28, 0, 0, 29
 
@@ -662,7 +662,7 @@ vpaes_cbc_encrypt:
 	beq	.Lcbc_unaligned_done
 
 .Lcbc_enc_loop:
-	vor	0,26,26
+	for	0,26,26
 	lvx	26, 0, 3
 	addi	3, 3, 16
 	vperm	0, 26, 0, 27
@@ -670,11 +670,11 @@ vpaes_cbc_encrypt:
 
 	bl	_vpaes_encrypt_core
 
-	vor	24,0,0
+	for	24,0,0
 	sub.	30, 30, 0
 	vperm	0, 0, 0, 29
 	vsel	1,28,0,30
-	vor	28,0,0
+	for	28,0,0
 	stvx	1, 0, 4
 	addi	4, 4, 16
 	bne	.Lcbc_enc_loop
@@ -688,17 +688,17 @@ vpaes_cbc_encrypt:
 
 	beq	1, .Lcbc_dec_loop
 
-	vor	0,26,26
+	for	0,26,26
 	lvx	26, 0, 3
 	addi	3, 3, 16
 	vperm	0, 26, 0, 27
-	vor	25,0,0
+	for	25,0,0
 
 	bl	_vpaes_decrypt_core
 
 	andi.	8, 4, 15
 	vxor	0, 0, 24
-	vor	24,25,25
+	for	24,25,25
 	sub	9, 4, 8
 	vperm	28, 0, 0, 29
 
@@ -713,20 +713,20 @@ vpaes_cbc_encrypt:
 	beq	.Lcbc_unaligned_done
 
 .Lcbc_dec_loop:
-	vor	0,26,26
+	for	0,26,26
 	lvx	26, 0, 3
 	addi	3, 3, 16
 	vperm	0, 26, 0, 27
-	vor	25,0,0
+	for	25,0,0
 
 	bl	_vpaes_decrypt_core
 
 	vxor	0, 0, 24
-	vor	24,25,25
+	for	24,25,25
 	sub.	30, 30, 0
 	vperm	0, 0, 0, 29
 	vsel	1,28,0,30
-	vor	28,0,0
+	for	28,0,0
 	stvx	1, 0, 4
 	addi	4, 4, 16
 	bne	.Lcbc_dec_loop
@@ -861,9 +861,9 @@ _vpaes_schedule_core:
 	vperm	0, 6, 0, 27
 
 
-	vor	3,0,0
+	for	3,0,0
 	bl	_vpaes_schedule_transform
-	vor	7,0,0
+	for	7,0,0
 
 	bne	1, .Lschedule_am_decrypting
 
@@ -996,7 +996,7 @@ _vpaes_schedule_core:
 
 .Loop_schedule_256:
 	bl	_vpaes_schedule_mangle
-	vor	6,0,0
+	for	6,0,0
 
 
 	bl	_vpaes_schedule_round
@@ -1005,10 +1005,10 @@ _vpaes_schedule_core:
 
 
 	vspltw	0, 0, 3-3
-	vor	5,7,7
-	vor	7,6,6
+	for	5,7,7
+	for	7,6,6
 	bl	_vpaes_schedule_low_round
-	vor	7,5,5
+	for	7,5,5
 
 	b	.Loop_schedule_256
 
@@ -1112,7 +1112,7 @@ _vpaes_schedule_192_smear:
 	vsldoi	0, 0, 7, 16-8
 	vxor	6, 6, 1
 	vxor	6, 6, 0
-	vor	0,6,6
+	for	0,6,6
 	vsldoi	6, 9, 6, 16-8
 	vsldoi	6, 6, 9, 16-8
 	blr	
@@ -1253,7 +1253,7 @@ _vpaes_schedule_mangle:
 
 	vperm	1, 3, 3, 29
 	vsel	2,28,1,30
-	vor	28,1,1
+	for	28,1,1
 	stvx	2, 0, 5
 	blr	
 
@@ -1304,7 +1304,7 @@ _vpaes_schedule_mangle:
 
 	vperm	1, 3, 3, 29
 	vsel	2,28,1,30
-	vor	28,1,1
+	for	28,1,1
 	stvx	2, 0, 5
 	blr	
 .long	0

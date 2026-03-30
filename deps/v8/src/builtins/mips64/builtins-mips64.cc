@@ -1037,7 +1037,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     Register interrupt_limit = temps.Acquire();
     __ LoadStackLimit(interrupt_limit,
                       MacroAssembler::StackLimitKind::kInterruptStackLimit);
-    __ Branch(&call_stack_guard, Uless, sp_minus_frame_size,
+    __ Branch(&call_stack_guard, Unless, sp_minus_frame_size,
               Operand(interrupt_limit));
   }
 
@@ -1250,7 +1250,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   } else {
     DCHECK_EQ(mode, InterpreterEntryTrampolineMode::kForProfiling);
     // Both versions must be the same up to this point otherwise the builtins
-    // will not be interchangable.
+    // will not be interchangeable.
     CHECK_EQ(
         masm->isolate()->heap()->interpreter_entry_return_pc_offset().value(),
         masm->pc_offset());
@@ -3214,7 +3214,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ mov(kCArgRegs[1], zero_reg);
     __ li(kCArgRegs[2], ER::isolate_address());
     __ CallCFunction(ER::Create(Runtime::kUnwindAndFindExceptionHandler), 3,
-                     SetIsolateDataSlots::kNo);
+                     SetIsolateDataSlots::know);
   }
 
   // Retrieve the handler context, SP and FP.

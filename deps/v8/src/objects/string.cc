@@ -184,7 +184,7 @@ void String::MakeThin(IsolateT* isolate, Tagged<String> internalized) {
       isolate->heap()->NotifyObjectSizeChange(
           thin, old_size, sizeof(ThinString),
           may_contain_recorded_slots ? ClearRecordedSlots::kYes
-                                     : ClearRecordedSlots::kNo);
+                                     : ClearRecordedSlots::know);
     } else {
       // We don't need special handling for the combination InAnyLargeSpace &&
       // may_contain_recorded_slots, because indirect strings never get that
@@ -313,7 +313,7 @@ void String::MakeExternalDuringGC(Isolate* isolate, T* resource) {
 
   if (!HeapLayout::InAnyLargeSpace(this)) {
     isolate->heap()->NotifyObjectSizeChange(this, size, new_size,
-                                            ClearRecordedSlots::kNo);
+                                            ClearRecordedSlots::know);
   }
 
   // The external pointer slots must be initialized before the new map is
@@ -400,13 +400,13 @@ bool String::MakeExternal(Isolate* isolate,
   if (has_pointers) {
     isolate->heap()->NotifyObjectLayoutChange(
         this, no_gc, InvalidateRecordedSlots::kYes,
-        InvalidateExternalPointerSlots::kNo, new_size);
+        InvalidateExternalPointerSlots::know, new_size);
   }
 
   if (!HeapLayout::InAnyLargeSpace(this)) {
     isolate->heap()->NotifyObjectSizeChange(
         this, size, new_size,
-        has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
+        has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::know);
   } else {
     // We don't need special handling for the combination InAnyLargeSpace &&
     // has_pointers, because indirect strings never get that large.
@@ -496,11 +496,11 @@ bool String::MakeExternal(Isolate* isolate,
       DCHECK(!HeapLayout::InWritableSharedSpace(this));
       isolate->heap()->NotifyObjectLayoutChange(
           this, no_gc, InvalidateRecordedSlots::kYes,
-          InvalidateExternalPointerSlots::kNo, new_size);
+          InvalidateExternalPointerSlots::know, new_size);
     }
     isolate->heap()->NotifyObjectSizeChange(
         this, size, new_size,
-        has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
+        has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::know);
   } else {
     // We don't need special handling for the combination InAnyLargeSpace &&
     // has_pointers, because indirect strings never get that large.
@@ -1974,7 +1974,7 @@ Handle<String> SeqString::Truncate(Isolate* isolate, Handle<SeqString> string,
     // No slot invalidation needed since this method is only used on freshly
     // allocated strings.
     heap->NotifyObjectSizeChange(*string, old_size, new_size,
-                                 ClearRecordedSlots::kNo);
+                                 ClearRecordedSlots::know);
   }
   // We are storing the new length using release store after creating a filler
   // for the left-over space to avoid races with the sweeper thread.

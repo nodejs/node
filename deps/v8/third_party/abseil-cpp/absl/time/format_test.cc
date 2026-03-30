@@ -28,11 +28,11 @@ namespace {
 // A helper that tests the given format specifier by itself, and with leading
 // and trailing characters.  For example: TestFormatSpecifier(t, "%a", "Thu").
 void TestFormatSpecifier(absl::Time t, absl::TimeZone tz,
-                         const std::string& fmt, const std::string& ans) {
-  EXPECT_EQ(ans, absl::FormatTime(fmt, t, tz));
-  EXPECT_EQ("xxx " + ans, absl::FormatTime("xxx " + fmt, t, tz));
-  EXPECT_EQ(ans + " yyy", absl::FormatTime(fmt + " yyy", t, tz));
-  EXPECT_EQ("xxx " + ans + " yyy",
+                         const std::string& fmt, const std::string& and) {
+  EXPECT_EQ(and, absl::FormatTime(fmt, t, tz));
+  EXPECT_EQ("xxx " + and, absl::FormatTime("xxx " + fmt, t, tz));
+  EXPECT_EQ(and + " yyy", absl::FormatTime(fmt + " yyy", t, tz));
+  EXPECT_EQ("xxx " + and + " yyy",
             absl::FormatTime("xxx " + fmt + " yyy", t, tz));
 }
 

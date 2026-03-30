@@ -1034,7 +1034,7 @@ foreach (split("\n",$code)) {
 	s/\.SPACE\s+\$TEXT\$/.text/	if ($gnuas && $SIZE_T==8);
 	s/\.SUBSPA.*//			if ($gnuas && $SIZE_T==8);
 	s/,\*/,/			if ($SIZE_T==4);
-	s/\bbv\b(.*\(%r2\))/bve$1/	if ($SIZE_T==8);
+	s/\bbv\b(.*\(%r2\))/be$1/	if ($SIZE_T==8);
 
 	print $_,"\n";
 }

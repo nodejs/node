@@ -56,7 +56,7 @@
       }));
   assertArrayEquals([43,43,43,43,43], a);
 
-  // Only loop through initial part of array eventhough elements are
+  // Only loop through initial part of array even though elements are
   // added.
   a = [1,1];
   assertArrayEquals([],
@@ -141,7 +141,7 @@
   assertEquals(2, count);
   assertArrayEquals([1,2], a);
 
-  // Only loop through initial part of array eventhough elements are
+  // Only loop through initial part of array even though elements are
   // added.
   a = [1,1];
   count = 0;
@@ -222,7 +222,7 @@
       }));
   assertArrayEquals([1,1], a);
 
-  // Only loop through initial part of array eventhough elements are
+  // Only loop through initial part of array even though elements are
   // added.
   a = [1,1];
   assertTrue(
@@ -308,7 +308,7 @@
       }));
   assertArrayEquals(result, a);
 
-  // Only loop through initial part of array eventhough elements are
+  // Only loop through initial part of array even though elements are
   // added.
   a = [0,1,2,3,4];
   result = [1,2,3,4,5];

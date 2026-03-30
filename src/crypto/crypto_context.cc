@@ -818,7 +818,7 @@ static std::vector<X509*> InitializeBundledRootCertificates() {
   for (size_t i = 0; i < bundled_root_cert_count; i++) {
     X509* x509 = PEM_read_bio_X509(
         NodeBIO::NewFixed(root_certs[i], strlen(root_certs[i])).get(),
-        nullptr,  // no re-use of X509 structure
+        nullptr,  // no reuse of X509 structure
         NoPasswordCallback,
         nullptr);  // no callback data
 

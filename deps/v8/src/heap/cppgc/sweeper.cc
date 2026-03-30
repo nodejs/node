@@ -1078,7 +1078,7 @@ class Sweeper::SweeperImpl final {
                                v8::base::TimeDelta max_duration) {
     DCHECK(space->is_large());
 #ifdef DEBUG
-    // SpaceState for large objects is emtpy as those objects are put directly
+    // SpaceState for large objects is empty as those objects are put directly
     // on `empty_large_pages_`.
     SweepingState& space_state = space_states_[space->index()];
     DCHECK(space_state.unswept_pages.IsEmpty());

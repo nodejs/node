@@ -29,8 +29,8 @@
 
 var gdpRatio = 16/9;
 
-function Foo(initialX, initialY, initialScale, initialMapHeight) {
-  this.ORIGIN = { x: initialX, y: initialY };
+function Foo(initialX, initially, initialScale, initialMapHeight) {
+  this.ORIGIN = { x: initialX, y: initially };
   this.scale = initialScale;
   this.mapHeight = initialMapHeight;
 }

@@ -140,7 +140,7 @@ static inline UBool isLabelSeparator(char16_t ch){
 
 // returns the length of the label excluding the separator
 // if *limit == separator then the length returned does not include 
-// the separtor.
+// the separator.
 static inline int32_t
 getNextSeparator(char16_t *src, int32_t srcLength,
                  char16_t **limit, UBool *done){

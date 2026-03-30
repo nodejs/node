@@ -1786,7 +1786,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMixedTables) {
 }
 
 TEST_F(WasmModuleVerifyTest, ElementSectionMultipleTablesArbitraryOrder) {
-  // Test that the order in which tables are targeted in the element secion
+  // Test that the order in which tables are targeted in the element section
   // can be arbitrary.
   static const uint8_t data[] = {
       // sig#0 ---------------------------------------------------------------
@@ -1821,7 +1821,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMultipleTablesArbitraryOrder) {
 }
 
 TEST_F(WasmModuleVerifyTest, ElementSectionMixedTablesArbitraryOrder) {
-  // Test that the order in which tables are targeted in the element secion can
+  // Test that the order in which tables are targeted in the element section can
   // be arbitrary. In this test, tables can be both imported and module-defined.
   static const uint8_t data[] = {
       // sig#0 ---------------------------------------------------------------

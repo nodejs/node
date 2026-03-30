@@ -35,7 +35,7 @@
           'U_ENABLE_DYLOAD=0',
           'U_STATIC_IMPLEMENTATION=1',
           'U_HAVE_STD_STRING=1',
-          # TODO(srl295): reenable following pending
+          # TODO(srl295): re-enable following pending
           # https://code.google.com/p/v8/issues/detail?id=3345
           # (saves some space)
           'UCONFIG_NO_BREAK_ITERATION=0',

@@ -438,7 +438,7 @@ int32_t yearLength(int32_t extendedYear, UErrorCode& status) {
     return length;
 }
 
-} // namepsace
+} // namespace
 /**
 * Return the number of days in the given Islamic year
 * @draft ICU 2.4

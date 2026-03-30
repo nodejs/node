@@ -296,7 +296,7 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
   RegList allocatable_registers_;
 
   // |registers_params_| defines registers that are used for parameter passing.
-  // |machine_types_| defines machine types for resulting values and incomping
+  // |machine_types_| defines machine types for resulting values and incoming
   // parameters.
   // The register params array is owned by the caller, and it's expected that it
   // is a static local stored in the caller function. The machine types are
@@ -2965,7 +2965,7 @@ DEFINE_DEBUG_PRINT_BUILTIN_DESCRIPTOR(Float64, MachineType::Float64)
     INTERNAL_DESCRIPTOR()                                                    \
     SANDBOXING_MODE(kSandboxed)                                              \
     DEFINE_PARAMETERS(__VA_ARGS__)                                           \
-    static constexpr bool kNoContext = DoesNeedContext == NeedsContext::kNo; \
+    static constexpr bool kNoContext = DoesNeedContext == NeedsContext::know; \
     DECLARE_DEFAULT_DESCRIPTOR(Name##Descriptor)                             \
   };
 BUILTIN_LIST_TFS(DEFINE_TFS_BUILTIN_DESCRIPTOR)

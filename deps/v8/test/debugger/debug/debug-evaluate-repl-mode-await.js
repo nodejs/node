@@ -8,7 +8,7 @@ const evaluate = Debug.evaluateGlobalREPL;
 
 (async () => {
     // Test that the completion value of the REPL script is the resolve value of the
-    // promise returned by evalute.
+    // promise returned by evaluate.
     let result = evaluate('5;');
     assertPromiseResult(result, (value) => {
         assertEquals(5, value);
@@ -22,9 +22,9 @@ const evaluate = Debug.evaluateGlobalREPL;
     }, assertUnreachable);
 
     // Test that a throwing REPL script results in a rejected promise.
-    result = evaluate('throw new Error("ba dum tsh");');
+    result = evaluate('throw new Error("ba dumb tsh");');
     assertPromiseResult(result, assertUnreachable, (error) => {
-        assertEquals("ba dum tsh", error.message);
+        assertEquals("ba dumb tsh", error.message);
     });
 
     // Test that a rejected promise throws.

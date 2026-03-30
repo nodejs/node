@@ -284,7 +284,7 @@ builtin StringCharAt(
 }
 
 // Check two slices for equal content.
-// Checking from both ends simultaniously allows us to detect differences
+// Checking from both ends simultaneously allows us to detect differences
 // quickly even when the slices share a prefix or a suffix.
 macro EqualContent<T1: type, T2: type>(
     a: ConstSlice<T1>, b: ConstSlice<T2>): bool {

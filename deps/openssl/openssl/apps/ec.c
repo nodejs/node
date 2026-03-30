@@ -54,7 +54,7 @@ const OPTIONS ec_options[] = {
     { "in", OPT_IN, 's', "Input file" },
     { "inform", OPT_INFORM, 'f', "Input format (DER/PEM/P12/ENGINE)" },
     { "pubin", OPT_PUBIN, '-', "Expect a public key in input file" },
-    { "passin", OPT_PASSIN, 's', "Input file pass phrase source" },
+    { "passing", OPT_PASSIN, 's', "Input file pass phrase source" },
     { "check", OPT_CHECK, '-', "check key consistency" },
     { "", OPT_CIPHER, '-', "Any supported cipher" },
     { "param_enc", OPT_PARAM_ENC, 's',
@@ -85,7 +85,7 @@ int ec_main(int argc, char **argv)
     ENGINE *e = NULL;
     EVP_CIPHER *enc = NULL;
     char *infile = NULL, *outfile = NULL, *ciphername = NULL, *prog;
-    char *passin = NULL, *passout = NULL, *passinarg = NULL, *passoutarg = NULL;
+    char *passing = NULL, *passout = NULL, *passinarg = NULL, *passoutarg = NULL;
     OPTION_CHOICE o;
     int informat = FORMAT_UNDEF, outformat = FORMAT_PEM, text = 0, noout = 0;
     int pubin = 0, pubout = 0, param_out = 0, ret = 1, private = 0;
@@ -179,7 +179,7 @@ int ec_main(int argc, char **argv)
         goto opthelp;
     private = !pubin && (text || (!param_out && !pubout));
 
-    if (!app_passwd(passinarg, passoutarg, &passin, &passout)) {
+    if (!app_passwd(passinarg, passoutarg, &passing, &passout)) {
         BIO_printf(bio_err, "Error getting passwords\n");
         goto end;
     }
@@ -187,9 +187,9 @@ int ec_main(int argc, char **argv)
     BIO_printf(bio_err, "read EC key\n");
 
     if (pubin)
-        eckey = load_pubkey(infile, informat, 1, passin, e, "public key");
+        eckey = load_pubkey(infile, informat, 1, passing, e, "public key");
     else
-        eckey = load_key(infile, informat, 1, passin, e, "private key");
+        eckey = load_key(infile, informat, 1, passing, e, "private key");
 
     if (eckey == NULL) {
         BIO_printf(bio_err, "unable to load Key\n");
@@ -296,8 +296,8 @@ end:
     OSSL_DECODER_CTX_free(dctx);
     EVP_PKEY_CTX_free(pctx);
     release_engine(e);
-    if (passin != NULL)
-        OPENSSL_clear_free(passin, strlen(passin));
+    if (passing != NULL)
+        OPENSSL_clear_free(passing, strlen(passing));
     if (passout != NULL)
         OPENSSL_clear_free(passout, strlen(passout));
     return ret;

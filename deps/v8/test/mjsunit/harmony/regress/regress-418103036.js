@@ -18,8 +18,8 @@ const obj = {
 };
 
 async function test(obj) {
-  const ser = d8.serializer.serialize(obj);
-  const des = d8.serializer.deserialize(ser);
+  const set = d8.serializer.serialize(obj);
+  const des = d8.serializer.deserialize(set);
   await des;
 }
 

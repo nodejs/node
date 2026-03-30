@@ -737,7 +737,7 @@ ucbuf_readline(UCHARBUF* buf,int32_t* len,UErrorCode* err){
             }
             /*
              * According to TR 13 readLine functions must interpret
-             * CR, CR+LF, LF, NEL, PS, LS or FF as line seperators
+             * CR, CR+LF, LF, NEL, PS, LS or FF as line separators
              */
             /* Windows CR LF */
             if(c ==0x0d && temp <= buf->bufLimit && *temp == 0x0a ){

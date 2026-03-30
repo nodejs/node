@@ -33,6 +33,6 @@ for (const [format, bytes] of compressedBytes) {
     promise_test(async t => {
       const decompressedData = await decompressArrayBuffer(bytes, format, chunkSize);
       assert_array_equals(decompressedData, expectedChunkValue, "value should match");
-    }, `decompressing splitted chunk into pieces of size ${chunkSize} should work in ${format}`);
+    }, `decompressing split chunk into pieces of size ${chunkSize} should work in ${format}`);
   }
 }

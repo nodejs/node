@@ -86,7 +86,7 @@ aes_p8_set_encrypt_key:
 	vsldoi	6,0,1,12
 	vperm	11,1,1,8
 	vsel	7,10,11,9
-	vor	10,11,11
+	for	10,11,11
 	.long	0x10632509
 	stvx	7,0,5
 	addi	5,5,16
@@ -106,7 +106,7 @@ aes_p8_set_encrypt_key:
 	vsldoi	6,0,1,12
 	vperm	11,1,1,8
 	vsel	7,10,11,9
-	vor	10,11,11
+	for	10,11,11
 	.long	0x10632509
 	stvx	7,0,5
 	addi	5,5,16
@@ -123,7 +123,7 @@ aes_p8_set_encrypt_key:
 	vsldoi	6,0,1,12
 	vperm	11,1,1,8
 	vsel	7,10,11,9
-	vor	10,11,11
+	for	10,11,11
 	.long	0x10632509
 	stvx	7,0,5
 	addi	5,5,16
@@ -136,7 +136,7 @@ aes_p8_set_encrypt_key:
 	vxor	1,1,3
 	vperm	11,1,1,8
 	vsel	7,10,11,9
-	vor	10,11,11
+	for	10,11,11
 	stvx	7,0,5
 
 	addi	3,5,15
@@ -151,7 +151,7 @@ aes_p8_set_encrypt_key:
 	li	7,4
 	vperm	11,1,1,8
 	vsel	7,10,11,9
-	vor	10,11,11
+	for	10,11,11
 	stvx	7,0,5
 	addi	5,5,16
 	vperm	2,2,6,3
@@ -184,7 +184,7 @@ aes_p8_set_encrypt_key:
 	vsldoi	6,0,1,12
 	vperm	11,7,7,8
 	vsel	7,10,11,9
-	vor	10,11,11
+	for	10,11,11
 	.long	0x10632509
 	stvx	7,0,5
 	addi	5,5,16
@@ -194,7 +194,7 @@ aes_p8_set_encrypt_key:
 	vsldoi	6,0,6,12
 	vperm	11,7,7,8
 	vsel	7,10,11,9
-	vor	10,11,11
+	for	10,11,11
 	vxor	1,1,6
 	vsldoi	6,0,6,12
 	vxor	1,1,6
@@ -210,7 +210,7 @@ aes_p8_set_encrypt_key:
 	vxor	2,2,3
 	vperm	11,1,1,8
 	vsel	7,10,11,9
-	vor	10,11,11
+	for	10,11,11
 	stvx	7,0,5
 	addi	3,5,15
 	addi	5,5,16
@@ -227,7 +227,7 @@ aes_p8_set_encrypt_key:
 	li	8,14
 	vperm	11,1,1,8
 	vsel	7,10,11,9
-	vor	10,11,11
+	for	10,11,11
 	stvx	7,0,5
 	addi	5,5,16
 	vperm	2,2,6,3
@@ -238,7 +238,7 @@ aes_p8_set_encrypt_key:
 	vsldoi	6,0,1,12
 	vperm	11,2,2,8
 	vsel	7,10,11,9
-	vor	10,11,11
+	for	10,11,11
 	.long	0x10632509
 	stvx	7,0,5
 	addi	5,5,16
@@ -252,7 +252,7 @@ aes_p8_set_encrypt_key:
 	vxor	1,1,3
 	vperm	11,1,1,8
 	vsel	7,10,11,9
-	vor	10,11,11
+	for	10,11,11
 	stvx	7,0,5
 	addi	3,5,15
 	addi	5,5,16
@@ -523,7 +523,7 @@ aes_p8_cbc_encrypt:
 	beq	.Lcbc_dec
 
 .Lcbc_enc:
-	vor	2,5,5
+	for	2,5,5
 	lvx	5,0,3
 	addi	3,3,16
 	mtctr	9
@@ -560,7 +560,7 @@ aes_p8_cbc_encrypt:
 
 	vperm	3,4,4,8
 	vsel	2,7,3,9
-	vor	7,3,3
+	for	7,3,3
 	stvx	2,0,4
 	addi	4,4,16
 	bge	.Lcbc_enc
@@ -571,7 +571,7 @@ aes_p8_cbc_encrypt:
 .Lcbc_dec:
 	cmpldi	5,128
 	bge	_aesp8_cbc_decrypt8x
-	vor	3,5,5
+	for	3,5,5
 	lvx	5,0,3
 	addi	3,3,16
 	mtctr	9
@@ -606,10 +606,10 @@ aes_p8_cbc_encrypt:
 	cmpldi	5,16
 
 	vxor	2,2,4
-	vor	4,3,3
+	for	4,3,3
 	vperm	3,2,2,8
 	vsel	2,7,3,9
-	vor	7,3,3
+	for	7,3,3
 	stvx	2,0,4
 	addi	4,4,16
 	bge	.Lcbc_dec
@@ -889,7 +889,7 @@ _aesp8_cbc_decrypt8x:
 	.long	0x12B56549
 	vperm	10,10,10,6
 	.long	0x7D9E1E99
-	vor	4,13,13
+	for	4,13,13
 	vperm	11,11,11,6
 	.long	0x7DBF1E99
 	addi	3,3,0x80
@@ -1035,7 +1035,7 @@ _aesp8_cbc_decrypt8x:
 	.long	0x12735549
 	.long	0x12945D49
 	.long	0x12B56549
-	vor	4,13,13
+	for	4,13,13
 
 	vperm	15,15,15,6
 	vperm	16,16,16,6
@@ -1062,7 +1062,7 @@ _aesp8_cbc_decrypt8x:
 	.long	0x12735549
 	.long	0x12945D49
 	.long	0x12B56549
-	vor	4,13,13
+	for	4,13,13
 
 	vperm	16,16,16,6
 	vperm	17,17,17,6
@@ -1086,7 +1086,7 @@ _aesp8_cbc_decrypt8x:
 	.long	0x12735549
 	.long	0x12945D49
 	.long	0x12B56549
-	vor	4,13,13
+	for	4,13,13
 
 	vperm	17,17,17,6
 	vperm	18,18,18,6
@@ -1107,7 +1107,7 @@ _aesp8_cbc_decrypt8x:
 	.long	0x12735549
 	.long	0x12945D49
 	.long	0x12B56549
-	vor	4,13,13
+	for	4,13,13
 
 	vperm	18,18,18,6
 	vperm	19,19,19,6
@@ -1125,7 +1125,7 @@ _aesp8_cbc_decrypt8x:
 	.long	0x12732549
 	.long	0x12945D49
 	.long	0x12B56549
-	vor	4,13,13
+	for	4,13,13
 
 	vperm	19,19,19,6
 	vperm	20,20,20,6
@@ -1140,7 +1140,7 @@ _aesp8_cbc_decrypt8x:
 .Lcbc_dec8x_two:
 	.long	0x12942549
 	.long	0x12B56549
-	vor	4,13,13
+	for	4,13,13
 
 	vperm	20,20,20,6
 	vperm	21,21,21,6
@@ -1152,7 +1152,7 @@ _aesp8_cbc_decrypt8x:
 .align	5
 .Lcbc_dec8x_one:
 	.long	0x12B52549
-	vor	4,13,13
+	for	4,13,13
 
 	vperm	21,21,21,6
 	.long	0x7EA02799
@@ -1286,7 +1286,7 @@ aes_p8_ctr32_encrypt_blocks:
 	bdnz	.Loop_ctr32_enc
 
 	vadduwm	4,4,11
-	vor	3,5,5
+	for	3,5,5
 	lvx	5,0,3
 	addi	3,3,16
 	subic.	5,5,1
@@ -1307,7 +1307,7 @@ aes_p8_ctr32_encrypt_blocks:
 	vsel	3,7,2,9
 	mtctr	9
 	vperm	0,1,0,10
-	vor	7,2,2
+	for	7,2,2
 	vxor	2,4,0
 	lvx	0,10,6
 	addi	10,10,16
@@ -1934,7 +1934,7 @@ aes_p8_xts_encrypt:
 	li	3,16
 
 	vslb	10,9,9
-	vor	10,10,9
+	for	10,10,9
 	vspltisb	11,1
 	vsldoi	10,10,11,15
 
@@ -1989,7 +1989,7 @@ aes_p8_xts_encrypt:
 	subic.	5,5,16
 	beq	.Lxts_enc_done
 
-	vor	2,4,4
+	for	2,4,4
 	lvx	4,0,10
 	addi	10,10,16
 	lvx	0,0,6
@@ -2154,7 +2154,7 @@ aes_p8_xts_decrypt:
 	li	3,16
 
 	vslb	10,9,9
-	vor	10,10,9
+	for	10,10,9
 	vspltisb	11,1
 	vsldoi	10,10,11,15
 
@@ -2205,7 +2205,7 @@ aes_p8_xts_decrypt:
 	subic.	5,5,16
 	beq	.Lxts_dec_done
 
-	vor	2,4,4
+	for	2,4,4
 	lvx	4,0,10
 	addi	10,10,16
 	lvx	0,0,6
@@ -2266,7 +2266,7 @@ aes_p8_xts_decrypt:
 	.long	0x7D602799
 
 
-	vor	2,4,4
+	for	2,4,4
 	lvx	4,0,10
 
 	lvx	0,0,6
@@ -2687,7 +2687,7 @@ _aesp8_xts_encrypt6x:
 	bl	_aesp8_xts_enc5x
 
 	vperm	7,7,7,6
-	vor	17,22,22
+	for	17,22,22
 	vperm	12,12,12,6
 	.long	0x7CE02799
 	vperm	13,13,13,6
@@ -2713,7 +2713,7 @@ _aesp8_xts_encrypt6x:
 	bl	_aesp8_xts_enc5x
 
 	vperm	7,7,7,6
-	vor	17,21,21
+	for	17,21,21
 	vperm	12,12,12,6
 	.long	0x7CE02799
 	vperm	13,13,13,6
@@ -2737,7 +2737,7 @@ _aesp8_xts_encrypt6x:
 	bl	_aesp8_xts_enc5x
 
 	vperm	7,7,7,6
-	vor	17,20,20
+	for	17,20,20
 	vperm	12,12,12,6
 	.long	0x7CE02799
 	vxor	11,13,20
@@ -2759,7 +2759,7 @@ _aesp8_xts_encrypt6x:
 	bl	_aesp8_xts_enc5x
 
 	vperm	7,7,7,6
-	vor	17,19,19
+	for	17,19,19
 	vxor	11,12,19
 	vperm	12,12,12,6
 	.long	0x7CE02799
@@ -2808,7 +2808,7 @@ _aesp8_xts_encrypt6x:
 	vperm	0,0,0,5
 	.long	0x10E78D09
 
-	vor	17,18,18
+	for	17,18,18
 	vxor	11,7,18
 	vperm	7,7,7,6
 	.long	0x7CE02799
@@ -3355,7 +3355,7 @@ _aesp8_xts_decrypt6x:
 	bl	_aesp8_xts_dec5x
 
 	vperm	7,7,7,6
-	vor	17,22,22
+	for	17,22,22
 	vxor	18,8,23
 	vperm	12,12,12,6
 	.long	0x7CE02799
@@ -3382,8 +3382,8 @@ _aesp8_xts_decrypt6x:
 	bl	_aesp8_xts_dec5x
 
 	vperm	7,7,7,6
-	vor	17,21,21
-	vor	18,22,22
+	for	17,21,21
+	for	18,22,22
 	vperm	12,12,12,6
 	.long	0x7CE02799
 	vxor	7,0,22
@@ -3407,8 +3407,8 @@ _aesp8_xts_decrypt6x:
 	bl	_aesp8_xts_dec5x
 
 	vperm	7,7,7,6
-	vor	17,20,20
-	vor	18,21,21
+	for	17,20,20
+	for	18,21,21
 	vperm	12,12,12,6
 	.long	0x7CE02799
 	vxor	7,0,21
@@ -3430,8 +3430,8 @@ _aesp8_xts_decrypt6x:
 	bl	_aesp8_xts_dec5x
 
 	vperm	7,7,7,6
-	vor	17,19,19
-	vor	18,20,20
+	for	17,19,19
+	for	18,20,20
 	vperm	12,12,12,6
 	.long	0x7CE02799
 	vxor	7,0,20
@@ -3480,8 +3480,8 @@ _aesp8_xts_decrypt6x:
 	mtctr	9
 	.long	0x10E78D49
 
-	vor	17,18,18
-	vor	18,19,19
+	for	17,18,18
+	for	18,19,19
 	vperm	7,7,7,6
 	.long	0x7CE02799
 	addi	4,4,0x10

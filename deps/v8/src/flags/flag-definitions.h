@@ -32,31 +32,31 @@
 // With FLAG_MODE_DECLARE we declare the fields in the {FlagValues} struct.
 // Read-only flags are static constants instead of fields.
 #if defined(FLAG_MODE_DECLARE)
-#define FLAG_FULL(ftype, ctype, nam, def, cmt) FlagValue<ctype> nam{def};
-#define FLAG_READONLY(ftype, ctype, nam, def, cmt) \
-  static constexpr FlagValue<ctype> nam{def};
+#define FLAG_FULL(ftype, ctype, name, def, cmt) FlagValue<ctype> name{def};
+#define FLAG_READONLY(ftype, ctype, name, def, cmt) \
+  static constexpr FlagValue<ctype> name{def};
 
 // We need to define all of our default values so that the Flag structure can
 // access them by pointer.  These are just used internally inside of one .cc,
 // for MODE_META, so there is no impact on the flags interface.
 #elif defined(FLAG_MODE_DEFINE_DEFAULTS)
-#define FLAG_FULL(ftype, ctype, nam, def, cmt) \
-  static constexpr ctype FLAGDEFAULT_##nam{def};
-#define FLAG_READONLY(ftype, ctype, nam, def, cmt) \
-  static constexpr ctype FLAGDEFAULT_##nam{def};
+#define FLAG_FULL(ftype, ctype, name, def, cmt) \
+  static constexpr ctype FLAGDEFAULT_##name{def};
+#define FLAG_READONLY(ftype, ctype, name, def, cmt) \
+  static constexpr ctype FLAGDEFAULT_##name{def};
 
 // We want to write entries into our meta data table, for internal parsing and
 // printing / etc in the flag parser code.
 #elif defined(FLAG_MODE_META)
-#define FLAG_FULL(ftype, ctype, nam, def, cmt) \
-  {Flag::TYPE_##ftype, #nam, &v8_flags.nam, &FLAGDEFAULT_##nam, cmt, false},
+#define FLAG_FULL(ftype, ctype, name, def, cmt) \
+  {Flag::TYPE_##ftype, #name, &v8_flags.name, &FLAGDEFAULT_##name, cmt, false},
 // Readonly flags don't pass the value pointer since the struct expects a
 // mutable value. That's okay since the value always equals the default.
-#define FLAG_READONLY(ftype, ctype, nam, def, cmt) \
-  {Flag::TYPE_##ftype, #nam, nullptr, &FLAGDEFAULT_##nam, cmt, false},
-#define FLAG_ALIAS(ftype, ctype, alias, nam)                       \
-  {Flag::TYPE_##ftype,  #alias, &v8_flags.nam, &FLAGDEFAULT_##nam, \
-   "alias for --" #nam, false},  // NOLINT(whitespace/indent)
+#define FLAG_READONLY(ftype, ctype, name, def, cmt) \
+  {Flag::TYPE_##ftype, #name, nullptr, &FLAGDEFAULT_##name, cmt, false},
+#define FLAG_ALIAS(ftype, ctype, alias, name)                       \
+  {Flag::TYPE_##ftype,  #alias, &v8_flags.name, &FLAGDEFAULT_##name, \
+   "alias for --" #name, false},  // NOLINT(whitespace/indent)
 
 // We produce the code to set flags when it is implied by another flag.
 #elif defined(FLAG_MODE_DEFINE_IMPLICATIONS)
@@ -107,15 +107,15 @@
 
 // Dummy defines for modes where it is not relevant.
 #ifndef FLAG_FULL
-#define FLAG_FULL(ftype, ctype, nam, def, cmt)
+#define FLAG_FULL(ftype, ctype, name, def, cmt)
 #endif
 
 #ifndef FLAG_READONLY
-#define FLAG_READONLY(ftype, ctype, nam, def, cmt)
+#define FLAG_READONLY(ftype, ctype, name, def, cmt)
 #endif
 
 #ifndef FLAG_ALIAS
-#define FLAG_ALIAS(ftype, ctype, alias, nam)
+#define FLAG_ALIAS(ftype, ctype, alias, name)
 #endif
 
 #ifndef DEFINE_VALUE_IMPLICATION
@@ -186,25 +186,25 @@
 #define ENABLE_LOG_COLOUR true
 #endif
 
-#define DEFINE_BOOL(nam, def, cmt) FLAG(BOOL, bool, nam, def, cmt)
-#define DEFINE_BOOL_READONLY(nam, def, cmt) \
-  FLAG_READONLY(BOOL, bool, nam, def, cmt)
-#define DEFINE_MAYBE_BOOL(nam, cmt) \
-  FLAG(MAYBE_BOOL, std::optional<bool>, nam, std::nullopt, cmt)
-#define DEFINE_INT(nam, def, cmt) FLAG(INT, int, nam, def, cmt)
-#define DEFINE_UINT(nam, def, cmt) FLAG(UINT, unsigned int, nam, def, cmt)
-#define DEFINE_UINT_READONLY(nam, def, cmt) \
-  FLAG_READONLY(UINT, unsigned int, nam, def, cmt)
-#define DEFINE_UINT64(nam, def, cmt) FLAG(UINT64, uint64_t, nam, def, cmt)
-#define DEFINE_FLOAT(nam, def, cmt) FLAG(FLOAT, double, nam, def, cmt)
-#define DEFINE_SIZE_T(nam, def, cmt) FLAG(SIZE_T, size_t, nam, def, cmt)
-#define DEFINE_STRING(nam, def, cmt) FLAG(STRING, const char*, nam, def, cmt)
-#define DEFINE_ALIAS_BOOL(alias, nam) FLAG_ALIAS(BOOL, bool, alias, nam)
-#define DEFINE_ALIAS_INT(alias, nam) FLAG_ALIAS(INT, int, alias, nam)
-#define DEFINE_ALIAS_FLOAT(alias, nam) FLAG_ALIAS(FLOAT, double, alias, nam)
-#define DEFINE_ALIAS_SIZE_T(alias, nam) FLAG_ALIAS(SIZE_T, size_t, alias, nam)
-#define DEFINE_ALIAS_STRING(alias, nam) \
-  FLAG_ALIAS(STRING, const char*, alias, nam)
+#define DEFINE_BOOL(name, def, cmt) FLAG(BOOL, bool, name, def, cmt)
+#define DEFINE_BOOL_READONLY(name, def, cmt) \
+  FLAG_READONLY(BOOL, bool, name, def, cmt)
+#define DEFINE_MAYBE_BOOL(name, cmt) \
+  FLAG(MAYBE_BOOL, std::optional<bool>, name, std::nullopt, cmt)
+#define DEFINE_INT(name, def, cmt) FLAG(INT, int, name, def, cmt)
+#define DEFINE_UINT(name, def, cmt) FLAG(UINT, unsigned int, name, def, cmt)
+#define DEFINE_UINT_READONLY(name, def, cmt) \
+  FLAG_READONLY(UINT, unsigned int, name, def, cmt)
+#define DEFINE_UINT64(name, def, cmt) FLAG(UINT64, uint64_t, name, def, cmt)
+#define DEFINE_FLOAT(name, def, cmt) FLAG(FLOAT, double, name, def, cmt)
+#define DEFINE_SIZE_T(name, def, cmt) FLAG(SIZE_T, size_t, name, def, cmt)
+#define DEFINE_STRING(name, def, cmt) FLAG(STRING, const char*, name, def, cmt)
+#define DEFINE_ALIAS_BOOL(alias, name) FLAG_ALIAS(BOOL, bool, alias, name)
+#define DEFINE_ALIAS_INT(alias, name) FLAG_ALIAS(INT, int, alias, name)
+#define DEFINE_ALIAS_FLOAT(alias, name) FLAG_ALIAS(FLOAT, double, alias, name)
+#define DEFINE_ALIAS_SIZE_T(alias, name) FLAG_ALIAS(SIZE_T, size_t, alias, name)
+#define DEFINE_ALIAS_STRING(alias, name) \
+  FLAG_ALIAS(STRING, const char*, alias, name)
 
 #ifdef DEBUG
 #define DEFINE_DEBUG_BOOL DEFINE_BOOL
@@ -229,9 +229,9 @@ DEFINE_BOOL(experimental, false,
             "Indicates that V8 is running with experimental features enabled. "
             "This flag is typically not set explicitly but instead enabled as "
             "an implication of other flags which enable experimental features.")
-#define DEFINE_EXPERIMENTAL_FEATURE(nam, cmt)         \
-  FLAG(BOOL, bool, nam, false, cmt " (experimental)") \
-  DEFINE_IMPLICATION(nam, experimental)
+#define DEFINE_EXPERIMENTAL_FEATURE(name, cmt)         \
+  FLAG(BOOL, bool, name, false, cmt " (experimental)") \
+  DEFINE_IMPLICATION(name, experimental)
 
 // Test-only flags that expose unsafe and/or unsupported configurations.
 DEFINE_BOOL(test_only_unsafe, false,
@@ -239,9 +239,9 @@ DEFINE_BOOL(test_only_unsafe, false,
             "configuration, e.g. used for internal testing. This flag is "
             "typically not set explicitly but instead enabled as an "
             "implication of other flags")
-#define DEFINE_TEST_ONLY_FLAG(nam, cmt)                     \
-  FLAG(BOOL, bool, nam, false, cmt " (test-only / unsafe)") \
-  DEFINE_IMPLICATION(nam, test_only_unsafe)
+#define DEFINE_TEST_ONLY_FLAG(name, cmt)                     \
+  FLAG(BOOL, bool, name, false, cmt " (test-only / unsafe)") \
+  DEFINE_IMPLICATION(name, test_only_unsafe)
 
 // ATTENTION: This is set to true by default in d8. But for API compatibility,
 // it generally defaults to false.
@@ -626,7 +626,7 @@ DEFINE_BOOL(maglev_inlining, true,
 DEFINE_BOOL(maglev_loop_peeling, true,
             "enable loop peeling in the maglev optimizing compiler")
 DEFINE_BOOL(maglev_optimistic_peeled_loops, true,
-            "enable aggressive optimizations for loops (loop SPeeling) in the "
+            "enable aggressive optimizations for loops (loop spelling) in the "
             "maglev optimizing compiler")
 DEFINE_INT(maglev_loop_peeling_max_size, 400,
            "max loop size for loop peeling in the maglev optimizing compiler")
@@ -735,7 +735,7 @@ DEFINE_BOOL(print_maglev_code, false, "print maglev code")
 DEFINE_WEAK_IMPLICATION(print_maglev_code, maglev_print_bytecode)
 
 DEFINE_BOOL(trace_maglev_graph_building, false, "trace maglev graph building")
-DEFINE_BOOL(trace_maglev_loop_speeling, false, "trace maglev loop SPeeling")
+DEFINE_BOOL(trace_maglev_loop_speeling, false, "trace maglev loop spelling")
 DEFINE_WEAK_IMPLICATION(trace_maglev_graph_building, trace_maglev_loop_speeling)
 DEFINE_BOOL(trace_maglev_inlining, false, "trace maglev inlining")
 DEFINE_BOOL(trace_maglev_kna_processor, false,
@@ -881,7 +881,7 @@ DEFINE_MAYBE_BOOL(
 DEFINE_BOOL(efficiency_mode_disable_turbofan, false,
             "Defer tier-up to turbofan while in efficiency mode.")
 DEFINE_INT(efficiency_mode_delay_turbofan_multiply, 3,
-           "Delay tier-up to turbofan to a certain invocation count multipier "
+           "Delay tier-up to turbofan to a certain invocation count multiplier "
            "while in efficiency mode.")
 
 // Flag to select wasm trace mark type
@@ -3033,7 +3033,7 @@ DEFINE_INT(sim_stack_alignment, 16,
            "and it must be at least 16. 16 is default.")
 #else
 DEFINE_INT(sim_stack_alignment, 8,
-           "Stack alingment in bytes in simulator (4 or 8, 8 is default)")
+           "Stack alignment in bytes in simulator (4 or 8, 8 is default)")
 #endif
 DEFINE_INT(sim_stack_size, 2 * MB / KB,
            "Stack size of the ARM64, MIPS64 and PPC64 simulator "
@@ -3594,10 +3594,10 @@ DEFINE_IMPLICATION(prof, log_code)
 DEFINE_BOOL(ll_prof, false, "Enable low-level linux profiler.")
 
 #if V8_OS_LINUX || V8_OS_DARWIN
-#define DEFINE_PERF_PROF_BOOL(nam, cmt) DEFINE_BOOL(nam, false, cmt)
+#define DEFINE_PERF_PROF_BOOL(name, cmt) DEFINE_BOOL(name, false, cmt)
 #define DEFINE_PERF_PROF_IMPLICATION DEFINE_IMPLICATION
 #else
-#define DEFINE_PERF_PROF_BOOL(nam, cmt) DEFINE_BOOL_READONLY(nam, false, cmt)
+#define DEFINE_PERF_PROF_BOOL(name, cmt) DEFINE_BOOL_READONLY(name, false, cmt)
 #define DEFINE_PERF_PROF_IMPLICATION(...)
 #endif
 

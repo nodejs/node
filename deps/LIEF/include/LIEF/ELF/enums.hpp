@@ -177,7 +177,7 @@ enum class ARCH {
   CLOUDSHIELD   = 192, /**< CloudShield architecture family */
   COREA_1ST     = 193, /**< KIPO-KAIST Core-A 1st generation processor family */
   COREA_2ND     = 194, /**< KIPO-KAIST Core-A 2nd generation processor family */
-  ARC_COMPACT2  = 195, /**< Synopsys ARCompact V2 */
+  ARC_COMPACT2  = 195, /**< Synopsis ARCompact V2 */
   OPEN8         = 196, /**< Open8 8-bit RISC soft processor core */
   RL78          = 197, /**< Renesas RL78 family */
   VIDEOCORE5    = 198, /**< Broadcom VideoCore V processor */

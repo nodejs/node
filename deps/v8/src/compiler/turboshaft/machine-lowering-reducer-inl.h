@@ -1547,7 +1547,7 @@ class MachineLoweringReducer : public Next {
             auto desc = Linkage::GetSimplifiedCDescriptor(__ graph_zone(),
                                                           builder.Get());
             auto ts_desc = TSCallDescriptor::Create(
-                desc, CanThrow::kNo, LazyDeoptOnThrow::kNo, __ graph_zone());
+                desc, CanThrow::know, LazyDeoptOnThrow::know, __ graph_zone());
             OpIndex callee = __ ExternalConstant(
                 ExternalReference::string_to_array_index_function());
             // NOTE: String::ToArrayIndex() currently returns int32_t.
@@ -2362,7 +2362,7 @@ class MachineLoweringReducer : public Next {
         // TerminationRequested.
         IF (UNLIKELY(__ TaggedEqual(result, __ TagSmi(1)))) {
           __ template CallRuntime<runtime::TerminateExecution>(
-              frame_state, __ NoContextConstant(), {}, LazyDeoptOnThrow::kNo);
+              frame_state, __ NoContextConstant(), {}, LazyDeoptOnThrow::know);
         }
 
         // Check for exception sentinel: Smi 0 is returned to signal
@@ -3413,7 +3413,7 @@ class MachineLoweringReducer : public Next {
           try_string_to_index_or_lookup_existing, {isolate_ptr, value},
           TSCallDescriptor::Create(
               Linkage::GetSimplifiedCDescriptor(__ graph_zone(), builder.Get()),
-              CanThrow::kNo, LazyDeoptOnThrow::kNo, __ graph_zone())));
+              CanThrow::know, LazyDeoptOnThrow::know, __ graph_zone())));
 
       // Now see if the results match.
       __ DeoptimizeIfNot(__ TaggedEqual(expected, value_internalized),
@@ -4084,7 +4084,7 @@ class MachineLoweringReducer : public Next {
         callable.descriptor().GetStackParameterCount(),
         CallDescriptor::kNoFlags, Operator::kFoldable | Operator::kNoThrow);
     auto ts_descriptor = TSCallDescriptor::Create(
-        descriptor, CanThrow::kNo, LazyDeoptOnThrow::kNo, __ graph_zone());
+        descriptor, CanThrow::know, LazyDeoptOnThrow::know, __ graph_zone());
     return __ Call(__ HeapConstant(callable.code()), V<FrameState>::Invalid(),
                    base::VectorOf(args), ts_descriptor);
   }

@@ -256,7 +256,7 @@ typedef struct {
  *       instructed to, using notificationLevel>0.
  * NOTE: This function currently may fail in several edge cases including:
  *         * Not enough samples
- *         * Samples are uncompressible
+ *         * Samples are incompressible
  *         * Samples are all exactly the same
  */
 ZDICTLIB_API size_t ZDICT_finalizeDictionary(void* dstDictBuffer, size_t maxDictSize,

@@ -18,7 +18,7 @@ def GetNinjaOutputDirectory(v8_root, configuration=None):
   """Returns <v8_root>/<output_dir>/(Release|Debug|<other>).
 
   The configuration chosen is the one most recently generated/built, but can be
-  overriden via the <configuration> parameter. Detects a custom output_dir
+  overridden via the <configuration> parameter. Detects a custom output_dir
   specified by GYP_GENERATOR_FLAGS."""
 
   output_dirs = []

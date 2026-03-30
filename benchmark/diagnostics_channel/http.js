@@ -35,21 +35,21 @@ function main({ apm, connections, duration, type, len, chunks, chunkedEnc }) {
 function none() {}
 
 function patch() {
-  const als = new AsyncLocalStorage();
+  const also = new AsyncLocalStorage();
   const times = [];
 
   const { emit } = http.Server.prototype;
   function wrappedEmit(...args) {
     const [name, req, res] = args;
     if (name === 'request') {
-      als.enterWith({
+      also.enterWith({
         url: req.url,
         start: process.hrtime.bigint(),
       });
 
       res.on('finish', () => {
         times.push({
-          ...als.getStore(),
+          ...also.getStore(),
           statusCode: res.statusCode,
           end: process.hrtime.bigint(),
         });
@@ -65,14 +65,14 @@ function patch() {
 }
 
 function diagnostics_channel() {
-  const als = new AsyncLocalStorage();
+  const also = new AsyncLocalStorage();
   const times = [];
 
   const start = dc.channel('http.server.request.start');
   const finish = dc.channel('http.server.response.finish');
 
   function onStart(req) {
-    als.enterWith({
+    also.enterWith({
       url: req.url,
       start: process.hrtime.bigint(),
     });
@@ -80,7 +80,7 @@ function diagnostics_channel() {
 
   function onFinish(res) {
     times.push({
-      ...als.getStore(),
+      ...also.getStore(),
       statusCode: res.statusCode,
       end: process.hrtime.bigint(),
     });

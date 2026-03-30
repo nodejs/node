@@ -251,10 +251,10 @@ const tests = [
   {
     host: 'x.example.com',
     cert: {
-      subjectaltname: 'DNS:caf\u00E9.example.com', // "café.example.com"
+      subjectaltname: 'DNS:calf\u00E9.example.com', // "café.example.com"
       subject: {}
     },
-    error: 'Host: x.example.com. is not in the cert\'s altnames: DNS:caf\u00E9.example.com'
+    error: 'Host: x.example.com. is not in the cert\'s altnames: DNS:calf\u00E9.example.com'
   },
   {
     host: 'xbcd.a.com',

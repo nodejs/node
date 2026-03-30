@@ -350,7 +350,7 @@ using ReBcOpType = RegExpBytecodeOperandType;
   /* Bit Layout:                                                            */ \
   /* 0x00 - 0x07:   0x1c (fixed) Bytecode                                   */ \
   /* 0x08 - 0x0F:   0x00 (unused) Padding                                   */ \
-  /* 0x10 - 0x1F:   Character to match against (after mask aplied)          */ \
+  /* 0x10 - 0x1F:   Character to match against (after mask applied)          */ \
   /* 0x20 - 0x3F:   Bitmask bitwise and combined with current character     */ \
   /* 0x40 - 0x5F:   Address of bytecode when matched                        */ \
   V(AND_CHECK_CHAR, 21, 12)     /* bc8 pad8 uint16 uint32 addr32            */ \

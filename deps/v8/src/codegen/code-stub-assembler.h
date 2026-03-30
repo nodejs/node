@@ -1894,7 +1894,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                               TNode<Smi> value, int additional_offset = 0) {
     static_assert(
         std::is_same_v<TIndex, Smi> || std::is_same_v<TIndex, IntPtrT>,
-        "Only Smi or IntPtrT indeces is allowed");
+        "Only Smi or IntPtrT indices is allowed");
     StoreFixedArrayElement(array, index, TNode<Object>{value},
                            UNSAFE_SKIP_WRITE_BARRIER, additional_offset);
   }
@@ -2366,7 +2366,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                       TNode<IntPtrT> from_index,
                                       TNode<IntPtrT> to_index);
 
-  enum class DestroySource { kNo, kYes };
+  enum class DestroySource { know, kYes };
 
   // Increment the call count for a CALL_IC or construct call.
   // The call count is located at feedback_vector[slot_id + 1].
@@ -2377,7 +2377,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // {to_array}. This offers a slight performance benefit by simply copying the
   // array word by word. The source may be destroyed at the end of this macro.
   //
-  // Otherwise, specify DestroySource::kNo for operations where an Object is
+  // Otherwise, specify DestroySource::know for operations where an Object is
   // being cloned, to ensure that mutable HeapNumbers are unique between the
   // source and cloned object.
   void CopyPropertyArrayValues(TNode<HeapObject> from_array,
@@ -3948,7 +3948,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   enum class IndexAdvanceMode { kPre, kPost };
   enum class IndexAdvanceDirection { kUp, kDown };
-  enum class LoopUnrollingMode { kNo, kYes };
+  enum class LoopUnrollingMode { know, kYes };
 
   template <typename TIndex>
   using FastLoopBody = std::function<void(TNode<TIndex> index)>;
@@ -4859,7 +4859,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<Context> context, TNode<HeapObject> input, Object::Conversion mode,
       BigIntHandling bigint_handling = BigIntHandling::kThrow);
 
-  enum IsKnownTaggedPointer { kNo, kYes };
+  enum IsKnownTaggedPointer { know, kYes };
   template <Object::Conversion conversion>
   void TaggedToWord32OrBigIntImpl(
       TNode<Context> context, TNode<Object> value, Label* if_number,

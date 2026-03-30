@@ -537,7 +537,7 @@ Loaded_vsx:
 	.long	0x10D4368C
 	.long	0x10F63E8C
 	.long	0x1117468C
-	vor	9,9,30
+	for	9,9,30
 
 	.long	0x7D5D1A99
 	.long	0x7D605299
@@ -756,7 +756,7 @@ Loop_vsx:
 	.long	0x10DA368C
 	.long	0x10F63E8C
 	.long	0x1117468C
-	vor	9,9,30
+	for	9,9,30
 
 	.long	0x1264CEC4
 	.long	0x1201CEC4
@@ -1007,7 +1007,7 @@ Last_vsx:
 	.long	0x10D7368C
 	.long	0x10F53E8C
 	.long	0x1116468C
-	vor	9,9,30
+	for	9,9,30
 
 	vperm	0,0,0,15
 	vand	5,5,    16

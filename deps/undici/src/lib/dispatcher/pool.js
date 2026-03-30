@@ -83,7 +83,7 @@ class Pool extends PoolBase {
 
     this.on('connectionError', (origin, targets, error) => {
       // If a connection error occurs, we remove the client from the pool,
-      // and emit a connectionError event. They will not be re-used.
+      // and emit a connectionError event. They will not be reused.
       // Fixes https://github.com/nodejs/undici/issues/3895
       for (const target of targets) {
         // Do not use kRemoveClient here, as it will close the client,

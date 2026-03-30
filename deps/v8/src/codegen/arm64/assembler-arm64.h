@@ -238,7 +238,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // of m. m must be a power of 2 (>= 4).
   void Align(int m);
   // Insert the smallest number of zero bytes possible to align the pc offset
-  // to a mulitple of m. m must be a power of 2 (>= 2).
+  // to a multiple of m. m must be a power of 2 (>= 2).
   void DataAlign(int m);
 
   // Aligns code to something that's optimal for a jump target for the platform.
@@ -3464,7 +3464,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   //   branch_addr = { max_pc - 2^21,     if max_pc<0> == 0 (B.cond, CB[N]Z)
   //                 { max_pc - 2^16 - 1, if max_pc<0> == 1 (TB[N]Z)
   //
-  // The second member is a pointer to the Label targetted by the branch.
+  // The second member is a pointer to the Label targeted by the branch.
   //
   // The map is sorted according to the reachable offset, max_pc, allowing to
   // check easily when veneers need to be emitted.
@@ -3482,7 +3482,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // limit of the range.
   static constexpr int kVeneerDistanceMargin = 1 * KB;
   // The factor of 2 is a finger in the air guess. With a default margin of
-  // 1KB, that leaves us an addional 256 instructions to avoid generating a
+  // 1KB, that leaves us an additional 256 instructions to avoid generating a
   // protective branch.
   static constexpr int kVeneerNoProtectionFactor = 2;
   static constexpr int kVeneerDistanceCheckMargin =

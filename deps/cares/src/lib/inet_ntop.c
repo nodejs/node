@@ -82,7 +82,7 @@ const char        *ares_inet_ntop(int af, const void *src, char *dst,
  * return:
  *     `dst' (as a const)
  * notes:
- *     (1) uses no statics
+ *     (1) uses no statistics
  *     (2) takes a unsigned char* not an in_addr as input
  * author:
  *     Paul Vixie, 1996.

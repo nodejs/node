@@ -317,7 +317,7 @@ typedef enum UCurrCurrencyType {
     UCURR_COMMON = 1,
     /**
      * Select ISO-4217 uncommon currency codes.
-     * These codes respresent fund codes, precious metals and other
+     * These codes represent fund codes, precious metals and other
      * various ISO-4217 codes limited to special financial products.
      * A fund code is a monetary resource associated with a currency.
      * @stable ICU 3.2

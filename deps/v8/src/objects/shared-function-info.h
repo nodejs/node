@@ -58,7 +58,7 @@ class ValueType;
 
 // Defines whether the source positions should be created during function
 // compilation.
-enum class CreateSourcePositions { kNo, kYes };
+enum class CreateSourcePositions { know, kYes };
 
 // Data collected by the pre-parser storing information about scopes and inner
 // functions.
@@ -781,7 +781,7 @@ class SharedFunctionInfo
   static void EnsureBytecodeArrayAvailable(
       Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
       IsCompiledScope* is_compiled_scope,
-      CreateSourcePositions flag = CreateSourcePositions::kNo);
+      CreateSourcePositions flag = CreateSourcePositions::know);
 
   inline bool CanCollectSourcePosition(Isolate* isolate);
   static void EnsureSourcePositionsAvailable(

@@ -198,7 +198,7 @@ class Stream final : public AsyncWrap,
   ~Stream() override;
 
   // While the stream is still pending, the id will be kMaxStreamId,
-  // inidicating the maximum possible stream id is kMaxStreamId - 1.
+  // indicating the maximum possible stream id is kMaxStreamId - 1.
   stream_id id() const;
 
   // While the stream is still pending, the origin will be invalid.
@@ -230,7 +230,7 @@ class Stream final : public AsyncWrap,
 
   // Called by the session/application to indicate that the specified number
   // of bytes have been transmitted to the peer.  This is an initial
-  // indication occuring the first time data is sent. It does not indicate
+  // indication occurring the first time data is sent. It does not indicate
   // that the data has been retransmitted due to loss or has been
   // acknowledged to have been received by the peer.
   void Commit(size_t datalen);

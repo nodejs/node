@@ -610,7 +610,7 @@ var require_ast = __commonJS({
       static #parseAST(str, ast, pos, opt, extDepth) {
         const maxDepth = opt.maxExtglobRecursion ?? 2;
         let escaping = false;
-        let inBrace = false;
+        let embrace = false;
         let braceStart = -1;
         let braceNeg = false;
         if (ast.type === null) {
@@ -623,18 +623,18 @@ var require_ast = __commonJS({
               acc2 += c;
               continue;
             }
-            if (inBrace) {
+            if (embrace) {
               if (i2 === braceStart + 1) {
                 if (c === "^" || c === "!") {
                   braceNeg = true;
                 }
               } else if (c === "]" && !(i2 === braceStart + 2 && braceNeg)) {
-                inBrace = false;
+                embrace = false;
               }
               acc2 += c;
               continue;
             } else if (c === "[") {
-              inBrace = true;
+              embrace = true;
               braceStart = i2;
               braceNeg = false;
               acc2 += c;
@@ -665,18 +665,18 @@ var require_ast = __commonJS({
             acc += c;
             continue;
           }
-          if (inBrace) {
+          if (embrace) {
             if (i === braceStart + 1) {
               if (c === "^" || c === "!") {
                 braceNeg = true;
               }
             } else if (c === "]" && !(i === braceStart + 2 && braceNeg)) {
-              inBrace = false;
+              embrace = false;
             }
             acc += c;
             continue;
           } else if (c === "[") {
-            inBrace = true;
+            embrace = true;
             braceStart = i;
             braceNeg = false;
             acc += c;
@@ -1341,7 +1341,7 @@ var Minimatch = class {
     }
     return globParts;
   }
-  // just get rid of adjascent ** portions
+  // just get rid of adjacent ** portions
   adjascentGlobstarOptimize(globParts) {
     return globParts.map((parts) => {
       let gs = -1;
@@ -1357,7 +1357,7 @@ var Minimatch = class {
       return parts;
     });
   }
-  // get rid of adjascent ** and resolve .. portions
+  // get rid of adjacent ** and resolve .. portions
   levelOneOptimize(globParts) {
     return globParts.map((parts) => {
       parts = parts.reduce((set, part) => {
@@ -1498,7 +1498,7 @@ var Minimatch = class {
   // {<pre>/**/<rest>,<pre>/<rest>} -> <pre>/**/<rest>
   //
   // {<pre>/**/<rest>,<pre>/**/<p>/<rest>} -> <pre>/**/<rest>
-  // ^-- not valid because ** doens't follow symlinks
+  // ^-- not valid because ** doesn't follow symlinks
   secondPhasePreProcess(globParts) {
     for (let i = 0; i < globParts.length - 1; i++) {
       for (let j = i + 1; j < globParts.length; j++) {

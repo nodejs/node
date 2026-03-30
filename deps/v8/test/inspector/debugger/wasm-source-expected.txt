@@ -1,4 +1,4 @@
-Tests how wasm scrips report the source
+Tests how wasm scripts report the source
 Check that inspector gets wasm bytecode
 Paused on debugger!
 Number of frames: 5

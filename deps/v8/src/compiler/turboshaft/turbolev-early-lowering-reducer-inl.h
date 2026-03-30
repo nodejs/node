@@ -212,7 +212,7 @@ class TurbolevEarlyLoweringReducer : public Next {
       V<Object> object, V<Map> map,
       const ZoneVector<compiler::MapRef>& transition_sources,
       const MapRef transition_target, Label<Map>& end) {
-    // Turboshaft's TransitionElementsKind operation loads the map everytime, so
+    // Turboshaft's TransitionElementsKind operation loads the map every time, so
     // we don't call it to have a single map load (in practice,
     // LateLoadElimination should probably eliminate the subsequent map loads,
     // but let's not risk it).

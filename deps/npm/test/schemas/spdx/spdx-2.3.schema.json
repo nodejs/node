@@ -86,7 +86,7 @@
                 "enum" : [ "SHA1", "BLAKE3", "SHA3-384", "SHA256", "SHA384", "BLAKE2b-512", "BLAKE2b-256", "SHA3-512", "MD2", "ADLER32", "MD4", "SHA3-256", "BLAKE2b-384", "SHA512", "MD6", "MD5", "SHA224" ]
               },
               "checksumValue" : {
-                "description" : "The checksumValue property provides a lower case hexidecimal encoded digest value produced using a specific algorithm.",
+                "description" : "The checksumValue property provides a lower case hexadecimal encoded digest value produced using a specific algorithm.",
                 "type" : "string"
               }
             },
@@ -286,7 +286,7 @@
                   "enum" : [ "SHA1", "BLAKE3", "SHA3-384", "SHA256", "SHA384", "BLAKE2b-512", "BLAKE2b-256", "SHA3-512", "MD2", "ADLER32", "MD4", "SHA3-256", "BLAKE2b-384", "SHA512", "MD6", "MD5", "SHA224" ]
                 },
                 "checksumValue" : {
-                  "description" : "The checksumValue property provides a lower case hexidecimal encoded digest value produced using a specific algorithm.",
+                  "description" : "The checksumValue property provides a lower case hexadecimal encoded digest value produced using a specific algorithm.",
                   "type" : "string"
                 }
               },
@@ -329,7 +329,7 @@
                   "type" : "string"
                 },
                 "referenceType" : {
-                  "description" : "Type of the external reference. These are definined in an appendix in the SPDX specification.",
+                  "description" : "Type of the external reference. These are defined in an appendix in the SPDX specification.",
                   "type" : "string"
                 }
               },
@@ -366,10 +366,10 @@
             "type" : "string"
           },
           "licenseInfoFromFiles" : {
-            "description" : "The licensing information that was discovered directly within the package. There will be an instance of this property for each distinct value of alllicenseInfoInFile properties of all files contained in the package.\n\nIf the licenseInfoFromFiles field is not present for a package and filesAnalyzed property for that same pacakge is true or omitted, it implies an equivalent meaning to NOASSERTION.",
+            "description" : "The licensing information that was discovered directly within the package. There will be an instance of this property for each distinct value of alllicenseInfoInFile properties of all files contained in the package.\n\nIf the licenseInfoFromFiles field is not present for a package and filesAnalyzed property for that same package is true or omitted, it implies an equivalent meaning to NOASSERTION.",
             "type" : "array",
             "items" : {
-              "description" : "License expression for licenseInfoFromFiles. See SPDX Annex D for the license expression syntax.  The licensing information that was discovered directly within the package. There will be an instance of this property for each distinct value of alllicenseInfoInFile properties of all files contained in the package.\n\nIf the licenseInfoFromFiles field is not present for a package and filesAnalyzed property for that same pacakge is true or omitted, it implies an equivalent meaning to NOASSERTION.",
+              "description" : "License expression for licenseInfoFromFiles. See SPDX Annex D for the license expression syntax.  The licensing information that was discovered directly within the package. There will be an instance of this property for each distinct value of alllicenseInfoInFile properties of all files contained in the package.\n\nIf the licenseInfoFromFiles field is not present for a package and filesAnalyzed property for that same package is true or omitted, it implies an equivalent meaning to NOASSERTION.",
               "type" : "string"
             }
           },
@@ -505,7 +505,7 @@
                   "enum" : [ "SHA1", "BLAKE3", "SHA3-384", "SHA256", "SHA384", "BLAKE2b-512", "BLAKE2b-256", "SHA3-512", "MD2", "ADLER32", "MD4", "SHA3-256", "BLAKE2b-384", "SHA512", "MD6", "MD5", "SHA224" ]
                 },
                 "checksumValue" : {
-                  "description" : "The checksumValue property provides a lower case hexidecimal encoded digest value produced using a specific algorithm.",
+                  "description" : "The checksumValue property provides a lower case hexadecimal encoded digest value produced using a specific algorithm.",
                   "type" : "string"
                 }
               },
@@ -699,7 +699,7 @@
             }
           },
           "snippetFromFile" : {
-            "description" : "SPDX ID for File.  File containing the SPDX element (e.g. the file contaning a snippet).",
+            "description" : "SPDX ID for File.  File containing the SPDX element (e.g. the file containing a snippet).",
             "type" : "string"
           }
         },

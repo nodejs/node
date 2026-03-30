@@ -59,11 +59,11 @@ if (require.resolve.paths) {
 
 // Verify that relative request paths work properly.
 if (require.resolve.paths) {
-  const searchIn = './' + path.relative(process.cwd(), nestedIndex);
+  const searching = './' + path.relative(process.cwd(), nestedIndex);
 
   // Search in relative paths.
   assert.strictEqual(
-    require.resolve('./three.js', { paths: [searchIn] }),
+    require.resolve('./three.js', { paths: [searching] }),
     path.join(nestedIndex, 'three.js')
   );
 
@@ -76,7 +76,7 @@ if (require.resolve.paths) {
   // Repeat the same tests with Windows slashes in the request path.
   if (common.isWindows) {
     assert.strictEqual(
-      require.resolve('.\\three.js', { paths: [searchIn] }),
+      require.resolve('.\\three.js', { paths: [searching] }),
       path.join(nestedIndex, 'three.js')
     );
 

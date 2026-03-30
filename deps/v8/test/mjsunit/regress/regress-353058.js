@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --stack-size=150
-// Requries ASAN.
+// Requires ASAN.
 
 function runNearStackLimit(f) { function t() { try { t(); } catch(e) { f(); } }; try { t(); } catch(e) {} }
 function __f_0(

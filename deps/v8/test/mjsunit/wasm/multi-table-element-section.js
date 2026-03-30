@@ -13,7 +13,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   const value4 = 57;
   const value5 = 13;
 
-  // The offsets for the initialization of tables. The segement for table2 should
+  // The offsets for the initialization of tables. The segment for table2 should
   // overlap with the segment of table1, because table2 is actually the imported
   // table1.
   const offset1 = 2;

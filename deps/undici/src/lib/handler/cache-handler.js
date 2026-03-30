@@ -129,7 +129,7 @@ class CacheHandler {
       !heuristicallyCacheable &&
       !this.#cacheByDefault
     ) {
-      // Don't have anything to tell us this response is cachable and we're not
+      // Don't have anything to tell us this response is cacheable and we're not
       //  caching by default
       return downstreamOnHeaders()
     }
@@ -190,7 +190,7 @@ class CacheHandler {
       deleteAt
     }
 
-    // Not modified, re-use the cached value
+    // Not modified, reuse the cached value
     // https://www.rfc-editor.org/rfc/rfc9111.html#name-handling-304-not-modified
     if (statusCode === 304) {
       const handle304 = (cachedValue) => {
@@ -199,7 +199,7 @@ class CacheHandler {
           return downstreamOnHeaders()
         }
 
-        // Re-use the cached value: statuscode, statusmessage, headers and body
+        // Reuse the cached value: statuscode, statusmessage, headers and body
         value.statusCode = cachedValue.statusCode
         value.statusMessage = cachedValue.statusMessage
         value.etag = cachedValue.etag

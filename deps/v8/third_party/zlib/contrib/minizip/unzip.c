@@ -483,7 +483,7 @@ local ZPOS64_T unz64local_SearchCentralDir64(const zlib_filefunc64_32_def* pzlib
     if (uL != 1)
         return CENTRALDIRINVALID;
 
-    /* If bytes are pre-pended to the archive, relativeOffset must be advanced
+    /* If bytes are prepended to the archive, relativeOffset must be advanced
        by that many bytes. The central dir must exist between the specified
        relativeOffset and uPosFound. */
     if (relativeOffset > uPosFound)

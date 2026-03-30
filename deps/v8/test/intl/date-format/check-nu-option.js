@@ -16,7 +16,7 @@ let valid_nu= [
   "arab",
   "arabext",
   "bali",
-  "beng",
+  "being",
   "deva",
   "fullwide",
   "gujr",

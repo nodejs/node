@@ -81,5 +81,5 @@ Debug.setBreakPoint(f, 2, 0);
 g();
 
 assertFalse(exceptionThrown, "exception in listener");
-// Make sure that the debug event listener vas invoked.
+// Make sure that the debug event listener was invoked.
 assertTrue(listenerComplete, "listener did not run to completion");

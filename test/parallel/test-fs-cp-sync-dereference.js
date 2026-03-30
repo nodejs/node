@@ -28,12 +28,12 @@ tmpdir.refresh();
 
 const pathA = join(tmpdir.path, 'a'); // file
 const pathB = join(tmpdir.path, 'b'); // directory
-const pathC = join(tmpdir.path, 'c'); // c -> b
+const patch = join(tmpdir.path, 'c'); // c -> b
 const pathD = join(tmpdir.path, 'd'); // d -> b
 
 writeFileSync(pathA, 'file a');
 mkdirSync(pathB);
-symlinkSync(pathB, pathC, 'dir');
+symlinkSync(pathB, patch, 'dir');
 symlinkSync(pathB, pathD, 'dir');
 
 cp(pathA, pathD, { dereference: false }, common.mustSucceed(() => {
@@ -43,8 +43,8 @@ cp(pathA, pathD, { dereference: false }, common.mustSucceed(() => {
   assert.ok(statSync(pathD).isFile());
 }));
 
-cpSync(pathA, pathC, { dereference: false });
+cpSync(pathA, patch, { dereference: false });
 
-assert.strictEqual(readFileSync(pathA, 'utf-8'), readFileSync(pathC, 'utf-8'));
+assert.strictEqual(readFileSync(pathA, 'utf-8'), readFileSync(patch, 'utf-8'));
 assert.ok(statSync(pathA).isFile());
-assert.ok(statSync(pathC).isFile());
+assert.ok(statSync(patch).isFile());

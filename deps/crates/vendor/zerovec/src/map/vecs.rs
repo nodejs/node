@@ -141,7 +141,7 @@ pub trait MutableZeroVecLike<'a, T: ?Sized>: ZeroVecLike<T> {
 
     /// Insert an element at `index`
     fn zvl_insert(&mut self, index: usize, value: &T);
-    /// Remove the element at `index` (panicking if nonexistant)
+    /// Remove the element at `index` (panicking if nonexistent)
     fn zvl_remove(&mut self, index: usize) -> Self::OwnedType;
     /// Replace the element at `index` with another one, returning the old element
     fn zvl_replace(&mut self, index: usize, value: &T) -> Self::OwnedType;

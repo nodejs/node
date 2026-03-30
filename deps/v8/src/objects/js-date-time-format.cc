@@ -919,7 +919,7 @@ bool CalendarEquals(temporal_rs::AnyCalendarKind kind,
   // Note: some calendars have aliases, and "islamic" encompasses all Islamic
   // calendars
   //
-  // We unfortuantely have to string match against ICU4C's values. We could
+  // We unfortunately have to string match against ICU4C's values. We could
   // potentially get away with parsing AnyCalendarKind from string, however
   // ICU4C has slightly different calendar name behavior from ICU4X around
   // islamic calendars. This works for now, and perhaps temporal_rs can add

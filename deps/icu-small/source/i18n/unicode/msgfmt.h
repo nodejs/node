@@ -803,7 +803,7 @@ public:
      * is indeed a valid pattern.  The only effect is to convert
      * between patterns having different quoting semantics.
      *
-     * @param pattern the 'apostrophe-friendly' patttern to convert
+     * @param pattern the 'apostrophe-friendly' pattern to convert
      * @param status    Input/output error code.  If the pattern
      *                  cannot be parsed, the failure code is set.
      * @return the standard equivalent of the original pattern

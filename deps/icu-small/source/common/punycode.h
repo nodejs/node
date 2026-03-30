@@ -83,7 +83,7 @@ u_strToPunycode(const UChar *src, int32_t srcLength,
  *                     and of caseFlags in numbers of UBools.
  * @param caseFlags Output array for case flags as
  *                  defined by the Punycode string.
- *                  The caller should uppercase (true) or lowercase (FASLE)
+ *                  The caller should uppercase (true) or lowercase (FALSE)
  *                  the corresponding character in dest.
  *                  For supplementary characters, only the lead surrogate
  *                  is marked, and false is stored for the trail surrogate.

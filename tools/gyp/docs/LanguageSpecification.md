@@ -61,7 +61,7 @@ The overall design has the following characteristics:
 
 Some up-front design principles/thoughts/TODOs:
 
-  * Re-use keywords consistently.
+  * Reuse keywords consistently.
   * Keywords that allow configuration of a platform-specific concept get
     prefixed appropriately:
     * Examples:  `msvs_disabled_warnings`, `xcode_framework_dirs`

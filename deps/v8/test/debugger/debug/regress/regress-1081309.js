@@ -68,5 +68,5 @@ try {
 }
 
 assertFalse(exceptionThrown, "exception in listener");
-// Make sure that the debug event listener vas invoked.
+// Make sure that the debug event listener was invoked.
 assertTrue(listenerCalled, "listener not called");

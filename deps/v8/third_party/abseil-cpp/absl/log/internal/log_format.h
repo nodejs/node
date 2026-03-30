@@ -62,7 +62,7 @@ std::string FormatLogMessage(absl::LogSeverity severity,
 //   I0926 09:00:00.000000 1234567 foo.cc:123]
 // `buf` is too small, the function might fill the whole buffer:
 //   I0926 09:00:00.000000 1234
-// (note the apparrently incorrect thread ID), or it might write less:
+// (note the apparently incorrect thread ID), or it might write less:
 //   I0926 09:00:00.000000
 // In this case, it might also empty `buf` prior to returning to prevent
 // message data from being written into the space where a reader would expect to

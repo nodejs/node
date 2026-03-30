@@ -27,14 +27,14 @@
 
 function veryLongString() {
   return "Lorem ipsum dolor sit amet, consectetur adipiscing elit." +
-         "Nam vulputate metus est. Maecenas quis pellentesque eros," +
-         "ac mattis augue. Nam porta purus vitae tincidunt blandit." +
+         "Name vulputate metus est. Maecenas quis pellentesque eros," +
+         "ac mattis augue. Name porta purus vitae tincidunt blandit." +
          "Aliquam lacus dui, blandit id consectetur id, hendrerit ut" +
          "felis. Class aptent taciti sociosqu ad litora torquent per" +
          "conubia nostra, per inceptos himenaeos. Ut posuere eros et" +
          "tempus luctus. Nullam condimentum aliquam odio, at dignissim" +
-         "augue tincidunt in. Nam mattis vitae mauris eget dictum." +
-         "Nam accumsan dignissim turpis a turpis duis.";
+         "augue tincidunt in. Name mattis vitae mauris eget dictum." +
+         "Name accumsan dignissim turpis a turpis duis.";
 }
 
 assertTrue(veryLongString().length > 256);

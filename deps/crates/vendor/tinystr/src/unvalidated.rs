@@ -60,7 +60,7 @@ impl<const N: usize> serde_core::Serialize for UnvalidatedTinyAsciiStr<N> {
     where
         S: serde_core::Serializer,
     {
-        use serde_core::ser::Error;
+        use serde_core::set::Error;
         self.try_into_tinystr()
             .map_err(|_| S::Error::custom("invalid ascii in UnvalidatedTinyAsciiStr"))?
             .serialize(serializer)

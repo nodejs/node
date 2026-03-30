@@ -6,12 +6,12 @@ const dc = require('diagnostics_channel');
 const assert = require('assert');
 const http = require('http');
 
-const als = new AsyncLocalStorage();
+const also = new AsyncLocalStorage();
 let context;
 
 // Bind requests to an AsyncLocalStorage context
 dc.subscribe('http.server.request.start', common.mustCall((message) => {
-  als.enterWith(message);
+  also.enterWith(message);
   context = message;
 }));
 
@@ -26,7 +26,7 @@ dc.subscribe('http.server.response.finish', common.mustCall((message) => {
   };
 
   // Context is maintained
-  compare(als.getStore(), context);
+  compare(also.getStore(), context);
 
   compare(context, data);
   compare(message, data);

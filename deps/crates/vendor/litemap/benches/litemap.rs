@@ -92,7 +92,7 @@ fn bench_deserialize(c: &mut Criterion) {
 
 fn bench_deserialize_large(c: &mut Criterion) {
     let buf = large_litemap_postcard_bytes();
-    c.bench_function("litemap/deseralize/large", |b| {
+    c.bench_function("litemap/deserialize/large", |b| {
         b.iter(|| {
             let map: LiteMap<String, String> = postcard::from_bytes(black_box(&buf)).unwrap();
             assert_eq!(map.get("iu3333"), Some(&"Inuktitut".to_owned()));

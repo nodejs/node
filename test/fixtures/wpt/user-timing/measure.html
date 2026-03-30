@@ -68,7 +68,7 @@
                 order:                  undefined,
                 found:                  false
             },
-            // intentional duplicate of the first measure, used to confirm names can be re-used
+            // intentional duplicate of the first measure, used to confirm names can be reused
             {
                 name:                   "measure_no_start_no_end",
                 startMark:              undefined,
@@ -350,7 +350,7 @@
                 <li>"measure_start_no_end": created using a measure() call with only the startMark provided</li>
                 <li>"measure_start_end": created using a measure() call with both a startMark or endMark provided</li>
                 <li>"measure_no_start_end": created using a measure() call with only the endMark provided</li>
-                <li>"measure_no_start_no_end": duplicate of the first measure, used to confirm names can be re-used</li>
+                <li>"measure_no_start_no_end": duplicate of the first measure, used to confirm names can be reused</li>
             </ul>
            After creating each measure, the existence of these measures is validated by calling
            performance.getEntriesByName() (both with and without the entryType parameter provided),
