@@ -337,7 +337,7 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     createPrivateKey({ key: Buffer.alloc(0), format: 'der', type: 'spki' });
   }, {
     code: 'ERR_INVALID_ARG_VALUE',
-    message: "The property 'options.type' is invalid. Received 'spki'"
+    message: "The property 'key.type' is invalid. Received 'spki'"
   });
 
   // Unlike SPKI, PKCS#1 is a valid encoding for private keys (and public keys),
@@ -354,6 +354,41 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   } : {
     message: /asn1 encoding/,
     library: 'asn1 encoding routines'
+  });
+}
+
+// Test that createPublicKey/createPrivateKey error messages use 'key.<property>' paths
+{
+  // createPrivateKey with invalid format
+  assert.throws(() => {
+    createPrivateKey({ key: Buffer.alloc(0), format: 'banana', type: 'pkcs8' });
+  }, {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /key\.format/,
+  });
+
+  // createPrivateKey with invalid type
+  assert.throws(() => {
+    createPrivateKey({ key: Buffer.alloc(0), format: 'der', type: 'banana' });
+  }, {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /key\.type/,
+  });
+
+  // createPublicKey with invalid format
+  assert.throws(() => {
+    createPublicKey({ key: Buffer.alloc(0), format: 'banana', type: 'spki' });
+  }, {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /key\.format/,
+  });
+
+  // createPublicKey with invalid type
+  assert.throws(() => {
+    createPublicKey({ key: Buffer.alloc(0), format: 'der', type: 'banana' });
+  }, {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /key\.type/,
   });
 }
 
