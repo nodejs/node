@@ -4142,22 +4142,31 @@ added:
  - v13.9.0
  - v12.17.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62527
+    description: Accept key data in addition to KeyObject instances.
   - version: v23.11.0
     pr-url: https://github.com/nodejs/node/pull/57274
     description: Optional callback argument added.
 -->
 
 * `options` {Object}
-  * `privateKey` {KeyObject}
-  * `publicKey` {KeyObject}
+  * `privateKey` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject}
+  * `publicKey` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject}
 * `callback` {Function}
   * `err` {Error}
   * `secret` {Buffer}
 * Returns: {Buffer} if the `callback` function is not provided.
 
 Computes the Diffie-Hellman shared secret based on a `privateKey` and a `publicKey`.
-Both keys must have the same `asymmetricKeyType` and must support either the DH or
+Both keys must represent the same asymmetric key type and must support either the DH or
 ECDH operation.
+
+If `options.privateKey` is not a [`KeyObject`][], this function behaves as if
+`options.privateKey` had been passed to [`crypto.createPrivateKey()`][].
+
+If `options.publicKey` is not a [`KeyObject`][], this function behaves as if
+`options.publicKey` had been passed to [`crypto.createPublicKey()`][].
 
 If the `callback` function is provided this function uses libuv's threadpool.
 

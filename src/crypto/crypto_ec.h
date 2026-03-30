@@ -55,41 +55,6 @@ class ECDH final : public BaseObject {
   const EC_GROUP* group_;
 };
 
-struct ECDHBitsConfig final : public MemoryRetainer {
-  int id_;
-  KeyObjectData private_;
-  KeyObjectData public_;
-
-  void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(ECDHBitsConfig)
-  SET_SELF_SIZE(ECDHBitsConfig)
-};
-
-struct ECDHBitsTraits final {
-  using AdditionalParameters = ECDHBitsConfig;
-  static constexpr const char* JobName = "ECDHBitsJob";
-  static constexpr AsyncWrap::ProviderType Provider =
-      AsyncWrap::PROVIDER_DERIVEBITSREQUEST;
-
-  static v8::Maybe<void> AdditionalConfig(
-      CryptoJobMode mode,
-      const v8::FunctionCallbackInfo<v8::Value>& args,
-      unsigned int offset,
-      ECDHBitsConfig* params);
-
-  static bool DeriveBits(Environment* env,
-                         const ECDHBitsConfig& params,
-                         ByteSource* out_,
-                         CryptoJobMode mode,
-                         CryptoErrorStore* errors);
-
-  static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
-                                                const ECDHBitsConfig& params,
-                                                ByteSource* out);
-};
-
-using ECDHBitsJob = DeriveBitsJob<ECDHBitsTraits>;
-
 struct EcKeyPairParams final : public MemoryRetainer {
   int curve_nid;
   int param_encoding;
