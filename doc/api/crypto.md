@@ -6060,6 +6060,9 @@ Throws an error if FIPS mode is not available.
 <!-- YAML
 added: v12.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62474
+    description: Add support for Ed25519 context parameter.
   - version: v24.8.0
     pr-url: https://github.com/nodejs/node/pull/59570
     description: Add support for ML-DSA, Ed448, and SLH-DSA context parameter.
@@ -6123,9 +6126,10 @@ additional properties can be passed:
   `crypto.constants.RSA_PSS_SALTLEN_DIGEST` sets the salt length to the digest
   size, `crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN` (default) sets it to the
   maximum permissible value.
-* `context` {ArrayBuffer|Buffer|TypedArray|DataView} For Ed448, ML-DSA, and SLH-DSA,
-  this option specifies the optional context to differentiate signatures generated
-  for different purposes with the same key.
+* `context` {ArrayBuffer|Buffer|TypedArray|DataView} For Ed25519[^openssl32]
+  (using Ed25519ctx from [RFC 8032][]), Ed448, ML-DSA, and SLH-DSA,
+  this option specifies the optional context to differentiate signatures
+  generated for different purposes with the same key.
 
 If the `callback` function is provided this function uses libuv's threadpool.
 
@@ -6185,6 +6189,9 @@ not introduce timing vulnerabilities.
 <!-- YAML
 added: v12.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62474
+    description: Add support for Ed25519 context parameter.
   - version: v24.8.0
     pr-url: https://github.com/nodejs/node/pull/59570
     description: Add support for ML-DSA, Ed448, and SLH-DSA context parameter.
@@ -6254,9 +6261,10 @@ additional properties can be passed:
   `crypto.constants.RSA_PSS_SALTLEN_DIGEST` sets the salt length to the digest
   size, `crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN` (default) sets it to the
   maximum permissible value.
-* `context` {ArrayBuffer|Buffer|TypedArray|DataView} For Ed448, ML-DSA, and SLH-DSA,
-  this option specifies the optional context to differentiate signatures generated
-  for different purposes with the same key.
+* `context` {ArrayBuffer|Buffer|TypedArray|DataView} For Ed25519[^openssl32]
+  (using Ed25519ctx from [RFC 8032][]), Ed448, ML-DSA, and SLH-DSA,
+  this option specifies the optional context to differentiate signatures
+  generated for different purposes with the same key.
 
 The `signature` argument is the previously calculated signature for the `data`.
 
@@ -6855,6 +6863,7 @@ See the [list of SSL OP Flags][] for details.
 [RFC 5208]: https://www.rfc-editor.org/rfc/rfc5208.txt
 [RFC 5280]: https://www.rfc-editor.org/rfc/rfc5280.txt
 [RFC 7517]: https://www.rfc-editor.org/rfc/rfc7517.txt
+[RFC 8032]: https://www.rfc-editor.org/rfc/rfc8032.txt
 [Web Crypto API documentation]: webcrypto.md
 [`BN_is_prime_ex`]: https://www.openssl.org/docs/man1.1.1/man3/BN_is_prime_ex.html
 [`Buffer`]: buffer.md
