@@ -7,7 +7,7 @@ function verifyStatFsObject(statfs, isBigint = false) {
   const valueType = isBigint ? 'bigint' : 'number';
 
   [
-    'type', 'bsize', 'blocks', 'bfree', 'bavail', 'files', 'ffree',
+    'type', 'bsize', 'frsize', 'blocks', 'bfree', 'bavail', 'files', 'ffree',
   ].forEach((k) => {
     assert.ok(Object.hasOwn(statfs, k));
     assert.strictEqual(typeof statfs[k], valueType,

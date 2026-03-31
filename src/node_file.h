@@ -44,6 +44,7 @@ constexpr size_t kFsStatsBufferLength =
 enum class FsStatFsOffset {
   kType = 0,
   kBSize,
+  kFrSize,
   kBlocks,
   kBFree,
   kBAvail,
