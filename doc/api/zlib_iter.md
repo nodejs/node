@@ -1,6 +1,6 @@
 # Iterable Compression
 
-<!--introduced_in=REPLACEME-->
+<!--introduced_in=v25.9.0-->
 
 > Stability: 1 - Experimental
 
@@ -74,7 +74,7 @@ console.log(original); // 'hello'
 ## `compressBrotliSync([options])`
 
 <!-- YAML
-added: REPLACEME
+added: v25.9.0
 -->
 
 * `options` {Object}
@@ -106,7 +106,7 @@ Create a Brotli compression transform. Output is compatible with
 ## `compressDeflateSync([options])`
 
 <!-- YAML
-added: REPLACEME
+added: v25.9.0
 -->
 
 * `options` {Object}
@@ -126,7 +126,7 @@ Create a deflate compression transform. Output is compatible with
 ## `compressGzipSync([options])`
 
 <!-- YAML
-added: REPLACEME
+added: v25.9.0
 -->
 
 * `options` {Object}
@@ -146,7 +146,7 @@ and `decompressGzip()`/`decompressGzipSync()`.
 ## `compressZstdSync([options])`
 
 <!-- YAML
-added: REPLACEME
+added: v25.9.0
 -->
 
 * `options` {Object}
@@ -173,7 +173,7 @@ Create a Zstandard compression transform. Output is compatible with
 ## `decompressBrotliSync([options])`
 
 <!-- YAML
-added: REPLACEME
+added: v25.9.0
 -->
 
 * `options` {Object}
@@ -196,7 +196,7 @@ Create a Brotli decompression transform.
 ## `decompressDeflateSync([options])`
 
 <!-- YAML
-added: REPLACEME
+added: v25.9.0
 -->
 
 * `options` {Object}
@@ -212,7 +212,7 @@ Create a deflate decompression transform.
 ## `decompressGzipSync([options])`
 
 <!-- YAML
-added: REPLACEME
+added: v25.9.0
 -->
 
 * `options` {Object}
@@ -228,7 +228,7 @@ Create a gzip decompression transform.
 ## `decompressZstdSync([options])`
 
 <!-- YAML
-added: REPLACEME
+added: v25.9.0
 -->
 
 * `options` {Object}

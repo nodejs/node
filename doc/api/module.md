@@ -178,7 +178,7 @@ isBuiltin('wss'); // false
 added:
   - v20.6.0
   - v18.19.0
-deprecated: REPLACEME
+deprecated: v25.9.0
 changes:
   - version:
     - v23.6.1
