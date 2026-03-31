@@ -4488,7 +4488,7 @@ changes:
   - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/62453
     description: Runtime deprecation.
-  - version: v26.0.0
+  - version: v25.9.0
     pr-url: https://github.com/nodejs/node/pull/62321
     description: Documentation-only deprecation.
 -->
@@ -4513,7 +4513,7 @@ changes:
   - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/62453
     description: Runtime deprecation.
-  - version: v26.0.0
+  - version: v25.9.0
     pr-url: https://github.com/nodejs/node/pull/62321
     description: Documentation-only deprecation.
 -->
@@ -4530,7 +4530,7 @@ changes:
   - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/62401
     description: Runtime deprecation.
-  - version: v26.0.0
+  - version: v25.9.0
     pr-url: https://github.com/nodejs/node/pull/62395
     description: Documentation-only deprecation.
 -->
