@@ -170,7 +170,7 @@ void BindingData::PathToFileURL(const FunctionCallbackInfo<Value>& args) {
     CHECK(args[2]->IsString());
     Utf8Value hostname(isolate, args[2]);
     // Ada should validate chars in hostname
-    if(!out->set_hostname(hostname.ToStringView())) {
+    if (!out->set_hostname(hostname.ToStringView())) {
       return ThrowInvalidURL(realm->env(), input.ToStringView(), std::nullopt);
     }
   }

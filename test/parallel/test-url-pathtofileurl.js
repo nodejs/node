@@ -226,7 +226,7 @@ for (const { path, expected } of testCases) {
 
 // Regression for forbidden chars in UNC Windows
 {
-  assert.throws(() => url.pathToFileURL('\\\\%\\file', {windows : true}), {
-      code: 'ERR_INVALID_URL',
-    });
+  assert.throws(() => url.pathToFileURL('\\\\%\\file', { windows: true }), {
+    code: 'ERR_INVALID_URL',
+  });
 }
