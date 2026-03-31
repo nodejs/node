@@ -2,6 +2,7 @@
 
 Select a Node.js version below to view the changelog history:
 
+* [Node.js 26](doc/changelogs/CHANGELOG_V26.md) **Current**
 * [Node.js 25](doc/changelogs/CHANGELOG_V25.md) **Current**
 * [Node.js 24](doc/changelogs/CHANGELOG_V24.md) **Long Term Support**
 * [Node.js 23](doc/changelogs/CHANGELOG_V23.md) End-of-Life
@@ -34,12 +35,16 @@ release.
 
 <table>
 <tr>
+  <th title="Current"><a href="doc/changelogs/CHANGELOG_V26.md">26</a> (Current)</th>
   <th title="Current"><a href="doc/changelogs/CHANGELOG_V25.md">25</a> (Current)</th>
   <th title="LTS Until 2028-04"><a href="doc/changelogs/CHANGELOG_V24.md">24</a> (LTS)</th>
   <th title="LTS Until 2027-04"><a href="doc/changelogs/CHANGELOG_V22.md">22</a> (LTS)</th>
   <th title="LTS Until 2026-04"><a href="doc/changelogs/CHANGELOG_V20.md">20</a> (LTS)</th>
 </tr>
 <tr>
+  <td valign="top">
+<b><a href="doc/changelogs/CHANGELOG_V26.md#26.0.0">26.0.0</a></b><br/>
+  </td>
   <td valign="top">
 <b><a href="doc/changelogs/CHANGELOG_V25.md#25.9.0">25.9.0</a></b><br/>
 <a href="doc/changelogs/CHANGELOG_V25.md#25.8.2">25.8.2</a><br/>

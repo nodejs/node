@@ -1690,7 +1690,7 @@ per connection (in the case of HTTP Keep-Alive connections).
 <!-- YAML
 added: v0.1.94
 changes:
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/60016
     description: Request bodies are no longer exposed raw (unparsed) on the
                  socket argument. Instead, if a body is received, the stream
