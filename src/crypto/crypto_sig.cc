@@ -241,6 +241,7 @@ bool SupportsContextString(const EVPKeyPointer& key) {
   return false;
 #else
   switch (key.id()) {
+    case EVP_PKEY_ED25519:
     case EVP_PKEY_ED448:
 #if OPENSSL_WITH_PQC
     case EVP_PKEY_ML_DSA_44:
