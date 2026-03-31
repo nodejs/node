@@ -49,6 +49,7 @@ enum class FsStatFsOffset {
   kBAvail,
   kFiles,
   kFFree,
+  kFrSize,
   kFsStatFsFieldsNumber
 };
 

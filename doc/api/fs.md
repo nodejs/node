@@ -7899,7 +7899,8 @@ StatFs {
   bfree: 61058895,
   bavail: 61058895,
   files: 999,
-  ffree: 1000000
+  ffree: 1000000,
+  frsize: 4096
 }
 ```
 
@@ -7913,7 +7914,8 @@ StatFs {
   bfree: 61058895n,
   bavail: 61058895n,
   files: 999n,
-  ffree: 1000000n
+  ffree: 1000000n,
+  frsize: 4096n
 }
 ```
 
@@ -7988,6 +7990,20 @@ added:
 * Type: {number|bigint}
 
 Total file nodes in file system.
+
+#### `statfs.frsize`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number|bigint}
+
+Fundamental file system block size. This is the unit in which `blocks`,
+`bfree`, and `bavail` are counted. On most file systems this equals `bsize`,
+but on FUSE mounts (e.g. Docker Desktop on macOS using VirtioFS) they can
+differ. Use `frsize` (not `bsize`) when calculating disk space from block
+counts.
 
 #### `statfs.type`
 
