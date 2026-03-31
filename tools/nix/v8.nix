@@ -7,7 +7,7 @@
   nodejs-slim_latest,
   icu,
 
-  buildInputs ? [ icu ],
+  buildInputs ? lib.optional (icu != null) icu,
   configureFlags ? [
     (
       if icu == null then
@@ -61,8 +61,6 @@ stdenv.mkDerivation (finalAttrs: {
           ../../tools/getmoduleversion.py
           ../../tools/getnapibuildversion.py
           ../../tools/gyp_node.py
-          ../../tools/icu/icu_versions.json
-          ../../tools/icu/icu-system.gyp
           ../../tools/utils.py
           ../../tools/v8_gypfiles/abseil.gyp
           ../../tools/v8_gypfiles/features.gypi
@@ -72,6 +70,10 @@ stdenv.mkDerivation (finalAttrs: {
           ../../tools/v8_gypfiles/inspector.gypi
           ../../tools/v8_gypfiles/toolchain.gypi
           ../../tools/v8_gypfiles/v8.gyp
+        ]
+        ++ lib.optionals (icu != null) [
+          ../../tools/icu/icu_versions.json
+          ../../tools/icu/icu-system.gyp
         ]
         ++ lib.optionals (icu == "small") [
           ../../deps/icu-small
@@ -102,6 +104,12 @@ stdenv.mkDerivation (finalAttrs: {
   # We need to remove the node_inspector.gypi ref so GYP does not search for it.
   postPatch = ''
     substituteInPlace node.gyp --replace-fail "'includes' : [ 'src/inspector/node_inspector.gypi' ]" "'includes' : []"
+  ''
+  + lib.optionalString (icu == null) ''
+    substituteInPlace configure.py \
+      --replace-fail \
+        "icu_versions = json.loads((tools_path / 'icu' / 'icu_versions.json').read_text(encoding='utf-8'))" \
+        "icu_versions = { 'minimum_icu': 1 }"
   '';
 
   inherit configureScript configureFlags buildInputs;
