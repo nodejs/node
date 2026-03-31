@@ -28,13 +28,13 @@ jobs:
       - name: Get Pull Requests
         id: get_prs_for_ci
         run: >
-          numbers=$(gh pr list \
-                  --repo ${{ github.repository }} \
+          echo "numbers=$(gh pr list \
+                  --repo "$GITHUB_REPOSITORY" \
                   --label 'request-ci' \
                   --json 'number' \
+                  --search 'review:approved' \
                   -t '{{ range . }}{{ .number }} {{ end }}' \
-                  --limit 5)
-          echo "numbers=$numbers" >> $GITHUB_OUTPUT
+                  --limit 5)" >> "$GITHUB_OUTPUT"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   start-ci:
