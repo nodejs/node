@@ -154,4 +154,6 @@ test('should not crash on URLs with invalid IDN hostnames', () => {
   const u = new URL('ws:xn-\u022B');
   // doesNotThrow
   url.format(u, { fragment: false, unicode: false, auth: false, search: false });
+  // Same problem with re-parsing
+  url.port = 80;
 });
