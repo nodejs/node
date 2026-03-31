@@ -360,10 +360,7 @@ bool ExportJWKRsaKey(Environment* env,
   return true;
 }
 
-KeyObjectData ImportJWKRsaKey(Environment* env,
-                              Local<Object> jwk,
-                              const FunctionCallbackInfo<Value>& args,
-                              unsigned int offset) {
+KeyObjectData ImportJWKRsaKey(Environment* env, Local<Object> jwk) {
   Local<Value> n_value;
   Local<Value> e_value;
   Local<Value> d_value;

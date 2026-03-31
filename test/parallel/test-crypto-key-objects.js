@@ -246,6 +246,12 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS'
   });
 
+  // Importing a public-only RSA JWK as a private key should fail.
+  assert.throws(
+    () => createPrivateKey({ key: publicJwk, format: 'jwk' }),
+    { code: 'ERR_CRYPTO_INVALID_JWK' }
+  );
+
   const publicDER = publicKey.export({
     format: 'der',
     type: 'pkcs1'
@@ -461,6 +467,42 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   }
 });
 
+{
+  const okpJwk = {
+    crv: 'Ed25519',
+    x: 'K1wIouqnuiA04b3WrMa-xKIKIpfHetNZRv3h9fBf768',
+    d: 'wVK6M3SMhQh3NK-7GRrSV-BVWQx1FO5pW8hhQeu_NdA',
+    kty: 'OKP'
+  };
+
+  // Importing a public-only OKP JWK as a private key should fail.
+  assert.throws(
+    () => createPrivateKey({
+      key: { kty: okpJwk.kty, crv: okpJwk.crv, x: okpJwk.x },
+      format: 'jwk',
+    }),
+    { code: 'ERR_CRYPTO_INVALID_JWK' }
+  );
+
+  // Importing an OKP JWK with missing crv should fail.
+  assert.throws(
+    () => createPublicKey({
+      key: { kty: okpJwk.kty, x: okpJwk.x },
+      format: 'jwk',
+    }),
+    { code: 'ERR_CRYPTO_INVALID_JWK' }
+  );
+
+  // Importing an OKP JWK with invalid crv should fail.
+  assert.throws(
+    () => createPublicKey({
+      key: { ...okpJwk, crv: 'invalid' },
+      format: 'jwk',
+    }),
+    { code: 'ERR_CRYPTO_INVALID_JWK' }
+  );
+}
+
 [
   { private: fixtures.readKey('ec_p256_private.pem', 'ascii'),
     public: fixtures.readKey('ec_p256_public.pem', 'ascii'),
@@ -592,6 +634,43 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
       importedPub.export({ format: 'raw-public' }), rawPub);
   }
 });
+
+{
+  const ecJwk = {
+    crv: 'P-256',
+    d: 'DxBsPQPIgMuMyQbxzbb9toew6Ev6e9O6ZhpxLNgmAEo',
+    kty: 'EC',
+    x: 'X0mMYR_uleZSIPjNztIkAS3_ud5LhNpbiIFp6fNf2Gs',
+    y: 'UbJuPy2Xi0lW7UYTBxPK3yGgDu9EAKYIecjkHX5s2lI'
+  };
+
+  // Importing a public-only EC JWK as a private key should fail.
+  assert.throws(
+    () => createPrivateKey({
+      key: { kty: ecJwk.kty, crv: ecJwk.crv, x: ecJwk.x, y: ecJwk.y },
+      format: 'jwk',
+    }),
+    { code: 'ERR_CRYPTO_INVALID_JWK' }
+  );
+
+  // Importing an EC JWK with missing crv should fail.
+  assert.throws(
+    () => createPublicKey({
+      key: { kty: ecJwk.kty, x: ecJwk.x, y: ecJwk.y },
+      format: 'jwk',
+    }),
+    { code: 'ERR_CRYPTO_INVALID_JWK' }
+  );
+
+  // Importing an EC JWK with invalid crv should fail.
+  assert.throws(
+    () => createPublicKey({
+      key: { ...ecJwk, crv: 'invalid' },
+      format: 'jwk',
+    }),
+    { code: 'ERR_CRYPTO_INVALID_CURVE' }
+  );
+}
 
 {
   // Reading an encrypted key without a passphrase should fail.

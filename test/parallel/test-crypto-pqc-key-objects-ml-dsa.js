@@ -143,16 +143,17 @@ for (const [asymmetricKeyType, pubLen] of [
 
   if (hasOpenSSL(3, 5)) {
     assert.throws(() => createPrivateKey({ format, key: { ...jwk, alg: 'ml-dsa-44' } }),
-                  { code: 'ERR_INVALID_ARG_VALUE', message: /must be one of: 'ML-DSA-44', 'ML-DSA-65', 'ML-DSA-87'/ });
+                  { code: 'ERR_CRYPTO_INVALID_JWK' });
     assert.throws(() => createPrivateKey({ format, key: { ...jwk, alg: undefined } }),
-                  { code: 'ERR_INVALID_ARG_VALUE', message: /must be one of: 'ML-DSA-44', 'ML-DSA-65', 'ML-DSA-87'/ });
+                  { code: 'ERR_CRYPTO_INVALID_JWK' });
     assert.throws(() => createPrivateKey({ format, key: { ...jwk, pub: undefined } }),
-                  { code: 'ERR_INVALID_ARG_TYPE', message: /The "key\.pub" property must be of type string/ });
+                  { code: 'ERR_CRYPTO_INVALID_JWK' });
     assert.throws(() => createPrivateKey({ format, key: { ...jwk, priv: undefined } }),
-                  { code: 'ERR_INVALID_ARG_TYPE', message: /The "key\.priv" property must be of type string/ });
+                  { code: 'ERR_CRYPTO_INVALID_JWK', message: /JWK does not contain private key material/ });
     assert.throws(() => createPrivateKey({ format, key: { ...jwk, priv: Buffer.alloc(33).toString('base64url') } }),
                   { code: 'ERR_CRYPTO_INVALID_JWK' });
-    assert.throws(() => createPublicKey({ format, key: { ...jwk, pub: Buffer.alloc(1313).toString('base64url') } }),
+    // eslint-disable-next-line @stylistic/js/max-len
+    assert.throws(() => createPublicKey({ format, key: { kty: jwk.kty, alg: jwk.alg, pub: Buffer.alloc(1313).toString('base64url') } }),
                   { code: 'ERR_CRYPTO_INVALID_JWK' });
 
     assert.ok(createPrivateKey({ format, key: jwk }));
