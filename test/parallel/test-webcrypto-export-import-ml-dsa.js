@@ -315,7 +315,18 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
       { name },
       extractable,
       privateUsages),
-    { message: 'Invalid JWK' });
+    { message: 'Invalid keyData' });
+
+  const mismatchedPublicKey = Buffer.from(jwk.pub, 'base64url');
+  mismatchedPublicKey[0] ^= 0xff;
+  await assert.rejects(
+    subtle.importKey(
+      'jwk',
+      { ...jwk, pub: mismatchedPublicKey.toString('base64url') },
+      { name },
+      extractable,
+      privateUsages),
+    { name: 'DataError', message: 'Invalid keyData' });
 
   await assert.rejects(
     subtle.importKey(
