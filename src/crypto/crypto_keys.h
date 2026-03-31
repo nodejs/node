@@ -150,9 +150,6 @@ class KeyObjectHandle : public BaseObject {
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void Init(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void InitECRaw(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void InitEDRaw(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void InitJWK(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetKeyDetail(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Equals(const v8::FunctionCallbackInfo<v8::Value>& args);
 
@@ -176,8 +173,6 @@ class KeyObjectHandle : public BaseObject {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ExportECPrivateRaw(
       const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void InitECPrivateRaw(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void InitPqcRaw(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RawSeed(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   v8::MaybeLocal<v8::Value> ExportSecretKey() const;

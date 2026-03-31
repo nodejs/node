@@ -92,10 +92,7 @@ bool ExportJWKRsaKey(Environment* env,
                      const KeyObjectData& key,
                      v8::Local<v8::Object> target);
 
-KeyObjectData ImportJWKRsaKey(Environment* env,
-                              v8::Local<v8::Object> jwk,
-                              const v8::FunctionCallbackInfo<v8::Value>& args,
-                              unsigned int offset);
+KeyObjectData ImportJWKRsaKey(Environment* env, v8::Local<v8::Object> jwk);
 
 bool GetRsaKeyDetail(Environment* env,
                      const KeyObjectData& key,
