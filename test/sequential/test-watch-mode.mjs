@@ -943,4 +943,238 @@ process.on('message', (message) => {
       await done();
     }
   });
+
+  it('should watch changes to worker - cjs', async () => {
+    const dir = tmpdir.resolve(`watch-worker-cjs-${Date.now()}`);
+    mkdirSync(dir);
+
+    const worker = path.join(dir, 'worker.js');
+
+    writeFileSync(worker, `
+      console.log("worker running");
+    `);
+
+    const file = createTmpFile(`
+      const { Worker } = require('node:worker_threads');
+
+      const w = new Worker(${JSON.stringify(worker)});
+      w.on('exit', () => {
+        console.log('running');
+      });
+    `, '.js', dir);
+
+    const { stderr, stdout } = await runWriteSucceed({
+      file,
+      watchedFile: worker,
+    });
+
+    assert.strictEqual(stderr, '');
+    assert.deepStrictEqual(stdout, [
+      'worker running',
+      'running',
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      `Restarting ${inspect(file)}`,
+      'worker running',
+      'running',
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+    ]);
+  });
+
+  it('should watch changes to worker dependencies - cjs', async () => {
+    const dir = tmpdir.resolve(`watch-worker-dep-cjs-${Date.now()}`);
+    mkdirSync(dir);
+
+    const dep = path.join(dir, 'dep.js');
+    const worker = path.join(dir, 'worker.js');
+
+    writeFileSync(dep, `
+      module.exports = 'dep v1';
+    `);
+
+    writeFileSync(worker, `
+      const dep = require('./dep.js');
+      console.log(dep);
+    `);
+
+    const file = createTmpFile(`
+      const { Worker } = require('node:worker_threads');
+
+      const w = new Worker(${JSON.stringify(worker)});
+      w.on('exit', () => {
+        console.log('running');
+      });
+    `, '.js', dir);
+
+    const { stderr, stdout } = await runWriteSucceed({
+      file,
+      watchedFile: dep,
+    });
+
+    assert.strictEqual(stderr, '');
+    assert.deepStrictEqual(stdout, [
+      'dep v1',
+      'running',
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      `Restarting ${inspect(file)}`,
+      'dep v1',
+      'running',
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+    ]);
+  });
+
+  it('should watch changes to nested worker dependencies - cjs', async () => {
+    const dir = tmpdir.resolve(`watch-worker-dep-cjs-${Date.now()}`);
+    mkdirSync(dir);
+
+    const subDep = path.join(dir, 'sub-dep.js');
+    const dep = path.join(dir, 'dep.js');
+    const worker = path.join(dir, 'worker.js');
+
+    writeFileSync(subDep, `
+      module.exports = 'sub-dep v1';
+    `);
+
+    writeFileSync(dep, `
+      const subDep = require('./sub-dep.js');
+      console.log(subDep);
+      module.exports = 'dep v1';
+    `);
+
+    writeFileSync(worker, `
+      const dep = require('./dep.js');
+    `);
+
+    const file = createTmpFile(`
+      const { Worker } = require('node:worker_threads');
+
+      const w = new Worker(${JSON.stringify(worker)});
+      w.on('exit', () => {
+        console.log('running');
+      });
+    `, '.js', dir);
+
+    const { stderr, stdout } = await runWriteSucceed({
+      file,
+      watchedFile: subDep,
+    });
+
+    assert.strictEqual(stderr, '');
+    assert.deepStrictEqual(stdout, [
+      'sub-dep v1',
+      'running',
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      `Restarting ${inspect(file)}`,
+      'sub-dep v1',
+      'running',
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+    ]);
+  });
+ 
+  it('should watch changes to worker - esm', async () => {
+    const dir = tmpdir.resolve(`watch-worker-esm-${Date.now()}`);
+    mkdirSync(dir);
+
+    const worker = path.join(dir, 'worker.mjs');
+
+    writeFileSync(worker, `
+      console.log("worker running");
+    `);
+
+    const file = createTmpFile(`
+      import { Worker } from 'node:worker_threads';
+      new Worker(new URL(${JSON.stringify(pathToFileURL(worker))}));
+    `, '.mjs', dir);
+
+    const { stderr, stdout } = await runWriteSucceed({
+      file,
+      watchedFile: worker,
+    });
+
+    assert.strictEqual(stderr, '');
+    assert.deepStrictEqual(stdout, [
+      'worker running',
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      `Restarting ${inspect(file)}`,
+      'worker running',
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+    ]);
+  });
+  
+  it('should watch changes to worker dependencies - esm', async () => {
+    const dir = tmpdir.resolve(`watch-worker-dep-esm-${Date.now()}`);
+    mkdirSync(dir);
+
+    const dep = path.join(dir, 'dep.mjs');
+    const worker = path.join(dir, 'worker.mjs');
+
+    writeFileSync(dep, `
+      export default 'dep v1';
+    `);
+
+    writeFileSync(worker, `
+      import dep from ${JSON.stringify(pathToFileURL(dep))};
+      console.log(dep);
+    `);
+
+    const file = createTmpFile(`
+      import { Worker } from 'node:worker_threads';
+      new Worker(new URL(${JSON.stringify(pathToFileURL(worker))}));
+    `, '.mjs', dir);
+
+    const { stderr, stdout } = await runWriteSucceed({
+      file,
+      watchedFile: dep,
+    });
+
+    assert.strictEqual(stderr, '');
+    assert.deepStrictEqual(stdout, [
+      'dep v1',
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      `Restarting ${inspect(file)}`,
+      'dep v1',
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+    ]);
+  });
+
+  it('should watch changes to nested worker dependencies - esm', async () => {
+    const dir = tmpdir.resolve(`watch-worker-dep-esm-${Date.now()}`);
+    mkdirSync(dir);
+
+    const subDep = path.join(dir, 'sub-dep.mjs');
+    const dep = path.join(dir, 'dep.mjs');
+    const worker = path.join(dir, 'worker.mjs');
+
+    writeFileSync(subDep, `
+      export default 'sub-dep v1';
+    `);
+
+    writeFileSync(dep, `
+      import subDep from ${JSON.stringify(pathToFileURL(subDep))};
+      console.log(subDep);
+      export default 'dep v1';
+    `);
+
+    writeFileSync(worker, `
+      import dep from ${JSON.stringify(pathToFileURL(dep))};
+    `);
+
+    const file = createTmpFile(`
+      import { Worker } from 'node:worker_threads';
+      new Worker(new URL(${JSON.stringify(pathToFileURL(worker))}));
+    `, '.mjs', dir);
+
+    const { stderr, stdout } = await runWriteSucceed({
+      file,
+      watchedFile: subDep,
+    });
+
+    assert.strictEqual(stderr, '');
+    assert.deepStrictEqual(stdout, [
+      'sub-dep v1',
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      `Restarting ${inspect(file)}`,
+      'sub-dep v1',
+      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+    ]);
+  });
 });
