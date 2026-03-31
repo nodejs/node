@@ -82,6 +82,29 @@ console.log(query.all());
 // Prints: [ { key: 1, value: 'hello' }, { key: 2, value: 'world' } ]
 ```
 
+## Type conversion between JavaScript and SQLite
+
+When Node.js writes to or reads from SQLite, it is necessary to convert between
+JavaScript data types and SQLite's [data types][]. Because JavaScript supports
+more data types than SQLite, only a subset of JavaScript types are supported.
+Attempting to write an unsupported data type to SQLite will result in an
+exception.
+
+| Storage class | JavaScript to SQLite       | SQLite to JavaScript                  |
+| ------------- | -------------------------- | ------------------------------------- |
+| `NULL`        | {null}                     | {null}                                |
+| `INTEGER`     | {number} or {bigint}       | {number} or {bigint} _(configurable)_ |
+| `REAL`        | {number}                   | {number}                              |
+| `TEXT`        | {string}                   | {string}                              |
+| `BLOB`        | {TypedArray} or {DataView} | {Uint8Array}                          |
+
+APIs that read values from SQLite have a configuration option that determines
+whether `INTEGER` values are converted to `number` or `bigint` in JavaScript,
+such as the `readBigInts` option for statements and the `useBigIntArguments`
+option for user-defined functions. If Node.js reads an `INTEGER` value from
+SQLite that is outside the JavaScript [safe integer][] range, and the option to
+read BigInts is not enabled, then an `ERR_OUT_OF_RANGE` error will be thrown.
+
 ## Class: `DatabaseSync`
 
 <!-- YAML
@@ -1192,29 +1215,6 @@ added: v24.9.0
 -->
 
 Resets the LRU cache, clearing all stored prepared statements.
-
-### Type conversion between JavaScript and SQLite
-
-When Node.js writes to or reads from SQLite, it is necessary to convert between
-JavaScript data types and SQLite's [data types][]. Because JavaScript supports
-more data types than SQLite, only a subset of JavaScript types are supported.
-Attempting to write an unsupported data type to SQLite will result in an
-exception.
-
-| Storage class | JavaScript to SQLite       | SQLite to JavaScript                  |
-| ------------- | -------------------------- | ------------------------------------- |
-| `NULL`        | {null}                     | {null}                                |
-| `INTEGER`     | {number} or {bigint}       | {number} or {bigint} _(configurable)_ |
-| `REAL`        | {number}                   | {number}                              |
-| `TEXT`        | {string}                   | {string}                              |
-| `BLOB`        | {TypedArray} or {DataView} | {Uint8Array}                          |
-
-APIs that read values from SQLite have a configuration option that determines
-whether `INTEGER` values are converted to `number` or `bigint` in JavaScript,
-such as the `readBigInts` option for statements and the `useBigIntArguments`
-option for user-defined functions. If Node.js reads an `INTEGER` value from
-SQLite that is outside the JavaScript [safe integer][] range, and the option to
-read BigInts is not enabled, then an `ERR_OUT_OF_RANGE` error will be thrown.
 
 ## `sqlite.backup(sourceDb, path[, options])`
 
