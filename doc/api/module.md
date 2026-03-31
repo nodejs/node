@@ -178,12 +178,12 @@ isBuiltin('wss'); // false
 added:
   - v20.6.0
   - v18.19.0
-deprecated: REPLACEME
+deprecated: v26.0.0
 changes:
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/62401
     description: Runtime deprecation (DEP0205).
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/62395
     description: Documentation-only deprecation (DEP0205). Use
                  `module.registerHooks()` instead.
@@ -259,7 +259,7 @@ added:
   - v23.2.0
   - v22.13.0
 changes:
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/61803
     description: Removed `transform` and `sourceMap` options.
 -->
