@@ -3476,6 +3476,11 @@ readable.getReader().read().then((result) => {
 <!-- YAML
 added: v15.4.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62450
+    description: For web streams, `addAbortSignal()` now runs `cancel` steps on
+                 `ReadableStream`, and aborts `controller.signal` and runs
+                 `abort` steps on `WritableStream`.
   - version:
     - v19.7.0
     - v18.16.0
@@ -3493,7 +3498,10 @@ control stream destruction using an `AbortController`.
 
 Calling `abort` on the `AbortController` corresponding to the passed
 `AbortSignal` will behave the same way as calling `.destroy(new AbortError())`
-on the stream, and `controller.error(new AbortError())` for webstreams.
+on a Node.js stream. For web streams, it will error the stream with an
+`AbortError`. For `ReadableStream`, it will then run the stream's cancel steps.
+For `WritableStream`, it will abort `controller.signal` and then run the
+stream's abort steps.
 
 ```js
 const fs = require('node:fs');
