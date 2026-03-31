@@ -89,6 +89,7 @@ function verifyStatFsObject(stat, isBigint = false) {
   assert.strictEqual(typeof stat, 'object');
   assert.strictEqual(typeof stat.type, valueType);
   assert.strictEqual(typeof stat.bsize, valueType);
+  assert.strictEqual(typeof stat.frsize, valueType);
   assert.strictEqual(typeof stat.blocks, valueType);
   assert.strictEqual(typeof stat.bfree, valueType);
   assert.strictEqual(typeof stat.bavail, valueType);
