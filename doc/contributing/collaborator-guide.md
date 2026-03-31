@@ -390,8 +390,8 @@ undergo deprecation. The exceptions to this rule are:
 Experimental and undocumented APIs are not considered stable, therefore are
 typically removed without a deprecation cycle. However, if such API has gotten
 some non-trivial adoption in the ecosystem, it (or a subset of it) can undergo
-deprecation – at which point, changes to that API should follow
-[semantic versioning][] rules.
+deprecation – at which point, changes to that API (or at least, its deprecated
+subset) should follow [semantic versioning][] rules.
 
 For more information, see [Deprecations](#deprecations).
 
