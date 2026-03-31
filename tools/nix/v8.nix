@@ -5,9 +5,17 @@
   patchutils,
   validatePkgConfig,
   nodejs-slim_latest,
+  icu,
 
-  buildInputs ? [ ],
-  configureFlags ? [ ],
+  buildInputs ? [ icu ],
+  configureFlags ? [
+    (
+      if icu == null then
+        "--without-intl"
+      else
+        "--with-intl=${if builtins.isString icu then icu else "system"}-icu"
+    )
+  ],
 
   configureScript ? nodejs-slim_latest.configureScript,
   nativeBuildInputs ? nodejs-slim_latest.nativeBuildInputs,
@@ -41,29 +49,40 @@ stdenv.mkDerivation (finalAttrs: {
     in
     fileset.toSource {
       root = ../../.;
-      fileset = fileset.unions [
-        v8Dir
-        ../../common.gypi
-        ../../configure.py
-        ../../node.gyp
-        ../../node.gypi
-        ../../src/node_version.h
-        ../../tools/configure.d/nodedownload.py
-        ../../tools/getmoduleversion.py
-        ../../tools/getnapibuildversion.py
-        ../../tools/gyp_node.py
-        ../../tools/icu/icu_versions.json
-        ../../tools/icu/icu-system.gyp
-        ../../tools/utils.py
-        ../../tools/v8_gypfiles/abseil.gyp
-        ../../tools/v8_gypfiles/features.gypi
-        ../../tools/v8_gypfiles/ForEachFormat.py
-        ../../tools/v8_gypfiles/ForEachReplace.py
-        ../../tools/v8_gypfiles/GN-scraper.py
-        ../../tools/v8_gypfiles/inspector.gypi
-        ../../tools/v8_gypfiles/toolchain.gypi
-        ../../tools/v8_gypfiles/v8.gyp
-      ];
+      fileset = fileset.unions (
+        [
+          v8Dir
+          ../../common.gypi
+          ../../configure.py
+          ../../node.gyp
+          ../../node.gypi
+          ../../src/node_version.h
+          ../../tools/configure.d/nodedownload.py
+          ../../tools/getmoduleversion.py
+          ../../tools/getnapibuildversion.py
+          ../../tools/gyp_node.py
+          ../../tools/icu/icu_versions.json
+          ../../tools/icu/icu-system.gyp
+          ../../tools/utils.py
+          ../../tools/v8_gypfiles/abseil.gyp
+          ../../tools/v8_gypfiles/features.gypi
+          ../../tools/v8_gypfiles/ForEachFormat.py
+          ../../tools/v8_gypfiles/ForEachReplace.py
+          ../../tools/v8_gypfiles/GN-scraper.py
+          ../../tools/v8_gypfiles/inspector.gypi
+          ../../tools/v8_gypfiles/toolchain.gypi
+          ../../tools/v8_gypfiles/v8.gyp
+        ]
+        ++ lib.optionals (icu == "small") [
+          ../../deps/icu-small
+          ../../tools/icu/current_ver.dep
+          ../../tools/icu/icu_small.json
+          ../../tools/icu/icu-generic.gyp
+          ../../tools/icu/iculslocs.cc
+          ../../tools/icu/icutrim.py
+          ../../tools/icu/no-op.cc
+        ]
+      );
     };
 
   # We need to download and patch GYP to work from within Nix sandbox

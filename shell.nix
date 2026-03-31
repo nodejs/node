@@ -80,7 +80,7 @@ pkgs.mkShell {
           sharedLibsToMock = pkgs.callPackage ./tools/nix/non-v8-deps-mock.nix { };
         in
         pkgs.callPackage ./tools/nix/v8.nix {
-          inherit nativeBuildInputs;
+          inherit nativeBuildInputs icu;
 
           configureFlags = configureFlags ++ sharedLibsToMock.configureFlags ++ [ "--ninja" ];
           buildInputs = buildInputs ++ [ sharedLibsToMock ];
