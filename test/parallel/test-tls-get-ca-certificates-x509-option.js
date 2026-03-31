@@ -19,7 +19,7 @@ const expectedPems = tls.getCACertificates({ type: 'default', format: 'pem' });
     const expected = new X509Certificate(expectedPems[i]);
 
     assert.ok(cert instanceof X509Certificate);
-    
+  
     assert.strictEqual(cert.fingerprint, expected.fingerprint);
     assert.strictEqual(cert.serialNumber, expected.serialNumber);
     assert.strictEqual(cert.subject, expected.subject);
