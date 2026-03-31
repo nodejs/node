@@ -274,6 +274,9 @@ changes:
     **Default:** `true` (addresses are not reordered). Default value is
     configurable using [`dns.setDefaultResultOrder()`][] or
     [`--dns-result-order`][].
+  * `signal` {AbortSignal} An AbortSignal that may be used to cancel an
+    in-progress lookup. If the signal is aborted, the callback is called with
+    an `AbortError`.
 * `callback` {Function}
   * `err` {Error}
   * `address` {string} A string representation of an IPv4 or IPv6 address.
@@ -1125,6 +1128,9 @@ changes:
     expected to change in the not too distant future. Default value is
     configurable using [`dns.setDefaultResultOrder()`][] or
     [`--dns-result-order`][].
+  * `signal` {AbortSignal} An AbortSignal that may be used to cancel an
+    in-progress lookup. If the signal is aborted, the returned `Promise` is
+    rejected with an `AbortError`.
 
 Resolves a host name (e.g. `'nodejs.org'`) into the first found A (IPv4) or
 AAAA (IPv6) record. All `option` properties are optional. If `options` is an
