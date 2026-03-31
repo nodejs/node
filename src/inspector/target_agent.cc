@@ -8,10 +8,6 @@ namespace node {
 namespace inspector {
 namespace protocol {
 
-std::unordered_map<int, std::shared_ptr<MainThreadHandle>>
-    TargetAgent::target_session_id_worker_map_ =
-        std::unordered_map<int, std::shared_ptr<MainThreadHandle>>();
-int TargetAgent::next_session_id_ = 1;
 class WorkerTargetDelegate : public WorkerDelegate {
  public:
   explicit WorkerTargetDelegate(std::shared_ptr<TargetAgent> target_agent)
@@ -32,13 +28,14 @@ std::unique_ptr<Target::TargetInfo> createTargetInfo(
     const std::string_view target_id,
     const std::string_view type,
     const std::string_view title,
-    const std::string_view url) {
+    const std::string_view url,
+    bool attached = false) {
   return Target::TargetInfo::create()
       .setTargetId(std::string(target_id))
       .setType(std::string(type))
       .setTitle(std::string(title))
       .setUrl(std::string(url))
-      .setAttached(false)
+      .setAttached(attached)
       .setCanAccessOpener(true)
       .build();
 }
@@ -57,11 +54,11 @@ void TargetAgent::createAndAttachIfNecessary(
 
   targetCreated(target_id, type, title, url);
   bool attached = false;
-  if (auto_attach_) {
+  if (target_manager_->auto_attach()) {
     attached = true;
     attachedToTarget(worker, target_id, type, title, url);
   }
-  targets_.push_back({target_id, type, title, url, worker, attached});
+  target_manager_->AddTarget(worker, target_id, type, title, url, attached);
 }
 
 void TargetAgent::listenWorker(std::weak_ptr<WorkerManager> worker_manager) {
@@ -87,12 +84,26 @@ void TargetAgent::targetCreated(const std::string_view target_id,
   frontend_->targetCreated(createTargetInfo(target_id, type, title, url));
 }
 
+crdtp::DispatchResponse TargetAgent::getTargets(
+    std::unique_ptr<protocol::Array<Target::TargetInfo>>* out_targetInfos) {
+  auto target_infos = std::make_unique<protocol::Array<Target::TargetInfo>>();
+  for (const auto& target : target_manager_->GetTargetsSnapshot()) {
+    target_infos->push_back(createTargetInfo(target.target_id,
+                                             target.type,
+                                             target.title,
+                                             target.url,
+                                             target.attached));
+  }
+  *out_targetInfos = std::move(target_infos);
+  return DispatchResponse::Success();
+}
+
 int TargetAgent::getNextSessionId() {
-  return next_session_id_++;
+  return target_manager_->NextSessionId();
 }
 
 int TargetAgent::getNextTargetId() {
-  return next_target_id_++;
+  return target_manager_->NextTargetId();
 }
 
 void TargetAgent::attachedToTarget(std::shared_ptr<MainThreadHandle> worker,
@@ -101,7 +112,7 @@ void TargetAgent::attachedToTarget(std::shared_ptr<MainThreadHandle> worker,
                                    const std::string& title,
                                    const std::string& url) {
   int session_id = getNextSessionId();
-  target_session_id_worker_map_[session_id] = worker;
+  TargetManager::RegisterSessionWorker(session_id, worker);
   worker->SetTargetSessionId(session_id);
   frontend_->attachedToTarget(std::to_string(session_id),
                               createTargetInfo(target_id, type, title, url),
@@ -112,11 +123,10 @@ void TargetAgent::attachedToTarget(std::shared_ptr<MainThreadHandle> worker,
 // all threads. Modify it to be managed per worker thread.
 crdtp::DispatchResponse TargetAgent::setAutoAttach(
     bool auto_attach, bool wait_for_debugger_on_start) {
-  auto_attach_ = auto_attach;
-  wait_for_debugger_on_start_ = wait_for_debugger_on_start;
+  target_manager_->SetAutoAttach(auto_attach, wait_for_debugger_on_start);
 
   if (auto_attach) {
-    for (auto& target : targets_) {
+    for (auto& target : target_manager_->targets()) {
       if (!target.attached) {
         target.attached = true;
         attachedToTarget(target.worker,
