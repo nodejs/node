@@ -46,9 +46,7 @@ The stability indexes are as follows:
 >   we can know that this feature is ready to be marked as stable.
 >
 > Experimental features leave the experimental status typically either by
-> graduating to stable, or are removed without a deprecation cycle. In less
-> common cases, if the feature has gotten large adoption in the ecosystem,
-> they can also leave the experimental status by being deprecated.
+> graduating to stable, or are removed without a deprecation cycle.
 
 <!-- separator -->
 
