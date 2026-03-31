@@ -7,6 +7,7 @@
 namespace node {
 
 using ncrypto::DataPointer;
+using ncrypto::EVPKeyPointer;
 using v8::Local;
 using v8::Object;
 using v8::String;
@@ -79,6 +80,85 @@ bool ExportJwkMlDsaKey(Environment* env,
                 OneByteString(env->isolate(), alg))
           .IsNothing() ||
       !trySetKey(env, pkey.rawPublicKey(), target, env->jwk_pub_string()));
+}
+
+KeyObjectData ImportJWKAkpKey(Environment* env, Local<Object> jwk) {
+  Local<Value> alg_value;
+  Local<Value> pub_value;
+  Local<Value> priv_value;
+
+  if (!jwk->Get(env->context(), env->jwk_alg_string()).ToLocal(&alg_value) ||
+      !jwk->Get(env->context(), env->jwk_pub_string()).ToLocal(&pub_value) ||
+      !jwk->Get(env->context(), env->jwk_priv_string()).ToLocal(&priv_value)) {
+    return {};
+  }
+
+  static constexpr int kMlDsaIds[] = {
+      EVP_PKEY_ML_DSA_44, EVP_PKEY_ML_DSA_65, EVP_PKEY_ML_DSA_87};
+
+  Utf8Value alg(env->isolate(),
+                alg_value->IsString() ? alg_value.As<String>()
+                                      : String::Empty(env->isolate()));
+
+  int id = NID_undef;
+  for (int candidate : kMlDsaIds) {
+    if (strcmp(*alg, GetMlDsaAlgorithmName(candidate)) == 0) {
+      id = candidate;
+      break;
+    }
+  }
+
+  if (id == NID_undef) {
+    THROW_ERR_CRYPTO_INVALID_JWK(env, "Unsupported JWK AKP \"alg\"");
+    return {};
+  }
+
+  if (!pub_value->IsString() ||
+      (!priv_value->IsUndefined() && !priv_value->IsString())) {
+    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK AKP key");
+    return {};
+  }
+
+  KeyType type = priv_value->IsString() ? kKeyTypePrivate : kKeyTypePublic;
+
+  EVPKeyPointer pkey;
+  if (type == kKeyTypePrivate) {
+    ByteSource seed =
+        ByteSource::FromEncodedString(env, priv_value.As<String>());
+    pkey =
+        EVPKeyPointer::NewRawSeed(id,
+                                  ncrypto::Buffer<const unsigned char>{
+                                      .data = seed.data<const unsigned char>(),
+                                      .len = seed.size(),
+                                  });
+  } else {
+    ByteSource pub = ByteSource::FromEncodedString(env, pub_value.As<String>());
+    pkey =
+        EVPKeyPointer::NewRawPublic(id,
+                                    ncrypto::Buffer<const unsigned char>{
+                                        .data = pub.data<const unsigned char>(),
+                                        .len = pub.size(),
+                                    });
+  }
+
+  if (!pkey) {
+    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK AKP key");
+    return {};
+  }
+
+  // When importing a private key, verify that the JWK's pub field matches
+  // the public key derived from the seed.
+  if (type == kKeyTypePrivate && pub_value->IsString()) {
+    ByteSource pub = ByteSource::FromEncodedString(env, pub_value.As<String>());
+    auto derived_pub = pkey.rawPublicKey();
+    if (!derived_pub || derived_pub.size() != pub.size() ||
+        CRYPTO_memcmp(derived_pub.get(), pub.data(), pub.size()) != 0) {
+      THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK AKP key");
+      return {};
+    }
+  }
+
+  return KeyObjectData::CreateAsymmetric(type, std::move(pkey));
 }
 #endif
 }  // namespace crypto

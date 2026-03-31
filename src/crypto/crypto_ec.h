@@ -123,10 +123,9 @@ bool ExportJWKEdKey(Environment* env,
                     const KeyObjectData& key,
                     v8::Local<v8::Object> target);
 
-KeyObjectData ImportJWKEcKey(Environment* env,
-                             v8::Local<v8::Object> jwk,
-                             const v8::FunctionCallbackInfo<v8::Value>& args,
-                             unsigned int offset);
+KeyObjectData ImportJWKEdKey(Environment* env, v8::Local<v8::Object> jwk);
+
+KeyObjectData ImportJWKEcKey(Environment* env, v8::Local<v8::Object> jwk);
 
 bool GetEcKeyDetail(Environment* env,
                     const KeyObjectData& key,

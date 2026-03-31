@@ -318,10 +318,7 @@ bool ExportJWKRsaKey(Environment* env,
   return true;
 }
 
-KeyObjectData ImportJWKRsaKey(Environment* env,
-                              Local<Object> jwk,
-                              const FunctionCallbackInfo<Value>& args,
-                              unsigned int offset) {
+KeyObjectData ImportJWKRsaKey(Environment* env, Local<Object> jwk) {
   Local<Value> n_value;
   Local<Value> e_value;
   Local<Value> d_value;
@@ -392,6 +389,19 @@ KeyObjectData ImportJWKRsaKey(Environment* env,
 
     if (!rsa_view.setPrivateKey(
             d.ToBN(), q.ToBN(), p.ToBN(), dp.ToBN(), dq.ToBN(), qi.ToBN())) {
+      THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK RSA key");
+      return {};
+    }
+
+    // Verify that n == p * q.
+    const auto& pub = rsa_view.getPublicKey();
+    const auto& priv = rsa_view.getPrivateKey();
+    auto pq = BignumPointer::New();
+    BN_CTX* ctx = BN_CTX_new();
+    bool n_valid = ctx && pq && BN_mul(pq.get(), priv.p, priv.q, ctx) == 1 &&
+                   BN_cmp(pq.get(), pub.n) == 0;
+    BN_CTX_free(ctx);
+    if (!n_valid) {
       THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK RSA key");
       return {};
     }

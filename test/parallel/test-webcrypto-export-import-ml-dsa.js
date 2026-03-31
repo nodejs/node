@@ -320,7 +320,7 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
       { name },
       extractable,
       privateUsages),
-    { message: 'Invalid JWK' });
+    { message: 'Invalid keyData' });
 
   await assert.rejects(
     subtle.importKey(
