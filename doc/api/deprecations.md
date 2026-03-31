@@ -4417,6 +4417,28 @@ Type: Documentation-only
 Passing a non-extractable [`CryptoKey`][] to [`KeyObject.from()`][] is
 deprecated and will throw an error in a future version.
 
+### DEP0205: `module.register()`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62395
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+[`module.register()`][] is deprecated. Use [`module.registerHooks()`][]
+instead.
+
+The `module.register()` API provides off-thread async hooks for customizing ES modules;
+the `module.registerHooks()` API provides similar hooks that are synchronous, in-thread, and
+work for all types of modules.
+Supporting async hooks has proven to be complex, involving worker threads orchestration, and there are issues
+that have proven unresolveable. See [caveats of asynchronous customization hooks][]. Please migrate to
+`module.registerHooks()` as soon as possible as `module.register()` will be
+removed in a future version of Node.js.
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
@@ -4524,6 +4546,8 @@ deprecated and will throw an error in a future version.
 [`message.trailers`]: http.md#messagetrailers
 [`mock`]: test.md#mocking
 [`module.createRequire()`]: module.md#modulecreaterequirefilename
+[`module.register()`]: module.md#moduleregisterspecifier-parenturl-options
+[`module.registerHooks()`]: module.md#moduleregisterhooksoptions
 [`os.networkInterfaces()`]: os.md#osnetworkinterfaces
 [`os.tmpdir()`]: os.md#ostmpdir
 [`process.env`]: process.md#processenv
@@ -4577,6 +4601,7 @@ deprecated and will throw an error in a future version.
 [`zlib.bytesWritten`]: zlib.md#zlibbyteswritten
 [alloc]: buffer.md#static-method-bufferallocsize-fill-encoding
 [alloc_unsafe_size]: buffer.md#static-method-bufferallocunsafesize
+[caveats of asynchronous customization hooks]: module.md#caveats-of-asynchronous-customization-hooks
 [from_arraybuffer]: buffer.md#static-method-bufferfromarraybuffer-byteoffset-length
 [from_string_encoding]: buffer.md#static-method-bufferfromstring-encoding
 [legacy URL API]: url.md#legacy-url-api
