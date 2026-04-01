@@ -1899,6 +1899,8 @@ bool StoreIC::LookupForWrite(LookupIterator* it, DirectHandle<Object> value,
       case LookupIterator::NOT_FOUND:
         // If we are in StoreGlobal then check if we should throw on
         // non-existent properties.
+        // TODO(ishell): make store global ic kind reliable, currently it is
+        // not if the feedback vector is not available.
         if (IsStoreGlobalIC() &&
             (GetShouldThrow(it->isolate(), Nothing<ShouldThrow>()) ==
              ShouldThrow::kThrowOnError)) {
@@ -2170,6 +2172,8 @@ MaybeDirectHandle<Object> StoreIC::Store(Handle<JSAny> object,
                                 Nothing<ShouldThrow>(), store_origin));
     }
   } else {
+    // TODO(ishell): deduce should throw from IC kind once it's reliable,
+    // currently it is not if the feedback vector is not available.
     MAYBE_RETURN_NULL(Object::SetProperty(&it, value, store_origin));
   }
   return value;
@@ -2252,6 +2256,20 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
                                          isolate());
 
       if (lookup->HolderIsReceiverOrHiddenPrototype()) {
+        // TODO(ishell): make store global ic kind reliable, currently it is
+        // not if the feedback vector is not available.
+        if (IsStoreGlobalIC() &&
+            (GetShouldThrow(isolate(), Nothing<ShouldThrow>()) ==
+             ShouldThrow::kThrowOnError)) {
+          DCHECK(IsJSGlobalObject(*lookup->GetHolder<Object>()));
+          // This is a contextual store to an interceptor object. Use slow
+          // handler because before calling the setter callback we need to
+          // check whether the property exists. See
+          // https://tc39.es/ecma262/#sec-object-environment-records-setmutablebinding-n-v-s
+          Handle<Smi> smi_handler = StoreHandler::StoreSlow(isolate());
+          return MaybeObjectHandle(smi_handler);
+        }
+
         if (info->has_setter() && !IsAnyDefineOwn()) {
           TRACE_HANDLER_STATS(isolate(), StoreIC_StoreInterceptorDH);
           if (info->non_masking()) {

@@ -2385,6 +2385,28 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
 
       case LookupIterator::INTERCEPTOR: {
         if (it->HolderIsReceiverOrHiddenPrototype()) {
+          // In case we are executing contextual store to a global object with
+          // an interceptor in strict mode, we need to check that the property
+          // actually exists before calling the setter. See
+          // https://tc39.es/ecma262/#sec-object-environment-records-setmutablebinding-n-v-s
+          if (IsJSGlobalObject(*it->GetReceiver())) {
+            Isolate* isolate = it->isolate();
+            auto should_throw_value = GetShouldThrow(isolate, should_throw);
+            should_throw = Just(should_throw_value);
+            if (should_throw_value == kThrowOnError) {
+              Maybe<PropertyAttributes> maybe_attributes =
+                  JSObject::GetPropertyAttributesWithInterceptor(it);
+              if (maybe_attributes.IsNothing()) return Nothing<bool>();
+              if ((maybe_attributes.FromJust() & READ_ONLY) != 0) {
+                return WriteToReadOnlyProperty(it, value, should_throw);
+              }
+              if (maybe_attributes.FromJust() == ABSENT) {
+                // Interceptor doesn't have the property, continue lookup.
+                continue;
+              }
+            }
+          }
+
           InterceptorResult result;
           if (!JSObject::SetPropertyWithInterceptor(it, should_throw, value)
                    .To(&result)) {
