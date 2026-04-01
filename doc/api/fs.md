@@ -1609,7 +1609,7 @@ Both this function and the disposal function on the resulting object are
 async, so it should be used with `await` + `await using` as in
 `await using dir = await fsPromises.mkdtempDisposable('prefix')`.
 
-<!-- TODO: link MDN docs for disposables once https://github.com/mdn/content/pull/38027 lands -->
+For more information, see [MDN's documentation for Explicit Resource Management](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/using).
 
 For detailed information, see the documentation of [`fsPromises.mkdtemp()`][].
 
@@ -6259,7 +6259,7 @@ removed if it still exists. If the directory cannot be deleted, disposal will
 throw an error. The object has a `remove()` method which will perform the same
 task.
 
-<!-- TODO: link MDN docs for disposables once https://github.com/mdn/content/pull/38027 lands -->
+For more information, see [MDN's documentation for Explicit Resource Management](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/using).
 
 For detailed information, see the documentation of [`fs.mkdtemp()`][].
 
