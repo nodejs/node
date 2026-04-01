@@ -3119,6 +3119,15 @@ void WebAssemblyExceptionIsImpl(
   info.GetReturnValue().Set(tag_object->tag() == *tag);
 }
 
+void WebAssemblyExceptionGetStackImpl(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  WasmJSApiScope js_api_scope{info, "WebAssembly.Exception.stack()"};
+  auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
+  EXTRACT_THIS(exception, WasmExceptionPackage);
+
+  info.GetReturnValue().Set(v8::Undefined(isolate));
+}
+
 void WebAssemblyGlobalGetValueCommon(WasmJSApiScope& js_api_scope) {
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
   auto& info = js_api_scope.callback_info();  // Needed by EXTRACT_THIS.
@@ -3562,6 +3571,7 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
   {
     DirectHandle<JSFunction> exception_constructor = InstallConstructorFunc(
         isolate, webassembly, "Exception", wasm::WebAssemblyException);
+    exception_constructor->shared()->set_length(2);
     SetDummyInstanceTemplate(isolate, exception_constructor);
     DirectHandle<JSObject> exception_proto = SetupConstructor(
         isolate, exception_constructor, WASM_EXCEPTION_PACKAGE_TYPE,
@@ -3571,6 +3581,8 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
                 wasm::WebAssemblyExceptionGetArg, 2);
     InstallFunc(isolate, exception_proto, "is", wasm::WebAssemblyExceptionIs,
                 1);
+    InstallGetter(isolate, exception_proto, "stack",
+                  wasm::WebAssemblyExceptionGetStack);
     native_context->set_wasm_exception_constructor(*exception_constructor);
 
     DirectHandle<Map> initial_map(exception_constructor->initial_map(),
