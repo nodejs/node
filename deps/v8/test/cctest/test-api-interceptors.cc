@@ -199,13 +199,42 @@ v8::Intercepted GenericInterceptorGetter(
     Local<String> name = generic_name.As<String>();
     String::Utf8Value utf8(isolate, name);
     char* name_str = *utf8;
-    if (*name_str == '_') return v8::Intercepted::kNo;
+    if (*name_str != '$') return v8::Intercepted::kNo;
     str = String::Concat(isolate, v8_str("_str_"), name);
   }
 
   Local<Object> self = info.HolderV2();
   info.GetReturnValue().Set(
       self->Get(isolate->GetCurrentContext(), str).ToLocalChecked());
+  return v8::Intercepted::kYes;
+}
+
+v8::Intercepted GenericInterceptorQuery(
+    Local<Name> generic_name,
+    const v8::PropertyCallbackInfo<v8::Integer>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  Local<String> str;
+  if (generic_name->IsSymbol()) {
+    Local<Value> name = generic_name.As<Symbol>()->Description(isolate);
+    if (name->IsUndefined()) return v8::Intercepted::kNo;
+    str = String::Concat(isolate, v8_str("_sym_"), name.As<String>());
+  } else {
+    Local<String> name = generic_name.As<String>();
+    String::Utf8Value utf8(isolate, name);
+    char* name_str = *utf8;
+    if (*name_str != '$') return v8::Intercepted::kNo;
+    str = String::Concat(isolate, v8_str("_str_"), name);
+  }
+
+  Local<Object> self = info.HolderV2();
+  v8::PropertyAttribute attributes;
+  bool exists;
+  if (self->GetPropertyAttributes(isolate->GetCurrentContext(), str,
+                                  &attributes)
+          .To(&exists)) {
+    if (!exists) return v8::Intercepted::kNo;
+    info.GetReturnValue().Set(attributes);
+  }
   return v8::Intercepted::kYes;
 }
 
@@ -222,7 +251,7 @@ v8::Intercepted GenericInterceptorSetter(
     Local<String> name = generic_name.As<String>();
     String::Utf8Value utf8(info.GetIsolate(), name);
     char* name_str = *utf8;
-    if (*name_str == '_') return v8::Intercepted::kNo;
+    if (*name_str != '$') return v8::Intercepted::kNo;
     str = String::Concat(info.GetIsolate(), v8_str("_str_"), name);
   }
 
@@ -1632,9 +1661,9 @@ void InterceptorLoadICGlobalWithInterceptor(bool masking) {
   ExpectInt32(
       "(function() {"
       "  var f = function(obj) { "
-      "    return obj.foo;"
+      "    return obj.$foo;"
       "  };"
-      "  this._str_foo = 42;"
+      "  this._str_$foo = 42;"
       "  var obj = { __proto__: this };"
       "  for (var i = 0; i < 1500; i++) obj['p' + i] = 0;"
       "  /* Ensure that |obj| is in dictionary mode. */"
@@ -2061,6 +2090,138 @@ THREADED_TEST(EmptyInterceptorVsStoreGlobalICs) {
                      120);
 }
 
+namespace {
+
+void CheckGlobalInterceptorIC(v8::NamedPropertyGetterCallback getter,
+                              v8::NamedPropertySetterCallback setter,
+                              v8::NamedPropertyQueryCallback query,
+                              v8::PropertyHandlerFlags flags,
+                              const char* source, std::optional<int> expected) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::ObjectTemplate> templ_global = v8::ObjectTemplate::New(isolate);
+  v8::NamedPropertyHandlerConfiguration config(
+      getter, setter, query, nullptr /* deleter */, nullptr /* enumerator */,
+      nullptr /* definer */, nullptr /* descriptor */, {}, flags);
+  templ_global->SetHandler(config);
+
+  LocalContext context(nullptr, templ_global);
+  i::DirectHandle<i::JSReceiver> global_proxy =
+      v8::Utils::OpenDirectHandle<Object, i::JSReceiver>(context->Global());
+  CHECK(IsJSGlobalProxy(*global_proxy));
+  i::DirectHandle<i::JSGlobalObject> global(
+      i::Cast<i::JSGlobalObject>(global_proxy->map()->prototype()),
+      CcTest::i_isolate());
+  CHECK(global->map()->has_named_interceptor());
+
+  v8::Local<Value> value = CompileRun(source);
+  if (expected) {
+    CHECK_EQ(*expected, value->Int32Value(context.local()).FromJust());
+  } else {
+    CHECK(value.IsEmpty());
+  }
+}
+
+void StoreGlobalICWithGlobalInterceptor(bool masking) {
+  v8::PropertyHandlerFlags flags = v8::PropertyHandlerFlags::kNone;
+  if (!masking) {
+    flags = v8::PropertyHandlerFlags::kNonMasking;
+  }
+
+  // In sloppy mode storing to global must succeed.
+  CheckGlobalInterceptorIC(      //
+      GenericInterceptorGetter,  //
+      GenericInterceptorSetter,  //
+      GenericInterceptorQuery,   //
+      flags,                     //
+      R"(
+        // Make interceptor behave like it has a read-only property "$y".
+        Object.defineProperty(globalThis, '_str_$y',
+                              {value: 153, writable: false});
+
+        let result = 0;
+
+        result += (typeof($x) === 'undefined' ? 0 : 10000);
+        result += ($y === 153                 ? 0 : 10000);
+
+        for (var i = 0; i < 20; i++) {
+          try {
+            $x = i;  // not intercepted, absent variable
+            result++;
+          } catch (e) {
+          }
+        }
+        for (var i = 0; i < 20; i++) {
+          try {
+            $y = i;  // intercepted, read only property
+            result++;
+          } catch (e) {
+          }
+        }
+
+        // Check contextual stores succeeded.
+        result += ($x === 19  ? 0 : 100);
+        result += ($y === 153 ? 0 : 1000);
+
+        result
+      )",
+      40);
+
+  // In strict mode storing to global must throw.
+  CheckGlobalInterceptorIC(      //
+      GenericInterceptorGetter,  //
+      GenericInterceptorSetter,  //
+      GenericInterceptorQuery,   //
+      flags,
+      R"(
+        'use strict';
+
+        // Make interceptor behave like it has a read-only property "$y".
+        Object.defineProperty(globalThis, '_str_$y',
+                              {value: 153, writable: false});
+
+        let result = 0;
+
+        result += (typeof($x) === 'undefined' ? 0 : 10000);
+        result += ($y === 153                 ? 0 : 10000);
+
+        for (var i = 0; i < 20; i++) {
+          try {
+            $x = i;  // not intercepted, absent variable
+          } catch (e) {
+            result++;
+          }
+        }
+        for (var i = 0; i < 20; i++) {
+          try {
+            $y = i;  // intercepted, read only property
+          } catch (e) {
+            result++;
+          }
+        }
+
+        // Check contextual stores did not happen.
+        result += (typeof($x) === 'undefined' ? 0 : 100);
+        result += ($y === 153                 ? 0 : 1000);
+
+        result
+      )",
+      40);
+}
+
+}  // namespace
+
+// Checks correctness of global objects with interceptor vs contextual stores.
+THREADED_TEST(StoreGlobalICWithGlobalNonMaskingInterceptor) {
+  const bool masking = false;
+  StoreGlobalICWithGlobalInterceptor(masking);
+}
+
+THREADED_TEST(StoreGlobalICWithGlobalMaskingInterceptor) {
+  const bool masking = true;
+  StoreGlobalICWithGlobalInterceptor(masking);
+}
+
 THREADED_TEST(LegacyInterceptorDoesNotSeeSymbols) {
   LocalContext env;
   v8::Isolate* isolate = CcTest::isolate();
@@ -2113,9 +2274,9 @@ THREADED_TEST(GenericInterceptorDoesSeeSymbols) {
   ExpectInt32("child._sym_age", 10);
 
   // Check that it also sees strings.
-  CompileRun("child.foo = 47");
-  ExpectInt32("child.foo", 47);
-  ExpectInt32("child._str_foo", 47);
+  CompileRun("child.$foo = 47");
+  ExpectInt32("child.$foo", 47);
+  ExpectInt32("child._str_$foo", 47);
 
   // Check that the interceptor can punt (in this case, on anonymous symbols).
   CompileRun("child[anon] = 31337");

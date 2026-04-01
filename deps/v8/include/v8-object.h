@@ -336,9 +336,24 @@ class V8_EXPORT Object : public Value {
    * Gets the property attributes of a property which can be None or
    * any combination of ReadOnly, DontEnum and DontDelete. Returns
    * None when the property doesn't exist.
+   *
+   * This method will be deprecated soon, since it doesn't provide a way
+   * to return "property does not exist" result. Use GetPropertyAttributes with
+   * PropertyAttribute* instead.
    */
   V8_WARN_UNUSED_RESULT Maybe<PropertyAttribute> GetPropertyAttributes(
       Local<Context> context, Local<Value> key);
+  /**
+   * Gets the property attributes of a property which can be None or
+   * any combination of ReadOnly, DontEnum and DontDelete.
+   *
+   * Returns true and sets *out_attributes if the property exists, false if
+   * not or empty Maybe if an exception is thrown. In the latter two cases,
+   * the value of *out_attributes is not modified.
+   */
+  V8_WARN_UNUSED_RESULT Maybe<bool> GetPropertyAttributes(
+      Local<Context> context, Local<Value> key,
+      PropertyAttribute* out_attributes);
 
   /**
    * Implements Object.getOwnPropertyDescriptor(O, P), see
