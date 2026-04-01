@@ -181,6 +181,9 @@ added:
 deprecated: REPLACEME
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62401
+    description: Runtime deprecation (DEP0205).
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/62395
     description: Documentation-only deprecation (DEP0205). Use
                  `module.registerHooks()` instead.
