@@ -44,11 +44,9 @@ describe('synchronous ESM loading', () => {
 
 async function getPromiseCount(entry) {
   const { stdout, stderr, code } = await spawnPromisified(process.execPath, [
-    '--require', fixtures.path('es-modules', 'promise-counter.cjs'),
+    '--trace-promises',
     entry,
   ]);
   assert.strictEqual(code, 0, `child failed:\nstdout: ${stdout}\nstderr: ${stderr}`);
-  const match = stdout.match(/PROMISE_COUNT=(\d+)/);
-  assert(match, `Expected PROMISE_COUNT in output, got: ${stdout}`);
-  return Number(match[1]);
+  return stderr.match(/created promise #/g)?.length ?? 0;
 }
