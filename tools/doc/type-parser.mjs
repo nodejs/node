@@ -252,6 +252,8 @@ const customTypesMap = {
   'Timer': 'timers.html#timers',
 
   'TestsStream': 'test.html#class-testsstream',
+  'TestContext': 'test.html#class-testcontext',
+  'SuiteContext': 'test.html#class-suitecontext',
 
   'tls.SecureContext': 'tls.html#tlscreatesecurecontextoptions',
   'tls.Server': 'tls.html#class-tlsserver',
