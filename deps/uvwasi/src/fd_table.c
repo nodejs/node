@@ -83,6 +83,12 @@ uvwasi_errno_t uvwasi_fd_table_insert(uvwasi_t* uvwasi,
   if (type != UVWASI_FILETYPE_SOCKET_STREAM) {
     mp_len = strlen(mapped_path);
     rp_len = strlen(real_path);
+    /* Validate path lengths to prevent integer overflow in the allocation
+       size calculation below and to bound the memcpy operations. WASI paths
+       are limited to 65535 bytes, which is far beyond any practical path
+       length and safely avoids overflow in: mp_len + mp_len + rp_len + 3. */
+    if (mp_len > 65535 || rp_len > 65535)
+      return UVWASI_ENAMETOOLONG;
   } else {
     mp_len = 0;
     rp_len = 0;
