@@ -789,12 +789,15 @@ void TransitionArray::ForEachTransitionTo(
   }
 }
 
-void TransitionArray::Sort() {
+void TransitionArray::Sort(bool force) {
   DisallowGarbageCollection no_gc;
   // In-place insertion sort.
   int length = number_of_transitions();
-  // Sorting matters only for binary search.
-  if (length <= kMaxElementsForLinearSearch) return;
+  // After rehashing, the arrays are no longer in hash-sorted order.
+  // In this case, we need to force a re-sort even for small arrays,
+  // so that subsequent linear searches can find the correct transition
+  // and avoid inserting duplicates.
+  if (!force && length <= kMaxElementsForLinearSearch) return;
 
   ReadOnlyRoots roots = GetReadOnlyRoots();
   for (int i = 1; i < length; i++) {
