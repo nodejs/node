@@ -83,6 +83,6 @@ Node.js values concise, precise communication that respects collaborator and con
 * Grammar and spell-check tools are acceptable when they improve clarity and
   conciseness.
 
-[commit message guidelines]: ./pull-requests.md#commit-message-guidelines
 [Developer's Certificate of Origin]: ../../CONTRIBUTING.md#developers-certificate-of-origin-11
+[commit message guidelines]: ./pull-requests.md#commit-message-guidelines
 [OpenJS Foundation AI Coding Assistants Policy]: https://openjsf.cdn.prismic.io/openjsf/aca4d5GXnQHGZDiZ_OpenJS_AI_Coding_Assistants_Policy.pdf
