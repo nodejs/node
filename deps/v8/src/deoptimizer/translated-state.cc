@@ -1875,9 +1875,30 @@ Address TranslatedState::DecompressIfNeeded(intptr_t value) {
       static_cast<uintptr_t>(value) <= std::numeric_limits<uint32_t>::max()) {
 #endif
     return V8HeapCompressionScheme::DecompressTagged(
-        isolate(), static_cast<uint32_t>(value));
+        V8HeapCompressionScheme::base(), static_cast<uint32_t>(value));
   } else {
     return value;
+  }
+}
+
+// static
+Tagged<Object> TranslatedState::ResolveTaggedValue(
+    DeoptTranslationIterator* it, Address fp,
+    Tagged<DeoptimizationLiteralArray> literals) {
+  TranslationOpcode opcode = it->NextOpcode();
+  switch (opcode) {
+    case TranslationOpcode::LITERAL: {
+      int literal_index = it->NextOperand();
+      return literals->get(literal_index);
+    }
+    case TranslationOpcode::TAGGED_STACK_SLOT: {
+      int slot_offset =
+          OptimizedJSFrame::StackSlotOffsetRelativeToFp(it->NextOperand());
+      intptr_t value = *reinterpret_cast<intptr_t*>(fp + slot_offset);
+      return Tagged<Object>(DecompressIfNeeded(value));
+    }
+    default:
+      UNREACHABLE();
   }
 }
 
