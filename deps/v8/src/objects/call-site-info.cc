@@ -7,7 +7,9 @@
 #include <optional>
 
 #include "src/base/strings.h"
+#include "src/builtins/builtins.h"
 #include "src/objects/call-site-info-inl.h"
+#include "src/objects/code-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/strings/string-builder-inl.h"
 
@@ -45,6 +47,41 @@ DirectHandle<CallSiteInfo> CallSiteInfo::ConstructFromRawData(
   return isolate->factory()->NewCallSiteInfo(
       Cast<JSAny>(receiver), Cast<UnionOf<Smi, JSFunction>>(function),
       resolved_code, offset, flags, isolate->factory()->empty_fixed_array());
+}
+
+// static
+Handle<FixedArray> CallSiteInfo::ExpandDeferredFrames(
+    Isolate* isolate, Handle<FixedArray> raw_data) {
+  int entry_count = raw_data->length() / Fields::kCount;
+
+  // Resolve deferred baseline frames in-place (PC offset → bytecode offset).
+  for (int i = 0; i < entry_count; i++) {
+    int base = i * Fields::kCount;
+    int flags = Smi::ToInt(raw_data->get(base + Fields::kFlags));
+
+    if (flags & kIsDeferredBaselineFrame) {
+      // Resolve the bytecode offset from the raw PC offset.
+      Tagged<Object> code_obj = raw_data->get(base + Fields::kCode);
+      CHECK(IsCodeWrapper(code_obj));
+      Tagged<Code> code = Cast<CodeWrapper>(code_obj)->code(isolate);
+      int pc_offset = Smi::ToInt(raw_data->get(base + Fields::kOffset));
+      Tagged<BytecodeArray> bytecode_array =
+          Cast<JSFunction>(raw_data->get(base + Fields::kFunction))
+              ->shared()
+              ->GetBytecodeArray(isolate);
+      int bytecode_offset = code->GetBytecodeOffsetForBaselinePC(
+          code->instruction_start() + pc_offset, bytecode_array);
+
+      raw_data->set(base + Fields::kCode, bytecode_array->wrapper());
+      raw_data->set(base + Fields::kOffset, Smi::FromInt(bytecode_offset));
+
+      // Strip deferred flags.
+      int clean_flags = flags & ~kDeferredFlagsMask;
+      raw_data->set(base + Fields::kFlags, Smi::FromInt(clean_flags));
+    }
+  }
+
+  return raw_data;
 }
 
 bool CallSiteInfo::IsPromiseAll() const {

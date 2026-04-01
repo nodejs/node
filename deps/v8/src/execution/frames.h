@@ -1169,6 +1169,11 @@ class OptimizedJSFrame : public JavaScriptFrame {
   Tagged<DeoptimizationData> GetDeoptimizationData(Tagged<Code> code,
                                                    int* deopt_index) const;
 
+  // Like GetDeoptimizationData, but takes an explicit PC instead of reading
+  // it from the frame.  Can be used without a live frame.
+  static Tagged<DeoptimizationData> GetDeoptimizationDataForPC(
+      Isolate* isolate, Tagged<Code> code, Address pc, int* deopt_index);
+
   static int StackSlotOffsetRelativeToFp(int slot_index);
 
   // Lookup exception handler for current {pc}, returns -1 if none found.
@@ -1177,6 +1182,13 @@ class OptimizedJSFrame : public JavaScriptFrame {
 
   virtual int FindReturnPCForTrampoline(Tagged<Code> code,
                                         int trampoline_pc) const = 0;
+
+ private:
+  // Full TranslatedState-based walk, used as fallback when the lightweight
+  // path in Summarize() encounters frames it cannot handle (e.g.
+  // wasm-inlined-into-JS frames).
+  FrameSummaries SummarizeFull(Tagged<DeoptimizationData> data, int deopt_index,
+                               bool never_allocate) const;
 
  protected:
   inline explicit OptimizedJSFrame(StackFrameIteratorBase* iterator);

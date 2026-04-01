@@ -1889,6 +1889,27 @@ Address TranslatedState::DecompressIfNeeded(intptr_t value) {
   }
 }
 
+// static
+Tagged<Object> TranslatedState::ResolveTaggedValue(
+    DeoptTranslationIterator* it, Address fp,
+    Tagged<DeoptimizationLiteralArray> literals) {
+  TranslationOpcode opcode = it->NextOpcode();
+  switch (opcode) {
+    case TranslationOpcode::LITERAL: {
+      int literal_index = it->NextOperand();
+      return literals->get(literal_index);
+    }
+    case TranslationOpcode::TAGGED_STACK_SLOT: {
+      int slot_offset =
+          OptimizedJSFrame::StackSlotOffsetRelativeToFp(it->NextOperand());
+      intptr_t value = *reinterpret_cast<intptr_t*>(fp + slot_offset);
+      return Tagged<Object>(DecompressIfNeeded(value));
+    }
+    default:
+      UNREACHABLE();
+  }
+}
+
 TranslatedState::TranslatedState(const JavaScriptFrame* frame)
     : purpose_(kFrameInspection) {
   int deopt_index = SafepointEntry::kNoDeoptIndex;
