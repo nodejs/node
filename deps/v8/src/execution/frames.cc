@@ -3179,7 +3179,109 @@ FrameSummaries OptimizedJSFrame::Summarize(bool never_allocate) const {
         "Missing deoptimization information for OptimizedJSFrame::Summarize.");
   }
 
-  // Prepare iteration over translation. We must not materialize values here
+  // Lightweight walk: iterate frame headers only, resolving just the
+  // function and receiver from the live frame via ResolveTaggedValue.
+  // This avoids the expensive TranslatedState::Init + Prepare path that
+  // would parse every value in every inlined frame.
+
+  Tagged<DeoptimizationLiteralArray> literal_array = data->LiteralArray();
+
+  // Lightweight walk: resolve function and receiver from live frame headers
+  // and build JavaScriptFrameSummary objects directly.
+  bool needs_full_walk = false;
+  {
+    DisallowGarbageCollection no_gc;
+    DeoptimizationFrameTranslation::Iterator it(
+        data->FrameTranslation(), data->TranslationIndex(deopt_index).value());
+    bool is_constructor = IsConstructor();
+    int remaining = it.EnterBeginOpcode().total_frame_count;
+
+    while (remaining > 0) {
+      TranslationOpcode opcode = it.SeekNextFrame();
+      remaining--;
+
+      if (opcode == TranslationOpcode::CONSTRUCT_CREATE_STUB_FRAME ||
+          opcode == TranslationOpcode::CONSTRUCT_INVOKE_STUB_FRAME) {
+        is_constructor = true;
+        it.SkipOperands(TranslationOpcodeOperandCount(opcode));
+        continue;
+      }
+
+      if (!IsTranslationJsFrameOpcode(opcode)) {
+#if V8_ENABLE_WEBASSEMBLY
+        // Wasm-inlined-into-JS frames need the full TranslatedState
+        // machinery to produce WasmFrameSummary entries.
+        if (opcode == TranslationOpcode::WASM_INLINED_INTO_JS_FRAME) {
+          needs_full_walk = true;
+          break;
+        }
+#endif
+        it.SkipOperands(TranslationOpcodeOperandCount(opcode));
+        continue;
+      }
+
+      bool is_builtin_cont =
+          (opcode == TranslationOpcode::JAVASCRIPT_BUILTIN_CONTINUATION_FRAME ||
+           opcode == TranslationOpcode::
+                         JAVASCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME);
+
+      int bytecode_offset = it.NextOperand();
+      int sfi_id = it.NextOperand();
+      Tagged<SharedFunctionInfo> sfi =
+          Cast<SharedFunctionInfo>(literal_array->get(sfi_id));
+
+      // Skip remaining header operands to reach the values.
+      it.SkipOperands(TranslationOpcodeOperandCount(opcode) - 2);
+
+      // Resolve closure and receiver from the live frame.  Both are always
+      // encoded as LITERAL or TAGGED_STACK_SLOT in the deopt translation.
+      Tagged<Object> function_obj =
+          TranslatedState::ResolveTaggedValue(&it, fp(), literal_array);
+      DCHECK(IsJSFunction(function_obj));
+      Tagged<Object> receiver_obj =
+          TranslatedState::ResolveTaggedValue(&it, fp(), literal_array);
+
+      Tagged<AbstractCode> abstract_code;
+      int code_offset;
+      if (is_builtin_cont) {
+        code_offset = 0;
+        abstract_code = Cast<AbstractCode>(
+            isolate()->builtins()->code(Builtins::GetBuiltinFromBytecodeOffset(
+                BytecodeOffset(bytecode_offset))));
+      } else {
+        code_offset = bytecode_offset;
+        abstract_code = Cast<AbstractCode>(sfi->GetBytecodeArray(isolate()));
+      }
+
+      DirectHandle<FixedArray> params = GetParameters(never_allocate);
+      FrameSummary::JavaScriptFrameSummary summary(
+          isolate(), receiver_obj, Cast<JSFunction>(function_obj),
+          abstract_code, code_offset, is_constructor, *params);
+      summaries.frames.push_back(summary);
+      is_constructor = false;
+    }
+
+    if (!needs_full_walk && is_constructor) {
+      summaries.top_frame_is_construct_call = true;
+    }
+  }  // no_gc scope ends.
+
+  if (needs_full_walk) {
+    return SummarizeFull(data, deopt_index, never_allocate);
+  }
+
+  return summaries;
+}
+
+FrameSummaries OptimizedJSFrame::SummarizeFull(Tagged<DeoptimizationData> data,
+                                               int deopt_index,
+                                               bool never_allocate) const {
+  FrameSummaries summaries;
+
+  DCHECK_NE(deopt_index, SafepointEntry::kNoDeoptIndex);
+  DCHECK(!data.is_null());
+
+  // Prepare iteration over translation.  We must not materialize values here
   // because we do not deoptimize the function.
   TranslatedState translated(this);
   translated.Prepare(fp());
@@ -3204,7 +3306,21 @@ FrameSummaries OptimizedJSFrame::Summarize(bool never_allocate) const {
       // Get the correct receiver in the optimized frame.
       static_assert(TranslatedFrame::kReceiverIsFirstParameterInJSFrames);
       CHECK(!translated_values->IsMaterializedObject());
-      DirectHandle<Object> receiver = translated_values->GetValue();
+      // Check GetRawValue() against arguments_marker() first to see whether
+      // calling GetValue() allocates.
+      Tagged<Object> receiver_obj = translated_values->GetRawValue();
+      DirectHandle<Object> receiver;
+      if (receiver_obj == ReadOnlyRoots(isolate()).arguments_marker() &&
+          never_allocate) {
+        // Calling GetValue() would definitely trigger allocation but with
+        // `never_allocate` allocations are not allowed. Simply pick `undefined`
+        // as receiver instead even though it is off. `never_allocate` is
+        // currently only used for OOM stacks, where we don't even emit the
+        // receiver but want to see as many stack frames as possible.
+        receiver = isolate()->factory()->undefined_value();
+      } else {
+        receiver = translated_values->GetValue();
+      }
       translated_values++;
 
       // Determine the underlying code object and the position within it from
@@ -3311,24 +3427,20 @@ int TurbofanJSFrame::FindReturnPCForTrampoline(Tagged<Code> code,
   return safepoints.find_return_pc(trampoline_pc);
 }
 
-Tagged<DeoptimizationData> OptimizedJSFrame::GetDeoptimizationData(
-    Tagged<Code> code, int* deopt_index) const {
-  DCHECK(is_optimized());
-
-  Address pc = maybe_unauthenticated_pc();
-
-  DCHECK(code->contains(isolate(), pc));
+// static
+Tagged<DeoptimizationData> OptimizedJSFrame::GetDeoptimizationDataForPC(
+    Isolate* isolate, Tagged<Code> code, Address pc, int* deopt_index) {
+  DCHECK(code->contains(isolate, pc));
   DCHECK(CodeKindCanDeoptimize(code->kind()));
-
   if (code->is_maglevved()) {
     MaglevSafepointEntry safepoint_entry =
-        code->GetMaglevSafepointEntry(isolate(), pc);
+        code->GetMaglevSafepointEntry(isolate, pc);
     if (safepoint_entry.has_deoptimization_index()) {
       *deopt_index = safepoint_entry.deoptimization_index();
       return code->deoptimization_data();
     }
   } else {
-    SafepointEntry safepoint_entry = code->GetSafepointEntry(isolate(), pc);
+    SafepointEntry safepoint_entry = code->GetSafepointEntry(isolate, pc);
     if (safepoint_entry.has_deoptimization_index()) {
       *deopt_index = safepoint_entry.deoptimization_index();
       return code->deoptimization_data();
@@ -3336,6 +3448,14 @@ Tagged<DeoptimizationData> OptimizedJSFrame::GetDeoptimizationData(
   }
   *deopt_index = SafepointEntry::kNoDeoptIndex;
   return {};
+}
+
+Tagged<DeoptimizationData> OptimizedJSFrame::GetDeoptimizationData(
+    Tagged<Code> code, int* deopt_index) const {
+  DCHECK(is_optimized());
+  Address pc = maybe_unauthenticated_pc();
+  DCHECK(code->contains(isolate(), pc));
+  return GetDeoptimizationDataForPC(isolate(), code, pc, deopt_index);
 }
 
 void OptimizedJSFrame::GetFunctions(

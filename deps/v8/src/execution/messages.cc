@@ -1168,13 +1168,13 @@ MaybeDirectHandle<Object> ErrorUtils::GetFormattedStack(
 
     DirectHandle<JSObject> error_object =
         lookup.error_stack_symbol_holder.ToHandleChecked();
+    Handle<FixedArray> expanded = CallSiteInfo::ExpandDeferredFrames(
+        isolate,
+        handle(error_stack_data->raw_data_for_call_site_infos(), isolate));
     DirectHandle<Object> formatted_stack;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, formatted_stack,
-        FormatStackTrace(
-            isolate, error_object,
-            direct_handle(error_stack_data->raw_data_for_call_site_infos(),
-                          isolate)));
+        FormatStackTrace(isolate, error_object, expanded));
     error_stack_data->set_formatted_stack(*formatted_stack);
     return formatted_stack;
   }
@@ -1182,11 +1182,12 @@ MaybeDirectHandle<Object> ErrorUtils::GetFormattedStack(
   if (IsFixedArray(*lookup.error_stack)) {
     DirectHandle<JSObject> error_object =
         lookup.error_stack_symbol_holder.ToHandleChecked();
+    Handle<FixedArray> expanded = CallSiteInfo::ExpandDeferredFrames(
+        isolate, handle(Cast<FixedArray>(*lookup.error_stack), isolate));
     DirectHandle<Object> formatted_stack;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, formatted_stack,
-        FormatStackTrace(isolate, error_object,
-                         Cast<FixedArray>(lookup.error_stack)));
+        FormatStackTrace(isolate, error_object, expanded));
     RETURN_ON_EXCEPTION(
         isolate, Object::SetProperty(isolate, error_object,
                                      isolate->factory()->error_stack_symbol(),
