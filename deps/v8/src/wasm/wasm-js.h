@@ -33,6 +33,7 @@ V8_EXPORT_PRIVATE std::unique_ptr<WasmStreaming> StartStreamingForTesting(
   V(WebAssemblyCompile)                    \
   V(WebAssemblyException)                  \
   V(WebAssemblyExceptionGetArg)            \
+  V(WebAssemblyExceptionGetStack)          \
   V(WebAssemblyExceptionIs)                \
   V(WebAssemblyGlobal)                     \
   V(WebAssemblyGlobalGetValue)             \
