@@ -4752,6 +4752,16 @@ MaybeLocal<Value> v8::Object::GetPrivate(Local<Context> context,
 
 Maybe<PropertyAttribute> v8::Object::GetPropertyAttributes(
     Local<Context> context, Local<Value> key) {
+  PropertyAttribute attributes = PropertyAttribute::None;
+  auto result = GetPropertyAttributes(context, key, &attributes);
+  if (result.IsNothing()) return {};
+  // This will confusingly return None when the property doesn't exist.
+  return Just(attributes);
+}
+
+Maybe<bool> v8::Object::GetPropertyAttributes(
+    Local<Context> context, Local<Value> key,
+    PropertyAttribute* out_attributes) {
   auto i_isolate = i::Isolate::Current();
   EnterV8Scope<> api_scope{i_isolate, context,
                            RCCId::kAPI_Object_GetPropertyAttributes};
@@ -4764,9 +4774,10 @@ Maybe<PropertyAttribute> v8::Object::GetPropertyAttributes(
   auto result = i::JSReceiver::GetPropertyAttributes(i_isolate, self, key_name);
   if (result.IsNothing()) return {};
   if (result.FromJust() == i::ABSENT) {
-    return Just(static_cast<PropertyAttribute>(i::NONE));
+    return Just(false);
   }
-  return Just(static_cast<PropertyAttribute>(result.FromJust()));
+  *out_attributes = static_cast<PropertyAttribute>(result.FromJust());
+  return Just(true);
 }
 
 MaybeLocal<Value> v8::Object::GetOwnPropertyDescriptor(Local<Context> context,
