@@ -341,7 +341,7 @@ class TransitionArray : public WeakFixedArray {
   V8_EXPORT_PRIVATE bool IsSortedNoDuplicates();
 #endif
 
-  V8_EXPORT_PRIVATE void Sort();
+  V8_EXPORT_PRIVATE void Sort(bool force = false);
 
   void PrintInternal(std::ostream& os);
 
