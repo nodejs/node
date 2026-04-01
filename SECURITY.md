@@ -152,27 +152,32 @@ does not trust is considered a vulnerability:
   the correct use of Node.js APIs.
 * The unavailability of the runtime, including the unbounded degradation of its
   performance.
-* Memory leaks qualify as vulnerabilities when all of the following criteria are met:
-  * The API is being correctly used.
-  * The API doesn't have a warning against its usage in a production environment.
-  * The API is public and documented.
-  * The API is on stable (2.0) status.
-  * The memory leak is significant enough to cause a denial of service quickly
-    or in a context not controlled by the user (for example, HTTP parsing).
-  * The memory leak is directly exploitable by an untrusted source without requiring application mistakes.
-  * The leak cannot be reasonably mitigated through standard operational practices (like process recycling).
-  * The leak occurs deterministically under normal usage patterns rather than edge cases.
-  * The leak occurs at a rate that would cause practical resource exhaustion within a practical timeframe under
-    typical workloads.
-  * The attack demonstrates [asymmetric resource consumption](https://cwe.mitre.org/data/definitions/405.html),
-    where the attacker expends significantly fewer resources than what's required by the server to process the
-    attack. Attacks requiring comparable resources on the attacker's side (which can be mitigated through common
-    practices like rate limiting) may not qualify.
 
 If Node.js loads configuration files or runs code by default (without a
 specific request from the user), and this is not documented, it is considered a
 vulnerability.
 Vulnerabilities related to this case may be fixed by a documentation update.
+
+#### Denial of Service (DoS) vulnerabilities
+
+For a behavior to be considered a DoS vulnerability, the PoC must meet the following criteria:
+
+* The API is being correctly used.
+* The API doesn't have a warning against its usage in a production environment.
+* The API is public and documented. If the API comes from JavaScript, the behavior must be
+  well-defined in the [ECMAScript specification](https://tc39.es/ecma262/).
+* The API has stable (2.0) status.
+* The behavior is significant enough to cause a denial of service quickly
+  or in a context not controlled by the Node.js application developer (for example, HTTP parsing).
+* The behavior is directly exploitable by an untrusted source without requiring application mistakes.
+* The behavior cannot be reasonably mitigated through standard operational practices (like process recycling).
+* The behavior occurs deterministically under normal usage patterns rather than edge cases.
+* The behavior occurs at a rate that would cause practical resource exhaustion within a practical timeframe under
+  typical workloads.
+* The attack demonstrates [asymmetric resource consumption](https://cwe.mitre.org/data/definitions/405.html),
+  where the attacker expends significantly fewer resources than what's required by the server to process the
+  attack. Attacks requiring comparable resources on the attacker's side (which can be mitigated through common
+  practices like rate limiting) may not qualify.
 
 **Node.js does NOT trust**:
 
