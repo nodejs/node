@@ -156,7 +156,7 @@ Depending on the host platform, the selection of toolchains may vary.
 
 | Operating System | Compiler Versions                                                   |
 | ---------------- | ------------------------------------------------------------------- |
-| Linux            | GCC >= 12.2 or Clang >= 19.1                                        |
+| Linux            | Clang >= 19.1 or GCC >= 13.2 (experimental)                         |
 | Windows          | Visual Studio 2022 or 2026 with the Windows 11 SDK on a 64-bit host |
 | macOS            | Xcode >= 16.4 (Apple LLVM >= 19)                                    |
 
@@ -238,7 +238,7 @@ Consult previous versions of this document for older versions of Node.js:
 
 #### Unix prerequisites
 
-* `gcc` and `g++` >= 12.2 or `clang` and `clang++` >= 19.1
+* `clang` and `clang++` >= 19.1 or `gcc` and `g++` >= 13.2 (experimental)
 * GNU Make 3.81 or newer
 * [A supported version of Python][Python versions]
   * For test coverage, your Python installation must include pip.
@@ -246,11 +246,11 @@ Consult previous versions of this document for older versions of Node.js:
 Installation via Linux package manager can be achieved with:
 
 * Nix, NixOS: `nix-shell`
-* Ubuntu, Debian: `sudo apt-get install python3 g++-12 gcc-12 make python3-pip`
-* Fedora: `sudo dnf install python3 gcc-c++ make python3-pip`
-* CentOS and RHEL: `sudo yum install python3 gcc-c++ make python3-pip`
-* OpenSUSE: `sudo zypper install python3 gcc-c++ make python3-pip`
-* Arch Linux, Manjaro: `sudo pacman -S python gcc make python-pip`
+* Ubuntu, Debian: `sudo apt-get install python3 clang-19 make python3-pip`
+* Fedora: `sudo dnf install python3 clang make python3-pip`
+* CentOS and RHEL: `sudo yum install python3 clang make python3-pip`
+* OpenSUSE: `sudo zypper install python3 clang make python3-pip`
+* Arch Linux, Manjaro: `sudo pacman -S python clang make python-pip`
 
 FreeBSD and OpenBSD users may also need to install `libexecinfo`.
 
@@ -660,8 +660,8 @@ need to install the latest version but not the apt version.
 
 ```bash
 sudo apt install ccache mold   # for Debian/Ubuntu, included in most Linux distros
-export CC="ccache gcc"         # add to your .profile
-export CXX="ccache g++"        # add to your .profile
+export CC="ccache clang"       # add to your .profile
+export CXX="ccache clang++"    # add to your .profile
 export LDFLAGS="-fuse-ld=mold" # add to your .profile
 ```
 

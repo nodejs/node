@@ -104,6 +104,7 @@ concurrency:
 
 env:
   FLAKY_TESTS: keep_retrying
+  CLANG_VERSION: '19'
 
 permissions:
   contents: read
@@ -119,6 +120,11 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Install Clang ${{ env.CLANG_VERSION }}
+        uses: ./.github/actions/install-clang
+        with:
+          clang-version: ${{ env.CLANG_VERSION }}
+
       - name: Make tarball
         if: ${{ github.event_name != 'workflow_dispatch' }}
         run: |
@@ -127,6 +133,8 @@ jobs:
           ./configure && make tar -j4 SKIP_XZ=1 SKIP_SHARED_DEPS=1
         env:
           DISTTYPE: nightly
+          CC: clang-19
+          CXX: clang++-19
 
       - name: Upload tarball artifact
         if: ${{ github.event_name != 'workflow_dispatch' }}
