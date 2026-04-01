@@ -2284,7 +2284,7 @@ void HeapObject::RehashBasedOnMap(IsolateT* isolate) {
       Cast<DescriptorArray>(*this)->Sort();
       break;
     case TRANSITION_ARRAY_TYPE:
-      Cast<TransitionArray>(*this)->Sort();
+      Cast<TransitionArray>(*this)->Sort(true);
       break;
     case SMALL_ORDERED_HASH_MAP_TYPE:
       DCHECK_EQ(0, Cast<SmallOrderedHashMap>(*this)->NumberOfElements());
