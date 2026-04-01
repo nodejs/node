@@ -93,8 +93,19 @@ V8_OBJECT class CallSiteInfo : public StructLayout {
     kCount
   };
 
+  // Deferred flags: defined in the Torque bitfield, but only meaningful in
+  // raw capture arrays.  Stripped before creating actual CallSiteInfo objects.
+  static constexpr int kDeferredFlagsMask = kIsDeferredBaselineFrame;
+
   static DirectHandle<CallSiteInfo> ConstructFromRawData(
       Isolate* isolate, DirectHandle<FixedArray> frames, int index);
+
+  // Expand a raw stack-capture array that may contain deferred entries
+  // (optimized/baseline frames that were not Summarize'd at capture time)
+  // into a fully-resolved raw array where every entry corresponds to one
+  // logical JS frame.  Non-deferred entries are copied as-is.
+  static Handle<FixedArray> ExpandDeferredFrames(Isolate* isolate,
+                                                 Handle<FixedArray> raw_data);
 
   V8_EXPORT_PRIVATE static int GetLineNumber(DirectHandle<CallSiteInfo> info);
   V8_EXPORT_PRIVATE static int GetColumnNumber(DirectHandle<CallSiteInfo> info);
