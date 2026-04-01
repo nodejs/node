@@ -1,5 +1,6 @@
 {
   'variables': {
+    'cargo%': 'cargo',
     'cargo_vendor_dir': './vendor',
   },
   'conditions': [
@@ -48,7 +49,7 @@
             '<(node_crates_libpath)'
           ],
           'action': [
-            'cargo',
+            '<(cargo)',
             'rustc',
             '<@(cargo_build_flags)',
             '--frozen',
