@@ -43,7 +43,7 @@
     'ossfuzz' : 'false',
     'linked_module_files': [
     ],
-    # We list the deps/ files out instead of globbing them in js2c.cc since we
+    # We list the deps/ files out instead of globbing them in js2c.rs since we
     # only include a subset of all the files under these directories.
     # The lengths of their file names combined should not exceed the
     # Windows command length limit or there would be an error.
@@ -1552,40 +1552,55 @@
     }, # nop
     {
       'target_name': 'node_js2c',
-      'type': 'executable',
+      'type': 'none',
       'toolsets': ['host'],
-      'include_dirs': [
-        'tools',
-        'src',
-      ],
-      'sources': [
-        'tools/js2c.cc',
-        'tools/executable_wrapper.h',
-        'src/embedded_data.h',
-        'src/embedded_data.cc',
-        'src/builtin_info.h',
-        'src/builtin_info.cc',
+      'variables': {
+        'node_js2c_rustc_flags': [
+          '--edition=2021',
+          '--crate-name',
+          'node_js2c',
+          '-C',
+          'opt-level=2',
+        ],
+      },
+      'actions': [
+        {
+          'action_name': 'build_node_js2c',
+          'inputs': [
+            'tools/js2c.rs',
+          ],
+          'outputs': [
+            '<(node_js2c_exec)',
+          ],
+          'action': [
+            'rustc',
+            '<@(node_js2c_rustc_flags)',
+            'tools/js2c.rs',
+            '-o',
+            '<@(_outputs)',
+          ],
+        },
       ],
       'conditions': [
-        [ 'OS=="mac"', {
-          'libraries': [ '-framework CoreFoundation -framework Security' ],
-        }],
-        [ 'node_shared_simdutf=="false" and node_use_bundled_v8!="false"', {
-          'dependencies': [ 'tools/v8_gypfiles/v8.gyp:simdutf#host' ],
-        }],
-        [ 'node_shared_libuv=="false"', {
-          'dependencies': [ 'deps/uv/uv.gyp:libuv#host' ],
-        }],
         [ 'OS in "linux mac openharmony"', {
-          'defines': ['NODE_JS2C_USE_STRING_LITERALS'],
+          'variables': {
+            'node_js2c_rustc_flags+': [
+              '--cfg',
+              'node_js2c_use_string_literals',
+            ],
+          },
         }],
         [ 'debug_node=="true"', {
-          'cflags!': [ '-O3' ],
-          'cflags': [ '-g', '-O0' ],
-          'defines': [ 'DEBUG' ],
-          'xcode_settings': {
-            'OTHER_CFLAGS': [
-              '-g', '-O0'
+          'variables': {
+            'node_js2c_rustc_flags!': [
+              '-C',
+              'opt-level=2',
+            ],
+            'node_js2c_rustc_flags+': [
+              '-C',
+              'debuginfo=2',
+              '-C',
+              'opt-level=0',
             ],
           },
         }],

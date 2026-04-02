@@ -1504,7 +1504,6 @@ LINT_CPP_FILES = $(filter-out $(LINT_CPP_EXCLUDE), $(wildcard \
 	test/fixtures/*.c \
 	test/js-native-api/*/*.cc \
 	test/node-api/*/*.cc \
-	tools/js2c.cc \
 	tools/icu/*.cc \
 	tools/icu/*.h \
 	tools/code_cache/*.cc \

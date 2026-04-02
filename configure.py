@@ -2698,7 +2698,7 @@ if make_global_settings:
 
 print_verbose(output)
 
-# Dump as JSON to allow js2c.cc read it as a simple json file.
+# Dump as JSON to allow js2c to read it as a simple json file.
 write('config.gypi', do_not_edit +
       json.dumps(output, indent=2) + '\n')
 
