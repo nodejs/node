@@ -204,6 +204,9 @@ class EnvironmentOptions : public Options {
   std::string test_rerun_failures_path;
   std::vector<std::string> test_reporter_destination;
   std::string test_global_setup_path;
+  bool test_randomize = false;
+  bool has_test_random_seed = false;
+  uint64_t test_random_seed = 0;
   bool test_only = false;
   bool test_udp_no_try_send = false;
   std::string test_isolation = "process";
