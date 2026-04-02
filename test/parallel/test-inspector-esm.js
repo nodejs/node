@@ -4,7 +4,6 @@ const common = require('../common');
 common.skipIfInspectorDisabled();
 
 const assert = require('assert');
-const { resolve: UrlResolve } = require('url');
 const fixtures = require('../common/fixtures');
 const { NodeInstance } = require('../common/inspector-helper.js');
 
@@ -40,8 +39,10 @@ async function testBreakpointOnStart(session) {
   await session.waitForNotification('NodeRuntime.waitingForDebugger');
   await session.send(commands);
   await session.send({ method: 'NodeRuntime.disable' });
-  await session.waitForBreakOnLine(
-    0, UrlResolve(session.scriptURL().toString(), 'message.mjs'));
+  // --inspect-brk pauses at the first executable line of the entry point.
+  // Static import declarations are not executable, so the break happens at
+  // var t = 1 (line 2), not at the import on line 0.
+  await session.waitForBreakOnLine(2, session.scriptURL());
 }
 
 async function testBreakpoint(session) {
