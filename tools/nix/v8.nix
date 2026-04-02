@@ -4,7 +4,6 @@
   lib,
   patchutils,
   validatePkgConfig,
-  nodejs-slim_latest,
   icu,
 
   buildInputs ? lib.optional (icu != null) icu,
@@ -17,6 +16,7 @@
     )
   ],
 
+  nodejs-slim_latest ? null,
   configureScript ? nodejs-slim_latest.configureScript,
   nativeBuildInputs ? nodejs-slim_latest.nativeBuildInputs,
   patches ? nodejs-slim_latest.patches,
@@ -120,9 +120,13 @@ stdenv.mkDerivation (finalAttrs: {
   ];
 
   buildPhase = ''
+    runHook preBuild
     ninja -v -C out/Release v8_snapshot v8_libplatform
+    runHook postBuild
   '';
   installPhase = ''
+    runHook preInstall
+
     ${
       if stdenv.hostPlatform.isDarwin then
         # Darwin is excluded from creating thin archive in tools/gyp/pylib/gyp/generator/ninja.py:2488
@@ -156,5 +160,7 @@ stdenv.mkDerivation (finalAttrs: {
     done) -lstdc++
     Cflags: -I${v8Dir}/include -I${v8Dir}/third_party/abseil-cpp -I${v8Dir}/third_party/simdutf
     EOF
+
+    runHook postInstall
   '';
 })
