@@ -6,17 +6,17 @@
 added: v16.5.0
 changes:
   - version:
+    - v21.5.0
+    - v20.14.0
+    pr-url: https://github.com/nodejs/node/pull/50126
+    description: Supports the `cancel` transformer callback.
+  - version:
     - v21.0.0
     pr-url: https://github.com/nodejs/node/pull/45684
     description: No longer experimental.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/42225
     description: Use of this API no longer emit a runtime warning.
-  - version:
-    - v21.5.0
-    - v20.14.0
-    pr-url: https://github.com/nodejs/node/pull/50126
-    description: Supports the `cancel` transformer callback.
 -->
 
 > Stability: 2 - Stable
