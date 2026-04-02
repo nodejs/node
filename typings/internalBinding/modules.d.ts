@@ -32,4 +32,5 @@ export interface ModulesBinding {
   enableCompileCache(path?: string): { status: number, message?: string, directory?: string }
   getCompileCacheDir(): string | undefined
   flushCompileCache(keepDeserializedCache?: boolean): void
+  clearPackageJSONCache(path: string): boolean
 }
