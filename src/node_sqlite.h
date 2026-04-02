@@ -19,6 +19,10 @@
 
 namespace node {
 
+namespace diagnostics_channel {
+class Channel;
+}  // namespace diagnostics_channel
+
 class ExternalReferenceRegistry;
 
 namespace sqlite {
@@ -275,6 +279,7 @@ class DatabaseSync : public BaseObject {
   std::set<BackupJob*> backups_;
   std::set<sqlite3_session*> sessions_;
   std::unordered_set<StatementSync*> statements_;
+  diagnostics_channel::Channel* trace_channel_ = nullptr;
 
   friend class DatabaseSyncLimits;
   friend class Session;
