@@ -1024,9 +1024,8 @@ bool DatabaseSync::Open() {
         env()->isolate(), this, load_extension_ret, SQLITE_OK, false);
   }
 
-  diagnostics_channel::Channel* ch =
-      diagnostics_channel::Channel::Get(env(), "sqlite.db.query");
-  if (ch != nullptr && ch->HasSubscribers()) {
+  trace_channel_ = diagnostics_channel::Channel::Get(env(), "sqlite.db.query");
+  if (trace_channel_ != nullptr && trace_channel_->HasSubscribers()) {
     sqlite3_trace_v2(connection_, SQLITE_TRACE_PROFILE, TraceCallback, this);
   }
 
@@ -1035,6 +1034,10 @@ bool DatabaseSync::Open() {
 
 void DatabaseSync::EnableTracing() {
   if (!IsOpen()) return;
+  if (trace_channel_ == nullptr) {
+    trace_channel_ =
+        diagnostics_channel::Channel::Get(env(), "sqlite.db.query");
+  }
   sqlite3_trace_v2(connection_, SQLITE_TRACE_PROFILE, TraceCallback, this);
 }
 
@@ -2598,15 +2601,13 @@ int DatabaseSync::TraceCallback(unsigned int type,
   DatabaseSync* db = static_cast<DatabaseSync*>(user_data);
   Environment* env = db->env();
 
-  diagnostics_channel::Channel* ch =
-      diagnostics_channel::Channel::Get(env, "sqlite.db.query");
+  diagnostics_channel::Channel* ch = db->trace_channel_;
   if (ch == nullptr || !ch->HasSubscribers()) {
     return 0;
   }
 
   Isolate* isolate = env->isolate();
   HandleScope handle_scope(isolate);
-  Local<Context> context = env->context();
 
   char* expanded = sqlite3_expanded_sql(static_cast<sqlite3_stmt*>(p));
   Local<Value> sql_string;
@@ -2629,24 +2630,19 @@ int DatabaseSync::TraceCallback(unsigned int type,
   // sufficient since 2^53 ns (~104 days) exceeds any realistic query duration.
   sqlite3_int64 duration_ns = *static_cast<sqlite3_int64*>(x);
 
-  Local<Object> payload = Object::New(isolate);
-  if (payload
-          ->Set(context,
-                FIXED_ONE_BYTE_STRING(isolate, "sql"),
-                sql_string)
-          .IsNothing() ||
-      payload
-          ->Set(context,
-                FIXED_ONE_BYTE_STRING(isolate, "database"),
-                db->object())
-          .IsNothing() ||
-      payload
-          ->Set(context,
-                FIXED_ONE_BYTE_STRING(isolate, "duration"),
-                Number::New(isolate, static_cast<double>(duration_ns)))
-          .IsNothing()) {
-    return 0;
-  }
+  Local<Name> keys[3] = {
+      env->sql_string().As<Name>(),
+      env->database_string().As<Name>(),
+      env->duration_string().As<Name>(),
+  };
+
+  Local<Value> values[3] = {
+      sql_string,
+      db->object(),
+      Number::New(isolate, static_cast<double>(duration_ns)),
+  };
+
+  Local<Object> payload = Object::New(isolate, Null(isolate), keys, values, 3);
 
   ch->Publish(env, payload);
 

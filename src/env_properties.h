@@ -134,6 +134,7 @@
   V(crypto_rsa_pss_string, "rsa-pss")                                          \
   V(cwd_string, "cwd")                                                         \
   V(data_string, "data")                                                       \
+  V(database_string, "database")                                               \
   V(default_is_true_string, "defaultIsTrue")                                   \
   V(defensive_string, "defensive")                                             \
   V(deserialize_info_string, "deserializeInfo")                                \
@@ -344,6 +345,7 @@
   V(source_map_url_string, "sourceMapURL")                                     \
   V(source_url_string, "sourceURL")                                            \
   V(specifier_string, "specifier")                                             \
+  V(sql_string, "sql")                                                         \
   V(stack_string, "stack")                                                     \
   V(start_string, "start")                                                     \
   V(state_string, "state")                                                     \
