@@ -18,6 +18,9 @@
 #include <vector>
 
 namespace node {
+
+class ExternalReferenceRegistry;
+
 namespace sqlite {
 
 // Mapping from JavaScript property names to SQLite limit constants
@@ -161,6 +164,27 @@ class StatementExecutionHelper {
                                        bool use_big_ints);
 };
 
+class DatabaseSync;
+
+class BindingData : public BaseObject {
+ public:
+  SET_BINDING_ID(sqlite_binding_data)
+
+  BindingData(Realm* realm, v8::Local<v8::Object> wrap);
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(BindingData)
+  SET_SELF_SIZE(BindingData)
+
+  std::unordered_set<DatabaseSync*> open_databases;
+
+  static void CreatePerContextProperties(v8::Local<v8::Object> target,
+                                         v8::Local<v8::Value> unused,
+                                         v8::Local<v8::Context> context,
+                                         void* priv);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+};
+
 class DatabaseSync : public BaseObject {
  public:
   enum InternalFields {
@@ -231,6 +255,8 @@ class DatabaseSync : public BaseObject {
   // enable that use case.
   void SetIgnoreNextSQLiteError(bool ignore);
   bool ShouldIgnoreSQLiteError();
+  void EnableTracing();
+  void DisableTracing();
 
   SET_MEMORY_INFO_NAME(DatabaseSync)
   SET_SELF_SIZE(DatabaseSync)
