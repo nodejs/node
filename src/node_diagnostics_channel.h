@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include <cinttypes>
+#include <functional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -53,6 +54,14 @@ class BindingData : public SnapshotableObject {
   static void LinkNativeChannel(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 
+  using ChannelStatusCallback = std::function<void(bool is_active)>;
+  void SetChannelStatusCallback(uint32_t index, ChannelStatusCallback cb);
+
+  static void NotifyChannelActive(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void NotifyChannelInactive(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+
   static void CreatePerIsolateProperties(IsolateData* isolate_data,
                                          v8::Local<v8::ObjectTemplate> target);
   static void CreatePerContextProperties(v8::Local<v8::Object> target,
@@ -63,6 +72,7 @@ class BindingData : public SnapshotableObject {
 
  private:
   InternalFieldInfo* internal_field_info_ = nullptr;
+  std::unordered_map<uint32_t, ChannelStatusCallback> channel_status_callbacks_;
 };
 
 class Channel : public BaseObject {
