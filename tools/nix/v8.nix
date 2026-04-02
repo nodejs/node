@@ -87,10 +87,15 @@ stdenv.mkDerivation (finalAttrs: {
       );
     };
 
+  patches = lib.optional (
+    # V8 accesses internal ICU headers and methods in the Temporal files.
+    !(builtins.isString icu) && builtins.elem "--v8-enable-temporal-support" configureFlags
+  ) ./temporal-no-vendored-icu.patch;
+
   # We need to download and patch GYP to work from within Nix sandbox
   # and so the local pycache does not pollute the hash.
   prePatch = ''
-    patches=()
+    ${lib.optionalString (builtins.length finalAttrs.patches == 0) "patches=()"}
     for patch in ${lib.concatStringsSep " " patches}; do
       filtered=$(mktemp)
       filterdiff -p1 -i 'tools/gyp/pylib/*' "$patch" > "$filtered"
