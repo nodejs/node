@@ -4548,6 +4548,22 @@ that have proven unresolveable. See [caveats of asynchronous customization hooks
 `module.registerHooks()` as soon as possible as `module.register()` will be
 removed in a future version of Node.js.
 
+### DEP0206: Piping to emitters without `prependListener`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62435
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+Piping to an EventEmitter that does not have a `prependListener` method is
+deprecated. The `prependListener` method has been available on EventEmitter
+since Node.js v6.0.0. The internal fallback code that manually manipulates
+the `_events` object will be removed in a future version.
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
