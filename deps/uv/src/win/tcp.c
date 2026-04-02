@@ -56,6 +56,8 @@ static int uv__windows10_version1709(void) {
   OSVERSIONINFOW os_info;
   if (!pRtlGetVersion)
     return 0;
+  os_info.dwOSVersionInfoSize = sizeof(os_info);
+  os_info.szCSDVersion[0] = L'\0';
   pRtlGetVersion(&os_info);
   if (os_info.dwMajorVersion < 10)
     return 0;
