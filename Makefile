@@ -1212,6 +1212,7 @@ $(TARBALL): release-only doc-only
 	mkdir -p $(TARNAME)/doc/api
 	cp doc/node.1 $(TARNAME)/doc/node.1
 	cp -r out/doc/api/* $(TARNAME)/doc/api/
+	sed 's/fileset = fileset.intersection (fileset.gitTracked root)/fileset =/' tools/nix/v8.nix > $(TARNAME)/tools/nix/v8.nix 
 	$(RM) -r $(TARNAME)/.editorconfig
 	$(RM) -r $(TARNAME)/.git*
 	$(RM) -r $(TARNAME)/.mailmap

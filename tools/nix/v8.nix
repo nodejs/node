@@ -23,7 +23,51 @@
 }:
 
 let
-  v8Dir = ../../deps/v8;
+  src =
+    let
+      inherit (lib) fileset;
+      root = ../../.;
+      files = [
+        ../../common.gypi
+        ../../configure.py
+        ../../deps/v8
+        ../../node.gyp
+        ../../node.gypi
+        ../../src/node_version.h
+        ../../tools/configure.d/nodedownload.py
+        ../../tools/getmoduleversion.py
+        ../../tools/getnapibuildversion.py
+        ../../tools/gyp/pylib
+        ../../tools/gyp_node.py
+        ../../tools/utils.py
+        ../../tools/v8_gypfiles/abseil.gyp
+        ../../tools/v8_gypfiles/features.gypi
+        ../../tools/v8_gypfiles/ForEachFormat.py
+        ../../tools/v8_gypfiles/ForEachReplace.py
+        ../../tools/v8_gypfiles/GN-scraper.py
+        ../../tools/v8_gypfiles/inspector.gypi
+        ../../tools/v8_gypfiles/toolchain.gypi
+        ../../tools/v8_gypfiles/v8.gyp
+      ]
+      ++ lib.optionals (icu != null) [
+        ../../tools/icu/icu_versions.json
+        ../../tools/icu/icu-system.gyp
+      ]
+      ++ lib.optionals (icu == "small") [
+        ../../deps/icu-small
+        ../../tools/icu/current_ver.dep
+        ../../tools/icu/icu_small.json
+        ../../tools/icu/icu-generic.gyp
+        ../../tools/icu/iculslocs.cc
+        ../../tools/icu/icutrim.py
+        ../../tools/icu/no-op.cc
+      ];
+    in
+    fileset.toSource {
+      inherit root;
+      fileset = fileset.intersection (fileset.gitTracked root) (fileset.unions files);
+    };
+  v8Dir = "${src}/deps/v8";
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "v8";
@@ -36,64 +80,20 @@ stdenv.mkDerivation (finalAttrs: {
         + "#define V8_PATCH_LEVEL ([0-9]+).*"
       ) (builtins.readFile "${v8Dir}/include/v8-version.h");
       v8_embedder_string = builtins.match ".*'v8_embedder_string': '-(node.[0-9]+)'.*" (
-        builtins.readFile ../../common.gypi
+        builtins.readFile "${src}/common.gypi"
       );
     in
     if v8Version == null || v8_embedder_string == null then
       throw "V8 version not found"
     else
       "${builtins.elemAt v8Version 0}.${builtins.elemAt v8Version 1}.${builtins.elemAt v8Version 2}.${builtins.elemAt v8Version 3}-${builtins.elemAt v8_embedder_string 0}";
-  src =
-    let
-      inherit (lib) fileset;
-    in
-    fileset.toSource {
-      root = ../../.;
-      fileset = fileset.unions (
-        [
-          v8Dir
-          ../../common.gypi
-          ../../configure.py
-          ../../node.gyp
-          ../../node.gypi
-          ../../src/node_version.h
-          ../../tools/configure.d/nodedownload.py
-          ../../tools/getmoduleversion.py
-          ../../tools/getnapibuildversion.py
-          ../../tools/gyp_node.py
-          ../../tools/utils.py
-          ../../tools/v8_gypfiles/abseil.gyp
-          ../../tools/v8_gypfiles/features.gypi
-          ../../tools/v8_gypfiles/ForEachFormat.py
-          ../../tools/v8_gypfiles/ForEachReplace.py
-          ../../tools/v8_gypfiles/GN-scraper.py
-          ../../tools/v8_gypfiles/inspector.gypi
-          ../../tools/v8_gypfiles/toolchain.gypi
-          ../../tools/v8_gypfiles/v8.gyp
-        ]
-        ++ lib.optionals (icu != null) [
-          ../../tools/icu/icu_versions.json
-          ../../tools/icu/icu-system.gyp
-        ]
-        ++ lib.optionals (icu == "small") [
-          ../../deps/icu-small
-          ../../tools/icu/current_ver.dep
-          ../../tools/icu/icu_small.json
-          ../../tools/icu/icu-generic.gyp
-          ../../tools/icu/iculslocs.cc
-          ../../tools/icu/icutrim.py
-          ../../tools/icu/no-op.cc
-        ]
-      );
-    };
 
   patches = lib.optional (
     # V8 accesses internal ICU headers and methods in the Temporal files.
     !(builtins.isString icu) && builtins.elem "--v8-enable-temporal-support" configureFlags
   ) ./temporal-no-vendored-icu.patch;
 
-  # We need to download and patch GYP to work from within Nix sandbox
-  # and so the local pycache does not pollute the hash.
+  # We need to patch tools/gyp/ to work from within Nix sandbox
   prePatch = ''
     ${lib.optionalString (builtins.length finalAttrs.patches == 0) "patches=()"}
     for patch in ${lib.concatStringsSep " " patches}; do
@@ -103,8 +103,6 @@ stdenv.mkDerivation (finalAttrs: {
         patches+=("$filtered")
       fi
     done
-    tar -C tools -xzf ${import ../../tools/gyp/src.nix} --wildcards 'gyp-*/pylib'
-    mv tools/gyp-* tools/gyp
   '';
   # We need to remove the node_inspector.gypi ref so GYP does not search for it.
   postPatch = ''
@@ -117,7 +115,12 @@ stdenv.mkDerivation (finalAttrs: {
         "icu_versions = { 'minimum_icu': 1 }"
   '';
 
-  inherit configureScript configureFlags buildInputs;
+  inherit
+    src
+    configureScript
+    configureFlags
+    buildInputs
+    ;
 
   nativeBuildInputs = nativeBuildInputs ++ [
     patchutils
