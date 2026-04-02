@@ -127,12 +127,38 @@ void BindingData::Deserialize(Local<Context> context,
   CHECK_NOT_NULL(binding);
 }
 
+void BindingData::SetChannelStatusCallback(uint32_t index,
+                                           ChannelStatusCallback cb) {
+  channel_status_callbacks_[index] = std::move(cb);
+}
+
+void BindingData::NotifyChannelActive(const FunctionCallbackInfo<Value>& args) {
+  Realm* realm = Realm::GetCurrent(args);
+  BindingData* binding = realm->GetBindingData<BindingData>();
+  if (binding == nullptr) return;
+  uint32_t index = args[0].As<v8::Uint32>()->Value();
+  auto it = binding->channel_status_callbacks_.find(index);
+  if (it != binding->channel_status_callbacks_.end()) it->second(true);
+}
+
+void BindingData::NotifyChannelInactive(
+    const FunctionCallbackInfo<Value>& args) {
+  Realm* realm = Realm::GetCurrent(args);
+  BindingData* binding = realm->GetBindingData<BindingData>();
+  if (binding == nullptr) return;
+  uint32_t index = args[0].As<v8::Uint32>()->Value();
+  auto it = binding->channel_status_callbacks_.find(index);
+  if (it != binding->channel_status_callbacks_.end()) it->second(false);
+}
+
 void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
                                              Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
   SetMethod(
       isolate, target, "getOrCreateChannelIndex", GetOrCreateChannelIndex);
   SetMethod(isolate, target, "linkNativeChannel", LinkNativeChannel);
+  SetMethod(isolate, target, "notifyChannelActive", NotifyChannelActive);
+  SetMethod(isolate, target, "notifyChannelInactive", NotifyChannelInactive);
 }
 
 void BindingData::CreatePerContextProperties(Local<Object> target,
@@ -148,6 +174,8 @@ void BindingData::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(GetOrCreateChannelIndex);
   registry->Register(LinkNativeChannel);
+  registry->Register(NotifyChannelActive);
+  registry->Register(NotifyChannelInactive);
 }
 
 Channel::Channel(Environment* env,
