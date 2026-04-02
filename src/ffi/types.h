@@ -40,9 +40,7 @@ bool ToJSReturnValue(Environment* env,
                      ffi_type* type,
                      void* result);
 
-bool ToFFIReturnValue(v8::Local<v8::Value> result,
-                      ffi_type* type,
-                      void* ret);
+bool ToFFIReturnValue(v8::Local<v8::Value> result, ffi_type* type, void* ret);
 
 bool SignaturesMatch(const FFIFunction& fn,
                      ffi_type* return_type,

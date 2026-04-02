@@ -13,7 +13,6 @@
 #include <unordered_map>
 #include <vector>
 
-
 namespace node::ffi {
 
 class DynamicLibrary;
@@ -87,8 +86,7 @@ class DynamicLibrary : public BaseObject {
   static void GetSymbol(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetSymbols(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  static void RegisterCallback(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RegisterCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void UnregisterCallback(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RefCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -106,9 +104,10 @@ class DynamicLibrary : public BaseObject {
                        std::shared_ptr<FFIFunction>* ret,
                        bool* should_cache_symbol,
                        bool* should_cache_function);
-  v8::Local<v8::Function> CreateFunction(Environment* env,
-                                 const std::string& name,
-                                 const std::shared_ptr<FFIFunction>& fn);
+  v8::Local<v8::Function> CreateFunction(
+      Environment* env,
+      const std::string& name,
+      const std::shared_ptr<FFIFunction>& fn);
   static void CleanupFunctionInfo(
       const v8::WeakCallbackInfo<FFIFunctionInfo>& data);
 
