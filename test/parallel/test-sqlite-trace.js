@@ -14,7 +14,7 @@ suite('sqlite.db.query diagnostics channel', () => {
     const db = new DatabaseSync(':memory:');
     t.after(() => db.close());
 
-    const handler = (sql) => calls.push(sql);
+    const handler = (msg) => calls.push(msg);
     dc.subscribe('sqlite.db.query', handler);
     t.after(() => dc.unsubscribe('sqlite.db.query', handler));
 
@@ -22,8 +22,8 @@ suite('sqlite.db.query diagnostics channel', () => {
     db.exec('INSERT INTO t VALUES (1)');
 
     assert.strictEqual(calls.length, 2);
-    assert.strictEqual(calls[0], 'CREATE TABLE t (x INTEGER)');
-    assert.strictEqual(calls[1], 'INSERT INTO t VALUES (1)');
+    assert.strictEqual(calls[0].sql, 'CREATE TABLE t (x INTEGER)');
+    assert.strictEqual(calls[1].sql, 'INSERT INTO t VALUES (1)');
   });
 
   it('subscriber receives SQL string for prepared INSERT statements', (t) => {
@@ -31,7 +31,7 @@ suite('sqlite.db.query diagnostics channel', () => {
     const db = new DatabaseSync(':memory:');
     t.after(() => db.close());
 
-    const handler = (sql) => calls.push(sql);
+    const handler = (msg) => calls.push(msg);
     dc.subscribe('sqlite.db.query', handler);
     t.after(() => dc.unsubscribe('sqlite.db.query', handler));
 
@@ -42,7 +42,7 @@ suite('sqlite.db.query diagnostics channel', () => {
     stmt.run(42);
 
     assert.strictEqual(calls.length, 1);
-    assert.strictEqual(calls[0], 'INSERT INTO t VALUES (42.0)');
+    assert.strictEqual(calls[0].sql, 'INSERT INTO t VALUES (42.0)');
   });
 
   it('subscriber receives SQL string for prepared SELECT statements', (t) => {
@@ -50,7 +50,7 @@ suite('sqlite.db.query diagnostics channel', () => {
     const db = new DatabaseSync(':memory:');
     t.after(() => db.close());
 
-    const handler = (sql) => calls.push(sql);
+    const handler = (msg) => calls.push(msg);
     dc.subscribe('sqlite.db.query', handler);
     t.after(() => dc.unsubscribe('sqlite.db.query', handler));
 
@@ -62,7 +62,7 @@ suite('sqlite.db.query diagnostics channel', () => {
     stmt.get(1);
 
     assert.strictEqual(calls.length, 1);
-    assert.strictEqual(calls[0], 'SELECT x FROM t WHERE x = 1.0');
+    assert.strictEqual(calls[0].sql, 'SELECT x FROM t WHERE x = 1.0');
   });
 
   it('subscriber receives SQL string for prepared UPDATE statements', (t) => {
@@ -70,7 +70,7 @@ suite('sqlite.db.query diagnostics channel', () => {
     const db = new DatabaseSync(':memory:');
     t.after(() => db.close());
 
-    const handler = (sql) => calls.push(sql);
+    const handler = (msg) => calls.push(msg);
     dc.subscribe('sqlite.db.query', handler);
     t.after(() => dc.unsubscribe('sqlite.db.query', handler));
 
@@ -82,7 +82,7 @@ suite('sqlite.db.query diagnostics channel', () => {
     stmt.run(2, 1);
 
     assert.strictEqual(calls.length, 1);
-    assert.strictEqual(calls[0], 'UPDATE t SET x = 2.0 WHERE x = 1.0');
+    assert.strictEqual(calls[0].sql, 'UPDATE t SET x = 2.0 WHERE x = 1.0');
   });
 
   it('subscriber receives SQL string for prepared DELETE statements', (t) => {
@@ -90,7 +90,7 @@ suite('sqlite.db.query diagnostics channel', () => {
     const db = new DatabaseSync(':memory:');
     t.after(() => db.close());
 
-    const handler = (sql) => calls.push(sql);
+    const handler = (msg) => calls.push(msg);
     dc.subscribe('sqlite.db.query', handler);
     t.after(() => dc.unsubscribe('sqlite.db.query', handler));
 
@@ -102,7 +102,7 @@ suite('sqlite.db.query diagnostics channel', () => {
     stmt.run(1);
 
     assert.strictEqual(calls.length, 1);
-    assert.strictEqual(calls[0], 'DELETE FROM t WHERE x = 1.0');
+    assert.strictEqual(calls[0].sql, 'DELETE FROM t WHERE x = 1.0');
   });
 
   it('no calls received after unsubscribe', (t) => {
@@ -110,7 +110,7 @@ suite('sqlite.db.query diagnostics channel', () => {
     const db = new DatabaseSync(':memory:');
     t.after(() => db.close());
 
-    const handler = (sql) => calls.push(sql);
+    const handler = (msg) => calls.push(msg);
     dc.subscribe('sqlite.db.query', handler);
 
     db.exec('CREATE TABLE t (x INTEGER)');
@@ -126,7 +126,7 @@ suite('sqlite.db.query diagnostics channel', () => {
     const db = new DatabaseSync(':memory:', { limits: { length: 1000 } });
     t.after(() => db.close());
 
-    const handler = (sql) => calls.push(sql);
+    const handler = (msg) => calls.push(msg);
     dc.subscribe('sqlite.db.query', handler);
     t.after(() => dc.unsubscribe('sqlite.db.query', handler));
 
@@ -140,6 +140,27 @@ suite('sqlite.db.query diagnostics channel', () => {
 
     assert.strictEqual(calls.length, 1);
     // Falls back to source SQL with unexpanded '?' placeholder
-    assert.strictEqual(calls[0], 'INSERT INTO t VALUES (?)');
+    assert.strictEqual(calls[0].sql, 'INSERT INTO t VALUES (?)');
+  });
+
+  it('database property identifies the correct database', (t) => {
+    const calls = [];
+    const db1 = new DatabaseSync(':memory:');
+    const db2 = new DatabaseSync(':memory:');
+    t.after(() => {
+      db1.close(); db2.close();
+    });
+
+    const handler = (msg) => calls.push(msg);
+    dc.subscribe('sqlite.db.query', handler);
+    t.after(() => dc.unsubscribe('sqlite.db.query', handler));
+
+    db1.exec('CREATE TABLE t (x INTEGER)');
+    db2.exec('CREATE TABLE t (x INTEGER)');
+
+    assert.strictEqual(calls.length, 2);
+    assert.strictEqual(calls[0].database, db1);
+    assert.strictEqual(calls[1].database, db2);
+    assert.notStrictEqual(calls[0].database, calls[1].database);
   });
 });

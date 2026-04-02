@@ -2606,6 +2606,7 @@ int DatabaseSync::TraceCallback(unsigned int type,
 
   Isolate* isolate = env->isolate();
   HandleScope handle_scope(isolate);
+  Local<Context> context = env->context();
 
   char* expanded = sqlite3_expanded_sql(static_cast<sqlite3_stmt*>(p));
   Local<Value> sql_string;
@@ -2624,7 +2625,21 @@ int DatabaseSync::TraceCallback(unsigned int type,
     }
   }
 
-  ch->Publish(env, sql_string);
+  Local<Object> payload = Object::New(isolate);
+  if (payload
+          ->Set(context,
+                FIXED_ONE_BYTE_STRING(isolate, "sql"),
+                sql_string)
+          .IsNothing() ||
+      payload
+          ->Set(context,
+                FIXED_ONE_BYTE_STRING(isolate, "database"),
+                db->object())
+          .IsNothing()) {
+    return 0;
+  }
+
+  ch->Publish(env, payload);
 
   return 0;
 }
