@@ -6880,10 +6880,10 @@ See the [list of SSL OP Flags][] for details.
 [RFC 4055]: https://www.rfc-editor.org/rfc/rfc4055.txt
 [RFC 4122]: https://www.rfc-editor.org/rfc/rfc4122.txt
 [RFC 5208]: https://www.rfc-editor.org/rfc/rfc5208.txt
-[RFC 9562]: https://www.rfc-editor.org/rfc/rfc9562.txt
 [RFC 5280]: https://www.rfc-editor.org/rfc/rfc5280.txt
 [RFC 7517]: https://www.rfc-editor.org/rfc/rfc7517.txt
 [RFC 8032]: https://www.rfc-editor.org/rfc/rfc8032.txt
+[RFC 9562]: https://www.rfc-editor.org/rfc/rfc9562.txt
 [Web Crypto API documentation]: webcrypto.md
 [`BN_is_prime_ex`]: https://www.openssl.org/docs/man1.1.1/man3/BN_is_prime_ex.html
 [`Buffer`]: buffer.md
