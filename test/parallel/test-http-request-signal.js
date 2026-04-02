@@ -42,3 +42,29 @@ const http = require('http');
   req.emit('abort');
   assert.strictEqual(signal.aborted, true);
 }
+
+// Test 5: res.signal on a client-side http.request() response (IncomingMessage).
+{
+  const server = http.createServer(common.mustCall((req, res) => {
+    res.writeHead(200);
+    res.write('partial');
+  }));
+
+  server.listen(0, common.mustCall(() => {
+    const clientReq = http.request(
+      { port: server.address().port },
+      common.mustCall((res) => {
+        assert.ok(res.signal instanceof AbortSignal);
+        assert.strictEqual(res.signal.aborted, false);
+
+        res.signal.onabort = common.mustCall(() => {
+          assert.strictEqual(res.signal.aborted, true);
+          server.close();
+        });
+        clientReq.destroy();
+      }),
+    );
+    clientReq.on('error', () => {});
+    clientReq.end();
+  }));
+}
