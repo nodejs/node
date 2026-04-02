@@ -10,6 +10,22 @@ const DEFAULT_PORTS = {
   'https:': 443
 }
 
+/**
+ * Normalizes a proxy URL by prepending a scheme if one is missing.
+ * This matches the behavior of curl and Go's httpproxy package, which
+ * assume http:// for scheme-less proxy values.
+ *
+ * @param {string} proxyUrl - The proxy URL to normalize
+ * @param {string} defaultScheme - The scheme to prepend if missing ('http' or 'https')
+ * @returns {string} The normalized proxy URL
+ */
+function normalizeProxyUrl (proxyUrl, defaultScheme) {
+  if (!proxyUrl) return proxyUrl
+  // If the value already contains a scheme (e.g. http://, https://, socks5://), return as-is
+  if (/^[a-z][a-z0-9+\-.]*:\/\//i.test(proxyUrl)) return proxyUrl
+  return `${defaultScheme}://${proxyUrl}`
+}
+
 class EnvHttpProxyAgent extends DispatcherBase {
   #noProxyValue = null
   #noProxyEntries = null
@@ -23,14 +39,20 @@ class EnvHttpProxyAgent extends DispatcherBase {
 
     this[kNoProxyAgent] = new Agent(agentOpts)
 
-    const HTTP_PROXY = httpProxy ?? process.env.http_proxy ?? process.env.HTTP_PROXY
+    const HTTP_PROXY = normalizeProxyUrl(
+      httpProxy ?? process.env.http_proxy ?? process.env.HTTP_PROXY,
+      'http'
+    )
     if (HTTP_PROXY) {
       this[kHttpProxyAgent] = new ProxyAgent({ ...agentOpts, uri: HTTP_PROXY })
     } else {
       this[kHttpProxyAgent] = this[kNoProxyAgent]
     }
 
-    const HTTPS_PROXY = httpsProxy ?? process.env.https_proxy ?? process.env.HTTPS_PROXY
+    const HTTPS_PROXY = normalizeProxyUrl(
+      httpsProxy ?? process.env.https_proxy ?? process.env.HTTPS_PROXY,
+      'https'
+    )
     if (HTTPS_PROXY) {
       this[kHttpsProxyAgent] = new ProxyAgent({ ...agentOpts, uri: HTTPS_PROXY })
     } else {

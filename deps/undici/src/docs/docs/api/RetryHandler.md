@@ -82,17 +82,16 @@ const handler = new RetryHandler(
       return client.dispatch(...args);
     },
     handler: {
-      onConnect() {},
-      onBodySent() {},
-      onHeaders(status, _rawHeaders, resume, _statusMessage) {
+      onRequestStart() {},
+      onBodySent(chunk) {},
+      onResponseStart(_controller, status, headers) {
         // do something with headers
       },
-      onData(chunk) {
+      onResponseData(_controller, chunk) {
         chunks.push(chunk);
-        return true;
       },
-      onComplete() {},
-      onError() {
+      onResponseEnd() {},
+      onResponseError(_controller, err) {
         // handle error properly
       },
     },
@@ -107,12 +106,12 @@ const client = new Client(`http://localhost:${server.address().port}`);
 const handler = new RetryHandler(dispatchOptions, {
   dispatch: client.dispatch.bind(client),
   handler: {
-    onConnect() {},
-    onBodySent() {},
-    onHeaders(status, _rawHeaders, resume, _statusMessage) {},
-    onData(chunk) {},
-    onComplete() {},
-    onError(err) {},
+    onRequestStart() {},
+    onBodySent(chunk) {},
+    onResponseStart(_controller, status, headers) {},
+    onResponseData(_controller, chunk) {},
+    onResponseEnd() {},
+    onResponseError(_controller, err) {},
   },
 });
 ```

@@ -93,8 +93,9 @@ test/request-timeout.10mb.bin
 CLAUDE.md
 .claude
 
-# Ignore .pi
+# Local tooling
 .pi
+AGENTS.md
 
 # Ignore .githuman
 .githuman

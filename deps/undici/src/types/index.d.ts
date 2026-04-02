@@ -11,6 +11,7 @@ import H2CClient from './h2c-client'
 import buildConnector from './connector'
 import errors from './errors'
 import Agent from './agent'
+import Dispatcher1Wrapper from './dispatcher1-wrapper'
 import MockClient from './mock-client'
 import MockPool from './mock-pool'
 import MockAgent from './mock-agent'
@@ -44,7 +45,7 @@ export { Interceptable } from './mock-interceptor'
 
 declare function globalThisInstall (): void
 
-export { Dispatcher, BalancedPool, RoundRobinPool, Pool, Client, buildConnector, errors, Agent, request, stream, pipeline, connect, upgrade, setGlobalDispatcher, getGlobalDispatcher, setGlobalOrigin, getGlobalOrigin, interceptors, cacheStores, MockClient, MockPool, MockAgent, SnapshotAgent, MockCallHistory, MockCallHistoryLog, mockErrors, ProxyAgent, Socks5ProxyAgent, EnvHttpProxyAgent, RedirectHandler, DecoratorHandler, RetryHandler, RetryAgent, H2CClient, globalThisInstall as install }
+export { Dispatcher, BalancedPool, RoundRobinPool, Pool, Client, buildConnector, errors, Agent, Dispatcher1Wrapper, request, stream, pipeline, connect, upgrade, setGlobalDispatcher, getGlobalDispatcher, setGlobalOrigin, getGlobalOrigin, interceptors, cacheStores, MockClient, MockPool, MockAgent, SnapshotAgent, MockCallHistory, MockCallHistoryLog, mockErrors, ProxyAgent, Socks5ProxyAgent, EnvHttpProxyAgent, RedirectHandler, DecoratorHandler, RetryHandler, RetryAgent, H2CClient, globalThisInstall as install }
 export default Undici
 
 declare namespace Undici {
@@ -60,6 +61,7 @@ declare namespace Undici {
   const buildConnector: typeof import('./connector').default
   const errors: typeof import('./errors').default
   const Agent: typeof import('./agent').default
+  const Dispatcher1Wrapper: typeof import('./dispatcher1-wrapper').default
   const setGlobalDispatcher: typeof import('./global-dispatcher').setGlobalDispatcher
   const getGlobalDispatcher: typeof import('./global-dispatcher').getGlobalDispatcher
   const request: typeof import('./api').request

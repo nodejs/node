@@ -2149,7 +2149,7 @@ async function httpNetworkFetch (
         body: null,
         abort: null,
 
-        onConnect (abort) {
+        onRequestStart (controller) {
           // TODO (fix): Do we need connection here?
           const { connection } = fetchParams.controller
 
@@ -2158,6 +2158,8 @@ async function httpNetworkFetch (
           // time, and fetchParams’s cross-origin isolated capability.
           // TODO: implement connection timing
           timingInfo.finalConnectionTimingInfo = clampAndCoarsenConnectionTimingInfo(undefined, timingInfo.postRedirectStartTime, fetchParams.crossOriginIsolatedCapability)
+
+          const abort = (reason) => controller.abort(reason)
 
           if (connection.destroyed) {
             abort(new DOMException('The operation was aborted.', 'AbortError'))
@@ -2179,19 +2181,28 @@ async function httpNetworkFetch (
           timingInfo.finalNetworkResponseStartTime = coarsenedSharedCurrentTime(fetchParams.crossOriginIsolatedCapability)
         },
 
-        onHeaders (status, rawHeaders, resume, statusText) {
+        onResponseStart (controller, status, _headers, statusText) {
           if (status < 200) {
-            return false
+            return
           }
 
+          const rawHeaders = controller?.rawHeaders ?? []
           const headersList = new HeadersList()
 
           for (let i = 0; i < rawHeaders.length; i += 2) {
-            headersList.append(bufferToLowerCasedHeaderName(rawHeaders[i]), rawHeaders[i + 1].toString('latin1'), true)
+            const nameStr = bufferToLowerCasedHeaderName(rawHeaders[i])
+            const value = rawHeaders[i + 1]
+            if (Array.isArray(value) && !Buffer.isBuffer(rawHeaders[i + 1])) {
+              for (const val of value) {
+                headersList.append(nameStr, val.toString('latin1'), true)
+              }
+            } else {
+              headersList.append(nameStr, value.toString('latin1'), true)
+            }
           }
           const location = headersList.get('location', true)
 
-          this.body = new Readable({ read: resume })
+          this.body = new Readable({ read: () => controller.resume() })
 
           const willFollow = location && request.redirect === 'follow' &&
             redirectStatusSet.has(status)
@@ -2211,7 +2222,7 @@ async function httpNetworkFetch (
             const maxContentEncodings = 5
             if (codings.length > maxContentEncodings) {
               reject(new Error(`too many content-encodings in response: ${codings.length}, maximum allowed is ${maxContentEncodings}`))
-              return true
+              return
             }
 
             for (let i = codings.length - 1; i >= 0; --i) {
@@ -2248,7 +2259,7 @@ async function httpNetworkFetch (
             }
           }
 
-          const onError = this.onError.bind(this)
+          const onError = (err) => this.onResponseError(controller, err)
 
           resolve({
             status,
@@ -2257,16 +2268,14 @@ async function httpNetworkFetch (
             body: decoders.length
               ? pipeline(this.body, ...decoders, (err) => {
                 if (err) {
-                  this.onError(err)
+                  this.onResponseError(controller, err)
                 }
               }).on('error', onError)
               : this.body.on('error', onError)
           })
-
-          return true
         },
 
-        onData (chunk) {
+        onResponseData (controller, chunk) {
           if (fetchParams.controller.dump) {
             return
           }
@@ -2286,20 +2295,22 @@ async function httpNetworkFetch (
 
           //  4. See pullAlgorithm...
 
-          return this.body.push(bytes)
+          if (this.body.push(bytes) === false) {
+            controller.pause()
+          }
         },
 
-        onComplete () {
+        onResponseEnd () {
           if (this.abort) {
             fetchParams.controller.off('terminated', this.abort)
           }
 
           fetchParams.controller.ended = true
 
-          this.body.push(null)
+          this.body?.push(null)
         },
 
-        onError (error) {
+        onResponseError (_controller, error) {
           if (this.abort) {
             fetchParams.controller.off('terminated', this.abort)
           }
@@ -2311,52 +2322,26 @@ async function httpNetworkFetch (
           reject(error)
         },
 
-        onRequestUpgrade (_controller, status, headers, socket) {
+        onRequestUpgrade (controller, status, _headers, socket) {
           // We need to support 200 for websocket over h2 as per RFC-8441
           // Absence of session means H1
           if ((socket.session != null && status !== 200) || (socket.session == null && status !== 101)) {
             return false
           }
 
-          const headersList = new HeadersList()
-
-          for (const [name, value] of Object.entries(headers)) {
-            if (value == null) {
-              continue
-            }
-
-            const headerName = name.toLowerCase()
-
-            if (Array.isArray(value)) {
-              for (const entry of value) {
-                headersList.append(headerName, String(entry), true)
-              }
-            } else {
-              headersList.append(headerName, String(value), true)
-            }
-          }
-
-          resolve({
-            status,
-            statusText: STATUS_CODES[status],
-            headersList,
-            socket
-          })
-
-          return true
-        },
-
-        onUpgrade (status, rawHeaders, socket) {
-          // We need to support 200 for websocket over h2 as per RFC-8441
-          // Absence of session means H1
-          if ((socket.session != null && status !== 200) || (socket.session == null && status !== 101)) {
-            return false
-          }
-
+          const rawHeaders = controller?.rawHeaders ?? []
           const headersList = new HeadersList()
 
           for (let i = 0; i < rawHeaders.length; i += 2) {
-            headersList.append(bufferToLowerCasedHeaderName(rawHeaders[i]), rawHeaders[i + 1].toString('latin1'), true)
+            const nameStr = bufferToLowerCasedHeaderName(rawHeaders[i])
+            const value = rawHeaders[i + 1]
+            if (Array.isArray(value) && !Buffer.isBuffer(rawHeaders[i + 1])) {
+              for (const val of value) {
+                headersList.append(nameStr, val.toString('latin1'), true)
+              }
+            } else {
+              headersList.append(nameStr, value.toString('latin1'), true)
+            }
           }
 
           resolve({

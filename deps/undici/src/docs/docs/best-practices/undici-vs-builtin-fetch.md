@@ -19,6 +19,93 @@ When you install undici from npm, you get the full library with all of its
 additional APIs, and potentially a newer release than what your Node.js version
 bundles.
 
+## Keep `fetch` and `FormData` from the same implementation
+
+When you send a `FormData` body, keep `fetch` and `FormData` together from the
+same implementation.
+
+Use one of these patterns:
+
+### Built-in globals
+
+```js
+const body = new FormData()
+body.set('name', 'some')
+body.set('someOtherProperty', '8000')
+
+await fetch('https://example.com', {
+  method: 'POST',
+  body
+})
+```
+
+### `undici` module imports
+
+```js
+import { fetch, FormData } from 'undici'
+
+const body = new FormData()
+body.set('name', 'some')
+body.set('someOtherProperty', '8000')
+
+await fetch('https://example.com', {
+  method: 'POST',
+  body
+})
+```
+
+### `undici.install()` globals
+
+If you want the installed `undici` package to provide the globals, call
+[`install()`](/docs/api/GlobalInstallation.md):
+
+```js
+import { install } from 'undici'
+
+install()
+
+const body = new FormData()
+body.set('name', 'some')
+body.set('someOtherProperty', '8000')
+
+await fetch('https://example.com', {
+  method: 'POST',
+  body
+})
+```
+
+`install()` replaces the global `fetch`, `Headers`, `Response`, `Request`, and
+`FormData` implementations with undici's versions, and also installs undici's
+`WebSocket`, `CloseEvent`, `ErrorEvent`, `MessageEvent`, and `EventSource`
+globals.
+
+Avoid mixing implementations in the same request, for example:
+
+```js
+import { fetch } from 'undici'
+
+const body = new FormData()
+
+await fetch('https://example.com', {
+  method: 'POST',
+  body
+})
+```
+
+```js
+import { FormData } from 'undici'
+
+const body = new FormData()
+
+await fetch('https://example.com', {
+  method: 'POST',
+  body
+})
+```
+
+Those combinations may behave differently across Node.js and undici versions.
+Using matching pairs keeps multipart handling predictable.
+
 ## When you do NOT need to install undici
 
 If all of the following are true, you can rely on the built-in globals and skip
@@ -119,12 +206,12 @@ You can always check the exact bundled version at runtime with
 `process.versions.undici`.
 
 Installing undici from npm does not replace the built-in globals. If you want
-your installed version to override the global `fetch`, use
-[`setGlobalDispatcher`](/docs/api/GlobalInstallation.md) or import `fetch`
+your installed version to replace the global `fetch` and related classes, use
+[`install()`](/docs/api/GlobalInstallation.md). Otherwise, import `fetch`
 directly from `'undici'`:
 
 ```js
-import { fetch } from 'undici'; // uses your installed version, not the built-in
+import { fetch } from 'undici' // uses your installed version, not the built-in
 ```
 
 ## Further reading

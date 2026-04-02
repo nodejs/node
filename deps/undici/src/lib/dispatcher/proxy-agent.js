@@ -54,15 +54,15 @@ class Http1ProxyWrapper extends DispatcherBase {
   }
 
   [kDispatch] (opts, handler) {
-    const onHeaders = handler.onHeaders
-    handler.onHeaders = function (statusCode, data, resume) {
+    const onResponseStart = handler.onResponseStart
+    handler.onResponseStart = function (controller, statusCode, data, statusMessage) {
       if (statusCode === 407) {
-        if (typeof handler.onError === 'function') {
-          handler.onError(new InvalidArgumentError('Proxy Authentication Required (407)'))
+        if (typeof handler.onResponseError === 'function') {
+          handler.onResponseError(controller, new InvalidArgumentError('Proxy Authentication Required (407)'))
         }
         return
       }
-      if (onHeaders) onHeaders.call(this, statusCode, data, resume)
+      if (onResponseStart) onResponseStart.call(this, controller, statusCode, data, statusMessage)
     }
 
     // Rewrite request as an HTTP1 Proxy request, without tunneling.
