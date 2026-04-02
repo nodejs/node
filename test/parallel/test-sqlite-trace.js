@@ -147,9 +147,7 @@ suite('sqlite.db.query diagnostics channel', () => {
     const calls = [];
     const db1 = new DatabaseSync(':memory:');
     const db2 = new DatabaseSync(':memory:');
-    t.after(() => {
-      db1.close(); db2.close();
-    });
+    t.after(() => { db1.close(); db2.close(); });
 
     const handler = (msg) => calls.push(msg);
     dc.subscribe('sqlite.db.query', handler);
@@ -162,5 +160,35 @@ suite('sqlite.db.query diagnostics channel', () => {
     assert.strictEqual(calls[0].database, db1);
     assert.strictEqual(calls[1].database, db2);
     assert.notStrictEqual(calls[0].database, calls[1].database);
+  });
+
+  it('duration is a number', (t) => {
+    const calls = [];
+    const db = new DatabaseSync(':memory:');
+    t.after(() => db.close());
+
+    const handler = (msg) => calls.push(msg);
+    dc.subscribe('sqlite.db.query', handler);
+    t.after(() => dc.unsubscribe('sqlite.db.query', handler));
+
+    db.exec('CREATE TABLE t (x INTEGER)');
+
+    assert.strictEqual(calls.length, 1);
+    assert.strictEqual(typeof calls[0].duration, 'number');
+  });
+
+  it('duration is non-negative', (t) => {
+    const calls = [];
+    const db = new DatabaseSync(':memory:');
+    t.after(() => db.close());
+
+    const handler = (msg) => calls.push(msg);
+    dc.subscribe('sqlite.db.query', handler);
+    t.after(() => dc.unsubscribe('sqlite.db.query', handler));
+
+    db.exec('CREATE TABLE t (x INTEGER)');
+
+    assert.strictEqual(calls.length, 1);
+    assert.ok(calls[0].duration >= 0);
   });
 });
