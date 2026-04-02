@@ -82,3 +82,31 @@ const {
     /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
   );
 }
+
+{
+  const uuidv7Regex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+  assert.match(randomUUIDv7({ disableEntropyCache: true }), uuidv7Regex);
+  assert.match(randomUUIDv7({ disableEntropyCache: true }), uuidv7Regex);
+  assert.match(randomUUIDv7({ disableEntropyCache: true }), uuidv7Regex);
+  assert.match(randomUUIDv7({ disableEntropyCache: true }), uuidv7Regex);
+
+  assert.throws(() => randomUUIDv7(1), {
+    code: 'ERR_INVALID_ARG_TYPE',
+  });
+
+  assert.throws(() => randomUUIDv7({ disableEntropyCache: '' }), {
+    code: 'ERR_INVALID_ARG_TYPE',
+  });
+}
+
+{
+  for (let n = 0; n < 130; n++) {
+    const uuid = randomUUIDv7();
+    assert.match(
+      uuid,
+      /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+  }
+}
