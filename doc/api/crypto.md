@@ -5845,20 +5845,6 @@ precision Unix timestamp in the most significant 48 bits, followed by
 cryptographically secure random bits for the remaining fields, making it
 suitable for use as a database key with time-based sorting.
 
-```mjs
-import { randomUUIDv7 } from 'node:crypto';
-
-console.log(randomUUIDv7());
-// e.g. '019d45ea-151f-780b-82a6-d097b39db62a'
-```
-
-```cjs
-const { randomUUIDv7 } = require('node:crypto');
-
-console.log(randomUUIDv7());
-// e.g. '019d45ea-151f-780b-82a6-d097b39db62a'
-```
-
 ### `crypto.scrypt(password, salt, keylen[, options], callback)`
 
 <!-- YAML
