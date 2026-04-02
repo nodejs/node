@@ -34,18 +34,35 @@
 # Symbols for the gtest libraries are excluded as
 # they are not linked into the node executable.
 #
+set -x
 echo "Searching $1 to write out expfile to $2"
 
 # This special sequence must be at the start of the exp file.
 echo "#!." > "$2.tmp"
 
 # Pull the symbols from the .a files.
-find "$1" -name "*.a" | grep -v gtest \
-  | xargs nm -Xany -BCpg \
-  | awk '{
-      if ((($2 == "T") || ($2 == "D") || ($2 == "B")) &&
-          (substr($3,1,1) != ".")) { print $3 }
-    }' \
-  | sort -u >> "$2.tmp"
+# Use dump -tov to get visibility information and exclude HIDDEN symbols
+# This prevents AIX linker error 0711-407 when addons try to import symbols
+# with visibility attributes.
+find "$1" -name "*.a" | grep -v gtest | while read f; do
+    dump -tov -X 32_64 "$f" 2>/dev/null | \
+    awk '
+        BEGIN {
+            V["EXPORTED"]=" export"
+            V["PROTECTED"]=" protected"
+            V["HIDDEN"]=" hidden"
+        }
+        /^\[[0-9]+\]\tm +[^ ]+ +\.(text|data|tdata|bss) +[^ ]+ +(extern|weak) +(EXPORTED|PROTECTED|HIDDEN| ) / {
+            # Exclude symbols starting with dot, __sinit, __sterm, __[0-9]+__
+            # Also exclude HIDDEN symbols to avoid visibility attribute issues
+            if (!match($NF,/^(\.|__sinit|__sterm|__[0-9]+__)/)) {
+                visibility = $(NF-1)
+                if (visibility != "HIDDEN") {
+                    print $NF
+                }
+            }
+        }
+    '
+done | sort -u >> "$2.tmp"
 
 mv -f "$2.tmp" "$2"
