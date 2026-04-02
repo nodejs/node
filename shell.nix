@@ -64,7 +64,6 @@ let
         "--with-intl=${if useSharedICU then "system" else icu}-icu"
     )
   ]
-  ++ extraConfigFlags
   ++ pkgs.lib.optional withTemporal "--v8-enable-temporal-support"
   ++ pkgs.lib.optional (withTemporal && useSharedTemporal) "--shared-temporal_capi";
 in
@@ -100,6 +99,7 @@ pkgs.mkShell {
   NINJA = pkgs.lib.optionalString (ninja != null) "${pkgs.lib.getExe ninja}";
   CONFIG_FLAGS = builtins.toString (
     configureFlags
+    ++ extraConfigFlags
     ++ pkgs.lib.optional (ninja != null) "--ninja"
     ++ pkgs.lib.optional (!withAmaro) "--without-amaro"
     ++ pkgs.lib.optional (!withLief) "--without-lief"
