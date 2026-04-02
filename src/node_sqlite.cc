@@ -1027,7 +1027,7 @@ bool DatabaseSync::Open() {
   diagnostics_channel::Channel* ch =
       diagnostics_channel::Channel::Get(env(), "sqlite.db.query");
   if (ch != nullptr && ch->HasSubscribers()) {
-    sqlite3_trace_v2(connection_, SQLITE_TRACE_STMT, TraceCallback, this);
+    sqlite3_trace_v2(connection_, SQLITE_TRACE_PROFILE, TraceCallback, this);
   }
 
   return true;
@@ -1035,7 +1035,7 @@ bool DatabaseSync::Open() {
 
 void DatabaseSync::EnableTracing() {
   if (!IsOpen()) return;
-  sqlite3_trace_v2(connection_, SQLITE_TRACE_STMT, TraceCallback, this);
+  sqlite3_trace_v2(connection_, SQLITE_TRACE_PROFILE, TraceCallback, this);
 }
 
 void DatabaseSync::DisableTracing() {
@@ -2591,7 +2591,7 @@ int DatabaseSync::TraceCallback(unsigned int type,
                                 void* user_data,
                                 void* p,
                                 void* x) {
-  if (type != SQLITE_TRACE_STMT) {
+  if (type != SQLITE_TRACE_PROFILE) {
     return 0;
   }
 
@@ -2625,6 +2625,10 @@ int DatabaseSync::TraceCallback(unsigned int type,
     }
   }
 
+  // x points to the estimated statement run time in nanoseconds. A double is
+  // sufficient since 2^53 ns (~104 days) exceeds any realistic query duration.
+  sqlite3_int64 duration_ns = *static_cast<sqlite3_int64*>(x);
+
   Local<Object> payload = Object::New(isolate);
   if (payload
           ->Set(context,
@@ -2635,6 +2639,11 @@ int DatabaseSync::TraceCallback(unsigned int type,
           ->Set(context,
                 FIXED_ONE_BYTE_STRING(isolate, "database"),
                 db->object())
+          .IsNothing() ||
+      payload
+          ->Set(context,
+                FIXED_ONE_BYTE_STRING(isolate, "duration"),
+                Number::New(isolate, static_cast<double>(duration_ns)))
           .IsNothing()) {
     return 0;
   }
