@@ -216,10 +216,10 @@ class ModuleWrap : public BaseObject {
   // nullopt value.
   std::optional<bool> has_async_graph_ = std::nullopt;
   int module_hash_;
-  // Corresponds to the ModuleWrap* of the wrappers in kLinkedRequestsSlot.
-  // These are populated during Link(), and are only valid after that as
-  // convenient shortcuts, but do not hold the ModuleWraps alive. The actual
-  // strong references come from the array in kLinkedRequestsSlot.
+  // Corresponds to the ModuleWrap* of the wrappers in kLinkedRequestsSlot
+  // during Link()/Instantiate(). These are convenient shortcuts and do not
+  // hold the ModuleWraps alive. The JS array in kLinkedRequestsSlot is
+  // cleared after successful instantiation.
   std::vector<ModuleWrap*> linked_module_wraps_;
 };
 
