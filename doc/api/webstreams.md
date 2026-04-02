@@ -1166,8 +1166,9 @@ added: v16.5.0
     the transformation process.
     * `controller` {TransformStreamDefaultController}
     * Returns: A promise fulfilled with `undefined`.
-  * `cancel` {Function} A user-defined function that is called when the
-    readable side of the `TransformStream` is canceled.
+  * `cancel` {Function} A user-defined function that is called when either the
+    readable side of the `TransformStream` is canceled or the writable side is
+    aborted.
     * `reason` {any}
     * Returns: A promise fulfilled with `undefined`.
   * `readableType` {any} the `readableType` option is reserved for future use
