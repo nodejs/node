@@ -6,11 +6,6 @@
 added: v16.5.0
 changes:
   - version:
-    - v21.5.0
-    - v20.14.0
-    pr-url: https://github.com/nodejs/node/pull/50126
-    description: Supports the `cancel` transformer callback.
-  - version:
     - v21.0.0
     pr-url: https://github.com/nodejs/node/pull/45684
     description: No longer experimental.
@@ -1153,6 +1148,12 @@ await Promise.all([
 
 <!-- YAML
 added: v16.5.0
+changes:
+  - version:
+    - v21.5.0
+    - v20.14.0
+    pr-url: https://github.com/nodejs/node/pull/50126
+    description: Supports the `cancel` transformer callback.
 -->
 
 * `transformer` {Object}
