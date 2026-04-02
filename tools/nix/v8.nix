@@ -157,16 +157,29 @@ stdenv.mkDerivation (finalAttrs: {
         ''
     }
 
+    install -Dm644 deps/v8/third_party/simdutf/simdutf.h -t $out/include
+    find deps/v8/include -name '*.h' -print0 | while read -r -d "" file; do
+      install -Dm644 "$file" -T "$out/include/''${file#deps/v8/include/}"
+    done
+    find deps/v8/third_party/abseil-cpp/absl -name '*.h' -print0 | while read -r -d "" file; do
+      install -Dm644 "$file" -T "$out/include/''${file#deps/v8/third_party/abseil-cpp/}"
+    done
+
     mkdir -p $out/lib/pkgconfig
     cat -> $out/lib/pkgconfig/v8.pc << EOF
+    prefix=$out
+    exec_prefix=\''${prefix}
+    libdir=\''${exec_prefix}/lib
+    includedir=\''${prefix}/include
+
     Name: v8
     Description: V8 JavaScript Engine build for Node.js CI
     Version: ${finalAttrs.version}
-    Libs: -L$out/lib $(for f in $out/lib/lib*.a; do
+    Libs: -L\''${libdir} $(for f in $out/lib/lib*.a; do
       b=$(basename "$f" .a)
       printf " -l%s" "''${b#lib}"
     done) -lstdc++
-    Cflags: -I${v8Dir}/include -I${v8Dir}/third_party/abseil-cpp -I${v8Dir}/third_party/simdutf
+    Cflags: -I\''${includedir}
     EOF
 
     runHook postInstall
