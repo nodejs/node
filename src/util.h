@@ -390,6 +390,16 @@ constexpr size_t strsize(const T (&)[N]) {
   return N - 1;
 }
 
+template <typename T>
+inline constexpr bool kMaybeStackBufferHasStringType =
+    std::is_same_v<T, char> || std::is_same_v<T, wchar_t> ||
+    std::is_same_v<T, char8_t> || std::is_same_v<T, char16_t> ||
+    std::is_same_v<T, char32_t> || std::is_same_v<T, uint16_t>;
+
+template <typename T>
+using MaybeStackBufferStringType =
+    std::conditional_t<std::is_same_v<T, uint16_t>, char16_t, T>;
+
 // Allocates an array of member type T. For up to kStackStorageSize items,
 // the stack is used, otherwise malloc().
 template <typename T, size_t kStackStorageSize = 1024>
@@ -503,9 +513,28 @@ class MaybeStackBuffer {
       free(buf_);
   }
 
-  inline std::basic_string<T> ToString() const { return {out(), length()}; }
-  inline std::basic_string_view<T> ToStringView() const {
-    return {out(), length()};
+  // Restrict string helpers to textual element types. libc++ deprecates
+  // `char_traits<T>` for byte-oriented types like `unsigned char`.
+  template <typename U = T,
+            typename Char = MaybeStackBufferStringType<U>>
+    requires(kMaybeStackBufferHasStringType<U>)
+  inline std::basic_string<Char> ToString() const {
+    if constexpr (std::is_same_v<U, Char>) {
+      return {out(), length()};
+    } else {
+      return {reinterpret_cast<const Char*>(out()), length()};
+    }
+  }
+
+  template <typename U = T,
+            typename Char = MaybeStackBufferStringType<U>>
+    requires(kMaybeStackBufferHasStringType<U>)
+  inline std::basic_string_view<Char> ToStringView() const {
+    if constexpr (std::is_same_v<U, Char>) {
+      return {out(), length()};
+    } else {
+      return {reinterpret_cast<const Char*>(out()), length()};
+    }
   }
   // This can only be used if the buffer contains path data in UTF8
   inline std::filesystem::path ToPath() const;
