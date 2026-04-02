@@ -2421,6 +2421,9 @@
         ],
       },
       'include_dirs': ['.'],
+      # Keep the GYP target aligned with third_party/simdutf/BUILD.gn, which
+      # suppresses this warning for the amalgamated translation unit.
+      'cflags_cc': [ '-Wno-unused-function' ],
       'sources': [
         '<(V8_ROOT)/third_party/simdutf/simdutf.cpp',
       ],
