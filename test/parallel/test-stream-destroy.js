@@ -118,3 +118,13 @@ const http = require('http');
     req.end('asd');
   }));
 }
+
+{
+  // resume() and pause() should be no-ops on destroyed streams.
+  const r = new Readable({ read() {} });
+  r.destroy();
+  r.on('resume', common.mustNotCall());
+  r.on('pause', common.mustNotCall());
+  r.resume();
+  r.pause();
+}
