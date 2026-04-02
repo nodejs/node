@@ -188,6 +188,9 @@
           '-Wall',
           '-Wextra',
           '-Wno-unused-parameter',
+          # `uv_cpu_info_t.model` is exposed as `const char*`, but libuv frees
+          # the owned buffer internally via `uv__free(void*)`.
+          '-Wno-incompatible-pointer-types-discards-qualifiers',
           '-Wstrict-prototypes',
         ],
         'OTHER_CFLAGS': [ '-g', '--std=gnu11' ],
