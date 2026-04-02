@@ -5826,6 +5826,33 @@ added:
 Generates a random [RFC 4122][] version 4 UUID. The UUID is generated using a
 cryptographic pseudorandom number generator.
 
+### `crypto.randomUUIDv7()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {string}
+
+Generates a random [RFC 9562][] version 7 UUID. The UUID contains a millisecond
+precision Unix timestamp in the most significant 48 bits, followed by
+cryptographically secure random bits for the remaining fields, making it
+suitable for use as a database key with time-based sorting.
+
+```mjs
+import { randomUUIDv7 } from 'node:crypto';
+
+console.log(randomUUIDv7());
+// e.g. '019d45ea-151f-780b-82a6-d097b39db62a'
+```
+
+```cjs
+const { randomUUIDv7 } = require('node:crypto');
+
+console.log(randomUUIDv7());
+// e.g. '019d45ea-151f-780b-82a6-d097b39db62a'
+```
+
 ### `crypto.scrypt(password, salt, keylen[, options], callback)`
 
 <!-- YAML
@@ -6861,6 +6888,7 @@ See the [list of SSL OP Flags][] for details.
 [RFC 4055]: https://www.rfc-editor.org/rfc/rfc4055.txt
 [RFC 4122]: https://www.rfc-editor.org/rfc/rfc4122.txt
 [RFC 5208]: https://www.rfc-editor.org/rfc/rfc5208.txt
+[RFC 9562]: https://www.rfc-editor.org/rfc/rfc9562.txt
 [RFC 5280]: https://www.rfc-editor.org/rfc/rfc5280.txt
 [RFC 7517]: https://www.rfc-editor.org/rfc/rfc7517.txt
 [RFC 8032]: https://www.rfc-editor.org/rfc/rfc8032.txt
