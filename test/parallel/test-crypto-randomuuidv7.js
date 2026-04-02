@@ -10,7 +10,6 @@ const {
   randomUUIDv7,
 } = require('crypto');
 
-// Basic return type and format checks.
 {
   const uuid = randomUUIDv7();
   assert.strictEqual(typeof uuid, 'string');
@@ -23,22 +22,18 @@ const {
   );
 }
 
-// Check version and variant bits.
 {
   const uuid = randomUUIDv7();
 
-  // Version 7: byte 6 high nibble should be 0x7.
   assert.strictEqual(
     Buffer.from(uuid.slice(14, 16), 'hex')[0] & 0xf0, 0x70,
   );
 
-  // Variant: byte 8 high 2 bits should be 0b10.
   assert.strictEqual(
     Buffer.from(uuid.slice(19, 21), 'hex')[0] & 0b1100_0000, 0b1000_0000,
   );
 }
 
-// Uniqueness: generate many UUIDs and verify no duplicates.
 {
   const seen = new Set();
   for (let i = 0; i < 1000; i++) {
@@ -64,8 +59,6 @@ const {
   assert(timestamp <= after, `Timestamp ${timestamp} > after ${after}`);
 }
 
-// Monotonicity: UUIDs generated in sequence should sort lexicographically
-// within the same millisecond or across milliseconds.
 {
   let prev = randomUUIDv7();
   for (let i = 0; i < 100; i++) {
