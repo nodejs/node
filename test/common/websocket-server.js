@@ -120,7 +120,7 @@ class WebSocketServer {
       this.customHandleUpgradeHeaders.map((header) => {
         const index = header.indexOf(':');
         return [header.slice(0, index).trim(), header.slice(index + 1).trim()];
-      })
+      }),
     );
   }
 
