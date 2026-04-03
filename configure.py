@@ -349,6 +349,28 @@ shared_optgroup.add_argument('--shared-libuv-libpath',
     dest='shared_libuv_libpath',
     help='a directory to search for the shared libuv DLL')
 
+shared_optgroup.add_argument('--shared-lief',
+    action='store_true',
+    dest='shared_lief',
+    default=None,
+    help='link to a shared lief DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-lief-includes',
+    action='store',
+    dest='shared_lief_includes',
+    help='directory containing lief header files')
+
+shared_optgroup.add_argument('--shared-lief-libname',
+    action='store',
+    dest='shared_lief_libname',
+    default='LIEF',
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-lief-libpath',
+    action='store',
+    dest='shared_lief_libpath',
+    help='a directory to search for the shared lief DLL')
+
 shared_optgroup.add_argument('--shared-nbytes',
     action='store_true',
     dest='shared_nbytes',
@@ -897,6 +919,12 @@ parser.add_argument('--without-amaro',
     dest='without_amaro',
     default=None,
     help='do not install the bundled Amaro (TypeScript utils)')
+
+parser.add_argument('--without-lief',
+    action='store_true',
+    dest='without_lief',
+    default=None,
+    help='build without LIEF (Library for instrumenting executable formats)')
 
 parser.add_argument('--without-npm',
     action='store_true',
@@ -1689,6 +1717,14 @@ def configure_node(o):
   o['variables']['single_executable_application'] = b(not options.disable_single_executable_application)
   if options.disable_single_executable_application:
     o['defines'] += ['DISABLE_SINGLE_EXECUTABLE_APPLICATION']
+    o['variables']['node_use_lief'] = 'false'
+  else:
+    if (options.without_lief is not None):
+      o['variables']['node_use_lief'] = b(not options.without_lief)
+    elif flavor in ('mac', 'linux', 'win'):
+      o['variables']['node_use_lief'] = 'true'
+    else:
+      o['variables']['node_use_lief'] = 'false'
 
   o['variables']['node_with_ltcg'] = b(options.with_ltcg)
   if flavor != 'win' and options.with_ltcg:
@@ -1932,6 +1968,14 @@ def configure_openssl(o):
     o['defines'] += ['NODE_OPENSSL_HAS_QUIC']
 
   configure_library('openssl', o)
+
+def configure_lief(o):
+  if options.without_lief:
+    if options.shared_lief:
+      error('--without-lief is incompatible with --shared-lief')
+    return
+
+  configure_library('lief', o, pkgname='LIEF')
 
 def configure_sqlite(o):
   o['variables']['node_use_sqlite'] = b(not options.without_sqlite)
@@ -2390,6 +2434,7 @@ configure_library('nbytes', output)
 configure_library('nghttp2', output, pkgname='libnghttp2')
 configure_library('nghttp3', output, pkgname='libnghttp3')
 configure_library('ngtcp2', output, pkgname='libngtcp2')
+configure_lief(output);
 configure_sqlite(output);
 configure_library('uvwasi', output)
 configure_library('zstd', output, pkgname='libzstd')

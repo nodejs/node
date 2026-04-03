@@ -11,15 +11,15 @@ const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');
 
 const {
-  generateSEA,
-  skipIfSingleExecutableIsNotSupported,
+  buildSEA,
+  skipIfBuildSEAIsNotSupported,
 } = require('../common/sea');
 
-skipIfSingleExecutableIsNotSupported();
+skipIfBuildSEAIsNotSupported();
 
 tmpdir.refresh();
 
-const outputFile = generateSEA(fixtures.path('sea', 'inspect-in-sea-flags'));
+const outputFile = buildSEA(fixtures.path('sea', 'inspect-in-sea-flags'));
 
 // Spawn the SEA with inspect option
 spawnSyncAndAssert(

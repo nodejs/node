@@ -3,11 +3,11 @@
 require('../common');
 
 const {
-  generateSEA,
-  skipIfSingleExecutableIsNotSupported,
+  buildSEA,
+  skipIfBuildSEAIsNotSupported,
 } = require('../common/sea');
 
-skipIfSingleExecutableIsNotSupported();
+skipIfBuildSEAIsNotSupported();
 
 // This tests the creation of a single executable application which has the
 // experimental SEA warning disabled.
@@ -19,7 +19,7 @@ const fixtures = require('../common/fixtures');
 
 tmpdir.refresh();
 
-const outputFile = generateSEA(fixtures.path('sea', 'disable-experimental-warning'));
+const outputFile = buildSEA(fixtures.path('sea', 'disable-experimental-warning'));
 
 spawnSyncAndAssert(
   outputFile,
