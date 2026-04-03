@@ -2,7 +2,7 @@
 
 BACKPORT_PR=$1
 
-[ -x "$(command -v gh)" ] || {
+[ -x "$(command -v gh || true)" ] || {
     # shellcheck disable=SC2016
     echo 'Missing required `gh` dependency' >&2
     exit 1
