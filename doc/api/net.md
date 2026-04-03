@@ -767,9 +767,10 @@ changes:
     access to specific IP addresses, IP ranges, or IP subnets.
   * `fd` {number} If specified, wrap around an existing socket with
     the given file descriptor, otherwise a new socket will be created.
-  * `keepAlive` {boolean} If set to `true`, it enables keep-alive functionality on
-    the socket immediately after the connection is established, similarly on what
-    is done in [`socket.setKeepAlive()`][]. **Default:** `false`.
+  * `keepAlive` {boolean} If set to `true`, it enables TCP keep-alive
+    functionality on the socket immediately after the connection is established,
+    similarly to what is done in [`socket.setKeepAlive()`][]. This is not related
+    to HTTP keep-alive. **Default:** `false`.
   * `keepAliveInitialDelay` {number} If set to a positive number, it sets the
     initial delay before the first keepalive probe is sent on an idle socket. **Default:** `0`.
   * `noDelay` {boolean} If set to `true`, it disables the use of Nagle's algorithm
