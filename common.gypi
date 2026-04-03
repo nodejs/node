@@ -98,7 +98,7 @@
         'v8_base': '<(PRODUCT_DIR)/lib/libv8_snapshot.a',
       }, {
         'os_posix': 1,
-        'v8_postmortem_support%': 1,
+        'v8_postmortem_support%': 0,
       }],
       ['GENERATOR == "ninja"', {
         'obj_dir': '<(PRODUCT_DIR)/obj',
