@@ -1601,6 +1601,29 @@
         }],
         # end of conditions from 'BUILD.gn'
 
+        # https://chromium-review.googlesource.com/c/v8/v8/+/7683553
+        ['v8_target_arch=="ia32" or v8_target_arch=="x64"', {
+          'sources': ['<(V8_ROOT)/src/base/cpu/cpu-x86.cc'],
+        }],
+        ['v8_target_arch=="arm" or v8_target_arch=="arm64"', {
+          'sources': ['<(V8_ROOT)/src/base/cpu/cpu-arm.cc'],
+        }],
+        ['v8_target_arch=="riscv64"', {
+          'sources': ['<(V8_ROOT)/src/base/cpu/cpu-riscv.cc'],
+        }],
+        ['v8_target_arch=="loong64"', {
+          'sources': ['<(V8_ROOT)/src/base/cpu/cpu-loong64.cc'],
+        }],
+        ['v8_target_arch=="mips64" or v8_target_arch=="mips64el"', {
+          'sources': ['<(V8_ROOT)/src/base/cpu/cpu-mips64.cc'],
+        }],
+        ['v8_target_arch=="ppc64"', {
+          'sources': ['<(V8_ROOT)/src/base/cpu/cpu-ppc.cc'],
+        }],
+        ['v8_target_arch=="s390x"', {
+          'sources': ['<(V8_ROOT)/src/base/cpu/cpu-s390.cc'],
+        }],
+
         # Node.js validated
         ['OS=="solaris"', {
           'link_settings': {
