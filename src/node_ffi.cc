@@ -188,7 +188,7 @@ void DynamicLibrary::CleanupFunctionInfo(
   delete info;
 }
 
-Local<Function> DynamicLibrary::CreateFunction(
+MaybeLocal<Function> DynamicLibrary::CreateFunction(
     Environment* env,
     const std::string& name,
     const std::shared_ptr<FFIFunction>& fn) {
@@ -197,21 +197,32 @@ Local<Function> DynamicLibrary::CreateFunction(
   FFIFunctionInfo* info = new FFIFunctionInfo();
   info->fn = fn;
   Local<External> data = External::New(isolate, info);
-  Local<Function> ret =
-      Function::New(env->context(), DynamicLibrary::InvokeFunction, data)
-          .ToLocalChecked();
+  MaybeLocal<Function> maybe_ret =
+      Function::New(env->context(), DynamicLibrary::InvokeFunction, data);
+  Local<Function> ret;
+  if (!maybe_ret.ToLocal(&ret)) {
+    return MaybeLocal<Function>();
+  }
+
+  Local<String> name_str;
+  if (!String::NewFromUtf8(isolate, name.c_str(), NewStringType::kNormal)
+           .ToLocal(&name_str)) {
+    return MaybeLocal<Function>();
+  }
+
   info->self.Reset(isolate, ret);
   info->self.SetWeak(
       info, DynamicLibrary::CleanupFunctionInfo, WeakCallbackType::kParameter);
-  ret->SetName(
-      String::NewFromUtf8(isolate, name.c_str(), NewStringType::kNormal)
-          .ToLocalChecked());
-  ret->Set(env->context(),
-           FIXED_ONE_BYTE_STRING(env->isolate(), "pointer"),
-           BigInt::NewFromUnsigned(
-               isolate,
-               static_cast<uint64_t>(reinterpret_cast<uintptr_t>(fn->ptr))))
-      .Check();
+  ret->SetName(name_str);
+  if (!ret->Set(
+              env->context(),
+              env->pointer_string(),
+              BigInt::NewFromUnsigned(
+                  isolate,
+                  static_cast<uint64_t>(reinterpret_cast<uintptr_t>(fn->ptr))))
+           .FromMaybe(false)) {
+    return MaybeLocal<Function>();
+  }
 
   return ret;
 }
@@ -386,7 +397,14 @@ void DynamicLibrary::InvokeCallback(ffi_cif* cif,
     ABORT();
   }
 
-  Local<Value> result_val = result.ToLocalChecked();
+  Local<Value> result_val;
+  if (!result.ToLocal(&result_val)) {
+    if (try_catch.HasCaught()) {
+      FPrintF(stderr, "Callbacks cannot return an exception\n");
+      ABORT();
+    }
+    return;
+  }
 
   if (result_val->IsPromise()) {
     FPrintF(stderr, "Callbacks cannot return promises\n");
@@ -402,10 +420,14 @@ void DynamicLibrary::InvokeCallback(ffi_cif* cif,
 void DynamicLibrary::GetPath(const FunctionCallbackInfo<Value>& args) {
   DynamicLibrary* lib = Unwrap<DynamicLibrary>(args.This());
 
-  args.GetReturnValue().Set(String::NewFromUtf8(args.GetIsolate(),
-                                                lib->path_.c_str(),
-                                                NewStringType::kNormal)
-                                .ToLocalChecked());
+  Local<String> path;
+  if (!String::NewFromUtf8(
+           args.GetIsolate(), lib->path_.c_str(), NewStringType::kNormal)
+           .ToLocal(&path)) {
+    return;
+  }
+
+  args.GetReturnValue().Set(path);
 }
 
 void DynamicLibrary::GetFunction(const FunctionCallbackInfo<Value>& args) {
@@ -448,7 +470,11 @@ void DynamicLibrary::GetFunction(const FunctionCallbackInfo<Value>& args) {
     lib->functions_.emplace(*name, fn);
   }
 
-  Local<Function> ret = lib->CreateFunction(env, *name, fn);
+  MaybeLocal<Function> maybe_ret = lib->CreateFunction(env, *name, fn);
+  Local<Function> ret;
+  if (!maybe_ret.ToLocal(&ret)) {
+    return;
+  }
   args.GetReturnValue().Set(ret);
 }
 
@@ -539,27 +565,43 @@ void DynamicLibrary::GetFunctions(const FunctionCallbackInfo<Value>& args) {
     }
 
     for (const auto& item : pending) {
-      Local<Function> ret = lib->CreateFunction(env, item.name, item.fn);
+      MaybeLocal<Function> maybe_ret =
+          lib->CreateFunction(env, item.name, item.fn);
+      Local<Function> ret;
+      if (!maybe_ret.ToLocal(&ret)) {
+        return;
+      }
 
-      functions
-          ->Set(context,
-                String::NewFromUtf8(
-                    isolate, item.name.c_str(), NewStringType::kNormal)
-                    .ToLocalChecked(),
-                ret)
-          .Check();
+      Local<String> name_string;
+      if (!String::NewFromUtf8(
+               isolate, item.name.c_str(), NewStringType::kNormal)
+               .ToLocal(&name_string)) {
+        return;
+      }
+
+      if (!functions->Set(context, name_string, ret).FromMaybe(false)) {
+        return;
+      }
     }
   } else {
     for (const auto& entry : lib->functions_) {
-      Local<Function> fn = lib->CreateFunction(env, entry.first, entry.second);
+      MaybeLocal<Function> maybe_fn =
+          lib->CreateFunction(env, entry.first, entry.second);
+      Local<Function> fn;
+      if (!maybe_fn.ToLocal(&fn)) {
+        return;
+      }
 
-      functions
-          ->Set(context,
-                String::NewFromUtf8(
-                    isolate, entry.first.c_str(), NewStringType::kNormal)
-                    .ToLocalChecked(),
-                fn)
-          .Check();
+      Local<String> name_string;
+      if (!String::NewFromUtf8(
+               isolate, entry.first.c_str(), NewStringType::kNormal)
+               .ToLocal(&name_string)) {
+        return;
+      }
+
+      if (!functions->Set(context, name_string, fn).FromMaybe(false)) {
+        return;
+      }
     }
   }
 
@@ -608,16 +650,23 @@ void DynamicLibrary::GetSymbols(const FunctionCallbackInfo<Value>& args) {
     return;
   }
   for (const auto& entry : lib->symbols_) {
-    symbols
-        ->Set(context,
-              String::NewFromUtf8(
-                  isolate, entry.first.c_str(), NewStringType::kNormal)
-                  .ToLocalChecked(),
-              BigInt::NewFromUnsigned(
-                  isolate,
-                  static_cast<uint64_t>(
-                      reinterpret_cast<uintptr_t>(entry.second))))
-        .Check();
+    Local<String> symbol_key;
+    if (!String::NewFromUtf8(
+             isolate, entry.first.c_str(), NewStringType::kNormal)
+             .ToLocal(&symbol_key)) {
+      return;
+    }
+
+    if (!symbols
+             ->Set(context,
+                   symbol_key,
+                   BigInt::NewFromUnsigned(
+                       isolate,
+                       static_cast<uint64_t>(
+                           reinterpret_cast<uintptr_t>(entry.second))))
+             .FromMaybe(false)) {
+      return;
+    }
   }
 
   args.GetReturnValue().Set(symbols);

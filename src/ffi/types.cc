@@ -22,6 +22,7 @@ using v8::FunctionCallbackInfo;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::Maybe;
 using v8::Number;
 using v8::Object;
 using v8::String;
@@ -59,7 +60,7 @@ bool HasProperty(Local<Context> context,
                  Local<Object> object,
                  Local<String> key,
                  bool* out) {
-  v8::Maybe<bool> has = object->Has(context, key);
+  Maybe<bool> has = object->Has(context, key);
   if (has.IsNothing()) {
     return false;
   }
@@ -107,16 +108,11 @@ bool ParseFunctionSignature(Environment* env,
                             ffi_type** return_type,
                             std::vector<ffi_type*>* args) {
   Local<Context> context = env->context();
-  Local<String> returns_key =
-      String::NewFromUtf8Literal(env->isolate(), "returns");
-  Local<String> return_key =
-      String::NewFromUtf8Literal(env->isolate(), "return");
-  Local<String> result_key =
-      String::NewFromUtf8Literal(env->isolate(), "result");
-  Local<String> parameters_key =
-      String::NewFromUtf8Literal(env->isolate(), "parameters");
-  Local<String> arguments_key =
-      String::NewFromUtf8Literal(env->isolate(), "arguments");
+  Local<String> returns_key = env->returns_string();
+  Local<String> return_key = env->return_string();
+  Local<String> result_key = env->result_string();
+  Local<String> parameters_key = env->parameters_string();
+  Local<String> arguments_key = env->arguments_string();
 
   bool has_returns;
   bool has_return;
@@ -406,7 +402,7 @@ uint8_t ToFFIArgument(Environment* env,
 
     *static_cast<double*>(ret) = arg->NumberValue(context).FromJust();
   } else if (type == &ffi_type_pointer) {
-    if (arg->IsNull() || arg->IsUndefined()) {
+    if (arg->IsNullOrUndefined()) {
       *static_cast<uint64_t*>(ret) = reinterpret_cast<uint64_t>(nullptr);
     } else if (arg->IsString()) {
       // This will handled in Invoke so that we can free the copied string after
@@ -654,7 +650,7 @@ bool ToFFIReturnValue(Local<Value> result, ffi_type* type, void* ret) {
   } else if (type == &ffi_type_pointer) {
     bool lossless;
 
-    if (result->IsNull() || result->IsUndefined()) {
+    if (result->IsNullOrUndefined()) {
       *static_cast<uint64_t*>(ret) = reinterpret_cast<uint64_t>(nullptr);
     } else if (result->IsBigInt()) {
       uint64_t pointer = result.As<BigInt>()->Uint64Value(&lossless);

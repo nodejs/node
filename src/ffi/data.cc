@@ -3,6 +3,7 @@
 #include "data.h"
 #include "base_object-inl.h"
 #include "node_errors.h"
+#include "util.h"
 #include "v8.h"
 
 #include <cmath>
@@ -154,7 +155,7 @@ bool ValidatePointerSpan(Environment* env,
 
 bool ValidateBufferLength(Environment* env, size_t len) {
   if (len > Buffer::kMaxLength) {
-    env->isolate()->ThrowException(ERR_BUFFER_TOO_LARGE(env->isolate()));
+    THROW_ERR_BUFFER_TOO_LARGE(env, "Buffer is too large");
     return false;
   }
 
@@ -163,7 +164,7 @@ bool ValidateBufferLength(Environment* env, size_t len) {
 
 bool ValidateStringLength(Environment* env, size_t len) {
   if (len > static_cast<size_t>(String::kMaxLength)) {
-    env->isolate()->ThrowException(ERR_STRING_TOO_LONG(env->isolate()));
+    THROW_ERR_STRING_TOO_LONG(env, "String is too long");
     return false;
   }
 
@@ -368,8 +369,8 @@ void SetValue(const FunctionCallbackInfo<Value>& args) {
       int64_t validated;
       if (!GetValidatedSignedInt(env,
                                  value,
-                                 -9007199254740991LL,
-                                 9007199254740991LL,
+                                 -static_cast<int64_t>(kMaxSafeJsInteger),
+                                 static_cast<int64_t>(kMaxSafeJsInteger),
                                  "int64",
                                  &validated)) {
         return;
@@ -389,8 +390,11 @@ void SetValue(const FunctionCallbackInfo<Value>& args) {
       }
     } else if (value->IsNumber()) {
       uint64_t validated;
-      if (!GetValidatedUnsignedInt(
-              env, value, 9007199254740991ULL, "uint64", &validated)) {
+      if (!GetValidatedUnsignedInt(env,
+                                   value,
+                                   static_cast<uint64_t>(kMaxSafeJsInteger),
+                                   "uint64",
+                                   &validated)) {
         return;
       }
       converted = static_cast<T>(validated);
@@ -400,13 +404,14 @@ void SetValue(const FunctionCallbackInfo<Value>& args) {
     }
   } else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) {
     MaybeLocal<Number> number = value->ToNumber(context);
+    Local<Number> number_local;
 
-    if (number.IsEmpty()) {
+    if (!number.ToLocal(&number_local)) {
       env->ThrowTypeError("Value must be a number");
       return;
     }
 
-    converted = static_cast<T>(number.ToLocalChecked()->Value());
+    converted = static_cast<T>(number_local->Value());
   }
 
   std::memcpy(ptr + offset, &converted, sizeof(converted));
@@ -504,7 +509,7 @@ void ToString(const FunctionCallbackInfo<Value>& args) {
   THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kFFI, "");
 
   if (args.Length() < 1 || !args[0]->IsBigInt()) {
-    env->ThrowTypeError("The first argument must be a bigint");
+    THROW_ERR_INVALID_ARG_TYPE(env, "The first argument must be a bigint");
     return;
   }
 
@@ -544,7 +549,7 @@ void ToBuffer(const FunctionCallbackInfo<Value>& args) {
   // validity, lifetime, and bounds.
 
   if (args.Length() < 1 || !args[0]->IsBigInt()) {
-    env->ThrowTypeError("The first argument must be a bigint");
+    THROW_ERR_INVALID_ARG_TYPE(env, "The first argument must be a bigint");
     return;
   }
 
@@ -604,7 +609,7 @@ void ToArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kFFI, "");
 
   if (args.Length() < 1 || !args[0]->IsBigInt()) {
-    env->ThrowTypeError("The first argument must be a bigint");
+    THROW_ERR_INVALID_ARG_TYPE(env, "The first argument must be a bigint");
     return;
   }
 

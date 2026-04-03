@@ -104,7 +104,7 @@ class DynamicLibrary : public BaseObject {
                        std::shared_ptr<FFIFunction>* ret,
                        bool* should_cache_symbol,
                        bool* should_cache_function);
-  v8::Local<v8::Function> CreateFunction(
+  v8::MaybeLocal<v8::Function> CreateFunction(
       Environment* env,
       const std::string& name,
       const std::shared_ptr<FFIFunction>& fn);

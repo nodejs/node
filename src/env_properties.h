@@ -81,6 +81,7 @@
   V(allow_unknown_named_params_string, "allowUnknownNamedParameters")          \
   V(alpn_callback_string, "ALPNCallback")                                      \
   V(args_string, "args")                                                       \
+  V(arguments_string, "arguments")                                             \
   V(async_ids_stack_string, "async_ids_stack")                                 \
   V(attributes_string, "attributes")                                           \
   V(backup_string, "backup")                                                   \
@@ -288,10 +289,12 @@
   V(password_string, "password")                                               \
   V(path_string, "path")                                                       \
   V(pathname_string, "pathname")                                               \
+  V(parameters_string, "parameters")                                           \
   V(pending_handle_string, "pendingHandle")                                    \
   V(permission_string, "permission")                                           \
   V(phase_string, "phase")                                                     \
   V(pid_string, "pid")                                                         \
+  V(pointer_string, "pointer")                                                 \
   V(ping_rtt_string, "pingRTT")                                                \
   V(pipe_source_string, "pipeSource")                                          \
   V(pipe_string, "pipe")                                                       \
@@ -322,6 +325,8 @@
   V(require_string, "require")                                                 \
   V(resource_string, "resource")                                               \
   V(result_string, "result")                                                   \
+  V(return_string, "return")                                                   \
+  V(returns_string, "returns")                                                 \
   V(return_arrays_string, "returnArrays")                                      \
   V(salt_length_string, "saltLength")                                          \
   V(search_string, "search")                                                   \
