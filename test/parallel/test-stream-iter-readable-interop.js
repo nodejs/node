@@ -2,7 +2,7 @@
 'use strict';
 
 // Tests for classic Readable stream interop with the stream/iter API
-// via the toAsyncStreamable protocol and kTrustedSource optimization.
+// via the toAsyncStreamable protocol and kValidatedSource optimization.
 
 const common = require('../common');
 const assert = require('assert');
@@ -115,13 +115,13 @@ async function testBatchingBehavior() {
 }
 
 // =============================================================================
-// Byte-mode Readable: kTrustedSource is set
+// Byte-mode Readable: kValidatedSource is set
 // =============================================================================
 
 function testTrustedSourceByteMode() {
   const readable = new Readable({ read() {} });
   const result = readable[toAsyncStreamable]();
-  // kTrustedSource is a private symbol, but we can verify the result
+  // kValidatedSource is a private symbol, but we can verify the result
   // is used directly by from() without wrapping by checking it has
   // Symbol.asyncIterator
   assert.strictEqual(typeof result[Symbol.asyncIterator], 'function');
@@ -290,7 +290,7 @@ async function testObjectModeToStreamable() {
 }
 
 // =============================================================================
-// Object-mode Readable: kTrustedSource is set
+// Object-mode Readable: kValidatedSource is set
 // =============================================================================
 
 function testTrustedSourceObjectMode() {
@@ -589,14 +589,14 @@ async function testAbortSignal() {
 }
 
 // =============================================================================
-// kTrustedSource identity - from() returns same object for trusted sources
+// kValidatedSource identity - from() returns same object for validated sources
 // =============================================================================
 
 function testTrustedSourceIdentity() {
   const readable = new Readable({ read() {} });
   const iter = readable[toAsyncStreamable]();
 
-  // from() should return the trusted iterator directly (same reference),
+  // from() should return the validated iterator directly (same reference),
   // not wrap it in another generator
   const result = from(iter);
   assert.strictEqual(result, iter);

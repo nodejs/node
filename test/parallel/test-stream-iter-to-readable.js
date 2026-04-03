@@ -1,17 +1,19 @@
 // Flags: --experimental-stream-iter
 'use strict';
 
-// Tests for Readable.fromStreamIter() and Readable.fromStreamIterSync()
-// which create byte-mode Readable streams from stream/iter sources.
+// Tests for toReadable() and toReadableSync() which create byte-mode
+// Readable streams from stream/iter sources.
 
 const common = require('../common');
 const assert = require('assert');
-const { Readable, Writable } = require('stream');
+const { Writable } = require('stream');
 const {
   from,
   fromSync,
   pull,
   text,
+  toReadable,
+  toReadableSync,
 } = require('stream/iter');
 
 function collect(readable) {
@@ -29,7 +31,7 @@ function collect(readable) {
 
 async function testBasicAsync() {
   const source = from('hello world');
-  const readable = Readable.fromStreamIter(source);
+  const readable = toReadable(source);
 
   assert.strictEqual(readable.readableObjectMode, false);
 
@@ -52,7 +54,7 @@ async function testMultiBatchAsync() {
     }
   }
 
-  const readable = Readable.fromStreamIter(gen());
+  const readable = toReadable(gen());
   const result = await collect(readable);
   assert.strictEqual(result.toString(),
                      '0-0 0-1 0-2 1-0 1-1 1-2 2-0 2-1 2-2 3-0 3-1 3-2 4-0 4-1 4-2 ');
@@ -71,7 +73,7 @@ async function testBackpressureAsync() {
     }
   }
 
-  const readable = Readable.fromStreamIter(gen(), { highWaterMark: 1 });
+  const readable = toReadable(gen(), { highWaterMark: 1 });
 
   // Read one chunk at a time with delays to exercise backpressure
   const chunks = [];
@@ -93,7 +95,7 @@ async function testErrorAsync() {
     throw new Error('source failed');
   }
 
-  const readable = Readable.fromStreamIter(gen());
+  const readable = toReadable(gen());
 
   await assert.rejects(async () => {
     // eslint-disable-next-line no-unused-vars
@@ -112,7 +114,7 @@ async function testEmptyAsync() {
     // yields nothing
   }
 
-  const readable = Readable.fromStreamIter(gen());
+  const readable = toReadable(gen());
   const result = await collect(readable);
   assert.strictEqual(result.length, 0);
 }
@@ -128,7 +130,7 @@ async function testEmptyBatchAsync() {
     yield [];
   }
 
-  const readable = Readable.fromStreamIter(gen());
+  const readable = toReadable(gen());
   const result = await collect(readable);
   assert.strictEqual(result.toString(), 'real data');
 }
@@ -149,7 +151,7 @@ async function testDestroyAsync() {
     }
   }
 
-  const readable = Readable.fromStreamIter(gen());
+  const readable = toReadable(gen());
 
   // Read a couple chunks then destroy
   const chunks = [];
@@ -185,7 +187,7 @@ async function testDestroyDuringBackpressure() {
     }
   }
 
-  const readable = Readable.fromStreamIter(gen(), { highWaterMark: 1 });
+  const readable = toReadable(gen(), { highWaterMark: 1 });
 
   // Read one chunk to start the pump, then destroy while it's waiting
   const chunk = await new Promise((resolve) => {
@@ -218,7 +220,7 @@ async function testLargeDataAsync() {
     }
   }
 
-  const readable = Readable.fromStreamIter(gen());
+  const readable = toReadable(gen());
   const result = await collect(readable);
   assert.strictEqual(result.length, totalSize);
   assert.strictEqual(result[0], 0x42);
@@ -231,7 +233,7 @@ async function testLargeDataAsync() {
 
 async function testPipeAsync() {
   const source = from('pipe test data');
-  const readable = Readable.fromStreamIter(source);
+  const readable = toReadable(source);
 
   const chunks = [];
   const writable = new Writable({
@@ -256,7 +258,7 @@ async function testPipeAsync() {
 
 function testNotObjectMode() {
   async function* gen() { yield [Buffer.from('x')]; }
-  const readable = Readable.fromStreamIter(gen());
+  const readable = toReadable(gen());
   assert.strictEqual(readable.readableObjectMode, false);
 }
 
@@ -265,11 +267,11 @@ function testNotObjectMode() {
 // =============================================================================
 
 function testInvalidSourceAsync() {
-  assert.throws(() => Readable.fromStreamIter(42),
+  assert.throws(() => toReadable(42),
                 { code: 'ERR_INVALID_ARG_TYPE' });
-  assert.throws(() => Readable.fromStreamIter('not iterable'),
+  assert.throws(() => toReadable('not iterable'),
                 { code: 'ERR_INVALID_ARG_TYPE' });
-  assert.throws(() => Readable.fromStreamIter(null),
+  assert.throws(() => toReadable(null),
                 { code: 'ERR_INVALID_ARG_TYPE' });
 }
 
@@ -285,7 +287,7 @@ async function testSignalAsync() {
   }
 
   const ac = new AbortController();
-  const readable = Readable.fromStreamIter(gen(), { signal: ac.signal });
+  const readable = toReadable(gen(), { signal: ac.signal });
 
   const chunks = [];
   await assert.rejects(async () => {
@@ -311,7 +313,7 @@ async function testSignalAlreadyAborted() {
 
   const ac = new AbortController();
   ac.abort();
-  const readable = Readable.fromStreamIter(gen(), { signal: ac.signal });
+  const readable = toReadable(gen(), { signal: ac.signal });
 
   await assert.rejects(async () => {
     // eslint-disable-next-line no-unused-vars
@@ -330,37 +332,37 @@ function testOptionsValidationAsync() {
   async function* gen() { yield [Buffer.from('x')]; }
 
   // Options must be an object
-  assert.throws(() => Readable.fromStreamIter(gen(), 'bad'),
+  assert.throws(() => toReadable(gen(), 'bad'),
                 { code: 'ERR_INVALID_ARG_TYPE' });
-  assert.throws(() => Readable.fromStreamIter(gen(), 42),
+  assert.throws(() => toReadable(gen(), 42),
                 { code: 'ERR_INVALID_ARG_TYPE' });
 
   // highWaterMark must be a non-negative integer
-  assert.throws(() => Readable.fromStreamIter(gen(), { highWaterMark: -1 }),
+  assert.throws(() => toReadable(gen(), { highWaterMark: -1 }),
                 { code: 'ERR_OUT_OF_RANGE' });
-  assert.throws(() => Readable.fromStreamIter(gen(), { highWaterMark: 'big' }),
+  assert.throws(() => toReadable(gen(), { highWaterMark: 'big' }),
                 { code: 'ERR_INVALID_ARG_TYPE' });
-  assert.throws(() => Readable.fromStreamIter(gen(), { highWaterMark: 1.5 }),
+  assert.throws(() => toReadable(gen(), { highWaterMark: 1.5 }),
                 { code: 'ERR_OUT_OF_RANGE' });
 
   // Signal must be an AbortSignal
-  assert.throws(() => Readable.fromStreamIter(gen(), { signal: 'not a signal' }),
+  assert.throws(() => toReadable(gen(), { signal: 'not a signal' }),
                 { code: 'ERR_INVALID_ARG_TYPE' });
-  assert.throws(() => Readable.fromStreamIter(gen(), { signal: 42 }),
+  assert.throws(() => toReadable(gen(), { signal: 42 }),
                 { code: 'ERR_INVALID_ARG_TYPE' });
 
   // Valid options should work
-  const r = Readable.fromStreamIter(gen(), { highWaterMark: 0 });
+  const r = toReadable(gen(), { highWaterMark: 0 });
   assert.strictEqual(r.readableHighWaterMark, 0);
   r.destroy();
 
   // Default highWaterMark should be 16KB
-  const r2 = Readable.fromStreamIter(gen());
+  const r2 = toReadable(gen());
   assert.strictEqual(r2.readableHighWaterMark, 64 * 1024);
   r2.destroy();
 
   // Explicit undefined options should work (uses defaults)
-  const r3 = Readable.fromStreamIter(gen(), undefined);
+  const r3 = toReadable(gen(), undefined);
   assert.strictEqual(r3.readableHighWaterMark, 64 * 1024);
   r3.destroy();
 }
@@ -383,7 +385,7 @@ async function testWithTransformAsync() {
   }
 
   const source = pull(from('hello world'), upper);
-  const readable = Readable.fromStreamIter(source);
+  const readable = toReadable(source);
   const result = await collect(readable);
   assert.strictEqual(result.toString(), 'HELLO WORLD');
 }
@@ -394,7 +396,7 @@ async function testWithTransformAsync() {
 
 async function testBasicSync() {
   const source = fromSync('sync hello');
-  const readable = Readable.fromStreamIterSync(source);
+  const readable = toReadableSync(source);
 
   assert.strictEqual(readable.readableObjectMode, false);
 
@@ -408,7 +410,7 @@ async function testBasicSync() {
 
 function testSyncRead() {
   const source = fromSync('immediate');
-  const readable = Readable.fromStreamIterSync(source);
+  const readable = toReadableSync(source);
 
   // Synchronous read should return data right away
   const chunk = readable.read();
@@ -427,7 +429,7 @@ async function testBackpressureSync() {
     }
   }
 
-  const readable = Readable.fromStreamIterSync(gen(), { highWaterMark: 1 });
+  const readable = toReadableSync(gen(), { highWaterMark: 1 });
 
   const chunks = [];
   for await (const chunk of readable) {
@@ -447,7 +449,7 @@ async function testErrorSync() {
     throw new Error('sync source failed');
   }
 
-  const readable = Readable.fromStreamIterSync(gen());
+  const readable = toReadableSync(gen());
 
   await assert.rejects(async () => {
     // eslint-disable-next-line no-unused-vars
@@ -466,7 +468,7 @@ function testEmptySync() {
     // yields nothing
   }
 
-  const readable = Readable.fromStreamIterSync(gen());
+  const readable = toReadableSync(gen());
   const result = readable.read();
   assert.strictEqual(result, null);
 }
@@ -487,7 +489,7 @@ async function testDestroySync() {
     }
   }
 
-  const readable = Readable.fromStreamIterSync(gen());
+  const readable = toReadableSync(gen());
   readable.read();  // Start iteration
   readable.destroy();
 
@@ -501,7 +503,7 @@ async function testDestroySync() {
 
 function testNotObjectModeSync() {
   function* gen() { yield [Buffer.from('x')]; }
-  const readable = Readable.fromStreamIterSync(gen());
+  const readable = toReadableSync(gen());
   assert.strictEqual(readable.readableObjectMode, false);
 }
 
@@ -510,9 +512,9 @@ function testNotObjectModeSync() {
 // =============================================================================
 
 function testInvalidSourceSync() {
-  assert.throws(() => Readable.fromStreamIterSync(42),
+  assert.throws(() => toReadableSync(42),
                 { code: 'ERR_INVALID_ARG_TYPE' });
-  assert.throws(() => Readable.fromStreamIterSync(null),
+  assert.throws(() => toReadableSync(null),
                 { code: 'ERR_INVALID_ARG_TYPE' });
 }
 
@@ -524,26 +526,26 @@ function testOptionsValidationSync() {
   function* gen() { yield [Buffer.from('x')]; }
 
   // Options must be an object
-  assert.throws(() => Readable.fromStreamIterSync(gen(), 'bad'),
+  assert.throws(() => toReadableSync(gen(), 'bad'),
                 { code: 'ERR_INVALID_ARG_TYPE' });
-  assert.throws(() => Readable.fromStreamIterSync(gen(), 42),
+  assert.throws(() => toReadableSync(gen(), 42),
                 { code: 'ERR_INVALID_ARG_TYPE' });
 
   // highWaterMark must be a non-negative integer
-  assert.throws(() => Readable.fromStreamIterSync(gen(), { highWaterMark: -1 }),
+  assert.throws(() => toReadableSync(gen(), { highWaterMark: -1 }),
                 { code: 'ERR_OUT_OF_RANGE' });
-  assert.throws(() => Readable.fromStreamIterSync(gen(), { highWaterMark: 'big' }),
+  assert.throws(() => toReadableSync(gen(), { highWaterMark: 'big' }),
                 { code: 'ERR_INVALID_ARG_TYPE' });
-  assert.throws(() => Readable.fromStreamIterSync(gen(), { highWaterMark: 1.5 }),
+  assert.throws(() => toReadableSync(gen(), { highWaterMark: 1.5 }),
                 { code: 'ERR_OUT_OF_RANGE' });
 
   // Valid options should work
-  const r = Readable.fromStreamIterSync(gen(), { highWaterMark: 0 });
+  const r = toReadableSync(gen(), { highWaterMark: 0 });
   assert.strictEqual(r.readableHighWaterMark, 0);
   r.destroy();
 
   // Default highWaterMark should be 16KB
-  const r2 = Readable.fromStreamIterSync(gen());
+  const r2 = toReadableSync(gen());
   assert.strictEqual(r2.readableHighWaterMark, 64 * 1024);
   r2.destroy();
 }
@@ -557,7 +559,7 @@ async function testRoundTrip() {
 
   // stream/iter -> classic Readable
   const source = from(original);
-  const readable = Readable.fromStreamIter(source);
+  const readable = toReadable(source);
 
   // classic Readable -> stream/iter (via toAsyncStreamable)
   const result = await text(from(readable));
@@ -575,7 +577,7 @@ async function testRoundTripWithCompression() {
 
   // Compress via stream/iter, bridge to classic Readable
   const compressed = pull(from(original), compressGzip());
-  const readable = Readable.fromStreamIter(compressed);
+  const readable = toReadable(compressed);
 
   // Classic Readable back to stream/iter for decompression
   const result = await text(pull(from(readable), decompressGzip()));

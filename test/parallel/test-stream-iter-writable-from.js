@@ -1,15 +1,15 @@
 // Flags: --experimental-stream-iter
 'use strict';
 
-// Tests for Writable.fromStreamIter() - creating a classic stream.Writable
+// Tests for toWritable() - creating a classic stream.Writable
 // backed by a stream/iter Writer.
 
 const common = require('../common');
 const assert = require('assert');
-const { Writable } = require('stream');
 const {
   push,
   text,
+  toWritable,
 } = require('stream/iter');
 
 // =============================================================================
@@ -18,7 +18,7 @@ const {
 
 async function testBasicWrite() {
   const { writer, readable } = push({ backpressure: 'block' });
-  const writable = Writable.fromStreamIter(writer);
+  const writable = toWritable(writer);
 
   writable.write('hello');
   writable.write(' world');
@@ -44,7 +44,7 @@ async function testWriteDelegatesToWriter() {
     fail() {},
   };
 
-  const writable = Writable.fromStreamIter(writer);
+  const writable = toWritable(writer);
 
   await new Promise((resolve, reject) => {
     writable.write('hello', (err) => {
@@ -77,7 +77,7 @@ async function testWritevDelegation() {
     fail() {},
   };
 
-  const writable = Writable.fromStreamIter(writer);
+  const writable = toWritable(writer);
 
   // Cork to batch writes, then uncork to trigger _writev
   writable.cork();
@@ -101,7 +101,7 @@ function testNoWritevWithoutWriterWritev() {
     write(chunk) { return Promise.resolve(); },
   };
 
-  const writable = Writable.fromStreamIter(writer);
+  const writable = toWritable(writer);
   // The _writev should be null (Writable default) when writer lacks writev
   assert.strictEqual(writable._writev, null);
 }
@@ -127,7 +127,7 @@ async function testWriteSyncFirst() {
     fail() {},
   };
 
-  const writable = Writable.fromStreamIter(writer);
+  const writable = toWritable(writer);
 
   await new Promise((resolve) => {
     writable.write('test', resolve);
@@ -158,7 +158,7 @@ async function testWriteSyncFallback() {
     fail() {},
   };
 
-  const writable = Writable.fromStreamIter(writer);
+  const writable = toWritable(writer);
 
   await new Promise((resolve) => {
     writable.write('test', resolve);
@@ -189,7 +189,7 @@ async function testEndSyncFirst() {
     fail() {},
   };
 
-  const writable = Writable.fromStreamIter(writer);
+  const writable = toWritable(writer);
 
   await new Promise((resolve) => writable.end(resolve));
 
@@ -218,7 +218,7 @@ async function testEndSyncFallback() {
     fail() {},
   };
 
-  const writable = Writable.fromStreamIter(writer);
+  const writable = toWritable(writer);
 
   await new Promise((resolve) => writable.end(resolve));
 
@@ -241,7 +241,7 @@ async function testFinalDelegatesToEnd() {
     fail() {},
   };
 
-  const writable = Writable.fromStreamIter(writer);
+  const writable = toWritable(writer);
 
   await new Promise((resolve) => writable.end(resolve));
 
@@ -260,7 +260,7 @@ async function testDestroyDelegatesToFail() {
     fail(reason) { failReason = reason; },
   };
 
-  const writable = Writable.fromStreamIter(writer);
+  const writable = toWritable(writer);
   writable.on('error', () => {});  // Prevent unhandled
 
   const testErr = new Error('destroy test');
@@ -285,7 +285,7 @@ async function testWriteErrorPropagation() {
     fail() {},
   };
 
-  const writable = Writable.fromStreamIter(writer);
+  const writable = toWritable(writer);
 
   await assert.rejects(new Promise((resolve, reject) => {
     writable.write('data', (err) => {
@@ -301,20 +301,20 @@ async function testWriteErrorPropagation() {
 
 function testInvalidWriterThrows() {
   assert.throws(
-    () => Writable.fromStreamIter(null),
+    () => toWritable(null),
     { code: 'ERR_INVALID_ARG_TYPE' },
   );
   assert.throws(
-    () => Writable.fromStreamIter({}),
+    () => toWritable({}),
     { code: 'ERR_INVALID_ARG_TYPE' },
   );
   assert.throws(
-    () => Writable.fromStreamIter('not a writer'),
+    () => toWritable('not a writer'),
     { code: 'ERR_INVALID_ARG_TYPE' },
   );
   // Object with write is valid (only write is required).
   // This should not throw.
-  Writable.fromStreamIter({
+  toWritable({
     write() { return Promise.resolve(); },
   });
 }
@@ -325,7 +325,7 @@ function testInvalidWriterThrows() {
 
 async function testRoundTrip() {
   const { writer, readable } = push({ backpressure: 'block' });
-  const writable = Writable.fromStreamIter(writer);
+  const writable = toWritable(writer);
 
   const data = 'round trip test data';
   writable.write(data);
@@ -341,7 +341,7 @@ async function testRoundTrip() {
 
 async function testSequentialWrites() {
   const { writer, readable } = push({ backpressure: 'block' });
-  const writable = Writable.fromStreamIter(writer);
+  const writable = toWritable(writer);
 
   for (let i = 0; i < 10; i++) {
     writable.write(`chunk${i}`);
@@ -374,7 +374,7 @@ async function testSyncCallbackDeferred() {
     fail() {},
   };
 
-  const writable = Writable.fromStreamIter(writer);
+  const writable = toWritable(writer);
 
   const p = new Promise((resolve) => {
     writable.write('test', () => {
@@ -403,7 +403,7 @@ async function testMinimalWriter() {
     // No end, fail, writeSync, writev, etc.
   };
 
-  const writable = Writable.fromStreamIter(writer);
+  const writable = toWritable(writer);
 
   await new Promise((resolve) => {
     writable.write('minimal');
@@ -424,7 +424,7 @@ async function testDestroyWithoutError() {
     fail() { failCalled = true; },
   };
 
-  const writable = Writable.fromStreamIter(writer);
+  const writable = toWritable(writer);
   writable.destroy();
 
   await new Promise((resolve) => setTimeout(resolve, 10));
@@ -443,7 +443,7 @@ async function testDestroyWithError() {
     fail(reason) { failReason = reason; },
   };
 
-  const writable = Writable.fromStreamIter(writer);
+  const writable = toWritable(writer);
   writable.on('error', () => {});
 
   const err = new Error('test');
@@ -464,7 +464,7 @@ async function testDestroyWithoutFail() {
     // No fail method
   };
 
-  const writable = Writable.fromStreamIter(writer);
+  const writable = toWritable(writer);
   writable.on('error', () => {});
 
   // Should not throw even though writer has no fail()
@@ -485,7 +485,7 @@ function testHighWaterMarkIsMaxSafeInt() {
 
   // HWM is set to MAX_SAFE_INTEGER to disable Writable's internal
   // buffering. The underlying Writer manages backpressure directly.
-  const writable = Writable.fromStreamIter(writer);
+  const writable = toWritable(writer);
   assert.strictEqual(writable.writableHighWaterMark, Number.MAX_SAFE_INTEGER);
 }
 
@@ -508,7 +508,7 @@ async function testWriteSyncThrowsFallback() {
     fail() {},
   };
 
-  const writable = Writable.fromStreamIter(writer);
+  const writable = toWritable(writer);
 
   await new Promise((resolve) => {
     writable.write('test', resolve);
@@ -529,7 +529,7 @@ async function testWriteThrowsSyncPropagation() {
     },
   };
 
-  const writable = Writable.fromStreamIter(writer);
+  const writable = toWritable(writer);
 
   await assert.rejects(new Promise((resolve, reject) => {
     writable.write('data', (err) => {
@@ -552,7 +552,7 @@ async function testEndThrowsSyncPropagation() {
     },
   };
 
-  const writable = Writable.fromStreamIter(writer);
+  const writable = toWritable(writer);
   writable.on('error', () => {});
 
   await new Promise((resolve) => {
