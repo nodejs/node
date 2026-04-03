@@ -1382,27 +1382,33 @@ are no subscribers.
 
 ### Channel `sqlite.db.query`
 
-The message published to this channel is a {string} containing the expanded
-SQL with bound parameter values substituted. If expansion fails, the source
-SQL with unsubstituted placeholders is used instead.
+The message published to this channel is an {Object} with the following
+properties:
+
+* `sql` {string} The expanded SQL with bound parameter values substituted.
+  If expansion fails, the source SQL with unsubstituted placeholders is used
+  instead.
+* `database` {DatabaseSync} The `DatabaseSync` instance that executed the
+  statement.
+* `duration` {number} The estimated statement run time in nanoseconds.
 
 ```cjs
 const dc = require('node:diagnostics_channel');
 const { DatabaseSync } = require('node:sqlite');
 
-function onQuery(sql) {
-  console.log(sql);
+function onQuery({ sql, database, duration }) {
+  console.log(sql, duration);
 }
 
 dc.subscribe('sqlite.db.query', onQuery);
 
 const db = new DatabaseSync(':memory:');
 db.exec('CREATE TABLE t (x INTEGER)');
-// Logs: CREATE TABLE t (x INTEGER)
+// Logs: CREATE TABLE t (x INTEGER) <duration>
 
 const stmt = db.prepare('INSERT INTO t VALUES (?)');
 stmt.run(42);
-// Logs: INSERT INTO t VALUES (42.0)
+// Logs: INSERT INTO t VALUES (42.0) <duration>
 
 dc.unsubscribe('sqlite.db.query', onQuery);
 ```
@@ -1411,19 +1417,19 @@ dc.unsubscribe('sqlite.db.query', onQuery);
 import dc from 'node:diagnostics_channel';
 import { DatabaseSync } from 'node:sqlite';
 
-function onQuery(sql) {
-  console.log(sql);
+function onQuery({ sql, database, duration }) {
+  console.log(sql, duration);
 }
 
 dc.subscribe('sqlite.db.query', onQuery);
 
 const db = new DatabaseSync(':memory:');
 db.exec('CREATE TABLE t (x INTEGER)');
-// Logs: CREATE TABLE t (x INTEGER)
+// Logs: CREATE TABLE t (x INTEGER) <duration>
 
 const stmt = db.prepare('INSERT INTO t VALUES (?)');
 stmt.run(42);
-// Logs: INSERT INTO t VALUES (42.0)
+// Logs: INSERT INTO t VALUES (42.0) <duration>
 
 dc.unsubscribe('sqlite.db.query', onQuery);
 ```
