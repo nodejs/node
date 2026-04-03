@@ -18,6 +18,34 @@ security add-certificates \
 security add-certificates \
   -k /Users/$USER/Library/Keychains/login.keychain-db \
   test/fixtures/keys/non-trusted-intermediate-ca.pem
+security add-trusted-cert \
+  -k /Users/$USER/Library/Keychains/login.keychain-db \
+  test/fixtures/keys/expired-root-cert.pem
+# Self-signed cert with trust settings that lack kSecTrustSettingsResult.
+security add-trusted-cert \
+  -k /Users/$USER/Library/Keychains/login.keychain-db \
+  test/fixtures/keys/selfsigned-no-result-root-cert.pem
+security trust-settings-export /tmp/node-trust-settings.plist
+CERT_SHA1=$(openssl x509 \
+  -in test/fixtures/keys/selfsigned-no-result-root-cert.pem \
+  -fingerprint -sha1 -noout | sed 's/.*=//;s/://g')
+/usr/libexec/PlistBuddy \
+  -c "Delete :trustList:${CERT_SHA1}:trustSettings" \
+  /tmp/node-trust-settings.plist
+/usr/libexec/PlistBuddy \
+  -c "Add :trustList:${CERT_SHA1}:trustSettings array" \
+  /tmp/node-trust-settings.plist
+/usr/libexec/PlistBuddy \
+  -c "Add :trustList:${CERT_SHA1}:trustSettings:0 dict" \
+  /tmp/node-trust-settings.plist
+security trust-settings-import /tmp/node-trust-settings.plist
+rm /tmp/node-trust-settings.plist
+# Duplicate cert in a second keychain
+security create-keychain -p "test" /tmp/node-test-dup.keychain
+security add-certificates \
+  -k /tmp/node-test-dup.keychain \
+  test/fixtures/keys/fake-startcom-root-cert.pem
+security list-keychains -d user -s login.keychain-db /tmp/node-test-dup.keychain
 ```
 
 **Removing the certificate**
@@ -29,6 +57,12 @@ security delete-certificate -c 'NodeJS-Test-Intermediate-CA' \
   -t /Users/$USER/Library/Keychains/login.keychain-db
 security delete-certificate -c 'NodeJS-Non-Trusted-Test-Intermediate-CA' \
   -t /Users/$USER/Library/Keychains/login.keychain-db
+security delete-certificate -c 'NodeJS-Test-Expired-Root' \
+  -t /Users/$USER/Library/Keychains/login.keychain-db
+security delete-certificate -c 'NodeJS-Test-No-Result-Root' \
+  -t /Users/$USER/Library/Keychains/login.keychain-db
+security list-keychains -d user -s login.keychain-db
+security delete-keychain /tmp/node-test-dup.keychain
 ```
 
 ## Windows
