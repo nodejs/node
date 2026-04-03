@@ -36,14 +36,15 @@ bool GetValidatedSize(Environment* env,
                       const char* label,
                       size_t* out) {
   if (!value->IsNumber()) {
-    env->ThrowTypeError(
-        (std::string("The ") + label + " must be a number").c_str());
+    THROW_ERR_INVALID_ARG_VALUE(
+        env, (std::string("The ") + label + " must be a number").c_str());
     return false;
   }
 
   double length = value.As<Number>()->Value();
   if (!std::isfinite(length) || length < 0 || std::floor(length) != length) {
-    env->ThrowTypeError(
+    THROW_ERR_INVALID_ARG_VALUE(
+        env,
         (std::string("The ") + label + " must be a non-negative integer")
             .c_str());
     return false;
@@ -64,15 +65,16 @@ bool GetValidatedPointerAddress(Environment* env,
                                 const char* label,
                                 uintptr_t* out) {
   if (!value->IsBigInt()) {
-    env->ThrowTypeError(
-        (std::string("The ") + label + " must be a bigint").c_str());
+    THROW_ERR_INVALID_ARG_VALUE(
+        env, (std::string("The ") + label + " must be a bigint").c_str());
     return false;
   }
 
   bool lossless;
   uint64_t address = value.As<BigInt>()->Uint64Value(&lossless);
   if (!lossless) {
-    env->ThrowTypeError(
+    THROW_ERR_INVALID_ARG_VALUE(
+        env,
         (std::string("The ") + label + " must be a non-negative bigint")
             .c_str());
     return false;
@@ -97,14 +99,16 @@ bool GetValidatedSignedInt(Environment* env,
                            const char* type_name,
                            int64_t* out) {
   if (!value->IsNumber()) {
-    env->ThrowTypeError((std::string("Value must be an ") + type_name).c_str());
+    THROW_ERR_INVALID_ARG_VALUE(
+        env, (std::string("Value must be an ") + type_name).c_str());
     return false;
   }
 
   double number = value.As<Number>()->Value();
   if (!std::isfinite(number) || std::floor(number) != number || number < min ||
       number > max) {
-    env->ThrowTypeError((std::string("Value must be an ") + type_name).c_str());
+    THROW_ERR_INVALID_ARG_VALUE(
+        env, (std::string("Value must be an ") + type_name).c_str());
     return false;
   }
 
@@ -118,14 +122,16 @@ bool GetValidatedUnsignedInt(Environment* env,
                              const char* type_name,
                              uint64_t* out) {
   if (!value->IsNumber()) {
-    env->ThrowTypeError((std::string("Value must be a ") + type_name).c_str());
+    THROW_ERR_INVALID_ARG_VALUE(
+        env, (std::string("Value must be a ") + type_name).c_str());
     return false;
   }
 
   double number = value.As<Number>()->Value();
   if (!std::isfinite(number) || std::floor(number) != number || number < 0 ||
       number > static_cast<double>(max)) {
-    env->ThrowTypeError((std::string("Value must be a ") + type_name).c_str());
+    THROW_ERR_INVALID_ARG_VALUE(
+        env, (std::string("Value must be a ") + type_name).c_str());
     return false;
   }
 
@@ -223,7 +229,7 @@ bool GetValidatedPointerValueAndOffset(Environment* env,
   }
 
   if (args.Length() < 2 || args[1]->IsUndefined()) {
-    env->ThrowTypeError("Expected an offset argument");
+    THROW_ERR_INVALID_ARG_VALUE(env, "Expected an offset argument");
     return false;
   }
 
@@ -241,7 +247,7 @@ bool GetValidatedPointerValueAndOffset(Environment* env,
   }
 
   if (args.Length() < 3 || args[2]->IsUndefined()) {
-    env->ThrowTypeError("Expected a value argument");
+    THROW_ERR_INVALID_ARG_VALUE(env, "Expected a value argument");
     return false;
   }
 
@@ -362,7 +368,7 @@ void SetValue(const FunctionCallbackInfo<Value>& args) {
       bool lossless;
       converted = static_cast<T>(value.As<BigInt>()->Int64Value(&lossless));
       if (!lossless) {
-        env->ThrowTypeError("Value must be an int64");
+        THROW_ERR_INVALID_ARG_VALUE(env, "Value must be an int64");
         return;
       }
     } else if (value->IsNumber()) {
@@ -377,7 +383,7 @@ void SetValue(const FunctionCallbackInfo<Value>& args) {
       }
       converted = static_cast<T>(validated);
     } else {
-      env->ThrowTypeError("Value must be a bigint or a number");
+      THROW_ERR_INVALID_ARG_VALUE(env, "Value must be a bigint or a number");
       return;
     }
   } else if constexpr (std::is_same_v<T, uint64_t>) {
@@ -385,7 +391,7 @@ void SetValue(const FunctionCallbackInfo<Value>& args) {
       bool lossless;
       converted = static_cast<T>(value.As<BigInt>()->Uint64Value(&lossless));
       if (!lossless) {
-        env->ThrowTypeError("Value must be a uint64");
+        THROW_ERR_INVALID_ARG_VALUE(env, "Value must be a uint64");
         return;
       }
     } else if (value->IsNumber()) {
@@ -399,7 +405,7 @@ void SetValue(const FunctionCallbackInfo<Value>& args) {
       }
       converted = static_cast<T>(validated);
     } else {
-      env->ThrowTypeError("Value must be a bigint or a number");
+      THROW_ERR_INVALID_ARG_VALUE(env, "Value must be a bigint or a number");
       return;
     }
   } else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) {
@@ -407,7 +413,7 @@ void SetValue(const FunctionCallbackInfo<Value>& args) {
     Local<Number> number_local;
 
     if (!number.ToLocal(&number_local)) {
-      env->ThrowTypeError("Value must be a number");
+      THROW_ERR_INVALID_ARG_VALUE(env, "Value must be a number");
       return;
     }
 
