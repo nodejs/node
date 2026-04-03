@@ -17,6 +17,8 @@ class WebSocketServer {
     this.customHandleUpgradeHeaders = customHandleUpgradeHeaders;
 
     this.server.on('upgrade', this.handleUpgrade.bind(this));
+    this.server.on('connect', this.handleConnect.bind(this));
+    this.server.on('stream', this.handleStream.bind(this));
   }
 
   start() {
@@ -42,30 +44,84 @@ class WebSocketServer {
     ];
 
     socket.write(responseHeaders.join('\r\n') + '\r\n\r\n');
-    this.clients.add(socket);
+    this.addClient(socket, {
+      close: () => socket.end(),
+    });
+  }
 
-    socket.on('data', (buffer) => {
+  handleConnect(req, response) {
+    if (req.headers[':protocol'] !== 'websocket') {
+      return;
+    }
+
+    const stream = response.stream;
+    const key = req.headers['sec-websocket-key'];
+    const acceptKey = this.generateAcceptValue(key);
+    stream.respond({
+      ':status': 200,
+      'sec-websocket-accept': acceptKey,
+      ...this.getCustomHeadersObject(),
+    });
+
+    this.addClient(stream, {
+      close: () => stream.end(),
+    });
+  }
+
+  handleStream(stream, headers) {
+    if (stream.headersSent ||
+        headers[':method'] !== 'CONNECT' ||
+        headers[':protocol'] !== 'websocket') {
+      return;
+    }
+
+    const key = headers['sec-websocket-key'];
+    const acceptKey = this.generateAcceptValue(key);
+    stream.respond({
+      ':status': 200,
+      'sec-websocket-accept': acceptKey,
+      ...this.getCustomHeadersObject(),
+    });
+
+    this.addClient(stream, {
+      close: () => stream.end(),
+    });
+  }
+
+  addClient(client, { close }) {
+    this.clients.add(client);
+
+    client.on('data', (buffer) => {
       const opcode = buffer[0] & 0x0f;
 
       if (opcode === 0x8) {
         // Send a minimal close frame in response:
-        socket.write(Buffer.from([0x88, 0x00]));
-        socket.end();
-        this.clients.delete(socket);
+        client.write(Buffer.from([0x88, 0x00]));
+        close();
+        this.clients.delete(client);
         return;
       }
 
-      socket.write(this.encodeMessage('Hello from server!'));
+      client.write(this.encodeMessage('Hello from server!'));
     });
 
-    socket.on('close', () => {
-      this.clients.delete(socket);
+    client.on('close', () => {
+      this.clients.delete(client);
     });
 
-    socket.on('error', (err) => {
+    client.on('error', (err) => {
       console.error('Socket error:', err);
-      this.clients.delete(socket);
+      this.clients.delete(client);
     });
+  }
+
+  getCustomHeadersObject() {
+    return Object.fromEntries(
+      this.customHandleUpgradeHeaders.map((header) => {
+        const index = header.indexOf(':');
+        return [header.slice(0, index).trim(), header.slice(index + 1).trim()];
+      })
+    );
   }
 
   generateAcceptValue(secWebSocketKey) {

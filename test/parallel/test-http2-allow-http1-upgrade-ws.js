@@ -15,10 +15,13 @@ const WebSocketServer = require('../common/websocket-server');
     key: fixtures.readKey('agent1-key.pem'),
     cert: fixtures.readKey('agent1-cert.pem'),
     allowHTTP1: true,
+    settings: {
+      enableConnectProtocol: true,
+    },
   });
 
   server.on('request', common.mustNotCall());
-  new WebSocketServer({ server }); // Handles websocket 'upgrade' events
+  new WebSocketServer({ server });
 
   await new Promise((resolve) => server.listen(0, resolve));
 
