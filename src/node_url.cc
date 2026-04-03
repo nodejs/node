@@ -93,7 +93,6 @@ constexpr auto lookup_table = []() consteval {
   case CHAR:                                                                   \
     result[i] = {{'%', HEX_DIGIT_2, HEX_DIGIT_1, 0}};                          \
     break;
-
       ENCODE_CHAR('\0', '0', '0')  // '\0' == 0x00
       ENCODE_CHAR('\t', '0', '9')  // '\t' == 0x09
       ENCODE_CHAR('\n', '0', 'A')  // '\n' == 0x0A
@@ -170,8 +169,9 @@ void BindingData::PathToFileURL(const FunctionCallbackInfo<Value>& args) {
     CHECK(args[2]->IsString());
     Utf8Value hostname(isolate, args[2]);
     if (!out->set_hostname(hostname.ToStringView())) {
-      return ThrowInvalidURL(
-          realm->env(), input.ToStringView(), std::string(hostname.ToStringView()));
+      return ThrowInvalidURL(realm->env(),
+                             input.ToStringView(),
+                             std::string(hostname.ToStringView()));
     }
   }
 
@@ -426,9 +426,9 @@ void BindingData::Parse(const FunctionCallbackInfo<Value>& args) {
 }
 
 void BindingData::Update(const FunctionCallbackInfo<Value>& args) {
-  CHECK(args[0]->IsString());    // href
-  CHECK(args[1]->IsNumber());    // action type
-  CHECK(args[2]->IsString());    // new value
+  CHECK(args[0]->IsString());  // href
+  CHECK(args[1]->IsNumber());  // action type
+  CHECK(args[2]->IsString());  // new value
 
   Realm* realm = Realm::GetCurrent(args);
   BindingData* binding_data = realm->GetBindingData<BindingData>();
