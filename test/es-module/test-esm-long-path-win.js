@@ -60,7 +60,7 @@ describe('long path on Windows', () => {
     tmpdir.refresh();
 
     fs.mkdirSync(packageDirPath);
-    fs.writeFileSync(packageJSPath, '');
+    fs.writeFileSync(packageJSPath, '{}');
     fs.writeFileSync(indexJSPath, '');
 
     const packageJsonUrl = pathToFileURL(
@@ -83,7 +83,7 @@ describe('long path on Windows', () => {
     tmpdir.refresh();
 
     fs.mkdirSync(packageDirPath);
-    fs.writeFileSync(packageJSPath, '');
+    fs.writeFileSync(packageJSPath, '{}');
     fs.writeFileSync(indexJSPath, '');
 
     const packageJsonUrl = pathToFileURL(
