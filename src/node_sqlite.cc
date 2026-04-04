@@ -1823,6 +1823,9 @@ void DatabaseSync::Deserialize(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
+  // sqlite3_malloc64 is required because SQLITE_DESERIALIZE_FREEONCLOSE
+  // transfers ownership to SQLite, which calls sqlite3_free() on close.
+  // See: https://www.sqlite.org/c3ref/deserialize.html
   unsigned char* buf =
       static_cast<unsigned char*>(sqlite3_malloc64(byte_length));
   if (buf == nullptr) {
