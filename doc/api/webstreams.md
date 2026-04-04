@@ -1148,6 +1148,12 @@ await Promise.all([
 
 <!-- YAML
 added: v16.5.0
+changes:
+  - version:
+    - v21.5.0
+    - v20.14.0
+    pr-url: https://github.com/nodejs/node/pull/50126
+    description: Supports the `cancel` transformer callback.
 -->
 
 * `transformer` {Object}
@@ -1165,6 +1171,11 @@ added: v16.5.0
     the writable side of the `TransformStream` is closed, signaling the end of
     the transformation process.
     * `controller` {TransformStreamDefaultController}
+    * Returns: A promise fulfilled with `undefined`.
+  * `cancel` {Function} A user-defined function that is called when either the
+    readable side of the `TransformStream` is canceled or the writable side is
+    aborted.
+    * `reason` {any}
     * Returns: A promise fulfilled with `undefined`.
   * `readableType` {any} the `readableType` option is reserved for future use
     and _must_ be `undefined`.
