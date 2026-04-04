@@ -6573,6 +6573,12 @@ def CheckForNonConstReference(filename, clean_lines, linenum, nesting_state, err
         r"static_assert|COMPILE_ASSERT"
         r")\s*\("
     )
+
+    # V8 Fast API types require non-const references as part of their API
+    # contract; Node.js has no control over these signatures.
+    _V8_FAST_API_REF_TYPES = re.compile(
+        r"v8::FastApiCallbackOptions\s*&"
+    )
     if re.search(allowed_functions, line):
         return
     if not re.search(r"\S+\([^)]*$", line):
@@ -6587,7 +6593,7 @@ def CheckForNonConstReference(filename, clean_lines, linenum, nesting_state, err
     for parameter in re.findall(_RE_PATTERN_REF_PARAM, decls):
         if not re.match(_RE_PATTERN_CONST_REF_PARAM, parameter) and not re.match(
             _RE_PATTERN_REF_STREAM_PARAM, parameter
-        ):
+        ) and not _V8_FAST_API_REF_TYPES.search(parameter):
             error(
                 filename,
                 linenum,
