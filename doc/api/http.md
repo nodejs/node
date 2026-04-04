@@ -2989,6 +2989,51 @@ added: v0.5.9
 
 Calls `message.socket.setTimeout(msecs, callback)`.
 
+### `message.signal`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {AbortSignal}
+
+An {AbortSignal} that is aborted when the underlying socket closes or the
+request is destroyed. The signal is created lazily on first access — no
+{AbortController} is allocated for requests that never use this property.
+
+This is useful for cancelling downstream asynchronous work such as database
+queries or `fetch` calls when a client disconnects mid-request.
+
+```mjs
+import http from 'node:http';
+
+http.createServer(async (req, res) => {
+  try {
+    const data = await fetch('https://example.com/api', { signal: req.signal });
+    res.end(JSON.stringify(await data.json()));
+  } catch (err) {
+    if (err.name === 'AbortError') return;
+    res.statusCode = 500;
+    res.end('Internal Server Error');
+  }
+}).listen(3000);
+```
+
+```cjs
+const http = require('node:http');
+
+http.createServer(async (req, res) => {
+  try {
+    const data = await fetch('https://example.com/api', { signal: req.signal });
+    res.end(JSON.stringify(await data.json()));
+  } catch (err) {
+    if (err.name === 'AbortError') return;
+    res.statusCode = 500;
+    res.end('Internal Server Error');
+  }
+}).listen(3000);
+```
+
 ### `message.socket`
 
 <!-- YAML
