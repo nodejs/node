@@ -10,6 +10,7 @@
 #include <v8.h>
 #include <algorithm>
 #include <optional>
+#include "arena.h"
 #include "bindingdata.h"
 #include "packet.h"
 #include "session.h"
@@ -189,7 +190,14 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
                                     Session* session);
   void DisassociateStatelessResetToken(const StatelessResetToken& token);
 
-  void Send(const BaseObjectPtr<Packet>& packet);
+  void Send(Packet::Ptr packet);
+
+  // Acquire a Packet from the pool. length sets the initial working
+  // size (must be <= pool capacity). The slot is always allocated at
+  // full capacity to avoid fragmentation.
+  Packet::Ptr CreatePacket(const SocketAddress& destination,
+                           size_t length = kDefaultMaxPacketLength,
+                           const char* diagnostic_label = nullptr);
 
   // Generates and sends a retry packet. This is terminal for the connection.
   // Retry packets are used to force explicit path validation by issuing a token
@@ -255,7 +263,7 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
     int Start();
     void Stop();
     void Close();
-    int Send(const BaseObjectPtr<Packet>& packet);
+    int Send(Packet::Ptr packet);
 
     // Returns the local UDP socket address to which we are bound,
     // or fail with an assert if we are not bound.
@@ -363,6 +371,7 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   AliasedStruct<Stats> stats_;
   AliasedStruct<State> state_;
   const Options options_;
+  ArenaPool<Packet> packet_pool_;
   UDP udp_;
 
   struct ServerState {

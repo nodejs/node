@@ -1,7 +1,6 @@
 #if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
-#include "session.h"
 #include <aliased_struct-inl.h>
 #include <async_wrap-inl.h>
 #include <crypto/crypto_util.h>
@@ -29,6 +28,7 @@
 #include "ncrypto.h"
 #include "packet.h"
 #include "preferredaddress.h"
+#include "session.h"
 #include "sessionticket.h"
 #include "streams.h"
 #include "tlscontext.h"
@@ -1719,7 +1719,7 @@ bool Session::Receive(Store&& store,
   return false;
 }
 
-void Session::Send(const BaseObjectPtr<Packet>& packet) {
+void Session::Send(Packet::Ptr packet) {
   // Sending a Packet is generally best effort. If we're not in a state
   // where we can send a packet, it's ok to drop it on the floor. The
   // packet loss mechanisms will cause the packet data to be resent later
@@ -1731,21 +1731,21 @@ void Session::Send(const BaseObjectPtr<Packet>& packet) {
   DCHECK(!is_in_draining_period());
 
   if (!can_send_packets()) [[unlikely]] {
-    return packet->CancelPacket();
+    // Ptr destructor releases the packet back to the pool.
+    return;
   }
 
   Debug(this, "Session is sending %s", packet->ToString());
   auto& stats_ = impl_->stats_;
   STAT_INCREMENT_N(Stats, bytes_sent, packet->length());
-  endpoint().Send(packet);
+  endpoint().Send(std::move(packet));
 }
 
-void Session::Send(const BaseObjectPtr<Packet>& packet,
-                   const PathStorage& path) {
+void Session::Send(Packet::Ptr packet, const PathStorage& path) {
   DCHECK(!is_destroyed());
   DCHECK(!is_in_draining_period());
   UpdatePath(path);
-  Send(packet);
+  Send(std::move(packet));
 }
 
 datagram_id Session::SendDatagram(Store&& data) {
@@ -1778,7 +1778,7 @@ datagram_id Session::SendDatagram(Store&& data) {
     return 0;
   }
 
-  BaseObjectPtr<Packet> packet;
+  Packet::Ptr packet;
   uint8_t* pos = nullptr;
   int accepted = 0;
   ngtcp2_vec vec = data;
@@ -1804,11 +1804,10 @@ datagram_id Session::SendDatagram(Store&& data) {
     // datagram. It's entirely up to ngtcp2 whether to include the datagram
     // in the packet on each call to ngtcp2_conn_writev_datagram.
     if (!packet) {
-      packet = Packet::Create(env(),
-                              endpoint(),
-                              impl_->remote_address_,
-                              ngtcp2_conn_get_max_tx_udp_payload_size(*this),
-                              "datagram");
+      packet = endpoint().CreatePacket(
+          impl_->remote_address_,
+          ngtcp2_conn_get_max_tx_udp_payload_size(*this),
+          "datagram");
       // Typically sending datagrams is best effort, but if we cannot create
       // the packet, then we handle it as a fatal error as that indicates
       // something else is likely very wrong.
@@ -1817,7 +1816,7 @@ datagram_id Session::SendDatagram(Store&& data) {
         Close(CloseMethod::SILENT);
         return 0;
       }
-      pos = ngtcp2_vec(*packet).base;
+      pos = packet->data();
     }
 
     ssize_t nwrite = ngtcp2_conn_writev_datagram(*this,
@@ -1840,7 +1839,6 @@ datagram_id Session::SendDatagram(Store&& data) {
           // not fit. Since datagrams are best effort, we are going to abandon
           // the attempt and just return.
           DCHECK_EQ(accepted, 0);
-          packet->CancelPacket();
           return 0;
         }
         case NGTCP2_ERR_WRITE_MORE: {
@@ -1853,14 +1851,12 @@ datagram_id Session::SendDatagram(Store&& data) {
           // The remote endpoint does not want to accept datagrams. That's ok,
           // just return 0.
           DCHECK_EQ(accepted, 0);
-          packet->CancelPacket();
           return 0;
         }
         case NGTCP2_ERR_INVALID_ARGUMENT: {
           // The datagram is too large. That should have been caught above but
           // that's ok. We'll just abandon the attempt and return.
           DCHECK_EQ(accepted, 0);
-          packet->CancelPacket();
           return 0;
         }
         case NGTCP2_ERR_PKT_NUM_EXHAUSTED: {
@@ -1896,7 +1892,6 @@ datagram_id Session::SendDatagram(Store&& data) {
           break;
         }
       }
-      packet->CancelPacket();
       SetLastError(QuicError::ForTransport(nwrite));
       Close(CloseMethod::SILENT);
       return 0;
@@ -1906,8 +1901,8 @@ datagram_id Session::SendDatagram(Store&& data) {
     // Note that this doesn't mean that the packet actually contains the
     // datagram! We'll check that next by checking the accepted value.
     packet->Truncate(nwrite);
-    Send(packet);
-    packet.reset();
+    Send(std::move(packet));
+    // packet is now empty; next loop iteration creates a new one.
 
     if (accepted) {
       // Yay! The datagram was accepted into the packet we just sent and we can
@@ -2292,12 +2287,9 @@ void Session::SendConnectionClose() {
 
   if (is_server()) {
     if (auto packet = Packet::CreateConnectionClosePacket(
-            env(),
-            endpoint(),
-            impl_->remote_address_,
-            *this,
-            impl_->last_error_)) [[likely]] {
-      return Send(packet);
+            endpoint(), impl_->remote_address_, *this, impl_->last_error_))
+        [[likely]] {
+      return Send(std::move(packet));
     }
 
     // If we are unable to create a connection close packet then
@@ -2309,11 +2301,9 @@ void Session::SendConnectionClose() {
     return ErrorAndSilentClose();
   }
 
-  auto packet = Packet::Create(env(),
-                               endpoint(),
-                               impl_->remote_address_,
-                               kDefaultMaxPacketLength,
-                               "immediate connection close (client)");
+  auto packet = endpoint().CreatePacket(impl_->remote_address_,
+                                        kDefaultMaxPacketLength,
+                                        "immediate connection close (client)");
   if (!packet) [[unlikely]] {
     return ErrorAndSilentClose();
   }
@@ -2329,12 +2319,11 @@ void Session::SendConnectionClose() {
                                                       uv_hrtime());
 
   if (nwrite < 0) [[unlikely]] {
-    packet->CancelPacket();
     return ErrorAndSilentClose();
   }
 
   packet->Truncate(nwrite);
-  return Send(packet);
+  return Send(std::move(packet));
 }
 
 void Session::OnTimeout() {

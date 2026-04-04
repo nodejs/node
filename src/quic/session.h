@@ -328,8 +328,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
                const SocketAddress& local_address,
                const SocketAddress& remote_address);
 
-  void Send(const BaseObjectPtr<Packet>& packet);
-  void Send(const BaseObjectPtr<Packet>& packet, const PathStorage& path);
+  void Send(Packet::Ptr packet);
+  void Send(Packet::Ptr packet, const PathStorage& path);
   datagram_id SendDatagram(Store&& data);
 
   // A non-const variation to allow certain modifications.

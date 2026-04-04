@@ -1,7 +1,6 @@
 #if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
-#include "application.h"
 #include <async_wrap-inl.h>
 #include <debug_utils-inl.h>
 #include <nghttp3/nghttp3.h>
@@ -10,6 +9,7 @@
 #include <node_sockaddr-inl.h>
 #include <uv.h>
 #include <v8.h>
+#include "application.h"
 #include "defs.h"
 #include "endpoint.h"
 #include "http3.h"
@@ -207,12 +207,9 @@ StreamPriority Session::Application::GetStreamPriority(const Stream& stream) {
   return StreamPriority::DEFAULT;
 }
 
-BaseObjectPtr<Packet> Session::Application::CreateStreamDataPacket() {
-  return Packet::Create(env(),
-                        session_->endpoint(),
-                        session_->remote_address(),
-                        session_->max_packet_size(),
-                        "stream data");
+Packet::Ptr Session::Application::CreateStreamDataPacket() {
+  return session_->endpoint().CreatePacket(
+      session_->remote_address(), session_->max_packet_size(), "stream data");
 }
 
 void Session::Application::StreamClose(Stream* stream, QuicError&& error) {
@@ -264,7 +261,7 @@ void Session::Application::SendPendingData() {
   // The number of packets that have been sent in this call to SendPendingData.
   size_t packet_send_count = 0;
 
-  BaseObjectPtr<Packet> packet;
+  Packet::Ptr packet;
   uint8_t* pos = nullptr;
   uint8_t* begin = nullptr;
 
@@ -273,7 +270,7 @@ void Session::Application::SendPendingData() {
       packet = CreateStreamDataPacket();
       if (!packet) [[unlikely]]
         return false;
-      pos = begin = ngtcp2_vec(*packet).base;
+      pos = begin = packet->data();
     }
     DCHECK(packet);
     DCHECK_NOT_NULL(pos);
@@ -299,7 +296,6 @@ void Session::Application::SendPendingData() {
     // The stream_data is the next block of data from the application stream.
     if (GetStreamData(&stream_data) < 0) {
       Debug(session_, "Application failed to get stream data");
-      packet->CancelPacket();
       session_->SetLastError(QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL));
       closed = true;
       return session_->Close(CloseMethod::SILENT);
@@ -367,7 +363,6 @@ void Session::Application::SendPendingData() {
           if (ndatalen >= 0 && !StreamCommit(&stream_data, ndatalen)) {
             Debug(session_,
                   "Failed to commit stream data while writing packets");
-            packet->CancelPacket();
             session_->SetLastError(
                 QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL));
             closed = true;
@@ -380,7 +375,6 @@ void Session::Application::SendPendingData() {
           // ngtcp2 callback failed for some reason. This would be a
           // bug in our code.
           Debug(session_, "Internal failure with ngtcp2 callback");
-          packet->CancelPacket();
           session_->SetLastError(
               QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL));
           closed = true;
@@ -393,12 +387,10 @@ void Session::Application::SendPendingData() {
       Debug(session_,
             "Application encountered error while writing packet: %s",
             ngtcp2_strerror(nwrite));
-      packet->CancelPacket();
       session_->SetLastError(QuicError::ForNgtcp2Error(nwrite));
       closed = true;
       return session_->Close(CloseMethod::SILENT);
     } else if (ndatalen >= 0 && !StreamCommit(&stream_data, ndatalen)) {
-      packet->CancelPacket();
       session_->SetLastError(QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL));
       closed = true;
       return session_->Close(CloseMethod::SILENT);
@@ -416,10 +408,9 @@ void Session::Application::SendPendingData() {
       if (datalen) {
         Debug(session_, "Sending packet with %zu bytes", datalen);
         packet->Truncate(datalen);
-        session_->Send(packet, path);
-      } else {
-        packet->CancelPacket();
+        session_->Send(std::move(packet), path);
       }
+      // If no data, Ptr destructor releases the packet.
 
       return;
     }
@@ -429,7 +420,7 @@ void Session::Application::SendPendingData() {
     size_t datalen = pos - begin;
     Debug(session_, "Sending packet with %zu bytes", datalen);
     packet->Truncate(datalen);
-    session_->Send(packet, path);
+    session_->Send(std::move(packet), path);
 
     // If we have sent the maximum number of packets, we're done.
     if (++packet_send_count == max_packet_count) {
@@ -437,7 +428,7 @@ void Session::Application::SendPendingData() {
     }
 
     // Prepare to loop back around to prepare a new packet.
-    packet.reset();
+    // packet is already empty from the std::move above.
     pos = begin = nullptr;
   }
 }

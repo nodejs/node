@@ -354,6 +354,7 @@
       'src/quic/tlscontext.cc',
       'src/quic/transportparams.cc',
       'src/quic/quic.cc',
+      'src/quic/arena.h',
       'src/quic/bindingdata.h',
       'src/quic/cid.h',
       'src/quic/data.h',
@@ -440,6 +441,7 @@
       'test/cctest/test_node_crypto_env.cc',
     ],
     'node_cctest_quic_sources': [
+      'test/cctest/test_quic_arena.cc',
       'test/cctest/test_quic_cid.cc',
       'test/cctest/test_quic_error.cc',
       'test/cctest/test_quic_preferredaddress.cc',

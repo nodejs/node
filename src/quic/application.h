@@ -132,7 +132,7 @@ class Session::Application : public MemoryRetainer {
   }
 
  private:
-  BaseObjectPtr<Packet> CreateStreamDataPacket();
+  Packet::Ptr CreateStreamDataPacket();
 
   // Write the given stream_data into the buffer.
   ssize_t WriteVStream(PathStorage* path,
