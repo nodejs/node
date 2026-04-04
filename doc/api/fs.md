@@ -7929,7 +7929,8 @@ added:
 
 * Type: {number|bigint}
 
-Free blocks available to unprivileged users.
+Free blocks available to unprivileged users. To calculate the available
+space in bytes, multiply `statfs.bavail` by `statfs.frsize`.
 
 #### `statfs.bfree`
 
@@ -7941,7 +7942,8 @@ added:
 
 * Type: {number|bigint}
 
-Free blocks in file system.
+Free blocks in file system. To calculate the free space in bytes,
+multiply `statfs.bfree` by `statfs.frsize`.
 
 #### `statfs.blocks`
 
@@ -7965,7 +7967,7 @@ added:
 
 * Type: {number|bigint}
 
-Optimal transfer block size.
+Optimal transfer block size, in bytes.
 
 #### `statfs.frsize`
 
@@ -7975,7 +7977,8 @@ added: REPLACEME
 
 * Type: {number|bigint}
 
-Fundamental file system block size.
+Fundamental file system block size, in bytes. This is the unit used
+for block counts (`statfs.blocks`, `statfs.bfree`, `statfs.bavail`).
 
 #### `statfs.ffree`
 
@@ -8011,7 +8014,9 @@ added:
 
 * Type: {number|bigint}
 
-Type of file system.
+Type of file system. This is a numeric identifier corresponding to the
+file system type (e.g., `0xEF53` for ext4, `0x01021997` for tmpfs on Linux).
+On Windows, this value is not meaningful.
 
 ### Class: `fs.Utf8Stream`
 
