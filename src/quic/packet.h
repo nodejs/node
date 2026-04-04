@@ -120,8 +120,12 @@ class Packet final {
 
   // --- Diagnostic label: zero cost in release builds ---
 #ifdef DEBUG
-  void set_diagnostic_label(const char* label) { diagnostic_label_ = label; }
-  const char* diagnostic_label() const { return diagnostic_label_; }
+  void set_diagnostic_label(const char* label) {
+    diagnostic_label_ = label;
+  }
+  const char* diagnostic_label() const {
+    return diagnostic_label_;
+  }
 #else
   void set_diagnostic_label(const char*) {}
 #endif

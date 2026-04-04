@@ -151,9 +151,13 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
            v8::Local<v8::Object> object,
            const Endpoint::Options& options);
 
-  inline operator Packet::Listener*() { return this; }
+  inline operator Packet::Listener*() {
+    return this;
+  }
 
-  inline const Options& options() const { return options_; }
+  inline const Options& options() const {
+    return options_;
+  }
 
   // While the busy flag is set, the Endpoint will reject all initial packets
   // with a SERVER_BUSY response. This allows us to build a circuit breaker
