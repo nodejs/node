@@ -55,13 +55,13 @@ class ArenaPool final : public MemoryRetainer {
   // Construct T in an acquired slot with forwarded args.
   // Returns an empty Ptr only on allocation failure.
   template <typename... Args>
-  Ptr Acquire(Args&&... args);
+  [[nodiscard]] Ptr Acquire(Args&&... args);
 
   // Construct T with (extra_data_ptr, extra_bytes, ...args).
   // Use this for types whose constructor accepts a trailing data
   // buffer as its first two parameters.
   template <typename... Args>
-  Ptr AcquireExtra(Args&&... args);
+  [[nodiscard]] Ptr AcquireExtra(Args&&... args);
 
   // Release a raw T* previously detached via Ptr::release().
   // Calls ~T() and returns the slot to the pool's free list.
@@ -199,7 +199,7 @@ class ArenaPool<T>::Ptr final {
   // Detach ownership. The caller takes responsibility for eventually
   // calling ArenaPool<T>::Release(ptr) to destruct T and return
   // the slot to the pool.
-  T* release() noexcept {
+  [[nodiscard]] T* release() noexcept {
     if (!slot_) return nullptr;
     T* obj = ObjectFromSlot(slot_);
     slot_ = nullptr;

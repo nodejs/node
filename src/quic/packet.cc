@@ -15,8 +15,7 @@
 #include "packet.h"
 #include "tokens.h"
 
-namespace node {
-namespace quic {
+namespace node::quic {
 
 namespace {
 static constexpr size_t kRandlen = NGTCP2_MIN_STATELESS_RESET_RANDLEN * 5;
@@ -43,57 +42,12 @@ Packet::Packet(uint8_t* data,
                size_t capacity,
                Listener* listener,
                const SocketAddress& destination)
-    : req_{},
+    : data_(data),
+      capacity_(capacity),
+      length_(capacity),
       listener_(listener),
       destination_(destination),
-      data_(data),
-      capacity_(capacity),
-      length_(capacity) {}
-
-const SocketAddress& Packet::destination() const {
-  return destination_;
-}
-
-Packet::Listener* Packet::listener() const {
-  return listener_;
-}
-
-size_t Packet::length() const {
-  return length_;
-}
-
-size_t Packet::capacity() const {
-  return capacity_;
-}
-
-uint8_t* Packet::data() {
-  return data_;
-}
-
-const uint8_t* Packet::data() const {
-  return data_;
-}
-
-Packet::operator uv_buf_t() const {
-  return uv_buf_init(reinterpret_cast<char*>(data_), length_);
-}
-
-Packet::operator ngtcp2_vec() const {
-  return ngtcp2_vec{data_, length_};
-}
-
-void Packet::Truncate(size_t len) {
-  DCHECK_LE(len, capacity_);
-  length_ = len;
-}
-
-uv_udp_send_t* Packet::req() {
-  return &req_;
-}
-
-Packet* Packet::FromReq(uv_udp_send_t* req) {
-  return ContainerOf(&Packet::req_, req);
-}
+      req_{} {}
 
 std::string Packet::ToString() const {
   std::string res = "Packet(";
@@ -264,8 +218,7 @@ Packet::Ptr Packet::CreateVersionNegotiationPacket(
   return packet;
 }
 
-}  // namespace quic
-}  // namespace node
+}  // namespace node::quic
 
 #endif  // OPENSSL_NO_QUIC
 #endif  // HAVE_OPENSSL && HAVE_QUIC
