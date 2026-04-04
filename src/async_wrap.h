@@ -63,7 +63,6 @@ namespace node {
   V(QUERYWRAP)                                                                 \
   V(QUIC_ENDPOINT)                                                             \
   V(QUIC_LOGSTREAM)                                                            \
-  V(QUIC_PACKET)                                                               \
   V(QUIC_SESSION)                                                              \
   V(QUIC_STREAM)                                                               \
   V(QUIC_UDP)                                                                  \

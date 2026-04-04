@@ -11,7 +11,6 @@
 #include <node.h>
 #include <node_mem.h>
 #include <v8.h>
-#include <list>
 #include <unordered_map>
 #include "defs.h"
 
@@ -27,7 +26,6 @@ class Packet;
   V(endpoint)                                                                  \
   V(http3application)                                                          \
   V(logstream)                                                                 \
-  V(packet)                                                                    \
   V(session)                                                                   \
   V(stream)                                                                    \
   V(udp)
@@ -106,7 +104,6 @@ class Packet;
   V(max_stream_window, "maxStreamWindow")                                      \
   V(max_window, "maxWindow")                                                   \
   V(min_version, "minVersion")                                                 \
-  V(packetwrap, "PacketWrap")                                                  \
   V(preferred_address_strategy, "preferredAddressPolicy")                      \
   V(protocol, "protocol")                                                      \
   V(qlog, "qlog")                                                              \
@@ -171,11 +168,6 @@ class BindingData final
   // Installs the set of JavaScript callback functions that are used to
   // bridge out to the JS API.
   JS_METHOD(SetCallbacks);
-
-  // Purge the packet free list to free up memory.
-  JS_METHOD(FlushPacketFreelist);
-
-  std::list<BaseObjectPtr<BaseObject>> packet_freelist;
 
   std::unordered_map<Endpoint*, BaseObjectPtr<BaseObject>> listening_endpoints;
 
