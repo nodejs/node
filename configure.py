@@ -1521,8 +1521,8 @@ def check_compiler(o):
   print_verbose(f"Detected {'Apple ' if is_apple else ''}{'clang ' if is_clang else ''}C++ compiler (CXX={CXX}) version: {version_str}")
   if not ok:
     warn(f'failed to autodetect C++ compiler version (CXX={CXX})')
-  elif ((is_apple and clang_version < (17, 0, 0)) or (not is_apple and clang_version < (19, 1, 0))) if is_clang else gcc_version < (12, 2, 0):
-    warn(f"C++ compiler (CXX={CXX}, {version_str}) too old, need g++ 12.2.0 or clang++ 19.1.0{' or Apple clang++ 17.0.0' if is_apple else ''}")
+  elif ((is_apple and clang_version < (17, 0, 0)) or (not is_apple and clang_version < (19, 1, 0))) if is_clang else gcc_version < (13, 2, 0):
+    warn(f"C++ compiler (CXX={CXX}, {version_str}) too old, need g++ 13.2.0 or clang++ 19.1.0{' or Apple clang++ 17.0.0' if is_apple else ''}")
 
   ok, is_clang, clang_version, gcc_version, is_apple = try_check_compiler(CC, 'c')
   version_str = ".".join(map(str, clang_version if is_clang else gcc_version))
