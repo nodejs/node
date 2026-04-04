@@ -1,4 +1,4 @@
-@if not defined DEBUG_HELPER @ECHO OFF
+@if not defined DEBUG_HELPER @ECHO OFF//nothing
 
 :: Other scripts rely on the environment variables set in this script, so we
 :: explicitly allow them to persist in the calling shell.
