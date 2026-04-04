@@ -778,13 +778,14 @@ class WPTRunner {
         }
 
         // Full check: every expected to fail test is present
-        if (specs.failedTests.some((expectedToFail) => {
+        const _unexpectedPasses = specs.failedTests.filter((expectedToFail) => {
           if (specs.flakyTests.includes(expectedToFail)) {
             return false;
           }
           return this.results[key]?.fail?.expected?.includes(expectedToFail) !== true;
-        })) {
-          unexpectedPasses.push(key);
+        })
+        if (_unexpectedPasses.length) {
+          unexpectedPasses.push(..._unexpectedPasses.map(name => `${key}:${name}`))
           continue;
         }
       }
