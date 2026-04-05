@@ -124,30 +124,39 @@ function handleUncachedResponse (
 ) {
   if (reqCacheControl?.['only-if-cached']) {
     let aborted = false
+
+    const controller = {
+      paused: false,
+      rawHeaders: [],
+      rawTrailers: [],
+      pause () {
+        this.paused = true
+      },
+      resume () {
+        this.paused = false
+      },
+      abort: (reason) => {
+        aborted = true
+        handler.onResponseError?.(controller, reason ?? new AbortError())
+      }
+    }
+
     try {
-      if (typeof handler.onConnect === 'function') {
-        handler.onConnect(() => {
-          aborted = true
-        })
+      handler.onRequestStart?.(controller, null)
 
-        if (aborted) {
-          return
-        }
+      if (aborted) {
+        return
       }
 
-      if (typeof handler.onHeaders === 'function') {
-        handler.onHeaders(504, [], nop, 'Gateway Timeout')
-        if (aborted) {
-          return
-        }
+      handler.onResponseStart?.(controller, 504, {}, 'Gateway Timeout')
+      if (aborted) {
+        return
       }
 
-      if (typeof handler.onComplete === 'function') {
-        handler.onComplete([])
-      }
+      handler.onResponseEnd?.(controller, {})
     } catch (err) {
-      if (typeof handler.onError === 'function') {
-        handler.onError(err)
+      if (typeof handler.onResponseError === 'function') {
+        handler.onResponseError(controller, err)
       }
     }
 
@@ -175,6 +184,8 @@ function sendCachedValue (handler, opts, result, age, context, isStale) {
   assert(!stream.readableDidRead, 'stream should not be readableDidRead')
 
   const controller = {
+    rawHeaders: [],
+    rawTrailers: [],
     resume () {
       stream.resume()
     },
@@ -226,6 +237,8 @@ function sendCachedValue (handler, opts, result, age, context, isStale) {
     //  https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Warning
     headers.warning = '110 - "response is stale"'
   }
+
+  controller.rawHeaders = util.toRawHeaders(headers)
 
   handler.onResponseStart?.(controller, result.statusCode, headers, result.statusMessage)
 

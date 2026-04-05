@@ -16,6 +16,7 @@ const {
   hasSafeIterator,
   isBlobLike,
   serializePathWithQuery,
+  parseHeaders,
   assertRequestHandler,
   getServerName,
   normalizedMethodRecords,
@@ -28,6 +29,55 @@ const { headerNameLowerCasedRecord } = require('./constants')
 const invalidPathRegex = /[^\u0021-\u00ff]/
 
 const kHandler = Symbol('handler')
+const kController = Symbol('controller')
+const kResume = Symbol('resume')
+
+class RequestController {
+  #paused = false
+  #reason = null
+  #aborted = false
+  #abort
+
+  [kResume] = null
+
+  rawHeaders = null
+  rawTrailers = null
+
+  constructor (abort) {
+    this.#abort = abort
+  }
+
+  pause () {
+    this.#paused = true
+  }
+
+  resume () {
+    if (this.#paused) {
+      this.#paused = false
+      this[kResume]?.()
+    }
+  }
+
+  abort (reason) {
+    if (!this.#aborted) {
+      this.#aborted = true
+      this.#reason = reason
+      this.#abort(reason)
+    }
+  }
+
+  get aborted () {
+    return this.#aborted
+  }
+
+  get reason () {
+    return this.#reason
+  }
+
+  get paused () {
+    return this.#paused
+  }
+}
 
 class Request {
   constructor (origin, {
@@ -241,23 +291,26 @@ class Request {
     }
   }
 
-  onConnect (abort) {
+  onRequestStart (abort, context) {
     assert(!this.aborted)
     assert(!this.completed)
 
+    this[kController] = new RequestController(abort)
+
     if (this.error) {
-      abort(this.error)
-    } else {
-      this.abort = abort
-      return this[kHandler].onConnect(abort)
+      this[kController].abort(this.error)
+      return
     }
+
+    this.abort = abort
+    return this[kHandler].onRequestStart(this[kController], context)
   }
 
   onResponseStarted () {
     return this[kHandler].onResponseStarted?.()
   }
 
-  onHeaders (statusCode, headers, resume, statusText) {
+  onResponseStart (statusCode, headers, resume, statusText) {
     assert(!this.aborted)
     assert(!this.completed)
 
@@ -265,36 +318,56 @@ class Request {
       channels.headers.publish({ request: this, response: { statusCode, headers, statusText } })
     }
 
-    try {
-      return this[kHandler].onHeaders(statusCode, headers, resume, statusText)
-    } catch (err) {
-      this.abort(err)
+    const controller = this[kController]
+    if (controller) {
+      controller[kResume] = resume
+      controller.rawHeaders = headers
     }
-  }
 
-  onData (chunk) {
-    assert(!this.aborted)
-    assert(!this.completed)
+    const parsedHeaders = Array.isArray(headers) ? parseHeaders(headers) : headers
 
-    if (channels.bodyChunkReceived.hasSubscribers) {
-      channels.bodyChunkReceived.publish({ request: this, chunk })
-    }
     try {
-      return this[kHandler].onData(chunk)
+      this[kHandler].onResponseStart?.(controller, statusCode, parsedHeaders, statusText)
+      return !controller?.paused
     } catch (err) {
       this.abort(err)
       return false
     }
   }
 
-  onUpgrade (statusCode, headers, socket) {
+  onResponseData (chunk) {
     assert(!this.aborted)
     assert(!this.completed)
 
-    return this[kHandler].onUpgrade(statusCode, headers, socket)
+    if (channels.bodyChunkReceived.hasSubscribers) {
+      channels.bodyChunkReceived.publish({ request: this, chunk })
+    }
+
+    const controller = this[kController]
+    try {
+      this[kHandler].onResponseData?.(controller, chunk)
+      return !controller?.paused
+    } catch (err) {
+      this.abort(err)
+      return false
+    }
   }
 
-  onComplete (trailers) {
+  onRequestUpgrade (statusCode, headers, socket) {
+    assert(!this.aborted)
+    assert(!this.completed)
+
+    const controller = this[kController]
+    if (controller) {
+      controller.rawHeaders = headers
+    }
+
+    const parsedHeaders = Array.isArray(headers) ? parseHeaders(headers) : headers
+
+    return this[kHandler].onRequestUpgrade?.(controller, statusCode, parsedHeaders, socket)
+  }
+
+  onResponseEnd (trailers) {
     this.onFinally()
 
     assert(!this.aborted)
@@ -305,15 +378,22 @@ class Request {
       channels.trailers.publish({ request: this, trailers })
     }
 
+    const controller = this[kController]
+    if (controller) {
+      controller.rawTrailers = trailers
+    }
+
+    const parsedTrailers = Array.isArray(trailers) ? parseHeaders(trailers) : trailers
+
     try {
-      return this[kHandler].onComplete(trailers)
+      return this[kHandler].onResponseEnd?.(controller, parsedTrailers)
     } catch (err) {
       // TODO (fix): This might be a bad idea?
-      this.onError(err)
+      this.onResponseError(err)
     }
   }
 
-  onError (error) {
+  onResponseError (error) {
     this.onFinally()
 
     if (channels.error.hasSubscribers) {
@@ -325,7 +405,9 @@ class Request {
     }
     this.aborted = true
 
-    return this[kHandler].onError(error)
+    const controller = this[kController]
+
+    return this[kHandler].onResponseError?.(controller, error)
   }
 
   onFinally () {
@@ -412,13 +494,21 @@ function processHeader (request, key, val) {
   } else if (headerName === 'transfer-encoding' || headerName === 'keep-alive' || headerName === 'upgrade') {
     throw new InvalidArgumentError(`invalid ${headerName} header`)
   } else if (headerName === 'connection') {
-    const value = typeof val === 'string' ? val.toLowerCase() : null
-    if (value !== 'close' && value !== 'keep-alive') {
+    // Per RFC 7230 Section 6.1, Connection header can contain
+    // a comma-separated list of connection option tokens (header names)
+    const value = typeof val === 'string' ? val : null
+    if (value === null) {
       throw new InvalidArgumentError('invalid connection header')
     }
 
-    if (value === 'close') {
-      request.reset = true
+    for (const token of value.toLowerCase().split(',')) {
+      const trimmed = token.trim()
+      if (!isValidHTTPToken(trimmed)) {
+        throw new InvalidArgumentError('invalid connection header')
+      }
+      if (trimmed === 'close') {
+        request.reset = true
+      }
     }
   } else if (headerName === 'expect') {
     throw new NotSupportedError('expect header not supported')

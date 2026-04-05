@@ -182,22 +182,24 @@ diagnosticsChannel.channel('undici:websocket:open').subscribe(({
   console.log(websocket) // the WebSocket instance
   
   // Handshake response details
-  console.log(handshakeResponse.status) // 101 for successful WebSocket upgrade
-  console.log(handshakeResponse.statusText) // 'Switching Protocols'
+  console.log(handshakeResponse.status) // 101 for HTTP/1.1, 200 for HTTP/2 extended CONNECT
+  console.log(handshakeResponse.statusText) // 'Switching Protocols' for HTTP/1.1, commonly 'OK' for HTTP/2 in Node.js
   console.log(handshakeResponse.headers) // Object containing response headers
 })
 ```
 
 ### Handshake Response Object
 
-The `handshakeResponse` object contains the HTTP response that upgraded the connection to WebSocket:
+The `handshakeResponse` object contains the HTTP response that established the WebSocket connection:
 
-- `status` (number): The HTTP status code (101 for successful WebSocket upgrade)
-- `statusText` (string): The HTTP status message ('Switching Protocols' for successful upgrade)
+- `status` (number): The HTTP status code (`101` for HTTP/1.1 upgrade, `200` for HTTP/2 extended CONNECT)
+- `statusText` (string): The HTTP status message (`'Switching Protocols'` for HTTP/1.1, commonly `'OK'` for HTTP/2 in Node.js)
 - `headers` (object): The HTTP response headers from the server, including:
+  - `sec-websocket-accept` and other WebSocket-related headers
   - `upgrade: 'websocket'`
   - `connection: 'upgrade'`
-  - `sec-websocket-accept` and other WebSocket-related headers
+
+  The `upgrade` and `connection` headers are only present for HTTP/1.1 handshakes.
 
 This information is particularly useful for debugging and monitoring WebSocket connections, as it provides access to the initial HTTP handshake response that established the WebSocket connection.
 

@@ -53,39 +53,44 @@ class StreamHandler extends AsyncResource {
     this.res = null
     this.abort = null
     this.context = null
+    this.controller = null
     this.trailers = null
     this.body = body
     this.onInfo = onInfo || null
 
     if (util.isStream(body)) {
       body.on('error', (err) => {
-        this.onError(err)
+        this.onResponseError(this.controller, err)
       })
     }
 
     addSignal(this, signal)
   }
 
-  onConnect (abort, context) {
+  onRequestStart (controller, context) {
     if (this.reason) {
-      abort(this.reason)
+      controller.abort(this.reason)
       return
     }
 
     assert(this.callback)
 
-    this.abort = abort
+    this.controller = controller
+    this.abort = (reason) => controller.abort(reason)
     this.context = context
   }
 
-  onHeaders (statusCode, rawHeaders, resume, statusMessage) {
+  onResponseStart (controller, statusCode, headers, _statusMessage) {
     const { factory, opaque, context, responseHeaders } = this
 
-    const headers = responseHeaders === 'raw' ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders)
+    const rawHeaders = controller?.rawHeaders
+    const responseHeaderData = responseHeaders === 'raw'
+      ? (Array.isArray(rawHeaders) ? util.parseRawHeaders(rawHeaders) : [])
+      : headers
 
     if (statusCode < 200) {
       if (this.onInfo) {
-        this.onInfo({ statusCode, headers })
+        this.onInfo({ statusCode, headers: responseHeaderData })
       }
       return
     }
@@ -98,7 +103,7 @@ class StreamHandler extends AsyncResource {
 
     const res = this.runInAsyncScope(factory, null, {
       statusCode,
-      headers,
+      headers: responseHeaderData,
       opaque,
       context
     })
@@ -129,7 +134,7 @@ class StreamHandler extends AsyncResource {
       }
     })
 
-    res.on('drain', resume)
+    res.on('drain', () => controller.resume())
 
     this.res = res
 
@@ -137,16 +142,24 @@ class StreamHandler extends AsyncResource {
       ? res.writableNeedDrain
       : res._writableState?.needDrain
 
-    return needDrain !== true
+    if (needDrain === true) {
+      controller.pause()
+    }
   }
 
-  onData (chunk) {
+  onResponseData (controller, chunk) {
     const { res } = this
 
-    return res ? res.write(chunk) : true
+    if (!res) {
+      return
+    }
+
+    if (res.write(chunk) === false) {
+      controller.pause()
+    }
   }
 
-  onComplete (trailers) {
+  onResponseEnd (_controller, trailers) {
     const { res } = this
 
     removeSignal(this)
@@ -155,12 +168,14 @@ class StreamHandler extends AsyncResource {
       return
     }
 
-    this.trailers = util.parseHeaders(trailers)
+    if (trailers && typeof trailers === 'object') {
+      this.trailers = trailers
+    }
 
     res.end()
   }
 
-  onError (err) {
+  onResponseError (_controller, err) {
     const { res, callback, opaque, body } = this
 
     removeSignal(this)
