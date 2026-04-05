@@ -5826,6 +5826,25 @@ added:
 Generates a random [RFC 4122][] version 4 UUID. The UUID is generated using a
 cryptographic pseudorandom number generator.
 
+### `crypto.randomUUIDv7([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `disableEntropyCache` {boolean} By default, to improve performance,
+    Node.js generates and caches enough
+    random data to generate up to 128 random UUIDs. To generate a UUID
+    without using the cache, set `disableEntropyCache` to `true`.
+    **Default:** `false`.
+* Returns: {string}
+
+Generates a random [RFC 9562][] version 7 UUID. The UUID contains a millisecond
+precision Unix timestamp in the most significant 48 bits, followed by
+cryptographically secure random bits for the remaining fields, making it
+suitable for use as a database key with time-based sorting.
+
 ### `crypto.scrypt(password, salt, keylen[, options], callback)`
 
 <!-- YAML
@@ -6864,6 +6883,7 @@ See the [list of SSL OP Flags][] for details.
 [RFC 5280]: https://www.rfc-editor.org/rfc/rfc5280.txt
 [RFC 7517]: https://www.rfc-editor.org/rfc/rfc7517.txt
 [RFC 8032]: https://www.rfc-editor.org/rfc/rfc8032.txt
+[RFC 9562]: https://www.rfc-editor.org/rfc/rfc9562.txt
 [Web Crypto API documentation]: webcrypto.md
 [`BN_is_prime_ex`]: https://www.openssl.org/docs/man1.1.1/man3/BN_is_prime_ex.html
 [`Buffer`]: buffer.md
