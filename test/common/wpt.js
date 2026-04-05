@@ -783,9 +783,9 @@ class WPTRunner {
             return false;
           }
           return this.results[key]?.fail?.expected?.includes(expectedToFail) !== true;
-        })
+        });
         if (_unexpectedPasses.length) {
-          unexpectedPasses.push(..._unexpectedPasses.map(name => `${key}:${name}`))
+          unexpectedPasses.push(..._unexpectedPasses.map((name) => `${key}:${name}`));
           continue;
         }
       }
