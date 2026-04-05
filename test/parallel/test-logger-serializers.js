@@ -196,6 +196,52 @@ describe('Logger serializers', () => {
       assert.strictEqual(log.err.cause, '[Circular]');
     });
 
+    it('should handle explicit cause: undefined (cause in error is true)', () => {
+      // Verify serializeErr directly since JSON.stringify drops undefined values
+      const error = new Error('boom', { cause: undefined });
+      const serialized = stdSerializers.err(error);
+
+      assert.strictEqual(serialized.message, 'boom');
+      // 'cause' in error is true when explicitly set, even if value is undefined
+      assert.ok('cause' in serialized);
+      assert.strictEqual(serialized.cause, undefined);
+    });
+
+    it('should handle explicit cause with a string value', () => {
+      const stream = new TestStream();
+      const consumer = new JSONConsumer({ stream, level: 'info' });
+      consumer.attach();
+
+      const logger = new Logger({ level: 'info' });
+
+      const error = new Error('boom', { cause: 'some reason' });
+
+      logger.error(error);
+      consumer.flushSync();
+
+      const log = stream.logs[0];
+      assert.strictEqual(log.err.message, 'boom');
+      assert.strictEqual(log.err.cause, 'some reason');
+    });
+
+    it('should not include cause when not explicitly set', () => {
+      const stream = new TestStream();
+      const consumer = new JSONConsumer({ stream, level: 'info' });
+      consumer.attach();
+
+      const logger = new Logger({ level: 'info' });
+
+      const error = new Error('no cause');
+
+      logger.error(error);
+      consumer.flushSync();
+
+      const log = stream.logs[0];
+      assert.strictEqual(log.err.message, 'no cause');
+      // Cause should NOT be present
+      assert.ok(!('cause' in log.err));
+    });
+
     it('should handle deeply nested circular error causes', () => {
       const stream = new TestStream();
       const consumer = new JSONConsumer({ stream, level: 'info' });
