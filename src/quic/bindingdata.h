@@ -117,6 +117,7 @@ class Packet;
   V(rx_loss, "rxDiagnosticLoss")                                               \
   V(servername, "servername")                                                  \
   V(session, "Session")                                                        \
+  V(sni, "sni")                                                                \
   V(stream, "Stream")                                                          \
   V(success, "success")                                                        \
   V(tls_options, "tls")                                                        \
