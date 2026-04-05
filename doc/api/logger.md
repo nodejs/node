@@ -76,16 +76,16 @@ logger.info('Hello world');
 
 The logger supports the following log levels, in order of severity:
 
-| Level   | Value | Description                    |
-| ------- | ----- | ------------------------------ |
-| `trace` | 10    | Detailed debugging information |
-| `debug` | 20    | Debug information              |
-| `info`  | 30    | General information            |
-| `warn`  | 40    | Warning messages               |
-| `error` | 50    | Error messages                 |
-| `fatal` | 60    | Critical errors                |
+| Level   | Description                    |
+| ------- | ------------------------------ |
+| `trace` | Detailed debugging information |
+| `debug` | Debug information              |
+| `info`  | General information            |
+| `warn`  | Warning messages               |
+| `error` | Error messages                 |
+| `fatal` | Critical errors                |
 
-Log levels follow [RFC 5424][] numerical ordering.
+Log levels follow [RFC 5424][] severity ordering (lowest to highest).
 
 ## Class: `Logger`
 
@@ -141,18 +141,31 @@ added: REPLACEME
 * `msg` {string} Log message. When called with a string, logs that string
   as the message.
 * `fields` {Object} Additional fields to include in the log record.
-  Only used with the string `msg` signature.
+  Only used with the string `msg` signature. Each key-value pair is added
+  to the log record. Values must be JSON-serializable (strings, numbers,
+  booleans, `null`, plain objects, and arrays). Values that are not
+  JSON-serializable (such as `BigInt`, functions, or `Symbol`) will cause
+  `JSON.stringify()` to throw. If a field key matches a registered serializer,
+  the serializer is applied to the value before serialization.
 * `obj` {Object} Object containing a required `msg` {string} property
-  and additional fields that will be included in the log record.
+  and additional fields that will be included in the log record. All
+  properties other than `msg` are treated as log fields and follow the
+  same serialization rules as `fields`. This form is useful when the
+  set of fields is determined dynamically or when using spread syntax.
 * `error` {Error} Error object to log. The error's `message` property
   becomes the log message and the error is serialized into the `err` field.
 
 Logs a message at the `trace` level.
 
 ```js
+// String message
 logger.trace('Detailed trace message');
+
+// String message with additional fields
 logger.trace('User action', { userId: 123, action: 'click' });
-logger.trace({ msg: 'Object format', requestId: 'abc123' });
+
+// Object form: msg is required, all other properties become log fields
+logger.trace({ msg: 'Object format', requestId: 'abc123', duration: 42 });
 ```
 
 ### `logger.debug(msg[, fields])`
@@ -537,6 +550,32 @@ const consumer2 = new JSONConsumer({
 });
 ```
 
+#### Non-JSON-serializable values
+
+The `JSONConsumer` uses `JSON.stringify()` internally. Values that are not
+JSON-serializable will cause an error at log time:
+
+* `BigInt` values throw a `TypeError` (`BigInt value can't be serialized in JSON`).
+* `Symbol` values are silently omitted by `JSON.stringify()`.
+* Functions are silently omitted by `JSON.stringify()`.
+* Circular references throw a `TypeError`.
+
+To log `BigInt` values, convert them to strings or numbers first:
+
+```js
+logger.info('Large number', { id: bigIntValue.toString() });
+```
+
+To handle non-serializable types automatically, use a custom serializer:
+
+```js
+const logger = new Logger({
+  serializers: {
+    count: (value) => (typeof value === 'bigint' ? value.toString() : value),
+  },
+});
+```
+
 ### `consumer.flush([callback])`
 
 <!-- YAML
@@ -597,7 +636,7 @@ added: REPLACEME
 * Returns: {Object} Serialized error object.
 
 Serializes an `Error` object for logging. Includes `type`, `message`, `stack`,
-and any additional properties. Recursively serializes `cause` if present.
+and any additional properties. Traverses the `cause` chain if present.
 
 ```mjs
 import { Logger, stdSerializers } from 'node:logger';
