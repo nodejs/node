@@ -42,13 +42,16 @@ public:
   TLSClientSession() = default;
   ~TLSClientSession();
 
-  int init(bool &early_data_enabled, TLSClientContext &tls_ctx,
-           const char *remote_addr, ClientBase *client, uint32_t quic_version,
-           AppProtocol app_proto);
+  std::expected<void, Error> init(bool &early_data_enabled,
+                                  TLSClientContext &tls_ctx,
+                                  const char *remote_addr, ClientBase *client,
+                                  uint32_t quic_version, AppProtocol app_proto);
 
   bool get_early_data_accepted() const;
   bool get_ech_accepted() const { return false; }
-  int write_ech_config_list(const char *path) const { return 0; }
+  std::expected<void, Error> write_ech_config_list(const char *path) const {
+    return {};
+  }
 };
 
 #endif // !defined(TLS_CLIENT_SESSION_PICOTLS_H)

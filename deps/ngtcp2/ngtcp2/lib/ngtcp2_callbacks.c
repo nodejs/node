@@ -42,7 +42,7 @@ const ngtcp2_callbacks *ngtcp2_callbacks_convert_to_latest(
     return src;
   }
 
-  memset(dest, 0, sizeof(*dest));
+  *dest = (ngtcp2_callbacks){0};
 
   callbacks_copy(dest, src, callbacks_version);
 
@@ -63,6 +63,9 @@ size_t ngtcp2_callbackslen_version(int callbacks_version) {
   switch (callbacks_version) {
   case NGTCP2_CALLBACKS_VERSION:
     return sizeof(callbacks);
+  case NGTCP2_CALLBACKS_V2:
+    return offsetof(ngtcp2_callbacks, begin_path_validation) +
+           sizeof(callbacks.begin_path_validation);
   case NGTCP2_CALLBACKS_V1:
     return offsetof(ngtcp2_callbacks, tls_early_data_rejected) +
            sizeof(callbacks.tls_early_data_rejected);

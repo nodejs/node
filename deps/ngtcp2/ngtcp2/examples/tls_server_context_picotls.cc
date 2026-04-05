@@ -308,8 +308,9 @@ TLSServerContext::~TLSServerContext() {
 
 ptls_context_t *TLSServerContext::get_native_handle() { return &ctx_; }
 
-int TLSServerContext::init(const char *private_key_file, const char *cert_file,
-                           AppProtocol app_proto) {
+std::expected<void, Error> TLSServerContext::init(const char *private_key_file,
+                                                  const char *cert_file,
+                                                  AppProtocol app_proto) {
   switch (app_proto) {
   case AppProtocol::H3:
     ctx_.on_client_hello = &on_client_hello_h3;
@@ -322,54 +323,55 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
   }
 
   if (ngtcp2_crypto_picotls_configure_server_context(&ctx_) != 0) {
-    std::cerr << "ngtcp2_crypto_picotls_configure_server_context failed"
-              << std::endl;
-    return -1;
+    std::println(stderr,
+                 "ngtcp2_crypto_picotls_configure_server_context failed");
+    return std::unexpected{Error::CRYPTO};
   }
 
   if (ptls_load_certificates(&ctx_, cert_file) != 0) {
-    std::cerr << "ptls_load_certificates failed" << std::endl;
-    return -1;
+    std::println(stderr, "ptls_load_certificates failed");
+    return std::unexpected{Error::CRYPTO};
   }
 
-  if (load_private_key(private_key_file) != 0) {
-    return -1;
+  if (auto rv = load_private_key(private_key_file); !rv) {
+    return rv;
   }
 
   if (config.verify_client) {
     ctx_.require_client_authentication = 1;
   }
 
-  return 0;
+  return {};
 }
 
-int TLSServerContext::load_private_key(const char *private_key_file) {
+std::expected<void, Error>
+TLSServerContext::load_private_key(const char *private_key_file) {
   auto fp = fopen(private_key_file, "rb");
   if (fp == nullptr) {
-    std::cerr << "Could not open private key file " << private_key_file << ": "
-              << strerror(errno) << std::endl;
-    return -1;
+    std::println(stderr, "Could not open private key file {}: {}",
+                 private_key_file, strerror(errno));
+    return std::unexpected{Error::IO};
   }
 
   auto fp_d = defer([fp] { fclose(fp); });
 
   auto pkey = PEM_read_PrivateKey(fp, nullptr, nullptr, nullptr);
   if (pkey == nullptr) {
-    std::cerr << "Could not read private key file " << private_key_file
-              << std::endl;
-    return -1;
+    std::println(stderr, "Could not read private key file {}",
+                 private_key_file);
+    return std::unexpected{Error::IO};
   }
 
   auto pkey_d = defer([pkey] { EVP_PKEY_free(pkey); });
 
   if (ptls_openssl_init_sign_certificate(&sign_cert_, pkey) != 0) {
-    std::cerr << "ptls_openssl_init_sign_certificate failed" << std::endl;
-    return -1;
+    std::println(stderr, "ptls_openssl_init_sign_certificate failed");
+    return std::unexpected{Error::CRYPTO};
   }
 
   ctx_.sign_certificate = &sign_cert_.super;
 
-  return 0;
+  return {};
 }
 
 void TLSServerContext::enable_keylog() { ctx_.log_event = &log_event; }

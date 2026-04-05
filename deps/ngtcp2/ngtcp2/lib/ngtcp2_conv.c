@@ -74,21 +74,21 @@ static const uint8_t *get_uvarint(uint64_t *dest, const uint8_t *p) {
   case 1:
     memcpy(&n16, p, 2);
     n16 = ngtcp2_ntohs(n16);
-    n16 &= 0x3fff;
+    n16 &= 0x3FFF;
     *dest = n16;
 
     return p + 2;
   case 2:
     memcpy(&n32, p, 4);
     n32 = ngtcp2_ntohl(n32);
-    n32 &= 0x3fffffff;
+    n32 &= 0x3FFFFFFF;
     *dest = n32;
 
     return p + 4;
   case 3:
     memcpy(&n64, p, 8);
     n64 = ngtcp2_ntohl64(n64);
-    n64 &= 0x3fffffffffffffff;
+    n64 &= 0x3FFFFFFFFFFFFFFF;
     *dest = n64;
 
     return p + 8;
@@ -168,7 +168,7 @@ uint8_t *ngtcp2_put_uvarint(uint8_t *p, uint64_t n) {
   }
   assert(n < 4611686018427387904ULL);
   rv = ngtcp2_put_uint64be(p, n);
-  *p |= 0xc0;
+  *p |= 0xC0;
   return rv;
 }
 
@@ -200,7 +200,7 @@ uint8_t *ngtcp2_put_pkt_num(uint8_t *p, int64_t pkt_num, size_t len) {
 }
 
 size_t ngtcp2_get_uvarintlen(const uint8_t *p) {
-  return (size_t)(1u << (*p >> 6));
+  return (size_t)(1U << (*p >> 6));
 }
 
 size_t ngtcp2_put_uvarintlen(uint64_t n) {
