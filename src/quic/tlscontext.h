@@ -176,9 +176,10 @@ class TLSContext final : public MemoryRetainer,
     // the client.
     std::string servername = "localhost";
 
-    // The ALPN (protocol name) to use for this session. This option is only
-    // used by the client.
-    std::string protocol = NGHTTP3_ALPN_H3;
+    // The ALPN protocol identifier(s) in wire format (length-prefixed,
+    // concatenated). For clients this is a single entry. For servers
+    // this may contain multiple entries in preference order.
+    std::string alpn = NGHTTP3_ALPN_H3;
 
     // The list of TLS ciphers to use for this session.
     std::string ciphers = DEFAULT_CIPHERS;
