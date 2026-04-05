@@ -1,7 +1,6 @@
 #if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
-#include "http3.h"
 #include <async_wrap-inl.h>
 #include <base_object-inl.h>
 #include <debug_utils-inl.h>
@@ -15,79 +14,16 @@
 #include "application.h"
 #include "bindingdata.h"
 #include "defs.h"
+#include "http3.h"
 #include "session.h"
 #include "sessionticket.h"
 
 namespace node {
 
+using v8::Array;
 using v8::Local;
-using v8::Object;
-using v8::ObjectTemplate;
 
 namespace quic {
-
-// ============================================================================
-
-JS_CONSTRUCTOR_IMPL(Http3Application, http3application_constructor_template, {
-  JS_NEW_CONSTRUCTOR();
-  JS_CLASS(http3application);
-})
-
-void Http3Application::InitPerIsolate(IsolateData* isolate_data,
-                                      Local<ObjectTemplate> target) {
-  // TODO(@jasnell): Implement the per-isolate state
-}
-
-void Http3Application::InitPerContext(Realm* realm, Local<Object> target) {
-  SetConstructorFunction(realm->context(),
-                         target,
-                         "Http3Application",
-                         GetConstructorTemplate(realm->env()));
-}
-
-void Http3Application::RegisterExternalReferences(
-    ExternalReferenceRegistry* registry) {
-  registry->Register(New);
-}
-
-Http3Application::Http3Application(Environment* env,
-                                   Local<Object> object,
-                                   const Session::Application::Options& options)
-    : ApplicationProvider(env, object), options_(options) {
-  MakeWeak();
-}
-
-JS_METHOD_IMPL(Http3Application::New) {
-  Environment* env = Environment::GetCurrent(args);
-  CHECK(args.IsConstructCall());
-
-  JS_NEW_INSTANCE(env, obj);
-
-  Session::Application::Options options;
-  if (!args[0]->IsUndefined() &&
-      !Session::Application::Options::From(env, args[0]).To(&options)) {
-    return;
-  }
-
-  if (auto app = MakeBaseObject<Http3Application>(env, obj, options)) {
-    args.GetReturnValue().Set(app->object());
-  }
-}
-
-void Http3Application::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackField("options", options_);
-}
-
-std::string Http3Application::ToString() const {
-  DebugIndentScope indent;
-  auto prefix = indent.Prefix();
-  std::string res("{");
-  res += prefix + "options: " + options_.ToString();
-  res += indent.Close();
-  return res;
-}
-
-// ============================================================================
 
 struct Http3HeadersTraits {
   using nv_t = nghttp3_nv;
@@ -153,6 +89,10 @@ class Http3ApplicationImpl final : public Session::Application {
         options_(options),
         conn_(InitializeConnection()) {
     session->set_priority_supported();
+  }
+
+  Session::Application::Type type() const override {
+    return Session::Application::Type::HTTP3;
   }
 
   error_code GetNoErrorCode() const override { return NGHTTP3_H3_NO_ERROR; }
@@ -388,7 +328,7 @@ class Http3ApplicationImpl final : public Session::Application {
 
   bool SendHeaders(const Stream& stream,
                    HeadersKind kind,
-                   const Local<v8::Array>& headers,
+                   const Local<Array>& headers,
                    HeadersFlags flags = HeadersFlags::NONE) override {
     Session::SendPendingDataScope send_scope(&session());
     Http3Headers nva(env(), headers);
@@ -1062,10 +1002,10 @@ class Http3ApplicationImpl final : public Session::Application {
                                                    nullptr};
 };
 
-std::unique_ptr<Session::Application> Http3Application::Create(
-    Session* session) {
+std::unique_ptr<Session::Application> CreateHttp3Application(
+    Session* session, const Session::Application_Options& options) {
   Debug(session, "Selecting HTTP/3 application");
-  return std::make_unique<Http3ApplicationImpl>(session, options_);
+  return std::make_unique<Http3ApplicationImpl>(session, options);
 }
 
 }  // namespace quic

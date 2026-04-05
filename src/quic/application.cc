@@ -464,6 +464,10 @@ class DefaultApplication final : public Session::Application {
   // of the namespace.
   using Application::Application;  // NOLINT
 
+  Session::Application::Type type() const override {
+    return Session::Application::Type::DEFAULT;
+  }
+
   error_code GetNoErrorCode() const override { return 0; }
 
   bool ReceiveStreamData(int64_t stream_id,
@@ -601,14 +605,9 @@ class DefaultApplication final : public Session::Application {
   Stream::Queue stream_queue_;
 };
 
-std::unique_ptr<Session::Application> Session::SelectApplication(
-    Session* session, const Config& config) {
-  if (config.options.application_provider) {
-    return config.options.application_provider->Create(session);
-  }
-
-  return std::make_unique<DefaultApplication>(session,
-                                              Application_Options::kDefault);
+std::unique_ptr<Session::Application> CreateDefaultApplication(
+    Session* session, const Session::Application_Options& options) {
+  return std::make_unique<DefaultApplication>(session, options);
 }
 
 }  // namespace quic

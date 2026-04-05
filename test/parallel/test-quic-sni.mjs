@@ -33,6 +33,7 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
     '*': { keys: [defaultKey], certs: [defaultCert] },
     'localhost': { keys: [sniKey], certs: [sniCert] },
   },
+  alpn: ['quic-test'],
 });
 
 assert.ok(serverEndpoint.address !== undefined);
@@ -40,6 +41,7 @@ assert.ok(serverEndpoint.address !== undefined);
 // Client connects with servername 'localhost' — should match the SNI entry.
 const clientSession = await connect(serverEndpoint.address, {
   servername: 'localhost',
+  alpn: 'quic-test',
 });
 clientSession.opened.then((info) => {
   assert.strictEqual(info.servername, 'localhost');
