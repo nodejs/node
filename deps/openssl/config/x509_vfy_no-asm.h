@@ -13,6 +13,8 @@
 # include "./archs/linux-armv4/no-asm/include/openssl/x509_vfy.h"
 #elif defined(OPENSSL_LINUX) && defined(__aarch64__)
 # include "./archs/linux-aarch64/no-asm/include/openssl/x509_vfy.h"
+#elif defined(OPENSSL_LINUX) && defined(__riscv) && (__riscv_xlen == 64)
+# include "./archs/linux64-riscv64/no-asm/include/openssl/x509_vfy.h"
 #elif defined(OPENSSL_LINUX) && defined(__loongarch64)
 # include "./archs/linux64-loongarch64/no-asm/include/openssl/x509_vfy.h"
 #elif defined(__APPLE__) && defined(__MACH__) && defined(__i386__)

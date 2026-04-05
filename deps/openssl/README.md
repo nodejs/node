@@ -54,6 +54,7 @@ Here is a list of supported architectures for use of ASM in OpenSSL.
   | linux     | ppc64(*1)  | linux-ppc64le        | o   |
   | linux     | s390       | linux32-s390x        | o   |
   | linux     | s390x      | linux64-s390x        | o   |
+  | linux     | riscv64    | linux64-riscv64      | -   |
   | mac       | ia32       | darwin-i386-cc       | -   |
   | mac       | x64        | darwin64-x86-cc      | o   |
   | win       | ia32       | VC-WIN32             | -   |
