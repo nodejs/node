@@ -63,14 +63,25 @@ const {
   let prev = randomUUIDv7();
   for (let i = 0; i < 100; i++) {
     const curr = randomUUIDv7();
-    // UUIDs with later timestamps must sort after earlier ones.
-    // Within the same millisecond, ordering depends on random bits,
-    // so we only assert >= on the timestamp portion.
-    const prevTs = parseInt(prev.replace(/-/g, '').slice(0, 12), 16);
-    const currTs = parseInt(curr.replace(/-/g, '').slice(0, 12), 16);
-    assert(currTs >= prevTs,
-           `Timestamp went backwards: ${currTs} < ${prevTs}`);
+    // With a monotonic counter in rand_a, each UUID must be strictly greater
+    // than the previous regardless of whether the timestamp changed.
+    assert(curr > prev,
+           `UUID ordering violated: ${curr} <= ${prev}`);
     prev = curr;
+  }
+}
+
+// Sub-millisecond ordering: a tight synchronous burst exercises the counter
+// increment path and must also produce strictly increasing UUIDs.
+{
+  const burst = [];
+  for (let i = 0; i < 500; i++) {
+    burst.push(randomUUIDv7());
+  }
+  for (let i = 1; i < burst.length; i++) {
+    assert(burst[i] > burst[i - 1],
+           `Sub-millisecond ordering violated at index ${i}: ` +
+           `${burst[i]} <= ${burst[i - 1]}`);
   }
 }
 
