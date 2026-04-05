@@ -95,6 +95,8 @@ By default, Node.js will treat the following as CommonJS modules:
   when the nearest parent `package.json` file contains a top-level field
   [`"type"`][] with a value of `"module"`.
 
+See [Determining module system][] for more details.
+
 Calling `require()` always use the CommonJS module loader. Calling `import()`
 always use the ECMAScript module loader.
 
