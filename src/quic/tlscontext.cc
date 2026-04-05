@@ -14,6 +14,7 @@
 #include <openssl/ssl.h>
 #include <util-inl.h>
 #include <v8.h>
+#include "application.h"
 #include "bindingdata.h"
 #include "defs.h"
 #include "session.h"
@@ -90,7 +91,7 @@ void EnableTrace(Environment* env, BIOPointer* bio, SSL* ssl) {
 #endif
 }
 
-template <typename T, typename Opt, std::vector<T> Opt::*member>
+template <typename T, typename Opt, std::vector<T> Opt::* member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -313,20 +314,14 @@ int TLSContext::OnSelectAlpn(SSL* ssl,
                              const unsigned char* in,
                              unsigned int inlen,
                              void* arg) {
-  static constexpr size_t kMaxAlpnLen = 255;
-  auto& session = TLSSession::From(ssl);
+  auto& tls_session = TLSSession::From(ssl);
 
-  const auto& requested = session.context().options().protocol;
-  if (requested.length() > kMaxAlpnLen) return SSL_TLSEXT_ERR_NOACK;
+  const auto& requested = tls_session.context().options().alpn;
+  if (requested.empty()) return SSL_TLSEXT_ERR_NOACK;
 
-  // The Session supports exactly one ALPN identifier. If that does not match
-  // any of the ALPN identifiers provided in the client request, then we fail
-  // here. Note that this will not fail the TLS handshake, so we have to check
-  // later if the ALPN matches the expected identifier or not.
-  //
-  // TODO(@jasnell): We might eventually want to support the ability to
-  // negotiate multiple possible ALPN's on a single endpoint/session but for
-  // now, we only support one.
+  // The requested ALPN string is in wire format (one or more
+  // length-prefixed protocol names). SSL_select_next_proto finds the
+  // first match between the server's list and the client's list.
   if (SSL_select_next_proto(
           const_cast<unsigned char**>(out),
           outlen,
@@ -334,11 +329,30 @@ int TLSContext::OnSelectAlpn(SSL* ssl,
           requested.length(),
           in,
           inlen) == OPENSSL_NPN_NO_OVERLAP) {
-    Debug(&session.session(), "ALPN negotiation failed");
+    Debug(&tls_session.session(), "ALPN negotiation failed");
     return SSL_TLSEXT_ERR_NOACK;
   }
 
-  Debug(&session.session(), "ALPN negotiation succeeded");
+  // ALPN negotiated successfully. *out/*outlen point to the selected
+  // protocol name (without the length prefix). Select the Application
+  // implementation based on the negotiated ALPN. This must happen now
+  // because early data (0-RTT) may arrive in the same ngtcp2_conn_read_pkt
+  // call and needs the Application to be ready.
+  std::string_view negotiated(reinterpret_cast<const char*>(*out), *outlen);
+  Debug(&tls_session.session(),
+        "ALPN negotiation succeeded: %s",
+        std::string(negotiated).c_str());
+
+  auto& session = tls_session.session();
+  auto app = session.SelectApplicationFromAlpn(negotiated);
+  if (!app) {
+    Debug(&session,
+          "Failed to create Application for ALPN %s",
+          std::string(negotiated).c_str());
+    return SSL_TLSEXT_ERR_NOACK;
+  }
+  session.SetApplication(std::move(app));
+
   return SSL_TLSEXT_ERR_OK;
 }
 
@@ -673,7 +687,7 @@ Maybe<TLSContext::Options> TLSContext::Options::From(Environment* env,
       env, &options, params, state.name##_string())
 
   if (!SET(verify_client) || !SET(reject_unauthorized) ||
-      !SET(enable_early_data) || !SET(enable_tls_trace) || !SET(protocol) ||
+      !SET(enable_early_data) || !SET(enable_tls_trace) || !SET(alpn) ||
       !SET(servername) || !SET(ciphers) || !SET(groups) ||
       !SET(verify_private_key) || !SET(keylog) ||
       !SET_VECTOR(crypto::KeyObjectData, keys) || !SET_VECTOR(Store, certs) ||
@@ -688,7 +702,7 @@ std::string TLSContext::Options::ToString() const {
   DebugIndentScope indent;
   auto prefix = indent.Prefix();
   std::string res("{");
-  res += prefix + "protocol: " + protocol;
+  res += prefix + "alpn: " + alpn;
   res += prefix + "servername: " + servername;
   res +=
       prefix + "keylog: " + (keylog ? std::string("yes") : std::string("no"));
@@ -788,7 +802,7 @@ void TLSSession::Initialize(
         return;
       };
 
-      if (!ossl_context_.set_alpn_protocols(options.protocol)) {
+      if (!ossl_context_.set_alpn_protocols(options.alpn)) {
         validation_error_ = "Failed to set ALPN protocols";
         ossl_context_.reset();
         return;
