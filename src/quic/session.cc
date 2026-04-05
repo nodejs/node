@@ -470,6 +470,41 @@ Maybe<Session::Options> Session::Options::From(Environment* env,
 
 #undef SET
 
+  // Parse the SNI map from the tls options.
+  {
+    Local<Value> tls_val;
+    if (params->Get(env->context(), state.tls_options_string())
+            .ToLocal(&tls_val) &&
+        tls_val->IsObject()) {
+      Local<Value> sni_val;
+      if (tls_val.As<Object>()
+              ->Get(env->context(), state.sni_string())
+              .ToLocal(&sni_val) &&
+          sni_val->IsObject()) {
+        auto sni_obj = sni_val.As<Object>();
+        Local<Array> hostnames;
+        if (sni_obj->GetOwnPropertyNames(env->context()).ToLocal(&hostnames)) {
+          for (uint32_t i = 0; i < hostnames->Length(); i++) {
+            Local<Value> key;
+            Local<Value> entry_val;
+            if (!hostnames->Get(env->context(), i).ToLocal(&key) ||
+                !key->IsString() ||
+                !sni_obj->Get(env->context(), key).ToLocal(&entry_val)) {
+              continue;
+            }
+            Utf8Value hostname(env->isolate(), key);
+            auto entry_options = TLSContext::Options::From(env, entry_val);
+            if (entry_options.IsNothing()) {
+              return Nothing<Options>();
+            }
+            options.sni[std::string(*hostname, hostname.length())] =
+                entry_options.FromJust();
+          }
+        }
+      }
+    }
+  }
+
   // TODO(@jasnell): Later we will also support setting the CID::Factory.
   // For now, we're just using the default random factory.
 

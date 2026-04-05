@@ -359,6 +359,8 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   // packets.
   JS_METHOD(DoCloseGracefully);
 
+  JS_METHOD(DoSetSNIContexts);
+
   // Get the local address of the Endpoint.
   // @return node::SocketAddress - The local address of the Endpoint.
   JS_METHOD(LocalAddress);

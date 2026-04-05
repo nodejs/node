@@ -14,8 +14,9 @@ const { listen, QuicEndpoint } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { kState } = (await import('internal/quic/symbols')).default;
 
-const keys = createPrivateKey(fixtures.readKey('agent1-key.pem'));
-const certs = fixtures.readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
+const sni = { '*': { keys: [key], certs: [cert] } };
 
 const endpoint = new QuicEndpoint();
 
@@ -25,26 +26,26 @@ assert.ok(!endpoint[kState].isListening);
 
 assert.strictEqual(endpoint.address, undefined);
 
-await assert.rejects(listen(123, { keys, certs, endpoint }), {
+await assert.rejects(listen(123, { sni, endpoint }), {
   code: 'ERR_INVALID_ARG_TYPE',
 });
 // Buffer is not detached.
-assert.strictEqual(certs.buffer.detached, false);
+assert.strictEqual(cert.buffer.detached, false);
 
 await assert.rejects(listen(() => {}, 123), {
   code: 'ERR_INVALID_ARG_TYPE',
 });
 
-await listen(() => {}, { keys, certs, endpoint });
+await listen(() => {}, { sni, endpoint });
 // Buffer is not detached.
-assert.strictEqual(certs.buffer.detached, false);
+assert.strictEqual(cert.buffer.detached, false);
 
-await assert.rejects(listen(() => {}, { keys, certs, endpoint }), {
+await assert.rejects(listen(() => {}, { sni, endpoint }), {
   code: 'ERR_INVALID_STATE',
 });
 
 // Buffer is not detached.
-assert.strictEqual(certs.buffer.detached, false);
+assert.strictEqual(cert.buffer.detached, false);
 
 assert.ok(endpoint[kState].isBound);
 assert.ok(endpoint[kState].isReceiving);
@@ -64,11 +65,11 @@ assert.strictEqual(endpoint.closed, endpoint.close());
 await endpoint.closed;
 assert.ok(endpoint.destroyed);
 
-await assert.rejects(listen(() => {}, { keys, certs, endpoint }), {
+await assert.rejects(listen(() => {}, { sni, endpoint }), {
   code: 'ERR_INVALID_STATE',
 });
 // Buffer is not detached.
-assert.strictEqual(certs.buffer.detached, false);
+assert.strictEqual(cert.buffer.detached, false);
 
 assert.throws(() => { endpoint.busy = true; }, {
   code: 'ERR_INVALID_STATE',

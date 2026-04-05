@@ -162,6 +162,15 @@ class TransportParams final {
   // not be encoded, an empty Store will be returned.
   Store Encode(Environment* env, Version version = Version::V1) const;
 
+  // Returns the encoded size in bytes, or 0 on error.
+  ssize_t EncodedSize(Version version = Version::V1) const;
+
+  // Encode into a caller-provided buffer. Returns the number of bytes
+  // written, or a negative value on error.
+  ssize_t EncodeInto(uint8_t* buf,
+                     size_t len,
+                     Version version = Version::V1) const;
+
  private:
   void SetPreferredAddress(const SocketAddress& address);
   void GeneratePreferredAddressToken(Session* session);

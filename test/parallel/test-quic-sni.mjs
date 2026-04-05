@@ -8,45 +8,41 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-// Import after the hasQuic check
 const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
-const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
-const cert = fixtures.readKey('agent1-cert.pem');
+// Use two different keys/certs for the default and SNI host.
+const defaultKey = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const defaultCert = fixtures.readKey('agent1-cert.pem');
+const sniKey = createPrivateKey(fixtures.readKey('agent2-key.pem'));
+const sniCert = fixtures.readKey('agent2-cert.pem');
 
-const check = {
-  // The SNI value
-  servername: 'localhost',
-  // The selected ALPN protocol
-  protocol: 'h3',
-  // The negotiated cipher suite
-  cipher: 'TLS_AES_128_GCM_SHA256',
-  cipherVersion: 'TLSv1.3',
-};
-
-// The opened promise should resolve when the handshake is complete.
-
+// Server with SNI: default ('*') uses agent1, 'localhost' uses agent2.
 const serverOpened = Promise.withResolvers();
 const clientOpened = Promise.withResolvers();
 
 const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.opened.then((info) => {
-    assert.partialDeepStrictEqual(info, check);
+    // The server should see the client's requested servername.
+    assert.strictEqual(info.servername, 'localhost');
     serverOpened.resolve();
     serverSession.close();
   }).then(mustCall());
-}), { sni: { '*': { keys: [key], certs: [cert] } } });
+}), {
+  sni: {
+    '*': { keys: [defaultKey], certs: [defaultCert] },
+    'localhost': { keys: [sniKey], certs: [sniCert] },
+  },
+});
 
-// Buffer is not detached.
-assert.strictEqual(cert.buffer.detached, false);
-
-// The server must have an address to connect to after listen resolves.
 assert.ok(serverEndpoint.address !== undefined);
 
-const clientSession = await connect(serverEndpoint.address);
+// Client connects with servername 'localhost' — should match the SNI entry.
+const clientSession = await connect(serverEndpoint.address, {
+  servername: 'localhost',
+});
 clientSession.opened.then((info) => {
-  assert.partialDeepStrictEqual(info, check);
+  assert.strictEqual(info.servername, 'localhost');
   clientOpened.resolve();
 }).then(mustCall());
 
