@@ -1141,12 +1141,26 @@ added: v23.8.0
 #### `sessionOptions.alpn`
 
 <!-- YAML
-added: v23.8.0
+added: REPLACEME
 -->
 
-* Type: {string}
+* Type: {string} (client) | {string\[]} (server)
 
-The ALPN protocol identifier.
+The ALPN (Application-Layer Protocol Negotiation) identifier(s).
+
+For **client** sessions, this is a single string specifying the protocol
+the client wants to use (e.g. `'h3'`).
+
+For **server** sessions, this is an array of protocol names in preference
+order that the server supports (e.g. `['h3', 'h3-29']`). During the TLS
+handshake, the server selects the first protocol from its list that the
+client also supports.
+
+The negotiated ALPN determines which Application implementation is used
+for the session. `'h3'` and `'h3-*'` variants select the HTTP/3
+application; all other values select the default application.
+
+Default: `'h3'`
 
 #### `sessionOptions.ca` (client only)
 

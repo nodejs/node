@@ -23,7 +23,7 @@ const check = {
   // The SNI value
   servername: 'localhost',
   // The selected ALPN protocol
-  protocol: 'h3',
+  protocol: 'quic-test',
   // The negotiated cipher suite
   cipher: 'TLS_AES_128_GCM_SHA256',
   cipherVersion: 'TLSv1.3',
@@ -40,13 +40,17 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
     serverOpened.resolve();
     serverSession.close();
   }).then(mustCall());
-}), { sni: { '*': { keys: [key], certs: [cert] } }, endpoint: {
-  address: {
-    address: '::1',
-    family: 'ipv6',
+}), {
+  sni: { '*': { keys: [key], certs: [cert] } },
+  alpn: ['quic-test'],
+  endpoint: {
+    address: {
+      address: '::1',
+      family: 'ipv6',
+    },
+    ipv6Only: true,
   },
-  ipv6Only: true,
-} });
+});
 // Buffer is not detached.
 assert.strictEqual(cert.buffer.detached, false);
 
@@ -54,12 +58,13 @@ assert.strictEqual(cert.buffer.detached, false);
 assert.ok(serverEndpoint.address !== undefined);
 
 const clientSession = await connect(serverEndpoint.address, {
+  alpn: 'quic-test',
   endpoint: {
     address: {
       address: '::',
       family: 'ipv6',
     },
-  }
+  },
 });
 clientSession.opened.then((info) => {
   assert.partialDeepStrictEqual(info, check);
