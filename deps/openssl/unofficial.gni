@@ -111,6 +111,8 @@ template("openssl_gn_build") {
         config_path_name = "linux-armv4"
       } else if (current_cpu == "arm64") {
         config_path_name = "linux-aarch64"
+      } else if (current_cpu == "riscv64") {
+        config_path_name = "linux64-riscv64"
       }
     } else if (is_apple) {
       if (current_cpu == "x86") {
