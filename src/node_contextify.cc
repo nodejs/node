@@ -23,6 +23,7 @@
 
 #include "base_object-inl.h"
 #include "cppgc/allocation.h"
+#include "debug_utils-inl.h"
 #include "memory_tracker-inl.h"
 #include "module_wrap.h"
 #include "node_context_data.h"
@@ -480,6 +481,9 @@ Intercepted ContextifyContext::PropertyQueryCallback(
     return Intercepted::kNo;
   }
 
+  per_process::Debug(
+      DebugCategory::CONTEXTIFY, "PropertyQuery(%s)\n", property);
+
   Local<Context> context = ctx->context();
   Local<Object> sandbox = ctx->sandbox();
 
@@ -526,6 +530,9 @@ Intercepted ContextifyContext::PropertyGetterCallback(
     return Intercepted::kNo;
   }
 
+  per_process::Debug(
+      DebugCategory::CONTEXTIFY, "PropertyGetter(name: %s)\n", property);
+
   Local<Context> context = ctx->context();
   Local<Object> sandbox = ctx->sandbox();
 
@@ -562,6 +569,12 @@ Intercepted ContextifyContext::PropertySetterCallback(
   if (IsStillInitializing(ctx)) {
     return Intercepted::kNo;
   }
+
+  per_process::Debug(DebugCategory::CONTEXTIFY,
+                     "PropertySetter(name: %s, value: %s), use-strict(%s)\n",
+                     property,
+                     value,
+                     args.ShouldThrowOnError());
 
   Local<Context> context = ctx->context();
   PropertyAttribute attributes = PropertyAttribute::None;
@@ -640,6 +653,9 @@ Intercepted ContextifyContext::PropertyDescriptorCallback(
     return Intercepted::kNo;
   }
 
+  per_process::Debug(
+      DebugCategory::CONTEXTIFY, "PropertyDescriptor(name: %s)\n", property);
+
   Local<Context> context = ctx->context();
 
   Local<Object> sandbox = ctx->sandbox();
@@ -665,6 +681,9 @@ Intercepted ContextifyContext::PropertyDefinerCallback(
   if (IsStillInitializing(ctx)) {
     return Intercepted::kNo;
   }
+
+  per_process::Debug(
+      DebugCategory::CONTEXTIFY, "PropertyDefiner(name: %s)\n", property);
 
   Local<Context> context = ctx->context();
   Isolate* isolate = context->GetIsolate();
@@ -736,6 +755,9 @@ Intercepted ContextifyContext::PropertyDeleterCallback(
     return Intercepted::kNo;
   }
 
+  per_process::Debug(
+      DebugCategory::CONTEXTIFY, "PropertyDeleter(name: %s)\n", property);
+
   Maybe<bool> success = ctx->sandbox()->Delete(ctx->context(), property);
 
   if (success.FromMaybe(false)) {
@@ -762,6 +784,8 @@ void ContextifyContext::PropertyEnumeratorCallback(
 
   // Still initializing
   if (IsStillInitializing(ctx)) return;
+
+  per_process::Debug(DebugCategory::CONTEXTIFY, "PropertyEnumerator()\n");
 
   Local<Array> properties;
   // Only get own named properties, exclude indices.
@@ -793,6 +817,9 @@ void ContextifyContext::IndexedPropertyEnumeratorCallback(
 
   // Still initializing
   if (IsStillInitializing(ctx)) return;
+
+  per_process::Debug(DebugCategory::CONTEXTIFY,
+                     "IndexedPropertyEnumerator()\n");
 
   Local<Array> properties;
 
