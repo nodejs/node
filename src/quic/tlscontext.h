@@ -9,6 +9,7 @@
 #include <ncrypto.h>
 #include <ngtcp2/ngtcp2_crypto.h>
 #include <ngtcp2/ngtcp2_crypto_ossl.h>
+#include <unordered_map>
 #include "bindingdata.h"
 #include "data.h"
 #include "defs.h"
@@ -96,7 +97,8 @@ class TLSSession final : public MemoryRetainer {
              const std::optional<SessionTicket>& maybeSessionTicket);
   DISALLOW_COPY_AND_MOVE(TLSSession)
 
-  inline operator bool() const { return ossl_context_; }
+  inline bool is_valid() const { return ossl_context_; }
+  inline operator bool() const { return is_valid(); }
   inline Session& session() const { return *session_; }
   inline TLSContext& context() const { return *context_; }
 
@@ -154,7 +156,6 @@ class TLSSession final : public MemoryRetainer {
   Session* session_;
   ncrypto::BIOPointer bio_trace_;
   std::string validation_error_ = "";
-  bool in_key_update_ = false;
 };
 
 // The TLSContext is used to create a TLSSession. For the client, there is
@@ -261,6 +262,13 @@ class TLSContext final : public MemoryRetainer,
   std::unique_ptr<TLSSession> NewSession(
       Session* session, const std::optional<SessionTicket>& maybeSessionTicket);
 
+  bool AddSNIContext(Environment* env,
+                     const std::string& hostname,
+                     const Options& options);
+
+  bool SetSNIContexts(Environment* env,
+                      const std::unordered_map<std::string, Options>& entries);
+
   inline Side side() const { return side_; }
   inline const Options& options() const { return options_; }
   inline operator bool() const { return ctx_ != nullptr; }
@@ -287,6 +295,7 @@ class TLSContext final : public MemoryRetainer,
                           unsigned int inlen,
                           void* arg);
   static int OnVerifyClientCertificate(int preverify_ok, X509_STORE_CTX* ctx);
+  static int OnSNI(SSL* ssl, int* ad, void* arg);
 
   Side side_;
   Options options_;
@@ -294,6 +303,7 @@ class TLSContext final : public MemoryRetainer,
   ncrypto::X509Pointer issuer_;
   std::string validation_error_ = "";
   ncrypto::SSLCtxPointer ctx_;
+  std::unordered_map<std::string, std::shared_ptr<TLSContext>> sni_contexts_;
 
   friend class TLSSession;
 };

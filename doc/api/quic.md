@@ -204,6 +204,34 @@ added: v23.8.0
 
 True if `endpoint.destroy()` has been called. Read only.
 
+### `endpoint.setSNIContexts(entries[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `entries` {object} An object mapping host names to TLS identity options.
+  Each entry must include `keys` and `certs`.
+* `options` {object}
+  * `replace` {boolean} If `true`, replaces the entire SNI map. If `false`
+    (the default), merges the entries into the existing map.
+
+Replaces or updates the SNI TLS contexts for this endpoint. This allows
+changing the TLS identity (key/certificate) used for specific host names
+without restarting the endpoint. Existing sessions are unaffected — only
+new sessions will use the updated contexts.
+
+```mjs
+endpoint.setSNIContexts({
+  'api.example.com': { keys: [newApiKey], certs: [newApiCert] },
+});
+
+// Replace the entire SNI map
+endpoint.setSNIContexts({
+  'api.example.com': { keys: [newApiKey], certs: [newApiCert] },
+}, { replace: true });
+```
+
 ### `endpoint.stats`
 
 <!-- YAML
@@ -1120,7 +1148,7 @@ added: v23.8.0
 
 The ALPN protocol identifier.
 
-#### `sessionOptions.ca`
+#### `sessionOptions.ca` (client only)
 
 <!-- YAML
 added: v23.8.0
@@ -1128,7 +1156,8 @@ added: v23.8.0
 
 * Type: {ArrayBuffer|ArrayBufferView|ArrayBuffer\[]|ArrayBufferView\[]}
 
-The CA certificates to use for sessions.
+The CA certificates to use for client sessions. For server sessions, CA
+certificates are specified per-identity in the [`sessionOptions.sni`][] map.
 
 #### `sessionOptions.cc`
 
@@ -1143,7 +1172,7 @@ Specifies the congestion control algorithm that will be used
 
 This is an advanced option that users typically won't have need to specify.
 
-#### `sessionOptions.certs`
+#### `sessionOptions.certs` (client only)
 
 <!-- YAML
 added: v23.8.0
@@ -1151,7 +1180,8 @@ added: v23.8.0
 
 * Type: {ArrayBuffer|ArrayBufferView|ArrayBuffer\[]|ArrayBufferView\[]}
 
-The TLS certificates to use for sessions.
+The TLS certificates to use for client sessions. For server sessions,
+certificates are specified per-identity in the [`sessionOptions.sni`][] map.
 
 #### `sessionOptions.ciphers`
 
@@ -1163,7 +1193,7 @@ added: v23.8.0
 
 The list of supported TLS 1.3 cipher algorithms.
 
-#### `sessionOptions.crl`
+#### `sessionOptions.crl` (client only)
 
 <!-- YAML
 added: v23.8.0
@@ -1171,7 +1201,8 @@ added: v23.8.0
 
 * Type: {ArrayBuffer|ArrayBufferView|ArrayBuffer\[]|ArrayBufferView\[]}
 
-The CRL to use for sessions.
+The CRL to use for client sessions. For server sessions, CRLs are specified
+per-identity in the [`sessionOptions.sni`][] map.
 
 #### `sessionOptions.groups`
 
@@ -1193,7 +1224,7 @@ added: v23.8.0
 
 True to enable TLS keylogging output.
 
-#### `sessionOptions.keys`
+#### `sessionOptions.keys` (client only)
 
 <!-- YAML
 added: v23.8.0
@@ -1205,7 +1236,8 @@ changes:
 
 * Type: {KeyObject|KeyObject\[]}
 
-The TLS crypto keys to use for sessions.
+The TLS crypto keys to use for client sessions. For server sessions,
+keys are specified per-identity in the [`sessionOptions.sni`][] map.
 
 #### `sessionOptions.maxPayloadSize`
 
@@ -1288,7 +1320,7 @@ added: v23.8.0
 Specifies the maximum number of milliseconds a TLS handshake is permitted to take
 to complete before timing out.
 
-#### `sessionOptions.sni`
+#### `sessionOptions.servername` (client only)
 
 <!-- YAML
 added: v23.8.0
@@ -1296,7 +1328,48 @@ added: v23.8.0
 
 * Type: {string}
 
-The peer server name to target.
+The peer server name to target (SNI). Defaults to `'localhost'`.
+
+#### `sessionOptions.sni` (server only)
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Object}
+
+An object mapping host names to TLS identity options for Server Name
+Indication (SNI) support. This is required for server sessions. The
+special key `'*'` specifies the default/fallback identity used when
+no other host name matches. Each entry may contain:
+
+* `keys` {KeyObject|KeyObject\[]} The TLS private keys. **Required.**
+* `certs` {ArrayBuffer|ArrayBufferView|ArrayBuffer\[]|ArrayBufferView\[]}
+  The TLS certificates. **Required.**
+* `ca` {ArrayBuffer|ArrayBufferView|ArrayBuffer\[]|ArrayBufferView\[]}
+  Optional CA certificate overrides.
+* `crl` {ArrayBuffer|ArrayBufferView|ArrayBuffer\[]|ArrayBufferView\[]}
+  Optional certificate revocation lists.
+* `verifyPrivateKey` {boolean} Verify the private key. Default: `false`.
+
+```mjs
+const endpoint = await listen(callback, {
+  sni: {
+    '*': { keys: [defaultKey], certs: [defaultCert] },
+    'api.example.com': { keys: [apiKey], certs: [apiCert] },
+    'www.example.com': { keys: [wwwKey], certs: [wwwCert], ca: [customCA] },
+  },
+});
+```
+
+Shared TLS options (such as `ciphers`, `groups`, `keylog`, and `verifyClient`)
+are specified at the top level of the session options and apply to all
+identities. Each SNI entry overrides only the per-identity certificate
+fields.
+
+The SNI map can be replaced at runtime using `endpoint.setSNIContexts()`,
+which atomically swaps the map for new sessions while existing sessions
+continue to use their original identity.
 
 #### `sessionOptions.tlsTrace`
 
@@ -1338,7 +1411,7 @@ added: v23.8.0
 
 True to require verification of TLS client certificate.
 
-#### `sessionOptions.verifyPrivateKey`
+#### `sessionOptions.verifyPrivateKey` (client only)
 
 <!-- YAML
 added: v23.8.0
@@ -1346,7 +1419,9 @@ added: v23.8.0
 
 * Type: {boolean}
 
-True to require private key verification.
+True to require private key verification for client sessions. For server
+sessions, this option is specified per-identity in the
+[`sessionOptions.sni`][] map.
 
 #### `sessionOptions.version`
 
@@ -1715,3 +1790,5 @@ added: v23.8.0
 <!-- YAML
 added: v23.8.0
 -->
+
+[`sessionOptions.sni`]: #sessionoptionssni-server-only

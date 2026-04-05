@@ -129,6 +129,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     TransportParams::Options transport_params =
         TransportParams::Options::kDefault;
     TLSContext::Options tls_options = TLSContext::Options::kDefault;
+    std::unordered_map<std::string, TLSContext::Options> sni;
 
     // A reference to the CID::Factory used to generate CID instances
     // for this session.

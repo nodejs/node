@@ -16,8 +16,8 @@ if (!hasIPv6) {
 const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
-const keys = createPrivateKey(fixtures.readKey('agent1-key.pem'));
-const certs = fixtures.readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 
 const check = {
   // The SNI value
@@ -40,7 +40,7 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
     serverOpened.resolve();
     serverSession.close();
   }).then(mustCall());
-}), { keys, certs, endpoint: {
+}), { sni: { '*': { keys: [key], certs: [cert] } }, endpoint: {
   address: {
     address: '::1',
     family: 'ipv6',
@@ -48,7 +48,7 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
   ipv6Only: true,
 } });
 // Buffer is not detached.
-assert.strictEqual(certs.buffer.detached, false);
+assert.strictEqual(cert.buffer.detached, false);
 
 // The server must have an address to connect to after listen resolves.
 assert.ok(serverEndpoint.address !== undefined);

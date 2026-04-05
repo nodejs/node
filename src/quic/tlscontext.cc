@@ -12,6 +12,7 @@
 #include <ngtcp2/ngtcp2_crypto_ossl.h>
 #include <node_sockaddr-inl.h>
 #include <openssl/ssl.h>
+#include <util-inl.h>
 #include <v8.h>
 #include "bindingdata.h"
 #include "defs.h"
@@ -181,8 +182,16 @@ OSSLContext::~OSSLContext() {
 
 void OSSLContext::reset() {
   if (ctx_) {
-    SSL_set_app_data(*this, nullptr);
-    ngtcp2_conn_set_tls_native_handle(connection_, nullptr);
+    // The SSL object inside the ngtcp2 ctx may not have been set if
+    // SSL creation failed. Guard against null before clearing app data.
+    if (SSL* ssl = ngtcp2_crypto_ossl_ctx_get_ssl(ctx_); ssl != nullptr) {
+      SSL_set_app_data(ssl, nullptr);
+    }
+    // connection_ is set during Initialize(). If Initialize() was
+    // never called (e.g. SSL creation failed), it's still nullptr.
+    if (connection_ != nullptr) {
+      ngtcp2_conn_set_tls_native_handle(connection_, nullptr);
+    }
     ngtcp2_crypto_ossl_ctx_del(ctx_);
     ctx_ = nullptr;
     connection_ = nullptr;
@@ -238,12 +247,14 @@ bool OSSLContext::set_alpn_protocols(std::string_view protocols) const {
 }
 
 bool OSSLContext::set_hostname(std::string_view hostname) const {
-  if (!hostname.empty()) {
-    SSL_set_tlsext_host_name(*this, hostname.data());
-  } else {
-    SSL_set_tlsext_host_name(*this, "localhost");
-  }
-  return true;
+  // SSL_set_tlsext_host_name is a macro that casts to void* internally.
+  // The std::string constructed here guarantees null-termination for
+  // the underlying SSL_ctrl C API.
+  std::string name(hostname.empty() ? "localhost" : hostname);
+  return SSL_ctrl(*this,
+                  SSL_CTRL_SET_TLSEXT_HOSTNAME,
+                  TLSEXT_NAMETYPE_host_name,
+                  const_cast<char*>(name.c_str())) == 1;
 }
 
 bool OSSLContext::set_early_data_enabled() const {
@@ -403,8 +414,10 @@ std::unique_ptr<TLSSession> TLSContext::NewSession(
     Session* session, const std::optional<SessionTicket>& maybeSessionTicket) {
   // Passing a session ticket only makes sense with a client session.
   CHECK_IMPLIES(session->is_server(), !maybeSessionTicket.has_value());
-  return std::make_unique<TLSSession>(
+  auto tls_session = std::make_unique<TLSSession>(
       session, shared_from_this(), maybeSessionTicket);
+  if (!tls_session->is_valid()) return nullptr;
+  return tls_session;
 }
 
 SSLCtxPointer TLSContext::Initialize(Environment* env) {
@@ -427,7 +440,6 @@ SSLCtxPointer TLSContext::Initialize(Environment* env) {
       // so we disable OpenSSL's built-in anti-replay.
       SSL_CTX_set_options(ctx.get(),
                           (SSL_OP_ALL & ~SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS) |
-                              SSL_OP_SINGLE_ECDH_USE |
                               SSL_OP_CIPHER_SERVER_PREFERENCE |
                               SSL_OP_NO_ANTI_REPLAY);
 
@@ -452,11 +464,14 @@ SSLCtxPointer TLSContext::Initialize(Environment* env) {
                                              SessionTicket::DecryptedCallback,
                                              nullptr),
                1);
+
+      SSL_CTX_set_tlsext_servername_callback(ctx.get(), OnSNI);
+      SSL_CTX_set_tlsext_servername_arg(ctx.get(), this);
       break;
     }
     case Side::CLIENT: {
       ctx = SSLCtxPointer::NewClient();
-
+      SSL_CTX_set_mode(ctx.get(), SSL_MODE_RELEASE_BUFFERS);
       SSL_CTX_set_session_cache_mode(
           ctx.get(), SSL_SESS_CACHE_CLIENT | SSL_SESS_CACHE_NO_INTERNAL);
       SSL_CTX_sess_set_new_cb(ctx.get(), OnNewSession);
@@ -464,8 +479,15 @@ SSLCtxPointer TLSContext::Initialize(Environment* env) {
     }
   }
 
-  SSL_CTX_set_default_verify_paths(ctx.get());
-  SSL_CTX_set_keylog_callback(ctx.get(), OnKeylog);
+  // Only load system CA certificates if no custom CAs are provided.
+  // SSL_CTX_set_default_verify_paths involves filesystem I/O to read
+  // the system CA bundle.
+  if (options_.ca.empty()) {
+    SSL_CTX_set_default_verify_paths(ctx.get());
+  }
+  if (options_.keylog) {
+    SSL_CTX_set_keylog_callback(ctx.get(), OnKeylog);
+  }
 
   if (SSL_CTX_set_ciphersuites(ctx.get(), options_.ciphers.c_str()) != 1) {
     validation_error_ = "Invalid cipher suite";
@@ -580,8 +602,46 @@ SSLCtxPointer TLSContext::Initialize(Environment* env) {
   return ctx;
 }
 
+int TLSContext::OnSNI(SSL* ssl, int* ad, void* arg) {
+  auto* default_ctx = static_cast<TLSContext*>(arg);
+  const char* servername = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name);
+  if (servername != nullptr) {
+    auto it = default_ctx->sni_contexts_.find(servername);
+    if (it != default_ctx->sni_contexts_.end()) {
+      SSL_set_SSL_CTX(ssl, it->second->ctx_.get());
+    }
+  }
+  return SSL_TLSEXT_ERR_OK;
+}
+
+bool TLSContext::AddSNIContext(Environment* env,
+                               const std::string& hostname,
+                               const Options& options) {
+  DCHECK_EQ(side_, Side::SERVER);
+  auto ctx = std::make_shared<TLSContext>(env, Side::SERVER, options);
+  if (!*ctx) return false;
+  sni_contexts_[hostname] = std::move(ctx);
+  return true;
+}
+
+bool TLSContext::SetSNIContexts(
+    Environment* env, const std::unordered_map<std::string, Options>& entries) {
+  DCHECK_EQ(side_, Side::SERVER);
+  std::unordered_map<std::string, std::shared_ptr<TLSContext>> new_contexts;
+  for (const auto& [hostname, options] : entries) {
+    auto ctx = std::make_shared<TLSContext>(env, Side::SERVER, options);
+    if (!*ctx) return false;
+    new_contexts[hostname] = std::move(ctx);
+  }
+  sni_contexts_ = std::move(new_contexts);
+  return true;
+}
+
 void TLSContext::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("options", options_);
+  tracker->TrackFieldWithSize(
+      "sni_contexts",
+      sni_contexts_.size() * sizeof(std::shared_ptr<TLSContext>));
 }
 
 Maybe<TLSContext::Options> TLSContext::Options::From(Environment* env,
@@ -613,12 +673,11 @@ Maybe<TLSContext::Options> TLSContext::Options::From(Environment* env,
       env, &options, params, state.name##_string())
 
   if (!SET(verify_client) || !SET(reject_unauthorized) ||
-      !SET(enable_early_data) || !SET(enable_tls_trace) ||
-      !SET(enable_tls_trace) || !SET(protocol) || !SET(servername) ||
-      !SET(ciphers) || !SET(groups) || !SET(verify_private_key) ||
-      !SET(keylog) || !SET_VECTOR(crypto::KeyObjectData, keys) ||
-      !SET_VECTOR(Store, certs) || !SET_VECTOR(Store, ca) ||
-      !SET_VECTOR(Store, crl)) {
+      !SET(enable_early_data) || !SET(enable_tls_trace) || !SET(protocol) ||
+      !SET(servername) || !SET(ciphers) || !SET(groups) ||
+      !SET(verify_private_key) || !SET(keylog) ||
+      !SET_VECTOR(crypto::KeyObjectData, keys) || !SET_VECTOR(Store, certs) ||
+      !SET_VECTOR(Store, ca) || !SET_VECTOR(Store, crl)) {
     return Nothing<Options>();
   }
 
@@ -742,7 +801,7 @@ void TLSSession::Initialize(
       }
 
       if (maybeSessionTicket.has_value()) {
-        auto sessionTicket = maybeSessionTicket.value();
+        const auto& sessionTicket = *maybeSessionTicket;
         uv_buf_t buf = sessionTicket.ticket();
         SSLSessionPointer ticket = crypto::GetTLSSession(
             reinterpret_cast<unsigned char*>(buf.base), buf.len);
@@ -766,13 +825,23 @@ void TLSSession::Initialize(
     }
   }
 
-  TransportParams tp(ngtcp2_conn_get_local_transport_params(*session_));
-  Store store = tp.Encode(session_->env());
-  if (store && store.length() > 0) {
-    if (!ossl_context_.set_transport_params(store)) {
-      validation_error_ = "Failed to set transport parameters";
-      ossl_context_.reset();
-      return;
+  // Encode transport parameters directly into a stack buffer to avoid
+  // a heap allocation. Transport parameters are typically < 256 bytes.
+  {
+    TransportParams tp(ngtcp2_conn_get_local_transport_params(*session_));
+    // Preflight to get the encoded size.
+    ssize_t size = tp.EncodedSize();
+    if (size > 0) {
+      MaybeStackBuffer<uint8_t, 512> buf(size);
+      ssize_t written = tp.EncodeInto(buf.out(), size);
+      if (written > 0) {
+        ngtcp2_vec vec = {buf.out(), static_cast<size_t>(written)};
+        if (!ossl_context_.set_transport_params(vec)) {
+          validation_error_ = "Failed to set transport parameters";
+          ossl_context_.reset();
+          return;
+        }
+      }
     }
   }
 }
@@ -839,10 +908,8 @@ const std::string TLSSession::protocol() const {
 }
 
 bool TLSSession::InitiateKeyUpdate() {
-  if (in_key_update_) return false;
-  auto leave = OnScopeLeave([this] { in_key_update_ = false; });
-  in_key_update_ = true;
-
+  // ngtcp2 internally tracks key update state and will return an error
+  // if a key update is already in progress.
   Debug(session_, "Initiating key update");
   return ngtcp2_conn_initiate_key_update(*session_, uv_hrtime()) == 0;
 }
