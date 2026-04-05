@@ -47,6 +47,7 @@ void NODE_EXTERN_PRIVATE FWrite(FILE* file, const std::string& str);
   V(BOOTSTRAP)                                                                 \
   V(CRYPTO)                                                                    \
   V(COMPILE_CACHE)                                                             \
+  V(CONTEXTIFY)                                                                \
   V(DIAGNOSTICS)                                                               \
   V(HUGEPAGES)                                                                 \
   V(INSPECTOR_SERVER)                                                          \
