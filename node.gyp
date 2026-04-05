@@ -269,6 +269,7 @@
       'src/node_mem.h',
       'src/node_mem-inl.h',
       'src/node_messaging.h',
+      'src/node_hash.h',
       'src/node_metadata.h',
       'src/node_mutex.h',
       'src/node_diagnostics_channel.h',

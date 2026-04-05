@@ -3,6 +3,7 @@
 #ifndef OPENSSL_NO_QUIC
 #include <crypto/crypto_util.h>
 #include <ngtcp2/ngtcp2_crypto.h>
+#include <node_hash.h>
 #include <node_sockaddr-inl.h>
 #include <string_bytes.h>
 #include <util-inl.h>
@@ -126,13 +127,8 @@ std::string StatelessResetToken::ToString() const {
 
 size_t StatelessResetToken::Hash::operator()(
     const StatelessResetToken& token) const {
-  // See CID::Hash for details on this hash combine strategy.
-  size_t hash = 0;
-  if (token.ptr_ == nullptr) return hash;
-  for (size_t n = 0; n < kStatelessTokenLen; n++) {
-    hash ^= token.ptr_[n] + 0x9e3779b9 + (hash << 6) + (hash >> 2);
-  }
-  return hash;
+  if (token.ptr_ == nullptr) return 0;
+  return HashBytes(token.ptr_, kStatelessTokenLen);
 }
 
 StatelessResetToken StatelessResetToken::kInvalid;
