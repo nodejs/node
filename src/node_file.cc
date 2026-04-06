@@ -1760,19 +1760,10 @@ static void RmSync(const FunctionCallbackInfo<Value>& args) {
   std::error_code error;
   auto file_status = std::filesystem::symlink_status(file_path, error);
 
-  if (file_status.type() == std::filesystem::file_type::not_found) {
-    return;
-  }
-
   int maxRetries = args[1].As<Int32>()->Value();
   int recursive = args[2]->IsTrue();
   int retryDelay = args[3].As<Int32>()->Value();
-
-  // File is a directory and recursive is false
-  if (file_status.type() == std::filesystem::file_type::directory &&
-      !recursive) {
-    return THROW_ERR_FS_EISDIR(isolate, "Path is a directory: %s", path);
-  }
+  int i = 1;
 
   // Allowed errors are:
   // - EBUSY: std::errc::device_or_resource_busy
@@ -1788,30 +1779,63 @@ static void RmSync(const FunctionCallbackInfo<Value>& args) {
             error == std::errc::operation_not_permitted);
   };
 
-  int i = 1;
-
-  while (maxRetries >= 0) {
-    if (recursive) {
-      std::filesystem::remove_all(file_path, error);
-    } else {
-      std::filesystem::remove(file_path, error);
+  if (error && can_omit_error(error)) {  // on std::filesystem::symlink_status
+    while (maxRetries >= 0) {
+      file_status = std::filesystem::symlink_status(file_path, error);
+      if (!error || !can_omit_error(error)) {
+        break;
+      }
+      if (can_omit_error(error)) {
+        if (retryDelay > 0) {
+          #ifdef WIN32
+            Sleep(i * retryDelay);
+          #else
+            sleep(i * retryDelay / 1000);
+          #endif
+        }
+      }
+      maxRetries--;
+      i++;
     }
+  }
 
-    if (!error || error == std::errc::no_such_file_or_directory) {
-      return;
-    } else if (!can_omit_error(error)) {
-      break;
-    }
+  if (file_status.type() == std::filesystem::file_type::not_found) {
+    return;
+  }
 
-    if (retryDelay > 0) {
-#ifdef _WIN32
-      Sleep(i * retryDelay / 1000);
-#else
-      sleep(i * retryDelay / 1000);
-#endif
+  // File is a directory and recursive is false
+  if (file_status.type() == std::filesystem::file_type::directory &&
+      !recursive) {
+    return THROW_ERR_FS_EISDIR(isolate, "Path is a directory: %s", path);
+  }
+
+  // We could only do this operation if there's no errors in symlink_status()
+  // as the operations here might override the true cause of the error caused
+  // by symlink_status
+  if (!error) {
+    while (maxRetries >= 0) {
+      if (recursive) {
+        std::filesystem::remove_all(file_path, error);
+      } else {
+        std::filesystem::remove(file_path, error);
+      }
+
+      if (!error || error == std::errc::no_such_file_or_directory) {
+        return;
+      } else if (!can_omit_error(error)) {
+        break;
+      }
+
+      if (retryDelay > 0) {
+  #ifdef _WIN32
+        Sleep(i * retryDelay);
+  #else
+        sleep(i * retryDelay / 1000);
+  #endif
+      }
+      maxRetries--;
+      i++;
     }
-    maxRetries--;
-    i++;
   }
 
   // On Windows path::c_str() returns wide char, convert to std::string first.
