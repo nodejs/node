@@ -1780,6 +1780,14 @@ def configure_node(o):
   o['variables']['target_arch'] = target_arch
   o['variables']['node_byteorder'] = sys.byteorder
 
+  # On Windows, cargo may default to the GNU target (e.g. x86_64-pc-windows-gnu)
+  # but Node.js requires MSVC-compatible libraries. Set explicit Rust target
+  # triple for the target architecture.
+  o['variables']['cargo_rust_target'] = ''
+  if flavor == 'win':
+    o['variables']['cargo_rust_target'] = \
+      'aarch64-pc-windows-msvc' if target_arch == 'arm64' else 'x86_64-pc-windows-msvc'
+
   # Allow overriding the compiler - needed by embedders.
   if options.use_clang:
     o['variables']['clang'] = 1
