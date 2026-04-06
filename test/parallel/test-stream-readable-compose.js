@@ -119,15 +119,13 @@ const assert = require('assert');
 {
   // Errors from nested `.compose()` calls should propagate instead of hanging.
   const stream = Readable.from(['hello'])
-    .compose(async function *(source) {
+    .compose(async function *(source) { // eslint-disable-line require-yield
       for await (const chunk of source) {
         throw new Error(`boom: ${chunk}`);
       }
     })
     .compose(async function *(source) {
-      for await (const chunk of source) {
-        yield chunk;
-      }
+      yield* source;
     });
 
   assert.rejects(
