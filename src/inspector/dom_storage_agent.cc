@@ -1,6 +1,9 @@
 #include "dom_storage_agent.h"
+#include <optional>
 #include "env-inl.h"
 #include "inspector/inspector_object_utils.h"
+#include "util.h"
+#include "v8-exception.h"
 #include "v8-isolate.h"
 
 namespace node {
@@ -85,14 +88,27 @@ protocol::DispatchResponse DOMStorageAgent::getDOMStorageItems(
         "DOMStorage domain is not enabled");
   }
   bool is_local_storage = storageId->getIsLocalStorage();
-  const std::unordered_map<std::string, std::string>& storage_map =
-      is_local_storage ? local_storage_map_ : session_storage_map_;
+  const StorageMap* storage_map =
+      is_local_storage ? &local_storage_map_ : &session_storage_map_;
+  std::optional<StorageMap> storage_map_fallback;
+  if (storage_map->empty()) {
+    auto web_storage_obj = getWebStorage(is_local_storage);
+    if (web_storage_obj) {
+      storage_map_fallback = web_storage_obj.value()->GetAll();
+      storage_map = &storage_map_fallback.value();
+    }
+  }
+
   auto result =
       std::make_unique<protocol::Array<protocol::Array<protocol::String>>>();
-  for (const auto& pair : storage_map) {
+  for (const auto& pair : *storage_map) {
     auto item = std::make_unique<protocol::Array<protocol::String>>();
-    item->push_back(pair.first);
-    item->push_back(pair.second);
+    item->push_back(protocol::StringUtil::fromUTF16(
+        reinterpret_cast<const uint16_t*>(pair.first.data()),
+        pair.first.size()));
+    item->push_back(protocol::StringUtil::fromUTF16(
+        reinterpret_cast<const uint16_t*>(pair.second.data()),
+        pair.second.size()));
     result->push_back(std::move(item));
   }
   *items = std::move(result);
@@ -219,7 +235,7 @@ void DOMStorageAgent::registerStorage(Local<Context> context,
            .ToLocal(&storage_map_obj)) {
     return;
   }
-  std::unordered_map<std::string, std::string>& storage_map =
+  StorageMap& storage_map =
       is_local_storage ? local_storage_map_ : session_storage_map_;
   Local<Array> property_names;
   if (!storage_map_obj->GetOwnPropertyNames(context).ToLocal(&property_names)) {
@@ -235,9 +251,32 @@ void DOMStorageAgent::registerStorage(Local<Context> context,
     if (!storage_map_obj->Get(context, key_value).ToLocal(&value_value)) {
       return;
     }
-    node::Utf8Value key_utf8(isolate, key_value);
-    node::Utf8Value value_utf8(isolate, value_value);
-    storage_map[*key_utf8] = *value_utf8;
+    node::TwoByteValue key_utf16(isolate, key_value);
+    node::TwoByteValue value_utf16(isolate, value_value);
+    storage_map[key_utf16.ToU16String()] = value_utf16.ToU16String();
+  }
+}
+
+std::optional<node::webstorage::Storage*> DOMStorageAgent::getWebStorage(
+    bool is_local_storage) {
+  v8::Isolate* isolate = env_->isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Local<v8::Object> global = env_->context()->Global();
+  v8::Local<v8::Value> web_storage_val;
+  v8::TryCatch try_catch(isolate);
+  if (!global
+           ->Get(env_->context(),
+                 is_local_storage
+                     ? FIXED_ONE_BYTE_STRING(isolate, "localStorage")
+                     : FIXED_ONE_BYTE_STRING(isolate, "sessionStorage"))
+           .ToLocal(&web_storage_val) ||
+      !web_storage_val->IsObject() || try_catch.HasCaught()) {
+    return std::nullopt;
+  } else {
+    node::webstorage::Storage* storage;
+    ASSIGN_OR_RETURN_UNWRAP(
+        &storage, web_storage_val.As<v8::Object>(), std::nullopt);
+    return storage;
   }
 }
 
