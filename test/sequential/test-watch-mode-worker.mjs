@@ -15,7 +15,7 @@ if (common.isIBMi)
 
 function restart(file, content = readFileSync(file)) {
   writeFileSync(file, content);
-  const timer = setInterval(() => writeFileSync(file, content), common.platformTimeout(2500));
+  const timer = setInterval(() => writeFileSync(file, content), common.platformTimeout(250));
   return () => clearInterval(timer);
 }
 
