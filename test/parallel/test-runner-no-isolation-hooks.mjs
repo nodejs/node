@@ -15,34 +15,30 @@ const testFiles = [
 const order = [
   'before(): global',
 
-  'before one: <root>',
   'suite one',
 
-  'before two: <root>',
   'suite two',
 
+  `before one: ${testFiles[0]}`,
   'beforeEach(): global',
   'beforeEach one: suite one - test',
-  'beforeEach two: suite one - test',
 
   'suite one - test',
-  'afterEach(): global',
   'afterEach one: suite one - test',
-  'afterEach two: suite one - test',
+  'afterEach(): global',
+  `after one: ${testFiles[0]}`,
 
+  `before two: ${testFiles[1]}`,
   'before suite two: suite two',
   'beforeEach(): global',
-  'beforeEach one: suite two - test',
   'beforeEach two: suite two - test',
 
   'suite two - test',
-  'afterEach(): global',
-  'afterEach one: suite two - test',
   'afterEach two: suite two - test',
+  'afterEach(): global',
+  `after two: ${testFiles[1]}`,
 
   'after(): global',
-  'after one: <root>',
-  'after two: <root>',
 ].join('\n');
 
 test('use --import (CJS) to define global hooks', async (t) => {
@@ -52,7 +48,7 @@ test('use --import (CJS) to define global hooks', async (t) => {
     ...testFiles,
   ]);
 
-  const testHookOutput = stdout.split('\n▶')[0];
+  const testHookOutput = stdout.split('\nafter(): global')[0] + '\nafter(): global';
 
   t.assert.equal(testHookOutput, order);
 });
@@ -64,7 +60,7 @@ test('use --import (ESM) to define global hooks', async (t) => {
     ...testFiles,
   ]);
 
-  const testHookOutput = stdout.split('\n▶')[0];
+  const testHookOutput = stdout.split('\nafter(): global')[0] + '\nafter(): global';
 
   t.assert.equal(testHookOutput, order);
 });
@@ -76,7 +72,7 @@ test('use --require to define global hooks', async (t) => {
     ...testFiles,
   ]);
 
-  const testHookOutput = stdout.split('\n▶')[0];
+  const testHookOutput = stdout.split('\nafter(): global')[0] + '\nafter(): global';
 
   t.assert.equal(testHookOutput, order);
 });

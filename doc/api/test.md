@@ -1631,8 +1631,10 @@ changes:
     spawned. **Default:** `undefined`.
   * `isolation` {string} Configures the type of test isolation. If set to
     `'process'`, each test file is run in a separate child process. If set to
-    `'none'`, all test files run in the current process. **Default:**
-    `'process'`.
+    `'none'`, all test files run in the current process. Each test file is
+    wrapped in an implicit suite, so that lifecycle hooks such as
+    `beforeEach()` and `afterEach()` declared at the top level of a file only
+    apply to tests within that file. **Default:** `'process'`.
   * `only` {boolean} If truthy, the test context will only run tests that
     have the `only` option set
   * `setup` {Function} A function that accepts the `TestsStream` instance

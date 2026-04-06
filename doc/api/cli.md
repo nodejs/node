@@ -2744,9 +2744,12 @@ changes:
 
 Configures the type of test isolation used in the test runner. When `mode` is
 `'process'`, each test file is run in a separate child process. When `mode` is
-`'none'`, all test files run in the same process as the test runner. The default
-isolation mode is `'process'`. This flag is ignored if the `--test` flag is not
-present. See the [test runner execution model][] section for more information.
+`'none'`, all test files run in the same process as the test runner. Each test
+file is wrapped in an implicit suite, so that lifecycle hooks such as
+`beforeEach()` and `afterEach()` declared at the top level of a file only apply
+to tests within that file. The default isolation mode is `'process'`. This flag
+is ignored if the `--test` flag is not present. See the
+[test runner execution model][] section for more information.
 
 ### `--test-name-pattern`
 
