@@ -7929,7 +7929,16 @@ added:
 
 * Type: {number|bigint}
 
-Free blocks available to unprivileged users.
+Free blocks available to unprivileged users. Each block is `statfs.bsize`
+bytes. To calculate the available space in bytes:
+
+```mjs
+import { statfs } from 'node:fs/promises';
+
+const stats = await statfs('/');
+const availableBytes = stats.bavail * stats.bsize;
+console.log(`Available space: ${availableBytes / (1024 ** 3)} GiB`);
+```
 
 #### `statfs.bfree`
 
@@ -7941,7 +7950,18 @@ added:
 
 * Type: {number|bigint}
 
-Free blocks in file system.
+Free blocks in file system. This includes blocks reserved for the root user,
+unlike `statfs.bavail` which only counts blocks available to unprivileged
+users. Each block is `statfs.bsize` bytes. To calculate total free space in
+bytes:
+
+```mjs
+import { statfs } from 'node:fs/promises';
+
+const stats = await statfs('/');
+const freeBytes = stats.bfree * stats.bsize;
+console.log(`Free space: ${freeBytes / (1024 ** 3)} GiB`);
+```
 
 #### `statfs.blocks`
 
@@ -7953,7 +7973,16 @@ added:
 
 * Type: {number|bigint}
 
-Total data blocks in file system.
+Total data blocks in file system. Each block is `statfs.bsize` bytes. To
+calculate total disk size in bytes:
+
+```mjs
+import { statfs } from 'node:fs/promises';
+
+const stats = await statfs('/');
+const totalBytes = stats.blocks * stats.bsize;
+console.log(`Total size: ${totalBytes / (1024 ** 3)} GiB`);
+```
 
 #### `statfs.bsize`
 
@@ -7965,7 +7994,7 @@ added:
 
 * Type: {number|bigint}
 
-Optimal transfer block size.
+Optimal transfer block size, in bytes.
 
 #### `statfs.frsize`
 
@@ -7975,7 +8004,8 @@ added: REPLACEME
 
 * Type: {number|bigint}
 
-Fundamental file system block size.
+Fundamental file system block size, in bytes. On most POSIX systems this value
+is equal to `statfs.bsize`.
 
 #### `statfs.ffree`
 
@@ -7987,7 +8017,8 @@ added:
 
 * Type: {number|bigint}
 
-Free file nodes in file system.
+Free file nodes (inodes) in file system. This is the number of additional files
+that can be created on the file system.
 
 #### `statfs.files`
 
@@ -7999,7 +8030,8 @@ added:
 
 * Type: {number|bigint}
 
-Total file nodes in file system.
+Total file nodes (inodes) in file system. This represents the maximum number
+of files the file system can hold.
 
 #### `statfs.type`
 
@@ -8011,7 +8043,11 @@ added:
 
 * Type: {number|bigint}
 
-Type of file system.
+Type of file system. This is a magic number defined by the operating system
+that identifies the file system format (e.g. `0xEF53` for ext4,
+`0x01021994` for tmpfs on Linux). On Windows this value corresponds to the
+volume serial number. The values are platform-specific and should not be
+relied upon for portable code.
 
 ### Class: `fs.Utf8Stream`
 
