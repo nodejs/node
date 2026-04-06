@@ -1218,6 +1218,19 @@ added: v23.8.0
 The CRL to use for client sessions. For server sessions, CRLs are specified
 per-identity in the [`sessionOptions.sni`][] map.
 
+#### `sessionOptions.enableEarlyData`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean} **Default:** `true`
+
+When `true`, enables TLS 0-RTT early data for this session. Early data
+allows the client to send application data before the TLS handshake
+completes, reducing latency on reconnection when a valid session ticket
+is available. Set to `false` to disable early data support.
+
 #### `sessionOptions.groups`
 
 <!-- YAML
@@ -1414,6 +1427,20 @@ added: v23.8.0
 * Type: {bigint|number}
 
 Specifies the maximum number of unacknowledged packets a session should allow.
+
+#### `sessionOptions.rejectUnauthorized`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean} **Default:** `true`
+
+If `true`, the peer certificate is verified against the list of supplied CAs.
+An error is emitted if verification fails; the error can be inspected via
+the `validationErrorReason` and `validationErrorCode` fields in the
+handshake callback. If `false`, peer certificate verification errors are
+ignored.
 
 #### `sessionOptions.verifyClient`
 
