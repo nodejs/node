@@ -1647,6 +1647,7 @@ added: v23.8.0
 * `cipherVersion` {string}
 * `validationErrorReason` {string}
 * `validationErrorCode` {number}
+* `earlyDataAttempted` {boolean}
 * `earlyDataAccepted` {boolean}
 
 ### Callback: `OnBlockedCallback`

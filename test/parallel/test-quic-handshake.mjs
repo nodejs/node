@@ -23,6 +23,9 @@ const check = {
   // The negotiated cipher suite
   cipher: 'TLS_AES_128_GCM_SHA256',
   cipherVersion: 'TLSv1.3',
+  // No session ticket provided, so early data was not attempted
+  earlyDataAttempted: false,
+  earlyDataAccepted: false,
 };
 
 // The opened promise should resolve when the handshake is complete.
