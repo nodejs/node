@@ -573,7 +573,7 @@ void WasmShuffleAnalyzer::TryReduceFromMSB(OpIndex input,
     uint8_t index = shuffle.shuffle[i];
     if (index >= lower_limit && index <= upper_limit) {
       max = std::max(static_cast<uint8_t>(index % kSimd128Size),
-                     max.value_or({}));
+                     max.value_or(uint8_t{0}));
     }
   }
   if (max) {
