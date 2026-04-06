@@ -56,7 +56,9 @@ const {
   const timestamp = parseInt(timestampHex, 16);
 
   assert(timestamp >= before, `Timestamp ${timestamp} < before ${before}`);
-  assert(timestamp <= after, `Timestamp ${timestamp} > after ${after}`);
+  // The monotonic counter may have overflowed in a prior call and advanced
+  // v7LastTimestamp by 1 ms beyond wall-clock time (RFC 9562 §6.2 allows this).
+  assert(timestamp <= after + 1, `Timestamp ${timestamp} > after+1 ${after + 1}`);
 }
 
 {
