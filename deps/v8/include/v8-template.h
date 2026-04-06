@@ -117,7 +117,7 @@ class V8_EXPORT Template : public Data {
   // is removed.
   void SetNativeDataProperty(
       Local<Name> name, AccessorNameGetterCallback getter,
-      nullptr_t setter = nullptr, Local<Value> data = Local<Value>(),
+      std::nullptr_t setter = nullptr, Local<Value> data = Local<Value>(),
       PropertyAttribute attribute = None,
       SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
       SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect) {
@@ -748,7 +748,7 @@ struct NamedPropertyHandlerConfiguration {
             PropertyHandlerFlags::kInternalNewCallbacksSignatures));
   }
 
-  static NamedPropertySetterCallbackV2 ConvertSetter(nullptr_t) {
+  static NamedPropertySetterCallbackV2 ConvertSetter(std::nullptr_t) {
     return nullptr;
   }
   static NamedPropertySetterCallbackV2 ConvertSetter(
@@ -760,7 +760,7 @@ struct NamedPropertyHandlerConfiguration {
     return NamedPropertySetterCallbackV2(value);
   }
 
-  static NamedPropertyDefinerCallbackV2 ConvertDefiner(nullptr_t) {
+  static NamedPropertyDefinerCallbackV2 ConvertDefiner(std::nullptr_t) {
     return nullptr;
   }
   static NamedPropertyDefinerCallbackV2 ConvertDefiner(
@@ -775,11 +775,12 @@ struct NamedPropertyHandlerConfiguration {
  public:
   // TODO(https://crbug.com/348660658): cleanup once migration to
   // NamedPropertySetterCallbackV2/NamedPropertyDefinerCallbackV2 is done.
-  template <typename TSetter = nullptr_t, typename TDefiner = nullptr_t>
-    requires((std::is_same_v<TSetter, nullptr_t> ||
+  template <typename TSetter = std::nullptr_t,
+            typename TDefiner = std::nullptr_t>
+    requires((std::is_same_v<TSetter, std::nullptr_t> ||
               std::is_same_v<TSetter, NamedPropertySetterCallback> ||
               std::is_same_v<TSetter, NamedPropertySetterCallbackV2>) &&
-             (std::is_same_v<TDefiner, nullptr_t> ||
+             (std::is_same_v<TDefiner, std::nullptr_t> ||
               std::is_same_v<TDefiner, NamedPropertyDefinerCallback> ||
               std::is_same_v<TDefiner, NamedPropertyDefinerCallbackV2>))
   NamedPropertyHandlerConfiguration(
@@ -804,8 +805,8 @@ struct NamedPropertyHandlerConfiguration {
 
   // TODO(https://crbug.com/348660658): cleanup once migration to
   // NamedPropertySetterCallbackV2/NamedPropertyDefinerCallbackV2 is done.
-  template <typename TSetter = nullptr_t>
-    requires(std::is_same_v<TSetter, nullptr_t> ||
+  template <typename TSetter = std::nullptr_t>
+    requires(std::is_same_v<TSetter, std::nullptr_t> ||
              std::is_same_v<TSetter, NamedPropertySetterCallback> ||
              std::is_same_v<TSetter, NamedPropertySetterCallbackV2>)
   explicit NamedPropertyHandlerConfiguration(
@@ -828,11 +829,12 @@ struct NamedPropertyHandlerConfiguration {
 
   // TODO(https://crbug.com/348660658): cleanup once migration to
   // NamedPropertySetterCallbackV2/NamedPropertyDefinerCallbackV2 is done.
-  template <typename TSetter = nullptr_t, typename TDefiner = nullptr_t>
-    requires((std::is_same_v<TSetter, nullptr_t> ||
+  template <typename TSetter = std::nullptr_t,
+            typename TDefiner = std::nullptr_t>
+    requires((std::is_same_v<TSetter, std::nullptr_t> ||
               std::is_same_v<TSetter, NamedPropertySetterCallback> ||
               std::is_same_v<TSetter, NamedPropertySetterCallbackV2>) &&
-             (std::is_same_v<TDefiner, nullptr_t> ||
+             (std::is_same_v<TDefiner, std::nullptr_t> ||
               std::is_same_v<TDefiner, NamedPropertyDefinerCallback> ||
               std::is_same_v<TDefiner, NamedPropertyDefinerCallbackV2>))
   NamedPropertyHandlerConfiguration(
@@ -875,7 +877,7 @@ struct IndexedPropertyHandlerConfiguration {
             PropertyHandlerFlags::kInternalNewCallbacksSignatures));
   }
 
-  static IndexedPropertySetterCallback ConvertSetter(nullptr_t) {
+  static IndexedPropertySetterCallback ConvertSetter(std::nullptr_t) {
     return nullptr;
   }
   static IndexedPropertySetterCallback ConvertSetter(
@@ -887,7 +889,7 @@ struct IndexedPropertyHandlerConfiguration {
     return IndexedPropertySetterCallback(value);
   }
 
-  static IndexedPropertyDefinerCallback ConvertDefiner(nullptr_t) {
+  static IndexedPropertyDefinerCallback ConvertDefiner(std::nullptr_t) {
     return nullptr;
   }
   static IndexedPropertyDefinerCallback ConvertDefiner(
@@ -902,11 +904,12 @@ struct IndexedPropertyHandlerConfiguration {
  public:
   // TODO(https://crbug.com/348660658): cleanup once migration to
   // IndexedPropertySetterCallback/IndexedPropertyDefinerCallback is done.
-  template <typename TSetter = nullptr_t, typename TDefiner = nullptr_t>
-    requires((std::is_same_v<TSetter, nullptr_t> ||
+  template <typename TSetter = std::nullptr_t,
+            typename TDefiner = std::nullptr_t>
+    requires((std::is_same_v<TSetter, std::nullptr_t> ||
               std::is_same_v<TSetter, IndexedPropertySetterCallback> ||
               std::is_same_v<TSetter, IndexedPropertySetterCallbackV2>) &&
-             (std::is_same_v<TDefiner, nullptr_t> ||
+             (std::is_same_v<TDefiner, std::nullptr_t> ||
               std::is_same_v<TDefiner, IndexedPropertyDefinerCallback> ||
               std::is_same_v<TDefiner, IndexedPropertyDefinerCallbackV2>))
   IndexedPropertyHandlerConfiguration(
@@ -931,8 +934,8 @@ struct IndexedPropertyHandlerConfiguration {
 
   // TODO(https://crbug.com/348660658): cleanup once migration to
   // IndexedPropertySetterCallback/IndexedPropertyDefinerCallback is done.
-  template <typename TSetter = nullptr_t>
-    requires(std::is_same_v<TSetter, nullptr_t> ||
+  template <typename TSetter = std::nullptr_t>
+    requires(std::is_same_v<TSetter, std::nullptr_t> ||
              std::is_same_v<TSetter, IndexedPropertySetterCallback> ||
              std::is_same_v<TSetter, IndexedPropertySetterCallbackV2>)
   explicit IndexedPropertyHandlerConfiguration(
@@ -955,11 +958,12 @@ struct IndexedPropertyHandlerConfiguration {
 
   // TODO(https://crbug.com/348660658): cleanup once migration to
   // IndexedPropertySetterCallback/IndexedPropertyDefinerCallback is done.
-  template <typename TSetter = nullptr_t, typename TDefiner = nullptr_t>
-    requires((std::is_same_v<TSetter, nullptr_t> ||
+  template <typename TSetter = std::nullptr_t,
+            typename TDefiner = std::nullptr_t>
+    requires((std::is_same_v<TSetter, std::nullptr_t> ||
               std::is_same_v<TSetter, IndexedPropertySetterCallback> ||
               std::is_same_v<TSetter, IndexedPropertySetterCallbackV2>) &&
-             (std::is_same_v<TDefiner, nullptr_t> ||
+             (std::is_same_v<TDefiner, std::nullptr_t> ||
               std::is_same_v<TDefiner, IndexedPropertyDefinerCallback> ||
               std::is_same_v<TDefiner, IndexedPropertyDefinerCallbackV2>))
   IndexedPropertyHandlerConfiguration(
@@ -983,11 +987,12 @@ struct IndexedPropertyHandlerConfiguration {
 
   // TODO(https://crbug.com/348660658): cleanup once migration to
   // IndexedPropertySetterCallback/IndexedPropertyDefinerCallback is done.
-  template <typename TSetter = nullptr_t, typename TDefiner = nullptr_t>
-    requires((std::is_same_v<TSetter, nullptr_t> ||
+  template <typename TSetter = std::nullptr_t,
+            typename TDefiner = std::nullptr_t>
+    requires((std::is_same_v<TSetter, std::nullptr_t> ||
               std::is_same_v<TSetter, IndexedPropertySetterCallback> ||
               std::is_same_v<TSetter, IndexedPropertySetterCallbackV2>) &&
-             (std::is_same_v<TDefiner, nullptr_t> ||
+             (std::is_same_v<TDefiner, std::nullptr_t> ||
               std::is_same_v<TDefiner, IndexedPropertyDefinerCallback> ||
               std::is_same_v<TDefiner, IndexedPropertyDefinerCallbackV2>))
   IndexedPropertyHandlerConfiguration(
