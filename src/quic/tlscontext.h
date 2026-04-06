@@ -55,6 +55,8 @@ class OSSLContext final {
   bool set_transport_params(const ngtcp2_vec& tp) const;
 
   bool get_early_data_accepted() const;
+  bool get_early_data_rejected() const;
+  bool get_early_data_attempted() const;
 
   // Sets the session ticket for 0-RTT resumption. Returns true if the
   // ticket was set successfully and the ticket supports early data.
@@ -106,6 +108,8 @@ class TLSSession final : public MemoryRetainer {
   // accepted by the TLS session. This will assert if the handshake has
   // not been completed.
   bool early_data_was_accepted() const;
+  bool early_data_was_rejected() const;
+  bool early_data_was_attempted() const;
 
   v8::MaybeLocal<v8::Object> cert(Environment* env) const;
   v8::MaybeLocal<v8::Object> peer_cert(Environment* env) const;

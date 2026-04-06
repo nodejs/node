@@ -91,7 +91,7 @@ void EnableTrace(Environment* env, BIOPointer* bio, SSL* ssl) {
 #endif
 }
 
-template <typename T, typename Opt, std::vector<T> Opt::* member>
+template <typename T, typename Opt, std::vector<T> Opt::*member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -268,6 +268,14 @@ bool OSSLContext::set_transport_params(const ngtcp2_vec& tp) const {
 
 bool OSSLContext::get_early_data_accepted() const {
   return SSL_get_early_data_status(*this) == SSL_EARLY_DATA_ACCEPTED;
+}
+
+bool OSSLContext::get_early_data_rejected() const {
+  return SSL_get_early_data_status(*this) == SSL_EARLY_DATA_REJECTED;
+}
+
+bool OSSLContext::get_early_data_attempted() const {
+  return SSL_get_early_data_status(*this) != SSL_EARLY_DATA_NOT_SENT;
 }
 
 bool OSSLContext::set_session_ticket(const ncrypto::SSLSessionPointer& ticket) {
@@ -765,6 +773,16 @@ TLSSession::operator SSL*() const {
 bool TLSSession::early_data_was_accepted() const {
   CHECK_NE(ngtcp2_conn_get_handshake_completed(*session_), 0);
   return ossl_context_.get_early_data_accepted();
+}
+
+bool TLSSession::early_data_was_rejected() const {
+  CHECK_NE(ngtcp2_conn_get_handshake_completed(*session_), 0);
+  return ossl_context_.get_early_data_rejected();
+}
+
+bool TLSSession::early_data_was_attempted() const {
+  CHECK_NE(ngtcp2_conn_get_handshake_completed(*session_), 0);
+  return ossl_context_.get_early_data_attempted();
 }
 
 void TLSSession::Initialize(
