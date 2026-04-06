@@ -200,7 +200,9 @@ std::optional<CID> RetryToken::Validate(uint32_t version,
                                         const CID& dcid,
                                         const TokenSecret& token_secret,
                                         uint64_t verification_expiration) {
-  if (ptr_.base == nullptr || ptr_.len == 0) return std::nullopt;
+  if (ptr_.base == nullptr || ptr_.len == 0 || verification_expiration == 0) {
+    return std::nullopt;
+  }
   ngtcp2_cid ocid;
   int ret = ngtcp2_crypto_verify_retry_token(
       &ocid,
@@ -266,7 +268,9 @@ bool RegularToken::Validate(uint32_t version,
                             const SocketAddress& addr,
                             const TokenSecret& token_secret,
                             uint64_t verification_expiration) {
-  if (ptr_.base == nullptr || ptr_.len == 0) return false;
+  if (ptr_.base == nullptr || ptr_.len == 0 || verification_expiration == 0) {
+    return false;
+  }
   return ngtcp2_crypto_verify_regular_token(
              ptr_.base,
              ptr_.len,
