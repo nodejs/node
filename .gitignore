@@ -160,6 +160,10 @@ cmake_install.cmake
 install_manifest.txt
 *.cbp
 
+# === Rules for AI assistants ===
+CLAUDE.md
+AGENTS.md
+
 # === Global Rules ===
 # Keep last to avoid being excluded
 *.pyc
