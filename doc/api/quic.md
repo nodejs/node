@@ -559,6 +559,19 @@ added: v23.8.0
 
 Return the current statistics for the session. Read only.
 
+### `session.token`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {object|undefined}
+
+The most recently received NEW\_TOKEN token from the server, if any.
+The object has `token` {Buffer} and `address` {SocketAddress} properties.
+The token can be passed as the `token` option on a future connection to
+the same server to skip address validation.
+
 ### `session.updateKey()`
 
 <!-- YAML
@@ -1408,6 +1421,19 @@ added: v23.8.0
 
 True to enable TLS tracing output.
 
+#### `sessionOptions.token` (client only)
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {ArrayBufferView}
+
+An opaque address validation token previously received from the server
+via `session.token`. Providing a valid token on reconnection allows
+the client to skip the server's address validation, reducing handshake
+latency.
+
 #### `sessionOptions.transportParams`
 
 <!-- YAML
@@ -1814,6 +1840,16 @@ added: v23.8.0
 <!-- YAML
 added: v23.8.0
 -->
+
+### Channel: `quic.session.new.token`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Published when a client session receives a NEW\_TOKEN frame from the
+server. The message contains `token` {Buffer}, `address` {SocketAddress},
+and `session` {quic.QuicSession}.
 
 ### Channel: `quic.session.ticket`
 
