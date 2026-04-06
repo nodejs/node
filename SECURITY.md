@@ -24,9 +24,7 @@ response or engagement within 14 days, escalation is also appropriate.
 
 ### Node.js bug bounty program
 
-The Node.js project engages in an official bug bounty program for security
-researchers and responsible public disclosures.  The program is managed through
-the HackerOne platform. See <https://hackerone.com/nodejs> for further details.
+The Node.js project no longer has a bug bounty program.
 
 ## Reporting a bug in a third-party module
 
