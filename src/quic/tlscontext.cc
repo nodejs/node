@@ -91,7 +91,7 @@ void EnableTrace(Environment* env, BIOPointer* bio, SSL* ssl) {
 #endif
 }
 
-template <typename T, typename Opt, std::vector<T> Opt::* member>
+template <typename T, typename Opt, std::vector<T> Opt::*member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,

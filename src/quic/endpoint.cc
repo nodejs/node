@@ -92,7 +92,7 @@ bool is_diagnostic_packet_loss(double probability) {
   return (static_cast<double>(c) / 255) < probability;
 }
 
-template <typename Opt, double Opt::* member>
+template <typename Opt, double Opt::*member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -113,7 +113,7 @@ bool SetOption(Environment* env,
 }
 #endif  // DEBUG
 
-template <typename Opt, uint8_t Opt::* member>
+template <typename Opt, uint8_t Opt::*member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -140,7 +140,7 @@ bool SetOption(Environment* env,
   return true;
 }
 
-template <typename Opt, TokenSecret Opt::* member>
+template <typename Opt, TokenSecret Opt::*member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
