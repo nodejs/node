@@ -516,13 +516,6 @@ class DefaultApplication final : public Session::Application {
     if (!session().max_data_left()) return 0;
     if (stream_queue_.IsEmpty()) return 0;
 
-    const auto get_length = [](auto vec, size_t count) {
-      CHECK_NOT_NULL(vec);
-      size_t len = 0;
-      for (size_t n = 0; n < count; n++) len += vec[n].len;
-      return len;
-    };
-
     Stream* stream = stream_queue_.PopFront();
     CHECK_NOT_NULL(stream);
     stream_data->stream.reset(stream);

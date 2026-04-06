@@ -2480,7 +2480,9 @@ bool Session::HandshakeCompleted() {
 
   // If early data was attempted but rejected by the server,
   // tell ngtcp2 so it can retransmit the data as 1-RTT.
-  if (!is_server() && !tls_session().early_data_was_accepted())
+  // The status of early data will only be rejected if an
+  // attempt was actually made to send early data.
+  if (!is_server() && tls_session().early_data_was_rejected())
     ngtcp2_conn_tls_early_data_rejected(*this);
 
   // When in a server session, handshake completed == handshake confirmed.
@@ -2709,6 +2711,7 @@ void Session::EmitHandshakeComplete() {
       Undefined(isolate),  // Cipher version
       Undefined(isolate),  // Validation error reason
       Undefined(isolate),  // Validation error code
+      Boolean::New(isolate, tls_session().early_data_was_attempted()),
       Boolean::New(isolate, tls_session().early_data_was_accepted())};
 
   auto& tls = tls_session();
