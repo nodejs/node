@@ -420,7 +420,7 @@ class V8_EXPORT Object : public Value {
   // is removed.
   V8_WARN_UNUSED_RESULT Maybe<bool> SetNativeDataProperty(
       Local<Context> context, Local<Name> name,
-      AccessorNameGetterCallback getter, nullptr_t setter = nullptr,
+      AccessorNameGetterCallback getter, std::nullptr_t setter = nullptr,
       Local<Value> data = Local<Value>(), PropertyAttribute attributes = None,
       SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
       SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect) {
