@@ -171,7 +171,7 @@ our %config = (
     ],
     "dynamic_engines" => "0",
     "ex_libs" => [],
-    "full_version" => "3.5.5",
+    "full_version" => "3.5.6",
     "includes" => [],
     "lflags" => [],
     "lib_defines" => [
@@ -236,7 +236,7 @@ our %config = (
     ],
     "openssldir" => "",
     "options" => "enable-ssl-trace enable-fips no-afalgeng no-asan no-brotli no-brotli-dynamic no-buildtest-c++ no-comp no-crypto-mdebug no-crypto-mdebug-backtrace no-demos no-devcryptoeng no-dynamic-engine no-ec_nistp_64_gcc_128 no-egd no-external-tests no-fips-jitter no-fuzz-afl no-fuzz-libfuzzer no-h3demo no-hqinterop no-jitter no-ktls no-loadereng no-md2 no-msan no-pie no-rc5 no-sctp no-shared no-ssl3 no-ssl3-method no-sslkeylog no-tfo no-trace no-ubsan no-unit-test no-uplink no-weak-ssl-ciphers no-winstore no-zlib no-zlib-dynamic no-zstd no-zstd-dynamic",
-    "patch" => "5",
+    "patch" => "6",
     "perl_archname" => "x86_64-linux-gnu-thread-multi",
     "perl_cmd" => "/usr/bin/perl",
     "perl_version" => "5.34.0",
@@ -289,11 +289,11 @@ our %config = (
     "prerelease" => "",
     "processor" => "",
     "rc4_int" => "unsigned int",
-    "release_date" => "27 Jan 2026",
+    "release_date" => "7 Apr 2026",
     "shlib_version" => "3",
     "sourcedir" => ".",
     "target" => "darwin64-x86_64-cc",
-    "version" => "3.5.5"
+    "version" => "3.5.6"
 );
 our %target = (
     "AR" => "ar",
@@ -4336,6 +4336,9 @@ our %unified_info = (
         "doc/html/man3/UI_new.html" => [
             "doc/man3/UI_new.pod"
         ],
+        "doc/html/man3/X509V3_EXT_print.html" => [
+            "doc/man3/X509V3_EXT_print.pod"
+        ],
         "doc/html/man3/X509V3_get_d2i.html" => [
             "doc/man3/X509V3_get_d2i.pod"
         ],
@@ -7026,6 +7029,9 @@ our %unified_info = (
         ],
         "doc/man/man3/UI_new.3" => [
             "doc/man3/UI_new.pod"
+        ],
+        "doc/man/man3/X509V3_EXT_print.3" => [
+            "doc/man3/X509V3_EXT_print.pod"
         ],
         "doc/man/man3/X509V3_get_d2i.3" => [
             "doc/man3/X509V3_get_d2i.pod"
@@ -12306,6 +12312,22 @@ our %unified_info = (
         ],
         "builddata.pm" => [
             "util/mkinstallvars.pl",
+            "COMMENT=\"This",
+            "file",
+            "should",
+            "be",
+            "used",
+            "when",
+            "building",
+            "against",
+            "this",
+            "OpenSSL",
+            "build,",
+            "and",
+            "should",
+            "never",
+            "be",
+            "installed\"",
             "PREFIX=.",
             "BINDIR=apps",
             "APPLINKDIR=ms",
@@ -15001,6 +15023,9 @@ our %unified_info = (
         "doc/html/man3/UI_new.html" => [
             "doc/man3/UI_new.pod"
         ],
+        "doc/html/man3/X509V3_EXT_print.html" => [
+            "doc/man3/X509V3_EXT_print.pod"
+        ],
         "doc/html/man3/X509V3_get_d2i.html" => [
             "doc/man3/X509V3_get_d2i.pod"
         ],
@@ -17692,6 +17717,9 @@ our %unified_info = (
         "doc/man/man3/UI_new.3" => [
             "doc/man3/UI_new.pod"
         ],
+        "doc/man/man3/X509V3_EXT_print.3" => [
+            "doc/man3/X509V3_EXT_print.pod"
+        ],
         "doc/man/man3/X509V3_get_d2i.3" => [
             "doc/man3/X509V3_get_d2i.pod"
         ],
@@ -19713,6 +19741,7 @@ our %unified_info = (
             "doc/html/man3/UI_UTIL_read_pw.html",
             "doc/html/man3/UI_create_method.html",
             "doc/html/man3/UI_new.html",
+            "doc/html/man3/X509V3_EXT_print.html",
             "doc/html/man3/X509V3_get_d2i.html",
             "doc/html/man3/X509V3_set_ctx.html",
             "doc/html/man3/X509_ACERT_add1_attr.html",
@@ -23336,6 +23365,7 @@ our %unified_info = (
             "doc/man/man3/UI_UTIL_read_pw.3",
             "doc/man/man3/UI_create_method.3",
             "doc/man/man3/UI_new.3",
+            "doc/man/man3/X509V3_EXT_print.3",
             "doc/man/man3/X509V3_get_d2i.3",
             "doc/man/man3/X509V3_set_ctx.3",
             "doc/man/man3/X509_ACERT_add1_attr.3",

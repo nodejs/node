@@ -11,7 +11,7 @@
  */
 
 #define PLATFORM "platform: aix64-gcc-as"
-#define DATE "built on: Tue Jan 27 17:24:59 2026 UTC"
+#define DATE "built on: Tue Apr  7 19:04:33 2026 UTC"
 
 /*
  * Generate compiler_flags as an array of individual characters. This is a
