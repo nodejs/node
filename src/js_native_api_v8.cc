@@ -136,14 +136,13 @@ napi_status NewExternalString(napi_env env,
   return status;
 }
 
-napi_status NewExternalSharedArrayBuffer(napi_env env,
-                                         void* external_data,
-                                         size_t byte_length,
-                                         void (*finalize_cb)(
-                                            void* external_data,
-                                            void* finalize_hint),
-                                         void* finalize_hint,
-                                         napi_value* result) {
+napi_status NewExternalSharedArrayBuffer(
+    napi_env env,
+    void* external_data,
+    size_t byte_length,
+    void (*finalize_cb)(void* external_data, void* finalize_hint),
+    void* finalize_hint,
+    napi_value* result) {
   struct FinalizerData {
     void (*cb)(void* external_data, void* finalize_hint);
     void* hint;
@@ -156,12 +155,13 @@ napi_status NewExternalSharedArrayBuffer(napi_env env,
   };
   FinalizerData* deleter_data = nullptr;
   if (finalize_cb != nullptr) {
-    deleter_data = new FinalizerData { finalize_cb, finalize_hint };
+    deleter_data = new FinalizerData{finalize_cb, finalize_hint};
   }
-  auto unique_backing_store =
-      v8::SharedArrayBuffer::NewBackingStore(
-          external_data, byte_length, deleter,
-          reinterpret_cast<void*>(deleter_data));
+  auto unique_backing_store = v8::SharedArrayBuffer::NewBackingStore(
+      external_data,
+      byte_length,
+      deleter,
+      reinterpret_cast<void*>(deleter_data));
   CHECK(!!unique_backing_store);  // Cannot fail.
   auto shared_backing_store =
       std::shared_ptr<v8::BackingStore>(std::move(unique_backing_store));
@@ -3170,15 +3170,13 @@ napi_create_external_arraybuffer(napi_env env,
       env, buffer, nullptr, nullptr, nullptr, result, nullptr);
 }
 
-napi_status NAPI_CDECL
-napi_create_external_sharedarraybuffer(napi_env env,
-                                       void* external_data,
-                                       size_t byte_length,
-                                       void (*finalize_cb)(
-                                          void* external_data,
-                                          void* finalize_hint),
-                                       void* finalize_hint,
-                                       napi_value* result) {
+napi_status NAPI_CDECL napi_create_external_sharedarraybuffer(
+    napi_env env,
+    void* external_data,
+    size_t byte_length,
+    void (*finalize_cb)(void* external_data, void* finalize_hint),
+    void* finalize_hint,
+    napi_value* result) {
   return v8impl::NewExternalSharedArrayBuffer(
       env, external_data, byte_length, finalize_cb, finalize_hint, result);
 }

@@ -71,7 +71,8 @@ static void freeExternalSharedArrayBuffer(void* data, void* hint) {
 static napi_value newExternalSharedArrayBuffer(napi_env env,
                                                napi_callback_info info) {
   napi_value sab;
-  NODE_API_CALL(env,
+  NODE_API_CALL(
+      env,
       napi_create_external_sharedarraybuffer(env,
                                              externalSharedArrayBufferData,
                                              1,
