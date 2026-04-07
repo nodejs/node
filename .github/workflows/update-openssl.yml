@@ -43,7 +43,7 @@ jobs:
       - name: Regenerate platform specific files
         if: env.NEW_VERSION
         run: |
-          sudo apt install -y nasm libtext-template-perl
+          sudo apt update && sudo apt install -y nasm libtext-template-perl
           ./tools/dep_updaters/update-openssl.sh regenerate
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
