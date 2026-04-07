@@ -8,6 +8,8 @@
 #include "string_bytes.h"
 #include "v8.h"
 
+#include <algorithm>
+#include <climits>
 #include <cstdint>
 
 namespace node {
@@ -102,7 +104,7 @@ void BindingData::EncodeInto(const FunctionCallbackInfo<Value>& args) {
   int written = source->WriteUtf8(
       isolate,
       write_result,
-      dest_length,
+      std::min(dest_length, static_cast<size_t>(INT_MAX)),
       &nchars,
       String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8);
 
