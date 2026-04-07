@@ -360,7 +360,6 @@ void DynamicLibrary::InvokeCallback(ffi_cif* cif,
     ABORT();
   }
 
-
   Environment* env = cb->env;
   Isolate* isolate = env->isolate();
 
