@@ -30,7 +30,7 @@ const tick = require('util').promisify(require('../../common/tick'));
   // store is reclaimed; at least some of the time it happens even before
   // calling gc().
   let sab = binding.newExternalSharedArrayBuffer();
-  sab = null;
+  sab = null;  // eslint-disable-line no-unused-vars
   global.gc();
   await tick(10);
   console.log('gc3');
