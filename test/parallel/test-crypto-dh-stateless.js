@@ -398,6 +398,49 @@ for (const { privateKey: alicePriv, publicKey: bobPub } of [
   }
 }
 
+// Test that error messages include the correct property path
+{
+  const kp = crypto.generateKeyPairSync('x25519');
+  const pub = kp.publicKey.export({ type: 'spki', format: 'pem' });
+  const priv = kp.privateKey.export({ type: 'pkcs8', format: 'pem' });
+
+  // Invalid privateKey format
+  assert.throws(() => crypto.diffieHellman({
+    privateKey: { key: Buffer.alloc(0), format: 'banana', type: 'pkcs8' },
+    publicKey: pub,
+  }), {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /options\.privateKey\.format/,
+  });
+
+  // Invalid privateKey type
+  assert.throws(() => crypto.diffieHellman({
+    privateKey: { key: Buffer.alloc(0), format: 'der', type: 'banana' },
+    publicKey: pub,
+  }), {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /options\.privateKey\.type/,
+  });
+
+  // Invalid publicKey format
+  assert.throws(() => crypto.diffieHellman({
+    publicKey: { key: Buffer.alloc(0), format: 'banana', type: 'spki' },
+    privateKey: priv,
+  }), {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /options\.publicKey\.format/,
+  });
+
+  // Invalid publicKey type
+  assert.throws(() => crypto.diffieHellman({
+    publicKey: { key: Buffer.alloc(0), format: 'der', type: 'banana' },
+    privateKey: priv,
+  }), {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /options\.publicKey\.type/,
+  });
+}
+
 // Test C++ error conditions
 {
   const ec256 = crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' });

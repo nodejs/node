@@ -891,7 +891,7 @@ if (hasOpenSSL(3, 2)) {
     }, { code: 'ERR_INVALID_ARG_TYPE', message: /The "key\.key" property must be of type object/ });
     assert.throws(() => {
       crypto.createSign('sha256').sign({ key, format: 'jwk' });
-    }, { code: 'ERR_INVALID_ARG_TYPE', message: /The "key\.key" property must be of type object/ });
+    }, { code: 'ERR_INVALID_ARG_TYPE', message: /The "privateKey\.key" property must be of type object/ });
   }
 }
 
@@ -931,4 +931,67 @@ if (hasOpenSSL(3, 2)) {
       crypto.createVerify('SHA256').update('Test123').verify(publicKey, 'sig');
     }, { code: 'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE', message: /operation not supported for this keytype/ });
   }
+}
+
+// Test that sign/verify error messages use correct property paths
+{
+  // Sign with invalid format
+  assert.throws(() => {
+    crypto.createSign('SHA256').update('test').sign({
+      key: Buffer.alloc(0), format: 'banana', type: 'pkcs8',
+    });
+  }, {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /privateKey\.format/,
+  });
+
+  // Sign with invalid type
+  assert.throws(() => {
+    crypto.createSign('SHA256').update('test').sign({
+      key: Buffer.alloc(0), format: 'der', type: 'banana',
+    });
+  }, {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /privateKey\.type/,
+  });
+
+  // Verify with invalid format
+  assert.throws(() => {
+    crypto.createVerify('SHA256').update('test').verify({
+      key: Buffer.alloc(0), format: 'banana', type: 'spki',
+    }, Buffer.alloc(0));
+  }, {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /key\.format/,
+  });
+
+  // Verify with invalid type
+  assert.throws(() => {
+    crypto.createVerify('SHA256').update('test').verify({
+      key: Buffer.alloc(0), format: 'der', type: 'banana',
+    }, Buffer.alloc(0));
+  }, {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /key\.type/,
+  });
+
+  // crypto.sign with invalid format
+  assert.throws(() => {
+    crypto.sign('SHA256', Buffer.from('test'), {
+      key: Buffer.alloc(0), format: 'banana', type: 'pkcs8',
+    });
+  }, {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /key\.format/,
+  });
+
+  // crypto.verify with invalid format
+  assert.throws(() => {
+    crypto.verify('SHA256', Buffer.from('test'), {
+      key: Buffer.alloc(0), format: 'banana', type: 'spki',
+    }, Buffer.alloc(0));
+  }, {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /key\.format/,
+  });
 }
