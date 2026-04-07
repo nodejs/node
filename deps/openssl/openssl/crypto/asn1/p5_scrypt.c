@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -44,7 +44,7 @@ X509_ALGOR *PKCS5_pbe2_set_scrypt(const EVP_CIPHER *cipher,
     uint64_t p)
 {
     X509_ALGOR *scheme = NULL, *ret = NULL;
-    int alg_nid;
+    int alg_nid, ivlen;
     size_t keylen = 0;
     EVP_CIPHER_CTX *ctx = NULL;
     unsigned char iv[EVP_MAX_IV_LENGTH];
@@ -83,10 +83,11 @@ X509_ALGOR *PKCS5_pbe2_set_scrypt(const EVP_CIPHER *cipher,
     }
 
     /* Create random IV */
-    if (EVP_CIPHER_get_iv_length(cipher)) {
+    ivlen = EVP_CIPHER_get_iv_length(cipher);
+    if (ivlen > 0) {
         if (aiv)
-            memcpy(iv, aiv, EVP_CIPHER_get_iv_length(cipher));
-        else if (RAND_bytes(iv, EVP_CIPHER_get_iv_length(cipher)) <= 0)
+            memcpy(iv, aiv, ivlen);
+        else if (RAND_bytes(iv, ivlen) <= 0)
             goto err;
     }
 

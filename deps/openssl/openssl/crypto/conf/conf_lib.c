@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -314,7 +314,7 @@ char *NCONF_get_string(const CONF *conf, const char *group, const char *name)
         return NULL;
     }
     ERR_raise_data(ERR_LIB_CONF, CONF_R_NO_VALUE,
-        "group=%s name=%s", group, name);
+        "group=%s name=%s", group != NULL ? group : "", name);
     return NULL;
 }
 

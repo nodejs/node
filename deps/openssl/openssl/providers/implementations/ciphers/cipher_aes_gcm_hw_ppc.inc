@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -44,8 +44,8 @@ static inline u32 add32TOU(unsigned char buf[4], u32 n)
 static size_t ppc_aes_gcm_crypt(const unsigned char *in, unsigned char *out, size_t len,
                                 const void *key, unsigned char ivec[16], u64 *Xi, int encrypt)
 {
-    int s = 0;
-    int ndone = 0;
+    size_t s = 0;
+    size_t ndone = 0;
     int ctr_reset = 0;
     u64 blocks_unused;
     u64 nb = len / 16;
@@ -119,7 +119,7 @@ static int ppc_aes_gcm_cipher_update(PROV_GCM_CTX *ctx, const unsigned char *in,
                 size_t res = (16 - ctx->gcm.mres) % 16;
 
                 if (CRYPTO_gcm128_decrypt(&ctx->gcm, in, out, res))
-                    return -1;
+                    return 0;
 
                 bulk = ppc_aes_gcm_crypt(in + res, out + res, len - res,
                                          ctx->gcm.key,

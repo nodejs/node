@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -316,17 +316,19 @@ static int rsasve_generate(PROV_RSA_CTX *prsactx,
         return 0;
 
     /* Step(3): out = RSAEP((n,e), z) */
-    ret = RSA_public_encrypt(nlen, secret, out, prsactx->rsa, RSA_NO_PADDING);
-    if (ret) {
-        ret = 1;
-        if (outlen != NULL)
-            *outlen = nlen;
-        if (secretlen != NULL)
-            *secretlen = nlen;
-    } else {
+    ret = RSA_public_encrypt((int)nlen, secret, out, prsactx->rsa,
+        RSA_NO_PADDING);
+    if (ret <= 0 || ret != (int)nlen) {
         OPENSSL_cleanse(secret, nlen);
+        return 0;
     }
-    return ret;
+
+    if (outlen != NULL)
+        *outlen = nlen;
+    if (secretlen != NULL)
+        *secretlen = nlen;
+
+    return 1;
 }
 
 /**

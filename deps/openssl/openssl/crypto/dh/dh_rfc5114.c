@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2011-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -43,5 +43,5 @@
     }
 
 make_dh(1024_160)
-    make_dh(2048_224)
-        make_dh(2048_256)
+make_dh(2048_224)
+make_dh(2048_256)

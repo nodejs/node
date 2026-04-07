@@ -1,4 +1,4 @@
-# Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
 # Copyright (c) 2024, Intel Corporation. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -84,8 +84,6 @@ my ($res,$a,$b,$m,$k0) = @_6_args_universal_ABI;
 my $mask52     = "%rax";
 my $acc0_0     = "%r9";
 my $acc0_0_low = "%r9d";
-my $acc0_1     = "%r15";
-my $acc0_1_low = "%r15d";
 my $b_ptr      = "%r11";
 
 my $iter = "%ebx";
@@ -834,7 +832,7 @@ $code.=<<___;
     vmovdqu   $R4_0,  `8*32`($res)
     vmovdqu   $R4_0h, `9*32`($res)
 
-    xorl    $acc0_1_low, $acc0_1_low
+    xorl    $acc0_0_low, $acc0_0_low
 
     movq    \$0xfffffffffffff, $mask52
 
@@ -975,6 +973,23 @@ $code.=<<___;
 ossl_extract_multiplier_2x40_win5_avx:
 .cfi_startproc
     endbranch
+___
+$code.=<<___ if ($win64);
+    push      %rsi                          # save non-volatile registers
+    push      %rdi
+    lea       -168(%rsp), %rsp              # 16*10 + (8 bytes to get correct 16-byte SIMD alignment)
+    vmovapd   %xmm6, `16*0`(%rsp)
+    vmovapd   %xmm7, `16*1`(%rsp)
+    vmovapd   %xmm8, `16*2`(%rsp)
+    vmovapd   %xmm9, `16*3`(%rsp)
+    vmovapd   %xmm10, `16*4`(%rsp)
+    vmovapd   %xmm11, `16*5`(%rsp)
+    vmovapd   %xmm12, `16*6`(%rsp)
+    vmovapd   %xmm13, `16*7`(%rsp)
+    vmovapd   %xmm14, `16*8`(%rsp)
+    vmovapd   %xmm15, `16*9`(%rsp)
+___
+$code.=<<___;
     vmovapd   .Lones(%rip), $ones         # broadcast ones
     vmovq $red_tbl_idx1, $tmp_xmm
     vpbroadcastq    $tmp_xmm, $idx1
@@ -1001,6 +1016,24 @@ $code.="movq    %r10, $red_tbl \n";
 foreach (0..9) {
     $code.="vmovdqu   $t[$_], `(10+$_)*32`($out) \n";
 }
+$code.=<<___;
+    vzeroupper
+___
+$code.=<<___ if ($win64);
+    vmovapd `16*0`(%rsp), %xmm6
+    vmovapd `16*1`(%rsp), %xmm7
+    vmovapd `16*2`(%rsp), %xmm8
+    vmovapd `16*3`(%rsp), %xmm9
+    vmovapd `16*4`(%rsp), %xmm10
+    vmovapd `16*5`(%rsp), %xmm11
+    vmovapd `16*6`(%rsp), %xmm12
+    vmovapd `16*7`(%rsp), %xmm13
+    vmovapd `16*8`(%rsp), %xmm14
+    vmovapd `16*9`(%rsp), %xmm15
+    lea     168(%rsp), %rsp
+    pop     %rdi
+    pop     %rsi
+___
 $code.=<<___;
 
     ret

@@ -437,7 +437,7 @@ static int drbg_fetch_algs_from_prov(const OSSL_PARAM params[],
 
     p = OSSL_PARAM_locate_const(params, OSSL_ALG_PARAM_DIGEST);
     if (p) {
-        if (OSSL_PARAM_get_utf8_string_ptr(p, &digest_name)) {
+        if (!OSSL_PARAM_get_utf8_string_ptr(p, &digest_name)) {
             ERR_raise(ERR_LIB_PROV, PROV_R_VALUE_ERROR);
             goto done;
         }
@@ -458,7 +458,7 @@ static int drbg_fetch_algs_from_prov(const OSSL_PARAM params[],
     if (p == NULL) {
         hmac_name = "HMAC";
     } else {
-        if (OSSL_PARAM_get_utf8_string_ptr(p, &hmac_name)) {
+        if (!OSSL_PARAM_get_utf8_string_ptr(p, &hmac_name)) {
             ERR_raise(ERR_LIB_PROV, PROV_R_VALUE_ERROR);
             goto done;
         }

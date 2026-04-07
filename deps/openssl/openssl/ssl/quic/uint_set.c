@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -303,6 +303,8 @@ int ossl_uint_set_remove(UINT_SET *s, const UINT_RANGE *range)
              * handled by the above cases.
              */
             y = create_set_item(end + 1, z->range.end);
+            if (y == NULL)
+                return 0;
             ossl_list_uint_set_insert_after(s, z, y);
             z->range.end = start - 1;
             break;
