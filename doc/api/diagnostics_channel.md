@@ -1913,6 +1913,70 @@ added: v16.18.0
 
 Emitted when a new thread is created.
 
+#### SQLite
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+##### Event: `'sqlite.db.query'`
+
+* `sql` {string} The expanded SQL with bound parameter values substituted.
+  If expansion fails, the source SQL with unsubstituted placeholders is used
+  instead.
+* `database` {DatabaseSync} The [`DatabaseSync`][] instance that executed the
+  statement.
+* `duration` {number} The estimated statement run time in nanoseconds.
+
+Emitted when a SQL statement is executed against a [`DatabaseSync`][] instance.
+This allows subscribers to observe every SQL statement executed without
+modifying the database code itself. Tracing is zero-cost when there are no
+subscribers.
+
+```cjs
+const dc = require('node:diagnostics_channel');
+const { DatabaseSync } = require('node:sqlite');
+
+function onQuery({ sql, database, duration }) {
+  console.log(sql, duration);
+}
+
+dc.subscribe('sqlite.db.query', onQuery);
+
+const db = new DatabaseSync(':memory:');
+db.exec('CREATE TABLE t (x INTEGER)');
+// Logs: CREATE TABLE t (x INTEGER) <duration>
+
+const stmt = db.prepare('INSERT INTO t VALUES (?)');
+stmt.run(42);
+// Logs: INSERT INTO t VALUES (42.0) <duration>
+
+dc.unsubscribe('sqlite.db.query', onQuery);
+```
+
+```mjs
+import dc from 'node:diagnostics_channel';
+import { DatabaseSync } from 'node:sqlite';
+
+function onQuery({ sql, database, duration }) {
+  console.log(sql, duration);
+}
+
+dc.subscribe('sqlite.db.query', onQuery);
+
+const db = new DatabaseSync(':memory:');
+db.exec('CREATE TABLE t (x INTEGER)');
+// Logs: CREATE TABLE t (x INTEGER) <duration>
+
+const stmt = db.prepare('INSERT INTO t VALUES (?)');
+stmt.run(42);
+// Logs: INSERT INTO t VALUES (42.0) <duration>
+
+dc.unsubscribe('sqlite.db.query', onQuery);
+```
+
 [BoundedChannel Channels]: #boundedchannel-channels
 [TracingChannel Channels]: #tracingchannel-channels
 [`'uncaughtException'`]: process.md#event-uncaughtexception
@@ -1926,6 +1990,7 @@ Emitted when a new thread is created.
 [`channel.subscribe(onMessage)`]: #channelsubscribeonmessage
 [`channel.unsubscribe(onMessage)`]: #channelunsubscribeonmessage
 [`channel.withStoreScope(data)`]: #channelwithstorescopedata
+[`DatabaseSync`]: sqlite.md#class-databasesync
 [`child_process.spawn()`]: child_process.md#child_processspawncommand-args-options
 [`diagnostics_channel.channel(name)`]: #diagnostics_channelchannelname
 [`diagnostics_channel.subscribe(name, onMessage)`]: #diagnostics_channelsubscribename-onmessage

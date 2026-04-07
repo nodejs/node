@@ -32,7 +32,9 @@ import sqlite from 'node:sqlite';
 const sqlite = require('node:sqlite');
 ```
 
-This module is only available under the `node:` scheme.
+This module is only available under the `node:` scheme. SQL trace events can
+be observed via the [`diagnostics_channel`][] module. See
+[`'sqlite.db.query'`][] for details.
 
 The following example shows the basic usage of the `node:sqlite` module to open
 an in-memory database, write data to the database, and then read the data back.
@@ -1368,72 +1370,6 @@ const totalPagesTransferred = await backup(sourceDb, 'backup.db', {
 console.log('Backup completed', totalPagesTransferred);
 ```
 
-## Diagnostics channel
-
-<!-- YAML
-added: REPLACEME
--->
-
-The `node:sqlite` module publishes SQL trace events on the
-[`diagnostics_channel`][] channel `sqlite.db.query`. This allows subscribers
-to observe every SQL statement executed against any `DatabaseSync` instance
-without modifying the database code itself. Tracing is zero-cost when there
-are no subscribers.
-
-### Channel `sqlite.db.query`
-
-The message published to this channel is an {Object} with the following
-properties:
-
-* `sql` {string} The expanded SQL with bound parameter values substituted.
-  If expansion fails, the source SQL with unsubstituted placeholders is used
-  instead.
-* `database` {DatabaseSync} The `DatabaseSync` instance that executed the
-  statement.
-* `duration` {number} The estimated statement run time in nanoseconds.
-
-```cjs
-const dc = require('node:diagnostics_channel');
-const { DatabaseSync } = require('node:sqlite');
-
-function onQuery({ sql, database, duration }) {
-  console.log(sql, duration);
-}
-
-dc.subscribe('sqlite.db.query', onQuery);
-
-const db = new DatabaseSync(':memory:');
-db.exec('CREATE TABLE t (x INTEGER)');
-// Logs: CREATE TABLE t (x INTEGER) <duration>
-
-const stmt = db.prepare('INSERT INTO t VALUES (?)');
-stmt.run(42);
-// Logs: INSERT INTO t VALUES (42.0) <duration>
-
-dc.unsubscribe('sqlite.db.query', onQuery);
-```
-
-```mjs
-import dc from 'node:diagnostics_channel';
-import { DatabaseSync } from 'node:sqlite';
-
-function onQuery({ sql, database, duration }) {
-  console.log(sql, duration);
-}
-
-dc.subscribe('sqlite.db.query', onQuery);
-
-const db = new DatabaseSync(':memory:');
-db.exec('CREATE TABLE t (x INTEGER)');
-// Logs: CREATE TABLE t (x INTEGER) <duration>
-
-const stmt = db.prepare('INSERT INTO t VALUES (?)');
-stmt.run(42);
-// Logs: INSERT INTO t VALUES (42.0) <duration>
-
-dc.unsubscribe('sqlite.db.query', onQuery);
-```
-
 ## `sqlite.constants`
 
 <!-- YAML
@@ -1700,6 +1636,7 @@ callback function to indicate what type of operation is being authorized.
 [`database.createTagStore()`]: #databasecreatetagstoremaxsize
 [`database.serialize()`]: #databaseserializedbname
 [`database.setAuthorizer()`]: #databasesetauthorizercallback
+[`'sqlite.db.query'`]: diagnostics_channel.md#event-sqlitedbquery
 [`diagnostics_channel`]: diagnostics_channel.md
 [`sqlite3_backup_finish()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupfinish
 [`sqlite3_backup_init()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupinit
