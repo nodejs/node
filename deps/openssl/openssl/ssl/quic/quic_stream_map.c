@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -122,6 +122,7 @@ static void release_each(QUIC_STREAM *stream, void *arg)
 
 void ossl_quic_stream_map_cleanup(QUIC_STREAM_MAP *qsm)
 {
+    lh_QUIC_STREAM_set_down_load(qsm->map, 0);
     ossl_quic_stream_map_visit(qsm, release_each, qsm);
 
     lh_QUIC_STREAM_free(qsm->map);

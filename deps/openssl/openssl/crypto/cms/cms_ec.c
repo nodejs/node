@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -166,21 +166,27 @@ static int ecdh_cms_set_shared_info(EVP_PKEY_CTX *pctx, CMS_RecipientInfo *ri)
     int plen, keylen;
     EVP_CIPHER *kekcipher = NULL;
     EVP_CIPHER_CTX *kekctx;
+    const ASN1_OBJECT *aoid = NULL;
+    int ptype = 0;
+    const void *parameter = NULL;
+
     char name[OSSL_MAX_NAME_SIZE];
 
     if (!CMS_RecipientInfo_kari_get0_alg(ri, &alg, &ukm))
         return 0;
 
-    if (!ecdh_cms_set_kdf_param(pctx, OBJ_obj2nid(alg->algorithm))) {
+    X509_ALGOR_get0(&aoid, &ptype, &parameter, alg);
+
+    if (!ecdh_cms_set_kdf_param(pctx, OBJ_obj2nid(aoid))) {
         ERR_raise(ERR_LIB_CMS, CMS_R_KDF_PARAMETER_ERROR);
         return 0;
     }
 
-    if (alg->parameter->type != V_ASN1_SEQUENCE)
+    if (ptype != V_ASN1_SEQUENCE)
         return 0;
 
-    p = alg->parameter->value.sequence->data;
-    plen = alg->parameter->value.sequence->length;
+    p = ASN1_STRING_get0_data(parameter);
+    plen = ASN1_STRING_length(parameter);
     kekalg = d2i_X509_ALGOR(NULL, &p, plen);
     if (kekalg == NULL)
         goto err;

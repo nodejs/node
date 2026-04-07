@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -174,6 +174,8 @@ int EC_GROUP_copy(EC_GROUP *dest, const EC_GROUP *src)
 
     dest->libctx = src->libctx;
     dest->curve_name = src->curve_name;
+
+    EC_pre_comp_free(dest);
 
     /* Copy precomputed */
     dest->pre_comp_type = src->pre_comp_type;

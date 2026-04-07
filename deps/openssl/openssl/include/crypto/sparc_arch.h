@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2012-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -79,10 +79,14 @@
 
 #if defined(__arch64__)
 
+/* clang-format off */
 #define SPARC_LOAD_ADDRESS(SYM, reg) \
-    setx SYM, % o7, reg;
+    setx SYM, %o7, reg;
+/* clang-format on */
 #define LDPTR ldx
-#define SIZE_T_CC % xcc
+/* clang-format off */
+#define SIZE_T_CC %xcc
+/* clang-format on */
 #define STACK_FRAME 192
 #define STACK_BIAS 2047
 #define STACK_7thARG (STACK_BIAS + 176)
@@ -92,7 +96,9 @@
 #define SPARC_LOAD_ADDRESS(SYM, reg) \
     set SYM, reg;
 #define LDPTR ld
-#define SIZE_T_CC % icc
+/* clang-format off */
+#define SIZE_T_CC %icc
+/* clang-format on */
 #define STACK_FRAME 112
 #define STACK_BIAS 0
 #define STACK_7thARG 92

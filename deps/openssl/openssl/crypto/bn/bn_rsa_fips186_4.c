@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2018-2019, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -29,7 +29,7 @@
 #include "internal/nelem.h"
 
 #if BN_BITS2 == 64
-#define BN_DEF(lo, hi) (BN_ULONG) hi << 32 | lo
+#define BN_DEF(lo, hi) (BN_ULONG)hi << 32 | lo
 #else
 #define BN_DEF(lo, hi) lo, hi
 #endif

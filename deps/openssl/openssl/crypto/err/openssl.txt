@@ -1,4 +1,4 @@
-# Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 1999-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -848,6 +848,7 @@ EVP_R_XTS_DATA_UNIT_IS_TOO_LARGE:191:xts data unit is too large
 EVP_R_XTS_DUPLICATED_KEYS:192:xts duplicated keys
 HTTP_R_ASN1_LEN_EXCEEDS_MAX_RESP_LEN:108:asn1 len exceeds max resp len
 HTTP_R_CONNECT_FAILURE:100:connect failure
+HTTP_R_CONTENT_TYPE_MISMATCH:131:content type mismatch
 HTTP_R_ERROR_PARSING_ASN1_LENGTH:109:error parsing asn1 length
 HTTP_R_ERROR_PARSING_CONTENT_LENGTH:119:error parsing content length
 HTTP_R_ERROR_PARSING_URL:101:error parsing url

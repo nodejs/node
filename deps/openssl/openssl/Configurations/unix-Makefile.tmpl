@@ -72,6 +72,7 @@ OPTIONS={- $config{options} -}
 CONFIGURE_ARGS=({- join(", ",quotify_l(@{$config{perlargv}})) -})
 SRCDIR={- $config{sourcedir} -}
 BLDDIR={- $config{builddir} -}
+RESULT_D=$(BLDDIR)/test-runs
 FIPSKEY={- $config{FIPSKEY} -}
 
 VERSION={- "$config{full_version}" -}
@@ -642,7 +643,7 @@ clean: libclean ## Clean the workspace, keep the configuration
 	-find . -name '*{- platform->objext() -}' \! -name '.*' \! -type d -exec $(RM) {} \;
 	$(RM) core
 	$(RM) tags TAGS doc-nits md-nits
-	$(RM) -r test/test-runs
+	$(RM) -r $(RESULT_D)
 	$(RM) providers/fips*.new
 	-find . -type l \! -name '.*' -exec $(RM) {} \;
 

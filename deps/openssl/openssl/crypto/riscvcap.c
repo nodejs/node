@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -26,9 +26,6 @@
 
 extern size_t riscv_vlen_asm(void);
 
-static void parse_env(const char *envstr);
-static void strtoupper(char *str);
-
 static size_t vlen = 0;
 
 #ifdef OSSL_RISCV_HWPROBE
@@ -50,10 +47,15 @@ size_t OPENSSL_instrument_bus2(unsigned int *out, size_t cnt, size_t max)
     return 0;
 }
 
-static void strtoupper(char *str)
+static void strtoupper(const char *str, char *dst, size_t dstlen)
 {
-    for (char *x = str; *x; ++x)
-        *x = toupper((unsigned char)*x);
+    for (size_t i = 0; i < dstlen; i++) {
+        if (i == dstlen - 1 || str[i] == '\0') {
+            dst[i] = '\0';
+            break;
+        }
+        dst[i] = toupper((unsigned char)str[i]);
+    }
 }
 
 /* parse_env() parses a RISC-V architecture string. An example of such a string
@@ -68,15 +70,24 @@ static void parse_env(const char *envstr)
     char buf[BUFLEN];
 
     /* Convert env str to all uppercase */
-    OPENSSL_strlcpy(envstrupper, envstr, sizeof(envstrupper));
-    strtoupper(envstrupper);
+    strtoupper(envstr, envstrupper, sizeof(envstrupper));
 
     for (size_t i = 0; i < kRISCVNumCaps; ++i) {
+        size_t len = strlen(RISCV_capabilities[i].name);
         /* Prefix capability with underscore in preparation for search */
-        BIO_snprintf(buf, BUFLEN, "_%s", RISCV_capabilities[i].name);
-        if (strstr(envstrupper, buf) != NULL) {
-            /* Match, set relevant bit in OPENSSL_riscvcap_P[] */
-            OPENSSL_riscvcap_P[RISCV_capabilities[i].index] |= (1 << RISCV_capabilities[i].bit_offset);
+        /*
+         * Avoid using higher level library functions which may require
+         * library initialization (such as BIO_snprintf) as this may be called
+         * in a constructor before library initialization
+         */
+        if (len < BUFLEN - 1) {
+            buf[0] = '_';
+            memcpy(buf + 1, RISCV_capabilities[i].name, len);
+            buf[len + 1] = '\0';
+            if (strstr(envstrupper, buf) != NULL) {
+                /* Match, set relevant bit in OPENSSL_riscvcap_P[] */
+                OPENSSL_riscvcap_P[RISCV_capabilities[i].index] |= (1 << RISCV_capabilities[i].bit_offset);
+            }
         }
     }
 }
