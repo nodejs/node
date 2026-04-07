@@ -15,7 +15,7 @@ objects.
 > you provide to this library in production systems.
 
 _Any_ library in JavaScript that deals with matching string
-patterns using regular expressions will be  subject to
+patterns using regular expressions will be subject to
 [ReDoS](https://owasp.org/www-community/attacks/Regular_expression_Denial_of_Service_-_ReDoS)
 if the pattern is generated using untrusted input.
 

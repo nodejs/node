@@ -1,4 +1,4 @@
-import { MinimatchOptions, MMRegExp } from './index.js';
+import type { MinimatchOptions, MMRegExp } from './index.js';
 export type ExtglobType = '!' | '?' | '+' | '*' | '@';
 export declare class AST {
     #private;
@@ -9,7 +9,7 @@ export declare class AST {
     get hasMagic(): boolean | undefined;
     toString(): string;
     push(...parts: (string | AST)[]): void;
-    toJSON(): any[];
+    toJSON(): unknown[];
     isStart(): boolean;
     isEnd(): boolean;
     copyIn(part: AST | string): void;
