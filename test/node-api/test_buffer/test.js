@@ -26,6 +26,16 @@ const tick = require('util').promisify(require('../../common/tick'));
   console.log('gc2');
   assert.strictEqual(binding.getDeleterCallCount(), 2);
 
+  // Caveat emptor: it's indeterminate when the SharedArrayBuffer's backing
+  // store is reclaimed; at least some of the time it happens even before
+  // calling gc().
+  let sab = binding.newExternalSharedArrayBuffer();
+  sab = null;
+  global.gc();
+  await tick(10);
+  console.log('gc3');
+  assert.strictEqual(binding.getDeleterCallCount(), 3);
+
   // To test this doesn't crash
   binding.invalidObjectAsBuffer({});
 
