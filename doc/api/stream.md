@@ -16,7 +16,7 @@ are both stream instances.
 Streams can be readable, writable, or both. All streams are instances of
 [`EventEmitter`][].
 
-```markdown
+
 To access the `node:stream` module:
 
 ```js
@@ -25,9 +25,10 @@ const stream = require('node:stream');
 
 The `node:stream` module is useful for creating new types of stream instances.
 It is usually not necessary to use the `node:stream` module to consume streams.
+
 For common tasks like reading a stream into a string or buffer, the 
-[`node:stream/consumers`](webstreams.md#utility-consumers) module provides 
-convenient utility functions.
+[`node:stream/consumers`][] module provides convenient utility functions.
+
 
 ## Organization of this document
 This document contains two primary sections and a third section for notes. The
@@ -5007,6 +5008,7 @@ contain multi-byte characters.
 [`Writable`]: #class-streamwritable
 [`fs.createReadStream()`]: fs.md#fscreatereadstreampath-options
 [`fs.createWriteStream()`]: fs.md#fscreatewritestreampath-options
+[`node:stream/consumers`]: webstreams.md#utility-consumers
 [`net.Socket`]: net.md#class-netsocket
 [`process.stderr`]: process.md#processstderr
 [`process.stdin`]: process.md#processstdin
