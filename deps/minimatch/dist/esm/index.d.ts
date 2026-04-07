@@ -150,7 +150,7 @@ export declare class Minimatch {
     regexp: false | null | MMRegExp;
     constructor(pattern: string, options?: MinimatchOptions);
     hasMagic(): boolean;
-    debug(..._: any[]): void;
+    debug(..._: unknown[]): void;
     make(): void;
     preprocess(globParts: string[][]): string[][];
     adjascentGlobstarOptimize(globParts: string[][]): string[][];
