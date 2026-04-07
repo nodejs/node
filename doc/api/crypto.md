@@ -2743,14 +2743,14 @@ encoding of `'utf8'` is enforced. If `data` is a [`Buffer`][], `TypedArray`, or
 
 This can be called many times with new data as it is streamed.
 
-### `verify.verify(object, signature[, signatureEncoding])`
+### `verify.verify(key, signature[, signatureEncoding])`
 
 <!-- YAML
 added: v0.1.92
 changes:
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35093
-    description: The object can also be an ArrayBuffer and CryptoKey.
+    description: The key can also be an ArrayBuffer and CryptoKey.
   - version:
      - v13.2.0
      - v12.16.0
@@ -2769,7 +2769,7 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `object` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
+* `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
   * `dsaEncoding` {string}
   * `padding` {integer}
   * `saltLength` {integer}
@@ -2780,10 +2780,10 @@ changes:
 
 <!--lint enable maximum-line-length remark-lint-->
 
-Verifies the provided data using the given `object` and `signature`.
+Verifies the provided data using the given `key` and `signature`.
 
-If `object` is not a [`KeyObject`][], this function behaves as if
-`object` had been passed to [`crypto.createPublicKey()`][]. If it is an
+If `key` is not a [`KeyObject`][], this function behaves as if
+`key` had been passed to [`crypto.createPublicKey()`][]. If it is an
 object, the following additional properties can be passed:
 
 * `dsaEncoding` {string} For DSA and ECDSA, this option specifies the
@@ -6952,7 +6952,7 @@ See the [list of SSL OP Flags][] for details.
 [`stream.transform` options]: stream.md#new-streamtransformoptions
 [`util.promisify()`]: util.md#utilpromisifyoriginal
 [`verify.update()`]: #verifyupdatedata-inputencoding
-[`verify.verify()`]: #verifyverifyobject-signature-signatureencoding
+[`verify.verify()`]: #verifyverifykey-signature-signatureencoding
 [`x509.fingerprint256`]: #x509fingerprint256
 [`x509.verify(publicKey)`]: #x509verifypublickey
 [argon2]: https://www.rfc-editor.org/rfc/rfc9106.html
