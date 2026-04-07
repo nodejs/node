@@ -146,40 +146,46 @@ class PipelineHandler extends AsyncResource {
     addSignal(this, signal)
   }
 
-  onConnect (abort, context) {
+  onRequestStart (controller, context) {
     const { res } = this
 
     if (this.reason) {
-      abort(this.reason)
+      controller.abort(this.reason)
       return
     }
 
     assert(!res, 'pipeline cannot be retried')
 
-    this.abort = abort
+    this.abort = (reason) => controller.abort(reason)
     this.context = context
   }
 
-  onHeaders (statusCode, rawHeaders, resume) {
+  onResponseStart (controller, statusCode, headers, _statusMessage) {
     const { opaque, handler, context } = this
 
     if (statusCode < 200) {
       if (this.onInfo) {
-        const headers = this.responseHeaders === 'raw' ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders)
-        this.onInfo({ statusCode, headers })
+        const rawHeaders = controller?.rawHeaders
+        const responseHeaders = this.responseHeaders === 'raw'
+          ? (Array.isArray(rawHeaders) ? util.parseRawHeaders(rawHeaders) : [])
+          : headers
+        this.onInfo({ statusCode, headers: responseHeaders })
       }
       return
     }
 
-    this.res = new PipelineResponse(resume)
+    this.res = new PipelineResponse(() => controller.resume())
 
     let body
     try {
       this.handler = null
-      const headers = this.responseHeaders === 'raw' ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders)
+      const rawHeaders = controller?.rawHeaders
+      const responseHeaders = this.responseHeaders === 'raw'
+        ? (Array.isArray(rawHeaders) ? util.parseRawHeaders(rawHeaders) : [])
+        : headers
       body = this.runInAsyncScope(handler, null, {
         statusCode,
-        headers,
+        headers: responseHeaders,
         opaque,
         body: this.res,
         context
@@ -222,17 +228,20 @@ class PipelineHandler extends AsyncResource {
     this.body = body
   }
 
-  onData (chunk) {
+  onResponseData (controller, chunk) {
     const { res } = this
-    return res.push(chunk)
+
+    if (res.push(chunk) === false) {
+      controller.pause()
+    }
   }
 
-  onComplete (trailers) {
+  onResponseEnd (_controller, _trailers) {
     const { res } = this
     res.push(null)
   }
 
-  onError (err) {
+  onResponseError (_controller, err) {
     const { ret } = this
     this.handler = null
     util.destroy(ret, err)

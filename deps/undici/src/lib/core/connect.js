@@ -51,7 +51,7 @@ function buildConnector ({ allowH2, useH2c, maxCachedSessions, socketPath, timeo
   const options = { path: socketPath, ...opts }
   const sessionCache = new SessionCache(maxCachedSessions == null ? 100 : maxCachedSessions)
   timeout = timeout == null ? 10e3 : timeout
-  allowH2 = allowH2 != null ? allowH2 : false
+  allowH2 = allowH2 != null ? allowH2 : true
   return function connect ({ hostname, host, protocol, port, servername, localAddress, httpSocket }, callback) {
     let socket
     if (protocol === 'https:') {

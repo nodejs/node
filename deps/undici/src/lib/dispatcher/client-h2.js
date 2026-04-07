@@ -494,7 +494,7 @@ function writeH2 (client, request) {
   try {
     // We are already connected, streams are pending.
     // We can call on connect, and wait for abort
-    request.onConnect(abort)
+    request.onRequestStart(abort, null)
   } catch (err) {
     util.errorRequest(client, request, err)
   }
@@ -534,7 +534,7 @@ function writeH2 (client, request) {
       stream.once('response', (headers, _flags) => {
         const { [HTTP2_HEADER_STATUS]: statusCode, ...realHeaders } = headers
 
-        request.onUpgrade(statusCode, parseH2Headers(realHeaders), stream)
+        request.onRequestUpgrade(statusCode, parseH2Headers(realHeaders), stream)
 
         ++session[kOpenStreams]
         client[kQueue][client[kRunningIdx]++] = null
@@ -568,7 +568,7 @@ function writeH2 (client, request) {
     stream.on('response', headers => {
       const { [HTTP2_HEADER_STATUS]: statusCode, ...realHeaders } = headers
 
-      request.onUpgrade(statusCode, parseH2Headers(realHeaders), stream)
+      request.onRequestUpgrade(statusCode, parseH2Headers(realHeaders), stream)
       ++session[kOpenStreams]
       client[kQueue][client[kRunningIdx]++] = null
     })
@@ -697,7 +697,7 @@ function writeH2 (client, request) {
       return
     }
 
-    if (request.onHeaders(Number(statusCode), parseH2Headers(realHeaders), stream.resume.bind(stream), '') === false) {
+    if (request.onResponseStart(Number(statusCode), parseH2Headers(realHeaders), stream.resume.bind(stream), '') === false) {
       stream.pause()
     }
 
@@ -706,7 +706,7 @@ function writeH2 (client, request) {
         return
       }
 
-      if (request.onData(chunk) === false) {
+      if (request.onResponseData(chunk) === false) {
         stream.pause()
       }
     })
@@ -717,7 +717,7 @@ function writeH2 (client, request) {
     // If we received a response, this is a normal completion
     if (responseReceived) {
       if (!request.aborted && !request.completed) {
-        request.onComplete({})
+        request.onResponseEnd({})
       }
 
       client[kQueue][client[kRunningIdx]++] = null
@@ -771,8 +771,7 @@ function writeH2 (client, request) {
       return
     }
 
-    stream.removeAllListeners('data')
-    request.onComplete(trailers)
+    request.onResponseEnd(trailers)
   })
 
   return true
