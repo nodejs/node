@@ -130,7 +130,7 @@ test to fail.
 Suites provide a way to group related tests under a common name. A suite
 is created with the `suite()` function (or its alias `describe()`). The
 callback passed to `suite()` is executed synchronously and is used only
-to register nested tests or nested suites.
+to register lifecycle methods (such as `before()` and `after()`), nested tests, or nested suites.
 
 A suite reports a result, but its status is fully determined by the
 tests and suites inside it --- suites cannot fail independently.
