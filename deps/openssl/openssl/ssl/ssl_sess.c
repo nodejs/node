@@ -790,9 +790,9 @@ int SSL_CTX_add_session(SSL_CTX *ctx, SSL_SESSION *c)
                     ssl_tsan_counter(ctx, &ctx->stats.sess_cache_full);
             }
         }
-    }
 
-    SSL_SESSION_list_add(ctx, c);
+        SSL_SESSION_list_add(ctx, c);
+    }
 
     if (s != NULL) {
         /*

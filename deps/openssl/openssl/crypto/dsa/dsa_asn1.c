@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -47,7 +47,7 @@ ASN1_SEQUENCE_cb(DSAPrivateKey, dsa_cb) = {
     ASN1_SIMPLE(DSA, priv_key, CBIGNUM)
 } static_ASN1_SEQUENCE_END_cb(DSA, DSAPrivateKey)
 
-    IMPLEMENT_ASN1_ENCODE_FUNCTIONS_fname(DSA, DSAPrivateKey, DSAPrivateKey)
+IMPLEMENT_ASN1_ENCODE_FUNCTIONS_fname(DSA, DSAPrivateKey, DSAPrivateKey)
 
 ASN1_SEQUENCE_cb(DSAparams, dsa_cb) = {
     ASN1_SIMPLE(DSA, params.p, BIGNUM),
@@ -55,7 +55,7 @@ ASN1_SEQUENCE_cb(DSAparams, dsa_cb) = {
     ASN1_SIMPLE(DSA, params.g, BIGNUM),
 } static_ASN1_SEQUENCE_END_cb(DSA, DSAparams)
 
-    IMPLEMENT_ASN1_ENCODE_FUNCTIONS_fname(DSA, DSAparams, DSAparams)
+IMPLEMENT_ASN1_ENCODE_FUNCTIONS_fname(DSA, DSAparams, DSAparams)
 
 ASN1_SEQUENCE_cb(DSAPublicKey, dsa_cb) = {
     ASN1_SIMPLE(DSA, pub_key, BIGNUM),
@@ -64,7 +64,7 @@ ASN1_SEQUENCE_cb(DSAPublicKey, dsa_cb) = {
     ASN1_SIMPLE(DSA, params.g, BIGNUM)
 } static_ASN1_SEQUENCE_END_cb(DSA, DSAPublicKey)
 
-    IMPLEMENT_ASN1_ENCODE_FUNCTIONS_fname(DSA, DSAPublicKey, DSAPublicKey)
+IMPLEMENT_ASN1_ENCODE_FUNCTIONS_fname(DSA, DSAPublicKey, DSAPublicKey)
 
 DSA *DSAparams_dup(const DSA *dsa)
 {

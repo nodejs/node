@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -42,10 +42,13 @@ static int rsa_cms_decrypt(CMS_RecipientInfo *ri)
     X509_ALGOR *cmsalg;
     int nid;
     int rv = -1;
-    unsigned char *label = NULL;
+    const unsigned char *label = NULL;
     int labellen = 0;
     const EVP_MD *mgf1md = NULL, *md = NULL;
     RSA_OAEP_PARAMS *oaep;
+    const ASN1_OBJECT *aoid;
+    const void *parameter = NULL;
+    int ptype = 0;
 
     pkctx = CMS_RecipientInfo_get0_pkey_ctx(ri);
     if (pkctx == NULL)
@@ -75,21 +78,19 @@ static int rsa_cms_decrypt(CMS_RecipientInfo *ri)
         goto err;
 
     if (oaep->pSourceFunc != NULL) {
-        X509_ALGOR *plab = oaep->pSourceFunc;
+        X509_ALGOR_get0(&aoid, &ptype, &parameter, oaep->pSourceFunc);
 
-        if (OBJ_obj2nid(plab->algorithm) != NID_pSpecified) {
+        if (OBJ_obj2nid(aoid) != NID_pSpecified) {
             ERR_raise(ERR_LIB_CMS, CMS_R_UNSUPPORTED_LABEL_SOURCE);
             goto err;
         }
-        if (plab->parameter->type != V_ASN1_OCTET_STRING) {
+        if (ptype != V_ASN1_OCTET_STRING) {
             ERR_raise(ERR_LIB_CMS, CMS_R_INVALID_LABEL);
             goto err;
         }
 
-        label = plab->parameter->value.octet_string->data;
-        /* Stop label being freed when OAEP parameters are freed */
-        plab->parameter->value.octet_string->data = NULL;
-        labellen = plab->parameter->value.octet_string->length;
+        label = ASN1_STRING_get0_data(parameter);
+        labellen = ASN1_STRING_length(parameter);
     }
 
     if (EVP_PKEY_CTX_set_rsa_padding(pkctx, RSA_PKCS1_OAEP_PADDING) <= 0)
@@ -98,10 +99,16 @@ static int rsa_cms_decrypt(CMS_RecipientInfo *ri)
         goto err;
     if (EVP_PKEY_CTX_set_rsa_mgf1_md(pkctx, mgf1md) <= 0)
         goto err;
-    if (label != NULL
-        && EVP_PKEY_CTX_set0_rsa_oaep_label(pkctx, label, labellen) <= 0) {
-        OPENSSL_free(label);
-        goto err;
+    if (label != NULL) {
+        unsigned char *dup_label = OPENSSL_memdup(label, labellen);
+
+        if (dup_label == NULL)
+            goto err;
+
+        if (EVP_PKEY_CTX_set0_rsa_oaep_label(pkctx, dup_label, labellen) <= 0) {
+            OPENSSL_free(dup_label);
+            goto err;
+        }
     }
     /* Carry on */
     rv = 1;

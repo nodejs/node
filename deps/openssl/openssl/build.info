@@ -108,12 +108,10 @@ IF[{- $config{target} =~ /^(?:Cygwin|mingw|VC-|BC-)/ -}]
   SHARED_SOURCE[libssl]=libssl.rc
 ENDIF
 
-# This file sets the build directory up for CMake inclusion
-# Note: This generation of OpenSSLConfig[Version].cmake is used
-# for building openssl locally, and so the build variables are 
-# taken from builddata.pm rather than installdata.pm.  For exportable
-# versions of these generated files, you'll find them in the exporters
-# directory
+# These files set the build directory up for CMake inclusion.
+# To achieve this, their variables are taken from builddata.pm.
+# These files are not installed; you will find the installable
+# versions in the 'exporters' directory.
 GENERATE[OpenSSLConfig.cmake]=exporters/cmake/OpenSSLConfig.cmake.in
 DEPEND[OpenSSLConfig.cmake]=builddata.pm
 GENERATE[OpenSSLConfigVersion.cmake]=exporters/cmake/OpenSSLConfigVersion.cmake.in
@@ -121,7 +119,10 @@ DEPEND[OpenSSLConfigVersion.cmake]=builddata.pm
 DEPEND[OpenSSLConfigVersion.cmake]=OpenSSLConfig.cmake
 DEPEND[""]=OpenSSLConfigVersion.cmake
 
-# This file sets the build directory up for pkg-config
+# These files set the build directory up for pkg-config use.
+# To achieve this, their variables are taken from builddata.pm.
+# These files are not installed; you will find the installable
+# versions in the 'exporters' directory.
 GENERATE[libcrypto.pc]=exporters/pkg-config/libcrypto.pc.in
 DEPEND[libcrypto.pc]=builddata.pm
 GENERATE[libssl.pc]=exporters/pkg-config/libssl.pc.in
@@ -131,6 +132,7 @@ DEPEND[openssl.pc]=builddata.pm
 DEPEND[openssl.pc]=libcrypto.pc libssl.pc
 
 GENERATE[builddata.pm]=util/mkinstallvars.pl \
+    COMMENT="This file should be used when building against this OpenSSL build, and should never be installed" \
     PREFIX=. BINDIR=apps APPLINKDIR=ms \
     LIBDIR= INCLUDEDIR=include "INCLUDEDIR=$(SRCDIR)/include" \
     ENGINESDIR=engines MODULESDIR=providers \

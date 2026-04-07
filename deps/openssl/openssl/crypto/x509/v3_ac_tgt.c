@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -41,7 +41,7 @@ ASN1_SEQUENCE(OSSL_ISSUER_SERIAL) = {
     ASN1_OPT(OSSL_ISSUER_SERIAL, issuerUID, ASN1_BIT_STRING),
 } static_ASN1_SEQUENCE_END(OSSL_ISSUER_SERIAL)
 
-    ASN1_SEQUENCE(OSSL_OBJECT_DIGEST_INFO)
+ASN1_SEQUENCE(OSSL_OBJECT_DIGEST_INFO)
     = {
           ASN1_EMBED(OSSL_OBJECT_DIGEST_INFO, digestedObjectType, ASN1_ENUMERATED),
           ASN1_OPT(OSSL_OBJECT_DIGEST_INFO, otherObjectTypeID, ASN1_OBJECT),
@@ -49,14 +49,14 @@ ASN1_SEQUENCE(OSSL_ISSUER_SERIAL) = {
           ASN1_EMBED(OSSL_OBJECT_DIGEST_INFO, objectDigest, ASN1_BIT_STRING),
       } static_ASN1_SEQUENCE_END(OSSL_OBJECT_DIGEST_INFO)
 
-        ASN1_SEQUENCE(OSSL_TARGET_CERT)
+ASN1_SEQUENCE(OSSL_TARGET_CERT)
     = {
           ASN1_SIMPLE(OSSL_TARGET_CERT, targetCertificate, OSSL_ISSUER_SERIAL),
           ASN1_OPT(OSSL_TARGET_CERT, targetName, GENERAL_NAME),
           ASN1_OPT(OSSL_TARGET_CERT, certDigestInfo, OSSL_OBJECT_DIGEST_INFO),
       } static_ASN1_SEQUENCE_END(OSSL_TARGET_CERT)
 
-        ASN1_CHOICE(OSSL_TARGET)
+ASN1_CHOICE(OSSL_TARGET)
     = {
           ASN1_EXP(OSSL_TARGET, choice.targetName, GENERAL_NAME, 0),
           ASN1_EXP(OSSL_TARGET, choice.targetGroup, GENERAL_NAME, 1),

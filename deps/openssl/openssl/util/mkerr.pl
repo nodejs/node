@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 1999-2024 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 1999-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -339,21 +339,21 @@ foreach my $lib ( keys %errorfile ) {
  */
 
 #ifndef $guard
-# define $guard
-# pragma once
+#define $guard
+#pragma once
 
-# include <openssl/opensslconf.h>
-# include <openssl/symhacks.h>
+#include <openssl/opensslconf.h>
+#include <openssl/symhacks.h>
 
-# ifdef  __cplusplus
+#ifdef __cplusplus
 extern \"C\" {
-# endif
+#endif
 
 EOF
         $indent = ' ';
         if ($disablable) {
             print OUT <<"EOF";
-# ifndef OPENSSL_NO_${lib}
+#ifndef OPENSSL_NO_${lib}
 
 EOF
             $indent = "  ";
@@ -380,7 +380,7 @@ EOF
                     $rassigned{$lib} .= "$findcode:";
                     print STDERR "New Reason code $i\n" if $debug;
                 }
-                printf OUT "#${indent}define $i%s $rcodes{$i}\n", " " x $z;
+                printf OUT "#define $i $rcodes{$i}\n";
             }
             print OUT "\n";
         }
@@ -389,14 +389,14 @@ EOF
         # brace for 'extern "C" {'.
         while (length($indent) > 1) {
             $indent = substr $indent, 0, -1;
-            print OUT "#${indent}endif\n";
+            print OUT "#endif\n";
         }
 
         print OUT <<"EOF";
 
-# ifdef  __cplusplus
+#ifdef __cplusplus
 }
-# endif
+#endif
 #endif
 EOF
         close OUT;
@@ -408,8 +408,8 @@ EOF
         my $extra_include =
             $internal
             ? ($lib ne 'SSL'
-               ? "# include <openssl/cryptoerr_legacy.h>\n"
-               : "# include <openssl/sslerr_legacy.h>\n")
+               ? "#include <openssl/cryptoerr_legacy.h>\n"
+               : "#include <openssl/sslerr_legacy.h>\n")
             : '';
         my $hfile = $hpubinc{$lib};
         my $guard = $hfile;
@@ -430,46 +430,43 @@ EOF
  */
 
 #ifndef $guard
-# define $guard
-# pragma once
+#define $guard
+#pragma once
 
-# include <openssl/opensslconf.h>
-# include <openssl/symhacks.h>
+#include <openssl/opensslconf.h>
+#include <openssl/symhacks.h>
 $extra_include
-
 EOF
         $indent = ' ';
         if ( $internal ) {
             if ($disablable) {
                 print OUT <<"EOF";
-# ifndef OPENSSL_NO_${lib}
-
+#ifndef OPENSSL_NO_${lib}
 EOF
                 $indent .= ' ';
             }
         } else {
             print OUT <<"EOF";
-# define ${lib}err(f, r) ERR_${lib}_error(0, (r), OPENSSL_FILE, OPENSSL_LINE)
-# define ERR_R_${lib}_LIB ERR_${lib}_lib()
-
+#define ${lib}err(f, r) ERR_${lib}_error(0, (r), OPENSSL_FILE, OPENSSL_LINE)
+#define ERR_R_${lib}_LIB ERR_${lib}_lib()
 EOF
             if ( ! $static ) {
                 print OUT <<"EOF";
 
-# ifdef  __cplusplus
+#ifdef __cplusplus
 extern \"C\" {
-# endif
+#endif
 int ERR_load_${lib}_strings(void);
 void ERR_unload_${lib}_strings(void);
 void ERR_${lib}_error(int function, int reason, const char *file, int line);
-# ifdef  __cplusplus
+#ifdef __cplusplus
 }
-# endif
+#endif
 EOF
             }
         }
 
-        print OUT "\n/*\n * $lib reason codes.\n */\n";
+        print OUT "/*\n * $lib reason codes.\n */\n";
         foreach my $i ( @reasons ) {
             my $z = 48 - length($i);
             $z = 0 if $z < 0;
@@ -484,13 +481,13 @@ EOF
                 $rassigned{$lib} .= "$findcode:";
                 print STDERR "New Reason code $i\n" if $debug;
             }
-            printf OUT "#${indent}define $i%s $rcodes{$i}\n", " " x $z;
+            printf OUT "#define $i $rcodes{$i}\n";
         }
         print OUT "\n";
 
         while (length($indent) > 0) {
             $indent = substr $indent, 0, -1;
-            print OUT "#${indent}endif\n";
+            print OUT "#endif\n";
         }
         close OUT;
     }
@@ -550,7 +547,7 @@ EOF
             }
         }
         print OUT <<"EOF";
-#${indent}ifndef OPENSSL_NO_ERR
+#ifndef OPENSSL_NO_ERR
 
 static ${const}ERR_STRING_DATA ${lib}_str_reasons[] = {
 EOF
@@ -568,26 +565,26 @@ EOF
                 $strings{$i} = $rn;
             }
             my $lines;
-            $lines = "    {ERR_PACK($pack_lib, 0, $i), \"$rn\"},";
-            $lines = "    {ERR_PACK($pack_lib, 0, $i),\n     \"$rn\"},"
-                if length($lines) > 80;
+            $lines = "    { ERR_PACK($pack_lib, 0, $i), \"$rn\" },";
+            $lines = "    { ERR_PACK($pack_lib, 0, $i),\n        \"$rn\" },"
+                if length($lines) > 82;
             print OUT "$lines\n";
         }
         print OUT <<"EOF";
-    {0, NULL}
+    { 0, NULL }
 };
 
-#${indent}endif
+#endif
 EOF
         if ( $internal ) {
             print OUT <<"EOF";
 
 int ossl_err_load_${lib}_strings(void)
 {
-#${indent}ifndef OPENSSL_NO_ERR
+#ifndef OPENSSL_NO_ERR
     if (ERR_reason_error_string(${lib}_str_reasons[0].error) == NULL)
         ERR_load_strings_const(${lib}_str_reasons);
-#${indent}endif
+#endif
     return 1;
 }
 EOF
@@ -642,7 +639,7 @@ EOF
 
         while (length($indent) > 1) {
             $indent = substr $indent, 0, -1;
-            print OUT "#${indent}endif\n";
+            print OUT "#endif\n";
         }
         if ($internal && $disablable) {
             print OUT <<"EOF";

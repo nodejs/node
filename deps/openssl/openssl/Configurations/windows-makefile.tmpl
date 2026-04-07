@@ -38,6 +38,7 @@
 PLATFORM={- $config{target} -}
 SRCDIR={- $config{sourcedir} -}
 BLDDIR={- $config{builddir} -}
+RESULT_D=$(BLDDIR)\test-runs
 FIPSKEY={- $config{FIPSKEY} -}
 
 VERSION={- "$config{full_version}" -}
@@ -222,7 +223,7 @@ OPENSSLDIR_dir={- canonpath($openssldir_dir) -}
 LIBDIR={- our $libdir = $config{libdir} || "lib";
           file_name_is_absolute($libdir) ? "" : $libdir -}
 MODULESDIR_dev={- use File::Spec::Functions qw(:DEFAULT splitpath catpath);
-                  our $modulesprefix = catdir($prefix,$libdir);
+                  our $modulesprefix = file_name_is_absolute($libdir) ? $libdir : catdir($prefix,$libdir);
                   our ($modulesprefix_dev, $modulesprefix_dir,
                        $modulesprefix_file) =
                       splitpath($modulesprefix, 1);
@@ -484,7 +485,7 @@ clean: libclean
 	-del /Q /S /F engines\*.lib engines\*.exp
 	-del /Q /S /F apps\*.lib apps\*.rc apps\*.res apps\*.exp
 	-del /Q /S /F test\*.exp
-	-rd /Q /S test\test-runs
+	-@if exist "$(RESULT_D)" rd /Q /S "$(RESULT_D)"
 
 distclean: clean
 	-del /Q /F include\openssl\configuration.h

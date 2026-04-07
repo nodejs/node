@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -387,7 +387,7 @@ struct bn_gencb_st {
 #elif defined(__alpha) && (defined(SIXTY_FOUR_BIT_LONG) || defined(SIXTY_FOUR_BIT))
 #if defined(__DECC)
 #include <c_asm.h>
-#define BN_UMULT_HIGH(a, b) (BN_ULONG) asm("umulh %a0,%a1,%v0", (a), (b))
+#define BN_UMULT_HIGH(a, b) (BN_ULONG)asm("umulh %a0,%a1,%v0", (a), (b))
 #elif defined(__GNUC__) && __GNUC__ >= 2
 #define BN_UMULT_HIGH(a, b) ({     \
         register BN_ULONG ret;          \

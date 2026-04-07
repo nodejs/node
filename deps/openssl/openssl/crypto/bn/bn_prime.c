@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -30,7 +30,7 @@ static int bn_is_prime_int(const BIGNUM *w, int checks, BN_CTX *ctx,
 #define square(x) ((BN_ULONG)(x) * (BN_ULONG)(x))
 
 #if BN_BITS2 == 64
-#define BN_DEF(lo, hi) (BN_ULONG) hi << 32 | lo
+#define BN_DEF(lo, hi) (BN_ULONG)hi << 32 | lo
 #else
 #define BN_DEF(lo, hi) lo, hi
 #endif

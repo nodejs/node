@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -534,6 +534,9 @@ void ossl_rcu_assign_uptr(void **p, void **v)
 CRYPTO_RCU_LOCK *ossl_rcu_lock_new(int num_writers, OSSL_LIB_CTX *ctx)
 {
     struct rcu_lock_st *new;
+    pthread_mutex_t *mutexes[3] = { NULL };
+    pthread_cond_t *conds[2] = { NULL };
+    int i;
 
     /*
      * We need a minimum of 2 qp's
@@ -550,19 +553,40 @@ CRYPTO_RCU_LOCK *ossl_rcu_lock_new(int num_writers, OSSL_LIB_CTX *ctx)
         return NULL;
 
     new->ctx = ctx;
-    pthread_mutex_init(&new->write_lock, NULL);
-    pthread_mutex_init(&new->prior_lock, NULL);
-    pthread_mutex_init(&new->alloc_lock, NULL);
-    pthread_cond_init(&new->prior_signal, NULL);
-    pthread_cond_init(&new->alloc_signal, NULL);
-
+    i = 0;
+    mutexes[i] = pthread_mutex_init(&new->write_lock, NULL) == 0 ? &new->write_lock : NULL;
+    if (mutexes[i++] == NULL)
+        goto err;
+    mutexes[i] = pthread_mutex_init(&new->prior_lock, NULL) == 0 ? &new->prior_lock : NULL;
+    if (mutexes[i++] == NULL)
+        goto err;
+    mutexes[i] = pthread_mutex_init(&new->alloc_lock, NULL) == 0 ? &new->alloc_lock : NULL;
+    if (mutexes[i++] == NULL)
+        goto err;
+    conds[i - 3] = pthread_cond_init(&new->prior_signal, NULL) == 0 ? &new->prior_signal : NULL;
+    if (conds[i - 3] == NULL)
+        goto err;
+    i++;
+    conds[i - 3] = pthread_cond_init(&new->alloc_signal, NULL) == 0 ? &new->alloc_signal : NULL;
+    if (conds[i - 3] == NULL)
+        goto err;
+    i++;
     new->qp_group = allocate_new_qp_group(new, num_writers);
-    if (new->qp_group == NULL) {
-        OPENSSL_free(new);
-        new = NULL;
-    }
+    if (new->qp_group == NULL)
+        goto err;
 
     return new;
+
+err:
+    for (i = 0; i < 3; i++)
+        if (mutexes[i] != NULL)
+            pthread_mutex_destroy(mutexes[i]);
+    for (i = 0; i < 2; i++)
+        if (conds[i] != NULL)
+            pthread_cond_destroy(conds[i]);
+    OPENSSL_free(new->qp_group);
+    OPENSSL_free(new);
+    return NULL;
 }
 
 void ossl_rcu_lock_free(CRYPTO_RCU_LOCK *lock)
@@ -576,6 +600,17 @@ void ossl_rcu_lock_free(CRYPTO_RCU_LOCK *lock)
     ossl_synchronize_rcu(rlock);
 
     OPENSSL_free(rlock->qp_group);
+    /*
+     * Some targets (BSD) allocate heap when initializing
+     * a mutex or condition, to prevent leaks, those need
+     * to be destroyed here
+     */
+    pthread_mutex_destroy(&rlock->write_lock);
+    pthread_mutex_destroy(&rlock->prior_lock);
+    pthread_mutex_destroy(&rlock->alloc_lock);
+    pthread_cond_destroy(&rlock->prior_signal);
+    pthread_cond_destroy(&rlock->alloc_signal);
+
     /* There should only be a single qp left now */
     OPENSSL_free(rlock);
 }
