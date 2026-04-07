@@ -426,9 +426,9 @@ void BindingData::Parse(const FunctionCallbackInfo<Value>& args) {
 }
 
 void BindingData::Update(const FunctionCallbackInfo<Value>& args) {
-  CHECK(args[0]->IsString());  // href
-  CHECK(args[1]->IsNumber());  // action type
-  CHECK(args[2]->IsString());  // new value
+  CHECK(args[0]->IsString());    // href
+  CHECK(args[1]->IsNumber());    // action type
+  CHECK(args[2]->IsString());    // new value
 
   Realm* realm = Realm::GetCurrent(args);
   BindingData* binding_data = realm->GetBindingData<BindingData>();
