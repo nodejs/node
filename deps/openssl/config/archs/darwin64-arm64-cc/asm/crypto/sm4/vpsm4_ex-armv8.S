@@ -62,12 +62,13 @@ _vpsm4_ex_set_key:
 	AARCH64_VALID_CALL_TARGET
 	ld1	{v5.4s},[x0]
 	adrp	x9, Lsbox_magic@PAGE
-	ldr	q26, [x9, Lsbox_magic@PAGEOFF]
-	ldr	q27, [x9, Lsbox_magic@PAGEOFF+16]
-	ldr	q28, [x9, Lsbox_magic@PAGEOFF+32]
-	ldr	q29, [x9, Lsbox_magic@PAGEOFF+48]
-	ldr	q30, [x9, Lsbox_magic@PAGEOFF+64]
-	ldr	q31, [x9, Lsbox_magic@PAGEOFF+80]
+	add	x9, x9, Lsbox_magic@PAGEOFF
+	ldr	q26, [x9]
+	ldr	q27, [x9, 16]
+	ldr	q28, [x9, 32]
+	ldr	q29, [x9, 48]
+	ldr	q30, [x9, 64]
+	ldr	q31, [x9, 80]
 #ifndef __AARCH64EB__
 	rev32	v5.16b,v5.16b
 #endif
@@ -639,12 +640,13 @@ _vpsm4_ex_encrypt:
 	AARCH64_VALID_CALL_TARGET
 	ld1	{v4.4s},[x0]
 	adrp	x9, Lsbox_magic@PAGE
-	ldr	q26, [x9, Lsbox_magic@PAGEOFF]
-	ldr	q27, [x9, Lsbox_magic@PAGEOFF+16]
-	ldr	q28, [x9, Lsbox_magic@PAGEOFF+32]
-	ldr	q29, [x9, Lsbox_magic@PAGEOFF+48]
-	ldr	q30, [x9, Lsbox_magic@PAGEOFF+64]
-	ldr	q31, [x9, Lsbox_magic@PAGEOFF+80]
+	add	x9, x9, Lsbox_magic@PAGEOFF
+	ldr	q26, [x9]
+	ldr	q27, [x9, 16]
+	ldr	q28, [x9, 32]
+	ldr	q29, [x9, 48]
+	ldr	q30, [x9, 64]
+	ldr	q31, [x9, 80]
 #ifndef __AARCH64EB__
 	rev32	v4.16b,v4.16b
 #endif
@@ -781,12 +783,13 @@ _vpsm4_ex_decrypt:
 	AARCH64_VALID_CALL_TARGET
 	ld1	{v4.4s},[x0]
 	adrp	x9, Lsbox_magic@PAGE
-	ldr	q26, [x9, Lsbox_magic@PAGEOFF]
-	ldr	q27, [x9, Lsbox_magic@PAGEOFF+16]
-	ldr	q28, [x9, Lsbox_magic@PAGEOFF+32]
-	ldr	q29, [x9, Lsbox_magic@PAGEOFF+48]
-	ldr	q30, [x9, Lsbox_magic@PAGEOFF+64]
-	ldr	q31, [x9, Lsbox_magic@PAGEOFF+80]
+	add	x9, x9, Lsbox_magic@PAGEOFF
+	ldr	q26, [x9]
+	ldr	q27, [x9, 16]
+	ldr	q28, [x9, 32]
+	ldr	q29, [x9, 48]
+	ldr	q30, [x9, 64]
+	ldr	q31, [x9, 80]
 #ifndef __AARCH64EB__
 	rev32	v4.16b,v4.16b
 #endif
@@ -929,12 +932,13 @@ _vpsm4_ex_ecb_encrypt:
 	stp	d14,d15,[sp,#48]
 	stp	x29,x30,[sp,#64]
 	adrp	x9, Lsbox_magic@PAGE
-	ldr	q26, [x9, Lsbox_magic@PAGEOFF]
-	ldr	q27, [x9, Lsbox_magic@PAGEOFF+16]
-	ldr	q28, [x9, Lsbox_magic@PAGEOFF+32]
-	ldr	q29, [x9, Lsbox_magic@PAGEOFF+48]
-	ldr	q30, [x9, Lsbox_magic@PAGEOFF+64]
-	ldr	q31, [x9, Lsbox_magic@PAGEOFF+80]
+	add	x9, x9, Lsbox_magic@PAGEOFF
+	ldr	q26, [x9]
+	ldr	q27, [x9, 16]
+	ldr	q28, [x9, 32]
+	ldr	q29, [x9, 48]
+	ldr	q30, [x9, 64]
+	ldr	q31, [x9, 80]
 Lecb_8_blocks_process:
 	cmp	w2,#8
 	b.lt	Lecb_4_blocks_process
@@ -1177,12 +1181,13 @@ _vpsm4_ex_cbc_encrypt:
 	AARCH64_VALID_CALL_TARGET
 	lsr	x2,x2,4
 	adrp	x9, Lsbox_magic@PAGE
-	ldr	q26, [x9, Lsbox_magic@PAGEOFF]
-	ldr	q27, [x9, Lsbox_magic@PAGEOFF+16]
-	ldr	q28, [x9, Lsbox_magic@PAGEOFF+32]
-	ldr	q29, [x9, Lsbox_magic@PAGEOFF+48]
-	ldr	q30, [x9, Lsbox_magic@PAGEOFF+64]
-	ldr	q31, [x9, Lsbox_magic@PAGEOFF+80]
+	add	x9, x9, Lsbox_magic@PAGEOFF
+	ldr	q26, [x9]
+	ldr	q27, [x9, 16]
+	ldr	q28, [x9, 32]
+	ldr	q29, [x9, 48]
+	ldr	q30, [x9, 64]
+	ldr	q31, [x9, 80]
 	cbz	w5,Ldec
 	ld1	{v3.4s},[x4]
 Lcbc_4_blocks_enc:
@@ -2169,12 +2174,13 @@ _vpsm4_ex_ctr32_encrypt_blocks:
 	rev32	v3.16b,v3.16b
 #endif
 	adrp	x9, Lsbox_magic@PAGE
-	ldr	q26, [x9, Lsbox_magic@PAGEOFF]
-	ldr	q27, [x9, Lsbox_magic@PAGEOFF+16]
-	ldr	q28, [x9, Lsbox_magic@PAGEOFF+32]
-	ldr	q29, [x9, Lsbox_magic@PAGEOFF+48]
-	ldr	q30, [x9, Lsbox_magic@PAGEOFF+64]
-	ldr	q31, [x9, Lsbox_magic@PAGEOFF+80]
+	add	x9, x9, Lsbox_magic@PAGEOFF
+	ldr	q26, [x9]
+	ldr	q27, [x9, 16]
+	ldr	q28, [x9, 32]
+	ldr	q29, [x9, 48]
+	ldr	q30, [x9, 64]
+	ldr	q31, [x9, 80]
 	cmp	w2,#1
 	b.ne	1f
 	// fast processing for one single block without
@@ -2569,12 +2575,13 @@ _vpsm4_ex_xts_encrypt_gb:
 	ld1	{v16.4s}, [x5]
 	mov	x3,x27
 	adrp	x9, Lsbox_magic@PAGE
-	ldr	q26, [x9, Lsbox_magic@PAGEOFF]
-	ldr	q27, [x9, Lsbox_magic@PAGEOFF+16]
-	ldr	q28, [x9, Lsbox_magic@PAGEOFF+32]
-	ldr	q29, [x9, Lsbox_magic@PAGEOFF+48]
-	ldr	q30, [x9, Lsbox_magic@PAGEOFF+64]
-	ldr	q31, [x9, Lsbox_magic@PAGEOFF+80]
+	add	x9, x9, Lsbox_magic@PAGEOFF
+	ldr	q26, [x9]
+	ldr	q27, [x9, 16]
+	ldr	q28, [x9, 32]
+	ldr	q29, [x9, 48]
+	ldr	q30, [x9, 64]
+	ldr	q31, [x9, 80]
 #ifndef __AARCH64EB__
 	rev32	v16.16b,v16.16b
 #endif
@@ -3573,12 +3580,13 @@ _vpsm4_ex_xts_encrypt:
 	ld1	{v16.4s}, [x5]
 	mov	x3,x27
 	adrp	x9, Lsbox_magic@PAGE
-	ldr	q26, [x9, Lsbox_magic@PAGEOFF]
-	ldr	q27, [x9, Lsbox_magic@PAGEOFF+16]
-	ldr	q28, [x9, Lsbox_magic@PAGEOFF+32]
-	ldr	q29, [x9, Lsbox_magic@PAGEOFF+48]
-	ldr	q30, [x9, Lsbox_magic@PAGEOFF+64]
-	ldr	q31, [x9, Lsbox_magic@PAGEOFF+80]
+	add	x9, x9, Lsbox_magic@PAGEOFF
+	ldr	q26, [x9]
+	ldr	q27, [x9, 16]
+	ldr	q28, [x9, 32]
+	ldr	q29, [x9, 48]
+	ldr	q30, [x9, 64]
+	ldr	q31, [x9, 80]
 #ifndef __AARCH64EB__
 	rev32	v16.16b,v16.16b
 #endif
