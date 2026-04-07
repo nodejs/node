@@ -1,4 +1,5 @@
 .text
+.machine	"z10"
 
 .type	__KeccakF1600,@function
 .align	32
