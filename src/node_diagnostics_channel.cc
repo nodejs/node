@@ -136,6 +136,7 @@ void BindingData::NotifyChannelActive(const FunctionCallbackInfo<Value>& args) {
   Realm* realm = Realm::GetCurrent(args);
   BindingData* binding = realm->GetBindingData<BindingData>();
   if (binding == nullptr) return;
+  CHECK(args[0]->IsUint32());
   uint32_t index = args[0].As<v8::Uint32>()->Value();
   auto it = binding->channel_status_callbacks_.find(index);
   if (it != binding->channel_status_callbacks_.end()) it->second(true);
@@ -146,6 +147,7 @@ void BindingData::NotifyChannelInactive(
   Realm* realm = Realm::GetCurrent(args);
   BindingData* binding = realm->GetBindingData<BindingData>();
   if (binding == nullptr) return;
+  CHECK(args[0]->IsUint32());
   uint32_t index = args[0].As<v8::Uint32>()->Value();
   auto it = binding->channel_status_callbacks_.find(index);
   if (it != binding->channel_status_callbacks_.end()) it->second(false);
