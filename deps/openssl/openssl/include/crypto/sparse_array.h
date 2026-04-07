@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2019, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -62,7 +62,7 @@ extern "C" {
     }                                                                                                              \
     static ossl_unused ossl_inline int                                                                             \
     ossl_sa_##type##_set(SPARSE_ARRAY_OF(type) * sa,                                                               \
-        ossl_uintmax_t n, ctype * val)                                                                             \
+        ossl_uintmax_t n, ctype *val)                                                                              \
     {                                                                                                              \
         return ossl_sa_set((OPENSSL_SA *)sa, n, (void *)val);                                                      \
     }                                                                                                              \

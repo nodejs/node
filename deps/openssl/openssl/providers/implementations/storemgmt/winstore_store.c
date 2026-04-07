@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -272,8 +272,10 @@ static int winstore_load_using(struct winstore_ctx_st *ctx,
     const unsigned char *der_ = der;
     size_t der_len_ = der_len;
 
-    if (setup_decoder(ctx) == 0)
+    if (setup_decoder(ctx) == 0) {
+        ctx->state = STATE_EOF;
         return 0;
+    }
 
     data.object_cb = object_cb;
     data.object_cbarg = object_cbarg;

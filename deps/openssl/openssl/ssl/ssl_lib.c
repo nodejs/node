@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  * Copyright 2005 Nokia. All rights reserved.
  *
@@ -3412,22 +3412,21 @@ char *SSL_get_shared_ciphers(const SSL *s, char *buf, int size)
     int i;
     const SSL_CONNECTION *sc = SSL_CONNECTION_FROM_CONST_SSL(s);
 
-    if (sc == NULL)
+    if (size < 2 || buf == NULL)
         return NULL;
 
-    if (!sc->server
-        || sc->peer_ciphers == NULL
-        || size < 2)
+    buf[0] = '\0';
+
+    if (sc == NULL || !sc->server)
         return NULL;
 
     p = buf;
     clntsk = sc->peer_ciphers;
     srvrsk = SSL_get_ciphers(s);
-    if (clntsk == NULL || srvrsk == NULL)
-        return NULL;
 
-    if (sk_SSL_CIPHER_num(clntsk) == 0 || sk_SSL_CIPHER_num(srvrsk) == 0)
-        return NULL;
+    if (clntsk == NULL || sk_SSL_CIPHER_num(clntsk) == 0
+        || srvrsk == NULL || sk_SSL_CIPHER_num(srvrsk) == 0)
+        return buf;
 
     for (i = 0; i < sk_SSL_CIPHER_num(clntsk); i++) {
         int n;
@@ -3447,10 +3446,9 @@ char *SSL_get_shared_ciphers(const SSL *s, char *buf, int size)
     }
 
     /* No overlap */
-    if (p == buf)
-        return NULL;
+    if (p != buf)
+        p[-1] = '\0';
 
-    p[-1] = '\0';
     return buf;
 }
 

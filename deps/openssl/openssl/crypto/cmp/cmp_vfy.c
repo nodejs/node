@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Nokia 2007-2020
  * Copyright Siemens AG 2015-2020
  *
@@ -363,13 +363,12 @@ err:
     return valid;
 }
 
+/* checks protection of msg but not cert revocation nor cert chain */
 static int check_msg_given_cert(const OSSL_CMP_CTX *ctx, X509 *cert,
     const OSSL_CMP_MSG *msg)
 {
     return cert_acceptable(ctx, "previously validated", "sender cert",
-               cert, NULL, NULL, msg)
-        && (check_cert_path(ctx, ctx->trusted, cert)
-            || check_cert_path_3gpp(ctx, msg, cert));
+        cert, NULL, NULL, msg);
 }
 
 /*-
@@ -479,22 +478,26 @@ static int check_msg_find_cert(OSSL_CMP_CTX *ctx, const OSSL_CMP_MSG *msg)
     (void)ERR_set_mark();
     ctx->log_cb = NULL; /* temporarily disable logging */
 
-    /*
-     * try first cached scrt, used successfully earlier in same transaction,
-     * for validating this and any further msgs where extraCerts may be left out
-     */
     if (scrt != NULL) {
+        /*-
+         * try first using cached message sender cert (in 'scrt' variable),
+         * which was used successfully earlier in the same transaction
+         * (assuming that the certificate itself was not revoked meanwhile and
+         *  is a good guess for use in validating also the current message)
+         */
         if (check_msg_given_cert(ctx, scrt, msg)) {
             ctx->log_cb = backup_log_cb;
             (void)ERR_pop_to_mark();
             return 1;
         }
         /* cached sender cert has shown to be no more successfully usable */
-        (void)ossl_cmp_ctx_set1_validatedSrvCert(ctx, NULL);
         /* re-do the above check (just) for adding diagnostic information */
         ossl_cmp_info(ctx,
             "trying to verify msg signature with previously validated cert");
+        ctx->log_cb = backup_log_cb;
         (void)check_msg_given_cert(ctx, scrt, msg);
+        ctx->log_cb = NULL;
+        (void)ossl_cmp_ctx_set1_validatedSrvCert(ctx, NULL); /* this invalidates scrt */
     }
 
     res = check_msg_all_certs(ctx, msg, 0 /* using ctx->trusted */)
@@ -628,7 +631,7 @@ int OSSL_CMP_validate_msg(OSSL_CMP_CTX *ctx, const OSSL_CMP_MSG *msg)
         scrt = ctx->srvCert;
         if (scrt == NULL) {
             if (ctx->trusted == NULL && ctx->secretValue != NULL) {
-                ossl_cmp_info(ctx, "no trust store nor pinned server cert available for verifying signature-based CMP message protection");
+                ossl_cmp_info(ctx, "no trust store nor pinned sender cert available for verifying signature-based CMP message protection");
                 ERR_raise(ERR_LIB_CMP, CMP_R_MISSING_TRUST_ANCHOR);
                 return 0;
             }
@@ -642,7 +645,7 @@ int OSSL_CMP_validate_msg(OSSL_CMP_CTX *ctx, const OSSL_CMP_MSG *msg)
             /* use ctx->srvCert for signature check even if not acceptable */
             if (verify_signature(ctx, msg, scrt)) {
                 ossl_cmp_debug(ctx,
-                    "successfully validated signature-based CMP message protection using pinned server cert");
+                    "successfully validated signature-based CMP message protection using pinned sender cert");
                 return ossl_cmp_ctx_set1_validatedSrvCert(ctx, scrt);
             }
             ossl_cmp_warn(ctx, "CMP message signature verification failed");

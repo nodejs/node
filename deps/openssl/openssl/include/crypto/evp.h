@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -488,17 +488,17 @@ struct evp_cipher_st {
     BLOCK_CIPHER_def1(cname, ecb, ecb, ECB, kstruct, nid, block_size, key_len, \
         0, flags, init_key, cleanup, set_asn1, get_asn1, ctrl)
 
-#define BLOCK_CIPHER_defs(cname, kstruct,                                             \
-    nid, block_size, key_len, iv_len, cbits, flags,                                   \
-    init_key, cleanup, set_asn1, get_asn1, ctrl)                                      \
-    BLOCK_CIPHER_def_cbc(cname, kstruct, nid, block_size, key_len, iv_len, flags,     \
-        init_key, cleanup, set_asn1, get_asn1, ctrl)                                  \
-        BLOCK_CIPHER_def_cfb(cname, kstruct, nid, key_len, iv_len, cbits,             \
-            flags, init_key, cleanup, set_asn1, get_asn1, ctrl)                       \
-            BLOCK_CIPHER_def_ofb(cname, kstruct, nid, key_len, iv_len, cbits,         \
-                flags, init_key, cleanup, set_asn1, get_asn1, ctrl)                   \
-                BLOCK_CIPHER_def_ecb(cname, kstruct, nid, block_size, key_len, flags, \
-                    init_key, cleanup, set_asn1, get_asn1, ctrl)
+#define BLOCK_CIPHER_defs(cname, kstruct,                                         \
+    nid, block_size, key_len, iv_len, cbits, flags,                               \
+    init_key, cleanup, set_asn1, get_asn1, ctrl)                                  \
+    BLOCK_CIPHER_def_cbc(cname, kstruct, nid, block_size, key_len, iv_len, flags, \
+        init_key, cleanup, set_asn1, get_asn1, ctrl)                              \
+    BLOCK_CIPHER_def_cfb(cname, kstruct, nid, key_len, iv_len, cbits,             \
+        flags, init_key, cleanup, set_asn1, get_asn1, ctrl)                       \
+    BLOCK_CIPHER_def_ofb(cname, kstruct, nid, key_len, iv_len, cbits,             \
+        flags, init_key, cleanup, set_asn1, get_asn1, ctrl)                       \
+    BLOCK_CIPHER_def_ecb(cname, kstruct, nid, block_size, key_len, flags,         \
+        init_key, cleanup, set_asn1, get_asn1, ctrl)
 
 /*-
 #define BLOCK_CIPHER_defs(cname, kstruct, \

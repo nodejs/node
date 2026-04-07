@@ -831,6 +831,10 @@ int PKCS7_dataFinal(PKCS7 *p7, BIO *bio)
         break;
     case NID_pkcs7_signed:
         si_sk = p7->d.sign->signer_info;
+        if (p7->d.sign->contents == NULL) {
+            ERR_raise(ERR_LIB_PKCS7, PKCS7_R_NO_CONTENT);
+            goto err;
+        }
         os = PKCS7_get_octet_string(p7->d.sign->contents);
         /* If detached data then the content is excluded */
         if (PKCS7_type_is_data(p7->d.sign->contents) && p7->detached) {
@@ -841,6 +845,10 @@ int PKCS7_dataFinal(PKCS7 *p7, BIO *bio)
         break;
 
     case NID_pkcs7_digest:
+        if (p7->d.digest->contents == NULL) {
+            ERR_raise(ERR_LIB_PKCS7, PKCS7_R_NO_CONTENT);
+            goto err;
+        }
         os = PKCS7_get_octet_string(p7->d.digest->contents);
         /* If detached data then the content is excluded */
         if (PKCS7_type_is_data(p7->d.digest->contents) && p7->detached) {

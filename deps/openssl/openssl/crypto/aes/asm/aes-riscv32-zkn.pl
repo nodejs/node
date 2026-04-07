@@ -2,7 +2,7 @@
 # This file is dual-licensed, meaning that you can use it under your
 # choice of either of the following two licenses:
 #
-# Copyright 2022-2023 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License"). You can obtain
 # a copy in the file LICENSE in the source distribution or at
@@ -704,11 +704,6 @@ sub AES_set_common {
     my ($ke128, $ke192, $ke256) = @_;
     my $ret = '';
 $ret .= <<___;
-    bnez    $UKEY,1f        # if (!userKey || !key) return -1;
-    bnez    $KEYP,1f
-    li      a0,-1
-    ret
-1:
     # Determine number of rounds from key size in bits
     li      $T0,128
     bne     $BITS,$T0,1f
