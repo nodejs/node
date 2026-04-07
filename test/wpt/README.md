@@ -155,7 +155,7 @@ expected failures.
     // Optional: If the requirement is not met, this test will be skipped
     "requires": ["small-icu"],  // supports: "small-icu", "full-icu", "crypto"
 
-    // Optional: the test will be skipped with the reason printed
+    // Optional: the entire file will be skipped with the reason printed
     "skip": "explain why we cannot run a test that's supposed to pass",
 
     // Optional: failing tests
@@ -172,6 +172,42 @@ expected failures.
   }
 }
 ```
+
+### Skipping individual subtests
+
+To skip specific subtests within a file (rather than skipping the entire file),
+use `skipTests` with an array of exact test names:
+
+```json
+{
+  "something.scope.js": {
+    "skipTests": [
+      "exact test name to skip"
+    ]
+  }
+}
+```
+
+When the status file is a CJS module, regular expressions can also be used:
+
+```js
+module.exports = {
+  'something.scope.js': {
+    'skipTests': [
+      'exact test name to skip',
+      /regexp pattern to match/,
+    ],
+  },
+};
+```
+
+Skipped subtests are reported as `[SKIP]` in the output, recorded as `NOTRUN`
+in the WPT report, and counted separately in the summary line.
+
+This is useful for skipping a particular subtest that crashes the runner,
+which would otherwise prevent the rest of the file from being run. When using
+CJS status files, this also enables conditionally skipping slow or
+resource-heavy subtests in CI on specific architectures.
 
 A test may have to be skipped because it depends on another irrelevant
 Web API, or certain harness has not been ported in our test runner yet.
