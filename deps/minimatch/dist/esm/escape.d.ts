@@ -1,4 +1,4 @@
-import { MinimatchOptions } from './index.js';
+import type { MinimatchOptions } from './index.js';
 /**
  * Escape all magic characters in a glob pattern.
  *
