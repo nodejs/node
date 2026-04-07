@@ -70,6 +70,11 @@ function expect_ok(syscall, resource, err, atime, mtime, statSync) {
   );
 }
 
+function getExpectedMtime(mtime) {
+  // Negative numeric timestamps are normalized to "now" at call time.
+  return fs._toUnixTimestamp(mtime);
+}
+
 const stats = fs.statSync(tmpdir.path);
 
 const asPath = (path) => path;
@@ -98,11 +103,13 @@ function runTests(iter) {
   //
   // test async code paths
   //
+  const expectedUtimesMtime = getExpectedMtime(mtime);
   fs.utimes(pathType(tmpdir.path), atime, mtime, common.mustCall((err) => {
-    expect_ok('utimes', tmpdir.path, err, atime, mtime);
+    expect_ok('utimes', tmpdir.path, err, atime, expectedUtimesMtime);
 
+    const expectedLutimesMtime = getExpectedMtime(mtime);
     fs.lutimes(pathType(lpath), atime, mtime, common.mustCall((err) => {
-      expect_ok('lutimes', lpath, err, atime, mtime, fs.lstatSync);
+      expect_ok('lutimes', lpath, err, atime, expectedLutimesMtime, fs.lstatSync);
 
       fs.utimes(pathType('foobarbaz'), atime, mtime, common.mustCall((err) => {
         expect_errno('utimes', 'foobarbaz', err, 'ENOENT');
@@ -114,8 +121,9 @@ function runTests(iter) {
           fd = fs.openSync(tmpdir.path, 'r');
         }
 
+        const expectedFutimesMtime = getExpectedMtime(mtime);
         fs.futimes(fd, atime, mtime, common.mustCall((err) => {
-          expect_ok('futimes', fd, err, atime, mtime);
+          expect_ok('futimes', fd, err, atime, expectedFutimesMtime);
 
           syncTests();
 
@@ -129,17 +137,20 @@ function runTests(iter) {
   // test synchronized code paths, these functions throw on failure
   //
   function syncTests() {
+    const expectedUtimesMtime = getExpectedMtime(mtime);
     fs.utimesSync(pathType(tmpdir.path), atime, mtime);
-    expect_ok('utimesSync', tmpdir.path, undefined, atime, mtime);
+    expect_ok('utimesSync', tmpdir.path, undefined, atime, expectedUtimesMtime);
 
+    const expectedLutimesMtime = getExpectedMtime(mtime);
     fs.lutimesSync(pathType(lpath), atime, mtime);
-    expect_ok('lutimesSync', lpath, undefined, atime, mtime, fs.lstatSync);
+    expect_ok('lutimesSync', lpath, undefined, atime, expectedLutimesMtime, fs.lstatSync);
 
     // Some systems don't have futimes
     // if there's an error, it should be ENOSYS
     try {
+      const expectedFutimesMtime = getExpectedMtime(mtime);
       fs.futimesSync(fd, atime, mtime);
-      expect_ok('futimesSync', fd, undefined, atime, mtime);
+      expect_ok('futimesSync', fd, undefined, atime, expectedFutimesMtime);
     } catch (ex) {
       expect_errno('futimesSync', fd, ex, 'ENOSYS');
     }
