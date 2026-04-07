@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -27,7 +27,7 @@
 #define OCB_MIN_IV_LEN 1
 #define OCB_MAX_IV_LEN 15
 
-PROV_CIPHER_FUNC(int, ocb_cipher, (PROV_AES_OCB_CTX * ctx, const unsigned char *in, unsigned char *out, size_t nextblock));
+PROV_CIPHER_FUNC(int, ocb_cipher, (PROV_AES_OCB_CTX *ctx, const unsigned char *in, unsigned char *out, size_t nextblock));
 /* forward declarations */
 static OSSL_FUNC_cipher_encrypt_init_fn aes_ocb_einit;
 static OSSL_FUNC_cipher_decrypt_init_fn aes_ocb_dinit;

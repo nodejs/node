@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -200,16 +200,28 @@ static void init_thread_destructor(void *hands)
 }
 
 static CRYPTO_ONCE ossl_init_thread_runonce = CRYPTO_ONCE_STATIC_INIT;
+/* MSVC linker can use other segment for uninitialized (zeroed) variables */
+#if defined(OPENSSL_SYS_WINDOWS)
 static CRYPTO_THREAD_ID recursion_guard = (CRYPTO_THREAD_ID)-1;
+#elif defined(OPENSSL_SYS_TANDEM) && (defined(_PUT_MODEL_) || defined(_KLT_MODEL_))
+static CRYPTO_THREAD_ID recursion_guard = { (void *)-1, (short)-1, (short)-1 };
+#else
+static CRYPTO_THREAD_ID recursion_guard = (CRYPTO_THREAD_ID)0;
+#endif
 
 DEFINE_RUN_ONCE_STATIC(ossl_init_thread_once)
 {
+    /* CRYPTO_THREAD_init_local() can call ossl_init_threads() again */
     recursion_guard = CRYPTO_THREAD_get_current_id();
     if (!CRYPTO_THREAD_init_local(&destructor_key.value,
             init_thread_destructor))
         return 0;
 
+#if defined(OPENSSL_SYS_TANDEM)
+    memset(&recursion_guard, 0, sizeof(recursion_guard));
+#else
     recursion_guard = (CRYPTO_THREAD_ID)0;
+#endif
     return 1;
 }
 

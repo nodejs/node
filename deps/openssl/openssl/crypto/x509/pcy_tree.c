@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2004-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -680,8 +680,10 @@ int X509_policy_check(X509_POLICY_TREE **ptree, int *pexplicit_policy,
     } else {
         *pexplicit_policy = 1;
         /* Tree empty and requireExplicit True: Error */
-        if (init_ret & X509_PCY_TREE_EMPTY)
+        if (init_ret & X509_PCY_TREE_EMPTY) {
+            X509_policy_tree_free(tree);
             return X509_PCY_TREE_FAILURE;
+        }
     }
 
     ret = tree_evaluate(tree);
@@ -707,13 +709,15 @@ int X509_policy_check(X509_POLICY_TREE **ptree, int *pexplicit_policy,
     if (!ret)
         goto error;
 
-    *ptree = tree;
-
     if (init_ret & X509_PCY_TREE_EXPLICIT) {
         nodes = X509_policy_tree_get0_user_policies(tree);
-        if (sk_X509_POLICY_NODE_num(nodes) <= 0)
+        if (sk_X509_POLICY_NODE_num(nodes) <= 0) {
+            X509_policy_tree_free(tree);
             return X509_PCY_TREE_FAILURE;
+        }
     }
+
+    *ptree = tree;
     return X509_PCY_TREE_VALID;
 
 error:

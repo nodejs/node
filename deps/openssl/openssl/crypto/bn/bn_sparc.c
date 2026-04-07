@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2005-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -16,11 +16,11 @@
 int bn_mul_mont(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
     const BN_ULONG *np, const BN_ULONG *n0, int num)
 {
-    int bn_mul_mont_vis3(BN_ULONG * rp, const BN_ULONG *ap, const BN_ULONG *bp,
+    int bn_mul_mont_vis3(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
         const BN_ULONG *np, const BN_ULONG *n0, int num);
-    int bn_mul_mont_fpu(BN_ULONG * rp, const BN_ULONG *ap, const BN_ULONG *bp,
+    int bn_mul_mont_fpu(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
         const BN_ULONG *np, const BN_ULONG *n0, int num);
-    int bn_mul_mont_int(BN_ULONG * rp, const BN_ULONG *ap, const BN_ULONG *bp,
+    int bn_mul_mont_int(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
         const BN_ULONG *np, const BN_ULONG *n0, int num);
 
     if (!(num & 1) && num >= 6) {
@@ -29,16 +29,16 @@ int bn_mul_mont(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
                 const BN_ULONG *bp,
                 const BN_ULONG *np,
                 const BN_ULONG *n0);
-            int bn_mul_mont_t4_8(BN_ULONG * rp, const BN_ULONG *ap,
+            int bn_mul_mont_t4_8(BN_ULONG *rp, const BN_ULONG *ap,
                 const BN_ULONG *bp, const BN_ULONG *np,
                 const BN_ULONG *n0);
-            int bn_mul_mont_t4_16(BN_ULONG * rp, const BN_ULONG *ap,
+            int bn_mul_mont_t4_16(BN_ULONG *rp, const BN_ULONG *ap,
                 const BN_ULONG *bp, const BN_ULONG *np,
                 const BN_ULONG *n0);
-            int bn_mul_mont_t4_24(BN_ULONG * rp, const BN_ULONG *ap,
+            int bn_mul_mont_t4_24(BN_ULONG *rp, const BN_ULONG *ap,
                 const BN_ULONG *bp, const BN_ULONG *np,
                 const BN_ULONG *n0);
-            int bn_mul_mont_t4_32(BN_ULONG * rp, const BN_ULONG *ap,
+            int bn_mul_mont_t4_32(BN_ULONG *rp, const BN_ULONG *ap,
                 const BN_ULONG *bp, const BN_ULONG *np,
                 const BN_ULONG *n0);
             static const bn_mul_mont_f funcs[4] = {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -620,6 +620,11 @@ int tls_get_more_records(OSSL_RECORD_LAYER *rl)
 
                 thisrr->length = sslv2len & 0x7fff;
 
+                if (!rl->funcs->validate_record_header(rl, thisrr)) {
+                    /* RLAYERfatal already called */
+                    return OSSL_RECORD_RETURN_FATAL;
+                }
+
                 if (thisrr->length > TLS_BUFFER_get_len(rbuf)
                         - SSL2_RT_HEADER_LENGTH) {
                     RLAYERfatal(rl, SSL_AD_RECORD_OVERFLOW,
@@ -656,16 +661,16 @@ int tls_get_more_records(OSSL_RECORD_LAYER *rl)
                 if (rl->msg_callback != NULL)
                     rl->msg_callback(0, version, SSL3_RT_HEADER, p, 5, rl->cbarg);
 
+                if (!rl->funcs->validate_record_header(rl, thisrr)) {
+                    /* RLAYERfatal already called */
+                    return OSSL_RECORD_RETURN_FATAL;
+                }
+
                 if (thisrr->length > TLS_BUFFER_get_len(rbuf) - SSL3_RT_HEADER_LENGTH) {
                     RLAYERfatal(rl, SSL_AD_RECORD_OVERFLOW,
                         SSL_R_PACKET_LENGTH_TOO_LONG);
                     return OSSL_RECORD_RETURN_FATAL;
                 }
-            }
-
-            if (!rl->funcs->validate_record_header(rl, thisrr)) {
-                /* RLAYERfatal already called */
-                return OSSL_RECORD_RETURN_FATAL;
             }
 
             /* now rl->rstate == SSL_ST_READ_BODY */

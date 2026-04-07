@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2017, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -194,13 +194,13 @@ static int aria_ctr_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 }
 
 BLOCK_CIPHER_generic(NID_aria, 128, 1, 16, ctr, ctr, CTR, 0)
-    BLOCK_CIPHER_generic(NID_aria, 192, 1, 16, ctr, ctr, CTR, 0)
-        BLOCK_CIPHER_generic(NID_aria, 256, 1, 16, ctr, ctr, CTR, 0)
+BLOCK_CIPHER_generic(NID_aria, 192, 1, 16, ctr, ctr, CTR, 0)
+BLOCK_CIPHER_generic(NID_aria, 256, 1, 16, ctr, ctr, CTR, 0)
 
-    /* Authenticated cipher modes (GCM/CCM) */
+/* Authenticated cipher modes (GCM/CCM) */
 
-    /* increment counter (64-bit int) by 1 */
-    static void ctr64_inc(unsigned char *counter)
+/* increment counter (64-bit int) by 1 */
+static void ctr64_inc(unsigned char *counter)
 {
     int n = 8;
     unsigned char c;
@@ -778,11 +778,11 @@ static int aria_ccm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
     }
 
 BLOCK_CIPHER_aead(128, gcm, GCM)
-    BLOCK_CIPHER_aead(192, gcm, GCM)
-        BLOCK_CIPHER_aead(256, gcm, GCM)
+BLOCK_CIPHER_aead(192, gcm, GCM)
+BLOCK_CIPHER_aead(256, gcm, GCM)
 
-            BLOCK_CIPHER_aead(128, ccm, CCM)
-                BLOCK_CIPHER_aead(192, ccm, CCM)
-                    BLOCK_CIPHER_aead(256, ccm, CCM)
+BLOCK_CIPHER_aead(128, ccm, CCM)
+BLOCK_CIPHER_aead(192, ccm, CCM)
+BLOCK_CIPHER_aead(256, ccm, CCM)
 
 #endif

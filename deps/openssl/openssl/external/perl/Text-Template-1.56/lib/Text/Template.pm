@@ -2337,8 +2337,8 @@ There are not quite enough tests in the test suite.
 
 =head1 SOURCE
 
-The development version is on github at L<https://https://github.com/mschout/perl-text-template>
-and may be cloned from L<git://https://github.com/mschout/perl-text-template.git>
+The development version is on github at L<https://github.com/mschout/perl-text-template>
+and may be cloned from L<https://github.com/mschout/perl-text-template.git>
 
 =head1 BUGS
 

@@ -2,7 +2,7 @@
 # This file is dual-licensed, meaning that you can use it under your
 # choice of either of the following two licenses:
 #
-# Copyright 2023 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2023-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License"). You can obtain
 # a copy in the file LICENSE in the source distribution or at
@@ -828,9 +828,6 @@ $code .= <<___;
 .globl rv64i_zvkned_set_encrypt_key
 .type rv64i_zvkned_set_encrypt_key,\@function
 rv64i_zvkned_set_encrypt_key:
-    beqz $UKEY, L_fail_m1
-    beqz $KEYP, L_fail_m1
-
     # Get proper routine for key size
     li $T0, 256
     beq $BITS, $T0, L_set_key_256
@@ -847,9 +844,6 @@ $code .= <<___;
 .globl rv64i_zvkned_set_decrypt_key
 .type rv64i_zvkned_set_decrypt_key,\@function
 rv64i_zvkned_set_decrypt_key:
-    beqz $UKEY, L_fail_m1
-    beqz $KEYP, L_fail_m1
-
     # Get proper routine for key size
     li $T0, 256
     beq $BITS, $T0, L_set_key_256
@@ -1356,11 +1350,6 @@ ___
 }
 
 $code .= <<___;
-L_fail_m1:
-    li a0, -1
-    ret
-.size L_fail_m1,.-L_fail_m1
-
 L_fail_m2:
     li a0, -2
     ret
