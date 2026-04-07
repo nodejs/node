@@ -54,6 +54,7 @@ class RequestHandler extends AsyncResource {
     this.body = body
     this.trailers = {}
     this.context = null
+    this.controller = null
     this.onInfo = onInfo || null
     this.highWaterMark = highWaterMark
     this.reason = null
@@ -73,36 +74,40 @@ class RequestHandler extends AsyncResource {
     }
   }
 
-  onConnect (abort, context) {
+  onRequestStart (controller, context) {
     if (this.reason) {
-      abort(this.reason)
+      controller.abort(this.reason)
       return
     }
 
     assert(this.callback)
 
-    this.abort = abort
+    this.controller = controller
+    this.abort = (reason) => controller.abort(reason)
     this.context = context
   }
 
-  onHeaders (statusCode, rawHeaders, resume, statusMessage) {
-    const { callback, opaque, abort, context, responseHeaders, highWaterMark } = this
+  onResponseStart (controller, statusCode, headers, statusText) {
+    const { callback, opaque, context, responseHeaders, highWaterMark } = this
 
-    const headers = responseHeaders === 'raw' ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders)
+    const rawHeaders = controller?.rawHeaders
+    const responseHeaderData = responseHeaders === 'raw'
+      ? (Array.isArray(rawHeaders) ? util.parseRawHeaders(rawHeaders) : [])
+      : headers
 
     if (statusCode < 200) {
       if (this.onInfo) {
-        this.onInfo({ statusCode, headers })
+        this.onInfo({ statusCode, headers: responseHeaderData })
       }
       return
     }
 
-    const parsedHeaders = responseHeaders === 'raw' ? util.parseHeaders(rawHeaders) : headers
-    const contentType = parsedHeaders['content-type']
-    const contentLength = parsedHeaders['content-length']
+    const parsedHeaders = headers
+    const contentType = parsedHeaders?.['content-type']
+    const contentLength = parsedHeaders?.['content-length']
     const res = new Readable({
-      resume,
-      abort,
+      resume: () => controller.resume(),
+      abort: (reason) => controller.abort(reason),
       contentType,
       contentLength: this.method !== 'HEAD' && contentLength
         ? Number(contentLength)
@@ -121,8 +126,8 @@ class RequestHandler extends AsyncResource {
       try {
         this.runInAsyncScope(callback, null, null, {
           statusCode,
-          statusText: statusMessage,
-          headers,
+          statusText,
+          headers: responseHeaderData,
           trailers: this.trailers,
           opaque,
           body: res,
@@ -144,16 +149,35 @@ class RequestHandler extends AsyncResource {
     }
   }
 
-  onData (chunk) {
-    return this.res.push(chunk)
+  onResponseData (controller, chunk) {
+    if (!this.res) {
+      return
+    }
+
+    if (this.res.push(chunk) === false) {
+      controller.pause()
+    }
   }
 
-  onComplete (trailers) {
-    util.parseHeaders(trailers, this.trailers)
-    this.res.push(null)
+  onResponseEnd (_controller, trailers) {
+    if (trailers && typeof trailers === 'object') {
+      for (const key of Object.keys(trailers)) {
+        if (key === '__proto__') {
+          Object.defineProperty(this.trailers, key, {
+            value: trailers[key],
+            enumerable: true,
+            configurable: true,
+            writable: true
+          })
+        } else {
+          this.trailers[key] = trailers[key]
+        }
+      }
+    }
+    this.res?.push(null)
   }
 
-  onError (err) {
+  onResponseError (_controller, err) {
     const { res, callback, body, opaque } = this
 
     if (callback) {

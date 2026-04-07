@@ -3,7 +3,6 @@ const assert = require('node:assert')
 
 const { kRetryHandlerDefaultRetry } = require('../core/symbols')
 const { RequestRetryError } = require('../core/errors')
-const WrapHandler = require('./wrap-handler')
 const {
   isDisturbed,
   parseRangeHeader,
@@ -35,7 +34,7 @@ class RetryHandler {
 
     this.error = null
     this.dispatch = dispatch
-    this.handler = WrapHandler.wrap(handler)
+    this.handler = handler
     this.opts = { ...dispatchOpts, body: wrapRequestBody(opts.body) }
     this.retryOpts = {
       throwOnError: throwOnError ?? true,

@@ -29,7 +29,7 @@ Returns: `Client`
 * **strictContentLength** `Boolean` (optional) - Default: `true` - Whether to treat request content length mismatches as errors. If true, an error is thrown when the request content-length header doesn't match the length of the request body. **Security Warning:** Disabling this option can expose your application to HTTP Request Smuggling attacks, where mismatched content-length headers cause servers and proxies to interpret request boundaries differently. This can lead to cache poisoning, credential hijacking, and bypassing security controls. Only disable this in controlled environments where you fully trust the request source.
 * **autoSelectFamily**: `boolean` (optional) - Default: depends on local Node version, on Node 18.13.0 and above is `false`. Enables a family autodetection algorithm that loosely implements section 5 of [RFC 8305](https://tools.ietf.org/html/rfc8305#section-5). See [here](https://nodejs.org/api/net.html#socketconnectoptions-connectlistener) for more details. This option is ignored if not supported by the current Node version.
 * **autoSelectFamilyAttemptTimeout**: `number` - Default: depends on local Node version, on Node 18.13.0 and above is `250`. The amount of time in milliseconds to wait for a connection attempt to finish before trying the next address when using the `autoSelectFamily` option. See [here](https://nodejs.org/api/net.html#socketconnectoptions-connectlistener) for more details.
-* **allowH2**: `boolean` - Default: `false`. Enables support for H2 if the server has assigned bigger priority to it through ALPN negotiation.
+* **allowH2**: `boolean` - Default: `true`. Enables support for H2 if the server has assigned bigger priority to it through ALPN negotiation.
 * **useH2c**: `boolean` - Default: `false`. Enforces h2c for non-https connections.
 * **maxConcurrentStreams**: `number` - Default: `100`. Dictates the maximum number of concurrent streams for a single H2 session. It can be overridden by a SETTINGS remote frame.
 * **initialWindowSize**: `number` (optional) - Default: `262144` (256KB). Sets the HTTP/2 stream-level flow-control window size (SETTINGS_INITIAL_WINDOW_SIZE). Must be a positive integer greater than 0. This default is higher than Node.js core's default (65535 bytes) to improve throughput, Node's choice is very conservative for current high-bandwith networks. See [RFC 7540 Section 6.9.2](https://datatracker.ietf.org/doc/html/rfc7540#section-6.9.2) for more details.
@@ -282,4 +282,4 @@ console.log('requests completed')
 
 ### Event: `'error'`
 
-Invoked for users errors such as throwing in the `onError` handler.
+Invoked for user errors such as throwing in the `onResponseError` handler.

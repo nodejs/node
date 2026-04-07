@@ -212,6 +212,41 @@ Returns: `Boolean` - `false` if dispatcher is busy and further dispatch calls wo
 * **onResponseEnd** `(controller: DispatchController, trailers: Record<string, string | string[]>) => void` - Invoked when response payload and trailers have been received and the request has completed. Not required for `upgrade` requests.
 * **onResponseError** `(controller: DispatchController, error: Error) => void` - Invoked when an error has occurred. May not throw.
 
+#### Migration from legacy handler API
+
+If you were previously using `onConnect/onHeaders/onData/onComplete/onError`, switch to the new callbacks:
+
+- `onConnect(abort)` → `onRequestStart(controller)` and call `controller.abort(reason)`
+- `onHeaders(status, rawHeaders, resume, statusText)` → `onResponseStart(controller, status, headers, statusText)`
+- `onData(chunk)` → `onResponseData(controller, chunk)`
+- `onComplete(trailers)` → `onResponseEnd(controller, trailers)`
+- `onError(err)` → `onResponseError(controller, err)`
+- `onUpgrade(status, rawHeaders, socket)` → `onRequestUpgrade(controller, status, headers, socket)`
+
+To access raw header arrays (for preserving duplicates/casing), read them from the controller:
+
+- `controller.rawHeaders` for response headers
+- `controller.rawTrailers` for trailers
+
+Pause/resume now uses the controller:
+
+- Call `controller.pause()` and `controller.resume()` instead of returning `false` from handlers.
+
+#### Compatibility notes
+
+Undici now stores the global dispatcher under `Symbol.for('undici.globalDispatcher.2')`.
+This avoids conflicts with runtimes (such as Node.js built-in `fetch`) that still rely on the legacy dispatcher handler interface.
+
+`setGlobalDispatcher()` also mirrors the configured dispatcher to `Symbol.for('undici.globalDispatcher.1')` using a `Dispatcher1Wrapper`, so Node's built-in `fetch` can keep using the legacy handler contract.
+
+If you need to expose a new dispatcher/agent to legacy v1 handler consumers (`onConnect/onHeaders/onData/onComplete/onError/onUpgrade`), use `Dispatcher1Wrapper`:
+
+```js
+import { Agent, Dispatcher1Wrapper } from 'undici'
+
+const legacyCompatibleDispatcher = new Dispatcher1Wrapper(new Agent())
+```
+
 #### Example 1 - Dispatch GET request
 
 ```js
@@ -236,21 +271,21 @@ client.dispatch({
     'x-foo': 'bar'
   }
 }, {
-  onConnect: () => {
+  onRequestStart: () => {
     console.log('Connected!')
   },
-  onError: (error) => {
+  onResponseError: (_controller, error) => {
     console.error(error)
   },
-  onHeaders: (statusCode, headers) => {
-    console.log(`onHeaders | statusCode: ${statusCode} | headers: ${headers}`)
+  onResponseStart: (_controller, statusCode, headers) => {
+    console.log(`onResponseStart | statusCode: ${statusCode} | headers: ${JSON.stringify(headers)}`)
   },
-  onData: (chunk) => {
-    console.log('onData: chunk received')
+  onResponseData: (_controller, chunk) => {
+    console.log('onResponseData: chunk received')
     data.push(chunk)
   },
-  onComplete: (trailers) => {
-    console.log(`onComplete | trailers: ${trailers}`)
+  onResponseEnd: (_controller, trailers) => {
+    console.log(`onResponseEnd | trailers: ${JSON.stringify(trailers)}`)
     const res = Buffer.concat(data).toString('utf8')
     console.log(`Data: ${res}`)
     client.close()
@@ -288,15 +323,15 @@ client.dispatch({
   method: 'GET',
   upgrade: 'websocket'
 }, {
-  onConnect: () => {
-    console.log('Undici Client - onConnect')
+  onRequestStart: () => {
+    console.log('Undici Client - onRequestStart')
   },
-  onError: (error) => {
-    console.log('onError') // shouldn't print
+  onResponseError: () => {
+    console.log('onResponseError') // shouldn't print
   },
-  onUpgrade: (statusCode, headers, socket) => {
-    console.log('Undici Client - onUpgrade')
-    console.log(`onUpgrade Headers: ${headers}`)
+  onRequestUpgrade: (_controller, statusCode, headers, socket) => {
+    console.log('Undici Client - onRequestUpgrade')
+    console.log(`onRequestUpgrade Headers: ${JSON.stringify(headers)}`)
     socket.on('data', buffer => {
       console.log(buffer.toString('utf8'))
     })
@@ -339,21 +374,21 @@ client.dispatch({
   },
   body: JSON.stringify({ message: 'Hello' })
 }, {
-  onConnect: () => {
+  onRequestStart: () => {
     console.log('Connected!')
   },
-  onError: (error) => {
+  onResponseError: (_controller, error) => {
     console.error(error)
   },
-  onHeaders: (statusCode, headers) => {
-    console.log(`onHeaders | statusCode: ${statusCode} | headers: ${headers}`)
+  onResponseStart: (_controller, statusCode, headers) => {
+    console.log(`onResponseStart | statusCode: ${statusCode} | headers: ${JSON.stringify(headers)}`)
   },
-  onData: (chunk) => {
-    console.log('onData: chunk received')
+  onResponseData: (_controller, chunk) => {
+    console.log('onResponseData: chunk received')
     data.push(chunk)
   },
-  onComplete: (trailers) => {
-    console.log(`onComplete | trailers: ${trailers}`)
+  onResponseEnd: (_controller, trailers) => {
+    console.log(`onResponseEnd | trailers: ${JSON.stringify(trailers)}`)
     const res = Buffer.concat(data).toString('utf8')
     console.log(`Response Data: ${res}`)
     client.close()
@@ -364,7 +399,7 @@ client.dispatch({
 
 ### `Dispatcher.pipeline(options, handler)`
 
-For easy use with [stream.pipeline](https://nodejs.org/api/stream.html#stream_stream_pipeline_source_transforms_destination_callback). The `handler` argument should return a `Readable` from which the result will be read. Usually it should just return the `body` argument unless some kind of transformation needs to be performed based on e.g. `headers` or `statusCode`. The `handler` should validate the response and save any required state. If there is an error, it should be thrown. The function returns a `Duplex` which writes to the request and reads from the response.
+For easy use with [stream.pipeline](https://nodejs.org/api/stream.html#streampipelinesource-transforms-destination-options). The `handler` argument should return a `Readable` from which the result will be read. Usually it should just return the `body` argument unless some kind of transformation needs to be performed based on e.g. `headers` or `statusCode`. The `handler` should validate the response and save any required state. If there is an error, it should be thrown. The function returns a `Duplex` which writes to the request and reads from the response.
 
 Arguments:
 
@@ -963,7 +998,7 @@ const { Client, interceptors } = require("undici");
 const { redirect } = interceptors;
 
 const client = new Client("http://service.example").compose(
-  redirect({ maxRedirections: 3, throwOnMaxRedirects: true })
+  redirect({ maxRedirections: 3, throwOnMaxRedirect: true })
 );
 client.request({ path: "/" })
 ```
@@ -1036,10 +1071,10 @@ The `dns` interceptor enables you to cache DNS lookups for a given duration, per
 - `dualStack` - Whether to resolve both IPv4 and IPv6 addresses. Default: `true`.
   - It will also attempt a happy-eyeballs-like approach to connect to the available addresses in case of a connection failure.
 - `affinity` - Whether to use IPv4 or IPv6 addresses. Default: `4`.
-  - It can be either `'4` or `6`.
+  - It can be either `4` or `6`.
   - It will only take effect if `dualStack` is `false`.
 - `lookup: (hostname: string, options: LookupOptions, callback: (err: NodeJS.ErrnoException | null, addresses: DNSInterceptorRecord[]) => void) => void` - Custom lookup function. Default: `dns.lookup`.
-  - For more info see [dns.lookup](https://nodejs.org/api/dns.html#dns_dns_lookup_hostname_options_callback).
+  - For more info see [dns.lookup](https://nodejs.org/api/dns.html#dnslookuphostname-options-callback).
 - `pick: (origin: URL, records: DNSInterceptorRecords, affinity: 4 | 6) => DNSInterceptorRecord` - Custom pick function. Default: `RoundRobin`.
   - The function should return a single record from the records array.
   - By default a simplified version of Round Robin is used.

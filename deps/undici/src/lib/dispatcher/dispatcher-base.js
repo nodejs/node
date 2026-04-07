@@ -1,7 +1,6 @@
 'use strict'
 
 const Dispatcher = require('./dispatcher')
-const UnwrapHandler = require('../handler/unwrap-handler')
 const {
   ClientDestroyedError,
   ClientClosedError,
@@ -134,8 +133,6 @@ class DispatcherBase extends Dispatcher {
       throw new InvalidArgumentError('handler must be an object')
     }
 
-    handler = UnwrapHandler.unwrap(handler)
-
     try {
       if (!opts || typeof opts !== 'object') {
         throw new InvalidArgumentError('opts must be an object.')
@@ -151,11 +148,11 @@ class DispatcherBase extends Dispatcher {
 
       return this[kDispatch](opts, handler)
     } catch (err) {
-      if (typeof handler.onError !== 'function') {
+      if (typeof handler.onResponseError !== 'function') {
         throw err
       }
 
-      handler.onError(err)
+      handler.onResponseError(null, err)
 
       return false
     }

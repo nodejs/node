@@ -72,14 +72,17 @@ class Agent extends DispatcherBase {
   }
 
   [kDispatch] (opts, handler) {
-    let key
+    let origin
     if (opts.origin && (typeof opts.origin === 'string' || opts.origin instanceof URL)) {
-      key = String(opts.origin)
+      origin = String(opts.origin)
     } else {
       throw new InvalidArgumentError('opts.origin must be a non-empty string or URL.')
     }
 
-    if (this[kOrigins].size >= this[kOptions].maxOrigins && !this[kOrigins].has(key)) {
+    const allowH2 = opts.allowH2 ?? this[kOptions].allowH2
+    const key = allowH2 === false ? `${origin}#http1-only` : origin
+
+    if (this[kOrigins].size >= this[kOptions].maxOrigins && !this[kOrigins].has(origin)) {
       throw new MaxOriginsReachedError()
     }
 
@@ -96,10 +99,23 @@ class Agent extends DispatcherBase {
               result.dispatcher.close()
             }
           }
-          this[kOrigins].delete(key)
+
+          let hasOrigin = false
+          for (const entry of this[kClients].values()) {
+            if (entry.origin === origin) {
+              hasOrigin = true
+              break
+            }
+          }
+
+          if (!hasOrigin) {
+            this[kOrigins].delete(origin)
+          }
         }
       }
-      dispatcher = this[kFactory](opts.origin, this[kOptions])
+      dispatcher = this[kFactory](opts.origin, allowH2 === false
+        ? { ...this[kOptions], allowH2: false }
+        : this[kOptions])
         .on('drain', this[kOnDrain])
         .on('connect', (origin, targets) => {
           const result = this[kClients].get(key)
@@ -117,8 +133,8 @@ class Agent extends DispatcherBase {
           this[kOnConnectionError](origin, targets, err)
         })
 
-      this[kClients].set(key, { count: 0, dispatcher })
-      this[kOrigins].add(key)
+      this[kClients].set(key, { count: 0, dispatcher, origin })
+      this[kOrigins].add(origin)
     }
 
     return dispatcher.dispatch(opts, handler)
