@@ -2599,8 +2599,8 @@ napi_create_external_sharedarraybuffer(napi_env env,
   `SharedArrayBuffer`.
 * `[in] byte_length`: The length in bytes of the underlying buffer.
 * `[in] finalize_cb`: Optional callback to call when the `SharedArrayBuffer` is
-   being collected. Because a `SharedArrayBuffer` can outlive the environment
-   it was created in, the callback does not get receive a reference to `env`.
+  being collected. Because a `SharedArrayBuffer` can outlive the environment
+  it was created in, the callback does not get receive a reference to `env`.
 * `[in] finalize_hint`: Optional hint to pass to the finalize callback during
   collection.
 * `[out] result`: A `napi_value` representing a JavaScript `SharedArrayBuffer`.
