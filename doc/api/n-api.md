@@ -2578,7 +2578,7 @@ JavaScript `ArrayBuffer`s are described in
 #### `napi_create_external_sharedarraybuffer`
 
 <!-- YAML
-added: TODO
+added: REPLACEME
 napiVersion: 1
 -->
 
