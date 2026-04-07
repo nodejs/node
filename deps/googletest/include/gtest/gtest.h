@@ -137,6 +137,10 @@ GTEST_DECLARE_int32_(repeat);
 // only torn down once, for the last.
 GTEST_DECLARE_bool_(recreate_environments_when_repeating);
 
+// Together these flags determine which tests are run if the test is sharded.
+GTEST_DECLARE_int32_(shard_index);
+GTEST_DECLARE_int32_(total_shards);
+
 // This flag controls whether Google Test includes Google Test internal
 // stack frames in failure stack traces.
 GTEST_DECLARE_bool_(show_internal_stack_frames);
