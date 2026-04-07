@@ -1085,3 +1085,38 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     }, { code: 'ERR_INVALID_ARG_TYPE', message: /The "key\.key" property must be of type object/ });
   }
 }
+
+// Test that createPublicKey/createPrivateKey error messages use 'key.<property>' paths
+{
+  // createPrivateKey with invalid format
+  assert.throws(() => {
+    createPrivateKey({ key: Buffer.alloc(0), format: 'banana', type: 'pkcs8' });
+  }, {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /key\.format/,
+  });
+
+  // createPrivateKey with invalid type
+  assert.throws(() => {
+    createPrivateKey({ key: Buffer.alloc(0), format: 'der', type: 'banana' });
+  }, {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /key\.type/,
+  });
+
+  // createPublicKey with invalid format
+  assert.throws(() => {
+    createPublicKey({ key: Buffer.alloc(0), format: 'banana', type: 'spki' });
+  }, {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /key\.format/,
+  });
+
+  // createPublicKey with invalid type
+  assert.throws(() => {
+    createPublicKey({ key: Buffer.alloc(0), format: 'der', type: 'banana' });
+  }, {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /key\.type/,
+  });
+}

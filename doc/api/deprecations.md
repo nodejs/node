@@ -4484,7 +4484,7 @@ will throw an error in a future version.
 [`Sign.prototype.sign()`]: crypto.md#signsignprivatekey-outputencoding
 [`SlowBuffer`]: buffer.md#class-slowbuffer
 [`String.prototype.toWellFormed`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/toWellFormed
-[`Verify.prototype.verify()`]: crypto.md#verifyverifyobject-signature-signatureencoding
+[`Verify.prototype.verify()`]: crypto.md#verifyverifykey-signature-signatureencoding
 [`WriteStream.open()`]: fs.md#class-fswritestream
 [`assert.CallTracker`]: assert.md#class-assertcalltracker
 [`assert`]: assert.md
