@@ -346,13 +346,20 @@ void DynamicLibrary::InvokeCallback(ffi_cif* cif,
   // It is unsupported and dangerous for a callback to unregister itself or
   // close its owning library while executing. The current invocation must
   // return before teardown APIs are used.
-
   if (cb->owner->handle_ == nullptr || cb->ptr == nullptr) {
     if (ret != nullptr && cb->return_type->size > 0) {
       std::memset(ret, 0, GetFFIReturnValueStorageSize(cb->return_type));
     }
     return;
   }
+
+  if (std::this_thread::get_id() != cb->thread_id) {
+    FPrintF(stderr,
+            "Callbacks can only be invoked on the system thread they were "
+            "created on\n");
+    ABORT();
+  }
+
 
   Environment* env = cb->env;
   Isolate* isolate = env->isolate();
@@ -365,13 +372,6 @@ void DynamicLibrary::InvokeCallback(ffi_cif* cif,
       std::memset(ret, 0, GetFFIReturnValueStorageSize(cb->return_type));
     }
     return;
-  }
-
-  if (std::this_thread::get_id() != cb->thread_id) {
-    FPrintF(stderr,
-            "Callbacks can only be invoked on the system thread they were "
-            "created on\n");
-    ABORT();
   }
 
   size_t expected_args = cb->args.size();

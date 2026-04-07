@@ -318,7 +318,7 @@ v8: ## Build deps/v8.
 		tools/make-v8.sh $(V8_ARCH).$(BUILDTYPE_LOWER) $(V8_BUILD_OPTIONS)
 
 .PHONY: jstest
-jstest: build-addons build-js-native-api-tests build-node-api-tests build-sqlite-tests ## Run addon tests and JS tests.
+jstest: build-addons build-js-native-api-tests build-node-api-tests build-sqlite-tests build-ffi-tests ## Run addon tests and JS tests.
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) \
 		$(TEST_CI_ARGS) \
 		--skip-tests=$(CI_SKIP_TESTS) \
@@ -344,6 +344,7 @@ test: all ## Run default tests and build docs.
 	$(MAKE) -s build-js-native-api-tests
 	$(MAKE) -s build-node-api-tests
 	$(MAKE) -s build-sqlite-tests
+	$(MAKE) -s build-ffi-tests
 	$(MAKE) -s cctest
 	$(MAKE) -s jstest
 
@@ -353,6 +354,7 @@ test-only: all  ## Run default tests without building the docs.
 	$(MAKE) build-js-native-api-tests
 	$(MAKE) build-node-api-tests
 	$(MAKE) build-sqlite-tests
+	$(MAKE) build-ffi-tests
 	$(MAKE) cctest
 	$(MAKE) jstest
 	$(MAKE) tooltest
@@ -364,6 +366,7 @@ test-cov: all ## Run coverage tests.
 	$(MAKE) build-js-native-api-tests
 	$(MAKE) build-node-api-tests
 	$(MAKE) build-sqlite-tests
+	$(MAKE) build-ffi-tests
 	$(MAKE) cctest
 	CI_SKIP_TESTS=$(COV_SKIP_TESTS) $(MAKE) jstest
 
