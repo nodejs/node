@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2017-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -67,6 +67,7 @@ my @rhotates = ([  0,  1, 62, 28, 27 ],
 
 $code.=<<___;
 .text
+.machine	"z10"
 
 .type	__KeccakF1600,\@function
 .align	32

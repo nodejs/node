@@ -1,7 +1,7 @@
 /*
  * {- join("\n * ", @autowarntext) -}
  *
- * Copyright 2007-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Nokia 2007-2019
  * Copyright Siemens AG 2015-2019
  *
@@ -197,6 +197,8 @@ typedef ASN1_BIT_STRING OSSL_CMP_PKIFAILUREINFO;
  *       -- CertReqMsg
  *   }
  */
+#define OSSL_CMP_PKISTATUS_rejected_by_client -5
+#define OSSL_CMP_PKISTATUS_checking_response -4
 #define OSSL_CMP_PKISTATUS_request -3
 #define OSSL_CMP_PKISTATUS_trans -2
 #define OSSL_CMP_PKISTATUS_unspecified -1

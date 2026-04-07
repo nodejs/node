@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -246,6 +246,8 @@ err:
     BN_free(n);
     BN_free(e);
     BN_free(d);
+    BN_clear_free(p);
+    BN_clear_free(q);
     sk_BIGNUM_pop_free(factors, BN_clear_free);
     sk_BIGNUM_pop_free(exps, BN_clear_free);
     sk_BIGNUM_pop_free(coeffs, BN_clear_free);

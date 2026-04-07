@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -799,7 +799,7 @@ static void ml_kem_gen_cleanup(void *vgctx)
         return;
 
     if (gctx->seed != NULL)
-        OPENSSL_cleanse(gctx->seed, ML_KEM_RANDOM_BYTES);
+        OPENSSL_cleanse(gctx->seed, ML_KEM_SEED_BYTES);
     OPENSSL_free(gctx->propq);
     OPENSSL_free(gctx);
 }

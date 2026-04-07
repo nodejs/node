@@ -95,7 +95,7 @@ ASN1_SEQUENCE(asn1_int_oct) = {
     ASN1_SIMPLE(asn1_int_oct, oct, ASN1_OCTET_STRING)
 } static_ASN1_SEQUENCE_END(asn1_int_oct)
 
-    DECLARE_ASN1_ITEM(asn1_int_oct)
+DECLARE_ASN1_ITEM(asn1_int_oct)
 
 int ASN1_TYPE_set_int_octetstring(ASN1_TYPE *a, long num, unsigned char *data,
     int len)
@@ -158,7 +158,7 @@ ASN1_SEQUENCE(asn1_oct_int) = {
     ASN1_EMBED(asn1_oct_int, num, INT32)
 } static_ASN1_SEQUENCE_END(asn1_oct_int)
 
-    DECLARE_ASN1_ITEM(asn1_oct_int)
+DECLARE_ASN1_ITEM(asn1_oct_int)
 
 int ossl_asn1_type_set_octetstring_int(ASN1_TYPE *a, long num,
     unsigned char *data, int len)

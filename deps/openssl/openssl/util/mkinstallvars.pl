@@ -29,7 +29,7 @@ my @subdirs = _pairs (PREFIX => [ qw(BINDIR LIBDIR INCLUDEDIR APPLINKDIR) ],
                       LIBDIR => [ qw(ENGINESDIR MODULESDIR PKGCONFIGDIR
                                      CMAKECONFIGDIR) ]);
 # For completeness, other expected variables
-my @others = qw(VERSION LDLIBS);
+my @others = qw(COMMENT VERSION LDLIBS);
 
 my %all = ( );
 foreach (@absolutes) { $all{$_} = 1 }
@@ -135,9 +135,10 @@ foreach my $pair (@subdirs) {
 }
 
 print <<_____;
-    \$VERSION \@LDLIBS
+    \$COMMENT \$VERSION \@LDLIBS
 );
 
+our \$COMMENT                    = '$values{COMMENT}->[0]';
 _____
 
 foreach my $k (@absolutes) {

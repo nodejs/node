@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -52,6 +52,6 @@ ASN1_SEQUENCE(NETSCAPE_PKEY) = {
     ASN1_SIMPLE(NETSCAPE_PKEY, private_key, ASN1_OCTET_STRING)
 } static_ASN1_SEQUENCE_END(NETSCAPE_PKEY)
 
-    DECLARE_ASN1_FUNCTIONS(NETSCAPE_PKEY)
+DECLARE_ASN1_FUNCTIONS(NETSCAPE_PKEY)
 DECLARE_ASN1_ENCODE_FUNCTIONS_name(NETSCAPE_PKEY, NETSCAPE_PKEY)
 IMPLEMENT_ASN1_FUNCTIONS(NETSCAPE_PKEY)

@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -35,8 +35,7 @@ typedef struct CMS_OriginatorPublicKey_st CMS_OriginatorPublicKey;
 typedef struct CMS_OriginatorIdentifierOrKey_st CMS_OriginatorIdentifierOrKey;
 typedef struct CMS_KeyAgreeRecipientInfo_st CMS_KeyAgreeRecipientInfo;
 typedef struct CMS_RecipientKeyIdentifier_st CMS_RecipientKeyIdentifier;
-typedef struct CMS_KeyAgreeRecipientIdentifier_st
-    CMS_KeyAgreeRecipientIdentifier;
+typedef struct CMS_KeyAgreeRecipientIdentifier_st CMS_KeyAgreeRecipientIdentifier;
 typedef struct CMS_KEKIdentifier_st CMS_KEKIdentifier;
 typedef struct CMS_KEKRecipientInfo_st CMS_KEKRecipientInfo;
 typedef struct CMS_PasswordRecipientInfo_st CMS_PasswordRecipientInfo;

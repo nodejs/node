@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -82,9 +82,11 @@
 #if defined(__GNUC__) || defined(__CLANG__)
 #define PREFETCH_NEIGHBORHOOD(x) __builtin_prefetch(x.entries)
 #define PREFETCH(x) __builtin_prefetch(x)
+#define ALIGN __attribute__((aligned(8)))
 #else
 #define PREFETCH_NEIGHBORHOOD(x)
 #define PREFETCH(x)
+#define ALIGN
 #endif
 
 /*
@@ -112,7 +114,7 @@ struct ht_internal_value_st {
 struct ht_neighborhood_entry_st {
     uint64_t hash;
     struct ht_internal_value_st *value;
-};
+} ALIGN;
 
 struct ht_neighborhood_st {
     struct ht_neighborhood_entry_st entries[NEIGHBORHOOD_LEN];
