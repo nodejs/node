@@ -171,7 +171,7 @@ struct Config {
 };
 
 struct HTTPHeader {
-  HTTPHeader(const std::string_view &name, const std::string_view &value)
+  HTTPHeader(std::string_view name, std::string_view value)
     : name{name}, value{value} {}
 
   std::string_view name;

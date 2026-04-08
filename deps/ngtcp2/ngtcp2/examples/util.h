@@ -33,12 +33,12 @@
 #include <sys/socket.h>
 
 #include <cassert>
-#include <optional>
 #include <string>
 #include <random>
 #include <unordered_map>
 #include <string_view>
 #include <span>
+#include <expected>
 
 #include <ngtcp2/ngtcp2.h>
 #include <nghttp3/nghttp3.h>
@@ -48,13 +48,14 @@
 #include "network.h"
 #include "siphash.h"
 #include "template.h"
+#include "shared.h"
 
 namespace ngtcp2 {
 
 namespace util {
 
-inline nghttp3_nv make_nv(const std::string_view &name,
-                          const std::string_view &value, uint8_t flags) {
+inline nghttp3_nv make_nv(std::string_view name, std::string_view value,
+                          uint8_t flags) {
   return nghttp3_nv{
     reinterpret_cast<uint8_t *>(const_cast<char *>(std::ranges::data(name))),
     reinterpret_cast<uint8_t *>(const_cast<char *>(std::ranges::data(value))),
@@ -64,18 +65,15 @@ inline nghttp3_nv make_nv(const std::string_view &name,
   };
 }
 
-inline nghttp3_nv make_nv_cc(const std::string_view &name,
-                             const std::string_view &value) {
+inline nghttp3_nv make_nv_cc(std::string_view name, std::string_view value) {
   return make_nv(name, value, NGHTTP3_NV_FLAG_NONE);
 }
 
-inline nghttp3_nv make_nv_nc(const std::string_view &name,
-                             const std::string_view &value) {
+inline nghttp3_nv make_nv_nc(std::string_view name, std::string_view value) {
   return make_nv(name, value, NGHTTP3_NV_FLAG_NO_COPY_NAME);
 }
 
-inline nghttp3_nv make_nv_nn(const std::string_view &name,
-                             const std::string_view &value) {
+inline nghttp3_nv make_nv_nn(std::string_view name, std::string_view value) {
   return make_nv(name, value,
                  NGHTTP3_NV_FLAG_NO_COPY_NAME | NGHTTP3_NV_FLAG_NO_COPY_VALUE);
 }
@@ -90,7 +88,7 @@ constexpr O format_hex_uint8(uint8_t b, O result) {
 #  pragma GCC diagnostic ignored "-Wsign-conversion"
 #endif // __GNUC__
   *result++ = LOWER_XDIGITS[b >> 4];
-  *result++ = LOWER_XDIGITS[b & 0xf];
+  *result++ = LOWER_XDIGITS[b & 0xF];
 #ifdef __GNUC__
 #  pragma GCC diagnostic pop
 #endif // __GNUC__
@@ -135,9 +133,12 @@ constexpr std::string format_hex(I first, std::iter_difference_t<I> n) {
 
   std::string res;
 
-  res.resize(as_unsigned(n * 2));
+  res.resize_and_overwrite(as_unsigned(n * 2), [first = std::move(first),
+                                                n](auto p, auto len) mutable {
+    format_hex(std::move(first), n, p);
 
-  format_hex(std::move(first), std::move(n), std::ranges::begin(res));
+    return len;
+  });
 
   return res;
 }
@@ -155,15 +156,18 @@ constexpr O format_hex(R &&r, O result) {
 }
 
 // format_hex converts |R| in hex format, and returns the result.
-template <std::ranges::input_range R>
+template <std::ranges::forward_range R>
 requires(!std::is_array_v<std::remove_cvref_t<R>> &&
          sizeof(std::ranges::range_value_t<R>) == sizeof(uint8_t))
 constexpr std::string format_hex(R &&r) {
   std::string res;
 
-  res.resize(as_unsigned(std::ranges::distance(r) * 2));
+  res.resize_and_overwrite(as_unsigned(std::ranges::distance(r) * 2),
+                           [&r](auto p, auto len) {
+                             format_hex(r, p);
 
-  format_hex(std::forward<R>(r), std::ranges::begin(res));
+                             return len;
+                           });
 
   return res;
 }
@@ -201,14 +205,16 @@ constexpr O format_hex(T n, O result) {
 template <std::unsigned_integral T> constexpr std::string format_hex(T n) {
   std::string res;
 
-  res.resize(sizeof(n) * 2);
+  res.resize_and_overwrite(sizeof(n) * 2, [n](auto p, auto len) {
+    format_hex(n, p);
 
-  format_hex(std::move(n), std::ranges::begin(res));
+    return len;
+  });
 
   return res;
 }
 
-std::string decode_hex(const std::string_view &s);
+std::string decode_hex(std::string_view s);
 
 // format_durationf formats |ns| in human readable manner.  |ns| must
 // be nanoseconds resolution.  This function uses the largest unit so
@@ -228,10 +234,14 @@ bool numeric_host(const char *hostname);
 
 bool numeric_host(const char *hostname, int family);
 
-// hexdump dumps |data| of length |datalen| in the format similar to
-// hexdump(1) with -C option.  This function returns 0 if it succeeds,
-// or -1.
-int hexdump(FILE *out, const void *data, size_t datalen);
+// hexdump dumps |data| in the format similar to hexdump(1) with -C
+// option.
+std::expected<void, Error> hexdump(FILE *out, std::span<const uint8_t> data);
+
+template <typename T, size_t N>
+std::expected<void, Error> hexdump(FILE *out, std::span<T, N> data) {
+  return hexdump(out, as_uint8_span(data));
+}
 
 inline constexpr auto lowcase_tbl = [] {
   std::array<char, 256> tbl;
@@ -259,8 +269,7 @@ struct CaseCmp {
 
 // istarts_with returns true if |s| starts with |prefix|.  Comparison
 // is performed in case-insensitive manner.
-constexpr bool istarts_with(const std::string_view &s,
-                            const std::string_view &prefix) {
+constexpr bool istarts_with(std::string_view s, std::string_view prefix) {
   return s.size() >= prefix.size() &&
          std::ranges::equal(s.substr(0, prefix.size()), prefix, CaseCmp());
 }
@@ -285,8 +294,8 @@ std::string_view strccalgo(ngtcp2_cc_algo cc_algo);
 // read_mime_types reads "MIME media types and the extensions" file
 // denoted by |filename| and returns the mapping of extension to MIME
 // media type.
-std::optional<std::unordered_map<std::string, std::string>>
-read_mime_types(const std::string_view &filename);
+std::expected<std::unordered_map<std::string, std::string>, Error>
+read_mime_types(std::string_view filename);
 
 inline constexpr auto count_digit_tbl = [] {
   std::array<uint64_t, std::numeric_limits<uint64_t>::digits10> tbl;
@@ -379,9 +388,11 @@ template <std::unsigned_integral T> constexpr std::string format_uint(T n) {
 
   std::string res;
 
-  res.resize(count_digit(n));
+  res.resize_and_overwrite(count_digit(n), [n](auto p, auto len) {
+    utos(n, p);
 
-  utos(n, std::ranges::begin(res));
+    return len;
+  });
 
   return res;
 }
@@ -411,31 +422,27 @@ std::string format_duration(ngtcp2_duration n);
 
 // parse_uint parses |s| as 64-bit unsigned integer.  If it cannot
 // parse |s|, the return value does not contain a value.
-std::optional<uint64_t> parse_uint(const std::string_view &s);
+std::expected<uint64_t, Error> parse_uint(std::string_view s);
 
 // parse_uint_iec parses |s| as 64-bit unsigned integer.  It accepts
 // IEC unit letter (either "G", "M", or "K") in |s|.  If it cannot
 // parse |s|, the return value does not contain a value.
-std::optional<uint64_t> parse_uint_iec(const std::string_view &s);
+std::expected<uint64_t, Error> parse_uint_iec(std::string_view s);
 
 // parse_duration parses |s| as 64-bit unsigned integer.  It accepts a
 // unit (either "h", "m", "s", "ms", "us", or "ns") in |s|.  If no
 // unit is present, the unit "s" is assumed.  If it cannot parse |s|,
 // the return value does not contain a value.
-std::optional<uint64_t> parse_duration(const std::string_view &s);
+std::expected<uint64_t, Error> parse_duration(std::string_view s);
 
 // generate_secure_random generates a cryptographically secure pseudo
 // random data of |data|.
-int generate_secure_random(std::span<uint8_t> data);
-
-// generate_secret generates secret and writes it to |secret|.
-// Currently, |secret| must be 32 bytes long.
-int generate_secret(std::span<uint8_t> secret);
+std::expected<void, Error> generate_secure_random(std::span<uint8_t> data);
 
 // normalize_path removes ".." by consuming a previous path component.
 // It also removes ".".  It assumes that |path| starts with "/".  If
 // it cannot consume a previous path component, it just removes "..".
-std::string normalize_path(const std::string_view &path);
+std::expected<std::string, Error> normalize_path(std::string_view path);
 
 template <std::predicate<size_t> Pred>
 consteval auto pred_tbl_gen256(Pred pred) {
@@ -469,7 +476,7 @@ constexpr bool is_hex_digit(char c) noexcept {
 // is_hex_string returns true if the length of |s| is even, and |s|
 // does not contain a character other than [0-9A-Fa-f].  It returns
 // false otherwise.
-template <std::ranges::input_range R>
+template <std::ranges::sized_range R>
 requires(!std::is_array_v<std::remove_cvref_t<R>>)
 constexpr bool is_hex_string(R &&r) {
   return !(std::ranges::size(r) & 1) && std::ranges::all_of(r, is_hex_digit);
@@ -501,21 +508,23 @@ constexpr uint32_t hex_to_uint(char c) noexcept {
   return hex_to_uint_tbl[static_cast<uint8_t>(c)];
 }
 
-std::string percent_decode(const std::string_view &s);
+std::string percent_decode(std::string_view s);
 
-int make_socket_nonblocking(int fd);
+std::expected<void, Error> make_socket_nonblocking(int fd);
 
-int create_nonblock_socket(int domain, int type, int protocol);
+std::expected<int, Error> create_nonblock_socket(int domain, int type,
+                                                 int protocol);
 
-std::optional<std::vector<uint8_t>>
-read_token(const std::string_view &filename);
-int write_token(const std::string_view &filename,
-                std::span<const uint8_t> token);
+std::expected<std::vector<uint8_t>, Error>
+read_token(std::string_view filename);
+std::expected<void, Error> write_token(std::string_view filename,
+                                       std::span<const uint8_t> token);
 
-std::optional<std::vector<uint8_t>>
-read_transport_params(const std::string_view &filename);
-int write_transport_params(const std::string_view &filename,
-                           std::span<const uint8_t> data);
+std::expected<std::vector<uint8_t>, Error>
+read_transport_params(std::string_view filename);
+std::expected<void, Error>
+write_transport_params(std::string_view filename,
+                       std::span<const uint8_t> data);
 
 const char *crypto_default_ciphers();
 
@@ -524,15 +533,14 @@ const char *crypto_default_groups();
 // split_str parses delimited strings in |s| and returns substrings
 // delimited by |delim|.  The any white spaces around substring are
 // treated as a part of substring.
-std::vector<std::string_view> split_str(const std::string_view &s,
-                                        char delim = ',');
+std::vector<std::string_view> split_str(std::string_view s, char delim = ',');
 
 // parse_version parses |s| to get 4 byte QUIC version.  |s| must be a
 // hex string and must start with "0x" (e.g., 0x00000001).
-std::optional<uint32_t> parse_version(const std::string_view &s);
+std::expected<uint32_t, Error> parse_version(std::string_view s);
 
 // read_file reads a file denoted by |path| and returns its content.
-std::optional<std::vector<uint8_t>> read_file(const std::string_view &path);
+std::expected<std::vector<uint8_t>, Error> read_file(std::string_view path);
 
 size_t clamp_buffer_size(ngtcp2_conn *conn, size_t buflen, size_t gso_burst);
 
@@ -562,16 +570,15 @@ struct ECHServerConfig {
 
 // read_ech_server_config reads server-side ECH configuration from a
 // file denoted by |path|.
-std::optional<ECHServerConfig>
-read_ech_server_config(const std::string_view &path);
+std::expected<ECHServerConfig, Error>
+read_ech_server_config(std::string_view path);
 
 std::span<uint64_t, 2> generate_siphash_key();
 
 // get_string returns a URL component specified by |f| of |uri|.  This
 // function assumes that u.field_set & (1 << f) is nonzero.
-constexpr std::string_view get_string(const std::string_view &uri,
-                                      const urlparse_url &u,
-                                      urlparse_url_fields f) {
+constexpr std::string_view
+get_string(std::string_view uri, const urlparse_url &u, urlparse_url_fields f) {
   assert(u.field_set & (1 << f));
 
   auto p = &u.field_data[f];
@@ -605,5 +612,20 @@ template <> struct hash<ngtcp2_cid> {
 inline bool operator==(const ngtcp2_cid &lhs, const ngtcp2_cid &rhs) {
   return ngtcp2_cid_eq(&lhs, &rhs);
 }
+
+template <>
+struct std::formatter<ngtcp2_cid> : public std::formatter<std::string_view> {
+  auto format(ngtcp2_cid cid, format_context &ctx) const {
+    std::array<char, NGTCP2_MAX_CIDLEN * 2 + 2> buf;
+    buf[0] = '0';
+    buf[1] = 'x';
+
+    auto end = ngtcp2::util::format_hex(std::span{cid.data, cid.datalen},
+                                        std::ranges::begin(buf) + 2);
+
+    return std::formatter<std::string_view>::format(
+      {std::ranges::begin(buf), end}, ctx);
+  }
+};
 
 #endif // !defined(UTIL_H)

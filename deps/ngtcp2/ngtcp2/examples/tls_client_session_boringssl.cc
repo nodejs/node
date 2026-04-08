@@ -35,19 +35,20 @@
 
 extern Config config;
 
-int TLSClientSession::init(bool &early_data_enabled,
-                           const TLSClientContext &tls_ctx,
-                           const char *remote_addr, ClientBase *client,
-                           uint32_t quic_version, AppProtocol app_proto) {
+std::expected<void, Error>
+TLSClientSession::init(bool &early_data_enabled,
+                       const TLSClientContext &tls_ctx, const char *remote_addr,
+                       ClientBase *client, uint32_t quic_version,
+                       AppProtocol app_proto) {
   early_data_enabled = false;
 
   auto ssl_ctx = tls_ctx.get_native_handle();
 
   ssl_ = SSL_new(ssl_ctx);
   if (!ssl_) {
-    std::cerr << "SSL_new: " << ERR_error_string(ERR_get_error(), nullptr)
-              << std::endl;
-    return -1;
+    std::println(stderr, "SSL_new: {}",
+                 ERR_error_string(ERR_get_error(), nullptr));
+    return std::unexpected{Error::CRYPTO};
   }
 
   SSL_set_app_data(ssl_, client->conn_ref());
@@ -75,17 +76,17 @@ int TLSClientSession::init(bool &early_data_enabled,
   if (config.session_file) {
     auto f = BIO_new_file(config.session_file, "r");
     if (f == nullptr) {
-      std::cerr << "Could not read TLS session file " << config.session_file
-                << std::endl;
+      std::println(stderr, "Could not read TLS session file {}",
+                   config.session_file);
     } else {
       auto session = PEM_read_bio_SSL_SESSION(f, nullptr, 0, nullptr);
       BIO_free(f);
       if (session == nullptr) {
-        std::cerr << "Could not read TLS session file " << config.session_file
-                  << std::endl;
+        std::println(stderr, "Could not read TLS session file {}",
+                     config.session_file);
       } else {
         if (!SSL_set_session(ssl_, session)) {
-          std::cerr << "Could not set session" << std::endl;
+          std::println(stderr, "Could not set session");
         } else if (!config.disable_early_data &&
                    SSL_SESSION_early_data_capable(session)) {
           early_data_enabled = true;
@@ -99,12 +100,12 @@ int TLSClientSession::init(bool &early_data_enabled,
   if (!config.ech_config_list.empty() &&
       SSL_set1_ech_config_list(ssl_, config.ech_config_list.data(),
                                config.ech_config_list.size()) != 1) {
-    std::cerr << "Could not set ECHConfigList: "
-              << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
-    return -1;
+    std::println(stderr, "Could not set ECHConfigList: {}",
+                 ERR_error_string(ERR_get_error(), nullptr));
+    return std::unexpected{Error::CRYPTO};
   }
 
-  return 0;
+  return {};
 }
 
 bool TLSClientSession::get_early_data_accepted() const {
@@ -115,20 +116,21 @@ bool TLSClientSession::get_ech_accepted() const {
   return SSL_ech_accepted(ssl_);
 }
 
-int TLSClientSession::write_ech_config_list(const char *path) const {
+std::expected<void, Error>
+TLSClientSession::write_ech_config_list(const char *path) const {
   const uint8_t *retry_configs;
   size_t retry_configslen;
 
   SSL_get0_ech_retry_configs(ssl_, &retry_configs, &retry_configslen);
   if (retry_configslen == 0) {
-    std::cerr << "No ECH retry configs found" << std::endl;
-    return -1;
+    std::println(stderr, "No ECH retry configs found");
+    return std::unexpected{Error::CRYPTO};
   }
 
   auto f = std::ofstream(path);
 
   if (!f) {
-    return -1;
+    return std::unexpected{Error::IO};
   }
 
   f.write(reinterpret_cast<const char *>(retry_configs),
@@ -136,8 +138,8 @@ int TLSClientSession::write_ech_config_list(const char *path) const {
   f.close();
 
   if (!f) {
-    return -1;
+    return std::unexpected{Error::IO};
   }
 
-  return 0;
+  return {};
 }
