@@ -1266,12 +1266,12 @@ This field defines [subpath imports][] for the current package.
 [`ERR_PACKAGE_PATH_NOT_EXPORTED`]: errors.md#err_package_path_not_exported
 [`ERR_UNKNOWN_FILE_EXTENSION`]: errors.md#err_unknown_file_extension
 [`package.json`]: #nodejs-packagejson-field-definitions
+[`require()` of ES modules]: modules.md#loading-ecmascript-modules-using-require
 [customization hooks]: module.md#customization-hooks
 [entry points]: #package-entry-points
 [folders as modules]: modules.md#folders-as-modules
 [import maps]: https://github.com/WICG/import-maps
 [load ECMAScript modules from CommonJS modules]: modules.md#loading-ecmascript-modules-using-require
-[`require()` of ES modules]: modules.md#loading-ecmascript-modules-using-require
 [merve]: https://github.com/anonrig/merve
 [packages folder mapping]: https://github.com/WICG/import-maps#packages-via-trailing-slashes
 [self-reference]: #self-referencing-a-package-using-its-name
