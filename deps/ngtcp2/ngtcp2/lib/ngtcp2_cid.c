@@ -29,8 +29,9 @@
 
 #include "ngtcp2_path.h"
 #include "ngtcp2_str.h"
+#include "ngtcp2_pkt.h"
 
-void ngtcp2_cid_zero(ngtcp2_cid *cid) { memset(cid, 0, sizeof(*cid)); }
+void ngtcp2_cid_zero(ngtcp2_cid *cid) { *cid = (ngtcp2_cid){0}; }
 
 void ngtcp2_cid_init(ngtcp2_cid *cid, const uint8_t *data, size_t datalen) {
   assert(datalen <= NGTCP2_MAX_CIDLEN);
@@ -74,12 +75,12 @@ void ngtcp2_scid_copy(ngtcp2_scid *dest, const ngtcp2_scid *src) {
 }
 
 void ngtcp2_dcid_init(ngtcp2_dcid *dcid, uint64_t seq, const ngtcp2_cid *cid,
-                      const uint8_t *token) {
+                      const ngtcp2_stateless_reset_token *token) {
   dcid->seq = seq;
   dcid->cid = *cid;
 
   if (token) {
-    memcpy(dcid->token, token, NGTCP2_STATELESS_RESET_TOKENLEN);
+    dcid->token = *token;
     dcid->flags = NGTCP2_DCID_FLAG_TOKEN_PRESENT;
   } else {
     dcid->flags = NGTCP2_DCID_FLAG_NONE;
@@ -93,11 +94,12 @@ void ngtcp2_dcid_init(ngtcp2_dcid *dcid, uint64_t seq, const ngtcp2_cid *cid,
   dcid->max_udp_payload_size = NGTCP2_MAX_UDP_PAYLOAD_SIZE;
 }
 
-void ngtcp2_dcid_set_token(ngtcp2_dcid *dcid, const uint8_t *token) {
+void ngtcp2_dcid_set_token(ngtcp2_dcid *dcid,
+                           const ngtcp2_stateless_reset_token *token) {
   assert(token);
 
   dcid->flags |= NGTCP2_DCID_FLAG_TOKEN_PRESENT;
-  memcpy(dcid->token, token, NGTCP2_STATELESS_RESET_TOKENLEN);
+  dcid->token = *token;
 }
 
 void ngtcp2_dcid_set_path(ngtcp2_dcid *dcid, const ngtcp2_path *path) {
@@ -106,7 +108,7 @@ void ngtcp2_dcid_set_path(ngtcp2_dcid *dcid, const ngtcp2_path *path) {
 
 void ngtcp2_dcid_copy(ngtcp2_dcid *dest, const ngtcp2_dcid *src) {
   ngtcp2_dcid_init(dest, src->seq, &src->cid,
-                   (src->flags & NGTCP2_DCID_FLAG_TOKEN_PRESENT) ? src->token
+                   (src->flags & NGTCP2_DCID_FLAG_TOKEN_PRESENT) ? &src->token
                                                                  : NULL);
   ngtcp2_path_copy(&dest->ps.path, &src->ps.path);
   dest->retired_ts = src->retired_ts;
@@ -123,18 +125,19 @@ void ngtcp2_dcid_copy_cid_token(ngtcp2_dcid *dest, const ngtcp2_dcid *src) {
 
   if (src->flags & NGTCP2_DCID_FLAG_TOKEN_PRESENT) {
     dest->flags |= NGTCP2_DCID_FLAG_TOKEN_PRESENT;
-    memcpy(dest->token, src->token, NGTCP2_STATELESS_RESET_TOKENLEN);
+    dest->token = src->token;
   } else if (dest->flags & NGTCP2_DCID_FLAG_TOKEN_PRESENT) {
     dest->flags &= (uint8_t)~NGTCP2_DCID_FLAG_TOKEN_PRESENT;
   }
 }
 
 int ngtcp2_dcid_verify_uniqueness(const ngtcp2_dcid *dcid, uint64_t seq,
-                                  const ngtcp2_cid *cid, const uint8_t *token) {
+                                  const ngtcp2_cid *cid,
+                                  const ngtcp2_stateless_reset_token *token) {
   if (dcid->seq == seq) {
     return ngtcp2_cid_eq(&dcid->cid, cid) &&
                (dcid->flags & NGTCP2_DCID_FLAG_TOKEN_PRESENT) &&
-               memcmp(dcid->token, token, NGTCP2_STATELESS_RESET_TOKENLEN) == 0
+               ngtcp2_stateless_reset_token_eq(&dcid->token, token)
              ? 0
              : NGTCP2_ERR_PROTO;
   }
@@ -142,12 +145,12 @@ int ngtcp2_dcid_verify_uniqueness(const ngtcp2_dcid *dcid, uint64_t seq,
   return !ngtcp2_cid_eq(&dcid->cid, cid) ? 0 : NGTCP2_ERR_PROTO;
 }
 
-int ngtcp2_dcid_verify_stateless_reset_token(const ngtcp2_dcid *dcid,
-                                             const ngtcp2_path *path,
-                                             const uint8_t *token) {
+int ngtcp2_dcid_verify_stateless_reset_token(
+  const ngtcp2_dcid *dcid, const ngtcp2_path *path,
+  const ngtcp2_stateless_reset_token *token) {
   return ngtcp2_path_eq(&dcid->ps.path, path) &&
              (dcid->flags & NGTCP2_DCID_FLAG_TOKEN_PRESENT) &&
-             ngtcp2_cmemeq(dcid->token, token, NGTCP2_STATELESS_RESET_TOKENLEN)
+             ngtcp2_cmemeq(dcid->token.data, token->data, sizeof(token->data))
            ? 0
            : NGTCP2_ERR_INVALID_ARGUMENT;
 }

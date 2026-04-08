@@ -41,15 +41,15 @@ public:
   TLSServerContext();
   ~TLSServerContext();
 
-  int init(const char *private_key_file, const char *cert_file,
-           AppProtocol app_proto);
+  std::expected<void, Error> init(const char *private_key_file,
+                                  const char *cert_file, AppProtocol app_proto);
 
   ptls_context_t *get_native_handle();
 
   void enable_keylog();
 
 private:
-  int load_private_key(const char *private_key_file);
+  std::expected<void, Error> load_private_key(const char *private_key_file);
 
   ptls_context_t ctx_;
   ptls_openssl_sign_certificate_t sign_cert_{};

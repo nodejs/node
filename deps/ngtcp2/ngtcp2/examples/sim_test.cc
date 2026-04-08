@@ -80,13 +80,9 @@ void test_sim_handshake(void) {
     svapp.configure(sv);
     sv.link = link;
 
-    int rv;
+    auto rv = Simulator{Endpoint(cl), Endpoint(sv)}.run();
 
-    {
-      rv = Simulator{Endpoint(cl), Endpoint(sv)}.run();
-    }
-
-    assert_int(0, ==, rv);
+    assert_true(rv.has_value());
     assert_true(clapp.get_handshake_confirmed());
     assert_true(svapp.get_handshake_confirmed());
   }
@@ -132,13 +128,9 @@ void test_sim_unistream(void) {
     svapp.configure(sv);
     sv.link = link;
 
-    int rv;
+    auto rv = Simulator{Endpoint(cl), Endpoint(sv)}.run();
 
-    {
-      rv = Simulator{Endpoint(cl), Endpoint(sv)}.run();
-    }
-
-    assert_int(0, ==, rv);
+    assert_true(rv.has_value());
     assert_true(svapp.is_all_bytes_sent());
     assert_uint64(link.compute_expected_goodput(link.delay * 2), <=,
                   svapp.compute_goodput());
