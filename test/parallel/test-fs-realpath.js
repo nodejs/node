@@ -558,6 +558,22 @@ function test_root_with_null_options(realpath, realpathSync, cb) {
   }));
 }
 
+function test_windows_namespaced_path(realpath, realpathSync, cb) {
+  if (!common.isWindows) {
+    cb();
+    return;
+  }
+
+  const entry = tmp('issue-62446-entry.js');
+  fs.writeFileSync(entry, 'console.log("ok");');
+  const namespacedEntry = path.toNamespacedPath(entry);
+
+  assertEqualPath(realpathSync(namespacedEntry), path.resolve(entry));
+  asynctest(realpath, [namespacedEntry], cb, function(err, result) {
+    assertEqualPath(result, path.resolve(entry));
+  });
+}
+
 // ----------------------------------------------------------------------------
 
 const tests = [
@@ -579,6 +595,7 @@ const tests = [
   test_up_multiple_with_null_options,
   test_root,
   test_root_with_null_options,
+  test_windows_namespaced_path,
 ];
 const numtests = tests.length;
 let testsRun = 0;
