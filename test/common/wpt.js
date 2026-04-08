@@ -93,10 +93,9 @@ class ReportResult {
 // Checkout https://github.com/web-platform-tests/wpt.fyi/tree/main/api#results-creation
 // for more details.
 class WPTReport {
-  constructor(path) {
-    this.filename = `report-${path.replaceAll('/', '-')}.json`;
-    // Resolve at construction time so cwd changes (e.g. tmpdir cleanup) don't affect the output path.
-    this.filepath = path.resolve('out', 'wpt', this.filename);
+  constructor(testPath) {
+    this.filename = `report-${testPath.replaceAll('/', '-')}.json`;
+    this.filepath = path.join(__dirname, `../../out/wpt/${this.filename}`);
     /** @type {Map<string, ReportResult>} */
     this.results = new Map();
     this.time_start = Date.now();
