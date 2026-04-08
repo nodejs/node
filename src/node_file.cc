@@ -1874,6 +1874,7 @@ int MKDirpSync(uv_loop_t* loop,
         case UV_EACCES:
         case UV_ENOSPC:
         case UV_ENOTDIR:
+        case UV_EROFS:
         case UV_EPERM: {
           return err;
         }
@@ -1954,6 +1955,7 @@ int MKDirpAsync(
             case UV_EACCES:
             case UV_ENOSPC:
             case UV_ENOTDIR:
+            case UV_EROFS:
             case UV_EPERM: {
               req_wrap->continuation_data()->Done(err);
               break;
