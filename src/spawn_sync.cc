@@ -1200,11 +1200,8 @@ Maybe<int> SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
 
   for (uint32_t i = 0; i < length; i++) {
     list[i] = buffer + data_offset;
-    data_offset += StringBytes::Write(isolate,
-                                      buffer + data_offset,
-                                      -1,
-                                      values[i],
-                                      UTF8);
+    data_offset +=
+        StringBytes::Write(isolate, buffer + data_offset, -1, values[i], UTF8);
     buffer[data_offset++] = '\0';
     data_offset = nbytes::RoundUp(data_offset, sizeof(void*));
   }
