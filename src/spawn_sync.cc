@@ -44,6 +44,7 @@ using v8::Isolate;
 using v8::Just;
 using v8::JustVoid;
 using v8::Local;
+using v8::LocalVector;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Nothing;
@@ -1159,7 +1160,7 @@ Maybe<int> SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
   length = js_array->Length();
   data_size = 0;
 
-  std::vector<Local<String>> values(length);
+  LocalVector<String> values(isolate, length);
 
   // Index has a pointer to every string element, plus one more for a final
   // null pointer.
