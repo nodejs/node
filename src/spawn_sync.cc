@@ -1155,9 +1155,11 @@ Maybe<int> SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
   if (!js_value->IsArray()) return Just<int>(UV_EINVAL);
 
   Local<Context> context = env()->context();
-  js_array = js_value.As<Array>()->Clone().As<Array>();
+  js_array = js_value.As<Array>();
   length = js_array->Length();
   data_size = 0;
+
+  Local<String> values[length];
 
   // Index has a pointer to every string element, plus one more for a final
   // null pointer.
@@ -1173,17 +1175,19 @@ Maybe<int> SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
       return Nothing<int>();
     }
 
-    if (!value->IsString()) {
+    if (value->IsString()) {
+      values[i] = value.As<String>();
+    } else {
       Local<String> string;
       if (!value->ToString(env()->isolate()->GetCurrentContext())
-               .ToLocal(&string) ||
-          js_array->Set(context, i, string).IsNothing()) {
+               .ToLocal(&string)) {
         return Nothing<int>();
       }
+      values[i] = string;
     }
 
     size_t maybe_size;
-    if (!StringBytes::StorageSize(isolate, value, UTF8).To(&maybe_size)) {
+    if (!StringBytes::StorageSize(isolate, values[i], UTF8).To(&maybe_size)) {
       return Nothing<int>();
     }
     data_size += maybe_size + 1;
@@ -1197,14 +1201,10 @@ Maybe<int> SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
 
   for (uint32_t i = 0; i < length; i++) {
     list[i] = buffer + data_offset;
-    Local<Value> value;
-    if (!js_array->Get(context, i).ToLocal(&value)) {
-      return Nothing<int>();
-    }
     data_offset += StringBytes::Write(isolate,
                                       buffer + data_offset,
                                       -1,
-                                      value,
+                                      values[i],
                                       UTF8);
     buffer[data_offset++] = '\0';
     data_offset = nbytes::RoundUp(data_offset, sizeof(void*));
