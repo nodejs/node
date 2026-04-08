@@ -504,11 +504,17 @@ added: v23.8.0
 
 * `options` {Object}
   * `body` {ArrayBuffer | ArrayBufferView | Blob}
-  * `sendOrder` {number}
+  * `priority` {string} The priority level of the stream. One of `'high'`,
+    `'default'`, or `'low'`. **Default:** `'default'`.
+  * `incremental` {boolean} When `true`, data from this stream may be
+    interleaved with data from other streams of the same priority level.
+    When `false`, the stream should be completed before same-priority peers.
+    **Default:** `false`.
 * Returns: {Promise} for a {quic.QuicStream}
 
 Open a new bidirectional stream. If the `body` option is not specified,
-the outgoing stream will be half-closed.
+the outgoing stream will be half-closed. The `priority` and `incremental`
+options are only used when the session supports priority (e.g. HTTP/3).
 
 ### `session.createUnidirectionalStream([options])`
 
@@ -518,11 +524,17 @@ added: v23.8.0
 
 * `options` {Object}
   * `body` {ArrayBuffer | ArrayBufferView | Blob}
-  * `sendOrder` {number}
+  * `priority` {string} The priority level of the stream. One of `'high'`,
+    `'default'`, or `'low'`. **Default:** `'default'`.
+  * `incremental` {boolean} When `true`, data from this stream may be
+    interleaved with data from other streams of the same priority level.
+    When `false`, the stream should be completed before same-priority peers.
+    **Default:** `false`.
 * Returns: {Promise} for a {quic.QuicStream}
 
 Open a new unidirectional stream. If the `body` option is not specified,
-the outgoing stream will be closed.
+the outgoing stream will be closed. The `priority` and `incremental`
+options are only used when the session supports priority (e.g. HTTP/3).
 
 ### `session.path`
 
@@ -854,6 +866,37 @@ added: v23.8.0
 * Type: {quic.OnStreamErrorCallback}
 
 The callback to invoke when the stream is reset. Read/write.
+
+### `stream.priority`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Object|null}
+  * `level` {string} One of `'high'`, `'default'`, or `'low'`.
+  * `incremental` {boolean} Whether the stream data should be interleaved
+    with other streams of the same priority level.
+
+The current priority of the stream. Returns `null` if the session does not
+support priority (e.g. non-HTTP/3) or if the stream has been destroyed.
+Read only. Use [`stream.setPriority()`][] to change the priority.
+
+### `stream.setPriority([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `level` {string} The priority level. One of `'high'`, `'default'`, or
+    `'low'`. **Default:** `'default'`.
+  * `incremental` {boolean} When `true`, data from this stream may be
+    interleaved with data from other streams of the same priority level.
+    **Default:** `false`.
+
+Sets the priority of the stream. Has no effect if the session does not
+support priority or if the stream has been destroyed.
 
 ### `stream.readable`
 
@@ -1870,3 +1913,4 @@ added: v23.8.0
 -->
 
 [`sessionOptions.sni`]: #sessionoptionssni-server-only
+[`stream.setPriority()`]: #streamsetpriorityoptions
