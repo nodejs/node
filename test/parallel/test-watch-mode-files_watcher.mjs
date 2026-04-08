@@ -161,6 +161,47 @@ describe('watch mode file watcher', () => {
        assert.strictEqual(changesCount, 1);
      });
 
+  // Regression test for https://github.com/nodejs/node/issues/61906
+  // When --watch-path is used (mode: 'all'), filterFile() is called for
+  // --env-file entries. It must watch only that specific file, not the
+  // entire parent directory, so that touching an unrelated file in the
+  // same directory does not trigger a restart.
+  it('filterFile in "all" mode should not trigger on unrelated files',
+     { skip: !supportsRecursiveWatching }, async () => {
+       watcher = new FilesWatcher({ debounce: 100, mode: 'all' });
+       watcher.on('changed', common.mustNotCall(
+         'unexpected restart triggered by unrelated file change'));
+
+       const envFile = tmpdir.resolve('env-no-trigger.env');
+       const unrelated = tmpdir.resolve('env-unrelated.txt');
+       writeFileSync(envFile, 'FOO=bar');
+       writeFileSync(unrelated, 'initial');
+
+       watcher.filterFile(envFile);
+
+       await setTimeout(common.platformTimeout(100)); // avoid throttling
+       writeFileSync(unrelated, 'changed');
+       // Wait long enough to confirm no restart was triggered
+       await setTimeout(1000);
+     });
+
+  it('filterFile in "all" mode should trigger when the watched file changes',
+     { skip: !supportsRecursiveWatching }, async () => {
+       watcher = new FilesWatcher({ debounce: 100, mode: 'all' });
+       watcher.on('changed', () => changesCount++);
+
+       const envFile = tmpdir.resolve('env-trigger.env');
+       writeFileSync(envFile, 'FOO=bar');
+
+       watcher.filterFile(envFile);
+
+       const changed = once(watcher, 'changed');
+       await setTimeout(common.platformTimeout(100)); // avoid throttling
+       writeFileSync(envFile, 'FOO=newvalue');
+       await changed;
+       assert.strictEqual(changesCount, 1);
+     });
+
   it('should ruse existing watcher if it exists',
      { skip: !supportsRecursiveWatching }, () => {
        assert.deepStrictEqual(watcher.watchedPaths, []);
