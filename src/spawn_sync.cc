@@ -1159,7 +1159,7 @@ Maybe<int> SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
   length = js_array->Length();
   data_size = 0;
 
-  Local<String> values[length];
+  std::vector<Local<String>> values(length);
 
   // Index has a pointer to every string element, plus one more for a final
   // null pointer.
