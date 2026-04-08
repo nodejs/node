@@ -1165,8 +1165,7 @@ Maybe<int> SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
   // null pointer.
   list_size = (length + 1) * sizeof *list;
 
-  // Convert all array elements to string. Modify the js object itself if
-  // needed - it's okay since we cloned the original object. Also compute the
+  // Convert all array elements to string. Also compute the
   // length of all strings, including room for a null terminator after every
   // string. Align strings to cache lines.
   for (uint32_t i = 0; i < length; i++) {
