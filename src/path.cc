@@ -98,6 +98,68 @@ constexpr bool IsWindowsDeviceRoot(const char c) noexcept {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
+enum class WindowsNamespacedPathType {
+  kNotNamespaced,
+  kDriveAbsolutePath,
+  kUNCPath,
+  kOtherNamespacedPath,
+};
+
+static WindowsNamespacedPathType ClassifyWindowsNamespacedPath(
+    std::string_view path) {
+  if (!(path.size() >= 4 && path[0] == '\\' && path[1] == '\\' &&
+        path[2] == '?' && path[3] == '\\')) {
+    return WindowsNamespacedPathType::kNotNamespaced;
+  }
+
+  if (path.size() >= 7 && IsWindowsDeviceRoot(path[4]) && path[5] == ':' &&
+      IsPathSeparator(path[6])) {
+    return WindowsNamespacedPathType::kDriveAbsolutePath;
+  }
+
+  if (path.size() >= 8 && ToLower(path[4]) == 'u' &&
+      ToLower(path[5]) == 'n' && ToLower(path[6]) == 'c' &&
+      path[7] == '\\') {
+    size_t i = 8;
+    const size_t server_start = i;
+    while (i < path.size() && !IsPathSeparator(path[i])) {
+      i++;
+    }
+    if (i == server_start || i == path.size()) {
+      return WindowsNamespacedPathType::kOtherNamespacedPath;
+    }
+
+    while (i < path.size() && IsPathSeparator(path[i])) {
+      i++;
+    }
+    const size_t share_start = i;
+    while (i < path.size() && !IsPathSeparator(path[i])) {
+      i++;
+    }
+    if (i == share_start) {
+      return WindowsNamespacedPathType::kOtherNamespacedPath;
+    }
+
+    return WindowsNamespacedPathType::kUNCPath;
+  }
+
+  return WindowsNamespacedPathType::kOtherNamespacedPath;
+}
+
+static void StripExtendedPathPrefixForPathResolve(std::string& path) {
+  switch (ClassifyWindowsNamespacedPath(path)) {
+    case WindowsNamespacedPathType::kDriveAbsolutePath:
+      path = path.substr(4);
+      return;
+    case WindowsNamespacedPathType::kUNCPath:
+      path = "\\\\" + path.substr(8);
+      return;
+    case WindowsNamespacedPathType::kNotNamespaced:
+    case WindowsNamespacedPathType::kOtherNamespacedPath:
+      return;
+  }
+}
+
 std::string PathResolve(Environment* env,
                         const std::vector<std::string_view>& paths) {
   std::string resolvedDevice = "";
@@ -131,6 +193,8 @@ std::string PathResolve(Environment* env,
         path = resolvedDevice + "\\";
       }
     }
+
+    StripExtendedPathPrefixForPathResolve(path);
 
     const size_t len = path.length();
     int rootEnd = 0;
@@ -330,11 +394,16 @@ void ToNamespacedPath(Environment* env, BufferValue* path) {
 // namespace-prefixed path.
 void FromNamespacedPath(std::string* path) {
 #ifdef _WIN32
-  if (path->starts_with("\\\\?\\UNC\\")) {
-    *path = path->substr(8);
-    path->insert(0, "\\\\");
-  } else if (path->starts_with("\\\\?\\")) {
-    *path = path->substr(4);
+  switch (ClassifyWindowsNamespacedPath(*path)) {
+    case WindowsNamespacedPathType::kUNCPath:
+      *path = "\\\\" + path->substr(8);
+      return;
+    case WindowsNamespacedPathType::kDriveAbsolutePath:
+      *path = path->substr(4);
+      return;
+    case WindowsNamespacedPathType::kNotNamespaced:
+    case WindowsNamespacedPathType::kOtherNamespacedPath:
+      return;
   }
 #endif
 }

@@ -8,6 +8,7 @@
 #include "v8.h"
 
 using node::BufferValue;
+using node::FromNamespacedPath;
 using node::PathResolve;
 using node::ToNamespacedPath;
 
@@ -43,6 +44,13 @@ TEST_F(PathTest, PathResolve) {
             "\\\\.\\PHYSICALDRIVE0");
   EXPECT_EQ(PathResolve(*env, {"\\\\?\\PHYSICALDRIVE0"}),
             "\\\\?\\PHYSICALDRIVE0");
+  EXPECT_EQ(PathResolve(*env, {"\\\\?\\C:\\foo"}), "C:\\foo");
+  EXPECT_EQ(PathResolve(*env, {"\\\\?\\C:\\"}), "C:\\");
+  EXPECT_EQ(PathResolve(*env, {"\\\\?\\UNC\\server\\share"}),
+            "\\\\server\\share\\");
+  EXPECT_EQ(PathResolve(*env, {"\\\\?\\UNC\\server\\share\\dir"}),
+            "\\\\server\\share\\dir");
+  EXPECT_EQ(PathResolve(*env, {"\\\\?\\C:foo"}), "\\\\?\\C:foo");
 #else
   EXPECT_EQ(PathResolve(*env, {"/var/lib", "../", "file/"}), "/var/file");
   EXPECT_EQ(PathResolve(*env, {"/var/lib", "/../", "file/"}), "/file");
@@ -85,11 +93,36 @@ TEST_F(PathTest, ToNamespacedPath) {
           .ToLocalChecked());
   ToNamespacedPath(*env, &data_4);
   EXPECT_EQ(data_4.ToStringView(), "\\\\?\\c:\\Windows\\System");
+  BufferValue data_5(
+      isolate_,
+      v8::String::NewFromUtf8(isolate_, "\\\\?\\C:\\").ToLocalChecked());
+  ToNamespacedPath(*env, &data_5);
+  EXPECT_EQ(data_5.ToStringView(), "\\\\?\\C:\\");
 #else
   BufferValue data(
       isolate_,
       v8::String::NewFromUtf8(isolate_, "hello world").ToLocalChecked());
   ToNamespacedPath(*env, &data);
   EXPECT_EQ(data.ToStringView(), "hello world");  // Input should not be mutated
+#endif
+}
+
+TEST_F(PathTest, FromNamespacedPath) {
+#ifdef _WIN32
+  std::string drive_absolute = "\\\\?\\C:\\foo";
+  FromNamespacedPath(&drive_absolute);
+  EXPECT_EQ(drive_absolute, "C:\\foo");
+
+  std::string unc_absolute = "\\\\?\\UNC\\server\\share\\dir";
+  FromNamespacedPath(&unc_absolute);
+  EXPECT_EQ(unc_absolute, "\\\\server\\share\\dir");
+
+  std::string device_path = "\\\\?\\PHYSICALDRIVE0";
+  FromNamespacedPath(&device_path);
+  EXPECT_EQ(device_path, "\\\\?\\PHYSICALDRIVE0");
+
+  std::string drive_relative = "\\\\?\\C:foo";
+  FromNamespacedPath(&drive_relative);
+  EXPECT_EQ(drive_relative, "\\\\?\\C:foo");
 #endif
 }
