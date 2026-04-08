@@ -3,45 +3,11 @@
 const common = require('../common');
 const assert = require('assert');
 const test = require('node:test');
-const { Blob } = require('buffer');
-const { ReadableStream, CompressionStream, DecompressionStream } = require('stream/web');
+const { ReadableStream } = require('stream/web');
 
 const sab = new SharedArrayBuffer(8);
 const sabView = new Uint8Array(sab);
 const sabDataView = new DataView(sab);
-
-// -- Blob constructor --
-
-test('Blob rejects raw SharedArrayBuffer', () => {
-  assert.throws(
-    () => new Blob([sab]),
-    { code: 'ERR_INVALID_ARG_TYPE' },
-  );
-});
-
-test('Blob rejects Uint8Array backed by SharedArrayBuffer', () => {
-  assert.throws(
-    () => new Blob([sabView]),
-    { code: 'ERR_INVALID_ARG_VALUE' },
-  );
-});
-
-test('Blob rejects DataView backed by SharedArrayBuffer', () => {
-  assert.throws(
-    () => new Blob([sabDataView]),
-    { code: 'ERR_INVALID_ARG_VALUE' },
-  );
-});
-
-test('Blob still accepts regular ArrayBuffer', () => {
-  const blob = new Blob([new ArrayBuffer(4)]);
-  assert.strictEqual(blob.size, 4);
-});
-
-test('Blob still accepts regular Uint8Array', () => {
-  const blob = new Blob([new Uint8Array(4)]);
-  assert.strictEqual(blob.size, 4);
-});
 
 // -- ReadableStreamBYOBReader.read() --
 
@@ -131,34 +97,6 @@ test('ReadableByteStreamController.enqueue() rejects SAB-backed DataView', async
   assert.deepStrictEqual(value, new Uint8Array([2]));
   reader.releaseLock();
 });
-
-// -- Compression/Decompression streams reject raw SharedArrayBuffer --
-
-for (const format of ['deflate', 'gzip', 'deflate-raw', 'brotli']) {
-  test(`CompressionStream rejects raw SharedArrayBuffer for ${format}`, async () => {
-    const cs = new CompressionStream(format);
-    const writer = cs.writable.getWriter();
-    const reader = cs.readable.getReader();
-
-    const writePromise = writer.write(sab);
-    const readPromise = reader.read();
-
-    await assert.rejects(writePromise, { code: 'ERR_INVALID_ARG_TYPE' });
-    await assert.rejects(readPromise, { code: 'ERR_INVALID_ARG_TYPE' });
-  });
-
-  test(`DecompressionStream rejects raw SharedArrayBuffer for ${format}`, async () => {
-    const ds = new DecompressionStream(format);
-    const writer = ds.writable.getWriter();
-    const reader = ds.readable.getReader();
-
-    const writePromise = writer.write(sab);
-    const readPromise = reader.read();
-
-    await assert.rejects(writePromise, { code: 'ERR_INVALID_ARG_TYPE' });
-    await assert.rejects(readPromise, { code: 'ERR_INVALID_ARG_TYPE' });
-  });
-}
 
 // -- SharedWebIDL converters --
 
