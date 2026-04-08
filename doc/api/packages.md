@@ -967,11 +967,41 @@ If one dependency `require()`s `my-package` while another `import`s it, two
 separate copies of the package are loaded. Any state or objects exported by the
 package will not be shared between the two copies.
 
-### Approach 1: Use `node` and `default` conditions
+### Approach 1: Use a single format with `default`
 
-The recommended approach to avoid the dual package hazard while still providing
-both CommonJS and ES module entry points is to use the `"node"` and `"default"`
-conditions instead of `"require"` and `"import"`:
+The simplest way to avoid the dual package hazard is to pick one format and
+export it using the `"default"` condition:
+
+```json
+{
+  "name": "my-package",
+  "exports": {
+    "default": "./index.cjs"
+  }
+}
+```
+
+If the package uses CommonJS, non-Node.js environments will need to bundle it.
+Alternatively, an ES module entry point can be used:
+
+```json
+{
+  "name": "my-package",
+  "exports": {
+    "default": "./index.mjs"
+  }
+}
+```
+
+In this case, CommonJS consumers can only use the package in Node.js versions
+that support [`require()` of ES modules][]. ESM consumers can always `import`
+it regardless of the format.
+
+### Approach 2: Use `node` and `default` conditions
+
+If the package needs to provide different entry points for Node.js and other
+environments, use the `"node"` and `"default"` conditions instead of
+`"require"` and `"import"`:
 
 ```json
 {
@@ -995,7 +1025,7 @@ This approach ensures there is only one copy of the package loaded per
 environment, while still allowing non-Node.js environments to benefit from
 ES modules.
 
-### Approach 2: Isolate state in a CommonJS wrapper
+### Approach 3: Isolate state in a CommonJS wrapper
 
 If the package must provide both true ESM and CJS entry points in Node.js (for
 example, to allow ESM consumers to use top-level `await`), the stateful parts
@@ -1241,6 +1271,7 @@ This field defines [subpath imports][] for the current package.
 [folders as modules]: modules.md#folders-as-modules
 [import maps]: https://github.com/WICG/import-maps
 [load ECMAScript modules from CommonJS modules]: modules.md#loading-ecmascript-modules-using-require
+[`require()` of ES modules]: modules.md#loading-ecmascript-modules-using-require
 [merve]: https://github.com/anonrig/merve
 [packages folder mapping]: https://github.com/WICG/import-maps#packages-via-trailing-slashes
 [self-reference]: #self-referencing-a-package-using-its-name
