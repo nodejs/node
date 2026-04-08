@@ -1625,6 +1625,7 @@ callback function to indicate what type of operation is being authorized.
 [Run-Time Limits]: https://www.sqlite.org/c3ref/limit.html
 [SQL injection]: https://en.wikipedia.org/wiki/SQL_injection
 [Type conversion between JavaScript and SQLite]: #type-conversion-between-javascript-and-sqlite
+[`'sqlite.db.query'`]: diagnostics_channel.md#event-sqlitedbquery
 [`ATTACH DATABASE`]: https://www.sqlite.org/lang_attach.html
 [`PRAGMA foreign_keys`]: https://www.sqlite.org/pragma.html#pragma_foreign_keys
 [`SQLITE_DBCONFIG_DEFENSIVE`]: https://www.sqlite.org/c3ref/c_dbconfig_defensive.html#sqlitedbconfigdefensive
@@ -1636,7 +1637,6 @@ callback function to indicate what type of operation is being authorized.
 [`database.createTagStore()`]: #databasecreatetagstoremaxsize
 [`database.serialize()`]: #databaseserializedbname
 [`database.setAuthorizer()`]: #databasesetauthorizercallback
-[`'sqlite.db.query'`]: diagnostics_channel.md#event-sqlitedbquery
 [`diagnostics_channel`]: diagnostics_channel.md
 [`sqlite3_backup_finish()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupfinish
 [`sqlite3_backup_init()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupinit
