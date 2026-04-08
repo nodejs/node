@@ -22,7 +22,7 @@ const badChunks = [
   {
     name: 'Uint8Array backed by SharedArrayBuffer',
     value: new Uint8Array(new SharedArrayBuffer(1)),
-    code: 'ERR_INVALID_ARG_TYPE',
+    code: 'ERR_INVALID_ARG_VALUE',
   },
 ];
 
