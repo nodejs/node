@@ -500,20 +500,14 @@ class StatusLoader {
 
   load() {
     const dir = path.join(__dirname, '..', 'wpt');
-    const jsonFile = path.join(dir, 'status', `${this.path}.json`);
     let result;
 
-    let fd;
     try {
-      fd = fs.openSync(jsonFile, 'r');
+      this.statusFile = `${this.path}.json`;
+      const jsonFile = path.join(dir, 'status', this.statusFile);
+      result = JSON.parse(fs.readFileSync(jsonFile, 'utf8'));
     } catch (err) {
       if (err?.code !== 'ENOENT') throw err;
-    }
-    if (fd) {
-      this.statusFile = `${this.path}.json`;
-      result = JSON.parse(fs.readFileSync(fd, 'utf8'));
-      fs.closeSync(fd);
-    } else {
       this.statusFile = `${this.path}.cjs`;
       result = require(path.join(dir, 'status', this.statusFile));
     }
