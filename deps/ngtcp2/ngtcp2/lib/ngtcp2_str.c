@@ -50,7 +50,7 @@ uint8_t *ngtcp2_encode_hex(uint8_t *dest, const uint8_t *data, size_t len) {
 
   for (i = 0; i < len; ++i) {
     *dest++ = (uint8_t)LOWER_XDIGITS[data[i] >> 4];
-    *dest++ = (uint8_t)LOWER_XDIGITS[data[i] & 0xf];
+    *dest++ = (uint8_t)LOWER_XDIGITS[data[i] & 0xF];
   }
 
   return dest;
@@ -72,7 +72,7 @@ char *ngtcp2_encode_printable_ascii_cstr(char *dest, const uint8_t *data,
 
   for (i = 0; i < len; ++i) {
     c = data[i];
-    if (0x20 <= c && c <= 0x7e) {
+    if (0x20 <= c && c <= 0x7E) {
       *p++ = (char)c;
     } else {
       *p++ = '.';
@@ -116,7 +116,7 @@ static char *write_hex_zsup(char *dest, const uint8_t *data, size_t len) {
       break;
     }
 
-    d &= 0xf;
+    d &= 0xF;
 
     if (d) {
       *p++ = LOWER_XDIGITS[d];
@@ -133,7 +133,7 @@ static char *write_hex_zsup(char *dest, const uint8_t *data, size_t len) {
   for (; i < len; ++i) {
     d = data[i];
     *p++ = LOWER_XDIGITS[d >> 4];
-    *p++ = LOWER_XDIGITS[d & 0xf];
+    *p++ = LOWER_XDIGITS[d & 0xF];
   }
 
   return p;
@@ -235,7 +235,7 @@ static int countl_zero(uint64_t x) {
   };
   int n = 0;
 
-  if (x >= 1ull << 32) {
+  if (x >= 1ULL << 32) {
     x >>= 32;
     n += 32;
   }
@@ -263,25 +263,25 @@ static int countl_zero(uint64_t x) {
  */
 static size_t count_digit(uint64_t x) {
   static const uint64_t count_digit_tbl[] = {
-    9ull,
-    99ull,
-    999ull,
-    9999ull,
-    99999ull,
-    999999ull,
-    9999999ull,
-    99999999ull,
-    999999999ull,
-    9999999999ull,
-    99999999999ull,
-    999999999999ull,
-    9999999999999ull,
-    99999999999999ull,
-    999999999999999ull,
-    9999999999999999ull,
-    99999999999999999ull,
-    999999999999999999ull,
-    9999999999999999999ull,
+    9ULL,
+    99ULL,
+    999ULL,
+    9999ULL,
+    99999ULL,
+    999999ULL,
+    9999999ULL,
+    99999999ULL,
+    999999999ULL,
+    9999999999ULL,
+    99999999999ULL,
+    999999999999ULL,
+    9999999999999ULL,
+    99999999999999ULL,
+    999999999999999ULL,
+    9999999999999999ULL,
+    99999999999999999ULL,
+    999999999999999999ULL,
+    9999999999999999999ULL,
   };
   size_t y = (size_t)(19 * (63 - countl_zero(x | 1)) >> 6);
 

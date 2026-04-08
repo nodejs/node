@@ -55,12 +55,12 @@ void ngtcp2_ksl_init(ngtcp2_ksl *ksl, ngtcp2_ksl_compar compar,
 
   assert(keylen >= sizeof(uint64_t));
 
-  aligned_keylen = (keylen + 0x7u) & ~0x7u;
+  aligned_keylen = (keylen + 0x7U) & ~0x7U;
 
   assert(aligned_keylen <= UINT16_MAX);
 
   ngtcp2_objalloc_init(&ksl->blkalloc,
-                       (ksl_blklen(aligned_keylen) + 0xfu) & ~(uintptr_t)0xfu,
+                       (ksl_blklen(aligned_keylen) + 0xFU) & ~(uintptr_t)0xFU,
                        mem);
 
   ksl->root = NULL;

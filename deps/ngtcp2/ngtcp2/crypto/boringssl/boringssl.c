@@ -402,7 +402,7 @@ int ngtcp2_crypto_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
 int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
                           const ngtcp2_crypto_cipher_ctx *hp_ctx,
                           const uint8_t *sample) {
-  static const uint8_t PLAINTEXT[] = "\x00\x00\x00\x00\x00";
+  static const uint8_t PLAINTEXT[16] = {0};
   ngtcp2_crypto_boringssl_cipher_ctx *ctx = hp_ctx->native_handle;
   uint32_t counter;
 
@@ -420,7 +420,7 @@ int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
 #else  /* !defined(WORDS_BIGENDIAN) */
     memcpy(&counter, sample, sizeof(counter));
 #endif /* !defined(WORDS_BIGENDIAN) */
-    CRYPTO_chacha_20(dest, PLAINTEXT, ngtcp2_strlen_lit(PLAINTEXT), ctx->key,
+    CRYPTO_chacha_20(dest, PLAINTEXT, sizeof(PLAINTEXT), ctx->key,
                      sample + sizeof(counter), counter);
     return 0;
   default:
@@ -436,7 +436,8 @@ int ngtcp2_crypto_read_write_crypto_data(
   int rv;
   int err;
 
-  if (SSL_provide_quic_data(
+  if (datalen &&
+      SSL_provide_quic_data(
         ssl,
         ngtcp2_crypto_boringssl_from_ngtcp2_encryption_level(encryption_level),
         data, datalen) != 1) {
@@ -465,6 +466,16 @@ int ngtcp2_crypto_read_write_crypto_data(
         }
 
         goto retry;
+      case SSL_ERROR_WANT_X509_LOOKUP:
+      case SSL_ERROR_WANT_PRIVATE_KEY_OPERATION:
+      case SSL_ERROR_WANT_CERTIFICATE_VERIFY:
+        /* It might be better to return this error, but ngtcp2 does
+           not need to know whether handshake has been interrupted or
+           not.  We expect that necessary plumbing should be done by
+           application when handshake is interrupted (e.g., via
+           SSL_PRIVATE_KEY_METHOD).  If it does not work, we will
+           reconsider this. */
+        return 0;
       default:
         return -1;
       }
@@ -562,6 +573,19 @@ int ngtcp2_crypto_get_path_challenge_data_cb(ngtcp2_conn *conn, uint8_t *data,
   (void)user_data;
 
   if (RAND_bytes(data, NGTCP2_PATH_CHALLENGE_DATALEN) != 1) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
+int ngtcp2_crypto_get_path_challenge_data2_cb(ngtcp2_conn *conn,
+                                              ngtcp2_path_challenge_data *data,
+                                              void *user_data) {
+  (void)conn;
+  (void)user_data;
+
+  if (RAND_bytes(data->data, NGTCP2_PATH_CHALLENGE_DATALEN) != 1) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 

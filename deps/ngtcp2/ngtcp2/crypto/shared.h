@@ -31,26 +31,6 @@
 
 #include <ngtcp2/ngtcp2_crypto.h>
 
-/**
- * @macro
- *
- * :macro:`NGTCP2_INITIAL_SALT_V1` is a salt value which is used to
- * derive initial secret.  It is used for QUIC v1.
- */
-#define NGTCP2_INITIAL_SALT_V1                                                 \
-  "\x38\x76\x2c\xf7\xf5\x59\x34\xb3\x4d\x17\x9a\xe6\xa4\xc8\x0c\xad\xcc\xbb"   \
-  "\x7f\x0a"
-
-/**
- * @macro
- *
- * :macro:`NGTCP2_INITIAL_SALT_V2` is a salt value which is used to
- * derive initial secret.  It is used for QUIC v2.
- */
-#define NGTCP2_INITIAL_SALT_V2                                                 \
-  "\x0d\xed\xe3\xde\xf7\x00\xa6\xdb\x81\x93\x81\xbe\x6e\x26\x9d\xcb\xf9\xbd"   \
-  "\x2e\xd9"
-
 /* Maximum key usage (encryption) limits */
 #define NGTCP2_CRYPTO_MAX_ENCRYPTION_AES_GCM (1ULL << 23)
 #define NGTCP2_CRYPTO_MAX_ENCRYPTION_CHACHA20_POLY1305 (1ULL << 62)

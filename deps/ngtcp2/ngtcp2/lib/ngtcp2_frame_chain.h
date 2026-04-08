@@ -36,10 +36,10 @@
 
 /* NGTCP2_FRAME_CHAIN_BINDER_FLAG_NONE indicates that no flag is
    set. */
-#define NGTCP2_FRAME_CHAIN_BINDER_FLAG_NONE 0x00u
+#define NGTCP2_FRAME_CHAIN_BINDER_FLAG_NONE 0x00U
 /* NGTCP2_FRAME_CHAIN_BINDER_FLAG_ACK indicates that an information
    which a frame carries has been acknowledged. */
-#define NGTCP2_FRAME_CHAIN_BINDER_FLAG_ACK 0x01u
+#define NGTCP2_FRAME_CHAIN_BINDER_FLAG_ACK 0x01U
 
 /*
  * ngtcp2_frame_chain_binder binds 2 or more of ngtcp2_frame_chain to

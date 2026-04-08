@@ -49,8 +49,6 @@ WOLFSSL_CTX *TLSClientContext::get_native_handle() const { return ssl_ctx_; }
 
 namespace {
 int new_session_cb(WOLFSSL *ssl, WOLFSSL_SESSION *session) {
-  std::cerr << "new_session_cb called" << std::endl;
-
   auto conn_ref =
     static_cast<ngtcp2_crypto_conn_ref *>(wolfSSL_get_app_data(ssl));
   auto c = static_cast<ClientBase *>(conn_ref->user_data);
@@ -60,18 +58,18 @@ int new_session_cb(WOLFSSL *ssl, WOLFSSL_SESSION *session) {
 #ifdef HAVE_SESSION_TICKET
   if (wolfSSL_SESSION_get_max_early_data(session) !=
       std::numeric_limits<uint32_t>::max()) {
-    std::cerr << "max_early_data_size is not 0xffffffff" << std::endl;
+    std::println(stderr, "max_early_data_size is not 0xffffffff");
   }
 
   unsigned char sbuffer[16 * 1024], *data;
   auto sz = wolfSSL_i2d_SSL_SESSION(session, nullptr);
   if (sz <= 0) {
-    std::cerr << "Could not export TLS session in " << config.session_file
-              << std::endl;
+    std::println(stderr, "Could not export TLS session in {}",
+                 config.session_file);
     return 0;
   }
   if (static_cast<size_t>(sz) > sizeof(sbuffer)) {
-    std::cerr << "Exported TLS session too large" << std::endl;
+    std::println(stderr, "Exported TLS session too large");
     return 0;
   }
   data = sbuffer;
@@ -79,8 +77,8 @@ int new_session_cb(WOLFSSL *ssl, WOLFSSL_SESSION *session) {
 
   auto f = wolfSSL_BIO_new_file(config.session_file, "w");
   if (f == nullptr) {
-    std::cerr << "Could not write TLS session in " << config.session_file
-              << std::endl;
+    std::println(stderr, "Could not write TLS session in {}",
+                 config.session_file);
     return 0;
   }
 
@@ -88,32 +86,29 @@ int new_session_cb(WOLFSSL *ssl, WOLFSSL_SESSION *session) {
 
   if (!wolfSSL_PEM_write_bio(f, "WOLFSSL SESSION PARAMETERS", "", sbuffer,
                              sz)) {
-    std::cerr << "Unable to write TLS session to file" << std::endl;
+    std::println(stderr, "Unable to write TLS session to file");
     return 0;
   }
-  std::cerr << "new_session_cb: wrote " << sz << " of session data"
-            << std::endl;
 #else  // !defined(HAVE_SESSION_TICKET)
-  std::cerr << "TLS session tickets not enabled in wolfSSL " << std::endl;
+  std::println(stderr, "TLS session tickets not enabled in wolfSSL");
 #endif // !defined(HAVE_SESSION_TICKET)
   return 0;
 }
 } // namespace
 
-int TLSClientContext::init(const char *private_key_file,
-                           const char *cert_file) {
+std::expected<void, Error> TLSClientContext::init(const char *private_key_file,
+                                                  const char *cert_file) {
   ssl_ctx_ = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
   if (!ssl_ctx_) {
-    std::cerr << "wolfSSL_CTX_new: "
-              << wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr)
-              << std::endl;
-    return -1;
+    std::println(stderr, "wolfSSL_CTX_new: {}",
+                 wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr));
+    return std::unexpected{Error::CRYPTO};
   }
 
   if (ngtcp2_crypto_wolfssl_configure_client_context(ssl_ctx_) != 0) {
-    std::cerr << "ngtcp2_crypto_wolfssl_configure_client_context failed"
-              << std::endl;
-    return -1;
+    std::println(stderr,
+                 "ngtcp2_crypto_wolfssl_configure_client_context failed");
+    return std::unexpected{Error::CRYPTO};
   }
 
   if (wolfSSL_CTX_set_default_verify_paths(ssl_ctx_) ==
@@ -124,34 +119,31 @@ int TLSClientContext::init(const char *private_key_file,
 
   if (wolfSSL_CTX_set_cipher_list(ssl_ctx_, config.ciphers) !=
       WOLFSSL_SUCCESS) {
-    std::cerr << "wolfSSL_CTX_set_cipher_list: "
-              << wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr)
-              << std::endl;
-    return -1;
+    std::println(stderr, "wolfSSL_CTX_set_cipher_list: {}",
+                 wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr));
+    return std::unexpected{Error::CRYPTO};
   }
 
   if (wolfSSL_CTX_set1_groups_list(
         ssl_ctx_, const_cast<char *>(config.groups)) != WOLFSSL_SUCCESS) {
-    std::cerr << "wolfSSL_CTX_set1_groups_list(" << config.groups << ") failed"
-              << std::endl;
-    return -1;
+    std::println(stderr, "wolfSSL_CTX_set1_groups_list({}) failed",
+                 config.groups);
+    return std::unexpected{Error::CRYPTO};
   }
 
   if (private_key_file && cert_file) {
     if (wolfSSL_CTX_use_PrivateKey_file(ssl_ctx_, private_key_file,
                                         SSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
-      std::cerr << "wolfSSL_CTX_use_PrivateKey_file: "
-                << wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr)
-                << std::endl;
-      return -1;
+      std::println(stderr, "wolfSSL_CTX_use_PrivateKey_file: {}",
+                   wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr));
+      return std::unexpected{Error::CRYPTO};
     }
 
     if (wolfSSL_CTX_use_certificate_chain_file(ssl_ctx_, cert_file) !=
         WOLFSSL_SUCCESS) {
-      std::cerr << "wolfSSL_CTX_use_certificate_chain_file: "
-                << wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr)
-                << std::endl;
-      return -1;
+      std::println(stderr, "wolfSSL_CTX_use_certificate_chain_file: {}",
+                   wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr));
+      return std::unexpected{Error::CRYPTO};
     }
   }
 
@@ -160,7 +152,7 @@ int TLSClientContext::init(const char *private_key_file,
     wolfSSL_CTX_sess_set_new_cb(ssl_ctx_, new_session_cb);
   }
 
-  return 0;
+  return {};
 }
 
 extern std::ofstream keylog_file;

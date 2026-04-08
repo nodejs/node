@@ -40,8 +40,8 @@ public:
   TLSServerContext() = default;
   ~TLSServerContext();
 
-  int init(const char *private_key_file, const char *cert_file,
-           AppProtocol app_proto);
+  std::expected<void, Error> init(const char *private_key_file,
+                                  const char *cert_file, AppProtocol app_proto);
 
   SSL_CTX *get_native_handle() const;
 

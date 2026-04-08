@@ -97,9 +97,9 @@ STIN uint32_t ngtcp2_htonl(uint32_t hostlong) {
   uint32_t res;
   unsigned char *p = (unsigned char *)&res;
   *p++ = (unsigned char)(hostlong >> 24);
-  *p++ = (hostlong >> 16) & 0xffu;
-  *p++ = (hostlong >> 8) & 0xffu;
-  *p = hostlong & 0xffu;
+  *p++ = (hostlong >> 16) & 0xFFU;
+  *p++ = (hostlong >> 8) & 0xFFU;
+  *p = hostlong & 0xFFU;
   return res;
 }
 
@@ -107,7 +107,7 @@ STIN uint16_t ngtcp2_htons(uint16_t hostshort) {
   uint16_t res;
   unsigned char *p = (unsigned char *)&res;
   *p++ = (unsigned char)(hostshort >> 8);
-  *p = hostshort & 0xffu;
+  *p = hostshort & 0xFFU;
   return res;
 }
 

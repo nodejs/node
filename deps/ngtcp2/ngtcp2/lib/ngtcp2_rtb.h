@@ -48,41 +48,41 @@ typedef struct ngtcp2_conn_stat ngtcp2_conn_stat;
 typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 
 /* NGTCP2_RTB_ENTRY_FLAG_NONE indicates that no flag is set. */
-#define NGTCP2_RTB_ENTRY_FLAG_NONE 0x00u
+#define NGTCP2_RTB_ENTRY_FLAG_NONE 0x00U
 /* NGTCP2_RTB_ENTRY_FLAG_PROBE indicates that the entry includes a
    probe packet. */
-#define NGTCP2_RTB_ENTRY_FLAG_PROBE 0x01u
+#define NGTCP2_RTB_ENTRY_FLAG_PROBE 0x01U
 /* NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE indicates that the entry
    includes a frame which must be retransmitted until it is
    acknowledged.  In most cases, this flag is used along with
    NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING and
    NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING. */
-#define NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE 0x02u
+#define NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE 0x02U
 /* NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING indicates that the entry
    elicits acknowledgement. */
-#define NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING 0x04u
+#define NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING 0x04U
 /* NGTCP2_RTB_ENTRY_FLAG_PTO_RECLAIMED indicates that the packet has
    been reclaimed on PTO.  It is not marked lost yet and still
    consumes congestion window. */
-#define NGTCP2_RTB_ENTRY_FLAG_PTO_RECLAIMED 0x08u
+#define NGTCP2_RTB_ENTRY_FLAG_PTO_RECLAIMED 0x08U
 /* NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED indicates that the entry
    has been marked lost and, optionally, scheduled to retransmit. */
-#define NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED 0x10u
+#define NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED 0x10U
 /* NGTCP2_RTB_ENTRY_FLAG_ECN indicates that the entry is included in a
    UDP datagram with ECN marking. */
-#define NGTCP2_RTB_ENTRY_FLAG_ECN 0x20u
+#define NGTCP2_RTB_ENTRY_FLAG_ECN 0x20U
 /* NGTCP2_RTB_ENTRY_FLAG_DATAGRAM indicates that the entry includes
    DATAGRAM frame. */
-#define NGTCP2_RTB_ENTRY_FLAG_DATAGRAM 0x40u
+#define NGTCP2_RTB_ENTRY_FLAG_DATAGRAM 0x40U
 /* NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE indicates that the entry includes
    a PMTUD probe packet. */
-#define NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE 0x80u
+#define NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE 0x80U
 /* NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING indicates that the entry
    includes a packet which elicits PTO probe packets. */
-#define NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING 0x100u
+#define NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING 0x100U
 /* NGTCP2_RTB_ENTRY_FLAG_SKIP indicates that the entry has the skipped
    packet number. */
-#define NGTCP2_RTB_ENTRY_FLAG_SKIP 0x200u
+#define NGTCP2_RTB_ENTRY_FLAG_SKIP 0x200U
 
 typedef struct ngtcp2_rtb_entry ngtcp2_rtb_entry;
 

@@ -28,6 +28,7 @@
 #include <iostream>
 #include <array>
 #include <algorithm>
+#include <expected>
 
 #include <ngtcp2/ngtcp2_crypto.h>
 
@@ -41,50 +42,26 @@ namespace ngtcp2 {
 
 namespace util {
 
-int generate_secure_random(std::span<uint8_t> data) {
+std::expected<void, Error> generate_secure_random(std::span<uint8_t> data) {
   if (wolfSSL_RAND_bytes(data.data(), static_cast<int>(data.size())) != 1) {
-    return -1;
+    return std::unexpected{Error::CRYPTO};
   }
 
-  return 0;
-}
-
-std::optional<HPKEPrivateKey>
-read_hpke_private_key_pem(const std::string_view &filename) {
   return {};
 }
 
-int generate_secret(std::span<uint8_t> secret) {
-  std::array<uint8_t, 16> rand;
-
-  if (generate_secure_random(rand) != 0) {
-    return -1;
-  }
-
-  auto ctx = wolfSSL_EVP_MD_CTX_new();
-  if (ctx == nullptr) {
-    return -1;
-  }
-
-  auto mdlen = static_cast<unsigned int>(secret.size());
-  if (!wolfSSL_EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) ||
-      !wolfSSL_EVP_DigestUpdate(ctx, rand.data(), rand.size()) ||
-      !wolfSSL_EVP_DigestFinal_ex(ctx, secret.data(), &mdlen)) {
-    wolfSSL_EVP_MD_CTX_free(ctx);
-    return -1;
-  }
-
-  wolfSSL_EVP_MD_CTX_free(ctx);
-  return 0;
+std::expected<HPKEPrivateKey, Error>
+read_hpke_private_key_pem(std::string_view filename) {
+  return std::unexpected{Error::NOT_IMPLEMENTED};
 }
 
-std::optional<std::vector<uint8_t>> read_pem(const std::string_view &filename,
-                                             const std::string_view &name,
-                                             const std::string_view &type) {
+std::expected<std::vector<uint8_t>, Error> read_pem(std::string_view filename,
+                                                    std::string_view name,
+                                                    std::string_view type) {
   auto f = wolfSSL_BIO_new_file(filename.data(), "r");
   if (f == nullptr) {
-    std::cerr << "Could not open " << name << " file " << filename << std::endl;
-    return {};
+    std::println(stderr, "Could not open {} file {}", name, filename);
+    return std::unexpected{Error::IO};
   }
 
   auto f_d = defer([f] { wolfSSL_BIO_free(f); });
@@ -94,8 +71,8 @@ std::optional<std::vector<uint8_t>> read_pem(const std::string_view &filename,
   long datalen;
 
   if (wolfSSL_PEM_read_bio(f, &pem_type, &header, &data, &datalen) != 1) {
-    std::cerr << "Could not read " << name << " file " << filename << std::endl;
-    return {};
+    std::println(stderr, "Could not read {} file {}", name, filename);
+    return std::unexpected{Error::IO};
   }
 
   auto pem_d = defer([pem_type, header, data] {
@@ -105,27 +82,28 @@ std::optional<std::vector<uint8_t>> read_pem(const std::string_view &filename,
   });
 
   if (type != pem_type) {
-    std::cerr << name << " file " << filename << " contains unexpected type"
-              << std::endl;
-    return {};
+    std::println(stderr, "{} file {} contains unexpected type", name, filename);
+    return std::unexpected{Error::IO};
   }
 
   return {{data, data + datalen}};
 }
 
-int write_pem(const std::string_view &filename, const std::string_view &name,
-              const std::string_view &type, std::span<const uint8_t> data) {
+std::expected<void, Error> write_pem(std::string_view filename,
+                                     std::string_view name,
+                                     std::string_view type,
+                                     std::span<const uint8_t> data) {
   auto f = wolfSSL_BIO_new_file(filename.data(), "w");
   if (f == nullptr) {
-    std::cerr << "Could not write " << name << " in " << filename << std::endl;
-    return -1;
+    std::println(stderr, "Could not write {} to {}", name, filename);
+    return std::unexpected{Error::IO};
   }
 
   wolfSSL_PEM_write_bio(f, type.data(), "", data.data(),
                         static_cast<long>(data.size()));
   wolfSSL_BIO_free(f);
 
-  return 0;
+  return {};
 }
 
 const char *crypto_default_ciphers() {

@@ -42,6 +42,7 @@
 #include <wolfssl/ssl.h>
 
 #include "network.h"
+#include "shared.h"
 
 namespace ngtcp2 {
 inline constexpr size_t MAX_UDP_PAYLOAD_SIZE = 1500;
@@ -106,7 +107,8 @@ struct EndpointConfig {
   void *user_data{};
   LinkConfig link;
 
-  std::function<int(ngtcp2_conn *, const Context &)> on_write;
+  std::function<std::expected<void, Error>(ngtcp2_conn *, const Context &)>
+    on_write;
 };
 
 ngtcp2_callbacks default_client_callbacks();
@@ -206,17 +208,19 @@ public:
   Endpoint &operator=(const Endpoint &) = delete;
   Endpoint &operator=(Endpoint &&) noexcept;
 
-  int setup_client(const ngtcp2_addr *remote_addr);
-  int setup_server(std::span<const uint8_t> original_dcid,
-                   std::span<const uint8_t> client_scid, uint32_t version,
-                   const ngtcp2_addr *remote_addr);
+  std::expected<void, Error> setup_client(const ngtcp2_addr *remote_addr);
+  std::expected<void, Error>
+  setup_server(std::span<const uint8_t> original_dcid,
+               std::span<const uint8_t> client_scid, uint32_t version,
+               const ngtcp2_addr *remote_addr);
   ngtcp2_conn *get_conn() const { return conn_; }
   bool get_initialized() const { return initialized_; }
   const EndpointConfig &get_endpoint_config() const { return config_; }
-  int on_read(const NetworkPath &path, std::span<const uint8_t> pkt,
-              const Context &ctx);
-  int on_write(const Context &ctx);
-  int on_timeout(const Context &ctx);
+  std::expected<void, Error> on_read(const NetworkPath &path,
+                                     std::span<const uint8_t> pkt,
+                                     const Context &ctx);
+  std::expected<void, Error> on_write(const Context &ctx);
+  std::expected<void, Error> on_timeout(const Context &ctx);
   Channel &get_channel() { return channel_; }
 
 private:
@@ -238,14 +242,16 @@ public:
   Simulator &operator=(const Simulator &) = delete;
   Simulator &operator=(Simulator &&) noexcept;
 
-  int run();
+  std::expected<void, Error> run();
   void set_max_events(size_t n) { max_events_ = n; }
 
 private:
   Endpoint &get_opposite_endpoint(const Endpoint &ep);
   std::optional<std::tuple<Event, Endpoint &>> get_next_event();
-  int deliver_pkt(Endpoint &remote_ep, const NetworkPath &path,
-                  std::span<const uint8_t> pkt, Timestamp ts);
+  std::expected<void, Error> deliver_pkt(Endpoint &remote_ep,
+                                         const NetworkPath &path,
+                                         std::span<const uint8_t> pkt,
+                                         Timestamp ts);
 
   Endpoint client_;
   Endpoint server_;
@@ -279,8 +285,8 @@ public:
 
 private:
   void stream_close(ngtcp2_conn *conn, int64_t stream_id);
-  int extend_max_local_streams_uni(ngtcp2_conn *conn);
-  int on_write(ngtcp2_conn *conn, const Context &ctx);
+  std::expected<void, Error> extend_max_local_streams_uni(ngtcp2_conn *conn);
+  std::expected<void, Error> on_write(ngtcp2_conn *conn, const Context &ctx);
 
   int64_t stream_id_{-1};
   uint64_t max_bytes_{};

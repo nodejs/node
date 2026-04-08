@@ -79,9 +79,9 @@ uint64_t siphash24(std::span<const uint64_t, 2> key,
                    std::span<const uint8_t> input) {
   const auto orig_input_len = input.size();
   uint64_t v[]{
-    key[0] ^ UINT64_C(0x736f6d6570736575),
-    key[1] ^ UINT64_C(0x646f72616e646f6d),
-    key[0] ^ UINT64_C(0x6c7967656e657261),
+    key[0] ^ UINT64_C(0x736F6D6570736575),
+    key[1] ^ UINT64_C(0x646F72616E646F6D),
+    key[0] ^ UINT64_C(0x6C7967656E657261),
     key[1] ^ UINT64_C(0x7465646279746573),
   };
 
@@ -97,7 +97,7 @@ uint64_t siphash24(std::span<const uint64_t, 2> key,
 
   std::array<uint8_t, sizeof(uint64_t)> last_block{};
   std::ranges::copy(input, std::ranges::begin(last_block));
-  last_block.back() = orig_input_len & 0xff;
+  last_block.back() = orig_input_len & 0xFF;
 
   auto last_block_word = CRYPTO_load_u64_le(last_block);
   v[3] ^= last_block_word;
@@ -105,7 +105,7 @@ uint64_t siphash24(std::span<const uint64_t, 2> key,
   siphash_round(v);
   v[0] ^= last_block_word;
 
-  v[2] ^= 0xff;
+  v[2] ^= 0xFF;
   siphash_round(v);
   siphash_round(v);
   siphash_round(v);

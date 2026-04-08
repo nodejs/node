@@ -33,12 +33,17 @@
 #include <wolfssl/ssl.h>
 #include <wolfssl/quic.h>
 
+#include "shared.h"
+
+using namespace ngtcp2;
+
 class TLSClientContext {
 public:
   TLSClientContext() = default;
   ~TLSClientContext();
 
-  int init(const char *private_key_file, const char *cert_file);
+  std::expected<void, Error> init(const char *private_key_file,
+                                  const char *cert_file);
 
   WOLFSSL_CTX *get_native_handle() const;
 

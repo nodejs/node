@@ -214,10 +214,6 @@ public:
 
   ngtcp2_conn *conn() const;
 
-  int write_transport_params(const char *path,
-                             const ngtcp2_transport_params *params);
-  int read_transport_params(const char *path, ngtcp2_transport_params *params);
-
   void write_qlog(const void *data, size_t datalen);
 
   ngtcp2_crypto_conn_ref *conn_ref();
