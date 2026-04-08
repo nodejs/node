@@ -546,6 +546,16 @@ Serializes the database into a binary representation, returned as a
 `Uint8Array`. This is useful for saving, cloning, or transferring an in-memory
 database. This method is a wrapper around [`sqlite3_serialize()`][].
 
+```mjs
+import { DatabaseSync } from 'node:sqlite';
+
+const db = new DatabaseSync(':memory:');
+db.exec('CREATE TABLE t(key INTEGER PRIMARY KEY, value TEXT)');
+db.exec("INSERT INTO t VALUES (1, 'hello')");
+const buffer = db.serialize();
+console.log(buffer.length); // Prints the byte length of the database
+```
+
 ```cjs
 const { DatabaseSync } = require('node:sqlite');
 
@@ -573,6 +583,21 @@ database. The deserialized database is writable. Existing prepared statements
 are finalized before deserialization is attempted, even if the operation
 subsequently fails. This method is a wrapper around
 [`sqlite3_deserialize()`][].
+
+```mjs
+import { DatabaseSync } from 'node:sqlite';
+
+const original = new DatabaseSync(':memory:');
+original.exec('CREATE TABLE t(key INTEGER PRIMARY KEY, value TEXT)');
+original.exec("INSERT INTO t VALUES (1, 'hello')");
+const buffer = original.serialize();
+original.close();
+
+const clone = new DatabaseSync(':memory:');
+clone.deserialize(buffer);
+console.log(clone.prepare('SELECT value FROM t').get());
+// Prints: { value: 'hello' }
+```
 
 ```cjs
 const { DatabaseSync } = require('node:sqlite');
