@@ -29,16 +29,15 @@
 #include "tls_server_context_wolfssl.h"
 #include "server_base.h"
 
-int TLSServerSession::init(const TLSServerContext &tls_ctx,
-                           HandlerBase *handler) {
+std::expected<void, Error>
+TLSServerSession::init(const TLSServerContext &tls_ctx, HandlerBase *handler) {
   auto ssl_ctx = tls_ctx.get_native_handle();
 
   ssl_ = wolfSSL_new(ssl_ctx);
   if (!ssl_) {
-    std::cerr << "wolfSSL_new: "
-              << wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr)
-              << std::endl;
-    return -1;
+    std::println(stderr, "wolfSSL_new: {}",
+                 wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr));
+    return std::unexpected{Error::CRYPTO};
   }
 
   wolfSSL_set_app_data(ssl_, handler->conn_ref());
@@ -49,5 +48,5 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
   // Just use QUIC v1
   wolfSSL_set_quic_transport_version(ssl_, 0x39);
 
-  return 0;
+  return {};
 }
