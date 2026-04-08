@@ -262,7 +262,7 @@ typedef struct ngtcp2_mem {
  *
  * :macro:`NGTCP2_PROTO_VER_V1` is the QUIC version 1.
  */
-#define NGTCP2_PROTO_VER_V1 ((uint32_t)0x00000001u)
+#define NGTCP2_PROTO_VER_V1 ((uint32_t)0x00000001U)
 
 /**
  * @macro
@@ -270,7 +270,7 @@ typedef struct ngtcp2_mem {
  * :macro:`NGTCP2_PROTO_VER_V2` is the QUIC version 2.  See
  * :rfc:`9369`.
  */
-#define NGTCP2_PROTO_VER_V2 ((uint32_t)0x6b3343cfu)
+#define NGTCP2_PROTO_VER_V2 ((uint32_t)0x6B3343CFU)
 
 /**
  * @macro
@@ -294,7 +294,7 @@ typedef struct ngtcp2_mem {
  * :macro:`NGTCP2_RESERVED_VERSION_MASK` is the bit mask of reserved
  * version.
  */
-#define NGTCP2_RESERVED_VERSION_MASK 0x0a0a0a0au
+#define NGTCP2_RESERVED_VERSION_MASK 0x0A0A0A0AU
 
 /**
  * @macrosection
@@ -377,7 +377,7 @@ typedef struct ngtcp2_mem {
  * integrity tag of Retry packet.  It is used for QUIC v1.
  */
 #define NGTCP2_RETRY_KEY_V1                                                    \
-  "\xbe\x0c\x69\x0b\x9f\x66\x57\x5a\x1d\x76\x6b\x54\xe3\x68\xc8\x4e"
+  "\xBE\x0C\x69\x0B\x9F\x66\x57\x5A\x1D\x76\x6B\x54\xE3\x68\xC8\x4E"
 
 /**
  * @macro
@@ -385,7 +385,7 @@ typedef struct ngtcp2_mem {
  * :macro:`NGTCP2_RETRY_NONCE_V1` is nonce used when generating
  * integrity tag of Retry packet.  It is used for QUIC v1.
  */
-#define NGTCP2_RETRY_NONCE_V1 "\x46\x15\x99\xd3\x5d\x63\x2b\xf2\x23\x98\x25\xbb"
+#define NGTCP2_RETRY_NONCE_V1 "\x46\x15\x99\xD3\x5D\x63\x2B\xF2\x23\x98\x25\xBB"
 
 /**
  * @macro
@@ -395,7 +395,7 @@ typedef struct ngtcp2_mem {
  * :rfc:`9369`.
  */
 #define NGTCP2_RETRY_KEY_V2                                                    \
-  "\x8f\xb4\xb0\x1b\x56\xac\x48\xe2\x60\xfb\xcb\xce\xad\x7c\xcc\x92"
+  "\x8F\xB4\xB0\x1B\x56\xAC\x48\xE2\x60\xFB\xCB\xCE\xAD\x7C\xCC\x92"
 
 /**
  * @macro
@@ -404,7 +404,7 @@ typedef struct ngtcp2_mem {
  * integrity tag of Retry packet.  It is used for QUIC v2.  See
  * :rfc:`9369`.
  */
-#define NGTCP2_RETRY_NONCE_V2 "\xd8\x69\x69\xbc\x2d\x7c\x6d\x99\x90\xef\xb0\x4a"
+#define NGTCP2_RETRY_NONCE_V2 "\xD8\x69\x69\xBC\x2D\x7C\x6D\x99\x90\xEF\xB0\x4A"
 
 /**
  * @macro
@@ -812,7 +812,7 @@ typedef struct NGTCP2_ALIGN(8) ngtcp2_pkt_info {
  *
  * :macro:`NGTCP2_PKT_FLAG_NONE` indicates no flag set.
  */
-#define NGTCP2_PKT_FLAG_NONE 0x00u
+#define NGTCP2_PKT_FLAG_NONE 0x00U
 
 /**
  * @macro
@@ -820,7 +820,7 @@ typedef struct NGTCP2_ALIGN(8) ngtcp2_pkt_info {
  * :macro:`NGTCP2_PKT_FLAG_LONG_FORM` indicates the Long header packet
  * header.
  */
-#define NGTCP2_PKT_FLAG_LONG_FORM 0x01u
+#define NGTCP2_PKT_FLAG_LONG_FORM 0x01U
 
 /**
  * @macro
@@ -828,14 +828,14 @@ typedef struct NGTCP2_ALIGN(8) ngtcp2_pkt_info {
  * :macro:`NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR` indicates that Fixed Bit
  * (aka QUIC bit) is not set.
  */
-#define NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR 0x02u
+#define NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR 0x02U
 
 /**
  * @macro
  *
  * :macro:`NGTCP2_PKT_FLAG_KEY_PHASE` indicates Key Phase bit set.
  */
-#define NGTCP2_PKT_FLAG_KEY_PHASE 0x04u
+#define NGTCP2_PKT_FLAG_KEY_PHASE 0x04U
 
 /**
  * @enum
@@ -887,7 +887,7 @@ typedef enum ngtcp2_pkt_type {
  *
  * :macro:`NGTCP2_NO_ERROR` is QUIC transport error code ``NO_ERROR``.
  */
-#define NGTCP2_NO_ERROR 0x0u
+#define NGTCP2_NO_ERROR 0x0U
 
 /**
  * @macro
@@ -895,7 +895,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_INTERNAL_ERROR` is QUIC transport error code
  * ``INTERNAL_ERROR``.
  */
-#define NGTCP2_INTERNAL_ERROR 0x1u
+#define NGTCP2_INTERNAL_ERROR 0x1U
 
 /**
  * @macro
@@ -903,7 +903,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_CONNECTION_REFUSED` is QUIC transport error code
  * ``CONNECTION_REFUSED``.
  */
-#define NGTCP2_CONNECTION_REFUSED 0x2u
+#define NGTCP2_CONNECTION_REFUSED 0x2U
 
 /**
  * @macro
@@ -911,7 +911,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_FLOW_CONTROL_ERROR` is QUIC transport error code
  * ``FLOW_CONTROL_ERROR``.
  */
-#define NGTCP2_FLOW_CONTROL_ERROR 0x3u
+#define NGTCP2_FLOW_CONTROL_ERROR 0x3U
 
 /**
  * @macro
@@ -919,7 +919,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_STREAM_LIMIT_ERROR` is QUIC transport error code
  * ``STREAM_LIMIT_ERROR``.
  */
-#define NGTCP2_STREAM_LIMIT_ERROR 0x4u
+#define NGTCP2_STREAM_LIMIT_ERROR 0x4U
 
 /**
  * @macro
@@ -927,7 +927,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_STREAM_STATE_ERROR` is QUIC transport error code
  * ``STREAM_STATE_ERROR``.
  */
-#define NGTCP2_STREAM_STATE_ERROR 0x5u
+#define NGTCP2_STREAM_STATE_ERROR 0x5U
 
 /**
  * @macro
@@ -935,7 +935,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_FINAL_SIZE_ERROR` is QUIC transport error code
  * ``FINAL_SIZE_ERROR``.
  */
-#define NGTCP2_FINAL_SIZE_ERROR 0x6u
+#define NGTCP2_FINAL_SIZE_ERROR 0x6U
 
 /**
  * @macro
@@ -943,7 +943,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_FRAME_ENCODING_ERROR` is QUIC transport error code
  * ``FRAME_ENCODING_ERROR``.
  */
-#define NGTCP2_FRAME_ENCODING_ERROR 0x7u
+#define NGTCP2_FRAME_ENCODING_ERROR 0x7U
 
 /**
  * @macro
@@ -951,7 +951,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_TRANSPORT_PARAMETER_ERROR` is QUIC transport error
  * code ``TRANSPORT_PARAMETER_ERROR``.
  */
-#define NGTCP2_TRANSPORT_PARAMETER_ERROR 0x8u
+#define NGTCP2_TRANSPORT_PARAMETER_ERROR 0x8U
 
 /**
  * @macro
@@ -959,7 +959,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_CONNECTION_ID_LIMIT_ERROR` is QUIC transport error
  * code ``CONNECTION_ID_LIMIT_ERROR``.
  */
-#define NGTCP2_CONNECTION_ID_LIMIT_ERROR 0x9u
+#define NGTCP2_CONNECTION_ID_LIMIT_ERROR 0x9U
 
 /**
  * @macro
@@ -967,7 +967,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_PROTOCOL_VIOLATION` is QUIC transport error code
  * ``PROTOCOL_VIOLATION``.
  */
-#define NGTCP2_PROTOCOL_VIOLATION 0xau
+#define NGTCP2_PROTOCOL_VIOLATION 0xAU
 
 /**
  * @macro
@@ -975,7 +975,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_INVALID_TOKEN` is QUIC transport error code
  * ``INVALID_TOKEN``.
  */
-#define NGTCP2_INVALID_TOKEN 0xbu
+#define NGTCP2_INVALID_TOKEN 0xBU
 
 /**
  * @macro
@@ -983,7 +983,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_APPLICATION_ERROR` is QUIC transport error code
  * ``APPLICATION_ERROR``.
  */
-#define NGTCP2_APPLICATION_ERROR 0xcu
+#define NGTCP2_APPLICATION_ERROR 0xCU
 
 /**
  * @macro
@@ -991,7 +991,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_CRYPTO_BUFFER_EXCEEDED` is QUIC transport error code
  * ``CRYPTO_BUFFER_EXCEEDED``.
  */
-#define NGTCP2_CRYPTO_BUFFER_EXCEEDED 0xdu
+#define NGTCP2_CRYPTO_BUFFER_EXCEEDED 0xDU
 
 /**
  * @macro
@@ -999,7 +999,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_KEY_UPDATE_ERROR` is QUIC transport error code
  * ``KEY_UPDATE_ERROR``.
  */
-#define NGTCP2_KEY_UPDATE_ERROR 0xeu
+#define NGTCP2_KEY_UPDATE_ERROR 0xEU
 
 /**
  * @macro
@@ -1007,7 +1007,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_AEAD_LIMIT_REACHED` is QUIC transport error code
  * ``AEAD_LIMIT_REACHED``.
  */
-#define NGTCP2_AEAD_LIMIT_REACHED 0xfu
+#define NGTCP2_AEAD_LIMIT_REACHED 0xFU
 
 /**
  * @macro
@@ -1015,7 +1015,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_NO_VIABLE_PATH` is QUIC transport error code
  * ``NO_VIABLE_PATH``.
  */
-#define NGTCP2_NO_VIABLE_PATH 0x10u
+#define NGTCP2_NO_VIABLE_PATH 0x10U
 
 /**
  * @macro
@@ -1023,7 +1023,7 @@ typedef enum ngtcp2_pkt_type {
  * :macro:`NGTCP2_CRYPTO_ERROR` is QUIC transport error code
  * ``CRYPTO_ERROR``.
  */
-#define NGTCP2_CRYPTO_ERROR 0x100u
+#define NGTCP2_CRYPTO_ERROR 0x100U
 
 /**
  * @macro
@@ -1187,6 +1187,9 @@ typedef struct ngtcp2_pkt_hd {
  * @struct
  *
  * :type:`ngtcp2_pkt_stateless_reset` represents Stateless Reset.
+ *
+ * Deprecated since v1.22.0.  Use :type:`ngtcp2_pkt_stateless_reset2`
+ * instead.
  */
 typedef struct ngtcp2_pkt_stateless_reset {
   /**
@@ -1203,6 +1206,40 @@ typedef struct ngtcp2_pkt_stateless_reset {
    */
   size_t randlen;
 } ngtcp2_pkt_stateless_reset;
+
+/**
+ * @struct
+ *
+ * :type:`ngtcp2_stateless_reset_token` stores stateless reset token.
+ *
+ * This struct has been available since v1.22.0.
+ */
+typedef struct ngtcp2_stateless_reset_token {
+  uint8_t data[NGTCP2_STATELESS_RESET_TOKENLEN];
+} ngtcp2_stateless_reset_token;
+
+/**
+ * @struct
+ *
+ * :type:`ngtcp2_pkt_stateless_reset2` represents Stateless Reset.
+ *
+ * This struct has been available since v1.22.0.
+ */
+typedef struct ngtcp2_pkt_stateless_reset2 {
+  /**
+   * :member:`token` contains stateless reset token.
+   */
+  ngtcp2_stateless_reset_token token;
+  /**
+   * :member:`rand` points a buffer which contains random bytes
+   * section.
+   */
+  const uint8_t *rand;
+  /**
+   * :member:`randlen` is the number of random bytes.
+   */
+  size_t randlen;
+} ngtcp2_pkt_stateless_reset2;
 
 /**
  * @macrosection
@@ -1250,7 +1287,7 @@ typedef struct ngtcp2_pkt_stateless_reset {
  * :macro:`NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_V1` is TLS
  * extension type of quic_transport_parameters.
  */
-#define NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_V1 0x39u
+#define NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_V1 0x39U
 
 #ifdef NGTCP2_USE_GENERIC_SOCKADDR
 #  ifndef NGTCP2_AF_INET
@@ -1703,14 +1740,14 @@ typedef void (*ngtcp2_printf)(void *user_data, const char *format, ...);
  *
  * :macro:`NGTCP2_QLOG_WRITE_FLAG_NONE` indicates no flag set.
  */
-#define NGTCP2_QLOG_WRITE_FLAG_NONE 0x00u
+#define NGTCP2_QLOG_WRITE_FLAG_NONE 0x00U
 /**
  * @macro
  *
  * :macro:`NGTCP2_QLOG_WRITE_FLAG_FIN` indicates that this is the
  * final call to :type:`ngtcp2_qlog_write` in the current connection.
  */
-#define NGTCP2_QLOG_WRITE_FLAG_FIN 0x01u
+#define NGTCP2_QLOG_WRITE_FLAG_FIN 0x01U
 
 /**
  * @struct
@@ -2444,9 +2481,40 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest,
  * :macro:`NGTCP2_ERR_INVALID_ARGUMENT`
  *     |randlen| is strictly less than
  *     :macro:`NGTCP2_MIN_STATELESS_RESET_RANDLEN`.
+ *
+ * Deprecated since v1.22.0.  Use `ngtcp2_pkt_write_stateless_reset2`
+ * instead.
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_write_stateless_reset(
   uint8_t *dest, size_t destlen, const uint8_t *stateless_reset_token,
+  const uint8_t *rand, size_t randlen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_pkt_write_stateless_reset2` writes Stateless Reset packet
+ * in the buffer pointed by |dest| whose length is |destlen|.  |token|
+ * must store the Stateless Reset Token.  |rand| specifies the random
+ * octets preceding Stateless Reset Token.  The length of |rand| is
+ * specified by |randlen| which must be at least
+ * :macro:`NGTCP2_MIN_STATELESS_RESET_RANDLEN` bytes long.
+ *
+ * If |randlen| is too long to write them all in the buffer, |rand| is
+ * written to the buffer as much as possible, and is truncated.
+ *
+ * This function returns the number of bytes written to the buffer, or
+ * one of the following negative error codes:
+ *
+ * :macro:`NGTCP2_ERR_NOBUF`
+ *     Buffer is too small.
+ * :macro:`NGTCP2_ERR_INVALID_ARGUMENT`
+ *     |randlen| is strictly less than
+ *     :macro:`NGTCP2_MIN_STATELESS_RESET_RANDLEN`.
+ *
+ * This function has been available since v1.22.0.
+ */
+NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_write_stateless_reset2(
+  uint8_t *dest, size_t destlen, const ngtcp2_stateless_reset_token *token,
   const uint8_t *rand, size_t randlen);
 
 /**
@@ -2744,7 +2812,7 @@ typedef int (*ngtcp2_hp_mask)(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
  *
  * :macro:`NGTCP2_STREAM_DATA_FLAG_NONE` indicates no flag set.
  */
-#define NGTCP2_STREAM_DATA_FLAG_NONE 0x00u
+#define NGTCP2_STREAM_DATA_FLAG_NONE 0x00U
 
 /**
  * @macro
@@ -2752,7 +2820,7 @@ typedef int (*ngtcp2_hp_mask)(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
  * :macro:`NGTCP2_STREAM_DATA_FLAG_FIN` indicates that this chunk of
  * data is final piece of an incoming stream.
  */
-#define NGTCP2_STREAM_DATA_FLAG_FIN 0x01u
+#define NGTCP2_STREAM_DATA_FLAG_FIN 0x01U
 
 /**
  * @macro
@@ -2761,7 +2829,7 @@ typedef int (*ngtcp2_hp_mask)(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
  * data contains data received in 0-RTT packet, and the handshake has
  * not completed yet, which means that the data might be replayed.
  */
-#define NGTCP2_STREAM_DATA_FLAG_0RTT 0x02u
+#define NGTCP2_STREAM_DATA_FLAG_0RTT 0x02U
 
 /**
  * @functypedef
@@ -2816,7 +2884,7 @@ typedef int (*ngtcp2_stream_open)(ngtcp2_conn *conn, int64_t stream_id,
  *
  * :macro:`NGTCP2_STREAM_CLOSE_FLAG_NONE` indicates no flag set.
  */
-#define NGTCP2_STREAM_CLOSE_FLAG_NONE 0x00u
+#define NGTCP2_STREAM_CLOSE_FLAG_NONE 0x00U
 
 /**
  * @macro
@@ -2824,7 +2892,7 @@ typedef int (*ngtcp2_stream_open)(ngtcp2_conn *conn, int64_t stream_id,
  * :macro:`NGTCP2_STREAM_CLOSE_FLAG_APP_ERROR_CODE_SET` indicates that
  * app_error_code parameter is set.
  */
-#define NGTCP2_STREAM_CLOSE_FLAG_APP_ERROR_CODE_SET 0x01u
+#define NGTCP2_STREAM_CLOSE_FLAG_APP_ERROR_CODE_SET 0x01U
 
 /**
  * @functypedef
@@ -2905,6 +2973,9 @@ typedef int (*ngtcp2_acked_stream_data_offset)(
  * The implementation of this callback should return 0 if it succeeds.
  * Returning :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library
  * call return immediately.
+ *
+ * Deprecated since v1.22.0.  Use :type:`ngtcp2_recv_stateless_reset2`
+ * instead.
  */
 typedef int (*ngtcp2_recv_stateless_reset)(ngtcp2_conn *conn,
                                            const ngtcp2_pkt_stateless_reset *sr,
@@ -2969,6 +3040,9 @@ typedef void (*ngtcp2_rand)(uint8_t *dest, size_t destlen,
  * The callback function must return 0 if it succeeds.  Returning
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
  * immediately.
+ *
+ * Deprecated since v1.22.0.  Use
+ * :type:`ngtcp2_get_new_connection_id2` instead.
  */
 typedef int (*ngtcp2_get_new_connection_id)(ngtcp2_conn *conn, ngtcp2_cid *cid,
                                             uint8_t *token, size_t cidlen,
@@ -3033,7 +3107,7 @@ typedef int (*ngtcp2_update_key)(
  *
  * :macro:`NGTCP2_PATH_VALIDATION_FLAG_NONE` indicates no flag set.
  */
-#define NGTCP2_PATH_VALIDATION_FLAG_NONE 0x00u
+#define NGTCP2_PATH_VALIDATION_FLAG_NONE 0x00U
 
 /**
  * @macro
@@ -3042,7 +3116,7 @@ typedef int (*ngtcp2_update_key)(
  * validation involving server preferred address.  This flag is only
  * set for client.
  */
-#define NGTCP2_PATH_VALIDATION_FLAG_PREFERRED_ADDR 0x01u
+#define NGTCP2_PATH_VALIDATION_FLAG_PREFERRED_ADDR 0x01U
 
 /**
  * @macro
@@ -3051,7 +3125,7 @@ typedef int (*ngtcp2_update_key)(
  * server should send NEW_TOKEN frame for the new remote address.
  * This flag is only set for server.
  */
-#define NGTCP2_PATH_VALIDATION_FLAG_NEW_TOKEN 0x02u
+#define NGTCP2_PATH_VALIDATION_FLAG_NEW_TOKEN 0x02U
 
 /**
  * @functypedef
@@ -3166,6 +3240,9 @@ typedef enum ngtcp2_connection_id_status_type {
  * The callback function must return 0 if it succeeds.  Returning
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
  * immediately.
+ *
+ * Deprecated since v1.22.0.  Use :type:`ngtcp2_connection_id_status2`
+ * instead.
  */
 typedef int (*ngtcp2_connection_id_status)(
   ngtcp2_conn *conn, ngtcp2_connection_id_status_type type, uint64_t seq,
@@ -3221,7 +3298,7 @@ typedef void (*ngtcp2_delete_crypto_cipher_ctx)(
  *
  * :macro:`NGTCP2_DATAGRAM_FLAG_NONE` indicates no flag set.
  */
-#define NGTCP2_DATAGRAM_FLAG_NONE 0x00u
+#define NGTCP2_DATAGRAM_FLAG_NONE 0x00U
 
 /**
  * @macro
@@ -3230,7 +3307,7 @@ typedef void (*ngtcp2_delete_crypto_cipher_ctx)(
  * received in 0-RTT packet, and the handshake has not completed yet,
  * which means that the data might be replayed.
  */
-#define NGTCP2_DATAGRAM_FLAG_0RTT 0x01u
+#define NGTCP2_DATAGRAM_FLAG_0RTT 0x01U
 
 /**
  * @functypedef
@@ -3293,6 +3370,9 @@ typedef int (*ngtcp2_lost_datagram)(ngtcp2_conn *conn, uint64_t dgram_id,
  * The callback function must return 0 if it succeeds.  Returning
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
  * immediately.
+ *
+ * Deprecated since v1.22.0.  Use
+ * :type:`ngtcp2_get_path_challenge_data2` instead.
  */
 typedef int (*ngtcp2_get_path_challenge_data)(ngtcp2_conn *conn, uint8_t *data,
                                               void *user_data);
@@ -3364,9 +3444,99 @@ typedef int (*ngtcp2_recv_key)(ngtcp2_conn *conn, ngtcp2_encryption_level level,
 typedef int (*ngtcp2_tls_early_data_rejected)(ngtcp2_conn *conn,
                                               void *user_data);
 
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_recv_stateless_reset2` is a callback function which
+ * is called when Stateless Reset packet is received.  The stateless
+ * reset details are given in |sr|.
+ *
+ * The implementation of this callback should return 0 if it succeeds.
+ * Returning :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library
+ * call return immediately.
+ *
+ * This type has been available since v1.22.0
+ */
+typedef int (*ngtcp2_recv_stateless_reset2)(
+  ngtcp2_conn *conn, const ngtcp2_pkt_stateless_reset2 *sr, void *user_data);
+
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_get_new_connection_id2` is a callback function to ask
+ * an application for new connection ID.  Application must generate
+ * new unused connection ID with the exact |cidlen| bytes, and store
+ * it in |cid|.  It also has to generate a stateless reset token, and
+ * store it in |token|.
+ *
+ * The callback function must return 0 if it succeeds.  Returning
+ * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
+ * immediately.
+ *
+ * This type has been available since v1.22.0
+ */
+typedef int (*ngtcp2_get_new_connection_id2)(
+  ngtcp2_conn *conn, ngtcp2_cid *cid, ngtcp2_stateless_reset_token *token,
+  size_t cidlen, void *user_data);
+
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_connection_id_status2` is a callback function which
+ * is called when the status of Destination Connection ID changes.
+ *
+ * |token| is the associated stateless reset token, and it is ``NULL``
+ * if no token is present.
+ *
+ * |type| is the one of the value defined in
+ * :type:`ngtcp2_connection_id_status_type`.  The new value might be
+ * added in the future release.
+ *
+ * The callback function must return 0 if it succeeds.  Returning
+ * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
+ * immediately.
+ *
+ * This type has been available since v1.22.0
+ */
+typedef int (*ngtcp2_connection_id_status2)(
+  ngtcp2_conn *conn, ngtcp2_connection_id_status_type type, uint64_t seq,
+  const ngtcp2_cid *cid, const ngtcp2_stateless_reset_token *token,
+  void *user_data);
+
+/**
+ * @struct
+ *
+ * :type:`ngtcp2_path_challenge_data` stores path challenge data.
+ *
+ * This type has been available since v1.22.0.
+ */
+typedef struct ngtcp2_path_challenge_data {
+  uint8_t data[NGTCP2_PATH_CHALLENGE_DATALEN];
+} ngtcp2_path_challenge_data;
+
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_get_path_challenge_data2` is a callback function to
+ * ask an application for new data that is sent in PATH_CHALLENGE
+ * frame.  Application must generate new unpredictable, exactly
+ * :macro:`NGTCP2_PATH_CHALLENGE_DATALEN` bytes of random data, and
+ * store them into |data|.
+ *
+ * The callback function must return 0 if it succeeds.  Returning
+ * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
+ * immediately.
+ *
+ * This type has been available since v1.22.0.
+ */
+typedef int (*ngtcp2_get_path_challenge_data2)(ngtcp2_conn *conn,
+                                               ngtcp2_path_challenge_data *data,
+                                               void *user_data);
+
 #define NGTCP2_CALLBACKS_V1 1
 #define NGTCP2_CALLBACKS_V2 2
-#define NGTCP2_CALLBACKS_VERSION NGTCP2_CALLBACKS_V2
+#define NGTCP2_CALLBACKS_V3 3
+#define NGTCP2_CALLBACKS_VERSION NGTCP2_CALLBACKS_V3
 
 /**
  * @struct
@@ -3453,6 +3623,11 @@ typedef struct ngtcp2_callbacks {
    * :member:`recv_stateless_reset` is a callback function which is
    * invoked when Stateless Reset packet is received.  This callback
    * function is optional.
+   *
+   * Deprecated since v1.22.0.  Use :member:`recv_stateless_reset2`
+   * instead.  If both :member:`recv_stateless_reset` and
+   * :member:`recv_stateless_reset2` are set, the latter has the
+   * precedence.
    */
   ngtcp2_recv_stateless_reset recv_stateless_reset;
   /**
@@ -3483,8 +3658,14 @@ typedef struct ngtcp2_callbacks {
   ngtcp2_rand rand;
   /**
    * :member:`get_new_connection_id` is a callback function which is
-   * invoked when the library needs new connection ID.  This callback
-   * function must be specified.
+   * invoked when the library needs new connection ID.  Either this
+   * callback function or :member:`get_new_connection_id2` must be
+   * specified.
+   *
+   * Deprecated since v1.22.0.  Use :member:`get_new_connection_id2`
+   * instead.  If both :member:`get_new_connection_id` and
+   * :member:`get_new_connection_id2` are set, the latter has the
+   * precedence.
    */
   ngtcp2_get_new_connection_id get_new_connection_id;
   /**
@@ -3545,6 +3726,10 @@ typedef struct ngtcp2_callbacks {
    * when the new Destination Connection ID is activated, or the
    * activated Destination Connection ID is now deactivated.  This
    * callback function is optional.
+   *
+   * Deprecated since v1.22.0.  Use :member:`dcid_status2` instead.
+   * If both :member:`dcid_status` and :member:`dcid_status2` are set,
+   * the latter has the precedence.
    */
   ngtcp2_connection_id_status dcid_status;
   /**
@@ -3595,6 +3780,9 @@ typedef struct ngtcp2_callbacks {
    * :member:`get_path_challenge_data` is a callback function which is
    * invoked when the library needs new data sent along with
    * PATH_CHALLENGE frame.  This callback must be specified.
+   *
+   * Deprecated since v1.22.0.  Use :member:`get_path_challenge_data2`
+   * instead.
    */
   ngtcp2_get_path_challenge_data get_path_challenge_data;
   /**
@@ -3638,6 +3826,35 @@ typedef struct ngtcp2_callbacks {
    * available since v1.14.0.
    */
   ngtcp2_begin_path_validation begin_path_validation;
+  /* The following fields have been added since NGTCP2_CALLBACKS_V3. */
+  /**
+   * :member:`recv_stateless_reset2` is a callback function which is
+   * invoked when Stateless Reset packet is received.  This callback
+   * function is optional.  This field is available since v1.22.0.
+   */
+  ngtcp2_recv_stateless_reset2 recv_stateless_reset2;
+  /**
+   * :member:`get_new_connection_id2` is a callback function which is
+   * invoked when the library needs new connection ID.  This callback
+   * function must be specified.  This field is available since
+   * v1.22.0.
+   */
+  ngtcp2_get_new_connection_id2 get_new_connection_id2;
+  /**
+   * :member:`dcid_status2` is a callback function which is invoked
+   * when the new Destination Connection ID is activated, or the
+   * activated Destination Connection ID is now deactivated.  This
+   * callback function is optional.  This field is available since
+   * v1.22.0.
+   */
+  ngtcp2_connection_id_status2 dcid_status2;
+  /**
+   * :member:`get_path_challenge_data2` is a callback function which
+   * is invoked when the library needs new data sent along with
+   * PATH_CHALLENGE frame.  This callback must be specified.  This
+   * field is available since v1.22.0.
+   */
+  ngtcp2_get_path_challenge_data2 get_path_challenge_data2;
 } ngtcp2_callbacks;
 
 /**
@@ -3852,6 +4069,21 @@ ngtcp2_conn_read_pkt_versioned(ngtcp2_conn *conn, const ngtcp2_path *path,
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_pkt_versioned(
   ngtcp2_conn *conn, ngtcp2_path *path, int pkt_info_version,
   ngtcp2_pkt_info *pi, uint8_t *dest, size_t destlen, ngtcp2_tstamp ts);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_continue_handshake` resumes handshake interrupted by
+ * TLS stack routine (e.g., private key operation offloading,
+ * certificate lookup, etc).
+ *
+ * This function returns 0 if it succeeds.  In general, this function
+ * returns the same set of error codes from `ngtcp2_conn_read_pkt`.
+ *
+ * This function has been available since v1.22.0.
+ */
+NGTCP2_EXTERN int ngtcp2_conn_continue_handshake(ngtcp2_conn *conn,
+                                                 ngtcp2_tstamp ts);
 
 /**
  * @function
@@ -4512,7 +4744,7 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
  *
  * :macro:`NGTCP2_WRITE_STREAM_FLAG_NONE` indicates no flag set.
  */
-#define NGTCP2_WRITE_STREAM_FLAG_NONE 0x00u
+#define NGTCP2_WRITE_STREAM_FLAG_NONE 0x00U
 
 /**
  * @macro
@@ -4520,7 +4752,7 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
  * :macro:`NGTCP2_WRITE_STREAM_FLAG_MORE` indicates that more data may
  * come, and should be coalesced into the same packet if possible.
  */
-#define NGTCP2_WRITE_STREAM_FLAG_MORE 0x01u
+#define NGTCP2_WRITE_STREAM_FLAG_MORE 0x01U
 
 /**
  * @macro
@@ -4528,7 +4760,7 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
  * :macro:`NGTCP2_WRITE_STREAM_FLAG_FIN` indicates that a passed data
  * is the final part of a stream.
  */
-#define NGTCP2_WRITE_STREAM_FLAG_FIN 0x02u
+#define NGTCP2_WRITE_STREAM_FLAG_FIN 0x02U
 
 /**
  * @macro
@@ -4539,7 +4771,7 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
  * finalizing it.  PATH_CHALLENGE, PATH_RESPONSE, CONNECTION_CLOSE
  * only packets and PMTUD packets are excluded.
  */
-#define NGTCP2_WRITE_STREAM_FLAG_PADDING 0x04u
+#define NGTCP2_WRITE_STREAM_FLAG_PADDING 0x04U
 
 /**
  * @function
@@ -4724,7 +4956,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_stream_versioned(
  *
  * :macro:`NGTCP2_WRITE_DATAGRAM_FLAG_NONE` indicates no flag set.
  */
-#define NGTCP2_WRITE_DATAGRAM_FLAG_NONE 0x00u
+#define NGTCP2_WRITE_DATAGRAM_FLAG_NONE 0x00U
 
 /**
  * @macro
@@ -4732,7 +4964,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_stream_versioned(
  * :macro:`NGTCP2_WRITE_DATAGRAM_FLAG_MORE` indicates that more data
  * may come, and should be coalesced into the same packet if possible.
  */
-#define NGTCP2_WRITE_DATAGRAM_FLAG_MORE 0x01u
+#define NGTCP2_WRITE_DATAGRAM_FLAG_MORE 0x01U
 
 /**
  * @macro
@@ -4743,7 +4975,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_stream_versioned(
  * finalizing it.  PATH_CHALLENGE, PATH_RESPONSE, CONNECTION_CLOSE
  * only packets and PMTUD packets are excluded.
  */
-#define NGTCP2_WRITE_DATAGRAM_FLAG_PADDING 0x02u
+#define NGTCP2_WRITE_DATAGRAM_FLAG_PADDING 0x02U
 
 /**
  * @function
@@ -4980,6 +5212,8 @@ NGTCP2_EXTERN size_t ngtcp2_conn_get_scid(ngtcp2_conn *conn, ngtcp2_cid *dest);
  *
  * :type:`ngtcp2_cid_token` is the convenient struct to store
  * Connection ID, its associated path, and stateless reset token.
+ *
+ * Deprecated since v1.22.0.  Use :type:`ngtcp2_cid_token2` instead.
  */
 typedef struct ngtcp2_cid_token {
   /**
@@ -5019,9 +5253,64 @@ typedef struct ngtcp2_cid_token {
  * sizeof(:type:`ngtcp2_cid_token`) * n bytes available, where n is
  * the return value of `ngtcp2_conn_get_active_dcid` with |dest| ==
  * NULL.
+ *
+ * Deprecated since v1.22.0.  Use `ngtcp2_conn_get_active_dcid2`
+ * instead.
  */
 NGTCP2_EXTERN size_t ngtcp2_conn_get_active_dcid(ngtcp2_conn *conn,
                                                  ngtcp2_cid_token *dest);
+
+/**
+ * @struct
+ *
+ * :type:`ngtcp2_cid_token2` is the convenient struct to store
+ * Connection ID, its associated path, and stateless reset token.
+ *
+ * This type has been available since v1.22.0.
+ */
+typedef struct ngtcp2_cid_token2 {
+  /**
+   * :member:`seq` is the sequence number of this Connection ID.
+   */
+  uint64_t seq;
+  /**
+   * :member:`cid` is Connection ID.
+   */
+  ngtcp2_cid cid;
+  /**
+   * :member:`ps` is the path which this Connection ID is associated
+   * with.
+   */
+  ngtcp2_path_storage ps;
+  /**
+   * :member:`token` is the stateless reset token for this Connection
+   * ID.
+   */
+  ngtcp2_stateless_reset_token token;
+  /**
+   * :member:`token_present` is nonzero if token contains stateless
+   * reset token.
+   */
+  uint8_t token_present;
+} ngtcp2_cid_token2;
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_get_active_dcid2` writes the all active Destination
+ * Connection IDs and their tokens to |dest|.  Before handshake
+ * completes, this function returns 0.  If |dest| is NULL, this
+ * function does not write anything, and returns the number of
+ * Destination Connection IDs that would otherwise be written to the
+ * provided buffer.  The buffer pointed by |dest| must have
+ * sizeof(:type:`ngtcp2_cid_token2`) * n bytes available, where n is
+ * the return value of `ngtcp2_conn_get_active_dcid2` with |dest| ==
+ * NULL.
+ *
+ * This function has been available since v1.22.0.
+ */
+NGTCP2_EXTERN size_t ngtcp2_conn_get_active_dcid2(ngtcp2_conn *conn,
+                                                  ngtcp2_cid_token2 *dest);
 
 /**
  * @function
@@ -5553,7 +5842,7 @@ NGTCP2_EXTERN void ngtcp2_ccerr_set_application_error(ngtcp2_ccerr *ccerr,
  * @function
  *
  * `ngtcp2_conn_write_connection_close` writes a packet which contains
- * CONNECTION_CLOSE frame(s) (type 0x1c or 0x1d) in the buffer pointed
+ * CONNECTION_CLOSE frame(s) (type 0x1C or 0x1D) in the buffer pointed
  * by |dest| whose capacity is |destlen|.
  *
  * For client, |destlen| should be at least
@@ -5570,10 +5859,10 @@ NGTCP2_EXTERN void ngtcp2_ccerr_set_application_error(ngtcp2_ccerr *ccerr,
  *
  * If :member:`ccerr->type <ngtcp2_ccerr.type>` ==
  * :enum:`ngtcp2_ccerr_type.NGTCP2_CCERR_TYPE_TRANSPORT`, this
- * function sends CONNECTION_CLOSE (type 0x1c) frame.  If
+ * function sends CONNECTION_CLOSE (type 0x1C) frame.  If
  * :member:`ccerr->type <ngtcp2_ccerr.type>` ==
  * :enum:`ngtcp2_ccerr_type.NGTCP2_CCERR_TYPE_APPLICATION`, it sends
- * CONNECTION_CLOSE (type 0x1d) frame.  Otherwise, it does not produce
+ * CONNECTION_CLOSE (type 0x1D) frame.  Otherwise, it does not produce
  * any data, and returns 0.
  *
  * |destlen| could be shorten by some factors (e.g., server side

@@ -55,7 +55,7 @@ struct Stream {
   Stream(const Request &req, int64_t stream_id);
   ~Stream();
 
-  int open_file(const std::string_view &path);
+  std::expected<void, Error> open_file(std::string_view path);
 
   Request req;
   int64_t stream_id;
@@ -77,68 +77,81 @@ public:
          uint32_t original_version);
   ~Client();
 
-  int init(int fd, const Address &local_addr, const Address &remote_addr,
-           const char *addr, const char *port, TLSClientContext &tls_ctx);
+  std::expected<void, Error> init(int fd, const Address &local_addr,
+                                  const Address &remote_addr, const char *addr,
+                                  const char *port, TLSClientContext &tls_ctx);
   void disconnect();
 
-  int on_read(const Endpoint &ep);
-  int on_write();
-  int write_streams();
-  int feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
-                const ngtcp2_pkt_info *pi, std::span<const uint8_t> data);
-  int handle_expiry();
+  std::expected<void, Error> on_read(const Endpoint &ep);
+  std::expected<void, Error> on_write();
+  std::expected<void, Error> write_streams();
+  std::expected<void, Error> feed_data(const Endpoint &ep, const sockaddr *sa,
+                                       socklen_t salen,
+                                       const ngtcp2_pkt_info *pi,
+                                       std::span<const uint8_t> data);
+  std::expected<void, Error> handle_expiry();
   void update_timer();
-  int handshake_completed();
-  int handshake_confirmed();
+  std::expected<void, Error> handshake_completed();
+  void handshake_confirmed();
   void recv_version_negotiation(const uint32_t *sv, size_t nsv);
 
-  int send_packet(const Endpoint &ep, const ngtcp2_addr &remote_addr,
-                  unsigned int ecn, std::span<const uint8_t> data);
-  std::pair<std::span<const uint8_t>, int>
+  std::expected<void, Error> send_packet(const Endpoint &ep,
+                                         const ngtcp2_addr &remote_addr,
+                                         unsigned int ecn,
+                                         std::span<const uint8_t> data);
+  std::span<const uint8_t>
   send_packet(const Endpoint &ep, const ngtcp2_addr &remote_addr,
               unsigned int ecn, std::span<const uint8_t> data, size_t gso_size);
-  int send_packet_or_blocked(const ngtcp2_path &path, unsigned int ecn,
-                             std::span<const uint8_t> data, size_t gso_size);
-  int on_stream_close(int64_t stream_id, uint64_t app_error_code);
-  int on_extend_max_streams();
-  int handle_error();
-  int make_stream_early();
-  int change_local_addr();
+  std::expected<void, Error>
+  send_packet_or_blocked(const ngtcp2_path &path, unsigned int ecn,
+                         std::span<const uint8_t> data, size_t gso_size);
+  std::expected<void, Error> on_stream_close(int64_t stream_id,
+                                             uint64_t app_error_code);
+  void on_extend_max_streams();
+  std::expected<void, Error> handle_error();
+  std::expected<void, Error> make_stream_early();
+  std::expected<void, Error> change_local_addr();
   void start_change_local_addr_timer();
-  int update_key(uint8_t *rx_secret, uint8_t *tx_secret,
-                 ngtcp2_crypto_aead_ctx *rx_aead_ctx, uint8_t *rx_iv,
-                 ngtcp2_crypto_aead_ctx *tx_aead_ctx, uint8_t *tx_iv,
-                 const uint8_t *current_rx_secret,
-                 const uint8_t *current_tx_secret, size_t secretlen);
-  int initiate_key_update();
+  std::expected<void, Error>
+  update_key(uint8_t *rx_secret, uint8_t *tx_secret,
+             ngtcp2_crypto_aead_ctx *rx_aead_ctx, uint8_t *rx_iv,
+             ngtcp2_crypto_aead_ctx *tx_aead_ctx, uint8_t *tx_iv,
+             const uint8_t *current_rx_secret, const uint8_t *current_tx_secret,
+             size_t secretlen);
+  std::expected<void, Error> initiate_key_update();
   void start_key_update_timer();
   void start_delay_stream_timer();
 
-  int select_preferred_address(Address &selected_addr,
-                               const ngtcp2_preferred_addr *paddr);
+  std::expected<void, Error>
+  select_preferred_address(Address &selected_addr,
+                           const ngtcp2_preferred_addr *paddr);
 
-  std::optional<Endpoint *> endpoint_for(const Address &remote_addr);
+  std::expected<Endpoint *, Error> endpoint_for(const Address &remote_addr);
 
   void set_remote_addr(const ngtcp2_addr &remote_addr);
 
-  int setup_httpconn();
-  int submit_http_request(const Stream *stream);
-  int recv_stream_data(uint32_t flags, int64_t stream_id,
-                       std::span<const uint8_t> data);
-  int acked_stream_data_offset(int64_t stream_id, uint64_t datalen);
+  std::expected<void, Error> setup_httpconn();
+  std::expected<void, Error> submit_http_request(const Stream *stream);
+  std::expected<void, Error> recv_stream_data(uint32_t flags, int64_t stream_id,
+                                              std::span<const uint8_t> data);
+  std::expected<void, Error> acked_stream_data_offset(int64_t stream_id,
+                                                      uint64_t datalen);
   void http_consume(int64_t stream_id, size_t nconsumed);
   void http_write_data(int64_t stream_id, std::span<const uint8_t> data);
-  int on_stream_reset(int64_t stream_id);
-  int on_stream_stop_sending(int64_t stream_id);
-  int extend_max_stream_data(int64_t stream_id, uint64_t max_data);
-  int stop_sending(int64_t stream_id, uint64_t app_error_code);
-  int reset_stream(int64_t stream_id, uint64_t app_error_code);
+  std::expected<void, Error> on_stream_reset(int64_t stream_id);
+  std::expected<void, Error> on_stream_stop_sending(int64_t stream_id);
+  std::expected<void, Error> extend_max_stream_data(int64_t stream_id,
+                                                    uint64_t max_data);
+  std::expected<void, Error> stop_sending(int64_t stream_id,
+                                          uint64_t app_error_code);
+  std::expected<void, Error> reset_stream(int64_t stream_id,
+                                          uint64_t app_error_code);
   void http_stream_close(int64_t stream_id, uint64_t app_error_code);
 
   void on_send_blocked(const ngtcp2_path &path, unsigned int ecn,
                        std::span<const uint8_t> data, size_t gso_size);
   void start_wev_endpoint(const Endpoint &ep);
-  int send_blocked_packet();
+  void send_blocked_packet();
   ngtcp2_ssize write_pkt(ngtcp2_path *path, ngtcp2_pkt_info *pi, uint8_t *dest,
                          size_t destlen, ngtcp2_tstamp ts);
 

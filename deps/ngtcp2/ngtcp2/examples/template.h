@@ -41,6 +41,13 @@ template <std::unsigned_integral T>
   return static_cast<std::make_signed_t<T>>(n);
 }
 
+template <typename T, std::size_t N>
+[[nodiscard]] auto as_uint8_span(std::span<T, N> s) noexcept {
+  return std::span<const uint8_t, N == std::dynamic_extent ? std::dynamic_extent
+                                                           : N * sizeof(T)>{
+    reinterpret_cast<const uint8_t *>(s.data()), s.size_bytes()};
+}
+
 template <typename F> struct Defer {
   explicit Defer(F &&f) noexcept(std::is_nothrow_constructible_v<F, F &&>)
     : f(std::forward<F>(f)) {}
@@ -87,6 +94,18 @@ as_writable_uint8_span(std::span<T, N> s) noexcept {
   return std::span<uint8_t, N == std::dynamic_extent ? std::dynamic_extent
                                                      : N * sizeof(T)>{
     reinterpret_cast<uint8_t *>(s.data()), s.size_bytes()};
+}
+
+template <typename R>
+requires(std::ranges::contiguous_range<R> && std::ranges::sized_range<R> &&
+         std::ranges::borrowed_range<R> &&
+         !std::is_array_v<std::remove_cvref_t<R>> &&
+         sizeof(std::ranges::range_value_t<R>) ==
+           sizeof(std::string_view::value_type))
+[[nodiscard]] std::string_view as_string_view(R &&r) {
+  return std::string_view{
+    reinterpret_cast<std::string_view::const_pointer>(std::ranges::data(r)),
+    std::ranges::size(r)};
 }
 
 #endif // !defined(TEMPLATE_H)

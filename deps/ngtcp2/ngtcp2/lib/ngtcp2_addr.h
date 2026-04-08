@@ -46,14 +46,14 @@ void ngtcp2_addr_copy(ngtcp2_addr *dest, const ngtcp2_addr *src);
 int ngtcp2_addr_eq(const ngtcp2_addr *a, const ngtcp2_addr *b);
 
 /* NGTCP2_ADDR_CMP_FLAG_NONE indicates that no flag set. */
-#define NGTCP2_ADDR_CMP_FLAG_NONE 0x0u
+#define NGTCP2_ADDR_CMP_FLAG_NONE 0x0U
 /* NGTCP2_ADDR_CMP_FLAG_ADDR indicates IP addresses do not match. */
-#define NGTCP2_ADDR_CMP_FLAG_ADDR 0x1u
+#define NGTCP2_ADDR_CMP_FLAG_ADDR 0x1U
 /* NGTCP2_ADDR_CMP_FLAG_PORT indicates ports do not match. */
-#define NGTCP2_ADDR_CMP_FLAG_PORT 0x2u
+#define NGTCP2_ADDR_CMP_FLAG_PORT 0x2U
 /* NGTCP2_ADDR_CMP_FLAG_FAMILY indicates address families do not
    match. */
-#define NGTCP2_ADDR_CMP_FLAG_FAMILY 0x4u
+#define NGTCP2_ADDR_CMP_FLAG_FAMILY 0x4U
 
 /*
  * ngtcp2_addr_cmp compares address and port between |a| and |b|, and

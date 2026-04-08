@@ -200,10 +200,10 @@ static size_t rtb_on_remove(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
 }
 
 /* NGTCP2_RECLAIM_FLAG_NONE indicates that no flag is set. */
-#define NGTCP2_RECLAIM_FLAG_NONE 0x00u
+#define NGTCP2_RECLAIM_FLAG_NONE 0x00U
 /* NGTCP2_RECLAIM_FLAG_ON_LOSS indicates that frames are reclaimed
    because of the packet loss.*/
-#define NGTCP2_RECLAIM_FLAG_ON_LOSS 0x01u
+#define NGTCP2_RECLAIM_FLAG_ON_LOSS 0x01U
 
 /*
  * rtb_reclaim_frame copies and queues frames included in |ent| for
