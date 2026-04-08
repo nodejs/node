@@ -95,6 +95,8 @@ class ReportResult {
 class WPTReport {
   constructor(path) {
     this.filename = `report-${path.replaceAll('/', '-')}.json`;
+    // Resolve at construction time so cwd changes (e.g. tmpdir cleanup) don't affect the output path.
+    this.filepath = path.resolve('out', 'wpt', this.filename);
     /** @type {Map<string, ReportResult>} */
     this.results = new Map();
     this.time_start = Date.now();
@@ -139,7 +141,7 @@ class WPTReport {
       os: getOs(),
     };
 
-    fs.writeFileSync(`out/wpt/${this.filename}`, JSON.stringify({
+    fs.writeFileSync(this.filepath, JSON.stringify({
       time_start: this.time_start,
       time_end: this.time_end,
       run_info: this.run_info,
