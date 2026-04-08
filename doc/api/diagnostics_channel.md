@@ -1981,6 +1981,7 @@ dc.unsubscribe('sqlite.db.query', onQuery);
 [TracingChannel Channels]: #tracingchannel-channels
 [`'uncaughtException'`]: process.md#event-uncaughtexception
 [`BoundedChannel`]: #class-boundedchannel
+[`DatabaseSync`]: sqlite.md#class-databasesync
 [`TracingChannel`]: #class-tracingchannel
 [`asyncEnd` event]: #asyncendevent
 [`asyncStart` event]: #asyncstartevent
@@ -1990,7 +1991,6 @@ dc.unsubscribe('sqlite.db.query', onQuery);
 [`channel.subscribe(onMessage)`]: #channelsubscribeonmessage
 [`channel.unsubscribe(onMessage)`]: #channelunsubscribeonmessage
 [`channel.withStoreScope(data)`]: #channelwithstorescopedata
-[`DatabaseSync`]: sqlite.md#class-databasesync
 [`child_process.spawn()`]: child_process.md#child_processspawncommand-args-options
 [`diagnostics_channel.channel(name)`]: #diagnostics_channelchannelname
 [`diagnostics_channel.subscribe(name, onMessage)`]: #diagnostics_channelsubscribename-onmessage
