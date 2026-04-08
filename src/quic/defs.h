@@ -30,7 +30,7 @@ namespace node::quic {
   DISALLOW_COPY(Name)                                                          \
   DISALLOW_MOVE(Name)
 
-template <typename Opt, std::string Opt::*member>
+template <typename Opt, std::string Opt::* member>
 bool SetOption(Environment* env,
                Opt* options,
                const v8::Local<v8::Object>& object,
@@ -44,7 +44,7 @@ bool SetOption(Environment* env,
   return true;
 }
 
-template <typename Opt, bool Opt::*member>
+template <typename Opt, bool Opt::* member>
 bool SetOption(Environment* env,
                Opt* options,
                const v8::Local<v8::Object>& object,
@@ -57,7 +57,7 @@ bool SetOption(Environment* env,
   return true;
 }
 
-template <typename Opt, uint32_t Opt::*member>
+template <typename Opt, uint32_t Opt::* member>
 bool SetOption(Environment* env,
                Opt* options,
                const v8::Local<v8::Object>& object,
@@ -83,7 +83,7 @@ bool SetOption(Environment* env,
   return true;
 }
 
-template <typename Opt, uint64_t Opt::*member>
+template <typename Opt, uint64_t Opt::* member>
 bool SetOption(Environment* env,
                Opt* options,
                const v8::Local<v8::Object>& object,
@@ -127,22 +127,22 @@ bool SetOption(Environment* env,
 // objects. The stats themselves are maintained in an AliasedStruct within
 // each of the relevant classes.
 
-template <typename Stats, uint64_t Stats::*member>
+template <typename Stats, uint64_t Stats::* member>
 void IncrementStat(Stats* stats, uint64_t amt = 1) {
   stats->*member += amt;
 }
 
-template <typename Stats, uint64_t Stats::*member>
+template <typename Stats, uint64_t Stats::* member>
 void RecordTimestampStat(Stats* stats) {
   stats->*member = uv_hrtime();
 }
 
-template <typename Stats, uint64_t Stats::*member>
+template <typename Stats, uint64_t Stats::* member>
 void SetStat(Stats* stats, uint64_t val) {
   stats->*member = val;
 }
 
-template <typename Stats, uint64_t Stats::*member>
+template <typename Stats, uint64_t Stats::* member>
 uint64_t GetStat(Stats* stats) {
   return stats->*member;
 }
@@ -285,8 +285,14 @@ enum class StreamPriority : uint8_t {
 };
 
 enum class StreamPriorityFlags : uint8_t {
-  NONE,
   NON_INCREMENTAL,
+  INCREMENTAL,
+};
+
+enum class HeadersSupportState : uint8_t {
+  UNKNOWN,
+  SUPPORTED,
+  UNSUPPORTED,
 };
 
 enum class PathValidationResult : uint8_t {

@@ -11,6 +11,7 @@
 #include <node_http_common-inl.h>
 #include <node_sockaddr-inl.h>
 #include <util-inl.h>
+#include <zlib.h>
 #include "application.h"
 #include "bindingdata.h"
 #include "defs.h"
@@ -24,6 +25,48 @@ using v8::Array;
 using v8::Local;
 
 namespace quic {
+
+namespace {
+constexpr uint8_t kSessionTicketAppDataVersion = 1;
+constexpr size_t kSessionTicketAppDataSize = 39;
+constexpr size_t kSessionTicketAppDataHeaderSize = 5;
+constexpr size_t kSessionTicketAppDataPayloadSize =
+    kSessionTicketAppDataSize - kSessionTicketAppDataHeaderSize;
+
+inline void WriteBE32(uint8_t* buf, uint32_t val) {
+  buf[0] = static_cast<uint8_t>((val >> 24) & 0xff);
+  buf[1] = static_cast<uint8_t>((val >> 16) & 0xff);
+  buf[2] = static_cast<uint8_t>((val >> 8) & 0xff);
+  buf[3] = static_cast<uint8_t>(val & 0xff);
+}
+
+inline uint32_t ReadBE32(const uint8_t* buf) {
+  return (static_cast<uint32_t>(buf[0]) << 24) |
+         (static_cast<uint32_t>(buf[1]) << 16) |
+         (static_cast<uint32_t>(buf[2]) << 8) | static_cast<uint32_t>(buf[3]);
+}
+
+inline void WriteBE64(uint8_t* buf, uint64_t val) {
+  buf[0] = static_cast<uint8_t>((val >> 56) & 0xff);
+  buf[1] = static_cast<uint8_t>((val >> 48) & 0xff);
+  buf[2] = static_cast<uint8_t>((val >> 40) & 0xff);
+  buf[3] = static_cast<uint8_t>((val >> 32) & 0xff);
+  buf[4] = static_cast<uint8_t>((val >> 24) & 0xff);
+  buf[5] = static_cast<uint8_t>((val >> 16) & 0xff);
+  buf[6] = static_cast<uint8_t>((val >> 8) & 0xff);
+  buf[7] = static_cast<uint8_t>(val & 0xff);
+}
+
+inline uint64_t ReadBE64(const uint8_t* buf) {
+  return (static_cast<uint64_t>(buf[0]) << 56) |
+         (static_cast<uint64_t>(buf[1]) << 48) |
+         (static_cast<uint64_t>(buf[2]) << 40) |
+         (static_cast<uint64_t>(buf[3]) << 32) |
+         (static_cast<uint64_t>(buf[4]) << 24) |
+         (static_cast<uint64_t>(buf[5]) << 16) |
+         (static_cast<uint64_t>(buf[6]) << 8) | static_cast<uint64_t>(buf[7]);
+}
+}  // namespace
 
 struct Http3HeadersTraits {
   using nv_t = nghttp3_nv;
@@ -96,6 +139,8 @@ class Http3ApplicationImpl final : public Session::Application {
   }
 
   error_code GetNoErrorCode() const override { return NGHTTP3_H3_NO_ERROR; }
+
+  bool SupportsHeaders() const override { return true; }
 
   bool Start() override {
     CHECK(!started_);
@@ -259,20 +304,65 @@ class Http3ApplicationImpl final : public Session::Application {
 
   void CollectSessionTicketAppData(
       SessionTicket::AppData* app_data) const override {
-    // TODO(@jasnell): When HTTP/3 settings become dynamic or
-    // configurable per-connection, store them here so they can be
-    // validated on 0-RTT resumption. Candidates include:
-    // max_field_section_size, qpack_max_dtable_capacity,
-    // qpack_encoder_max_dtable_capacity, qpack_blocked_streams,
-    // enable_connect_protocol, and enable_datagrams. On extraction,
-    // compare stored values against current settings and return
-    // TICKET_IGNORE_RENEW if incompatible.
+    uint8_t buf[kSessionTicketAppDataSize];
+    buf[0] = kSessionTicketAppDataVersion;
+
+    uint8_t* payload = buf + kSessionTicketAppDataHeaderSize;
+    WriteBE64(payload, options_.max_field_section_size);
+    WriteBE64(payload + 8, options_.qpack_max_dtable_capacity);
+    WriteBE64(payload + 16, options_.qpack_encoder_max_dtable_capacity);
+    WriteBE64(payload + 24, options_.qpack_blocked_streams);
+    payload[32] = options_.enable_connect_protocol ? 1 : 0;
+    payload[33] = options_.enable_datagrams ? 1 : 0;
+
+    uLong crc = crc32(0L, Z_NULL, 0);
+    crc = crc32(crc, payload, kSessionTicketAppDataPayloadSize);
+    WriteBE32(buf + 1, static_cast<uint32_t>(crc));
+
+    app_data->Set(
+        uv_buf_init(reinterpret_cast<char*>(buf), kSessionTicketAppDataSize));
   }
 
   SessionTicket::AppData::Status ExtractSessionTicketAppData(
       const SessionTicket::AppData& app_data,
       SessionTicket::AppData::Source::Flag flag) override {
-    // See CollectSessionTicketAppData above.
+    auto data = app_data.Get();
+    if (!data || data->len != kSessionTicketAppDataSize) {
+      return SessionTicket::AppData::Status::TICKET_IGNORE_RENEW;
+    }
+
+    const uint8_t* buf = reinterpret_cast<const uint8_t*>(data->base);
+
+    if (buf[0] != kSessionTicketAppDataVersion) {
+      return SessionTicket::AppData::Status::TICKET_IGNORE_RENEW;
+    }
+
+    const uint8_t* payload = buf + kSessionTicketAppDataHeaderSize;
+    uint32_t stored_crc = ReadBE32(buf + 1);
+    uLong computed_crc = crc32(0L, Z_NULL, 0);
+    computed_crc =
+        crc32(computed_crc, payload, kSessionTicketAppDataPayloadSize);
+    if (stored_crc != static_cast<uint32_t>(computed_crc)) {
+      return SessionTicket::AppData::Status::TICKET_IGNORE_RENEW;
+    }
+
+    uint64_t stored_max_field_section_size = ReadBE64(payload);
+    uint64_t stored_qpack_max_dtable_capacity = ReadBE64(payload + 8);
+    uint64_t stored_qpack_encoder_max_dtable_capacity = ReadBE64(payload + 16);
+    uint64_t stored_qpack_blocked_streams = ReadBE64(payload + 24);
+    bool stored_enable_connect_protocol = payload[32] != 0;
+    bool stored_enable_datagrams = payload[33] != 0;
+
+    if (options_.max_field_section_size < stored_max_field_section_size ||
+        options_.qpack_max_dtable_capacity < stored_qpack_max_dtable_capacity ||
+        options_.qpack_encoder_max_dtable_capacity <
+            stored_qpack_encoder_max_dtable_capacity ||
+        options_.qpack_blocked_streams < stored_qpack_blocked_streams ||
+        (stored_enable_connect_protocol && !options_.enable_connect_protocol) ||
+        (stored_enable_datagrams && !options_.enable_datagrams)) {
+      return SessionTicket::AppData::Status::TICKET_IGNORE_RENEW;
+    }
+
     return flag == SessionTicket::AppData::Source::Flag::STATUS_RENEW
                ? SessionTicket::AppData::Status::TICKET_USE_RENEW
                : SessionTicket::AppData::Status::TICKET_USE;
@@ -398,7 +488,7 @@ class Http3ApplicationImpl final : public Session::Application {
                          StreamPriority priority,
                          StreamPriorityFlags flags) override {
     nghttp3_pri pri;
-    pri.inc = (flags == StreamPriorityFlags::NON_INCREMENTAL) ? 0 : 1;
+    pri.inc = (flags == StreamPriorityFlags::INCREMENTAL) ? 1 : 0;
     switch (priority) {
       case StreamPriority::HIGH:
         pri.urgency = NGHTTP3_URGENCY_HIGH;
@@ -419,26 +509,26 @@ class Http3ApplicationImpl final : public Session::Application {
     // field value rather than an nghttp3_pri struct.
   }
 
-  StreamPriority GetStreamPriority(const Stream& stream) override {
+  StreamPriorityResult GetStreamPriority(const Stream& stream) override {
     nghttp3_pri pri;
     if (nghttp3_conn_get_stream_priority(*this, &pri, stream.id()) == 0) {
-      // TODO(@jasnell): The nghttp3_pri.inc (incremental) flag is
-      // not yet exposed. When priority-based stream scheduling is
-      // implemented, GetStreamPriority should return both urgency
-      // and the incremental flag (making get/set symmetrical).
-      // The inc flag determines whether the server should interleave
-      // data from this stream with others of the same urgency
-      // (inc=1) or complete it first (inc=0).
+      StreamPriority level;
       switch (pri.urgency) {
         case NGHTTP3_URGENCY_HIGH:
-          return StreamPriority::HIGH;
+          level = StreamPriority::HIGH;
+          break;
         case NGHTTP3_URGENCY_LOW:
-          return StreamPriority::LOW;
+          level = StreamPriority::LOW;
+          break;
         default:
-          return StreamPriority::DEFAULT;
+          level = StreamPriority::DEFAULT;
+          break;
       }
+      return {level,
+              pri.inc ? StreamPriorityFlags::INCREMENTAL
+                      : StreamPriorityFlags::NON_INCREMENTAL};
     }
-    return StreamPriority::DEFAULT;
+    return {StreamPriority::DEFAULT, StreamPriorityFlags::NON_INCREMENTAL};
   }
 
   int GetStreamData(StreamData* data) override {

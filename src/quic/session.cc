@@ -70,6 +70,7 @@ namespace quic {
   V(HANDSHAKE_CONFIRMED, handshake_confirmed, uint8_t)                         \
   V(STREAM_OPEN_ALLOWED, stream_open_allowed, uint8_t)                         \
   V(PRIORITY_SUPPORTED, priority_supported, uint8_t)                           \
+  V(HEADERS_SUPPORTED, headers_supported, uint8_t)                             \
   V(WRAPPED, wrapped, uint8_t)                                                 \
   V(APPLICATION_TYPE, application_type, uint8_t)                               \
   V(LAST_DATAGRAM_ID, last_datagram_id, datagram_id)
@@ -208,7 +209,7 @@ void ngtcp2_debug_log(void* user_data, const char* fmt, ...) {
   va_end(ap);
 }
 
-template <typename Opt, PreferredAddress::Policy Opt::*member>
+template <typename Opt, PreferredAddress::Policy Opt::* member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -223,7 +224,7 @@ bool SetOption(Environment* env,
   return true;
 }
 
-template <typename Opt, TLSContext::Options Opt::*member>
+template <typename Opt, TLSContext::Options Opt::* member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -238,7 +239,7 @@ bool SetOption(Environment* env,
   return true;
 }
 
-template <typename Opt, TransportParams::Options Opt::*member>
+template <typename Opt, TransportParams::Options Opt::* member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -253,7 +254,7 @@ bool SetOption(Environment* env,
   return true;
 }
 
-template <typename Opt, ngtcp2_cc_algo Opt::*member>
+template <typename Opt, ngtcp2_cc_algo Opt::* member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -1597,6 +1598,9 @@ std::unique_ptr<Session::Application> Session::SelectApplicationFromAlpn(
 void Session::SetApplication(std::unique_ptr<Application> app) {
   DCHECK(!impl_->application_);
   impl_->state_->application_type = static_cast<uint8_t>(app->type());
+  impl_->state_->headers_supported = static_cast<uint8_t>(
+      app->SupportsHeaders() ? HeadersSupportState::SUPPORTED
+                             : HeadersSupportState::UNSUPPORTED);
   impl_->application_ = std::move(app);
 }
 

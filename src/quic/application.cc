@@ -152,6 +152,10 @@ void Session::Application::BlockStream(int64_t id) {
   // By default do nothing.
 }
 
+bool Session::Application::SupportsHeaders() const {
+  return false;
+}
+
 bool Session::Application::CanAddHeader(size_t current_count,
                                         size_t current_headers_length,
                                         size_t this_header_length) {
@@ -203,8 +207,9 @@ void Session::Application::SetStreamPriority(const Stream& stream,
   // By default do nothing.
 }
 
-StreamPriority Session::Application::GetStreamPriority(const Stream& stream) {
-  return StreamPriority::DEFAULT;
+Session::Application::StreamPriorityResult
+Session::Application::GetStreamPriority(const Stream& stream) {
+  return {StreamPriority::DEFAULT, StreamPriorityFlags::NON_INCREMENTAL};
 }
 
 Packet::Ptr Session::Application::CreateStreamDataPacket() {
