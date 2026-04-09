@@ -763,13 +763,11 @@ class Http3ApplicationImpl final : public Session::Application {
     session().Close(Session::CloseMethod::GRACEFUL);
   }
 
-  void OnReceiveSettings(const nghttp3_settings* settings) {
+  void OnReceiveSettings(const nghttp3_proto_settings* settings) {
     options_.enable_connect_protocol = settings->enable_connect_protocol;
     options_.enable_datagrams = settings->h3_datagram;
     options_.max_field_section_size = settings->max_field_section_size;
     options_.qpack_blocked_streams = settings->qpack_blocked_streams;
-    options_.qpack_encoder_max_dtable_capacity =
-        settings->qpack_encoder_max_dtable_capacity;
     options_.qpack_max_dtable_capacity = settings->qpack_max_dtable_capacity;
     Debug(&session(),
           "HTTP/3 application received updated settings: %s",
@@ -1053,7 +1051,7 @@ class Http3ApplicationImpl final : public Session::Application {
   }
 
   static int on_receive_settings(nghttp3_conn* conn,
-                                 const nghttp3_settings* settings,
+                                 const nghttp3_proto_settings* settings,
                                  void* conn_user_data) {
     NGHTTP3_CALLBACK_SCOPE(app);
     app.OnReceiveSettings(settings);
@@ -1079,25 +1077,26 @@ class Http3ApplicationImpl final : public Session::Application {
     CHECK(ncrypto::CSPRNG(dest, destlen));
   }
 
-  static constexpr nghttp3_callbacks kCallbacks = {on_acked_stream_data,
-                                                   on_stream_close,
-                                                   on_receive_data,
-                                                   on_deferred_consume,
-                                                   on_begin_headers,
-                                                   on_receive_header,
-                                                   on_end_headers,
-                                                   on_begin_trailers,
-                                                   on_receive_trailer,
-                                                   on_end_trailers,
-                                                   on_stop_sending,
-                                                   on_end_stream,
-                                                   on_reset_stream,
-                                                   on_shutdown,
-                                                   on_receive_settings,
-                                                   on_receive_origin,
-                                                   on_end_origin,
-                                                   on_rand,
-                                                   nullptr};
+  static constexpr nghttp3_callbacks kCallbacks = {
+      on_acked_stream_data,
+      on_stream_close,
+      on_receive_data,
+      on_deferred_consume,
+      on_begin_headers,
+      on_receive_header,
+      on_end_headers,
+      on_begin_trailers,
+      on_receive_trailer,
+      on_end_trailers,
+      on_stop_sending,
+      on_end_stream,
+      on_reset_stream,
+      on_shutdown,
+      nullptr,  // recv_settings (deprecated)
+      on_receive_origin,
+      on_end_origin,
+      on_rand,
+      on_receive_settings};
 };
 
 std::unique_ptr<Session::Application> CreateHttp3Application(
