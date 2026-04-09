@@ -280,6 +280,33 @@ void StopCpuProfile(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+void StartHeapProfile(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  auto options = ParseHeapProfileOptions(args);
+
+  if (isolate->GetHeapProfiler()->StartSamplingHeapProfiler(
+          options.sample_interval, options.stack_depth, options.flags)) {
+    return;
+  }
+  THROW_ERR_HEAP_PROFILE_HAVE_BEEN_STARTED(isolate,
+                                           "Heap profile has been started");
+}
+
+void StopHeapProfile(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  std::ostringstream out_stream;
+  bool success = node::SerializeHeapProfile(isolate, out_stream);
+  if (success) {
+    Local<Value> result;
+    if (ToV8Value(env->context(), out_stream.str(), isolate).ToLocal(&result)) {
+      args.GetReturnValue().Set(result);
+    }
+  } else {
+    THROW_ERR_HEAP_PROFILE_NOT_STARTED(isolate, "heap profile not started");
+  }
+}
+
 static void IsStringOneByteRepresentation(
     const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 1);
@@ -740,6 +767,26 @@ void Initialize(Local<Object> target,
 
   SetMethod(context, target, "startCpuProfile", StartCpuProfile);
   SetMethod(context, target, "stopCpuProfile", StopCpuProfile);
+  SetMethod(context, target, "startHeapProfile", StartHeapProfile);
+  SetMethod(context, target, "stopHeapProfile", StopHeapProfile);
+
+  {
+    constexpr uint32_t kSamplingNoFlags = static_cast<uint32_t>(
+        v8::HeapProfiler::SamplingFlags::kSamplingNoFlags);
+    constexpr uint32_t kSamplingForceGC = static_cast<uint32_t>(
+        v8::HeapProfiler::SamplingFlags::kSamplingForceGC);
+    constexpr uint32_t kSamplingIncludeObjectsCollectedByMajorGC =
+        static_cast<uint32_t>(v8::HeapProfiler::SamplingFlags::
+                                  kSamplingIncludeObjectsCollectedByMajorGC);
+    constexpr uint32_t kSamplingIncludeObjectsCollectedByMinorGC =
+        static_cast<uint32_t>(v8::HeapProfiler::SamplingFlags::
+                                  kSamplingIncludeObjectsCollectedByMinorGC);
+
+    NODE_DEFINE_CONSTANT(target, kSamplingNoFlags);
+    NODE_DEFINE_CONSTANT(target, kSamplingForceGC);
+    NODE_DEFINE_CONSTANT(target, kSamplingIncludeObjectsCollectedByMajorGC);
+    NODE_DEFINE_CONSTANT(target, kSamplingIncludeObjectsCollectedByMinorGC);
+  }
 
   // Export symbols used by v8.isStringOneByteRepresentation()
   SetFastMethodNoSideEffect(context,
@@ -787,6 +834,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(fast_is_string_one_byte_representation_);
   registry->Register(StartCpuProfile);
   registry->Register(StopCpuProfile);
+  registry->Register(StartHeapProfile);
+  registry->Register(StopHeapProfile);
 }
 
 }  // namespace v8_utils
