@@ -240,8 +240,8 @@ class Http3ApplicationImpl final : public Session::Application {
           stream_id,
           flags.fin);
 
-    ssize_t nread = nghttp3_conn_read_stream(
-        *this, stream_id, data, datalen, flags.fin ? 1 : 0);
+    auto nread = nghttp3_conn_read_stream2(
+        *this, stream_id, data, datalen, flags.fin ? 1 : 0, uv_hrtime());
 
     if (nread < 0) {
       Debug(&session(),
