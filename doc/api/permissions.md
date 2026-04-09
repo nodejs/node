@@ -248,7 +248,7 @@ There are constraints you need to know before using this system:
 
 The `kInspector` permission scope restricts the current process from opening its own V8 Inspector. However,
 process.\_debugProcess(pid) — which sends an OS-level signal (SIGUSR1 on POSIX, a remote thread on Windows)
-to an external process — is not gated by the kInspector scope or any other Permission Model scope.
+to an external process — is not gated by the `kInspector` scope or any other Permission Model scope.
 
 A sandboxed process running under --permission with no additional grants can call process.\_debugProcess(pid)
 to force another Node.js process to open its V8 Inspector. The target process does not need to be running
