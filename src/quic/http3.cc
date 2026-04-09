@@ -66,6 +66,20 @@ inline uint64_t ReadBE64(const uint8_t* buf) {
          (static_cast<uint64_t>(buf[5]) << 16) |
          (static_cast<uint64_t>(buf[6]) << 8) | static_cast<uint64_t>(buf[7]);
 }
+
+// Serialize an nghttp3_pri into an RFC 9218 priority field value
+// (e.g., "u=3" or "u=0, i"). Returns the number of bytes written.
+// This is used only for setting the priority field of HTTP/3 streams on
+// the client side.
+inline size_t FormatPriority(char* buf, size_t buflen, const nghttp3_pri& pri) {
+  int len;
+  if (pri.inc) {
+    len = snprintf(buf, buflen, "u=%d, i", pri.urgency);
+  } else {
+    len = snprintf(buf, buflen, "u=%d", pri.urgency);
+  }
+  return static_cast<size_t>(len);
+}
 }  // namespace
 
 struct Http3HeadersTraits {
@@ -506,17 +520,24 @@ class Http3ApplicationImpl final : public Session::Application {
     }
     if (session().is_server()) {
       nghttp3_conn_set_server_stream_priority(*this, stream.id(), &pri);
+    } else {
+      // The client API takes a serialized RFC 9218 priority field value
+      // (e.g., "u=0, i") rather than an nghttp3_pri struct.
+      char buf[8];
+      size_t len = FormatPriority(buf, sizeof(buf), pri);
+      nghttp3_conn_set_client_stream_priority(
+          *this, stream.id(), reinterpret_cast<const uint8_t*>(buf), len);
     }
-    // Client-side priority is set at request submission time via
-    // nghttp3_conn_submit_request and is not typically changed
-    // after the fact. The client API takes a serialized RFC 9218
-    // field value rather than an nghttp3_pri struct.
   }
 
   StreamPriorityResult GetStreamPriority(const Stream& stream) override {
-    // nghttp3_conn_get_stream_priority is only available on the server side.
+    // nghttp3_conn_get_stream_priority is only available on the server
+    // side, where it reflects the peer's requested priority (e.g., from
+    // PRIORITY_UPDATE frames). Client-side priority is tracked by the
+    // Stream itself and returned directly from GetPriority in streams.cc.
     if (!session().is_server()) {
-      return {StreamPriority::DEFAULT, StreamPriorityFlags::NON_INCREMENTAL};
+      auto& stored = stream.stored_priority();
+      return {stored.priority, stored.flags};
     }
     nghttp3_pri pri;
     if (nghttp3_conn_get_stream_priority(*this, &pri, stream.id()) == 0) {

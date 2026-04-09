@@ -882,6 +882,10 @@ The current priority of the stream. Returns `null` if the session does not
 support priority (e.g. non-HTTP/3) or if the stream has been destroyed.
 Read only. Use [`stream.setPriority()`][] to change the priority.
 
+On client-side HTTP/3 sessions, the value reflects what was set via
+[`stream.setPriority()`][]. On server-side HTTP/3 sessions, the value
+reflects the peer's requested priority (e.g., from `PRIORITY_UPDATE` frames).
+
 ### `stream.setPriority([options])`
 
 <!-- YAML
@@ -895,8 +899,9 @@ added: REPLACEME
     interleaved with data from other streams of the same priority level.
     **Default:** `false`.
 
-Sets the priority of the stream. Has no effect if the session does not
-support priority or if the stream has been destroyed.
+Sets the priority of the stream. Throws `ERR_INVALID_STATE` if the session
+does not support priority (e.g. non-HTTP/3). Has no effect if the stream
+has been destroyed.
 
 ### `stream.readable`
 

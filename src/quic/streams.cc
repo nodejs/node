@@ -367,12 +367,14 @@ struct Stream::Impl {
                                     ? StreamPriorityFlags::INCREMENTAL
                                     : StreamPriorityFlags::NON_INCREMENTAL;
 
-    if (stream->is_pending()) {
-      stream->pending_priority_ = PendingPriority{
-          .priority = priority,
-          .flags = flags,
-      };
-    } else {
+    // Always update the stored priority on the stream.
+    stream->priority_ = StoredPriority{
+        .priority = priority,
+        .flags = flags,
+        .pending = stream->is_pending(),
+    };
+
+    if (!stream->is_pending()) {
       stream->session().application().SetStreamPriority(
           *stream, priority, flags);
     }
@@ -382,9 +384,15 @@ struct Stream::Impl {
     Stream* stream;
     ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
 
-    if (stream->is_pending()) {
-      uint32_t packed =
-          (static_cast<uint32_t>(StreamPriority::DEFAULT) << 1) | 0;
+    // On the client side, priority is always read from the stream's
+    // stored value since the client is the one setting it. On the
+    // server side, we delegate to the application which can read
+    // the peer's requested priority (e.g., from PRIORITY_UPDATE
+    // frames in HTTP/3).
+    if (!stream->session().is_server()) {
+      auto& pri = stream->priority_;
+      uint32_t packed = (static_cast<uint32_t>(pri.priority) << 1) |
+                        (pri.flags == StreamPriorityFlags::INCREMENTAL ? 1 : 0);
       return args.GetReturnValue().Set(packed);
     }
 
@@ -979,11 +987,10 @@ void Stream::NotifyStreamOpened(stream_id id) {
   CHECK_EQ(ngtcp2_conn_set_stream_user_data(this->session(), id, this), 0);
   maybe_pending_stream_.reset();
 
-  if (pending_priority_) {
-    auto& priority = pending_priority_.value();
+  if (priority_.pending) {
     session().application().SetStreamPriority(
-        *this, priority.priority, priority.flags);
-    pending_priority_ = std::nullopt;
+        *this, priority_.priority, priority_.flags);
+    priority_.pending = false;
   }
   if (!pending_headers_queue_.empty()) {
     if (!session().application().SupportsHeaders()) {

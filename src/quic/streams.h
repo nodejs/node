@@ -355,11 +355,14 @@ class Stream final : public AsyncWrap,
   error_code pending_close_read_code_ = 0;
   error_code pending_close_write_code_ = 0;
 
-  struct PendingPriority {
-    StreamPriority priority;
-    StreamPriorityFlags flags;
+  struct StoredPriority {
+    StreamPriority priority = StreamPriority::DEFAULT;
+    StreamPriorityFlags flags = StreamPriorityFlags::NON_INCREMENTAL;
+    bool pending = false;
   };
-  std::optional<PendingPriority> pending_priority_ = std::nullopt;
+  StoredPriority priority_;
+
+  const StoredPriority& stored_priority() const { return priority_; }
 
   // The headers_ field holds a block of headers that have been received and
   // are being buffered for delivery to the JavaScript side.
