@@ -209,7 +209,7 @@ void ngtcp2_debug_log(void* user_data, const char* fmt, ...) {
   va_end(ap);
 }
 
-template <typename Opt, PreferredAddress::Policy Opt::*member>
+template <typename Opt, PreferredAddress::Policy Opt::* member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -224,7 +224,7 @@ bool SetOption(Environment* env,
   return true;
 }
 
-template <typename Opt, TLSContext::Options Opt::*member>
+template <typename Opt, TLSContext::Options Opt::* member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -239,7 +239,7 @@ bool SetOption(Environment* env,
   return true;
 }
 
-template <typename Opt, TransportParams::Options Opt::*member>
+template <typename Opt, TransportParams::Options Opt::* member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -254,7 +254,7 @@ bool SetOption(Environment* env,
   return true;
 }
 
-template <typename Opt, ngtcp2_cc_algo Opt::*member>
+template <typename Opt, ngtcp2_cc_algo Opt::* member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -437,9 +437,9 @@ Maybe<Session::Options> Session::Options::From(Environment* env,
 
   if (!SET(version) || !SET(min_version) || !SET(preferred_address_strategy) ||
       !SET(transport_params) || !SET(tls_options) || !SET(qlog) ||
-      !SET(handshake_timeout) || !SET(max_stream_window) || !SET(max_window) ||
-      !SET(max_payload_size) || !SET(unacknowledged_packet_threshold) ||
-      !SET(cc_algorithm)) {
+      !SET(handshake_timeout) || !SET(keep_alive_timeout) ||
+      !SET(max_stream_window) || !SET(max_window) || !SET(max_payload_size) ||
+      !SET(unacknowledged_packet_threshold) || !SET(cc_algorithm)) {
     return Nothing<Options>();
   }
 
@@ -1319,6 +1319,11 @@ Session::Session(Endpoint* endpoint,
     auto app =
         SelectApplicationFromAlpn(DecodeAlpn(config.options.tls_options.alpn));
     if (app) SetApplication(std::move(app));
+  }
+
+  if (config.options.keep_alive_timeout > 0) {
+    ngtcp2_conn_set_keep_alive_timeout(
+        *this, config.options.keep_alive_timeout * NGTCP2_MILLISECONDS);
   }
 
   MakeWeak();

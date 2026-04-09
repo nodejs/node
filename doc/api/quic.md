@@ -1403,6 +1403,20 @@ added: v23.8.0
 Specifies the maximum number of milliseconds a TLS handshake is permitted to take
 to complete before timing out.
 
+#### `sessionOptions.keepAlive`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {bigint|number}
+* **Default:** `0` (disabled)
+
+Specifies the keep-alive timeout in milliseconds. When set to a non-zero
+value, PING frames will be sent automatically to keep the connection alive
+before the idle timeout fires. The value should be less than the effective
+idle timeout (`maxIdleTimeout` transport parameter) to be useful.
+
 #### `sessionOptions.servername` (client only)
 
 <!-- YAML

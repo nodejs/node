@@ -151,6 +151,11 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     // completion of the tls handshake.
     uint64_t handshake_timeout = UINT64_MAX;
 
+    // The keep-alive timeout in milliseconds. When set to a non-zero value,
+    // ngtcp2 will automatically send PING frames to keep the connection alive
+    // before the idle timeout fires. Set to 0 to disable (default).
+    uint64_t keep_alive_timeout = 0;
+
     // Maximum initial flow control window size for a stream.
     uint64_t max_stream_window = 0;
 
