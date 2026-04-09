@@ -3,6 +3,9 @@
     'openssl_defines_VC-WIN32': [
       'NDEBUG',
       'OPENSSL_BUILDING_OPENSSL',
+      'BROTLI',
+      'ZLIB',
+      'ZSTD',
       'OPENSSL_SYS_WIN32',
       'WIN32_LEAN_AND_MEAN',
       'UNICODE',
@@ -17,7 +20,7 @@
       '/W3 /wd4090 /nologo /O2',
     ],
     'openssl_ex_libs_VC-WIN32': [
-      'ws2_32.lib gdi32.lib advapi32.lib crypt32.lib user32.lib',
+      'ZLIB1 libzstd brotlicommon.lib brotlidec.lib brotlienc.lib ws2_32.lib gdi32.lib advapi32.lib crypt32.lib user32.lib',
     ],
     'openssl_cli_srcs_VC-WIN32': [
       'openssl/apps/lib/cmp_mock_srv.c',

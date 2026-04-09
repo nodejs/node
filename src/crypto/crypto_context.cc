@@ -1319,6 +1319,8 @@ Local<FunctionTemplate> SecureContext::GetConstructorTemplate(
     SetProtoMethod(isolate, tmpl, "setOptions", SetOptions);
     SetProtoMethod(isolate, tmpl, "setSessionIdContext", SetSessionIdContext);
     SetProtoMethod(isolate, tmpl, "setSessionTimeout", SetSessionTimeout);
+    SetProtoMethod(
+        isolate, tmpl, "setCertificateCompression", SetCertificateCompression);
     SetProtoMethod(isolate, tmpl, "close", Close);
     SetProtoMethod(isolate, tmpl, "loadPKCS12", LoadPKCS12);
     SetProtoMethod(isolate, tmpl, "setTicketKeys", SetTicketKeys);
@@ -1407,6 +1409,7 @@ void SecureContext::RegisterExternalReferences(
   registry->Register(SetOptions);
   registry->Register(SetSessionIdContext);
   registry->Register(SetSessionTimeout);
+  registry->Register(SetCertificateCompression);
   registry->Register(Close);
   registry->Register(LoadPKCS12);
   registry->Register(SetTicketKeys);
@@ -1564,6 +1567,14 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
 
   env->external_memory_accounter()->Increase(env->isolate(), kExternalSize);
   SSL_CTX_set_app_data(sc->ctx_.get(), sc);
+
+  // OpenSSL populates cert_comp_prefs with all available algorithms by
+  // default when compression libraries are linked. Clear them so that
+  // certificate compression (RFC 8879) is always opt-in for now, via
+  // the certificateCompression option.
+#ifndef OPENSSL_NO_COMP_ALG
+  SSL_CTX_set1_cert_comp_preference(sc->ctx_.get(), nullptr, 0);
+#endif
 
   // Disable SSLv2 in the case when method == TLS_method() and the
   // cipher list contains SSLv2 ciphers (not the default, should be rare.)
@@ -2065,6 +2076,89 @@ void SecureContext::SetSessionTimeout(const FunctionCallbackInfo<Value>& args) {
   int32_t sessionTimeout = args[0].As<Int32>()->Value();
   CHECK_GE(sessionTimeout, 0);
   SSL_CTX_set_timeout(sc->ctx_.get(), sessionTimeout);
+}
+
+void SecureContext::SetCertificateCompression(
+    const FunctionCallbackInfo<Value>& args) {
+  SecureContext* sc;
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
+  Environment* env = sc->env();
+
+  CHECK_GE(args.Length(), 1);
+  CHECK(args[0]->IsArray());
+
+  Local<Array> arr = args[0].As<Array>();
+  uint32_t len = arr->Length();
+
+  // TLSEXT_comp_cert_limit is the limit for a zero-terminated algs array,
+  // total number of available algs is one fewer.
+  constexpr uint32_t kMaxCompAlgs = TLSEXT_comp_cert_limit - 1;
+  if (len == 0 || len > kMaxCompAlgs) {
+    return THROW_ERR_INVALID_ARG_VALUE(
+        env,
+        "certificateCompression must specify fewer than %d algorithms",
+        kMaxCompAlgs);
+  }
+
+#ifndef OPENSSL_NO_COMP_ALG
+  int algs[kMaxCompAlgs];
+  for (uint32_t i = 0; i < len; i++) {
+    Local<Value> val;
+    if (!arr->Get(env->context(), i).ToLocal(&val) || !val->IsString()) {
+      return THROW_ERR_INVALID_ARG_VALUE(
+          env, "certificateCompression entries must be strings");
+    }
+    Utf8Value name(env->isolate(), val);
+    if (name.ToStringView() == "zlib") {
+      algs[i] = TLSEXT_comp_cert_zlib;
+    } else if (name.ToStringView() == "brotli") {
+      algs[i] = TLSEXT_comp_cert_brotli;
+    } else if (name.ToStringView() == "zstd") {
+      algs[i] = TLSEXT_comp_cert_zstd;
+    } else {
+      return THROW_ERR_INVALID_ARG_VALUE(
+          env,
+          "certificateCompression algorithm must be 'zlib', 'brotli', or "
+          "'zstd'");
+    }
+  }
+  if (!SSL_CTX_set1_cert_comp_preference(
+          sc->ctx_.get(), algs, static_cast<size_t>(len))) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(
+        env, "Failed to set certificate compression preference");
+  }
+
+  // Pre-compress the loaded certificate(s) for all supported algorithms, where
+  // 0 arg means 'compress with all algorithms in the preference list'.
+  // Returns 0 when no certificate is loaded (e.g. client-only context) or
+  // when compression did not reduce size — both are non-fatal.
+  SSL_CTX_compress_certs(sc->ctx_.get(), 0);
+
+  // Store preferences for propagation during SNI context switches.
+  memcpy(sc->cert_comp_prefs_, algs, sizeof(int) * len);
+  sc->cert_comp_prefs_len_ = len;
+
+  // Cache pre-compressed cert data for SNI context switches.
+  // setSniContext uses SSL_use_certificate which doesn't carry comp_cert data,
+  // so we extract it here and re-apply via SSL_set1_compressed_cert later.
+  sc->compressed_certs_.clear();
+  for (uint32_t i = 0; i < len; i++) {
+    unsigned char* data = nullptr;
+    size_t orig_len = 0;
+    size_t comp_len =
+        SSL_CTX_get1_compressed_cert(sc->ctx_.get(), algs[i], &data, &orig_len);
+    if (comp_len > 0 && data != nullptr) {
+      sc->compressed_certs_.push_back(
+          {algs[i],
+           std::vector<unsigned char>(data, data + comp_len),
+           orig_len});
+      OPENSSL_free(data);
+    }
+  }
+#else
+  return THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(
+      env, "Certificate compression is not supported by this OpenSSL build");
+#endif
 }
 
 void SecureContext::Close(const FunctionCallbackInfo<Value>& args) {
