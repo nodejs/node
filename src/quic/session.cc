@@ -209,7 +209,7 @@ void ngtcp2_debug_log(void* user_data, const char* fmt, ...) {
   va_end(ap);
 }
 
-template <typename Opt, PreferredAddress::Policy Opt::* member>
+template <typename Opt, PreferredAddress::Policy Opt::*member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -224,7 +224,7 @@ bool SetOption(Environment* env,
   return true;
 }
 
-template <typename Opt, TLSContext::Options Opt::* member>
+template <typename Opt, TLSContext::Options Opt::*member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -239,7 +239,7 @@ bool SetOption(Environment* env,
   return true;
 }
 
-template <typename Opt, TransportParams::Options Opt::* member>
+template <typename Opt, TransportParams::Options Opt::*member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -254,7 +254,7 @@ bool SetOption(Environment* env,
   return true;
 }
 
-template <typename Opt, ngtcp2_cc_algo Opt::* member>
+template <typename Opt, ngtcp2_cc_algo Opt::*member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -1445,19 +1445,22 @@ void Session::Close(CloseMethod method) {
       return FinishClose();
     }
     case CloseMethod::GRACEFUL: {
-      // If there are no open streams, then we can close just immediately and
-      // not worry about waiting around.
-      if (impl_->streams_.empty()) {
-        impl_->state_->silent_close = 0;
-        impl_->state_->graceful_close = 0;
-        return FinishClose();
-      }
-
       // If we are already closing gracefully, do nothing.
       if (impl_->state_->graceful_close) [[unlikely]] {
         return;
       }
       impl_->state_->graceful_close = 1;
+
+      // Signal application-level graceful shutdown (e.g., HTTP/3 GOAWAY).
+      application().BeginShutdown();
+
+      // If there are no open streams, then we can close immediately and
+      // not worry about waiting around.
+      if (impl_->streams_.empty()) {
+        impl_->state_->silent_close = 0;
+        return FinishClose();
+      }
+
       Debug(this,
             "Gracefully closing session (waiting on %zu streams)",
             impl_->streams_.size());
@@ -1492,8 +1495,10 @@ void Session::FinishClose() {
     impl_->pending_uni_stream_queue_.PopFront()->reject(impl_->last_error_);
   }
 
-  // Send CONNECTION_CLOSE unless this is a silent close.
+  // Send final application-level shutdown and CONNECTION_CLOSE
+  // unless this is a silent close.
   if (!impl_->state_->silent_close) {
+    application().CompleteShutdown();
     SendConnectionClose();
   }
 

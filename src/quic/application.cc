@@ -156,6 +156,14 @@ bool Session::Application::SupportsHeaders() const {
   return false;
 }
 
+void Session::Application::BeginShutdown() {
+  // By default, nothing to do.
+}
+
+void Session::Application::CompleteShutdown() {
+  // by default, nothing to do.
+}
+
 bool Session::Application::CanAddHeader(size_t current_count,
                                         size_t current_headers_length,
                                         size_t this_header_length) {

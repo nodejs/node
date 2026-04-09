@@ -203,6 +203,10 @@ class Http3ApplicationImpl final : public Session::Application {
     return ret;
   }
 
+  void BeginShutdown() override { nghttp3_conn_submit_shutdown_notice(*this); }
+
+  void CompleteShutdown() override { nghttp3_conn_shutdown(*this); }
+
   bool ReceiveStreamData(int64_t stream_id,
                          const uint8_t* data,
                          size_t datalen,
