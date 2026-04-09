@@ -439,9 +439,11 @@
   V(sqlite_column_template, v8::DictionaryTemplate)                            \
   V(sqlite_limits_template, v8::ObjectTemplate)                                \
   V(sqlite_run_result_template, v8::DictionaryTemplate)                        \
+  V(sqlite_statement_constructor_template, v8::FunctionTemplate)               \
   V(sqlite_statement_sync_constructor_template, v8::FunctionTemplate)          \
   V(sqlite_statement_sync_iterator_constructor_template, v8::FunctionTemplate) \
   V(sqlite_session_constructor_template, v8::FunctionTemplate)                 \
+  V(sqlite_sql_tag_store_constructor_template, v8::FunctionTemplate)           \
   V(srv_record_template, v8::DictionaryTemplate)                               \
   V(streambaseoutputstream_constructor_template, v8::ObjectTemplate)           \
   V(tcp_constructor_template, v8::FunctionTemplate)                            \
