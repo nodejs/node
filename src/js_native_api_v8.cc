@@ -3168,9 +3168,8 @@ napi_status NAPI_CDECL node_api_create_external_sharedarraybuffer(
   CHECK(!!unique_backing_store);  // Cannot fail.
   auto shared_backing_store =
       std::shared_ptr<v8::BackingStore>(std::move(unique_backing_store));
-  auto shared_array_buffer = v8::SharedArrayBuffer::New(
-      env->isolate,
-      std::move(shared_backing_store));
+  auto shared_array_buffer =
+      v8::SharedArrayBuffer::New(env->isolate, std::move(shared_backing_store));
   CHECK_MAYBE_EMPTY(env, shared_array_buffer, napi_generic_failure);
   *result = v8impl::JsValueFromV8LocalValue(shared_array_buffer);
   return napi_clear_last_error(env);
