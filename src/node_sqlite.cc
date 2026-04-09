@@ -98,7 +98,7 @@ using v8::Value;
         const char* v =                                                        \
             reinterpret_cast<const char*>(sqlite3_##from##_text(__VA_ARGS__)); \
         if (v == nullptr) {                                                    \
-            (result) = Null((isolate));                                        \
+            THROW_ERR_MEMORY_ALLOCATION_FAILED(isolate);                       \
         } else {                                                               \
             (result) = String::NewFromUtf8((isolate), v).As<Value>();          \
         }                                                                      \
@@ -115,7 +115,9 @@ using v8::Value;
             sqlite3_##from##_blob(__VA_ARGS__));                               \
         auto store = ArrayBuffer::NewBackingStore(                             \
             (isolate), size, BackingStoreInitializationMode::kUninitialized);  \
-        memcpy(store->Data(), data, size);                                     \
+        if (data) {                                                            \
+            memcpy(store->Data(), data, size);                                 \
+        }                                                                      \
         auto ab = ArrayBuffer::New((isolate), std::move(store));               \
         (result) = Uint8Array::New(ab, 0, size);                               \
         break;                                                                 \
