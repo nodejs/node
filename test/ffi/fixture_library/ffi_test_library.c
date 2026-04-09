@@ -91,7 +91,7 @@ FFI_EXPORT uint64_t string_length(const char* str) {
 
 FFI_EXPORT char* string_concat(const char* a, const char* b) {
   if (!a || !b) {
-    return NULL;
+    return nullptr;
   }
 
   size_t len_a = strlen(a);
@@ -99,7 +99,7 @@ FFI_EXPORT char* string_concat(const char* a, const char* b) {
   char* result = malloc(len_a + len_b + 1);
 
   if (!result) {
-    return NULL;
+    return nullptr;
   }
 
   memcpy(result, a, len_a);
@@ -109,14 +109,14 @@ FFI_EXPORT char* string_concat(const char* a, const char* b) {
 
 FFI_EXPORT char* string_duplicate(const char* str) {
   if (!str) {
-    return NULL;
+    return nullptr;
   }
 
   size_t len = strlen(str);
   char* result = malloc(len + 1);
 
   if (!result) {
-    return NULL;
+    return nullptr;
   }
 
   memcpy(result, str, len + 1);
@@ -249,12 +249,12 @@ FFI_EXPORT int8_t call_int8_callback(Int8Callback callback, int8_t value) {
   return callback(value);
 }
 
-FFI_EXPORT int32_t call_pointer_callback_is_null(PointerCallback callback) {
+FFI_EXPORT int32_t call_pointer_callback_is_nullptr(PointerCallback callback) {
   if (!callback) {
     return 1;
   }
 
-  return callback() == NULL;
+  return callback() == nullptr;
 }
 
 FFI_EXPORT void call_void_callback(VoidCallback callback) {
@@ -309,7 +309,7 @@ FFI_EXPORT void deallocate_memory(void* ptr) {
   free(ptr);
 }
 
-// Null pointer handling.
+// nullptr pointer handling.
 FFI_EXPORT int32_t safe_strlen(const char* str) {
   return str ? (int32_t)strlen(str) : -1;
 }
