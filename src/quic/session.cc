@@ -216,7 +216,7 @@ void ngtcp2_debug_log(void* user_data, const char* fmt, ...) {
   va_end(ap);
 }
 
-template <typename Opt, PreferredAddress::Policy Opt::* member>
+template <typename Opt, PreferredAddress::Policy Opt::*member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -231,7 +231,7 @@ bool SetOption(Environment* env,
   return true;
 }
 
-template <typename Opt, TLSContext::Options Opt::* member>
+template <typename Opt, TLSContext::Options Opt::*member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -246,7 +246,7 @@ bool SetOption(Environment* env,
   return true;
 }
 
-template <typename Opt, TransportParams::Options Opt::* member>
+template <typename Opt, TransportParams::Options Opt::*member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -261,7 +261,7 @@ bool SetOption(Environment* env,
   return true;
 }
 
-template <typename Opt, ngtcp2_cc_algo Opt::* member>
+template <typename Opt, ngtcp2_cc_algo Opt::*member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -326,6 +326,20 @@ Session::Config::Config(Environment* env,
       ocid(ocid) {
   ngtcp2_settings_default(&settings);
   settings.initial_ts = uv_hrtime();
+
+  // Advertise all versions ngtcp2 supports for compatible version
+  // negotiation (RFC 9368). The preferred list orders the newest
+  // version first so that negotiation upgrades when possible. The
+  // initial packet version (options.version) defaults to V1 for
+  // maximum compatibility with peers that don't support version
+  // negotiation.
+  static const uint32_t kSupportedVersions[] = {NGTCP2_PROTO_VER_V2,
+                                                NGTCP2_PROTO_VER_V1};
+
+  settings.preferred_versions = kSupportedVersions;
+  settings.preferred_versionslen = std::size(kSupportedVersions);
+  settings.available_versions = kSupportedVersions;
+  settings.available_versionslen = std::size(kSupportedVersions);
 
   // TODO(@jasnell): Path MTU Discovery is disabled because libuv does not
   // currently expose the IP_DONTFRAG / IP_MTU_DISCOVER socket options
