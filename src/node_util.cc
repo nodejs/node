@@ -230,7 +230,7 @@ static void GuessHandleType(const FunctionCallbackInfo<Value>& args) {
 
   // If the provided file descriptor is not valid, we return null
   if (fd < 0) [[unlikely]] {
-    args.GetReturnValue().Set(v8::Null(env->isolate()));
+    args.GetReturnValue().Set(v8::Null(isolate));
     return;
   }
 
