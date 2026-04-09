@@ -590,42 +590,6 @@ struct Session::Impl final : public MemoryRetainer {
 
   inline bool is_closing() const { return state_->closing; }
 
-  /**
-   * @returns {boolean} Returns true if the Session can be destroyed
-   * immediately.
-   */
-  bool Close() {
-    if (state_->closing) return true;
-    state_->closing = 1;
-    STAT_RECORD_TIMESTAMP(Stats, closing_at);
-
-    // Iterate through all of the known streams and close them. The streams
-    // will remove themselves from the Session as soon as they are closed.
-    // Note: we create a copy because the streams will remove themselves
-    // while they are cleaning up which will invalidate the iterator.
-    StreamsMap streams = streams_;
-    for (auto& stream : streams) stream.second->Destroy(last_error_);
-    DCHECK(streams.empty());
-
-    // Clear the pending streams.
-    while (!pending_bidi_stream_queue_.IsEmpty()) {
-      pending_bidi_stream_queue_.PopFront()->reject(last_error_);
-    }
-    while (!pending_uni_stream_queue_.IsEmpty()) {
-      pending_uni_stream_queue_.PopFront()->reject(last_error_);
-    }
-
-    // If we are able to send packets, we should try sending a connection
-    // close packet to the remote peer.
-    if (!state_->silent_close) {
-      session_->SendConnectionClose();
-    }
-
-    timer_.Close();
-
-    return !state_->wrapped;
-  }
-
   ~Impl() {
     // Ensure that Close() was called before dropping
     DCHECK(is_closing());
@@ -1509,22 +1473,48 @@ void Session::FinishClose() {
   DCHECK(!is_destroyed());
   DCHECK(impl_->state_->closing);
 
-  // If impl_->Close() returns true, then the session can be destroyed
-  // immediately without round-tripping through JavaScript.
-  if (impl_->Close()) {
-    return Destroy();
+  // Clear the graceful_close flag to prevent RemoveStream() from
+  // re-entering FinishClose() when we destroy streams below.
+  impl_->state_->graceful_close = 0;
+
+  // Destroy all open streams immediately. We copy the map because
+  // streams remove themselves during destruction.
+  StreamsMap streams = impl_->streams_;
+  for (auto& stream : streams) {
+    stream.second->Destroy(impl_->last_error_);
   }
 
-  // Otherwise, we emit a close callback so that the JavaScript side can
-  // clean up anything it needs to clean up before destroying.
-  EmitClose();
+  // Clear pending stream queues.
+  while (!impl_->pending_bidi_stream_queue_.IsEmpty()) {
+    impl_->pending_bidi_stream_queue_.PopFront()->reject(impl_->last_error_);
+  }
+  while (!impl_->pending_uni_stream_queue_.IsEmpty()) {
+    impl_->pending_uni_stream_queue_.PopFront()->reject(impl_->last_error_);
+  }
+
+  // Send CONNECTION_CLOSE unless this is a silent close.
+  if (!impl_->state_->silent_close) {
+    SendConnectionClose();
+  }
+
+  impl_->timer_.Close();
+
+  // If the session was passed to JavaScript, we need to round-trip
+  // through JS so it can clean up before we destroy. The JS side
+  // will synchronously call destroy(), which calls Session::Destroy().
+  if (impl_->state_->wrapped) {
+    EmitClose(impl_->last_error_);
+  } else {
+    Destroy();
+  }
 }
 
 void Session::Destroy() {
-  // Destroy() should be called only after, and as a result of, Close()
-  // being called first.
   DCHECK(impl_);
-  DCHECK(impl_->state_->closing);
+  // Ensure the closing flag is set for the ~Impl() DCHECK. Normally
+  // this is set by Session::Close(), but JS destroy() can be called
+  // directly without going through Close() first.
+  impl_->state_->closing = 1;
   Debug(this, "Session destroyed");
   impl_.reset();
   if (qlog_stream_ || keylog_stream_) {
