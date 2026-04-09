@@ -42,6 +42,5 @@ if (isWindows) {
 
 // Verify the symlink works as a directory (not a file symlink)
 const destSymlink = join(dest, 'linked', 'my-lib');
-assert.ok(statSync(destSymlink).isDirectory(),
-  'symlink target should be accessible as a directory');
+assert.ok(statSync(destSymlink).isDirectory(), 'symlink target should be accessible as a directory');
 assert.deepStrictEqual(readdirSync(destSymlink), ['index.js']);
