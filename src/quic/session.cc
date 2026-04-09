@@ -115,6 +115,7 @@ namespace quic {
 #define SESSION_JS_METHODS(V)                                                  \
   V(Destroy, destroy, SIDE_EFFECT)                                             \
   V(GetRemoteAddress, getRemoteAddress, NO_SIDE_EFFECT)                        \
+  V(GetLocalAddress, getLocalAddress, NO_SIDE_EFFECT)                          \
   V(GetCertificate, getCertificate, NO_SIDE_EFFECT)                            \
   V(GetEphemeralKeyInfo, getEphemeralKey, NO_SIDE_EFFECT)                      \
   V(GetPeerCertificate, getPeerCertificate, NO_SIDE_EFFECT)                    \
@@ -221,7 +222,7 @@ void ngtcp2_debug_log(void* user_data, const char* fmt, ...) {
   va_end(ap);
 }
 
-template <typename Opt, PreferredAddress::Policy Opt::*member>
+template <typename Opt, PreferredAddress::Policy Opt::* member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -236,7 +237,7 @@ bool SetOption(Environment* env,
   return true;
 }
 
-template <typename Opt, TLSContext::Options Opt::*member>
+template <typename Opt, TLSContext::Options Opt::* member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -251,7 +252,7 @@ bool SetOption(Environment* env,
   return true;
 }
 
-template <typename Opt, TransportParams::Options Opt::*member>
+template <typename Opt, TransportParams::Options Opt::* member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -266,7 +267,7 @@ bool SetOption(Environment* env,
   return true;
 }
 
-template <typename Opt, ngtcp2_cc_algo Opt::*member>
+template <typename Opt, ngtcp2_cc_algo Opt::* member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -707,6 +708,21 @@ struct Session::Impl final : public MemoryRetainer {
     }
 
     auto address = session->remote_address();
+    args.GetReturnValue().Set(
+        SocketAddressBase::Create(env, std::make_shared<SocketAddress>(address))
+            ->object());
+  }
+
+  JS_METHOD(GetLocalAddress) {
+    auto env = Environment::GetCurrent(args);
+    Session* session;
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
+
+    if (session->is_destroyed()) {
+      return THROW_ERR_INVALID_STATE(env, "Session is destroyed");
+    }
+
+    auto address = session->local_address();
     args.GetReturnValue().Set(
         SocketAddressBase::Create(env, std::make_shared<SocketAddress>(address))
             ->object());
