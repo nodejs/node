@@ -41,6 +41,7 @@ class Packet;
   V(session_handshake, SessionHandshake)                                       \
   V(session_new, SessionNew)                                                   \
   V(session_new_token, SessionNewToken)                                        \
+  V(session_origin, SessionOrigin)                                             \
   V(session_path_validation, SessionPathValidation)                            \
   V(session_ticket, SessionTicket)                                             \
   V(session_version_negotiation, SessionVersionNegotiation)                    \
@@ -59,6 +60,7 @@ class Packet;
   V(active_connection_id_limit, "activeConnectionIDLimit")                     \
   V(address_lru_size, "addressLRUSize")                                        \
   V(application, "application")                                                \
+  V(authoritative, "authoritative")                                            \
   V(bbr, "bbr")                                                                \
   V(ca, "ca")                                                                  \
   V(cc_algorithm, "cc")                                                        \
@@ -103,6 +105,7 @@ class Packet;
   V(max_stream_window, "maxStreamWindow")                                      \
   V(max_window, "maxWindow")                                                   \
   V(min_version, "minVersion")                                                 \
+  V(port, "port")                                                              \
   V(preferred_address_strategy, "preferredAddressPolicy")                      \
   V(alpn, "alpn")                                                              \
   V(qlog, "qlog")                                                              \

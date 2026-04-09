@@ -144,7 +144,14 @@ class Http3ApplicationImpl final : public Session::Application {
       : Application(session, options),
         allocator_(BindingData::Get(env())),
         options_(options),
-        conn_(InitializeConnection()) {
+        conn_(nullptr) {
+    // Build the ORIGIN frame payload from the SNI configuration before
+    // creating the nghttp3 connection, since InitializeConnection needs
+    // the origin_vec_ to be ready for settings.origin_list.
+    if (session->is_server()) {
+      BuildOriginPayload();
+    }
+    conn_ = InitializeConnection();
     session->set_priority_supported();
   }
 
@@ -613,9 +620,38 @@ class Http3ApplicationImpl final : public Session::Application {
            id == qpack_enc_stream_id_;
   }
 
+  void BuildOriginPayload() {
+    // Build the serialized ORIGIN frame payload from the SNI configuration.
+    // Each origin entry is: 2-byte BE length + origin string.
+    // Wildcard ('*') entries and entries with authoritative=false are skipped.
+    auto& sni = session().config().options.sni;
+    for (auto& [hostname, opts] : sni) {
+      if (hostname == "*" || !opts.authoritative) continue;
+      std::string origin = "https://";
+      origin += hostname;
+      if (opts.port != 443) {
+        origin += ":";
+        origin += std::to_string(opts.port);
+      }
+      // 2-byte BE length prefix
+      uint16_t len = static_cast<uint16_t>(origin.size());
+      origin_payload_.push_back(static_cast<uint8_t>((len >> 8) & 0xff));
+      origin_payload_.push_back(static_cast<uint8_t>(len & 0xff));
+      // Origin string bytes
+      origin_payload_.insert(
+          origin_payload_.end(), origin.begin(), origin.end());
+    }
+    if (!origin_payload_.empty()) {
+      origin_vec_ = {origin_payload_.data(), origin_payload_.size()};
+    }
+  }
+
   Http3ConnectionPointer InitializeConnection() {
     nghttp3_conn* conn = nullptr;
     nghttp3_settings settings = options_;
+    if (!origin_payload_.empty()) {
+      settings.origin_list = &origin_vec_;
+    }
     if (session().is_server()) {
       CHECK_EQ(nghttp3_conn_server_new(
                    &conn, &kCallbacks, &settings, &allocator_, this),
@@ -802,6 +838,14 @@ class Http3ApplicationImpl final : public Session::Application {
   int64_t control_stream_id_ = -1;
   int64_t qpack_dec_stream_id_ = -1;
   int64_t qpack_enc_stream_id_ = -1;
+
+  // ORIGIN frame support (RFC 9412).
+  // origin_payload_ holds the serialized ORIGIN frame payload for sending.
+  // origin_vec_ points into origin_payload_ for nghttp3_settings.origin_list.
+  // received_origins_ accumulates origins from received ORIGIN frames.
+  std::vector<uint8_t> origin_payload_;
+  nghttp3_vec origin_vec_{nullptr, 0};
+  std::vector<std::string> received_origins_;
 
   // ==========================================================================
   // Static callbacks
@@ -1083,14 +1127,18 @@ class Http3ApplicationImpl final : public Session::Application {
                                const uint8_t* origin,
                                size_t originlen,
                                void* conn_user_data) {
-    // ORIGIN frames (RFC 8336) are used for connection coalescing
-    // across multiple origins. Not yet implemented u2014 requires
-    // connection pooling and multi-origin reuse support.
+    NGHTTP3_CALLBACK_SCOPE(app);
+    app.received_origins_.emplace_back(reinterpret_cast<const char*>(origin),
+                                       originlen);
     return NGTCP2_SUCCESS;
   }
 
   static int on_end_origin(nghttp3_conn* conn, void* conn_user_data) {
-    // See on_receive_origin above.
+    NGHTTP3_CALLBACK_SCOPE(app);
+    if (!app.received_origins_.empty()) {
+      app.session().EmitOrigins(std::move(app.received_origins_));
+      app.received_origins_.clear();
+    }
     return NGTCP2_SUCCESS;
   }
 

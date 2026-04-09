@@ -697,9 +697,10 @@ Maybe<TLSContext::Options> TLSContext::Options::From(Environment* env,
   if (!SET(verify_client) || !SET(reject_unauthorized) ||
       !SET(enable_early_data) || !SET(enable_tls_trace) || !SET(alpn) ||
       !SET(servername) || !SET(ciphers) || !SET(groups) ||
-      !SET(verify_private_key) || !SET(keylog) ||
-      !SET_VECTOR(crypto::KeyObjectData, keys) || !SET_VECTOR(Store, certs) ||
-      !SET_VECTOR(Store, ca) || !SET_VECTOR(Store, crl)) {
+      !SET(verify_private_key) || !SET(keylog) || !SET(port) ||
+      !SET(authoritative) || !SET_VECTOR(crypto::KeyObjectData, keys) ||
+      !SET_VECTOR(Store, certs) || !SET_VECTOR(Store, ca) ||
+      !SET_VECTOR(Store, crl)) {
     return Nothing<Options>();
   }
 

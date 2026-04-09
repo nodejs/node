@@ -1453,13 +1453,20 @@ no other host name matches. Each entry may contain:
 * `crl` {ArrayBuffer|ArrayBufferView|ArrayBuffer\[]|ArrayBufferView\[]}
   Optional certificate revocation lists.
 * `verifyPrivateKey` {boolean} Verify the private key. Default: `false`.
+* `port` {number} The port to advertise in ORIGIN frames (RFC 9412) for
+  this host name. **Default:** `443`. Only used for HTTP/3 sessions.
+* `authoritative` {boolean} Whether to include this host name in ORIGIN
+  frames. **Default:** `true`. Set to `false` to exclude a host name
+  from ORIGIN advertisements. Wildcard (`'*'`) entries are always
+  excluded regardless of this setting.
 
 ```mjs
 const endpoint = await listen(callback, {
   sni: {
     '*': { keys: [defaultKey], certs: [defaultCert] },
-    'api.example.com': { keys: [apiKey], certs: [apiCert] },
+    'api.example.com': { keys: [apiKey], certs: [apiCert], port: 8443 },
     'www.example.com': { keys: [wwwKey], certs: [wwwCert], ca: [customCA] },
+    'internal.example.com': { keys: [intKey], certs: [intCert], authoritative: false },
   },
 });
 ```

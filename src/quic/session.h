@@ -480,6 +480,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   void EmitDatagramStatus(datagram_id id, DatagramStatus status);
   void EmitHandshakeComplete();
   void EmitKeylog(const char* line);
+  void EmitOrigins(std::vector<std::string>&& origins);
 
   struct ValidatedPath {
     std::shared_ptr<SocketAddress> local;

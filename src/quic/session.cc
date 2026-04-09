@@ -1240,7 +1240,11 @@ struct Session::Impl final : public MemoryRetainer {
       on_receive_rx_key,
       nullptr,
       on_early_data_rejected,
-      on_begin_path_validation};
+      on_begin_path_validation,
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr};
 
   static constexpr ngtcp2_callbacks SERVER = {
       nullptr,
@@ -1283,7 +1287,11 @@ struct Session::Impl final : public MemoryRetainer {
       nullptr,
       on_receive_tx_key,
       on_early_data_rejected,
-      on_begin_path_validation};
+      on_begin_path_validation,
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr};
 };
 
 #undef NGTCP2_CALLBACK_SCOPE
@@ -2912,6 +2920,28 @@ void Session::EmitVersionNegotiation(const ngtcp2_pkt_hd& hd,
   MakeCallback(BindingData::Get(env()).session_version_negotiation_callback(),
                arraysize(argv),
                argv);
+}
+
+void Session::EmitOrigins(std::vector<std::string>&& origins) {
+  DCHECK(!is_destroyed());
+  if (!env()->can_call_into_js()) return;
+
+  CallbackScope<Session> cb_scope(this);
+
+  auto isolate = env()->isolate();
+
+  LocalVector<Value> elements(env()->isolate(), origins.size());
+  for (size_t i = 0; i < origins.size(); i++) {
+    Local<Value> str;
+    if (!ToV8Value(env()->context(), origins[i]).ToLocal(&str)) [[unlikely]] {
+      return;
+    }
+    elements[i] = str;
+  }
+
+  Local<Value> argv[] = {Array::New(isolate, elements.data(), elements.size())};
+  MakeCallback(
+      BindingData::Get(env()).session_origin_callback(), arraysize(argv), argv);
 }
 
 void Session::EmitKeylog(const char* line) {
