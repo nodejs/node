@@ -105,11 +105,20 @@ const {
   assert.match(randomUUIDv7({ disableEntropyCache: true }), uuidv7Regex);
   assert.match(randomUUIDv7({ disableEntropyCache: true }), uuidv7Regex);
 
+  // monotonic: false — rand_a is random; UUIDs must still be valid but are not
+  // guaranteed to be strictly ordered within the same millisecond.
+  assert.match(randomUUIDv7({ monotonic: false }), uuidv7Regex);
+  assert.match(randomUUIDv7({ monotonic: false, disableEntropyCache: true }), uuidv7Regex);
+
   assert.throws(() => randomUUIDv7(1), {
     code: 'ERR_INVALID_ARG_TYPE',
   });
 
   assert.throws(() => randomUUIDv7({ disableEntropyCache: '' }), {
+    code: 'ERR_INVALID_ARG_TYPE',
+  });
+
+  assert.throws(() => randomUUIDv7({ monotonic: 1 }), {
     code: 'ERR_INVALID_ARG_TYPE',
   });
 }
