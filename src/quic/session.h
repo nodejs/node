@@ -74,9 +74,9 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
 
     // HTTP/3 specific options.
     uint64_t max_field_section_size = 0;
-    uint64_t qpack_max_dtable_capacity = 0;
-    uint64_t qpack_encoder_max_dtable_capacity = 0;
-    uint64_t qpack_blocked_streams = 0;
+    uint64_t qpack_max_dtable_capacity = 4096;
+    uint64_t qpack_encoder_max_dtable_capacity = 4096;
+    uint64_t qpack_blocked_streams = 100;
 
     bool enable_connect_protocol = true;
     bool enable_datagrams = true;

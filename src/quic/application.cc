@@ -43,11 +43,13 @@ Session::Application_Options::operator const nghttp3_settings() const {
       .qpack_blocked_streams = static_cast<size_t>(qpack_blocked_streams),
       .enable_connect_protocol = enable_connect_protocol,
       .h3_datagram = enable_datagrams,
-      // TODO(@jasnell): Support origin frames?
+      // origin_list is nullptr here because it is set directly on the
+      // nghttp3_settings in Http3ApplicationImpl::InitializeConnection()
+      // from the SNI configuration.
       .origin_list = nullptr,
       .glitch_ratelim_burst = 1000,
       .glitch_ratelim_rate = 33,
-      .qpack_indexing_strat = NGHTTP3_QPACK_INDEXING_STRAT_NONE,
+      .qpack_indexing_strat = NGHTTP3_QPACK_INDEXING_STRAT_EAGER,
   };
 }
 
