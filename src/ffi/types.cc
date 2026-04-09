@@ -44,18 +44,6 @@ bool ThrowIfContainsNullBytes(Environment* env,
   return false;
 }
 
-bool IsFFINarrowSignedInteger(ffi_type* type) {
-  return type == &ffi_type_sint8 || type == &ffi_type_sint16;
-}
-
-bool IsFFINarrowUnsignedInteger(ffi_type* type) {
-  return type == &ffi_type_uint8 || type == &ffi_type_uint16;
-}
-
-bool IsFFINarrowInteger(ffi_type* type) {
-  return IsFFINarrowSignedInteger(type) || IsFFINarrowUnsignedInteger(type);
-}
-
 bool HasProperty(Local<Context> context,
                  Local<Object> object,
                  Local<String> key,
@@ -510,7 +498,9 @@ Local<Value> ToJSArgument(Isolate* isolate, ffi_type* type, void* data) {
 }
 
 size_t GetFFIReturnValueStorageSize(ffi_type* type) {
-  if (IsFFINarrowInteger(type)) {
+  if (type == &ffi_type_sint8 || type == &ffi_type_uint8 ||
+      type == &ffi_type_sint16 || type == &ffi_type_uint16 ||
+      type == &ffi_type_sint32 || type == &ffi_type_uint32) {
     return sizeof(ffi_arg);
   }
 
@@ -536,9 +526,11 @@ bool ToJSReturnValue(Environment* env,
     args.GetReturnValue().Set(static_cast<uint32_t>(
         static_cast<uint16_t>(*static_cast<const ffi_arg*>(result))));
   } else if (type == &ffi_type_sint32) {
-    args.GetReturnValue().Set(*static_cast<const int32_t*>(result));
+    args.GetReturnValue().Set(
+        static_cast<int32_t>(*static_cast<const ffi_sarg*>(result)));
   } else if (type == &ffi_type_uint32) {
-    args.GetReturnValue().Set(*static_cast<const uint32_t*>(result));
+    args.GetReturnValue().Set(
+        static_cast<uint32_t>(*static_cast<const ffi_arg*>(result)));
   } else if (type == &ffi_type_sint64) {
     args.GetReturnValue().Set(
         BigInt::New(env->isolate(), *static_cast<const int64_t*>(result)));

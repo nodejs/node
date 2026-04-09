@@ -551,17 +551,25 @@ FFI_BINDING_SOURCES := \
 	$(wildcard test/ffi/*/*.c) \
 	$(wildcard test/ffi/*/*.def)
 
+ifndef NOFFI
 # Implicitly depends on $(NODE_EXE), see the build-ffi-tests rule for rationale.
 test/ffi/.buildstamp: $(ADDONS_PREREQS) \
 	$(FFI_BINDING_GYPS) $(FFI_BINDING_SOURCES)
 	@$(call run_build_addons,"$$PWD/test/ffi",$@)
+else
+test/ffi/.buildstamp:
+endif
 
 .PHONY: build-ffi-tests
+ifndef NOFFI
 # .buildstamp needs $(NODE_EXE) but cannot depend on it
 # directly because it calls make recursively.  The parent make cannot know
 # if the subprocess touched anything so it pessimistically assumes that
 # .buildstamp is out of date and need a rebuild.
 build-ffi-tests: | $(NODE_EXE) test/ffi/.buildstamp ## Build FFI tests.
+else
+build-ffi-tests:
+endif
 
 .PHONY: clear-stalled
 clear-stalled: ## Clear any stalled processes.
@@ -584,6 +592,8 @@ test-build-node-api: all build-node-api-tests ## Build Node-API tests.
 .PHONY: test-build-sqlite
 test-build-sqlite: all build-sqlite-tests ## Build SQLite tests.
 
+.PHONY: test-build-ffi
+test-build-ffi: all build-ffi-tests ## Build FFI tests.
 
 .PHONY: test-all
 test-all: test-build ## Run default tests with both Debug and Release builds.
@@ -653,6 +663,7 @@ test-ci: | clear-stalled bench-addons-build build-addons build-js-native-api-tes
 build-ci: ## Build everything (CI).
 	$(PYTHON) ./configure --verbose $(CONFIG_FLAGS)
 	$(MAKE)
+	$(MAKE) build-ffi-tests
 
 .PHONY: run-ci
 # Run by CI tests, exceptions:
@@ -754,6 +765,16 @@ test-sqlite: test-build-sqlite ## Run SQLite tests.
 test-sqlite-clean: ## Remove SQLite testing artifacts.
 	$(RM) -r test/sqlite/*/build
 	$(RM) test/sqlite/.buildstamp
+
+.PHONY: test-ffi
+test-ffi: test-build-ffi ## Run FFI tests.
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) ffi
+
+.PHONY: test-ffi-clean
+.NOTPARALLEL: test-ffi-clean
+test-ffi-clean: ## Remove FFI testing artifacts.
+	$(RM) -r test/ffi/*/build
+	$(RM) test/ffi/.buildstamp
 
 .PHONY: test-addons
 test-addons: test-build test-js-native-api test-node-api ## Run addon tests.
@@ -1249,6 +1270,7 @@ ifeq ($(SKIP_SHARED_DEPS), 1)
 	$(RM) -r $(TARNAME)/deps/icu-small
 	$(RM) -r $(TARNAME)/deps/icu-tmp
 	$(RM) -r $(TARNAME)/deps/LIEF
+	$(RM) -r $(TARNAME)/deps/libffi
 	$(RM) -r $(TARNAME)/deps/llhttp
 	$(RM) -r $(TARNAME)/deps/merve
 	$(RM) -r $(TARNAME)/deps/nbytes
@@ -1523,6 +1545,7 @@ LINT_CPP_FILES = $(filter-out $(LINT_CPP_EXCLUDE), $(wildcard \
 	test/embedding/*.cc \
 	test/embedding/*.h \
 	test/sqlite/*/*.c \
+	test/ffi/*/*.c \
 	test/fixtures/*.c \
 	test/js-native-api/*/*.cc \
 	test/node-api/*/*.cc \
@@ -1547,6 +1570,7 @@ FORMAT_CPP_FILES += $(wildcard \
 	test/node-api/*/*.c \
 	test/node-api/*/*.h \
 	test/sqlite/*/*.c \
+	test/ffi/*/*.c \
 	)
 
 # Code blocks don't have newline at the end,
