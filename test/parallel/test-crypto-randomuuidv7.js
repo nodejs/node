@@ -56,15 +56,14 @@ const {
   const timestamp = parseInt(timestampHex, 16);
 
   assert(timestamp >= before, `Timestamp ${timestamp} < before ${before}`);
-  // The monotonic counter may have overflowed in a prior call and advanced
-  // v7LastTimestamp by 1 ms beyond wall-clock time (RFC 9562 §6.2 allows this).
-  assert(timestamp <= after + 1, `Timestamp ${timestamp} > after+1 ${after + 1}`);
+  assert(timestamp <= after, `Timestamp ${timestamp} > after ${after}`);
 }
 
 {
-  let prev = randomUUIDv7();
+  const opts = { monotonic: true };
+  let prev = randomUUIDv7(opts);
   for (let i = 0; i < 100; i++) {
-    const curr = randomUUIDv7();
+    const curr = randomUUIDv7(opts);
     // With a monotonic counter in rand_a, each UUID must be strictly greater
     // than the previous regardless of whether the timestamp changed.
     assert(curr > prev,
@@ -76,9 +75,10 @@ const {
 // Sub-millisecond ordering: a tight synchronous burst exercises the counter
 // increment path and must also produce strictly increasing UUIDs.
 {
+  const opts = { monotonic: true };
   const burst = [];
   for (let i = 0; i < 500; i++) {
-    burst.push(randomUUIDv7());
+    burst.push(randomUUIDv7(opts));
   }
   for (let i = 1; i < burst.length; i++) {
     assert(burst[i] > burst[i - 1],
