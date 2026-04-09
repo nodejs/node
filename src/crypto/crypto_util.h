@@ -36,6 +36,8 @@ constexpr size_t kSizeOf_EVP_MD_CTX = 48;
 constexpr size_t kSizeOf_EVP_PKEY = 72;
 constexpr size_t kSizeOf_EVP_PKEY_CTX = 80;
 constexpr size_t kSizeOf_HMAC_CTX = 32;
+constexpr size_t kSizeOf_SSL_CTX = 240;
+constexpr size_t kSizeOf_X509 = 128;
 
 bool ProcessFipsOptions();
 
