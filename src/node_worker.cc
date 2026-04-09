@@ -409,7 +409,7 @@ void Worker::Run() {
 
         Debug(this, "Created message port for worker %llu", thread_id_.id);
         if (LoadEnvironment(env_.get(),
-                            StartExecutionCallback{},
+                            StartExecutionCallbackWithModule{},
                             std::move(embedder_preload_))
                 .IsEmpty()) {
           return;
@@ -1121,7 +1121,8 @@ static bool serializeProfile(Isolate* isolate, std::ostringstream& out_stream) {
   if (!profile) {
     return false;
   }
-  JSONWriter writer(out_stream, false);
+  profiler->StopSamplingHeapProfiler();
+  JSONWriter writer(out_stream, true);
   writer.json_start();
 
   writer.json_arraystart("samples");
@@ -1139,7 +1140,6 @@ static bool serializeProfile(Isolate* isolate, std::ostringstream& out_stream) {
   writer.json_objectend();
 
   writer.json_end();
-  profiler->StopSamplingHeapProfiler();
   return true;
 }
 

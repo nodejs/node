@@ -2169,7 +2169,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
             # - The multi-output rule will have an do-nothing recipe.
 
             # Hash the target name to avoid generating overlong filenames.
-            cmddigest = hashlib.sha1(
+            cmddigest = hashlib.sha256(
                 (command or self.target).encode("utf-8")
             ).hexdigest()
             intermediate = "%s.intermediate" % cmddigest

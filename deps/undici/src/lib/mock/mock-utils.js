@@ -6,9 +6,10 @@ const {
   kMockAgent,
   kOriginalDispatch,
   kOrigin,
-  kGetNetConnect
+  kGetNetConnect,
+  kTotalDispatchCount
 } = require('./mock-symbols')
-const { serializePathWithQuery } = require('../core/util')
+const { serializePathWithQuery, parseHeaders } = require('../core/util')
 const { STATUS_CODES } = require('node:http')
 const {
   types: {
@@ -206,6 +207,8 @@ function addMockDispatch (mockDispatches, key, data, opts) {
   const replyData = typeof data === 'function' ? { callback: data } : { ...data }
   const newMockDispatch = { ...baseData, ...key, pending: true, data: { error: null, ...replyData } }
   mockDispatches.push(newMockDispatch)
+  // Track total number of intercepts ever registered for better error messages
+  mockDispatches[kTotalDispatchCount] = (mockDispatches[kTotalDispatchCount] || 0) + 1
   return newMockDispatch
 }
 
@@ -308,13 +311,48 @@ function mockDispatch (opts, handler) {
   // If specified, trigger dispatch error
   if (error !== null) {
     deleteMockDispatch(this[kDispatches], key)
-    handler.onError(error)
+    handler.onResponseError(null, error)
     return true
   }
 
+  // Track whether the request has been aborted
+  let aborted = false
+  let timer = null
+
+  // Create the controller early so abort can use it
+  const controller = {
+    paused: false,
+    rawHeaders: null,
+    rawTrailers: null,
+    pause () {
+      this.paused = true
+    },
+    resume () {
+      this.paused = false
+    },
+    abort: (reason) => {
+      if (aborted) {
+        return
+      }
+      aborted = true
+
+      // Clear the pending delayed response if any
+      if (timer !== null) {
+        clearTimeout(timer)
+        timer = null
+      }
+
+      handler.onResponseError?.(controller, reason)
+    }
+  }
+
+  // Call onRequestStart to allow the handler to receive the controller
+  handler.onRequestStart?.(controller, null)
+
   // Handle the request with a delay if necessary
   if (typeof delay === 'number' && delay > 0) {
-    setTimeout(() => {
+    timer = setTimeout(() => {
+      timer = null
       handleReply(this[kDispatches])
     }, delay)
   } else {
@@ -322,6 +360,11 @@ function mockDispatch (opts, handler) {
   }
 
   function handleReply (mockDispatches, _data = data) {
+    // Don't send response if the request was aborted
+    if (aborted) {
+      return
+    }
+
     // fetch's HeadersList is a 1D string array
     const optsHeaders = Array.isArray(opts.headers)
       ? buildHeadersFromArray(opts.headers)
@@ -340,18 +383,24 @@ function mockDispatch (opts, handler) {
       return body.then((newData) => handleReply(mockDispatches, newData))
     }
 
+    // Check again if aborted after async body resolution
+    if (aborted) {
+      return
+    }
+
     const responseData = getResponseData(body)
     const responseHeaders = generateKeyValues(headers)
     const responseTrailers = generateKeyValues(trailers)
 
-    handler.onConnect?.(err => handler.onError(err), null)
-    handler.onHeaders?.(statusCode, responseHeaders, resume, getStatusText(statusCode))
-    handler.onData?.(Buffer.from(responseData))
-    handler.onComplete?.(responseTrailers)
+    // Update the controller with response data
+    controller.rawHeaders = responseHeaders
+    controller.rawTrailers = responseTrailers
+
+    handler.onResponseStart?.(controller, statusCode, parseHeaders(responseHeaders), getStatusText(statusCode))
+    handler.onResponseData?.(controller, Buffer.from(responseData))
+    handler.onResponseEnd?.(controller, parseHeaders(responseTrailers))
     deleteMockDispatch(mockDispatches, key)
   }
-
-  function resume () {}
 
   return true
 }
@@ -368,13 +417,16 @@ function buildMockDispatch () {
       } catch (error) {
         if (error.code === 'UND_MOCK_ERR_MOCK_NOT_MATCHED') {
           const netConnect = agent[kGetNetConnect]()
+          const totalInterceptsCount = this[kDispatches][kTotalDispatchCount] || this[kDispatches].length
+          const pendingInterceptsCount = this[kDispatches].filter(({ consumed }) => !consumed).length
+          const interceptsMessage = `, ${pendingInterceptsCount} interceptor(s) remaining out of ${totalInterceptsCount} defined`
           if (netConnect === false) {
-            throw new MockNotMatchedError(`${error.message}: subsequent request to origin ${origin} was not allowed (net.connect disabled)`)
+            throw new MockNotMatchedError(`${error.message}: subsequent request to origin ${origin} was not allowed (net.connect disabled)${interceptsMessage}`)
           }
           if (checkNetConnect(netConnect, origin)) {
             originalDispatch.call(this, opts, handler)
           } else {
-            throw new MockNotMatchedError(`${error.message}: subsequent request to origin ${origin} was not allowed (net.connect is not enabled for this origin)`)
+            throw new MockNotMatchedError(`${error.message}: subsequent request to origin ${origin} was not allowed (net.connect is not enabled for this origin)${interceptsMessage}`)
           }
         } else {
           throw error
@@ -394,6 +446,18 @@ function checkNetConnect (netConnect, origin) {
     return true
   }
   return false
+}
+
+function normalizeOrigin (origin) {
+  if (typeof origin !== 'string' && !(origin instanceof URL)) {
+    return origin
+  }
+
+  if (origin instanceof URL) {
+    return origin.origin
+  }
+
+  return origin.toLowerCase()
 }
 
 function buildAndValidateMockOptions (opts) {
@@ -430,5 +494,6 @@ module.exports = {
   buildAndValidateMockOptions,
   getHeaderByName,
   buildHeadersFromArray,
-  normalizeSearchParams
+  normalizeSearchParams,
+  normalizeOrigin
 }

@@ -1,4 +1,4 @@
-#if HAVE_OPENSSL
+#if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
 #include <async_wrap-inl.h>
@@ -43,16 +43,6 @@ namespace quic {
 // ============================================================================
 
 namespace {
-// Performance optimization recommended by ngtcp2. Need to investigate why
-// this causes some tests to fail.
-// auto _ = []() {
-//   if (ngtcp2_crypto_ossl_init() != 0) {
-//     assert(0);
-//     abort();
-//   }
-
-//   return 0;
-// }();
 
 // Temporarily wraps an SSL pointer but does not take ownership.
 // Use by a few of the TLSSession methods that need access to the SSL*
@@ -133,16 +123,10 @@ bool SetOption(Environment* env,
         }
       } else if constexpr (std::is_same<T, Store>::value) {
         if (item->IsArrayBufferView()) {
-          Store store;
-          if (!Store::From(item.As<v8::ArrayBufferView>()).To(&store)) {
-            return false;
-          }
+          Store store = Store::CopyFrom(item.As<v8::ArrayBufferView>());
           (options->*member).push_back(std::move(store));
         } else if (item->IsArrayBuffer()) {
-          Store store;
-          if (!Store::From(item.As<ArrayBuffer>()).To(&store)) {
-            return false;
-          }
+          Store store = Store::CopyFrom(item.As<ArrayBuffer>());
           (options->*member).push_back(std::move(store));
         } else {
           Utf8Value namestr(env->isolate(), name);
@@ -168,16 +152,10 @@ bool SetOption(Environment* env,
       }
     } else if constexpr (std::is_same<T, Store>::value) {
       if (value->IsArrayBufferView()) {
-        Store store;
-        if (!Store::From(value.As<v8::ArrayBufferView>()).To(&store)) {
-          return false;
-        }
+        Store store = Store::CopyFrom(value.As<v8::ArrayBufferView>());
         (options->*member).push_back(std::move(store));
       } else if (value->IsArrayBuffer()) {
-        Store store;
-        if (!Store::From(value.As<ArrayBuffer>()).To(&store)) {
-          return false;
-        }
+        Store store = Store::CopyFrom(value.As<ArrayBuffer>());
         (options->*member).push_back(std::move(store));
       } else {
         Utf8Value namestr(env->isolate(), name);
@@ -242,7 +220,8 @@ std::string OSSLContext::get_selected_alpn() const {
   const unsigned char* alpn = nullptr;
   unsigned int len;
   SSL_get0_alpn_selected(*this, &alpn, &len);
-  return std::string(alpn, alpn + len);
+  if (alpn == nullptr) return {};
+  return std::string(reinterpret_cast<const char*>(alpn), len);
 }
 
 std::string_view OSSLContext::get_negotiated_group() const {
@@ -279,6 +258,12 @@ bool OSSLContext::get_early_data_accepted() const {
   return SSL_get_early_data_status(*this) == SSL_EARLY_DATA_ACCEPTED;
 }
 
+bool OSSLContext::set_session_ticket(const ncrypto::SSLSessionPointer& ticket) {
+  if (!ticket) return false;
+  if (SSL_set_session(*this, ticket.get()) != 1) return false;
+  return SSL_SESSION_get_max_early_data(ticket.get()) != 0;
+}
+
 bool OSSLContext::ConfigureServer() const {
   if (ngtcp2_crypto_ossl_configure_server_session(*this) != 0) return false;
   SSL_set_accept_state(*this);
@@ -293,16 +278,18 @@ bool OSSLContext::ConfigureClient() const {
 
 // ============================================================================
 
-std::shared_ptr<TLSContext> TLSContext::CreateClient(const Options& options) {
-  return std::make_shared<TLSContext>(Side::CLIENT, options);
+std::shared_ptr<TLSContext> TLSContext::CreateClient(Environment* env,
+                                                     const Options& options) {
+  return std::make_shared<TLSContext>(env, Side::CLIENT, options);
 }
 
-std::shared_ptr<TLSContext> TLSContext::CreateServer(const Options& options) {
-  return std::make_shared<TLSContext>(Side::SERVER, options);
+std::shared_ptr<TLSContext> TLSContext::CreateServer(Environment* env,
+                                                     const Options& options) {
+  return std::make_shared<TLSContext>(env, Side::SERVER, options);
 }
 
-TLSContext::TLSContext(Side side, const Options& options)
-    : side_(side), options_(options), ctx_(Initialize()) {}
+TLSContext::TLSContext(Environment* env, Side side, const Options& options)
+    : side_(side), options_(options), ctx_(Initialize(env)) {}
 
 TLSContext::operator SSL_CTX*() const {
   DCHECK(ctx_);
@@ -376,8 +363,40 @@ void TLSContext::OnKeylog(const SSL* ssl, const char* line) {
 
 int TLSContext::OnVerifyClientCertificate(int preverify_ok,
                                           X509_STORE_CTX* ctx) {
-  // TODO(@jasnell): Implement the logic to verify the client certificate
-  return 1;
+  // This callback is invoked by OpenSSL for each certificate in the
+  // client's chain during the TLS handshake. The preverify_ok
+  // parameter reflects OpenSSL's own chain validation result for
+  // the current certificate. Failures include:
+  //   - Expired or not-yet-valid certificates
+  //   - Self-signed certificates not in the trusted CA list
+  //   - Broken chain (signature verification failure)
+  //   - Untrusted CA (chain does not terminate at a configured CA)
+  //   - Revoked certificates (if CRL is configured)
+  //   - Invalid basic constraints or key usage
+  //
+  // If preverify_ok is 1, validation passed for this cert and we
+  // always continue. If it is 0, the behavior depends on the
+  // reject_unauthorized option:
+  //   - true (default): return 0 to abort the handshake immediately,
+  //     avoiding wasted work on an untrusted client.
+  //   - false: return 1 to let the handshake complete. The validation
+  //     error is still recorded by OpenSSL and will be reported to JS
+  //     via VerifyPeerIdentity() in the handshake callback, allowing
+  //     the application to make its own decision.
+  //
+  // Note that even when preverify_ok is 1 (chain validation passed),
+  // the application may need to perform additional verification after
+  // the handshake — for example, checking the certificate's common
+  // name or subject alternative names against an allowlist, verifying
+  // application-specific fields or extensions, or enforcing certificate
+  // pinning. Chain validation only confirms cryptographic integrity
+  // and trust anchor; it does not confirm authorization.
+  if (preverify_ok) return 1;
+
+  SSL* ssl = static_cast<SSL*>(
+      X509_STORE_CTX_get_ex_data(ctx, SSL_get_ex_data_X509_STORE_CTX_idx()));
+  auto& tls_session = TLSSession::From(ssl);
+  return tls_session.context().options().reject_unauthorized ? 0 : 1;
 }
 
 std::unique_ptr<TLSSession> TLSContext::NewSession(
@@ -388,7 +407,7 @@ std::unique_ptr<TLSSession> TLSContext::NewSession(
       session, shared_from_this(), maybeSessionTicket);
 }
 
-SSLCtxPointer TLSContext::Initialize() {
+SSLCtxPointer TLSContext::Initialize(Environment* env) {
   SSLCtxPointer ctx;
   switch (side_) {
     case Side::SERVER: {
@@ -399,10 +418,13 @@ SSLCtxPointer TLSContext::Initialize() {
         return {};
       }
 
-      if (SSL_CTX_set_max_early_data(ctx.get(), UINT32_MAX) != 1) {
+      if (SSL_CTX_set_max_early_data(
+              ctx.get(), options_.enable_early_data ? UINT32_MAX : 0) != 1) {
         validation_error_ = "Failed to set max early data";
         return {};
       }
+      // ngtcp2 handles replay protection at the QUIC layer,
+      // so we disable OpenSSL's built-in anti-replay.
       SSL_CTX_set_options(ctx.get(),
                           (SSL_OP_ALL & ~SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS) |
                               SSL_OP_SINGLE_ECDH_USE |
@@ -418,20 +440,18 @@ SSLCtxPointer TLSContext::Initialize() {
         return {};
       }
 
-      if (options_.verify_client) [[likely]] {
+      if (options_.verify_client) [[unlikely]] {
         SSL_CTX_set_verify(ctx.get(),
                            SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE |
                                SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
                            OnVerifyClientCertificate);
       }
 
-      // TODO(@jasnell): There's a bug int the GenerateCallback flow somewhere.
-      // Need to update in order to support session tickets.
-      // CHECK_EQ(SSL_CTX_set_session_ticket_cb(ctx.get(),
-      //                                        SessionTicket::GenerateCallback,
-      //                                        SessionTicket::DecryptedCallback,
-      //                                        nullptr),
-      //          1);
+      CHECK_EQ(SSL_CTX_set_session_ticket_cb(ctx.get(),
+                                             SessionTicket::GenerateCallback,
+                                             SessionTicket::DecryptedCallback,
+                                             nullptr),
+               1);
       break;
     }
     case Side::CLIENT: {
@@ -460,14 +480,14 @@ SSLCtxPointer TLSContext::Initialize() {
   {
     ClearErrorOnReturn clear_error_on_return;
     if (options_.ca.empty()) {
-      auto store = crypto::GetOrCreateRootCertStore();
+      auto store = crypto::GetOrCreateRootCertStore(env);
       X509_STORE_up_ref(store);
       SSL_CTX_set_cert_store(ctx.get(), store);
     } else {
       for (const auto& ca : options_.ca) {
         uv_buf_t buf = ca;
         if (buf.len == 0) {
-          auto store = crypto::GetOrCreateRootCertStore();
+          auto store = crypto::GetOrCreateRootCertStore(env);
           X509_STORE_up_ref(store);
           SSL_CTX_set_cert_store(ctx.get(), store);
         } else {
@@ -477,8 +497,8 @@ SSLCtxPointer TLSContext::Initialize() {
           while (
               auto x509 = X509Pointer(PEM_read_bio_X509_AUX(
                   bio.get(), nullptr, crypto::NoPasswordCallback, nullptr))) {
-            if (cert_store == crypto::GetOrCreateRootCertStore()) {
-              cert_store = crypto::NewRootCertStore();
+            if (cert_store == crypto::GetOrCreateRootCertStore(env)) {
+              cert_store = crypto::NewRootCertStore(env);
               SSL_CTX_set_cert_store(ctx.get(), cert_store);
             }
             CHECK_EQ(1, X509_STORE_add_cert(cert_store, x509.get()));
@@ -535,8 +555,8 @@ SSLCtxPointer TLSContext::Initialize() {
       }
 
       X509_STORE* cert_store = SSL_CTX_get_cert_store(ctx.get());
-      if (cert_store == crypto::GetOrCreateRootCertStore()) {
-        cert_store = crypto::NewRootCertStore();
+      if (cert_store == crypto::GetOrCreateRootCertStore(env)) {
+        cert_store = crypto::NewRootCertStore(env);
         SSL_CTX_set_cert_store(ctx.get(), cert_store);
       }
 
@@ -592,11 +612,13 @@ Maybe<TLSContext::Options> TLSContext::Options::From(Environment* env,
   SetOption<TLSContext::Options, &TLSContext::Options::name>(                  \
       env, &options, params, state.name##_string())
 
-  if (!SET(verify_client) || !SET(enable_tls_trace) || !SET(protocol) ||
-      !SET(servername) || !SET(ciphers) || !SET(groups) ||
-      !SET(verify_private_key) || !SET(keylog) ||
-      !SET_VECTOR(crypto::KeyObjectData, keys) || !SET_VECTOR(Store, certs) ||
-      !SET_VECTOR(Store, ca) || !SET_VECTOR(Store, crl)) {
+  if (!SET(verify_client) || !SET(reject_unauthorized) ||
+      !SET(enable_early_data) || !SET(enable_tls_trace) ||
+      !SET(enable_tls_trace) || !SET(protocol) || !SET(servername) ||
+      !SET(ciphers) || !SET(groups) || !SET(verify_private_key) ||
+      !SET(keylog) || !SET_VECTOR(crypto::KeyObjectData, keys) ||
+      !SET_VECTOR(Store, certs) || !SET_VECTOR(Store, ca) ||
+      !SET_VECTOR(Store, crl)) {
     return Nothing<Options>();
   }
 
@@ -613,6 +635,10 @@ std::string TLSContext::Options::ToString() const {
       prefix + "keylog: " + (keylog ? std::string("yes") : std::string("no"));
   res += prefix + "verify client: " +
          (verify_client ? std::string("yes") : std::string("no"));
+  res += prefix + "reject unauthorized: " +
+         (reject_unauthorized ? std::string("yes") : std::string("no"));
+  res += prefix + "enable early data: " +
+         (enable_early_data ? std::string("yes") : std::string("no"));
   res += prefix + "enable_tls_trace: " +
          (enable_tls_trace ? std::string("yes") : std::string("no"));
   res += prefix + "verify private key: " +
@@ -722,8 +748,7 @@ void TLSSession::Initialize(
             reinterpret_cast<unsigned char*>(buf.base), buf.len);
 
         // The early data will just be ignored if it's invalid.
-        if (ssl.setSession(ticket) &&
-            SSL_SESSION_get_max_early_data(ticket.get()) != 0) {
+        if (ossl_context_.set_session_ticket(ticket)) {
           ngtcp2_vec rtp = sessionTicket.transport_params();
           if (ngtcp2_conn_decode_and_set_0rtt_transport_params(
                   *session_, rtp.base, rtp.len) == 0) {
@@ -834,4 +859,4 @@ void TLSSession::MemoryInfo(MemoryTracker* tracker) const {
 }  // namespace quic
 }  // namespace node
 #endif  // OPENSSL_NO_QUIC
-#endif  // HAVE_OPENSSL
+#endif  // HAVE_OPENSSL && HAVE_QUIC

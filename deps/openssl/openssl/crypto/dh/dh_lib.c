@@ -16,7 +16,7 @@
 #include <stdio.h>
 #include <openssl/bn.h>
 #ifndef FIPS_MODULE
-# include <openssl/engine.h>
+#include <openssl/engine.h>
 #endif
 #include <openssl/obj_mac.h>
 #include <openssl/core_names.h>
@@ -53,12 +53,12 @@ const DH_METHOD *ossl_dh_get_method(const DH *dh)
 {
     return dh->meth;
 }
-# ifndef OPENSSL_NO_DEPRECATED_3_0
+#ifndef OPENSSL_NO_DEPRECATED_3_0
 DH *DH_new(void)
 {
     return dh_new_intern(NULL, NULL);
 }
-# endif
+#endif
 
 DH *DH_new_method(ENGINE *engine)
 {
@@ -94,7 +94,7 @@ static DH *dh_new_intern(ENGINE *engine, OSSL_LIB_CTX *libctx)
     ret->libctx = libctx;
     ret->meth = DH_get_default_method();
 #if !defined(FIPS_MODULE) && !defined(OPENSSL_NO_ENGINE)
-    ret->flags = ret->meth->flags;  /* early default init */
+    ret->flags = ret->meth->flags; /* early default init */
     if (engine) {
         if (!ENGINE_init(engine)) {
             ERR_raise(ERR_LIB_DH, ERR_R_ENGINE_LIB);
@@ -128,7 +128,7 @@ static DH *dh_new_intern(ENGINE *engine, OSSL_LIB_CTX *libctx)
 
     return ret;
 
- err:
+err:
     DH_free(ret);
     return NULL;
 }
@@ -149,9 +149,9 @@ void DH_free(DH *r)
     if (r->meth != NULL && r->meth->finish != NULL)
         r->meth->finish(r);
 #if !defined(FIPS_MODULE)
-# if !defined(OPENSSL_NO_ENGINE)
+#if !defined(OPENSSL_NO_ENGINE)
     ENGINE_finish(r->engine);
-# endif
+#endif
     CRYPTO_free_ex_data(CRYPTO_EX_INDEX_DH, r, &r->ex_data);
 #endif
 
@@ -223,7 +223,7 @@ int DH_security_bits(const DH *dh)
 }
 
 void DH_get0_pqg(const DH *dh,
-                 const BIGNUM **p, const BIGNUM **q, const BIGNUM **g)
+    const BIGNUM **p, const BIGNUM **q, const BIGNUM **g)
 {
     ossl_ffc_params_get0_pqg(&dh->params, p, q, g);
 }

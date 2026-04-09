@@ -11,7 +11,6 @@
 #include <node.h>
 #include <node_mem.h>
 #include <v8.h>
-#include <list>
 #include <unordered_map>
 #include "defs.h"
 
@@ -27,7 +26,6 @@ class Packet;
   V(endpoint)                                                                  \
   V(http3application)                                                          \
   V(logstream)                                                                 \
-  V(packet)                                                                    \
   V(session)                                                                   \
   V(stream)                                                                    \
   V(udp)
@@ -43,6 +41,7 @@ class Packet;
   V(session_datagram_status, SessionDatagramStatus)                            \
   V(session_handshake, SessionHandshake)                                       \
   V(session_new, SessionNew)                                                   \
+  V(session_new_token, SessionNewToken)                                        \
   V(session_path_validation, SessionPathValidation)                            \
   V(session_ticket, SessionTicket)                                             \
   V(session_version_negotiation, SessionVersionNegotiation)                    \
@@ -70,6 +69,7 @@ class Packet;
   V(cubic, "cubic")                                                            \
   V(disable_stateless_reset, "disableStatelessReset")                          \
   V(enable_connect_protocol, "enableConnectProtocol")                          \
+  V(enable_early_data, "enableEarlyData")                                      \
   V(enable_datagrams, "enableDatagrams")                                       \
   V(enable_tls_trace, "tlsTrace")                                              \
   V(endpoint, "Endpoint")                                                      \
@@ -104,7 +104,6 @@ class Packet;
   V(max_stream_window, "maxStreamWindow")                                      \
   V(max_window, "maxWindow")                                                   \
   V(min_version, "minVersion")                                                 \
-  V(packetwrap, "PacketWrap")                                                  \
   V(preferred_address_strategy, "preferredAddressPolicy")                      \
   V(protocol, "protocol")                                                      \
   V(qlog, "qlog")                                                              \
@@ -121,6 +120,7 @@ class Packet;
   V(stream, "Stream")                                                          \
   V(success, "success")                                                        \
   V(tls_options, "tls")                                                        \
+  V(token, "token")                                                            \
   V(token_expiration, "tokenExpiration")                                       \
   V(token_secret, "tokenSecret")                                               \
   V(transport_params, "transportParams")                                       \
@@ -168,11 +168,6 @@ class BindingData final
   // Installs the set of JavaScript callback functions that are used to
   // bridge out to the JS API.
   JS_METHOD(SetCallbacks);
-
-  // Purge the packet free list to free up memory.
-  JS_METHOD(FlushPacketFreelist);
-
-  std::list<BaseObjectPtr<BaseObject>> packet_freelist;
 
   std::unordered_map<Endpoint*, BaseObjectPtr<BaseObject>> listening_endpoints;
 

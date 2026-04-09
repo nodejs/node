@@ -7,7 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 #ifndef OSSL_CRYPTO_EC_CURVE448_LOCAL_H
-# define OSSL_CRYPTO_EC_CURVE448_LOCAL_H
-# include "curve448utils.h"
+#define OSSL_CRYPTO_EC_CURVE448_LOCAL_H
+#include "curve448utils.h"
 
-#endif              /* OSSL_CRYPTO_EC_CURVE448_LOCAL_H */
+#endif /* OSSL_CRYPTO_EC_CURVE448_LOCAL_H */

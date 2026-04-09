@@ -323,7 +323,8 @@ try {
     method: 'GET'
   })
 } catch (error) {
-  console.error(error) // Error: kaboom
+  console.error(error) // TypeError: fetch failed
+  console.error(error.cause) // Error: kaboom
 }
 ```
 

@@ -6,10 +6,10 @@ const { makeEntry } = require('./formdata')
 const { webidl } = require('../webidl')
 const assert = require('node:assert')
 const { isomorphicDecode } = require('../infra')
-const { utf8DecodeBytes } = require('../../encoding')
 
 const dd = Buffer.from('--')
 const decoder = new TextDecoder()
+const decoderIgnoreBOM = new TextDecoder('utf-8', { ignoreBOM: true })
 
 /**
  * @param {string} chars
@@ -188,7 +188,7 @@ function multipartFormDataParser (input, mimeType) {
       // 5.11. Otherwise:
 
       // 5.11.1. Let value be the UTF-8 decoding without BOM of body.
-      value = utf8DecodeBytes(Buffer.from(body))
+      value = decoderIgnoreBOM.decode(Buffer.from(body))
     }
 
     // 5.12. Assert: name is a scalar value string and value is either a scalar value string or a File object.

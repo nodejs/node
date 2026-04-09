@@ -24,9 +24,7 @@ response or engagement within 14 days, escalation is also appropriate.
 
 ### Node.js bug bounty program
 
-The Node.js project engages in an official bug bounty program for security
-researchers and responsible public disclosures.  The program is managed through
-the HackerOne platform. See <https://hackerone.com/nodejs> for further details.
+The Node.js project no longer has a bug bounty program.
 
 ## Reporting a bug in a third-party module
 
@@ -152,27 +150,32 @@ does not trust is considered a vulnerability:
   the correct use of Node.js APIs.
 * The unavailability of the runtime, including the unbounded degradation of its
   performance.
-* Memory leaks qualify as vulnerabilities when all of the following criteria are met:
-  * The API is being correctly used.
-  * The API doesn't have a warning against its usage in a production environment.
-  * The API is public and documented.
-  * The API is on stable (2.0) status.
-  * The memory leak is significant enough to cause a denial of service quickly
-    or in a context not controlled by the user (for example, HTTP parsing).
-  * The memory leak is directly exploitable by an untrusted source without requiring application mistakes.
-  * The leak cannot be reasonably mitigated through standard operational practices (like process recycling).
-  * The leak occurs deterministically under normal usage patterns rather than edge cases.
-  * The leak occurs at a rate that would cause practical resource exhaustion within a practical timeframe under
-    typical workloads.
-  * The attack demonstrates [asymmetric resource consumption](https://cwe.mitre.org/data/definitions/405.html),
-    where the attacker expends significantly fewer resources than what's required by the server to process the
-    attack. Attacks requiring comparable resources on the attacker's side (which can be mitigated through common
-    practices like rate limiting) may not qualify.
 
 If Node.js loads configuration files or runs code by default (without a
 specific request from the user), and this is not documented, it is considered a
 vulnerability.
 Vulnerabilities related to this case may be fixed by a documentation update.
+
+#### Denial of Service (DoS) vulnerabilities
+
+For a behavior to be considered a DoS vulnerability, the PoC must meet the following criteria:
+
+* The API is being correctly used.
+* The API doesn't have a warning against its usage in a production environment.
+* The API is public and documented. If the API comes from JavaScript, the behavior must be
+  well-defined in the [ECMAScript specification](https://tc39.es/ecma262/).
+* The API has stable (2.0) status.
+* The behavior is significant enough to cause a denial of service quickly
+  or in a context not controlled by the Node.js application developer (for example, HTTP parsing).
+* The behavior is directly exploitable by an untrusted source without requiring application mistakes.
+* The behavior cannot be reasonably mitigated through standard operational practices (like process recycling).
+* The behavior occurs deterministically under normal usage patterns rather than edge cases.
+* The behavior occurs at a rate that would cause practical resource exhaustion within a practical timeframe under
+  typical workloads.
+* The attack demonstrates [asymmetric resource consumption](https://cwe.mitre.org/data/definitions/405.html),
+  where the attacker expends significantly fewer resources than what's required by the server to process the
+  attack. Attacks requiring comparable resources on the attacker's side (which can be mitigated through common
+  practices like rate limiting) may not qualify.
 
 **Node.js does NOT trust**:
 
@@ -320,9 +323,17 @@ the community they pose.
   * Avoid exposing low-level or dangerous APIs directly to untrusted users.
 
 * Examples of scenarios that are **not** Node.js vulnerabilities:
-  * Allowing untrusted users to register SQLite user-defined functions that can
-    perform arbitrary operations (e.g., closing database connections during query
-    execution, causing crashes or use-after-free conditions).
+  * Allowing untrusted users to register SQLite user-defined functions via
+    `node:sqlite` (`DatabaseSync`) that can perform arbitrary operations
+    (e.g., closing database connections during query execution, causing crashes
+    or use-after-free conditions).
+  * Loading SQLite extensions using the `allowExtension` option in
+    `DatabaseSync` — this option must be explicitly set to `true` by the
+    application, and enabling it is the application operator's responsibility.
+  * Using `node:sqlite` built-in SQL functions or pragmas (e.g.,
+    `ATTACH DATABASE`) to read or write files — `DatabaseSync` operates with
+    the same file-system access as the process itself, and it is the
+    application's responsibility to restrict what SQL is executed.
   * Exposing `child_process.exec()` or similar APIs to untrusted users without
     proper input validation, allowing command injection.
   * Allowing untrusted users to control file paths passed to file system APIs
@@ -334,6 +345,83 @@ the community they pose.
   vulnerabilities. The root cause is the application's failure to establish
   proper security boundaries between trusted application logic and untrusted
   user input.
+
+#### Build System Attacks Requiring Control of the Build Environment (CWE-78, CWE-114, CWE-276)
+
+* The Node.js build system (e.g., `configure`, `configure.py`, `Makefile`,
+  `vcbuild.bat`) is designed to run in a trusted build environment.
+  The build environment, including environment variables, the file system,
+  and locally installed tools, is a trusted element in the Node.js threat model.
+* Reports about command injection via environment variables in build scripts
+  (e.g., `CC`, `CXX`, `PKG_CONFIG`, `RUSTC`), path hijacking in build output
+  directories, or file permissions of build artifacts are **not** considered
+  vulnerabilities. These scenarios require the attacker to already have control
+  over the build environment, which means the system is already compromised.
+* Build scripts are not a security boundary. They are expected to execute
+  tools and scripts specified by the environment, and to trust the
+  file system they operate on.
+
+#### Unhandled 'error' Events on EventEmitters (CWE-248)
+
+* EventEmitters that can emit `'error'` events require the application to
+  attach an `'error'` event handler. This includes HTTP streams and other
+  Node.js core streams. If the application fails to attach an `'error'`
+  handler, the EventEmitter will throw an uncaught exception, which may
+  crash the process.
+* Crashes resulting from missing `'error'` handlers are not considered
+  denial-of-service vulnerabilities in Node.js. It is the application's
+  responsibility to properly handle errors by attaching appropriate
+  `'error'` event listeners to EventEmitters that may emit errors.
+
+#### Permission Model Boundaries (`--permission`)
+
+The Node.js [Permission Model](https://nodejs.org/api/permissions.html)
+(`--experimental-permission`) is an opt-in mechanism that limits which
+resources a Node.js process may access. It is designed to reduce the blast
+radius of mistakes in trusted application code, **not** to act as a security
+boundary against intentional misuse or a compromised process.
+
+The following are **not** vulnerabilities in Node.js:
+
+* **Operator-controlled flags**: Behavior unlocked by flags the operator
+  explicitly passes (e.g., `--localstorage-file`) is the operator's
+  responsibility. The permission model does not restrict how Node.js behaves
+  when the operator intentionally configures it.
+
+* **`node:sqlite` and the permission model**: `DatabaseSync` operates with the
+  same file-system privileges as the process. Using SQL pragmas or built-in
+  SQLite mechanisms (e.g., `ATTACH DATABASE`) to access files does not bypass
+  the permission model — the permission model does not intercept SQL-level
+  file operations.
+
+* **Path resolution and symlinks**: `fs.realpathSync()`, `fs.realpath()`, and
+  similar functions resolve a path to its canonical form before the permission
+  check is applied. Accessing a file through a symlink that resolves to an
+  allowed path is the intended behavior, not a bypass. TOCTOU races on
+  symlinks that resolve within the allowed list are similarly not considered
+  permission model bypasses.
+
+* **`worker_threads` with modified `execArgv`**: Workers inherit the permission
+  restrictions of their parent process. Passing an empty or modified `execArgv`
+  to a worker does not grant it additional permissions.
+
+#### V8 Sandbox
+
+The V8 sandbox is an in-process isolation mechanism internal to V8 that is not
+a Node.js security boundary. Node.js does not guarantee or document the V8
+sandbox as a security feature, and it is not enabled in a way that provides
+security guarantees in production Node.js builds. Reports about escaping the V8
+sandbox are not considered Node.js vulnerabilities; they should be reported
+directly to the [V8 project](https://v8.dev/docs/security-bugs).
+
+#### CRLF Injection in `writeEarlyHints()`
+
+`ServerResponse.writeEarlyHints()` accepts a `link` header value that is set
+by the application. Passing arbitrary strings, including CRLF sequences, as
+the `link` value is an application-level misuse of the API, not a Node.js
+vulnerability. Node.js validates the structure of Early Hints per the HTTP spec
+but does not sanitize free-form application data passed to it; that is the
+application's responsibility.
 
 ## Assessing experimental features reports
 
@@ -348,6 +436,21 @@ Security notifications will be distributed via the following methods.
 * <https://groups.google.com/group/nodejs-sec>
 * <https://nodejs.org/en/blog/vulnerability>
 
+### CVE publication timeline
+
+When security releases are published, there is a built-in delay before the
+corresponding CVEs are publicly disclosed. This delay occurs because:
+
+1. After the security release, we request the vulnerability reporter to disclose
+   the details on HackerOne.
+2. If the reporter does not disclose within one day, we proceed with forced
+   disclosure to publish the CVEs.
+3. The disclosure then goes through HackerOne's approval process before the CVEs
+   become publicly available.
+
+As a result, CVEs may not be immediately available when security releases are
+published, but will typically be disclosed within a few days of the release.
+
 ## Comments on this policy
 
 If you have suggestions on how this process could be improved, please visit
@@ -358,3 +461,100 @@ repository.
 
 In the event of a security incident, please refer to the
 [Security Incident Response Plan](https://github.com/nodejs/security-wg/blob/main/INCIDENT_RESPONSE_PLAN.md).
+
+## Node.js Security Team
+
+Node.js security team members are expected to keep all information that they
+have privileged access to by being on the team completely private to the team.
+This includes agreeing to not notify anyone outside the team of issues that have
+not yet been disclosed publicly, including the existence of issues, expectations
+of upcoming releases, and patching of any issues other than in the process of
+their work as a member of the security team.
+
+### Node.js Security Team Membership Policy
+
+The Node.js Security Team has access to security-sensitive issues and patches
+that aren't appropriate for public availability.
+
+The policy for inclusion is as follows:
+
+1. All members of @nodejs/TSC have access to private security reports and
+   private patches.
+2. Members of the @nodejs/releasers team
+   have access to private security patches in order to produce releases.
+3. On a case-by-case basis, individuals outside the Technical Steering
+   Committee are invited by the TSC to have access to private security reports
+   or private patches so that their expertise can be applied to an issue or
+   patch. This access may be temporary or permanent, as decided by the TSC.
+
+Membership on the security teams can be requested via an issue in the TSC repo.
+
+## Team responsible for Triaging security reports
+
+The responsibility of Triage is to determine whether Node.js must take any
+action to mitigate the issue, and if so, to ensure that the action is taken.
+
+Mitigation may take many forms, for example, a Node.js security release that
+includes a fix, documentation, an informational CVE or blog post.
+
+* [@mcollina](https://github.com/mcollina) - Matteo Collina
+* [@RafaelGSS](https://github.com/RafaelGSS) - Rafael Gonzaga
+* [@vdeturckheim](https://github.com/vdeturckheim) - Vladimir de Turckheim
+* [@BethGriggs](https://github.com/BethGriggs) - Beth Griggs
+
+## Team with access to private security reports against Node.js
+
+[TSC voting members](https://github.com/nodejs/node#tsc-voting-members)
+have access.
+
+In addition, these individuals have access:
+
+* [BethGriggs](https://github.com/BethGriggs) - **Beth Griggs**
+* [MylesBorins](https://github.com/MylesBorins) -  **Myles Borins**
+* [bengl](https://github.com/bengl)- **Bryan English**
+* [bnoordhuis](https://github.com/bnoordhuis) **Ben Noordhuis**
+* [cjihrig](https://github.com/cjihrig) **Colin Ihrig**
+* [joesepi](https://github.com/joesepi) - **Joe Sepi**
+* [juanarbol](https://github.com/juanarbol) **Juan Jose Arboleda**
+* [ulisesgascon](https://github.com/ulisesgascon) **Ulises Gascón**
+* [vdeturckheim](https://github.com/vdeturckheim) - **Vladimir de Turckheim**
+
+The list is from the [member page](https://hackerone.com/organizations/nodejs/settings/users) for
+the Node.js program on HackerOne.
+
+## Team with access to private security patches to Node.js
+
+<!-- ncu-team-sync.team(nodejs-private/security) -->
+
+* [@aduh95](https://github.com/aduh95) - Antoine du Hamel
+* [@anonrig](https://github.com/anonrig) - Yagiz Nizipli
+* [@bengl](https://github.com/bengl) - Bryan English
+* [@benjamingr](https://github.com/benjamingr) - Benjamin Gruenbaum
+* [@bmeck](https://github.com/bmeck) - Bradley Farias
+* [@bnoordhuis](https://github.com/bnoordhuis) - Ben Noordhuis
+* [@BridgeAR](https://github.com/BridgeAR) - Ruben Bridgewater
+* [@gireeshpunathil](https://github.com/gireeshpunathil) - Gireesh Punathil
+* [@guybedford](https://github.com/guybedford) - Guy Bedford
+* [@indutny](https://github.com/indutny) - Fedor Indutny
+* [@jasnell](https://github.com/jasnell) - James M Snell
+* [@joaocgreis](https://github.com/joaocgreis) - João Reis
+* [@joesepi](https://github.com/joesepi) - Joe Sepi
+* [@joyeecheung](https://github.com/joyeecheung) - Joyee Cheung
+* [@juanarbol](https://github.com/juanarbol) - Juan José
+* [@legendecas](https://github.com/legendecas) - Chengzhong Wu
+* [@marco-ippolito](https://github.com/marco-ippolito) - Marco Ippolito
+* [@mcollina](https://github.com/mcollina) - Matteo Collina
+* [@MoLow](https://github.com/MoLow) - Moshe Atlow
+* [@panva](https://github.com/panva) - Filip Skokan
+* [@RafaelGSS](https://github.com/RafaelGSS) - Rafael Gonzaga
+* [@richardlau](https://github.com/richardlau) - Richard Lau
+* [@ronag](https://github.com/ronag) - Robert Nagy
+* [@ruyadorno](https://github.com/ruyadorno) - Ruy Adorno
+* [@santigimeno](https://github.com/santigimeno) - Santiago Gimeno
+* [@ShogunPanda](https://github.com/ShogunPanda) - Paolo Insogna
+* [@targos](https://github.com/targos) - Michaël Zasso
+* [@tniessen](https://github.com/tniessen) - Tobias Nießen
+* [@UlisesGascon](https://github.com/UlisesGascon) - Ulises Gascón
+* [@vdeturckheim](https://github.com/vdeturckheim) - Vladimir de Turckheim
+
+<!-- ncu-team-sync end -->

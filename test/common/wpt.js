@@ -223,6 +223,7 @@ class ResourceLoader {
     return {
       ok: true,
       arrayBuffer() { return data.buffer; },
+      bytes() { return new Uint8Array(data); },
       json() { return JSON.parse(data.toString()); },
       text() { return data.toString(); },
     };
@@ -235,6 +236,7 @@ class StatusRule {
     this.requires = value.requires || [];
     this.fail = value.fail;
     this.skip = value.skip;
+    this.skipTests = value.skipTests;
     if (pattern) {
       this.pattern = this.transformPattern(pattern);
     }
@@ -311,6 +313,7 @@ class WPTTestSpec {
     this.failedTests = [];
     this.flakyTests = [];
     this.skipReasons = [];
+    this.skippedTests = [];
     for (const item of rules) {
       if (item.requires.length) {
         for (const req of item.requires) {
@@ -326,6 +329,9 @@ class WPTTestSpec {
       }
       if (item.skip) {
         this.skipReasons.push(item.skip);
+      }
+      if (Array.isArray(item.skipTests)) {
+        this.skippedTests.push(...item.skipTests);
       }
     }
 
@@ -344,6 +350,22 @@ class WPTTestSpec {
     const spec = new WPTTestSpec(mod, filename, rules);
     const meta = spec.getMeta();
     return meta.variant?.map((variant) => new WPTTestSpec(mod, filename, rules, variant)) || [spec];
+  }
+
+  /**
+   * Check if a subtest should be skipped by name.
+   * @param {string} name
+   * @returns {boolean}
+   */
+  isSkippedTest(name) {
+    for (const matcher of this.skippedTests) {
+      if (typeof matcher === 'string') {
+        if (name === matcher) return true;
+      } else if (matcher.test(name)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   getRelativePath() {
@@ -683,6 +705,7 @@ class WPTRunner {
             },
             scriptsToRun,
             needsGc: !!meta.script?.find((script) => script === '/common/gc.js'),
+            skippedTests: spec.skippedTests,
           },
         });
         this.inProgress.add(spec);
@@ -693,6 +716,8 @@ class WPTRunner {
           switch (message.type) {
             case 'result':
               return this.resultCallback(spec, message.result, reportResult);
+            case 'skip':
+              return this.skipTest(spec, { name: message.name }, reportResult);
             case 'completion':
               return this.completionCallback(spec, message.status, reportResult);
             default:
@@ -712,7 +737,7 @@ class WPTRunner {
             spec,
             {
               status: NODE_UNCAUGHT,
-              name: 'evaluation in WPTRunner.runJsTests()',
+              name: `${err}`,
               message: err.message,
               stack: inspect(err),
             },
@@ -721,6 +746,7 @@ class WPTRunner {
           // Mark the whole test as failed in wpt.fyi report.
           reportResult?.finish('ERROR');
           this.inProgress.delete(spec);
+          this.report?.write();
         });
 
         await events.once(worker, 'exit').catch(() => {});
@@ -749,6 +775,7 @@ class WPTRunner {
       const failures = [];
       let expectedFailures = 0;
       let skipped = 0;
+      let skippedTests = 0;
       for (const [key, item] of Object.entries(this.results)) {
         if (item.fail?.unexpected) {
           failures.push(key);
@@ -758,6 +785,9 @@ class WPTRunner {
         }
         if (item.skip) {
           skipped++;
+        }
+        if (item.skipTests) {
+          skippedTests += item.skipTests.length;
         }
       }
 
@@ -776,17 +806,21 @@ class WPTRunner {
         }
 
         // Full check: every expected to fail test is present
-        if (specs.failedTests.some((expectedToFail) => {
+        const _unexpectedPasses = specs.failedTests.filter((expectedToFail) => {
           if (specs.flakyTests.includes(expectedToFail)) {
             return false;
           }
           return this.results[key]?.fail?.expected?.includes(expectedToFail) !== true;
-        })) {
-          unexpectedPasses.push(key);
+        });
+        if (_unexpectedPasses.length) {
+          unexpectedPasses.push(..._unexpectedPasses.map((name) => `${key}:${name}`));
           continue;
         }
       }
 
+      // Write the report on clean exit. The report is also written
+      // incrementally after each spec completes (see completionCallback)
+      // so that results survive if the process is killed.
       this.report?.write();
 
       const ran = queue.length;
@@ -796,7 +830,8 @@ class WPTRunner {
       console.log(`Ran ${ran}/${total} tests, ${skipped} skipped,`,
                   `${passed} passed, ${expectedFailures} expected failures,`,
                   `${failures.length} unexpected failures,`,
-                  `${unexpectedPasses.length} unexpected passes`);
+                  `${unexpectedPasses.length} unexpected passes` +
+                  (skippedTests ? `, ${skippedTests} subtests skipped` : ''));
       if (failures.length > 0) {
         const file = path.join('test', 'wpt', 'status', `${this.path}.json`);
         throw new Error(
@@ -873,6 +908,9 @@ class WPTRunner {
       reportResult?.finish();
     }
     this.inProgress.delete(spec);
+    // Write report incrementally so results survive even if the process
+    // is killed before the exit handler runs.
+    this.report?.write();
     // Always force termination of the worker. Some tests allocate resources
     // that would otherwise keep it alive.
     this.workers.get(spec).terminate();
@@ -882,8 +920,16 @@ class WPTRunner {
     let result = this.results[spec.filename];
     result ||= this.results[spec.filename] = {};
     if (item.status === kSkip) {
-      // { filename: { skip: 'reason' } }
-      result[kSkip] = item.reason;
+      if (item.name) {
+        // Subtest-level skip: { filename: { skipTests: [ ... ] } }
+        result.skipTests ||= [];
+        if (!result.skipTests.includes(item.name)) {
+          result.skipTests.push(item.name);
+        }
+      } else {
+        // File-level skip: { filename: { skip: 'reason' } }
+        result[kSkip] = item.reason;
+      }
     } else {
       // { filename: { fail: { expected: [ ... ],
       //                      unexpected: [ ... ] } }}
@@ -902,6 +948,15 @@ class WPTRunner {
     reportResult?.addSubtest(test.name, 'PASS');
   }
 
+  skipTest(spec, test, reportResult) {
+    console.log(`[SKIP] ${test.name}`);
+    reportResult?.addSubtest(test.name, 'NOTRUN');
+    this.addTestResult(spec, {
+      name: test.name,
+      status: kSkip,
+    });
+  }
+
   fail(spec, test, status, reportResult) {
     const expected = spec.failedTests.includes(test.name);
     if (expected) {
@@ -914,7 +969,7 @@ class WPTRunner {
       console.log(test.stack);
     }
     const command = `${process.execPath} ${process.execArgv}` +
-                    ` ${require.main.filename} '${spec.filename}${spec.variant}'`;
+                    ` ${require.main?.filename} '${spec.filename}${spec.variant}'`;
     console.log(`Command: ${command}\n`);
 
     reportResult?.addSubtest(test.name, 'FAIL', test.message);

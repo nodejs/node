@@ -34,14 +34,15 @@
 #include <ngtcp2/ngtcp2.h>
 
 #include "ngtcp2_objalloc.h"
+#include "ngtcp2_range.h"
 
 #define NGTCP2_KSL_DEGR 16
 /* NGTCP2_KSL_MAX_NBLK is the maximum number of nodes which a single
    block can contain. */
-#define NGTCP2_KSL_MAX_NBLK (2 * NGTCP2_KSL_DEGR - 1)
+#define NGTCP2_KSL_MAX_NBLK (2 * NGTCP2_KSL_DEGR)
 /* NGTCP2_KSL_MIN_NBLK is the minimum number of nodes which a single
    block other than root must contain. */
-#define NGTCP2_KSL_MIN_NBLK (NGTCP2_KSL_DEGR - 1)
+#define NGTCP2_KSL_MIN_NBLK NGTCP2_KSL_DEGR
 
 /*
  * ngtcp2_ksl_key represents key in ngtcp2_ksl.
@@ -75,16 +76,19 @@ struct ngtcp2_ksl_blk {
       /* prev points to the previous block if leaf field is
          nonzero. */
       ngtcp2_ksl_blk *prev;
-      /* n is the number of nodes this object contains in nodes. */
-      uint32_t n;
-      /* leaf is nonzero if this block contains leaf nodes. */
-      uint32_t leaf;
       ngtcp2_ksl_node nodes[NGTCP2_KSL_MAX_NBLK];
       /* keys is a pointer to the buffer to include
          NGTCP2_KSL_MAX_NBLK keys.  Because the length of key is
          unknown until ngtcp2_ksl_init is called, the actual buffer
-         will be allocated after this field. */
+         will be allocated after this object. */
       uint8_t *keys;
+      /* n is the number of nodes this object contains in nodes. */
+      uint32_t n;
+      /* aligned_keylen is the length of the single key including
+         alignment. */
+      uint16_t aligned_keylen;
+      /* leaf is nonzero if this block contains leaf nodes. */
+      uint8_t leaf;
     };
 
     ngtcp2_opl_entry oplent;
@@ -134,7 +138,6 @@ typedef struct ngtcp2_ksl_it ngtcp2_ksl_it;
  * ngtcp2_ksl_it is a bidirectional iterator to iterate nodes.
  */
 struct ngtcp2_ksl_it {
-  const ngtcp2_ksl *ksl;
   ngtcp2_ksl_blk *blk;
   size_t i;
 };
@@ -144,8 +147,8 @@ struct ngtcp2_ksl_it {
  */
 struct ngtcp2_ksl {
   ngtcp2_objalloc blkalloc;
-  /* head points to the root block. */
-  ngtcp2_ksl_blk *head;
+  /* root points to the root block. */
+  ngtcp2_ksl_blk *root;
   /* front points to the first leaf block. */
   ngtcp2_ksl_blk *front;
   /* back points to the last leaf block. */
@@ -275,11 +278,11 @@ size_t ngtcp2_ksl_len(const ngtcp2_ksl *ksl);
 void ngtcp2_ksl_clear(ngtcp2_ksl *ksl);
 
 /*
- * ngtcp2_ksl_nth_key returns the |n|th key under |blk|.
+ * ngtcp2_ksl_blk_nth_key returns the |n|th key under |blk|.
  */
 static inline const ngtcp2_ksl_key *
-ngtcp2_ksl_nth_key(const ngtcp2_ksl *ksl, const ngtcp2_ksl_blk *blk, size_t n) {
-  return blk->keys + n * ksl->aligned_keylen;
+ngtcp2_ksl_blk_nth_key(const ngtcp2_ksl_blk *blk, size_t n) {
+  return blk->keys + n * blk->aligned_keylen;
 }
 
 #ifndef WIN32
@@ -294,8 +297,7 @@ void ngtcp2_ksl_print(const ngtcp2_ksl *ksl);
 /*
  * ngtcp2_ksl_it_init initializes |it|.
  */
-void ngtcp2_ksl_it_init(ngtcp2_ksl_it *it, const ngtcp2_ksl *ksl,
-                        ngtcp2_ksl_blk *blk, size_t i);
+void ngtcp2_ksl_it_init(ngtcp2_ksl_it *it, ngtcp2_ksl_blk *blk, size_t i);
 
 /*
  * ngtcp2_ksl_it_get returns the data associated to the node which
@@ -346,7 +348,7 @@ int ngtcp2_ksl_it_begin(const ngtcp2_ksl_it *it);
  * returns nonzero.
  */
 static inline const ngtcp2_ksl_key *ngtcp2_ksl_it_key(const ngtcp2_ksl_it *it) {
-  return ngtcp2_ksl_nth_key(it->ksl, it->blk, it->i);
+  return ngtcp2_ksl_blk_nth_key(it->blk, it->i);
 }
 
 /*
@@ -355,8 +357,12 @@ static inline const ngtcp2_ksl_key *ngtcp2_ksl_it_key(const ngtcp2_ksl_it *it) {
  * returns nonzero if ((const ngtcp2_range *)lhs)->begin < ((const
  * ngtcp2_range *)rhs)->begin.
  */
-int ngtcp2_ksl_range_compar(const ngtcp2_ksl_key *lhs,
-                            const ngtcp2_ksl_key *rhs);
+static inline int ngtcp2_ksl_range_compar(const ngtcp2_ksl_key *lhs,
+                                          const ngtcp2_ksl_key *rhs) {
+  const ngtcp2_range *a = (const ngtcp2_range *)lhs,
+                     *b = (const ngtcp2_range *)rhs;
+  return a->begin < b->begin;
+}
 
 /*
  * ngtcp2_ksl_range_search is an implementation of ngtcp2_ksl_search
@@ -372,8 +378,13 @@ size_t ngtcp2_ksl_range_search(const ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk,
  * *)lhs)->begin < ((const ngtcp2_range *)rhs)->begin, and the 2
  * ranges do not intersect.
  */
-int ngtcp2_ksl_range_exclusive_compar(const ngtcp2_ksl_key *lhs,
-                                      const ngtcp2_ksl_key *rhs);
+static inline int ngtcp2_ksl_range_exclusive_compar(const ngtcp2_ksl_key *lhs,
+                                                    const ngtcp2_ksl_key *rhs) {
+  const ngtcp2_range *a = (const ngtcp2_range *)lhs,
+                     *b = (const ngtcp2_range *)rhs;
+  return a->begin < b->begin && !(ngtcp2_max_uint64(a->begin, b->begin) <
+                                  ngtcp2_min_uint64(a->end, b->end));
+}
 
 /*
  * ngtcp2_ksl_range_exclusive_search is an implementation of
@@ -388,8 +399,10 @@ size_t ngtcp2_ksl_range_exclusive_search(const ngtcp2_ksl *ksl,
  * |lhs| and |rhs| must point to uint64_t objects, and the function
  * returns nonzero if *(uint64_t *)|lhs| < *(uint64_t *)|rhs|.
  */
-int ngtcp2_ksl_uint64_less(const ngtcp2_ksl_key *lhs,
-                           const ngtcp2_ksl_key *rhs);
+static inline int ngtcp2_ksl_uint64_less(const ngtcp2_ksl_key *lhs,
+                                         const ngtcp2_ksl_key *rhs) {
+  return *(const uint64_t *)lhs < *(const uint64_t *)rhs;
+}
 
 /*
  * ngtcp2_ksl_uint64_less_search is an implementation of
@@ -403,8 +416,10 @@ size_t ngtcp2_ksl_uint64_less_search(const ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk,
  * |lhs| and |rhs| must point to int64_t objects, and the function
  * returns nonzero if *(int64_t *)|lhs| > *(int64_t *)|rhs|.
  */
-int ngtcp2_ksl_int64_greater(const ngtcp2_ksl_key *lhs,
-                             const ngtcp2_ksl_key *rhs);
+static inline int ngtcp2_ksl_int64_greater(const ngtcp2_ksl_key *lhs,
+                                           const ngtcp2_ksl_key *rhs) {
+  return *(const int64_t *)lhs > *(const int64_t *)rhs;
+}
 
 /*
  * ngtcp2_ksl_int64_greater_search is an implementation of

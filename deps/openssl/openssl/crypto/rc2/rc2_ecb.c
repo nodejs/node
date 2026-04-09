@@ -26,7 +26,7 @@
  */
 
 void RC2_ecb_encrypt(const unsigned char *in, unsigned char *out, RC2_KEY *ks,
-                     int encrypt)
+    int encrypt)
 {
     unsigned long l, d[2];
 

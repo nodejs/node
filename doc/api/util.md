@@ -89,25 +89,29 @@ callbackFunction((err, ret) => {
 });
 ```
 
-## `util.convertProcessSignalToExitCode(signalCode)`
+## `util.convertProcessSignalToExitCode(signal)`
 
 <!-- YAML
-added: REPLACEME
+added:
+ - v25.4.0
+ - v24.14.0
 -->
 
-* `signalCode` {string} A signal name (e.g., `'SIGTERM'`, `'SIGKILL'`).
-* Returns: {number|null} The exit code, or `null` if the signal is invalid.
+* `signal` {string} A signal name (e.g. `'SIGTERM'`)
+* Returns: {number} The exit code corresponding to `signal`
 
 The `util.convertProcessSignalToExitCode()` method converts a signal name to its
 corresponding POSIX exit code. Following the POSIX standard, the exit code
 for a process terminated by a signal is calculated as `128 + signal number`.
+
+If `signal` is not a valid signal name, then an error will be thrown. See
+[`signal(7)`][] for a list of valid signals.
 
 ```mjs
 import { convertProcessSignalToExitCode } from 'node:util';
 
 console.log(convertProcessSignalToExitCode('SIGTERM')); // 143 (128 + 15)
 console.log(convertProcessSignalToExitCode('SIGKILL')); // 137 (128 + 9)
-console.log(convertProcessSignalToExitCode('INVALID')); // null
 ```
 
 ```cjs
@@ -115,7 +119,6 @@ const { convertProcessSignalToExitCode } = require('node:util');
 
 console.log(convertProcessSignalToExitCode('SIGTERM')); // 143 (128 + 15)
 console.log(convertProcessSignalToExitCode('SIGKILL')); // 137 (128 + 9)
-console.log(convertProcessSignalToExitCode('INVALID')); // null
 ```
 
 This is particularly useful when working with processes to determine
@@ -582,7 +585,7 @@ changes:
 
 > Stability: 1.1 - Active development
 
-* `frameCount` {number} Optional number of frames to capture as call site objects.
+* `frameCount` {integer} Optional number of frames to capture as call site objects.
   **Default:** `10`. Allowable range is between 1 and 200.
 * `options` {Object} Optional
   * `sourceMap` {boolean} Reconstruct the original location in the stacktrace from the source-map.
@@ -677,8 +680,7 @@ anotherFunction();
 
 It is possible to reconstruct the original locations by setting the option `sourceMap` to `true`.
 If the source map is not available, the original location will be the same as the current location.
-When the `--enable-source-maps` flag is enabled, for example when using `--experimental-transform-types`,
-`sourceMap` will be true by default.
+When the `--enable-source-maps` flag is enabled,`sourceMap` will be true by default.
 
 ```ts
 import { getCallSites } from 'node:util';
@@ -3456,7 +3458,7 @@ deprecated: v24.2.0
 
 > Stability: 0 - Deprecated: Use [`Error.isError`][] instead.
 
-**Note:** As of Node.js v24, `Error.isError()` is currently slower than `util.types.isNativeError()`.
+**Note:** As of Node.js 24, `Error.isError()` is currently slower than `util.types.isNativeError()`.
 If performance is critical, consider benchmarking both in your environment.
 
 * `value` {any}
@@ -3807,6 +3809,12 @@ Node.js modules. The community found and used it anyway.
 It is deprecated and should not be used in new code. JavaScript comes with very
 similar built-in functionality through [`Object.assign()`][].
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-extend-to-object-assign)):
+
+```bash
+npx codemod@latest @nodejs/util-extend-to-object-assign
+```
+
 ### `util.isArray(object)`
 
 <!-- YAML
@@ -3862,6 +3870,7 @@ npx codemod@latest @nodejs/util-is
 [`mime.toString()`]: #mimetostring
 [`mimeParams.entries()`]: #mimeparamsentries
 [`napi_create_external()`]: n-api.md#napi_create_external
+[`signal(7)`]: https://man7.org/linux/man-pages/man7/signal.7.html
 [`target` and `handler`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy#terminology
 [`tty.hasColors()`]: tty.md#writestreamhascolorscount-env
 [`util.diff()`]: #utildiffactual-expected

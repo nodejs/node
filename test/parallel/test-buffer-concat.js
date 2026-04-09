@@ -22,6 +22,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const { kMaxLength } = require('buffer');
 
 const zero = [];
 const one = [ Buffer.from('asdf') ];
@@ -72,6 +73,22 @@ assert.throws(() => {
            'or Uint8Array. Received type number (3)'
 });
 
+assert.throws(() => {
+  Buffer.concat([Buffer.from('hello')], 3.5);
+}, {
+  code: 'ERR_OUT_OF_RANGE',
+  message: 'The value of "length" is out of range. It must be an integer. ' +
+           'Received 3.5'
+});
+
+assert.throws(() => {
+  Buffer.concat([Buffer.from('hello')], -2);
+}, {
+  code: 'ERR_OUT_OF_RANGE',
+  message: 'The value of "length" is out of range. It must be >= 0 && <= ' +
+    `${kMaxLength}. Received -2`
+});
+
 // eslint-disable-next-line node-core/crypto-check
 const random10 = common.hasCrypto ?
   require('crypto').randomBytes(10) :
@@ -106,3 +123,13 @@ assert.deepStrictEqual(
 assert.deepStrictEqual(Buffer.concat([new Uint8Array([0x41, 0x42]),
                                       new Uint8Array([0x43, 0x44])]),
                        Buffer.from('ABCD'));
+
+// Spoofed length getter should not cause uninitialized memory exposure
+{
+  const u8_1 = new Uint8Array([1, 2, 3, 4]);
+  const u8_2 = new Uint8Array([5, 6, 7, 8]);
+  Object.defineProperty(u8_1, 'length', { get() { return 100; } });
+  const buf = Buffer.concat([u8_1, u8_2]);
+  assert.strictEqual(buf.length, 8);
+  assert.deepStrictEqual(buf, Buffer.from([1, 2, 3, 4, 5, 6, 7, 8]));
+}

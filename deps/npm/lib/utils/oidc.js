@@ -8,15 +8,15 @@ const libaccess = require('libnpmaccess')
 /**
  * Handles OpenID Connect (OIDC) token retrieval and exchange for CI environments.
  *
- * This function is designed to work in Continuous Integration (CI) environments such as GitHub Actions
- * and GitLab. It retrieves an OIDC token from the CI environment, exchanges it for an npm token, and
- * sets the token in the provided configuration for authentication with the npm registry.
+ * This function is designed to work in Continuous Integration (CI) environments such as GitHub Actions, GitLab, and CircleCI.
+ * It retrieves an OIDC token from the CI environment, exchanges it for an npm token, and sets the token in the provided configuration for authentication with the npm registry.
  *
  * This function is intended to never throw, as it mutates the state of the `opts` and `config` objects on success.
  * OIDC is always an optional feature, and the function should not throw if OIDC is not configured by the registry.
  *
  * @see https://github.com/watson/ci-info for CI environment detection.
  * @see https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect for GitHub Actions OIDC.
+ * @see https://circleci.com/docs/openid-connect-tokens/ for CircleCI OIDC.
  */
 async function oidc ({ packageName, registry, opts, config }) {
   /*
@@ -29,7 +29,9 @@ async function oidc ({ packageName, registry, opts, config }) {
       /** @see https://github.com/watson/ci-info/blob/v4.2.0/vendors.json#L152 */
       ciInfo.GITHUB_ACTIONS ||
       /** @see https://github.com/watson/ci-info/blob/v4.2.0/vendors.json#L161C13-L161C22 */
-      ciInfo.GITLAB
+      ciInfo.GITLAB ||
+      /** @see https://github.com/watson/ci-info/blob/v4.2.0/vendors.json#L78 */
+      ciInfo.CIRCLE
     )) {
       return undefined
     }
@@ -67,8 +69,7 @@ async function oidc ({ packageName, registry, opts, config }) {
       }
 
       /**
-       * The specification for an audience is `npm:registry.npmjs.org`,
-       * where "registry.npmjs.org" can be any supported registry.
+       * The specification for an audience is `npm:registry.npmjs.org`, where "registry.npmjs.org" can be any supported registry.
        */
       const audience = `npm:${new URL(registry).hostname}`
       const url = new URL(process.env.ACTIONS_ID_TOKEN_REQUEST_URL)
@@ -132,9 +133,8 @@ async function oidc ({ packageName, registry, opts, config }) {
     }
 
     /*
-     * The "opts" object is a clone of npm.flatOptions and is passed through the `publish` command,
-     * eventually reaching `otplease`. To ensure the token is accessible during the publishing process,
-     * it must be directly attached to the `opts` object.
+     * The "opts" object is a clone of npm.flatOptions and is passed through the `publish` command, eventually reaching `otplease`.
+     * To ensure the token is accessible during the publishing process, it must be directly attached to the `opts` object.
      * Additionally, the token is required by the "live" configuration or getters within `config`.
      */
     opts[authTokenKey] = response.token
@@ -143,7 +143,8 @@ async function oidc ({ packageName, registry, opts, config }) {
 
     try {
       const isDefaultProvenance = config.isDefault('provenance')
-      if (isDefaultProvenance) {
+      // CircleCI doesn't support provenance yet, so skip the auto-enable logic
+      if (isDefaultProvenance && !ciInfo.CIRCLE) {
         const [headerB64, payloadB64] = idToken.split('.')
         if (headerB64 && payloadB64) {
           const payloadJson = Buffer.from(payloadB64, 'base64').toString('utf8')

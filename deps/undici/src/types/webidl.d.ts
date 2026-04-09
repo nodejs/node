@@ -1,4 +1,5 @@
 // These types are not exported, and are only used internally
+import { BufferSource } from 'node:stream/web'
 import * as undici from './index'
 
 /**
@@ -93,6 +94,11 @@ interface WebidlUtil {
   IsResizableArrayBuffer (V: ArrayBufferLike): boolean
 
   HasFlag (flag: number, attributes: number): boolean
+
+  /**
+   * @see https://webidl.spec.whatwg.org/#dfn-get-buffer-source-copy
+   */
+  getCopyOfBytesHeldByBufferSource (bufferSource: BufferSource): Uint8Array
 }
 
 interface WebidlConverters {

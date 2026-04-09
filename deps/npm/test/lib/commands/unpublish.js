@@ -409,7 +409,7 @@ t.test('publishConfig no spec', async t => {
   t.equal(joinedOutput(), '- test-package')
   t.same(logs.warn, [
     'using --force Recommended protections disabled.',
-    'Unknown publishConfig config "other". This will stop working in the next major version of npm.',
+    'Unknown publishConfig config "other". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.',
   ])
 })
 

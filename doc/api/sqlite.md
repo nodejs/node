@@ -5,6 +5,9 @@
 <!-- YAML
 added: v22.5.0
 changes:
+  - version: v25.7.0
+    pr-url: https://github.com/nodejs/node/pull/61262
+    description: SQLite is now a release candidate.
   - version:
     - v23.4.0
     - v22.13.0
@@ -12,7 +15,7 @@ changes:
     description: SQLite is no longer behind `--experimental-sqlite` but still experimental.
 -->
 
-> Stability: 1.1 - Active development.
+> Stability: 1.2 - Release candidate.
 
 <!-- source_link=lib/sqlite.js -->
 
@@ -79,6 +82,29 @@ console.log(query.all());
 // Prints: [ { key: 1, value: 'hello' }, { key: 2, value: 'world' } ]
 ```
 
+## Type conversion between JavaScript and SQLite
+
+When Node.js writes to or reads from SQLite, it is necessary to convert between
+JavaScript data types and SQLite's [data types][]. Because JavaScript supports
+more data types than SQLite, only a subset of JavaScript types are supported.
+Attempting to write an unsupported data type to SQLite will result in an
+exception.
+
+| Storage class | JavaScript to SQLite       | SQLite to JavaScript                  |
+| ------------- | -------------------------- | ------------------------------------- |
+| `NULL`        | {null}                     | {null}                                |
+| `INTEGER`     | {number} or {bigint}       | {number} or {bigint} _(configurable)_ |
+| `REAL`        | {number}                   | {number}                              |
+| `TEXT`        | {string}                   | {string}                              |
+| `BLOB`        | {TypedArray} or {DataView} | {Uint8Array}                          |
+
+APIs that read values from SQLite have a configuration option that determines
+whether `INTEGER` values are converted to `number` or `bigint` in JavaScript,
+such as the `readBigInts` option for statements and the `useBigIntArguments`
+option for user-defined functions. If Node.js reads an `INTEGER` value from
+SQLite that is outside the JavaScript [safe integer][] range, and the option to
+read BigInts is not enabled, then an `ERR_OUT_OF_RANGE` error will be thrown.
+
 ## Class: `DatabaseSync`
 
 <!-- YAML
@@ -104,6 +130,11 @@ exposed by this class execute synchronously.
 <!-- YAML
 added: v22.5.0
 changes:
+  - version:
+     - v25.5.0
+     - v24.14.0
+    pr-url: https://github.com/nodejs/node/pull/61266
+    description: Enable `defensive` by default.
   - version:
       - v25.1.0
       - v24.12.0
@@ -154,7 +185,24 @@ changes:
   * `defensive` {boolean} If `true`, enables the defensive flag. When the defensive flag is enabled,
     language features that allow ordinary SQL to deliberately corrupt the database file are disabled.
     The defensive flag can also be set using `enableDefensive()`.
-    **Default:** `false`.
+    **Default:** `true`.
+  * `limits` {Object} Configuration for various SQLite limits. These limits
+    can be used to prevent excessive resource consumption when handling
+    potentially malicious input. See [Run-Time Limits][] and [Limit Constants][]
+    in the SQLite documentation for details. Default values are determined by
+    SQLite's compile-time defaults and may vary depending on how SQLite was
+    built. The following properties are supported:
+    * `length` {number} Maximum length of a string or BLOB.
+    * `sqlLength` {number} Maximum length of an SQL statement.
+    * `column` {number} Maximum number of columns.
+    * `exprDepth` {number} Maximum depth of an expression tree.
+    * `compoundSelect` {number} Maximum number of terms in a compound SELECT.
+    * `vdbeOp` {number} Maximum number of VDBE instructions.
+    * `functionArg` {number} Maximum number of function arguments.
+    * `attach` {number} Maximum number of attached databases.
+    * `likePatternLength` {number} Maximum length of a LIKE pattern.
+    * `variableNumber` {number} Maximum number of SQL variables.
+    * `triggerDepth` {number} Maximum trigger recursion depth.
 
 Constructs a new `DatabaseSync` instance.
 
@@ -317,7 +365,7 @@ This method allows one or more SQL statements to be executed without returning
 any results. This method is useful when executing SQL statements read from a
 file. This method is a wrapper around [`sqlite3_exec()`][].
 
-### `database.function(name[, options], function)`
+### `database.function(name[, options], fn)`
 
 <!-- YAML
 added:
@@ -339,10 +387,10 @@ added:
     arguments (between zero and [`SQLITE_MAX_FUNCTION_ARG`][]). If `false`,
     `function` must be invoked with exactly `function.length` arguments.
     **Default:** `false`.
-* `function` {Function} The JavaScript function to call when the SQLite
-  function is invoked. The return value of this function should be a valid
-  SQLite data type: see [Type conversion between JavaScript and SQLite][].
-  The result defaults to `NULL` if the return value is `undefined`.
+* `fn` {Function} The JavaScript function to call when the SQLite function is
+  invoked. The return value of this function should be a valid SQLite data type:
+  see [Type conversion between JavaScript and SQLite][]. The result defaults to
+  `NULL` if the return value is `undefined`.
 
 This method is used to create SQLite user-defined functions. This method is a
 wrapper around [`sqlite3_create_function_v2()`][].
@@ -443,6 +491,36 @@ added:
 * Type: {boolean} Whether the database is currently within a transaction. This method
   is a wrapper around [`sqlite3_get_autocommit()`][].
 
+### `database.limits`
+
+<!-- YAML
+added: v25.8.0
+-->
+
+* Type: {Object}
+
+An object for getting and setting SQLite database limits at runtime.
+Each property corresponds to an SQLite limit and can be read or written.
+
+```js
+const db = new DatabaseSync(':memory:');
+
+// Read current limit
+console.log(db.limits.length);
+
+// Set a new limit
+db.limits.sqlLength = 100000;
+
+// Reset a limit to its compile-time maximum
+db.limits.sqlLength = Infinity;
+```
+
+Available properties: `length`, `sqlLength`, `column`, `exprDepth`,
+`compoundSelect`, `vdbeOp`, `functionArg`, `attach`, `likePatternLength`,
+`variableNumber`, `triggerDepth`.
+
+Setting a property to `Infinity` resets the limit to its compile-time maximum value.
+
 ### `database.open()`
 
 <!-- YAML
@@ -453,13 +531,23 @@ Opens the database specified in the `path` argument of the `DatabaseSync`
 constructor. This method should only be used when the database is not opened via
 the constructor. An exception is thrown if the database is already open.
 
-### `database.prepare(sql)`
+### `database.prepare(sql[, options])`
 
 <!-- YAML
 added: v22.5.0
 -->
 
 * `sql` {string} A SQL string to compile to a prepared statement.
+* `options` {Object} Optional configuration for the prepared statement.
+  * `readBigInts` {boolean} If `true`, integer fields are read as `BigInt`s.
+    **Default:** inherited from database options or `false`.
+  * `returnArrays` {boolean} If `true`, results are returned as arrays.
+    **Default:** inherited from database options or `false`.
+  * `allowBareNamedParameters` {boolean} If `true`, allows binding named
+    parameters without the prefix character. **Default:** inherited from
+    database options or `true`.
+  * `allowUnknownNamedParameters` {boolean} If `true`, unknown named parameters
+    are ignored. **Default:** inherited from database options or `false`.
 * Returns: {StatementSync} The prepared statement.
 
 Compiles a SQL statement into a [prepared statement][]. This method is a wrapper
@@ -1089,7 +1177,9 @@ called directly.
 <!-- YAML
 added: v24.9.0
 changes:
-  - version: REPLACEME
+  - version:
+     - v25.5.0
+     - v24.13.1
     pr-url: https://github.com/nodejs/node/pull/60246
     description: Changed from a method to a getter.
 -->
@@ -1125,22 +1215,6 @@ added: v24.9.0
 -->
 
 Resets the LRU cache, clearing all stored prepared statements.
-
-### Type conversion between JavaScript and SQLite
-
-When Node.js writes to or reads from SQLite it is necessary to convert between
-JavaScript data types and SQLite's [data types][]. Because JavaScript supports
-more data types than SQLite, only a subset of JavaScript types are supported.
-Attempting to write an unsupported data type to SQLite will result in an
-exception.
-
-| SQLite    | JavaScript                 |
-| --------- | -------------------------- |
-| `NULL`    | {null}                     |
-| `INTEGER` | {number} or {bigint}       |
-| `REAL`    | {number}                   |
-| `TEXT`    | {string}                   |
-| `BLOB`    | {TypedArray} or {DataView} |
 
 ## `sqlite.backup(sourceDb, path[, options])`
 
@@ -1458,6 +1532,8 @@ callback function to indicate what type of operation is being authorized.
 [Changesets and Patchsets]: https://www.sqlite.org/sessionintro.html#changesets_and_patchsets
 [Constants Passed To The Conflict Handler]: https://www.sqlite.org/session/c_changeset_conflict.html
 [Constants Returned From The Conflict Handler]: https://www.sqlite.org/session/c_changeset_abort.html
+[Limit Constants]: https://www.sqlite.org/c3ref/c_limit_attached.html
+[Run-Time Limits]: https://www.sqlite.org/c3ref/limit.html
 [SQL injection]: https://en.wikipedia.org/wiki/SQL_injection
 [Type conversion between JavaScript and SQLite]: #type-conversion-between-javascript-and-sqlite
 [`ATTACH DATABASE`]: https://www.sqlite.org/lang_attach.html
@@ -1504,3 +1580,4 @@ callback function to indicate what type of operation is being authorized.
 [in memory]: https://www.sqlite.org/inmemorydb.html
 [parameters are bound]: https://www.sqlite.org/c3ref/bind_blob.html
 [prepared statement]: https://www.sqlite.org/c3ref/stmt.html
+[safe integer]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/isSafeInteger

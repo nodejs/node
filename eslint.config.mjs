@@ -20,6 +20,7 @@ const { default: js } = await importEslintTool('@eslint/js');
 const { default: babelEslintParser } = await importEslintTool('@babel/eslint-parser');
 const babelPluginSyntaxImportSource = resolveEslintTool('@babel/plugin-syntax-import-source');
 const { default: jsdoc } = await importEslintTool('eslint-plugin-jsdoc');
+const { default: regexpPlugin } = await importEslintTool('eslint-plugin-regexp');
 const { default: markdown } = await importEslintTool('@eslint/markdown');
 const { default: stylisticJs } = await importEslintTool('@stylistic/eslint-plugin');
 
@@ -84,11 +85,11 @@ export default [
   // #region general config
   js.configs.recommended,
   jsdoc.configs['flat/recommended'],
+  regexpPlugin.configs.recommended,
   {
-    files: ['**/*.{js,cjs}'],
+    files: ['**/*.js'],
     languageOptions: {
-      // The default is `commonjs` but it's not supported by the Babel parser.
-      sourceType: 'script',
+      sourceType: 'commonjs',
     },
   },
   {
@@ -101,7 +102,6 @@ export default [
       parser: babelEslintParser,
       parserOptions: {
         babelOptions: {
-          parserOpts: { createImportExpressions: true },
           plugins: [
             babelPluginSyntaxImportSource,
           ],
@@ -130,6 +130,7 @@ export default [
         Float16Array: 'readonly',
         FormData: 'readonly',
         navigator: 'readonly',
+        QuotaExceededError: 'readonly',
         ReadableStream: 'readonly',
         ReadableStreamDefaultReader: 'readonly',
         ReadableStreamBYOBReader: 'readonly',
@@ -229,6 +230,7 @@ export default [
         ...noRestrictedSyntaxCommonLib,
       ],
       'no-self-compare': 'error',
+      'no-shadow-restricted-names': ['error', { reportGlobalThis: false }],
       'no-template-curly-in-string': 'error',
       'no-throw-literal': 'error',
       'no-undef': ['error', { typeof: true }],
@@ -256,6 +258,7 @@ export default [
 
       // ESLint recommended rules that we disable.
       'no-inner-declarations': 'off',
+      'no-useless-assignment': 'off',
 
       // JSDoc rules.
       'jsdoc/require-jsdoc': 'off',
@@ -274,6 +277,42 @@ export default [
       'jsdoc/check-alignment': 'error',
       'jsdoc/reject-any-type': 'off',
       'jsdoc/reject-function-type': 'off',
+
+      // RegExp recommended rules that we disable.
+      // Todo: Investigate which rules should be enabled.
+      'prefer-regex-literals': 'off',
+      'regexp/control-character-escape': 'off',
+      'regexp/match-any': 'off',
+      'regexp/negation': 'off',
+      'regexp/no-contradiction-with-assertion': 'off',
+      'regexp/no-dupe-characters-character-class': 'off',
+      'regexp/no-dupe-disjunctions': 'off',
+      'regexp/no-empty-alternative': 'off',
+      'regexp/no-legacy-features': 'off',
+      'regexp/no-misleading-capturing-group': 'off',
+      'regexp/no-obscure-range': 'off',
+      'regexp/no-potentially-useless-backreference': 'off',
+      'regexp/no-super-linear-backtracking': 'off',
+      'regexp/no-trivially-nested-quantifier': 'off',
+      'regexp/no-unused-capturing-group': 'off',
+      'regexp/no-useless-assertions': 'off',
+      'regexp/no-useless-character-class': 'off',
+      'regexp/no-useless-escape': 'off',
+      'regexp/no-useless-flag': 'off',
+      'regexp/no-useless-lazy': 'off',
+      'regexp/no-useless-non-capturing-group': 'off',
+      'regexp/no-useless-quantifier': 'off',
+      'regexp/no-useless-range': 'off',
+      'regexp/optimal-lookaround-quantifier': 'off',
+      'regexp/optimal-quantifier-concatenation': 'off',
+      'regexp/prefer-character-class': 'off',
+      'regexp/prefer-d': 'off',
+      'regexp/prefer-question-quantifier': 'off',
+      'regexp/prefer-star-quantifier': 'off',
+      'regexp/prefer-w': 'off',
+      'regexp/sort-flags': 'off',
+      'regexp/strict': 'off',
+      'regexp/use-ignore-case': 'off',
 
       // Stylistic rules.
       '@stylistic/js/arrow-parens': 'error',

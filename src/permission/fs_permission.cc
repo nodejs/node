@@ -102,10 +102,8 @@ void PrintTree(const node::permission::FSPermission::RadixTree::Node* node,
       }
     }
 
-    node::per_process::Debug(node::DebugCategory::PERMISSION_MODEL,
-                             "%s%s\n",
-                             indent.c_str(),
-                             node->prefix.c_str());
+    node::per_process::Debug(
+        node::DebugCategory::PERMISSION_MODEL, "%s%s\n", indent, node->prefix);
   }
 
   if (node->children.size() > 0) {

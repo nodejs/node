@@ -255,37 +255,33 @@ MaybeLocal<Value> StartExecution(Environment* env, const char* main_script_id) {
 }
 
 // Convert the result returned by an intermediate main script into
-// StartExecutionCallbackInfo. Currently the result is an array containing
-// [process, requireFunction, cjsRunner]
-std::optional<StartExecutionCallbackInfo> CallbackInfoFromArray(
-    Local<Context> context, Local<Value> result) {
+// StartExecutionCallbackInfoWithModule. Currently the result is an array
+// containing [process, requireFunction, runModule].
+std::optional<StartExecutionCallbackInfoWithModule> CallbackInfoFromArray(
+    Environment* env, Local<Value> result) {
   CHECK(result->IsArray());
   Local<Array> args = result.As<Array>();
   CHECK_EQ(args->Length(), 3);
-  Local<Value> process_obj, require_fn, runcjs_fn;
+  Local<Value> process_obj, require_fn, run_module;
+  Local<Context> context = env->context();
   if (!args->Get(context, 0).ToLocal(&process_obj) ||
       !args->Get(context, 1).ToLocal(&require_fn) ||
-      !args->Get(context, 2).ToLocal(&runcjs_fn)) {
+      !args->Get(context, 2).ToLocal(&run_module)) {
     return std::nullopt;
   }
   CHECK(process_obj->IsObject());
   CHECK(require_fn->IsFunction());
-  CHECK(runcjs_fn->IsFunction());
-  // TODO(joyeecheung): some support for running ESM as an entrypoint
-  // is needed. The simplest API would be to add a run_esm to
-  // StartExecutionCallbackInfo which compiles, links (to builtins)
-  // and evaluates a SourceTextModule.
-  // TODO(joyeecheung): the env pointer should be part of
-  // StartExecutionCallbackInfo, otherwise embedders are forced to use
-  // lambdas to pass it into the callback, which can make the code
-  // difficult to read.
-  node::StartExecutionCallbackInfo info{process_obj.As<Object>(),
-                                        require_fn.As<Function>(),
-                                        runcjs_fn.As<Function>()};
+  CHECK(run_module->IsFunction());
+  StartExecutionCallbackInfoWithModule info;
+  info.set_env(env);
+  info.set_process_object(process_obj.As<Object>());
+  info.set_native_require(require_fn.As<Function>());
+  info.set_run_module(run_module.As<Function>());
   return info;
 }
 
-MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
+MaybeLocal<Value> StartExecution(Environment* env,
+                                 StartExecutionCallbackWithModule cb) {
   InternalCallbackScope callback_scope(
       env,
       Object::New(env->isolate()),
@@ -294,7 +290,7 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
 
   // Only snapshot builder or embedder applications set the
   // callback.
-  if (cb != nullptr) {
+  if (cb) {
     EscapableHandleScope scope(env->isolate());
 
     Local<Value> result;
@@ -308,9 +304,9 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
       }
     }
 
-    auto info = CallbackInfoFromArray(env->context(), result);
+    auto info = CallbackInfoFromArray(env, result);
     if (!info.has_value()) {
-      MaybeLocal<Value>();
+      return MaybeLocal<Value>();
     }
 #if HAVE_INSPECTOR
     if (env->options()->debug_options().break_first_line) {
@@ -871,15 +867,6 @@ static ExitCode InitializeNodeWithArgsInternal(
   // default value.
   V8::SetFlagsFromString("--rehash-snapshot");
 
-#if HAVE_OPENSSL
-  // TODO(joyeecheung): make this a per-env option and move the normalization
-  // into HandleEnvOptions.
-  std::string use_system_ca;
-  if (credentials::SafeGetenv("NODE_USE_SYSTEM_CA", &use_system_ca) &&
-      use_system_ca == "1") {
-    per_process::cli_options->use_system_ca = true;
-  }
-#endif  // HAVE_OPENSSL
   HandleEnvOptions(per_process::cli_options->per_isolate->per_env);
 
   std::string node_options;
@@ -1059,6 +1046,45 @@ static ExitCode InitializeNodeWithArgsInternal(
   return ExitCode::kNoFailure;
 }
 
+#if NODE_USE_V8_WASM_TRAP_HANDLER
+bool CanEnableWebAssemblyTrapHandler() {
+// On POSIX, the machine may have a limit on the amount of virtual memory
+// available, if it's not enough to allocate at least one cage for WASM,
+// then the trap-handler-based bound checks cannot be used.
+#ifdef __POSIX__
+  struct rlimit lim;
+  if (getrlimit(RLIMIT_AS, &lim) != 0 || lim.rlim_cur == RLIM_INFINITY) {
+    // Can't get the limit or there's no limit, assume trap handler can be
+    // enabled.
+    return true;
+  }
+  uint64_t virtual_memory_available = static_cast<uint64_t>(lim.rlim_cur);
+
+  size_t byte_capacity = 64 * 1024;  // 64KB, the minimum size of a WASM memory.
+  uint64_t cage_size_needed_32 = V8::GetWasmMemoryReservationSizeInBytes(
+      V8::WasmMemoryType::kMemory32, byte_capacity);
+  uint64_t cage_size_needed_64 = V8::GetWasmMemoryReservationSizeInBytes(
+      V8::WasmMemoryType::kMemory64, byte_capacity);
+  uint64_t cage_size_needed =
+      std::max(cage_size_needed_32, cage_size_needed_64);
+  bool can_enable = virtual_memory_available >= cage_size_needed;
+  per_process::Debug(DebugCategory::BOOTSTRAP,
+                     "Virtual memory available: %" PRIu64 " bytes,\n"
+                     "cage size needed for 32-bit: %" PRIu64 " bytes,\n"
+                     "cage size needed for 64-bit: %" PRIu64 " bytes,\n"
+                     "Can%senable WASM trap handler\n",
+                     virtual_memory_available,
+                     cage_size_needed_32,
+                     cage_size_needed_64,
+                     can_enable ? " " : " not ");
+
+  return can_enable;
+#else
+  return true;
+#endif  // __POSIX__
+}
+#endif  // NODE_USE_V8_WASM_TRAP_HANDLER
+
 static std::shared_ptr<InitializationResultImpl>
 InitializeOncePerProcessInternal(const std::vector<std::string>& args,
                                  ProcessInitializationFlags::Flags flags =
@@ -1234,7 +1260,7 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
   }
 
   if (!(flags & ProcessInitializationFlags::kNoInitializeNodeV8Platform)) {
-    uv_thread_setname("MainThread");
+    uv_thread_setname("node-MainThread");
     per_process::v8_platform.Initialize(
         static_cast<int>(per_process::cli_options->v8_thread_pool_size));
     result->platform_ = per_process::v8_platform.Platform();
@@ -1261,7 +1287,9 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
   bool use_wasm_trap_handler =
       !per_process::cli_options->disable_wasm_trap_handler;
   if (!(flags & ProcessInitializationFlags::kNoDefaultSignalHandling) &&
-      use_wasm_trap_handler) {
+      use_wasm_trap_handler && CanEnableWebAssemblyTrapHandler()) {
+    per_process::Debug(DebugCategory::BOOTSTRAP,
+                       "Enabling WebAssembly trap handler for bounds checks\n");
 #if defined(_WIN32)
     constexpr ULONG first = TRUE;
     per_process::old_vectored_exception_handler =
@@ -1550,14 +1578,21 @@ static ExitCode StartInternal(int argc, char** argv) {
   uv_loop_configure(uv_default_loop(), UV_METRICS_IDLE_TIME);
   std::string sea_config = per_process::cli_options->experimental_sea_config;
   if (!sea_config.empty()) {
-#if !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
-    return sea::BuildSingleExecutableBlob(
-        sea_config, result->args(), result->exec_args());
-#else
+#if defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
     fprintf(stderr, "Single executable application is disabled.\n");
     return ExitCode::kGenericUserError;
-#endif  // !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
+#else
+    return sea::WriteSingleExecutableBlob(
+        sea_config, result->args(), result->exec_args());
+#endif
   }
+
+  sea_config = per_process::cli_options->build_sea;
+  if (!sea_config.empty()) {
+    return sea::BuildSingleExecutable(
+        sea_config, result->args(), result->exec_args());
+  }
+
   // --build-snapshot indicates that we are in snapshot building mode.
   if (per_process::cli_options->per_isolate->build_snapshot) {
     if (per_process::cli_options->per_isolate->build_snapshot_config.empty() &&

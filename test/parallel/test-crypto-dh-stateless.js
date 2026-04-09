@@ -5,7 +5,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { hasOpenSSL3 } = require('../common/crypto');
+const { hasOpenSSL } = require('../common/crypto');
 
 assert.throws(() => crypto.diffieHellman(), {
   name: 'TypeError',
@@ -156,7 +156,7 @@ const list = [
 
 // TODO(danbev): Take a closer look if there should be a check in OpenSSL3
 // when the dh parameters differ.
-if (!hasOpenSSL3) {
+if (!hasOpenSSL(3)) {
   // Same primes, but different generator.
   list.push([{ group: 'modp5' }, { prime: group.getPrime(), generator: 5 }]);
   // Same generator, but different primes.
@@ -167,7 +167,7 @@ for (const [params1, params2] of list) {
   assert.throws(() => {
     test(crypto.generateKeyPairSync('dh', params1),
          crypto.generateKeyPairSync('dh', params2));
-  }, hasOpenSSL3 ? {
+  }, hasOpenSSL(3) ? {
     name: 'Error',
     code: 'ERR_OSSL_MISMATCHING_DOMAIN_PARAMETERS'
   } : {
@@ -225,7 +225,7 @@ test(crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' }),
 assert.throws(() => {
   test(crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' }),
        crypto.generateKeyPairSync('ec', { namedCurve: 'P-384' }));
-}, hasOpenSSL3 ? {
+}, hasOpenSSL(3) ? {
   name: 'Error',
   code: 'ERR_OSSL_MISMATCHING_DOMAIN_PARAMETERS'
 } : {
@@ -297,8 +297,174 @@ assert.throws(() => {
     '-----END PUBLIC KEY-----');
   assert.throws(
     () => crypto.diffieHellman({ publicKey, privateKey }),
-    hasOpenSSL3 ?
+    hasOpenSSL(3) ?
       { name: 'Error', code: 'ERR_OSSL_FAILED_DURING_DERIVATION' } :
       { name: 'Error', message: /Deriving bits failed/ },
   );
+}
+
+// Test all key encoding formats
+for (const { privateKey: alicePriv, publicKey: bobPub } of [
+  crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' }),
+  crypto.generateKeyPairSync('x25519'),
+]) {
+  const expected = crypto.diffieHellman({
+    privateKey: alicePriv,
+    publicKey: bobPub,
+  });
+
+  const encodings = [
+    // PEM string
+    {
+      privateKey: alicePriv.export({ type: 'pkcs8', format: 'pem' }),
+      publicKey: bobPub.export({ type: 'spki', format: 'pem' }),
+    },
+    // PEM { key, format } object
+    {
+      privateKey: {
+        key: alicePriv.export({ type: 'pkcs8', format: 'pem' }),
+        format: 'pem',
+      },
+      publicKey: {
+        key: bobPub.export({ type: 'spki', format: 'pem' }),
+        format: 'pem',
+      },
+    },
+    // DER PKCS#8 / SPKI
+    {
+      privateKey: {
+        key: alicePriv.export({ type: 'pkcs8', format: 'der' }),
+        format: 'der',
+        type: 'pkcs8',
+      },
+      publicKey: {
+        key: bobPub.export({ type: 'spki', format: 'der' }),
+        format: 'der',
+        type: 'spki',
+      },
+    },
+    // JWK
+    {
+      privateKey: { key: alicePriv.export({ format: 'jwk' }), format: 'jwk' },
+      publicKey: { key: bobPub.export({ format: 'jwk' }), format: 'jwk' },
+    },
+    // Raw key material
+    {
+      privateKey: {
+        key: alicePriv.export({ format: 'raw-private' }),
+        format: 'raw-private',
+        asymmetricKeyType: alicePriv.asymmetricKeyType,
+        ...alicePriv.asymmetricKeyDetails,
+      },
+      publicKey: {
+        key: bobPub.export({ format: 'raw-public' }),
+        format: 'raw-public',
+        asymmetricKeyType: bobPub.asymmetricKeyType,
+        ...bobPub.asymmetricKeyDetails,
+      },
+    },
+  ];
+
+  // EC-only encodings
+  if (alicePriv.asymmetricKeyType === 'ec') {
+    // DER SEC1 private key
+    encodings.push({
+      privateKey: {
+        key: alicePriv.export({ type: 'sec1', format: 'der' }),
+        format: 'der',
+        type: 'sec1',
+      },
+      publicKey: bobPub,
+    });
+    // Raw with compressed public key
+    encodings.push({
+      privateKey: {
+        key: alicePriv.export({ format: 'raw-private' }),
+        format: 'raw-private',
+        asymmetricKeyType: 'ec',
+        ...alicePriv.asymmetricKeyDetails,
+      },
+      publicKey: {
+        key: bobPub.export({ format: 'raw-public', type: 'compressed' }),
+        format: 'raw-public',
+        asymmetricKeyType: 'ec',
+        ...bobPub.asymmetricKeyDetails,
+      },
+    });
+  }
+
+  for (const options of encodings) {
+    assert.deepStrictEqual(crypto.diffieHellman(options), expected);
+  }
+}
+
+// Test that error messages include the correct property path
+{
+  const kp = crypto.generateKeyPairSync('x25519');
+  const pub = kp.publicKey.export({ type: 'spki', format: 'pem' });
+  const priv = kp.privateKey.export({ type: 'pkcs8', format: 'pem' });
+
+  // Invalid privateKey format
+  assert.throws(() => crypto.diffieHellman({
+    privateKey: { key: Buffer.alloc(0), format: 'banana', type: 'pkcs8' },
+    publicKey: pub,
+  }), {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /options\.privateKey\.format/,
+  });
+
+  // Invalid privateKey type
+  assert.throws(() => crypto.diffieHellman({
+    privateKey: { key: Buffer.alloc(0), format: 'der', type: 'banana' },
+    publicKey: pub,
+  }), {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /options\.privateKey\.type/,
+  });
+
+  // Invalid publicKey format
+  assert.throws(() => crypto.diffieHellman({
+    publicKey: { key: Buffer.alloc(0), format: 'banana', type: 'spki' },
+    privateKey: priv,
+  }), {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /options\.publicKey\.format/,
+  });
+
+  // Invalid publicKey type
+  assert.throws(() => crypto.diffieHellman({
+    publicKey: { key: Buffer.alloc(0), format: 'der', type: 'banana' },
+    privateKey: priv,
+  }), {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /options\.publicKey\.type/,
+  });
+}
+
+// Test C++ error conditions
+{
+  const ec256 = crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' });
+  const ec384 = crypto.generateKeyPairSync('ec', { namedCurve: 'P-384' });
+  const x25519 = crypto.generateKeyPairSync('x25519');
+  const ed25519 = crypto.generateKeyPairSync('ed25519');
+
+  // Mismatching EC curves
+  assert.throws(() => crypto.diffieHellman({
+    privateKey: ec256.privateKey.export({ type: 'pkcs8', format: 'pem' }),
+    publicKey: ec384.publicKey.export({ type: 'spki', format: 'pem' }),
+  }), { code: hasOpenSSL(3) ?
+    'ERR_OSSL_MISMATCHING_DOMAIN_PARAMETERS' : 'ERR_OSSL_EVP_DIFFERENT_PARAMETERS' });
+
+  // Incompatible key types (ec + x25519)
+  assert.throws(() => crypto.diffieHellman({
+    privateKey: ec256.privateKey.export({ type: 'pkcs8', format: 'pem' }),
+    publicKey: x25519.publicKey.export({ type: 'spki', format: 'pem' }),
+  }), { code: hasOpenSSL(3) ?
+    'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE' : 'ERR_OSSL_EVP_DIFFERENT_KEY_TYPES' });
+
+  // Unsupported key type (ed25519)
+  assert.throws(() => crypto.diffieHellman({
+    privateKey: ed25519.privateKey.export({ type: 'pkcs8', format: 'pem' }),
+    publicKey: ed25519.publicKey.export({ type: 'spki', format: 'pem' }),
+  }), { code: 'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE' });
 }

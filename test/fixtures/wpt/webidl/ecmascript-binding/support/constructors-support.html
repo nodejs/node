@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<script>
+window.badNewTarget = function() {};
+badNewTarget.prototype = 8;
+
+window.DOMParserSubclass = class extends DOMParser {}
+window.ForeignDOMParserSubclass = class extends parent.DOMParser {}
+</script>

@@ -198,7 +198,7 @@ async function install (gyp, argv) {
     }
 
     // download the tarball and extract!
-    // Ommited on Windows if only new node.lib is required
+    // Omitted on Windows if only new node.lib is required
 
     // there can be file errors from tar if parallel installs
     // are happening (not uncommon with multiple native modules) so

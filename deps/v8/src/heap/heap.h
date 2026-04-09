@@ -732,9 +732,6 @@ class Heap final {
   // Prepares the heap, setting up for deserialization.
   void InitializeMainThreadLocalHeap(LocalHeap* main_thread_local_heap);
 
-  // (Re-)Initialize hash seed from flag or RNG.
-  void InitializeHashSeed();
-
   // Invoked once for the process from V8::Initialize.
   static void InitializeOncePerProcess();
 

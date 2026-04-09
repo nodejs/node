@@ -8,9 +8,9 @@
  */
 
 #ifndef OSSL_PROVIDERS_SKEYMGMT_LCL_H
-# define OSSL_PROVIDERS_SKEYMGMT_LCL_H
-# pragma once
-# include <openssl/core_dispatch.h>
+#define OSSL_PROVIDERS_SKEYMGMT_LCL_H
+#pragma once
+#include <openssl/core_dispatch.h>
 
 OSSL_FUNC_skeymgmt_import_fn generic_import;
 OSSL_FUNC_skeymgmt_export_fn generic_export;

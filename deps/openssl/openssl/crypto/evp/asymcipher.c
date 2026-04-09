@@ -28,7 +28,7 @@ static int evp_asym_cipher_up_ref(void *data)
 }
 
 static int evp_pkey_asym_cipher_init(EVP_PKEY_CTX *ctx, int operation,
-                                     const OSSL_PARAM params[])
+    const OSSL_PARAM params[])
 {
     int ret = 0;
     void *provkey = NULL;
@@ -62,14 +62,14 @@ static int evp_pkey_asym_cipher_init(EVP_PKEY_CTX *ctx, int operation,
      * Try to derive the supported asym cipher from |ctx->keymgmt|.
      */
     if (!ossl_assert(ctx->pkey->keymgmt == NULL
-                     || ctx->pkey->keymgmt == ctx->keymgmt)) {
+            || ctx->pkey->keymgmt == ctx->keymgmt)) {
         ERR_clear_last_mark();
         ERR_raise(ERR_LIB_EVP, ERR_R_INTERNAL_ERROR);
         goto err;
     }
     supported_ciph
         = evp_keymgmt_util_query_operation_name(ctx->keymgmt,
-                                                OSSL_OP_ASYM_CIPHER);
+            OSSL_OP_ASYM_CIPHER);
     if (supported_ciph == NULL) {
         ERR_clear_last_mark();
         ERR_raise(ERR_LIB_EVP, EVP_R_INITIALIZATION_ERROR);
@@ -107,15 +107,14 @@ static int evp_pkey_asym_cipher_init(EVP_PKEY_CTX *ctx, int operation,
         switch (iter) {
         case 1:
             cipher = EVP_ASYM_CIPHER_fetch(ctx->libctx, supported_ciph,
-                                           ctx->propquery);
+                ctx->propquery);
             if (cipher != NULL)
                 tmp_prov = EVP_ASYM_CIPHER_get0_provider(cipher);
             break;
         case 2:
             tmp_prov = EVP_KEYMGMT_get0_provider(ctx->keymgmt);
-            cipher =
-                evp_asym_cipher_fetch_from_prov((OSSL_PROVIDER *)tmp_prov,
-                                                supported_ciph, ctx->propquery);
+            cipher = evp_asym_cipher_fetch_from_prov((OSSL_PROVIDER *)tmp_prov,
+                supported_ciph, ctx->propquery);
             if (cipher == NULL)
                 goto legacy;
             break;
@@ -134,11 +133,11 @@ static int evp_pkey_asym_cipher_init(EVP_PKEY_CTX *ctx, int operation,
          */
         tmp_keymgmt_tofree = tmp_keymgmt
             = evp_keymgmt_fetch_from_prov((OSSL_PROVIDER *)tmp_prov,
-                                          EVP_KEYMGMT_get0_name(ctx->keymgmt),
-                                          ctx->propquery);
+                EVP_KEYMGMT_get0_name(ctx->keymgmt),
+                ctx->propquery);
         if (tmp_keymgmt != NULL)
             provkey = evp_pkey_export_to_provider(ctx->pkey, ctx->libctx,
-                                                  &tmp_keymgmt, ctx->propquery);
+                &tmp_keymgmt, ctx->propquery);
         if (tmp_keymgmt == NULL)
             EVP_KEYMGMT_free(tmp_keymgmt_tofree);
     }
@@ -165,7 +164,7 @@ static int evp_pkey_asym_cipher_init(EVP_PKEY_CTX *ctx, int operation,
     case EVP_PKEY_OP_ENCRYPT:
         if (cipher->encrypt_init == NULL) {
             ERR_raise_data(ERR_LIB_EVP, EVP_R_PROVIDER_ASYM_CIPHER_NOT_SUPPORTED,
-                           "%s encrypt_init:%s", cipher->type_name, desc);
+                "%s encrypt_init:%s", cipher->type_name, desc);
             ret = -2;
             goto err;
         }
@@ -174,7 +173,7 @@ static int evp_pkey_asym_cipher_init(EVP_PKEY_CTX *ctx, int operation,
     case EVP_PKEY_OP_DECRYPT:
         if (cipher->decrypt_init == NULL) {
             ERR_raise_data(ERR_LIB_EVP, EVP_R_PROVIDER_ASYM_CIPHER_NOT_SUPPORTED,
-                           "%s decrypt_init:%s", cipher->type_name, desc);
+                "%s decrypt_init:%s", cipher->type_name, desc);
             ret = -2;
             goto err;
         }
@@ -190,7 +189,7 @@ static int evp_pkey_asym_cipher_init(EVP_PKEY_CTX *ctx, int operation,
     EVP_KEYMGMT_free(tmp_keymgmt);
     return 1;
 
- legacy:
+legacy:
     /*
      * If we don't have the full support we need with provided methods,
      * let's go see if legacy does.
@@ -219,7 +218,7 @@ static int evp_pkey_asym_cipher_init(EVP_PKEY_CTX *ctx, int operation,
         ret = -1;
     }
 
- err:
+err:
     if (ret <= 0) {
         evp_pkey_ctx_free_old_ops(ctx);
         ctx->operation = EVP_PKEY_OP_UNDEFINED;
@@ -239,8 +238,8 @@ int EVP_PKEY_encrypt_init_ex(EVP_PKEY_CTX *ctx, const OSSL_PARAM params[])
 }
 
 int EVP_PKEY_encrypt(EVP_PKEY_CTX *ctx,
-                     unsigned char *out, size_t *outlen,
-                     const unsigned char *in, size_t inlen)
+    unsigned char *out, size_t *outlen,
+    const unsigned char *in, size_t inlen)
 {
     EVP_ASYM_CIPHER *cipher;
     const char *desc;
@@ -265,17 +264,16 @@ int EVP_PKEY_encrypt(EVP_PKEY_CTX *ctx,
     ret = cipher->encrypt(ctx->op.ciph.algctx, out, outlen, (out == NULL ? 0 : *outlen), in, inlen);
     if (ret <= 0 && ERR_count_to_mark() == 0)
         ERR_raise_data(ERR_LIB_EVP, EVP_R_PROVIDER_ASYM_CIPHER_FAILURE,
-                       "%s encrypt:%s", cipher->type_name, desc);
+            "%s encrypt:%s", cipher->type_name, desc);
     ERR_clear_last_mark();
     return ret;
 
- legacy:
+legacy:
     if (ctx->pmeth == NULL || ctx->pmeth->encrypt == NULL) {
         ERR_raise(ERR_LIB_EVP, EVP_R_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE);
         return -2;
     }
-    M_check_autoarg(ctx, out, outlen, EVP_F_EVP_PKEY_ENCRYPT)
-        return ctx->pmeth->encrypt(ctx, out, outlen, in, inlen);
+    M_check_autoarg(ctx, out, outlen, EVP_F_EVP_PKEY_ENCRYPT) return ctx->pmeth->encrypt(ctx, out, outlen, in, inlen);
 }
 
 int EVP_PKEY_decrypt_init(EVP_PKEY_CTX *ctx)
@@ -289,8 +287,8 @@ int EVP_PKEY_decrypt_init_ex(EVP_PKEY_CTX *ctx, const OSSL_PARAM params[])
 }
 
 int EVP_PKEY_decrypt(EVP_PKEY_CTX *ctx,
-                     unsigned char *out, size_t *outlen,
-                     const unsigned char *in, size_t inlen)
+    unsigned char *out, size_t *outlen,
+    const unsigned char *in, size_t inlen)
 {
     EVP_ASYM_CIPHER *cipher;
     const char *desc;
@@ -315,31 +313,30 @@ int EVP_PKEY_decrypt(EVP_PKEY_CTX *ctx,
     ret = cipher->decrypt(ctx->op.ciph.algctx, out, outlen, (out == NULL ? 0 : *outlen), in, inlen);
     if (ret <= 0 && ERR_count_to_mark() == 0)
         ERR_raise_data(ERR_LIB_EVP, EVP_R_PROVIDER_ASYM_CIPHER_FAILURE,
-                       "%s decrypt:%s", cipher->type_name, desc);
+            "%s decrypt:%s", cipher->type_name, desc);
     ERR_clear_last_mark();
 
     return ret;
 
- legacy:
+legacy:
     if (ctx->pmeth == NULL || ctx->pmeth->decrypt == NULL) {
         ERR_raise(ERR_LIB_EVP, EVP_R_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE);
         return -2;
     }
-    M_check_autoarg(ctx, out, outlen, EVP_F_EVP_PKEY_DECRYPT)
-        return ctx->pmeth->decrypt(ctx, out, outlen, in, inlen);
+    M_check_autoarg(ctx, out, outlen, EVP_F_EVP_PKEY_DECRYPT) return ctx->pmeth->decrypt(ctx, out, outlen, in, inlen);
 }
 
 /* decrypt to new buffer of dynamic size, checking any pre-determined size */
 int evp_pkey_decrypt_alloc(EVP_PKEY_CTX *ctx, unsigned char **outp,
-                           size_t *outlenp, size_t expected_outlen,
-                           const unsigned char *in, size_t inlen)
+    size_t *outlenp, size_t expected_outlen,
+    const unsigned char *in, size_t inlen)
 {
     if (EVP_PKEY_decrypt(ctx, NULL, outlenp, in, inlen) <= 0
-            || (*outp = OPENSSL_malloc(*outlenp)) == NULL)
+        || (*outp = OPENSSL_malloc(*outlenp)) == NULL)
         return -1;
     if (EVP_PKEY_decrypt(ctx, *outp, outlenp, in, inlen) <= 0
-            || *outlenp == 0
-            || (expected_outlen != 0 && *outlenp != expected_outlen)) {
+        || *outlenp == 0
+        || (expected_outlen != 0 && *outlenp != expected_outlen)) {
         ERR_raise(ERR_LIB_EVP, ERR_R_EVP_LIB);
         OPENSSL_clear_free(*outp, *outlenp);
         *outp = NULL;
@@ -356,7 +353,7 @@ static EVP_ASYM_CIPHER *evp_asym_cipher_new(OSSL_PROVIDER *prov)
         return NULL;
 
     if (!CRYPTO_NEW_REF(&cipher->refcnt, 1)
-            || !ossl_provider_up_ref(prov)) {
+        || !ossl_provider_up_ref(prov)) {
         CRYPTO_FREE_REF(&cipher->refcnt);
         OPENSSL_free(cipher);
         return NULL;
@@ -367,8 +364,8 @@ static EVP_ASYM_CIPHER *evp_asym_cipher_new(OSSL_PROVIDER *prov)
 }
 
 static void *evp_asym_cipher_from_algorithm(int name_id,
-                                            const OSSL_ALGORITHM *algodef,
-                                            OSSL_PROVIDER *prov)
+    const OSSL_ALGORITHM *algodef,
+    OSSL_PROVIDER *prov)
 {
     const OSSL_DISPATCH *fns = algodef->implementation;
     EVP_ASYM_CIPHER *cipher = NULL;
@@ -478,7 +475,7 @@ static void *evp_asym_cipher_from_algorithm(int name_id,
     }
 
     return cipher;
- err:
+err:
     EVP_ASYM_CIPHER_free(cipher);
     return NULL;
 }
@@ -512,23 +509,23 @@ OSSL_PROVIDER *EVP_ASYM_CIPHER_get0_provider(const EVP_ASYM_CIPHER *cipher)
 }
 
 EVP_ASYM_CIPHER *EVP_ASYM_CIPHER_fetch(OSSL_LIB_CTX *ctx, const char *algorithm,
-                                       const char *properties)
+    const char *properties)
 {
     return evp_generic_fetch(ctx, OSSL_OP_ASYM_CIPHER, algorithm, properties,
-                             evp_asym_cipher_from_algorithm,
-                             evp_asym_cipher_up_ref,
-                             evp_asym_cipher_free);
+        evp_asym_cipher_from_algorithm,
+        evp_asym_cipher_up_ref,
+        evp_asym_cipher_free);
 }
 
 EVP_ASYM_CIPHER *evp_asym_cipher_fetch_from_prov(OSSL_PROVIDER *prov,
-                                                 const char *algorithm,
-                                                 const char *properties)
+    const char *algorithm,
+    const char *properties)
 {
     return evp_generic_fetch_from_prov(prov, OSSL_OP_ASYM_CIPHER,
-                                       algorithm, properties,
-                                       evp_asym_cipher_from_algorithm,
-                                       evp_asym_cipher_up_ref,
-                                       evp_asym_cipher_free);
+        algorithm, properties,
+        evp_asym_cipher_from_algorithm,
+        evp_asym_cipher_up_ref,
+        evp_asym_cipher_free);
 }
 
 int EVP_ASYM_CIPHER_is_a(const EVP_ASYM_CIPHER *cipher, const char *name)
@@ -552,21 +549,20 @@ const char *EVP_ASYM_CIPHER_get0_description(const EVP_ASYM_CIPHER *cipher)
 }
 
 void EVP_ASYM_CIPHER_do_all_provided(OSSL_LIB_CTX *libctx,
-                                     void (*fn)(EVP_ASYM_CIPHER *cipher,
-                                                void *arg),
-                                     void *arg)
+    void (*fn)(EVP_ASYM_CIPHER *cipher,
+        void *arg),
+    void *arg)
 {
     evp_generic_do_all(libctx, OSSL_OP_ASYM_CIPHER,
-                       (void (*)(void *, void *))fn, arg,
-                       evp_asym_cipher_from_algorithm,
-                       evp_asym_cipher_up_ref,
-                       evp_asym_cipher_free);
+        (void (*)(void *, void *))fn, arg,
+        evp_asym_cipher_from_algorithm,
+        evp_asym_cipher_up_ref,
+        evp_asym_cipher_free);
 }
 
-
 int EVP_ASYM_CIPHER_names_do_all(const EVP_ASYM_CIPHER *cipher,
-                                 void (*fn)(const char *name, void *data),
-                                 void *data)
+    void (*fn)(const char *name, void *data),
+    void *data)
 {
     if (cipher->prov != NULL)
         return evp_names_do_all(cipher->prov, cipher->name_id, fn, data);

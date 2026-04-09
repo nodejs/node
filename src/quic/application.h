@@ -120,7 +120,6 @@ class Session::Application : public MemoryRetainer {
 
   virtual int GetStreamData(StreamData* data) = 0;
   virtual bool StreamCommit(StreamData* data, size_t datalen) = 0;
-  virtual bool ShouldSetFin(const StreamData& data) = 0;
 
   inline Environment* env() const { return session().env(); }
   inline Session& session() {
@@ -133,7 +132,7 @@ class Session::Application : public MemoryRetainer {
   }
 
  private:
-  BaseObjectPtr<Packet> CreateStreamDataPacket();
+  Packet::Ptr CreateStreamDataPacket();
 
   // Write the given stream_data into the buffer.
   ssize_t WriteVStream(PathStorage* path,
@@ -148,7 +147,6 @@ class Session::Application : public MemoryRetainer {
 struct Session::Application::StreamData final {
   // The actual number of vectors in the struct, up to kMaxVectorCount.
   size_t count = 0;
-  size_t remaining = 0;
   // The stream identifier. If this is a negative value then no stream is
   // identified.
   int64_t id = -1;
@@ -156,6 +154,11 @@ struct Session::Application::StreamData final {
   ngtcp2_vec data[kMaxVectorCount]{};
   BaseObjectPtr<Stream> stream;
 
+  static_assert(sizeof(ngtcp2_vec) == sizeof(nghttp3_vec) &&
+                    alignof(ngtcp2_vec) == alignof(nghttp3_vec) &&
+                    offsetof(ngtcp2_vec, base) == offsetof(nghttp3_vec, base) &&
+                    offsetof(ngtcp2_vec, len) == offsetof(nghttp3_vec, len),
+                "ngtcp2_vec and nghttp3_vec must have identical layout");
   inline operator nghttp3_vec*() {
     return reinterpret_cast<nghttp3_vec*>(data);
   }

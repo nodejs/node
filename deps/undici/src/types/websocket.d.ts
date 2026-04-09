@@ -169,6 +169,8 @@ interface WebSocketStream {
     writable: WritableStream
   }>
   url: string
+
+  close(options?: Partial<WebSocketCloseInfo>): void
 }
 
 export declare const WebSocketStream: {

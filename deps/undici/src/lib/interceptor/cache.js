@@ -9,6 +9,23 @@ const CacheRevalidationHandler = require('../handler/cache-revalidation-handler'
 const { assertCacheStore, assertCacheMethods, makeCacheKey, normalizeHeaders, parseCacheControlHeader } = require('../util/cache.js')
 const { AbortError } = require('../core/errors.js')
 
+/**
+ * @param {(string | RegExp)[] | undefined} origins
+ * @param {string} name
+ */
+function assertCacheOrigins (origins, name) {
+  if (origins === undefined) return
+  if (!Array.isArray(origins)) {
+    throw new TypeError(`expected ${name} to be an array or undefined, got ${typeof origins}`)
+  }
+  for (let i = 0; i < origins.length; i++) {
+    const origin = origins[i]
+    if (typeof origin !== 'string' && !(origin instanceof RegExp)) {
+      throw new TypeError(`expected ${name}[${i}] to be a string or RegExp, got ${typeof origin}`)
+    }
+  }
+}
+
 const nop = () => {}
 
 /**
@@ -107,30 +124,39 @@ function handleUncachedResponse (
 ) {
   if (reqCacheControl?.['only-if-cached']) {
     let aborted = false
+
+    const controller = {
+      paused: false,
+      rawHeaders: [],
+      rawTrailers: [],
+      pause () {
+        this.paused = true
+      },
+      resume () {
+        this.paused = false
+      },
+      abort: (reason) => {
+        aborted = true
+        handler.onResponseError?.(controller, reason ?? new AbortError())
+      }
+    }
+
     try {
-      if (typeof handler.onConnect === 'function') {
-        handler.onConnect(() => {
-          aborted = true
-        })
+      handler.onRequestStart?.(controller, null)
 
-        if (aborted) {
-          return
-        }
+      if (aborted) {
+        return
       }
 
-      if (typeof handler.onHeaders === 'function') {
-        handler.onHeaders(504, [], nop, 'Gateway Timeout')
-        if (aborted) {
-          return
-        }
+      handler.onResponseStart?.(controller, 504, {}, 'Gateway Timeout')
+      if (aborted) {
+        return
       }
 
-      if (typeof handler.onComplete === 'function') {
-        handler.onComplete([])
-      }
+      handler.onResponseEnd?.(controller, {})
     } catch (err) {
-      if (typeof handler.onError === 'function') {
-        handler.onError(err)
+      if (typeof handler.onResponseError === 'function') {
+        handler.onResponseError(controller, err)
       }
     }
 
@@ -158,6 +184,8 @@ function sendCachedValue (handler, opts, result, age, context, isStale) {
   assert(!stream.readableDidRead, 'stream should not be readableDidRead')
 
   const controller = {
+    rawHeaders: [],
+    rawTrailers: [],
     resume () {
       stream.resume()
     },
@@ -209,6 +237,8 @@ function sendCachedValue (handler, opts, result, age, context, isStale) {
     //  https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Warning
     headers.warning = '110 - "response is stale"'
   }
+
+  controller.rawHeaders = util.toRawHeaders(headers)
 
   handler.onResponseStart?.(controller, result.statusCode, headers, result.statusMessage)
 
@@ -275,7 +305,7 @@ function handleResult (
 
       // Start background revalidation (fire-and-forget)
       queueMicrotask(() => {
-        let headers = {
+        const headers = {
           ...opts.headers,
           'if-modified-since': new Date(result.cachedAt).toUTCString()
         }
@@ -285,9 +315,10 @@ function handleResult (
         }
 
         if (result.vary) {
-          headers = {
-            ...headers,
-            ...result.vary
+          for (const key in result.vary) {
+            if (result.vary[key] != null) {
+              headers[key] = result.vary[key]
+            }
           }
         }
 
@@ -318,7 +349,7 @@ function handleResult (
       withinStaleIfErrorThreshold = now < (result.staleAt + (staleIfErrorExpiry * 1000))
     }
 
-    let headers = {
+    const headers = {
       ...opts.headers,
       'if-modified-since': new Date(result.cachedAt).toUTCString()
     }
@@ -328,9 +359,10 @@ function handleResult (
     }
 
     if (result.vary) {
-      headers = {
-        ...headers,
-        ...result.vary
+      for (const key in result.vary) {
+        if (result.vary[key] != null) {
+          headers[key] = result.vary[key]
+        }
       }
     }
 
@@ -372,7 +404,8 @@ module.exports = (opts = {}) => {
     store = new MemoryCacheStore(),
     methods = ['GET'],
     cacheByDefault = undefined,
-    type = 'shared'
+    type = 'shared',
+    origins = undefined
   } = opts
 
   if (typeof opts !== 'object' || opts === null) {
@@ -381,6 +414,7 @@ module.exports = (opts = {}) => {
 
   assertCacheStore(store, 'opts.store')
   assertCacheMethods(methods, 'opts.methods')
+  assertCacheOrigins(origins, 'opts.origins')
 
   if (typeof cacheByDefault !== 'undefined' && typeof cacheByDefault !== 'number') {
     throw new TypeError(`expected opts.cacheByDefault to be number or undefined, got ${typeof cacheByDefault}`)
@@ -404,6 +438,29 @@ module.exports = (opts = {}) => {
       if (!opts.origin || safeMethodsToNotCache.includes(opts.method)) {
         // Not a method we want to cache or we don't have the origin, skip
         return dispatch(opts, handler)
+      }
+
+      // Check if origin is in whitelist
+      if (origins !== undefined) {
+        const requestOrigin = opts.origin.toString().toLowerCase()
+        let isAllowed = false
+
+        for (let i = 0; i < origins.length; i++) {
+          const allowed = origins[i]
+          if (typeof allowed === 'string') {
+            if (allowed.toLowerCase() === requestOrigin) {
+              isAllowed = true
+              break
+            }
+          } else if (allowed.test(requestOrigin)) {
+            isAllowed = true
+            break
+          }
+        }
+
+        if (!isAllowed) {
+          return dispatch(opts, handler)
+        }
       }
 
       opts = {

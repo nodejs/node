@@ -48,9 +48,12 @@ class PoolBase extends DispatcherBase {
     }
 
     if (this[kClosedResolve] && queue.isEmpty()) {
-      const closeAll = new Array(this[kClients].length)
+      const closeAll = []
       for (let i = 0; i < this[kClients].length; i++) {
-        closeAll[i] = this[kClients][i].close()
+        const client = this[kClients][i]
+        if (!client.destroyed) {
+          closeAll.push(client.close())
+        }
       }
       return Promise.all(closeAll)
         .then(this[kClosedResolve])
@@ -119,9 +122,12 @@ class PoolBase extends DispatcherBase {
 
   [kClose] () {
     if (this[kQueue].isEmpty()) {
-      const closeAll = new Array(this[kClients].length)
+      const closeAll = []
       for (let i = 0; i < this[kClients].length; i++) {
-        closeAll[i] = this[kClients][i].close()
+        const client = this[kClients][i]
+        if (!client.destroyed) {
+          closeAll.push(client.close())
+        }
       }
       return Promise.all(closeAll)
     } else {
@@ -137,7 +143,7 @@ class PoolBase extends DispatcherBase {
       if (!item) {
         break
       }
-      item.handler.onError(err)
+      item.handler.onResponseError(null, err)
     }
 
     const destroyAll = new Array(this[kClients].length)

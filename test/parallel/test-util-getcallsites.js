@@ -31,15 +31,14 @@ const assert = require('node:assert');
   );
 }
 
-// Guarantee dot-right numbers are ignored
+// frameCount must be an integer
 {
-  const callSites = getCallSites(3.6);
-  assert.strictEqual(callSites.length, 3);
-}
-
-{
-  const callSites = getCallSites(3.4);
-  assert.strictEqual(callSites.length, 3);
+  assert.throws(() => {
+    const callSites = getCallSites(3.6);
+    assert.strictEqual(callSites.length, 3);
+  }, common.expectsError({
+    code: 'ERR_OUT_OF_RANGE'
+  }));
 }
 
 {
@@ -127,57 +126,6 @@ const assert = require('node:assert');
   const callSites = getCallSites();
   assert.notStrictEqual(callSites.length, 0);
   Error.stackTraceLimit = originalStackTraceLimit;
-}
-
-{
-  const { status, stderr, stdout } = spawnSync(process.execPath, [
-    '--no-warnings',
-    '--experimental-transform-types',
-    fixtures.path('typescript/ts/test-get-callsites.ts'),
-  ]);
-
-  const output = stdout.toString();
-  assert.strictEqual(stderr.toString(), '');
-  assert.match(output, /lineNumber: 8/);
-  assert.match(output, /column: 18/);
-  assert.match(output, /columnNumber: 18/);
-  assert.match(output, /test-get-callsites\.ts/);
-  assert.strictEqual(status, 0);
-}
-
-{
-  const { status, stderr, stdout } = spawnSync(process.execPath, [
-    '--no-warnings',
-    '--experimental-transform-types',
-    '--no-enable-source-maps',
-    fixtures.path('typescript/ts/test-get-callsites.ts'),
-  ]);
-
-  const output = stdout.toString();
-  assert.strictEqual(stderr.toString(), '');
-  // Line should be wrong when sourcemaps are disable
-  assert.match(output, /lineNumber: 2/);
-  assert.match(output, /column: 18/);
-  assert.match(output, /columnNumber: 18/);
-  assert.match(output, /test-get-callsites\.ts/);
-  assert.strictEqual(status, 0);
-}
-
-{
-  // Source maps should be disabled when options.sourceMap is false
-  const { status, stderr, stdout } = spawnSync(process.execPath, [
-    '--no-warnings',
-    '--experimental-transform-types',
-    fixtures.path('typescript/ts/test-get-callsites-explicit.ts'),
-  ]);
-
-  const output = stdout.toString();
-  assert.strictEqual(stderr.toString(), '');
-  assert.match(output, /lineNumber: 2/);
-  assert.match(output, /column: 18/);
-  assert.match(output, /columnNumber: 18/);
-  assert.match(output, /test-get-callsites-explicit\.ts/);
-  assert.strictEqual(status, 0);
 }
 
 {

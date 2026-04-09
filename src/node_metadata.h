@@ -64,7 +64,7 @@ namespace node {
   V(nghttp3)                                                                   \
   NODE_VERSIONS_KEY_AMARO(V)                                                   \
   NODE_VERSIONS_KEY_UNDICI(V)                                                  \
-  V(cjs_module_lexer)
+  V(merve)
 
 #if HAVE_OPENSSL
 #define NODE_VERSIONS_KEY_CRYPTO(V) V(openssl) V(ncrypto)
@@ -88,11 +88,18 @@ namespace node {
 #define NODE_VERSIONS_KEY_SQLITE(V)
 #endif
 
+#if HAVE_LIEF
+#define NODE_VERSIONS_KEY_LIEF(V) V(lief)
+#else
+#define NODE_VERSIONS_KEY_LIEF(V)
+#endif
+
 #define NODE_VERSIONS_KEYS(V)                                                  \
   NODE_VERSIONS_KEYS_BASE(V)                                                   \
   NODE_VERSIONS_KEY_CRYPTO(V)                                                  \
   NODE_VERSIONS_KEY_INTL(V)                                                    \
-  NODE_VERSIONS_KEY_SQLITE(V)
+  NODE_VERSIONS_KEY_SQLITE(V)                                                  \
+  NODE_VERSIONS_KEY_LIEF(V)
 
 #define V(key) +1
 constexpr int NODE_VERSIONS_KEY_COUNT = NODE_VERSIONS_KEYS(V);

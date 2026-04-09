@@ -859,12 +859,6 @@ std::unique_ptr<T> static_unique_pointer_cast(std::unique_ptr<U>&& ptr) {
 
 #define MAYBE_FIELD_PTR(ptr, field) ptr == nullptr ? nullptr : &(ptr->field)
 
-// Returns a non-zero code if it fails to open or read the file,
-// aborts if it fails to close the file.
-int ReadFileSync(std::string* result, const char* path);
-// Reads all contents of a FILE*, aborts if it fails.
-std::vector<char> ReadFileSync(FILE* fp);
-
 v8::Local<v8::FunctionTemplate> NewFunctionTemplate(
     v8::Isolate* isolate,
     v8::FunctionCallback callback,

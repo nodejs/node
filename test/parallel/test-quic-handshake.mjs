@@ -38,6 +38,9 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
   }).then(mustCall());
 }), { keys, certs });
 
+// Buffer is not detached.
+assert.strictEqual(certs.buffer.detached, false);
+
 // The server must have an address to connect to after listen resolves.
 assert.ok(serverEndpoint.address !== undefined);
 

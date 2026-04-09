@@ -7,13 +7,13 @@
  * https://www.openssl.org/source/license.html
  */
 #ifndef HEADER_ENGINE_LOADER_H
-# define HEADER_ENGINE_LOADER_H
+#define HEADER_ENGINE_LOADER_H
 
-# include <openssl/store.h>
+#include <openssl/store.h>
 
 /* this is a private URI scheme */
-# define ENGINE_SCHEME          "org.openssl.engine"
-# define ENGINE_SCHEME_COLON    ENGINE_SCHEME ":"
+#define ENGINE_SCHEME "org.openssl.engine"
+#define ENGINE_SCHEME_COLON ENGINE_SCHEME ":"
 
 int setup_engine_loader(void);
 void destroy_engine_loader(void);

@@ -1,5 +1,7 @@
 # Environment Variables
 
+<!--introduced_in=v20.12.0-->
+
 Environment variables are variables associated to the environment the Node.js process runs in.
 
 ## CLI Environment Variables
@@ -16,11 +18,9 @@ For more details refer to the [`process.env` documentation][].
 
 ## DotEnv
 
-Set of utilities for dealing with additional environment variables defined in `.env` files.
-
 > Stability: 2 - Stable
 
-<!--introduced_in=v20.12.0-->
+Set of utilities for dealing with additional environment variables defined in `.env` files.
 
 ### .env files
 
@@ -145,7 +145,7 @@ There following two functions allow you to directly interact with `.env` files:
 
 * [`process.loadEnvFile`][] loads an `.env` file and populates `process.env` with its variables
 
-* [`util.parseEnv`][] parses the row content of an `.env` file and returns its value in an object
+* [`util.parseEnv`][] parses the raw content of an `.env` file and returns its value in an object
 
 [CLI Environment Variables documentation]: cli.md#environment-variables_1
 [`--env-file-if-exists=file`]: cli.md#--env-file-if-existsfile

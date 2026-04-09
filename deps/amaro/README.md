@@ -32,20 +32,40 @@ It is possible to use Amaro as an external loader to execute TypeScript files.
 This allows the installed Amaro to override the Amaro version used by Node.js.
 In order to use Amaro as an external loader, type stripping needs to be enabled.
 
-In node v23 and later you can omit the `--experimental-strip-types` flag, as it is enabled by default.
-
 ```bash
-node --experimental-strip-types --import="amaro/strip" file.ts
+node --import="amaro/strip" file.ts
 ```
+
+> In node v22.18.0 and later you can omit the `--experimental-strip-types` flag, as it is enabled by default.
 
 Enabling TypeScript feature transformation:
 
 ```bash
-node --experimental-transform-types --import="amaro/transform" file.ts
+node --enable-source-maps --import="amaro/transform" file.ts
 ```
 
-> Note that the "amaro/transform" loader should be used with `--experimental-transform-types` flag, or
-> at least with `--enable-source-maps` flag, to preserve the original source maps.
+> Note that the `amaro/transform` loader should be used with `--enable-source-maps`
+> to preserve accurate source-mapped stack traces.
+
+#### Programmatic registration with `module.register()`
+
+If you want TypeScript to "just work" in an existing codebase without passing `--import` every time, create a small bootstrap file and register Amaro once before loading your TS entrypoint.
+
+```mjs
+// bootstrap.mjs
+import { register } from "node:module";
+
+register("amaro/strip", import.meta.url);
+await import("./src/index.ts");
+```
+
+Then start your app through the bootstrap file:
+
+```bash
+node --watch ./bootstrap.mjs
+```
+
+For transform mode, swap `amaro/strip` with `amaro/transform` and run Node with `--enable-source-maps`.
 
 #### Type stripping in dependencies
 

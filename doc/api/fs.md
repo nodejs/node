@@ -377,6 +377,154 @@ added: v10.0.0
 
 * Type: {number} The numeric file descriptor managed by the {FileHandle} object.
 
+#### `filehandle.pull([...transforms][, options])`
+
+<!-- YAML
+added: v25.9.0
+-->
+
+> Stability: 1 - Experimental
+
+* `...transforms` {Function|Object} Optional transforms to apply via
+  [`stream/iter pull()`][].
+* `options` {Object}
+  * `signal` {AbortSignal}
+  * `autoClose` {boolean} Close the file handle when the stream ends.
+    **Default:** `false`.
+  * `start` {number} Byte offset to begin reading from. When specified,
+    reads use explicit positioning (`pread` semantics). **Default:** current
+    file position.
+  * `limit` {number} Maximum number of bytes to read before ending the
+    iterator. Reads stop when `limit` bytes have been delivered or EOF is
+    reached, whichever comes first. **Default:** read until EOF.
+  * `chunkSize` {number} Size in bytes of the buffer allocated for each
+    read operation. **Default:** `131072` (128 KB).
+* Returns: {AsyncIterable\<Uint8Array\[]>}
+
+Return the file contents as an async iterable using the
+[`node:stream/iter`][] pull model. Reads are performed in `chunkSize`-byte
+chunks (default 128 KB). If transforms are provided, they are applied
+via [`stream/iter pull()`][].
+
+The file handle is locked while the iterable is being consumed and unlocked
+when iteration completes, an error occurs, or the consumer breaks.
+
+This function is only available when the `--experimental-stream-iter` flag is
+enabled.
+
+```mjs
+import { open } from 'node:fs/promises';
+import { text } from 'node:stream/iter';
+import { compressGzip } from 'node:zlib/iter';
+
+const fh = await open('input.txt', 'r');
+
+// Read as text
+console.log(await text(fh.pull({ autoClose: true })));
+
+// Read 1 KB starting at byte 100
+const fh2 = await open('input.txt', 'r');
+console.log(await text(fh2.pull({ start: 100, limit: 1024, autoClose: true })));
+
+// Read with compression
+const fh3 = await open('input.txt', 'r');
+const compressed = fh3.pull(compressGzip(), { autoClose: true });
+```
+
+```cjs
+const { open } = require('node:fs/promises');
+const { text } = require('node:stream/iter');
+const { compressGzip } = require('node:zlib/iter');
+
+async function run() {
+  const fh = await open('input.txt', 'r');
+
+  // Read as text
+  console.log(await text(fh.pull({ autoClose: true })));
+
+  // Read 1 KB starting at byte 100
+  const fh2 = await open('input.txt', 'r');
+  console.log(await text(fh2.pull({ start: 100, limit: 1024, autoClose: true })));
+
+  // Read with compression
+  const fh3 = await open('input.txt', 'r');
+  const compressed = fh3.pull(compressGzip(), { autoClose: true });
+}
+
+run().catch(console.error);
+```
+
+#### `filehandle.pullSync([...transforms][, options])`
+
+<!-- YAML
+added: v25.9.0
+-->
+
+> Stability: 1 - Experimental
+
+* `...transforms` {Function|Object} Optional transforms to apply via
+  [`stream/iter pullSync()`][].
+* `options` {Object}
+  * `autoClose` {boolean} Close the file handle when the stream ends.
+    **Default:** `false`.
+  * `start` {number} Byte offset to begin reading from. When specified,
+    reads use explicit positioning. **Default:** current file position.
+  * `limit` {number} Maximum number of bytes to read before ending the
+    iterator. **Default:** read until EOF.
+  * `chunkSize` {number} Size in bytes of the buffer allocated for each
+    read operation. **Default:** `131072` (128 KB).
+* Returns: {Iterable\<Uint8Array\[]>}
+
+Synchronous counterpart of [`filehandle.pull()`][]. Returns a sync iterable
+that reads the file using synchronous I/O on the main thread. Reads are
+performed in `chunkSize`-byte chunks (default 128 KB).
+
+The file handle is locked while the iterable is being consumed. Unlike the
+async `pull()`, this method does not support `AbortSignal` since all
+operations are synchronous.
+
+This function is only available when the `--experimental-stream-iter` flag is
+enabled.
+
+```mjs
+import { open } from 'node:fs/promises';
+import { textSync, pipeToSync } from 'node:stream/iter';
+import { compressGzipSync, decompressGzipSync } from 'node:zlib/iter';
+
+const fh = await open('input.txt', 'r');
+
+// Read as text (sync)
+console.log(textSync(fh.pullSync({ autoClose: true })));
+
+// Sync compress pipeline: file -> gzip -> file
+const src = await open('input.txt', 'r');
+const dst = await open('output.gz', 'w');
+pipeToSync(src.pullSync(compressGzipSync(), { autoClose: true }), dst.writer({ autoClose: true }));
+```
+
+```cjs
+const { open } = require('node:fs/promises');
+const { textSync, pipeToSync } = require('node:stream/iter');
+const { compressGzipSync, decompressGzipSync } = require('node:zlib/iter');
+
+async function run() {
+  const fh = await open('input.txt', 'r');
+
+  // Read as text (sync)
+  console.log(textSync(fh.pullSync({ autoClose: true })));
+
+  // Sync compress pipeline: file -> gzip -> file
+  const src = await open('input.txt', 'r');
+  const dst = await open('output.gz', 'w');
+  pipeToSync(
+    src.pullSync(compressGzipSync(), { autoClose: true }),
+    dst.writer({ autoClose: true }),
+  );
+}
+
+run().catch(console.error);
+```
+
 #### `filehandle.read(buffer, offset, length, position)`
 
 <!-- YAML
@@ -630,15 +778,17 @@ Read from a file and write to an array of {ArrayBufferView}s
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57775
+    description: Now accepts an additional `signal` property to allow aborting the operation.
   - version: v10.5.0
     pr-url: https://github.com/nodejs/node/pull/20220
-    description: Accepts an additional `options` object to specify whether
-                 the numeric values returned should be bigint.
+    description: Accepts an additional `options` object to specify whether the numeric values returned should be bigint.
 -->
 
 * `options` {Object}
-  * `bigint` {boolean} Whether the numeric values in the returned
-    {fs.Stats} object should be `bigint`. **Default:** `false`.
+  * `bigint` {boolean} Whether the numeric values in the returned {fs.Stats} object should be `bigint`. **Default:** `false`.
+  * `signal` {AbortSignal} An AbortSignal to cancel the operation. **Default:** `undefined`.
 * Returns: {Promise} Fulfills with an {fs.Stats} for the file.
 
 #### `filehandle.sync()`
@@ -858,6 +1008,121 @@ for the promise to be fulfilled (or rejected).
 On Linux, positional writes don't work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
 the end of the file.
+
+#### `filehandle.writer([options])`
+
+<!-- YAML
+added: v25.9.0
+-->
+
+> Stability: 1 - Experimental
+
+* `options` {Object}
+  * `autoClose` {boolean} Close the file handle when the writer ends or
+    fails. **Default:** `false`.
+  * `start` {number} Byte offset to start writing at. When specified,
+    writes use explicit positioning. **Default:** current file position.
+  * `limit` {number} Maximum number of bytes the writer will accept.
+    Async writes (`write()`, `writev()`) that would exceed the limit reject
+    with `ERR_OUT_OF_RANGE`. Sync writes (`writeSync()`, `writevSync()`)
+    return `false`. **Default:** no limit.
+  * `chunkSize` {number} Maximum chunk size in bytes for synchronous write
+    operations. Writes larger than this threshold fall back to async I/O.
+    Set this to match the reader's `chunkSize` for optimal `pipeTo()`
+    performance. **Default:** `131072` (128 KB).
+* Returns: {Object}
+  * `write(chunk[, options])` {Function} Returns {Promise\<void>}.
+    Accepts `Uint8Array`, `Buffer`, or string (UTF-8 encoded).
+    * `chunk` {Buffer|TypedArray|DataView|string}
+    * `options` {Object}
+      * `signal` {AbortSignal} If the signal is already aborted, the write
+        rejects with `AbortError` without performing I/O.
+  * `writev(chunks[, options])` {Function} Returns {Promise\<void>}. Uses
+    scatter/gather I/O via a single `writev()` syscall. Accepts mixed
+    `Uint8Array`/string arrays.
+    * `chunks` {Array\<Buffer|TypedArray|DataView|string>}
+    * `options` {Object}
+      * `signal` {AbortSignal} If the signal is already aborted, the write
+        rejects with `AbortError` without performing I/O.
+  * `writeSync(chunk)` {Function} Returns {boolean}. Attempts a synchronous
+    write. Returns `true` if the write succeeded, `false` if the caller
+    should fall back to async `write()`. Returns `false` when: the writer
+    is closed/errored, an async operation is in flight, the chunk exceeds
+    `chunkSize`, or the write would exceed `limit`.
+    * `chunk` {Buffer|TypedArray|DataView|string}
+  * `writevSync(chunks)` {Function} Returns {boolean}. Synchronous batch
+    write. Same fallback semantics as `writeSync()`.
+    * `chunks` {Array\<Buffer|TypedArray|DataView|string>}
+  * `end([options])` {Function} Returns {Promise\<number>} total bytes
+    written. Idempotent: returns `totalBytesWritten` if already closed,
+    returns the pending promise if already closing. Rejects if the writer
+    is in an errored state.
+    * `options` {Object}
+      * `signal` {AbortSignal} If the signal is already aborted, `end()`
+        rejects with `AbortError` and the writer remains open.
+  * `endSync()` {Function} Returns {number|number} total bytes written on
+    success, `-1` if the writer is errored or an async operation is in
+    flight. Idempotent when already closed.
+  * `fail(reason)` {Function} Puts the writer into a terminal error state.
+    Synchronous. If the writer is already closed or errored, this is a
+    no-op. If `autoClose` is true, closes the file handle synchronously.
+
+Return a [`node:stream/iter`][] writer backed by this file handle.
+
+The writer supports both `Symbol.asyncDispose` and `Symbol.dispose`:
+
+* `await using w = fh.writer()` — if the writer is still open (no `end()`
+  called), `asyncDispose` calls `fail()`. If `end()` is pending, it waits
+  for it to complete.
+* `using w = fh.writer()` — calls `fail()` unconditionally.
+
+The `writeSync()` and `writevSync()` methods enable the try-sync fast path
+used by [`stream/iter pipeTo()`][]. When the reader's chunk size matches the
+writer's `chunkSize`, all writes in a `pipeTo()` pipeline complete
+synchronously with zero promise overhead.
+
+This function is only available when the `--experimental-stream-iter` flag is
+enabled.
+
+```mjs
+import { open } from 'node:fs/promises';
+import { from, pipeTo } from 'node:stream/iter';
+import { compressGzip } from 'node:zlib/iter';
+
+// Async pipeline
+const fh = await open('output.gz', 'w');
+await pipeTo(from('Hello!'), compressGzip(), fh.writer({ autoClose: true }));
+
+// Sync pipeline with limit
+const src = await open('input.txt', 'r');
+const dst = await open('output.txt', 'w');
+const w = dst.writer({ limit: 1024 * 1024 }); // Max 1 MB
+await pipeTo(src.pull({ autoClose: true }), w);
+await w.end();
+await dst.close();
+```
+
+```cjs
+const { open } = require('node:fs/promises');
+const { from, pipeTo } = require('node:stream/iter');
+const { compressGzip } = require('node:zlib/iter');
+
+async function run() {
+  // Async pipeline
+  const fh = await open('output.gz', 'w');
+  await pipeTo(from('Hello!'), compressGzip(), fh.writer({ autoClose: true }));
+
+  // Sync pipeline with limit
+  const src = await open('input.txt', 'r');
+  const dst = await open('output.txt', 'w');
+  const w = dst.writer({ limit: 1024 * 1024 }); // Max 1 MB
+  await pipeTo(src.pull({ autoClose: true }), w);
+  await w.end();
+  await dst.close();
+}
+
+run().catch(console.error);
+```
 
 #### `filehandle[Symbol.asyncDispose]()`
 
@@ -1709,6 +1974,10 @@ Removes files and directories (modeled on the standard POSIX `rm` utility).
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: v25.7.0
+    pr-url: https://github.com/nodejs/node/pull/61178
+    description: Accepts a `throwIfNoEntry` option to specify whether
+                 an exception should be thrown if the entry does not exist.
   - version: v10.5.0
     pr-url: https://github.com/nodejs/node/pull/20220
     description: Accepts an additional `options` object to specify whether
@@ -1719,6 +1988,9 @@ changes:
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
     {fs.Stats} object should be `bigint`. **Default:** `false`.
+  * `throwIfNoEntry` {boolean} Whether an exception will be thrown
+    if no file system entry exists, rather than returning `undefined`.
+    **Default:** `true`.
 * Returns: {Promise}  Fulfills with the {fs.Stats} object for the
   given `path`.
 
@@ -1837,6 +2109,10 @@ added:
   * `overflow` {string} Either `'ignore'` or `'throw'` when there are more events to be
     queued than `maxQueue` allows. `'ignore'` means overflow events are dropped and a
     warning is emitted, while `'throw'` means to throw an exception. **Default:** `'ignore'`.
+  * `ignore` {string|RegExp|Function|Array} Pattern(s) to ignore. Strings are
+    glob patterns (using [`minimatch`][]), RegExp patterns are tested against
+    the filename, and functions receive the filename and return `true` to
+    ignore. **Default:** `undefined`.
 * Returns: {AsyncIterator} of objects with the properties:
   * `eventType` {string} The type of change
   * `filename` {string|Buffer|null} The name of the file changed.
@@ -4405,6 +4681,10 @@ completion callback.
 <!-- YAML
 added: v0.0.2
 changes:
+  - version: v25.7.0
+    pr-url: https://github.com/nodejs/node/pull/61178
+    description: Accepts a `throwIfNoEntry` option to specify whether
+                 an exception should be thrown if the entry does not exist.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -4432,6 +4712,9 @@ changes:
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
     {fs.Stats} object should be `bigint`. **Default:** `false`.
+  * `throwIfNoEntry` {boolean} Whether an exception will be thrown
+    if no file system entry exists, rather than returning `undefined`.
+    **Default:** `true`.
 * `callback` {Function}
   * `err` {Error}
   * `stats` {fs.Stats}
@@ -4804,6 +5087,10 @@ changes:
   * `encoding` {string} Specifies the character encoding to be used for the
     filename passed to the listener. **Default:** `'utf8'`.
   * `signal` {AbortSignal} allows closing the watcher with an AbortSignal.
+  * `ignore` {string|RegExp|Function|Array} Pattern(s) to ignore. Strings are
+    glob patterns (using [`minimatch`][]), RegExp patterns are tested against
+    the filename, and functions receive the filename and return `true` to
+    ignore. **Default:** `undefined`.
 * `listener` {Function|undefined} **Default:** `undefined`
   * `eventType` {string}
   * `filename` {string|Buffer|null}
@@ -7133,8 +7420,8 @@ added: v0.1.93
 
 * Extends: {stream.Readable}
 
-Instances of {fs.ReadStream} are created and returned using the
-[`fs.createReadStream()`][] function.
+Instances of {fs.ReadStream} cannot be constructed directly. They are created and
+returned using the [`fs.createReadStream()`][] function.
 
 #### Event: `'close'`
 
@@ -7610,6 +7897,7 @@ numeric values will be `bigint` instead of `number`.
 StatFs {
   type: 1397114950,
   bsize: 4096,
+  frsize: 4096,
   blocks: 121938943,
   bfree: 61058895,
   bavail: 61058895,
@@ -7624,6 +7912,7 @@ StatFs {
 StatFs {
   type: 1397114950n,
   bsize: 4096n,
+  frsize: 4096n,
   blocks: 121938943n,
   bfree: 61058895n,
   bavail: 61058895n,
@@ -7679,6 +7968,16 @@ added:
 * Type: {number|bigint}
 
 Optimal transfer block size.
+
+#### `statfs.frsize`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number|bigint}
+
+Fundamental file system block size.
 
 #### `statfs.ffree`
 
@@ -7904,8 +8203,8 @@ added: v0.1.93
 
 * Extends {stream.Writable}
 
-Instances of {fs.WriteStream} are created and returned using the
-[`fs.createWriteStream()`][] function.
+Instances of {fs.WriteStream} cannot be constructed directly. They are created and
+returned using the [`fs.createWriteStream()`][] function.
 
 #### Event: `'close'`
 
@@ -8715,6 +9014,7 @@ the file contents.
 [`event ports`]: https://illumos.org/man/port_create
 [`filehandle.createReadStream()`]: #filehandlecreatereadstreamoptions
 [`filehandle.createWriteStream()`]: #filehandlecreatewritestreamoptions
+[`filehandle.pull()`]: #filehandlepulltransforms-options
 [`filehandle.writeFile()`]: #filehandlewritefiledata-options
 [`fs.access()`]: #fsaccesspath-mode-callback
 [`fs.accessSync()`]: #fsaccesssyncpath-mode
@@ -8764,6 +9064,11 @@ the file contents.
 [`fsPromises.utimes()`]: #fspromisesutimespath-atime-mtime
 [`inotify(7)`]: https://man7.org/linux/man-pages/man7/inotify.7.html
 [`kqueue(2)`]: https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2
+[`minimatch`]: https://github.com/isaacs/minimatch
+[`node:stream/iter`]: stream_iter.md
+[`stream/iter pipeTo()`]: stream_iter.md#pipetosource-transforms-writer
+[`stream/iter pull()`]: stream_iter.md#pullsource-transforms-options
+[`stream/iter pullSync()`]: stream_iter.md#pullsyncsource-transforms
 [`util.promisify()`]: util.md#utilpromisifyoriginal
 [bigints]: https://tc39.github.io/proposal-bigint
 [caveats]: #caveats

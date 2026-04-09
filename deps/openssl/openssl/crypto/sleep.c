@@ -14,8 +14,8 @@
 /* system-specific variants defining OSSL_sleep() */
 #if (defined(OPENSSL_SYS_UNIX) || defined(__DJGPP__)) && !defined(OPENSSL_USE_SLEEP_BUSYLOOP)
 
-# if defined(OPENSSL_USE_USLEEP)                        \
-    || defined(__DJGPP__)                               \
+#if defined(OPENSSL_USE_USLEEP) \
+    || defined(__DJGPP__)       \
     || (defined(__TANDEM) && defined(_REENTRANT))
 
 /*
@@ -26,7 +26,7 @@
  * usleep, if it turns out that nanosleep() is unavailable.
  */
 
-#  include <unistd.h>
+#include <unistd.h>
 static void ossl_sleep_millis(uint64_t millis)
 {
     unsigned int s = (unsigned int)(millis / 1000);
@@ -43,31 +43,31 @@ static void ossl_sleep_millis(uint64_t millis)
     usleep(us);
 }
 
-# elif defined(__TANDEM) && !defined(_REENTRANT)
+#elif defined(__TANDEM) && !defined(_REENTRANT)
 
-#  include <cextdecs.h(PROCESS_DELAY_)>
+#include <cextdecs.h(PROCESS_DELAY_)>
 static void ossl_sleep_millis(uint64_t millis)
 {
     /* HPNS does not support usleep for non threaded apps */
     PROCESS_DELAY_(millis * 1000);
 }
 
-# else
+#else
 
 /* nanosleep is defined by POSIX.1-2001 */
-#  include <time.h>
+#include <time.h>
 static void ossl_sleep_millis(uint64_t millis)
 {
     struct timespec ts;
 
-    ts.tv_sec = (long int) (millis / 1000);
-    ts.tv_nsec = (long int) (millis % 1000) * 1000000ul;
+    ts.tv_sec = (long int)(millis / 1000);
+    ts.tv_nsec = (long int)(millis % 1000) * 1000000ul;
     nanosleep(&ts, NULL);
 }
 
-# endif
+#endif
 #elif defined(_WIN32) && !defined(OPENSSL_SYS_UEFI)
-# include <windows.h>
+#include <windows.h>
 
 static void ossl_sleep_millis(uint64_t millis)
 {
@@ -84,7 +84,7 @@ static void ossl_sleep_millis(uint64_t millis)
 
 #else
 /* Fallback to a busy wait */
-# define USE_SLEEP_SECS
+#define USE_SLEEP_SECS
 
 static void ossl_sleep_secs(uint64_t secs)
 {
@@ -106,7 +106,7 @@ static void ossl_sleep_millis(uint64_t millis)
         = ossl_time_add(ossl_time_now(), ossl_ms2time(millis));
 
     while (ossl_time_compare(ossl_time_now(), finish) < 0)
-        /* busy wait */ ;
+        /* busy wait */;
 }
 #endif /* defined(OPENSSL_SYS_UNIX) || defined(__DJGPP__) */
 

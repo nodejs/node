@@ -21,6 +21,7 @@
   V(arrow_message_private_symbol, "node:arrowMessage")                         \
   V(contextify_context_private_symbol, "node:contextify:context")              \
   V(decorated_private_symbol, "node:decorated")                                \
+  V(empty_context_frame_sentinel_symbol, "node:empty_context_frame_sentinel")  \
   V(transfer_mode_private_symbol, "node:transfer_mode")                        \
   V(host_defined_option_symbol, "node:host_defined_option_symbol")             \
   V(js_transferable_wrapper_private_symbol, "node:js_transferable_wrapper")    \
@@ -58,6 +59,7 @@
   V(resource_symbol, "resource_symbol")                                        \
   V(trigger_async_id_symbol, "trigger_async_id_symbol")                        \
   V(builtin_source_text_module_hdo, "builtin_source_text_module_hdo")          \
+  V(embedder_module_hdo, "embedder_module_hdo")                                \
   V(source_text_module_default_hdo, "source_text_module_default_hdo")          \
   V(vm_context_no_contextify, "vm_context_no_contextify")                      \
   V(vm_dynamic_import_default_internal, "vm_dynamic_import_default_internal")  \
@@ -236,6 +238,7 @@
   V(kind_string, "kind")                                                       \
   V(last_insert_rowid_string, "lastInsertRowid")                               \
   V(length_string, "length")                                                   \
+  V(limits_string, "limits")                                                   \
   V(library_string, "library")                                                 \
   V(loop_count, "loopCount")                                                   \
   V(max_buffer_string, "maxBuffer")                                            \
@@ -434,6 +437,8 @@
   V(socketaddress_constructor_template, v8::FunctionTemplate)                  \
   V(space_stats_template, v8::DictionaryTemplate)                              \
   V(sqlite_column_template, v8::DictionaryTemplate)                            \
+  V(sqlite_limits_template, v8::ObjectTemplate)                                \
+  V(sqlite_run_result_template, v8::DictionaryTemplate)                        \
   V(sqlite_statement_sync_constructor_template, v8::FunctionTemplate)          \
   V(sqlite_statement_sync_iterator_constructor_template, v8::FunctionTemplate) \
   V(sqlite_session_constructor_template, v8::FunctionTemplate)                 \

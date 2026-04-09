@@ -97,16 +97,16 @@ typedef struct ngtcp2_acktr_ack_entry {
 } ngtcp2_acktr_ack_entry;
 
 /* NGTCP2_ACKTR_FLAG_NONE indicates that no flag set. */
-#define NGTCP2_ACKTR_FLAG_NONE 0x00u
+#define NGTCP2_ACKTR_FLAG_NONE 0x00U
 /* NGTCP2_ACKTR_FLAG_IMMEDIATE_ACK indicates that immediate
    acknowledgement is required. */
-#define NGTCP2_ACKTR_FLAG_IMMEDIATE_ACK 0x01u
+#define NGTCP2_ACKTR_FLAG_IMMEDIATE_ACK 0x01U
 /* NGTCP2_ACKTR_FLAG_ACTIVE_ACK indicates that there are pending
    protected packet to be acknowledged. */
-#define NGTCP2_ACKTR_FLAG_ACTIVE_ACK 0x02u
+#define NGTCP2_ACKTR_FLAG_ACTIVE_ACK 0x02U
 /* NGTCP2_ACKTR_FLAG_CANCEL_TIMER is set when ACK delay timer is
    expired and canceled. */
-#define NGTCP2_ACKTR_FLAG_CANCEL_TIMER 0x0100u
+#define NGTCP2_ACKTR_FLAG_CANCEL_TIMER 0x0100U
 
 ngtcp2_static_ringbuf_def(acks, 32, sizeof(ngtcp2_acktr_ack_entry))
 
@@ -120,8 +120,6 @@ typedef struct ngtcp2_acktr {
      packet number. */
   ngtcp2_ksl ents;
   ngtcp2_log *log;
-  /* flags is bitwise OR of zero, or more of NGTCP2_ACKTR_FLAG_*. */
-  uint16_t flags;
   /* first_unacked_ts is timestamp when ngtcp2_acktr_entry is added
      first time after the last outgoing ACK frame. */
   ngtcp2_tstamp first_unacked_ts;
@@ -148,6 +146,9 @@ typedef struct ngtcp2_acktr {
       uint64_t ce;
     } ack;
   } ecn;
+
+  /* flags is bitwise OR of zero, or more of NGTCP2_ACKTR_FLAG_*. */
+  uint16_t flags;
 } ngtcp2_acktr;
 
 /*

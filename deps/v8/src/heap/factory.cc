@@ -4054,7 +4054,8 @@ Handle<String> Factory::SizeToString(size_t value, bool check_cache) {
     if (value <= JSArray::kMaxArrayIndex &&
         raw->raw_hash_field() == String::kEmptyHashField) {
       uint32_t raw_hash_field = StringHasher::MakeArrayIndexHash(
-          static_cast<uint32_t>(value), raw->length());
+          static_cast<uint32_t>(value), raw->length(),
+          HashSeed(read_only_roots()));
       raw->set_raw_hash_field(raw_hash_field);
     }
   }

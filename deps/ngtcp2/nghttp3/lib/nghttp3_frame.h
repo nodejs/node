@@ -60,6 +60,9 @@ typedef struct nghttp3_frame_hd {
 
 typedef struct nghttp3_frame_data {
   int64_t type;
+  /* dr is set when sending DATA frame.  It is not used on
+     reception. */
+  nghttp3_data_reader dr;
 } nghttp3_frame_data;
 
 typedef struct nghttp3_frame_headers {
@@ -88,6 +91,9 @@ typedef struct nghttp3_frame_settings {
   int64_t type;
   size_t niv;
   nghttp3_settings_entry *iv;
+  /* local_settings is set when sending SETTINGS frame.  It is not
+     used on reception. */
+  const nghttp3_settings *local_settings;
 } nghttp3_frame_settings;
 
 typedef struct nghttp3_frame_goaway {

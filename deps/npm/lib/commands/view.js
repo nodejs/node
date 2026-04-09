@@ -1,4 +1,3 @@
-const columns = require('cli-columns')
 const { readFile } = require('node:fs/promises')
 const jsonParse = require('json-parse-even-better-errors')
 const { log, output, META } = require('proc-log')
@@ -32,8 +31,7 @@ class View extends BaseCommand {
 
   static async completion (opts, npm) {
     if (opts.conf.argv.remain.length <= 2) {
-      // There used to be registry completion here, but it stopped
-      // making sense somewhere around 50,000 packages on the registry
+      // There used to be registry completion here, but it stopped making sense somewhere around 50,000 packages on the registry
       return
     }
     // have the package, get the fields
@@ -41,6 +39,7 @@ class View extends BaseCommand {
       ...npm.flatOptions,
       fullMetadata: true,
       preferOnline: true,
+      _isRoot: true,
     }
     const spec = npa(opts.conf.argv.remain[2])
     const pckmnt = await packument(spec, config)
@@ -103,8 +102,7 @@ class View extends BaseCommand {
     const wholePackument = !args.length
     const json = this.npm.config.get('json')
 
-    // If we are viewing many packages and outputting individual fields then
-    // output the name before doing any async activity
+    // If we are viewing many packages and outputting individual fields then output the name before doing any async activity
     if (!json && !wholePackument && workspace) {
       output.standard(`${name}:`)
     }
@@ -136,6 +134,7 @@ class View extends BaseCommand {
       ...this.npm.flatOptions,
       preferOnline: true,
       fullMetadata: true,
+      _isRoot: true,
     })
 
     // get the data about this package
@@ -240,11 +239,10 @@ class View extends BaseCommand {
     })
 
     if (json) {
-      // TODO(BREAKING_CHANGE): all unwrapping should be removed. Users should know
-      // based on their arguments if they can expect an array or an object. And this
-      // unwrapping can break that assumption. Eg `npm view abbrev@^2` should always
-      // return an array, but currently since there is only one version matching `^2`
-      // this will return a single object instead.
+      // TODO(BREAKING_CHANGE): all unwrapping should be removed.
+      // Users should know based on their arguments if they can expect an array or an object.
+      // And this unwrapping can break that assumption.
+      // e.g. `npm view abbrev@^2` should always return an array, but currently since there is only one version matching `^2` this will return a single object instead.
       const first = Object.keys(res[0] || {})
       const jsonRes = first.length === 1 ? res.map(m => m[first[0]]) : res
       if (jsonRes.length === 0) {
@@ -331,7 +329,7 @@ class View extends BaseCommand {
     if (deps.length) {
       const maxDeps = 24
       res.push('\ndependencies:')
-      res.push(columns(deps.slice(0, maxDeps), { padding: 1 }))
+      res.push(deps.slice(0, maxDeps).join(', '))
       if (deps.length > maxDeps) {
         res.push(chalk.dim(`(...and ${deps.length - maxDeps} more.)`))
       }
@@ -347,8 +345,8 @@ class View extends BaseCommand {
     }
 
     res.push('\ndist-tags:')
-    const maxTags = 12
-    res.push(columns(distTags.slice(0, maxTags), { padding: 1, sort: false }))
+    const maxTags = 5
+    res.push(distTags.slice(0, maxTags).join('\n'))
     if (distTags.length > maxTags) {
       res.push(chalk.dim(`(...and ${distTags.length - maxTags} more.)`))
     }

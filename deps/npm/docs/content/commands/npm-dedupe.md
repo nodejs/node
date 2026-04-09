@@ -48,7 +48,7 @@ a
 ```
 
 During the installation process, the `c@1.0.3` dependency for `b` was placed in the root of the tree.
-Though `d`'s dependency on `c@1.x` could have been satisfied by `c@1.0.3`, the newer `c@1.9.0` dependency was used, because npm favors updates by default, even when doing so causes duplication.
+Though `d`'s dependency on `c@1.x` could have been satisfied by `c@1.0.3`, the newer `c@1.9.9` dependency was used, because npm favors updates by default, even when doing so causes duplication.
 
 Running `npm dedupe` will cause npm to note the duplication and re-evaluate, deleting the nested `c` module, because the one in the root is sufficient.
 
@@ -181,6 +181,24 @@ Note that commands explicitly intended to run a particular script, such as
 `npm start`, `npm stop`, `npm restart`, `npm test`, and `npm run` will still
 run their intended script if `ignore-scripts` is set, but they will *not*
 run any pre- or post-scripts.
+
+
+
+#### `allow-git`
+
+* Default: "all"
+* Type: "all", "none", or "root"
+
+Limits the ability for npm to fetch dependencies from git references. That
+is, dependencies that point to a git repo instead of a version or semver
+range. Please note that this could leave your tree incomplete and some
+packages may not function as intended or designed.
+
+`all` allows any git dependencies to be fetched and installed. `none`
+prevents any git dependencies from being fetched and installed. `root` only
+allows git dependencies defined in your project's package.json to be fetched
+installed. Also allows git dependencies to be fetched for other commands
+like `npm view`
 
 
 

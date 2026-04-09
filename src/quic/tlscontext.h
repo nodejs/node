@@ -55,6 +55,10 @@ class OSSLContext final {
 
   bool get_early_data_accepted() const;
 
+  // Sets the session ticket for 0-RTT resumption. Returns true if the
+  // ticket was set successfully and the ticket supports early data.
+  bool set_session_ticket(const ncrypto::SSLSessionPointer& ticket);
+
   bool ConfigureServer() const;
   bool ConfigureClient() const;
 
@@ -190,6 +194,21 @@ class TLSContext final : public MemoryRetainer,
     // option is only used by the server side.
     bool verify_client = false;
 
+    // When true (the default), client certificates that fail chain
+    // validation are rejected during the handshake. When false, the
+    // handshake completes and the validation result is passed to JS
+    // via the handshake callback for the application to decide.
+    // This option is only used by the server side.
+    bool reject_unauthorized = true;
+
+    // When true (the default), the server accepts 0-RTT early data
+    // from clients with valid session tickets. When false, early data
+    // is disabled and clients must complete a full handshake before
+    // sending application data. Disabling early data prevents replay
+    // attacks at the cost of an additional round trip.
+    // This option is only used by the server side.
+    bool enable_early_data = true;
+
     // When true, enables TLS tracing for the session. This should only be used
     // for debugging.
     // JavaScript option name "tlsTrace".
@@ -229,10 +248,12 @@ class TLSContext final : public MemoryRetainer,
     std::string ToString() const;
   };
 
-  static std::shared_ptr<TLSContext> CreateClient(const Options& options);
-  static std::shared_ptr<TLSContext> CreateServer(const Options& options);
+  static std::shared_ptr<TLSContext> CreateClient(Environment* env,
+                                                  const Options& options);
+  static std::shared_ptr<TLSContext> CreateServer(Environment* env,
+                                                  const Options& options);
 
-  TLSContext(Side side, const Options& options);
+  TLSContext(Environment* env, Side side, const Options& options);
   DISALLOW_COPY_AND_MOVE(TLSContext)
 
   // Each QUIC Session has exactly one TLSSession. Each TLSSession maintains
@@ -254,7 +275,7 @@ class TLSContext final : public MemoryRetainer,
   SET_SELF_SIZE(TLSContext)
 
  private:
-  ncrypto::SSLCtxPointer Initialize();
+  ncrypto::SSLCtxPointer Initialize(Environment* env);
   operator SSL_CTX*() const;
 
   static void OnKeylog(const SSL* ssl, const char* line);
@@ -271,8 +292,8 @@ class TLSContext final : public MemoryRetainer,
   Options options_;
   ncrypto::X509Pointer cert_;
   ncrypto::X509Pointer issuer_;
-  ncrypto::SSLCtxPointer ctx_;
   std::string validation_error_ = "";
+  ncrypto::SSLCtxPointer ctx_;
 
   friend class TLSSession;
 };

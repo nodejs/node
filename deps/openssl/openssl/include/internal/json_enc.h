@@ -8,9 +8,9 @@
  */
 
 #ifndef OSSL_JSON_ENC_H
-# define OSSL_JSON_ENC_H
+#define OSSL_JSON_ENC_H
 
-# include <openssl/bio.h>
+#include <openssl/bio.h>
 
 /*
  * JSON Encoder
@@ -21,22 +21,22 @@
  */
 
 struct json_write_buf {
-    BIO     *bio;
-    char    *buf;
-    size_t  alloc, cur;
+    BIO *bio;
+    char *buf;
+    size_t alloc, cur;
 };
 
 typedef struct ossl_json_enc_st {
-    uint32_t                flags;
+    uint32_t flags;
     /* error: 1 if an error has occurred. */
     /* state: current state. */
     /* stack stores a bitmap. 0=object, 1=array. */
     /* stack cur   size: stack_end_byte bytes, stack_end_bit bits. */
     /* stack alloc size: stack_bytes bytes. */
-    unsigned char           error, stack_end_bit, state, *stack, defer_indent;
-    unsigned char           stack_small[16];
-    struct json_write_buf   wbuf;
-    size_t                  stack_end_byte, stack_bytes;
+    unsigned char error, stack_end_bit, state, *stack, defer_indent;
+    unsigned char stack_small[16];
+    struct json_write_buf wbuf;
+    size_t stack_end_byte, stack_bytes;
 } OSSL_JSON_ENC;
 
 /*
@@ -62,10 +62,10 @@ typedef struct ossl_json_enc_st {
  * 2**53 - 1]` are automatically converted to decimal strings before
  * serialization.
  */
-#define OSSL_JSON_FLAG_NONE    0
-#define OSSL_JSON_FLAG_SEQ     (1U << 0)
-#define OSSL_JSON_FLAG_PRETTY  (1U << 1)
-#define OSSL_JSON_FLAG_IJSON   (1U << 2)
+#define OSSL_JSON_FLAG_NONE 0
+#define OSSL_JSON_FLAG_SEQ (1U << 0)
+#define OSSL_JSON_FLAG_PRETTY (1U << 1)
+#define OSSL_JSON_FLAG_IJSON (1U << 2)
 
 int ossl_json_init(OSSL_JSON_ENC *json, BIO *bio, uint32_t flags);
 

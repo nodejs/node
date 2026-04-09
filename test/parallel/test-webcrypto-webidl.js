@@ -238,7 +238,16 @@ const opts = { prefix, context };
 
 // KeyFormat
 {
-  for (const good of ['jwk', 'spki', 'pkcs8', 'raw']) {
+  for (const good of [
+    'jwk',
+    'spki',
+    'pkcs8',
+    'raw',
+    'raw-public',
+    'raw-seed',
+    'raw-secret',
+    'raw-private',
+  ]) {
     assert.strictEqual(converters.KeyFormat(good), good);
   }
 
@@ -262,6 +271,10 @@ const opts = { prefix, context };
     'deriveBits',
     'wrapKey',
     'unwrapKey',
+    'encapsulateBits',
+    'decapsulateBits',
+    'encapsulateKey',
+    'decapsulateKey',
   ]) {
     assert.strictEqual(converters.KeyUsage(good), good);
   }

@@ -1619,11 +1619,11 @@ static void StructuredClone(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  std::shared_ptr<Message> msg = std::make_shared<Message>();
+  Message msg;
   Local<Value> result;
-  if (msg->Serialize(env, context, value, transfer_list, Local<Object>())
+  if (msg.Serialize(env, context, value, transfer_list, Local<Object>())
           .IsNothing() ||
-      !msg->Deserialize(env, context, nullptr).ToLocal(&result)) {
+      !msg.Deserialize(env, context, nullptr).ToLocal(&result)) {
     return;
   }
   args.GetReturnValue().Set(result);
@@ -1761,6 +1761,21 @@ static void CreatePerContextProperties(Local<Object> target,
               FIXED_ONE_BYTE_STRING(env->isolate(), "DOMException"),
               domexception)
         .Check();
+  }
+  {
+    Local<Object> per_context_bindings;
+    Local<Value> quota_exceeded_error_val;
+    if (GetPerContextExports(context).ToLocal(&per_context_bindings) &&
+        per_context_bindings
+            ->Get(context,
+                  FIXED_ONE_BYTE_STRING(env->isolate(), "QuotaExceededError"))
+            .ToLocal(&quota_exceeded_error_val)) {
+      target
+          ->Set(context,
+                FIXED_ONE_BYTE_STRING(env->isolate(), "QuotaExceededError"),
+                quota_exceeded_error_val)
+          .Check();
+    }
   }
 }
 

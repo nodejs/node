@@ -1,8 +1,21 @@
 {
   'variables': {
+    'cargo%': 'cargo',
     'cargo_vendor_dir': './vendor',
-    'node_crates_libpath': '<(SHARED_INTERMEDIATE_DIR)/>(cargo_build_mode)/<(STATIC_LIB_PREFIX)node_crates<(STATIC_LIB_SUFFIX)',
   },
+  'conditions': [
+    ['build_type == "Release"', {
+      'variables': {
+        'cargo_build_flags': ['--release'],
+        'node_crates_libpath': '<(SHARED_INTERMEDIATE_DIR)/release/<(STATIC_LIB_PREFIX)node_crates<(STATIC_LIB_SUFFIX)',
+      },
+    }, {
+      'variables': {
+        'cargo_build_flags': [],
+        'node_crates_libpath': '<(SHARED_INTERMEDIATE_DIR)/debug/<(STATIC_LIB_PREFIX)node_crates<(STATIC_LIB_SUFFIX)',
+      },
+    }]
+  ],
   'targets': [
     {
       'target_name': 'node_crates',
@@ -36,9 +49,9 @@
             '<(node_crates_libpath)'
           ],
           'action': [
-            'cargo',
+            '<(cargo)',
             'rustc',
-            '>@(cargo_build_flags)',
+            '<@(cargo_build_flags)',
             '--frozen',
             '--target-dir',
             '<(SHARED_INTERMEDIATE_DIR)'

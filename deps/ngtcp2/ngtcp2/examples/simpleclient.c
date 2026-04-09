@@ -48,7 +48,7 @@
 
 #define REMOTE_HOST "127.0.0.1"
 #define REMOTE_PORT "4433"
-#define ALPN "\xahq-interop"
+#define ALPN "\xAhq-interop"
 #define MESSAGE "GET /\r\n"
 
 /*
@@ -206,8 +206,8 @@ static void rand_cb(uint8_t *dest, size_t destlen,
 }
 
 static int get_new_connection_id_cb(ngtcp2_conn *conn, ngtcp2_cid *cid,
-                                    uint8_t *token, size_t cidlen,
-                                    void *user_data) {
+                                    ngtcp2_stateless_reset_token *token,
+                                    size_t cidlen, void *user_data) {
   (void)conn;
   (void)user_data;
 
@@ -217,7 +217,7 @@ static int get_new_connection_id_cb(ngtcp2_conn *conn, ngtcp2_cid *cid,
 
   cid->datalen = cidlen;
 
-  if (RAND_bytes(token, NGTCP2_STATELESS_RESET_TOKENLEN) != 1) {
+  if (RAND_bytes(token->data, sizeof(token->data)) != 1) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
@@ -293,12 +293,12 @@ static int client_quic_init(struct client *c,
     .recv_retry = ngtcp2_crypto_recv_retry_cb,
     .extend_max_local_streams_bidi = extend_max_local_streams_bidi,
     .rand = rand_cb,
-    .get_new_connection_id = get_new_connection_id_cb,
     .update_key = ngtcp2_crypto_update_key_cb,
     .delete_crypto_aead_ctx = ngtcp2_crypto_delete_crypto_aead_ctx_cb,
     .delete_crypto_cipher_ctx = ngtcp2_crypto_delete_crypto_cipher_ctx_cb,
-    .get_path_challenge_data = ngtcp2_crypto_get_path_challenge_data_cb,
     .version_negotiation = ngtcp2_crypto_version_negotiation_cb,
+    .get_new_connection_id2 = get_new_connection_id_cb,
+    .get_path_challenge_data2 = ngtcp2_crypto_get_path_challenge_data2_cb,
   };
   ngtcp2_cid dcid, scid;
   ngtcp2_settings settings;
@@ -593,7 +593,7 @@ static int client_init(struct client *c) {
   struct sockaddr_storage remote_addr, local_addr;
   socklen_t remote_addrlen, local_addrlen = sizeof(local_addr);
 
-  memset(c, 0, sizeof(*c));
+  *c = (struct client){0};
 
   ngtcp2_ccerr_default(&c->last_error);
 

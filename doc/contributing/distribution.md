@@ -28,4 +28,4 @@ that doing so is not a breaking change.
 
 ## History
 
-* [corepack](https://github.com/nodejs/corepack) was added in Node.js v14.9.0 and v16.9.0. It is no longer distributed as of Node.js v25.0.0.
+* [corepack](https://github.com/nodejs/corepack) was added in Node.js 14.9.0 and 16.9.0. It is no longer distributed as of Node.js 25.0.0.

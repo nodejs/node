@@ -11,14 +11,18 @@
  */
 
 #ifndef OSSL_CRYPTO_EC_CURVE448_ARCH_32_F_IMPL_H
-# define OSSL_CRYPTO_EC_CURVE448_ARCH_32_F_IMPL_H
+#define OSSL_CRYPTO_EC_CURVE448_ARCH_32_F_IMPL_H
 
-# define GF_HEADROOM 2
-# define LIMB(x) ((x) & ((1 << 28) - 1)), ((x) >> 28)
-# define FIELD_LITERAL(a, b, c, d, e, f, g, h) \
-    {{LIMB(a), LIMB(b), LIMB(c), LIMB(d), LIMB(e), LIMB(f), LIMB(g), LIMB(h)}}
+#define GF_HEADROOM 2
+#define LIMB(x) ((x) & ((1 << 28) - 1)), ((x) >> 28)
+#define FIELD_LITERAL(a, b, c, d, e, f, g, h)                                      \
+    {                                                                              \
+        {                                                                          \
+            LIMB(a), LIMB(b), LIMB(c), LIMB(d), LIMB(e), LIMB(f), LIMB(g), LIMB(h) \
+        }                                                                          \
+    }
 
-# define LIMB_PLACE_VALUE(i) 28
+#define LIMB_PLACE_VALUE(i) 28
 
 void gf_add_RAW(gf out, const gf a, const gf b)
 {
@@ -57,4 +61,4 @@ void gf_weak_reduce(gf a)
     a->limb[0] = (a->limb[0] & mask) + tmp;
 }
 
-#endif                  /* OSSL_CRYPTO_EC_CURVE448_ARCH_32_F_IMPL_H */
+#endif /* OSSL_CRYPTO_EC_CURVE448_ARCH_32_F_IMPL_H */

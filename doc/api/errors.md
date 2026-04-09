@@ -2882,6 +2882,13 @@ An attempt was made to call [`stream.pipe()`][] on a [`Writable`][] stream.
 A stream method was called that cannot complete because the stream was
 destroyed using `stream.destroy()`.
 
+<a id="ERR_STREAM_ITER_MISSING_FLAG"></a>
+
+### `ERR_STREAM_ITER_MISSING_FLAG`
+
+A stream/iter API was used without the `--experimental-stream-iter` CLI flag
+enabled.
+
 <a id="ERR_STREAM_NULL_VALUES"></a>
 
 ### `ERR_STREAM_NULL_VALUES`
@@ -3349,6 +3356,14 @@ The WASI instance has already started.
 ### `ERR_WASI_NOT_STARTED`
 
 The WASI instance has not been started.
+
+<a id="ERR_WEBASSEMBLY_NOT_SUPPORTED"></a>
+
+### `ERR_WEBASSEMBLY_NOT_SUPPORTED`
+
+A feature requiring WebAssembly was used, but WebAssembly is not supported or
+has been disabled in the current environment (for example, when running with
+`--jitless`).
 
 <a id="ERR_WEBASSEMBLY_RESPONSE"></a>
 
@@ -3860,7 +3875,7 @@ removed: v15.0.0
 -->
 
 This error code was replaced by [`ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST`][]
-in Node.js v15.0.0, because it is no longer accurate as other types of
+in Node.js 15.0.0, because it is no longer accurate as other types of
 transferable objects also exist now.
 
 <a id="ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST"></a>

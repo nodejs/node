@@ -1,6 +1,6 @@
-.TH "SCRIPTS" "7" "December 2025" "NPM@11.7.0" ""
+.TH "SCRIPTS" "7" "March 2026" "NPM@11.12.1" ""
 .SH "NAME"
-\fBscripts\fR - How npm handles the "scripts" field
+\fBScripts\fR - How npm handles the "scripts" field
 .SS "Description"
 .P
 The \fB"scripts"\fR property of your \fBpackage.json\fR file supports a number of built-in scripts and their preset life cycle events as well as arbitrary scripts. These all can be executed by running \fBnpm run <stage>\fR. \fIPre\fR and \fIpost\fR commands with matching names will be run for those as well (e.g. \fBpremyscript\fR, \fBmyscript\fR, \fBpostmyscript\fR). Scripts from dependencies can be run with \fBnpm explore <pkg> -- npm run <stage>\fR.
@@ -319,9 +319,6 @@ For more details, see:
 \fBDiscussion about script working directory reliability in npm v6 and earlier\fR \fI\(lahttps://github.com/npm/npm/issues/12356\(ra\fR
 .RE 0
 
-.SS "User"
-.P
-When npm is run as root, scripts are always run with the effective uid and gid of the working directory owner.
 .SS "Environment"
 .P
 Package scripts run in an environment where many pieces of information are made available regarding the setup of npm and the current state of the process.

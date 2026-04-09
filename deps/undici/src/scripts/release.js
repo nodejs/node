@@ -2,19 +2,32 @@
 
 // Called from .github/workflows
 
-const generateReleaseNotes = async ({ github, owner, repo, versionTag, defaultBranch }) => {
+const getMajorTagPrefix = (versionTag) => {
+  const match = /^v(\d+)\./.exec(versionTag)
+  return match ? `v${match[1]}` : versionTag
+}
+
+const getPreviousRelease = ({ releases, versionTag }) => {
+  const majorTagPrefix = getMajorTagPrefix(versionTag)
+
+  return releases.find((release) => {
+    return release.tag_name !== versionTag && release.tag_name.startsWith(`${majorTagPrefix}.`)
+  })
+}
+
+const generateReleaseNotes = async ({ github, owner, repo, versionTag, commitHash }) => {
   const { data: releases } = await github.rest.repos.listReleases({
     owner,
     repo
   })
 
-  const previousRelease = releases.find((r) => r.tag_name.startsWith('v7'))
+  const previousRelease = getPreviousRelease({ releases, versionTag })
 
   const { data: { body } } = await github.rest.repos.generateReleaseNotes({
     owner,
     repo,
     tag_name: versionTag,
-    target_commitish: defaultBranch,
+    target_commitish: commitHash,
     previous_tag_name: previousRelease?.tag_name
   })
 
@@ -25,9 +38,9 @@ const generateReleaseNotes = async ({ github, owner, repo, versionTag, defaultBr
   return bodyWithoutReleasePr
 }
 
-const generatePr = async ({ github, context, defaultBranch, versionTag }) => {
+const generatePr = async ({ github, context, defaultBranch, versionTag, commitHash }) => {
   const { owner, repo } = context.repo
-  const releaseNotes = await generateReleaseNotes({ github, owner, repo, versionTag, defaultBranch })
+  const releaseNotes = await generateReleaseNotes({ github, owner, repo, versionTag, commitHash })
 
   await github.rest.pulls.create({
     owner,
@@ -39,15 +52,15 @@ const generatePr = async ({ github, context, defaultBranch, versionTag }) => {
   })
 }
 
-const release = async ({ github, context, defaultBranch, versionTag }) => {
+const release = async ({ github, context, versionTag, commitHash }) => {
   const { owner, repo } = context.repo
-  const releaseNotes = await generateReleaseNotes({ github, owner, repo, versionTag, defaultBranch })
+  const releaseNotes = await generateReleaseNotes({ github, owner, repo, versionTag, commitHash })
 
   await github.rest.repos.createRelease({
     owner,
     repo,
     tag_name: versionTag,
-    target_commitish: defaultBranch,
+    target_commitish: commitHash,
     name: versionTag,
     body: releaseNotes,
     draft: false,
@@ -69,5 +82,6 @@ const release = async ({ github, context, defaultBranch, versionTag }) => {
 
 module.exports = {
   generatePr,
+  getPreviousRelease,
   release
 }

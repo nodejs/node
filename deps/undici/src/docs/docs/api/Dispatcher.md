@@ -207,10 +207,45 @@ Returns: `Boolean` - `false` if dispatcher is busy and further dispatch calls wo
 
 * **onRequestStart** `(controller: DispatchController, context: object) => void` - Invoked before request is dispatched on socket. May be invoked multiple times when a request is retried when the request at the head of the pipeline fails.
 * **onRequestUpgrade** `(controller: DispatchController, statusCode: number, headers: Record<string, string | string[]>, socket: Duplex) => void` (optional) - Invoked when request is upgraded. Required if `DispatchOptions.upgrade` is defined or `DispatchOptions.method === 'CONNECT'`.
-* **onResponseStart** `(controller: DispatchController, statusCode: number, headers: Record<string, string | string []>, statusMessage?: string) => void` - Invoked when statusCode and headers have been received. May be invoked multiple times due to 1xx informational headers. Not required for `upgrade` requests.
+* **onResponseStart** `(controller: DispatchController, statusCode: number, headers: Record<string, string | string []>, statusMessage?: string) => void` - Invoked when statusCode and headers have been received. May be invoked multiple times due to 1xx informational headers. Not required for `upgrade` requests. Any return value is ignored.
 * **onResponseData** `(controller: DispatchController, chunk: Buffer) => void` - Invoked when response payload data is received. Not required for `upgrade` requests.
 * **onResponseEnd** `(controller: DispatchController, trailers: Record<string, string | string[]>) => void` - Invoked when response payload and trailers have been received and the request has completed. Not required for `upgrade` requests.
 * **onResponseError** `(controller: DispatchController, error: Error) => void` - Invoked when an error has occurred. May not throw.
+
+#### Migration from legacy handler API
+
+If you were previously using `onConnect/onHeaders/onData/onComplete/onError`, switch to the new callbacks:
+
+- `onConnect(abort)` → `onRequestStart(controller)` and call `controller.abort(reason)`
+- `onHeaders(status, rawHeaders, resume, statusText)` → `onResponseStart(controller, status, headers, statusText)`
+- `onData(chunk)` → `onResponseData(controller, chunk)`
+- `onComplete(trailers)` → `onResponseEnd(controller, trailers)`
+- `onError(err)` → `onResponseError(controller, err)`
+- `onUpgrade(status, rawHeaders, socket)` → `onRequestUpgrade(controller, status, headers, socket)`
+
+To access raw header arrays (for preserving duplicates/casing), read them from the controller:
+
+- `controller.rawHeaders` for response headers
+- `controller.rawTrailers` for trailers
+
+Pause/resume now uses the controller:
+
+- Call `controller.pause()` and `controller.resume()` instead of returning `false` from handlers.
+
+#### Compatibility notes
+
+Undici now stores the global dispatcher under `Symbol.for('undici.globalDispatcher.2')`.
+This avoids conflicts with runtimes (such as Node.js built-in `fetch`) that still rely on the legacy dispatcher handler interface.
+
+`setGlobalDispatcher()` also mirrors the configured dispatcher to `Symbol.for('undici.globalDispatcher.1')` using a `Dispatcher1Wrapper`, so Node's built-in `fetch` can keep using the legacy handler contract.
+
+If you need to expose a new dispatcher/agent to legacy v1 handler consumers (`onConnect/onHeaders/onData/onComplete/onError/onUpgrade`), use `Dispatcher1Wrapper`:
+
+```js
+import { Agent, Dispatcher1Wrapper } from 'undici'
+
+const legacyCompatibleDispatcher = new Dispatcher1Wrapper(new Agent())
+```
 
 #### Example 1 - Dispatch GET request
 
@@ -236,21 +271,21 @@ client.dispatch({
     'x-foo': 'bar'
   }
 }, {
-  onConnect: () => {
+  onRequestStart: () => {
     console.log('Connected!')
   },
-  onError: (error) => {
+  onResponseError: (_controller, error) => {
     console.error(error)
   },
-  onHeaders: (statusCode, headers) => {
-    console.log(`onHeaders | statusCode: ${statusCode} | headers: ${headers}`)
+  onResponseStart: (_controller, statusCode, headers) => {
+    console.log(`onResponseStart | statusCode: ${statusCode} | headers: ${JSON.stringify(headers)}`)
   },
-  onData: (chunk) => {
-    console.log('onData: chunk received')
+  onResponseData: (_controller, chunk) => {
+    console.log('onResponseData: chunk received')
     data.push(chunk)
   },
-  onComplete: (trailers) => {
-    console.log(`onComplete | trailers: ${trailers}`)
+  onResponseEnd: (_controller, trailers) => {
+    console.log(`onResponseEnd | trailers: ${JSON.stringify(trailers)}`)
     const res = Buffer.concat(data).toString('utf8')
     console.log(`Data: ${res}`)
     client.close()
@@ -288,15 +323,15 @@ client.dispatch({
   method: 'GET',
   upgrade: 'websocket'
 }, {
-  onConnect: () => {
-    console.log('Undici Client - onConnect')
+  onRequestStart: () => {
+    console.log('Undici Client - onRequestStart')
   },
-  onError: (error) => {
-    console.log('onError') // shouldn't print
+  onResponseError: () => {
+    console.log('onResponseError') // shouldn't print
   },
-  onUpgrade: (statusCode, headers, socket) => {
-    console.log('Undici Client - onUpgrade')
-    console.log(`onUpgrade Headers: ${headers}`)
+  onRequestUpgrade: (_controller, statusCode, headers, socket) => {
+    console.log('Undici Client - onRequestUpgrade')
+    console.log(`onRequestUpgrade Headers: ${JSON.stringify(headers)}`)
     socket.on('data', buffer => {
       console.log(buffer.toString('utf8'))
     })
@@ -339,21 +374,21 @@ client.dispatch({
   },
   body: JSON.stringify({ message: 'Hello' })
 }, {
-  onConnect: () => {
+  onRequestStart: () => {
     console.log('Connected!')
   },
-  onError: (error) => {
+  onResponseError: (_controller, error) => {
     console.error(error)
   },
-  onHeaders: (statusCode, headers) => {
-    console.log(`onHeaders | statusCode: ${statusCode} | headers: ${headers}`)
+  onResponseStart: (_controller, statusCode, headers) => {
+    console.log(`onResponseStart | statusCode: ${statusCode} | headers: ${JSON.stringify(headers)}`)
   },
-  onData: (chunk) => {
-    console.log('onData: chunk received')
+  onResponseData: (_controller, chunk) => {
+    console.log('onResponseData: chunk received')
     data.push(chunk)
   },
-  onComplete: (trailers) => {
-    console.log(`onComplete | trailers: ${trailers}`)
+  onResponseEnd: (_controller, trailers) => {
+    console.log(`onResponseEnd | trailers: ${JSON.stringify(trailers)}`)
     const res = Buffer.concat(data).toString('utf8')
     console.log(`Response Data: ${res}`)
     client.close()
@@ -364,7 +399,7 @@ client.dispatch({
 
 ### `Dispatcher.pipeline(options, handler)`
 
-For easy use with [stream.pipeline](https://nodejs.org/api/stream.html#stream_stream_pipeline_source_transforms_destination_callback). The `handler` argument should return a `Readable` from which the result will be read. Usually it should just return the `body` argument unless some kind of transformation needs to be performed based on e.g. `headers` or `statusCode`. The `handler` should validate the response and save any required state. If there is an error, it should be thrown. The function returns a `Duplex` which writes to the request and reads from the response.
+For easy use with [stream.pipeline](https://nodejs.org/api/stream.html#streampipelinesource-transforms-destination-options). The `handler` argument should return a `Readable` from which the result will be read. Usually it should just return the `body` argument unless some kind of transformation needs to be performed based on e.g. `headers` or `statusCode`. The `handler` should validate the response and save any required state. If there is an error, it should be thrown. The function returns a `Duplex` which writes to the request and reads from the response.
 
 Arguments:
 
@@ -476,6 +511,7 @@ The `RequestOptions.method` property should not be value `'CONNECT'`.
 #### Parameter: `ResponseData`
 
 * **statusCode** `number`
+* **statusText** `string` - The status message from the response (e.g., "OK", "Not Found").
 * **headers** `Record<string, string | string[]>` - Note that all header keys are lower-cased, e.g. `content-type`.
 * **body** `stream.Readable` which also implements [the body mixin from the Fetch Standard](https://fetch.spec.whatwg.org/#body-mixin).
 * **trailers** `Record<string, string>` - This object starts out
@@ -517,7 +553,7 @@ await once(server, 'listening')
 const client = new Client(`http://localhost:${server.address().port}`)
 
 try {
-  const { body, headers, statusCode, trailers } = await client.request({
+  const { body, headers, statusCode, statusText, trailers } = await client.request({
     path: '/',
     method: 'GET'
   })
@@ -961,8 +997,8 @@ It accepts the same arguments as the [`RedirectHandler` constructor](/docs/docs/
 const { Client, interceptors } = require("undici");
 const { redirect } = interceptors;
 
-const client = new Client("http://example.com").compose(
-  redirect({ maxRedirections: 3, throwOnMaxRedirects: true })
+const client = new Client("http://service.example").compose(
+  redirect({ maxRedirections: 3, throwOnMaxRedirect: true })
 );
 client.request({ path: "/" })
 ```
@@ -979,7 +1015,7 @@ It accepts the same arguments as the [`RetryHandler` constructor](/docs/docs/api
 const { Client, interceptors } = require("undici");
 const { retry } = interceptors;
 
-const client = new Client("http://example.com").compose(
+const client = new Client("http://service.example").compose(
   retry({
     maxRetries: 3,
     minTimeout: 1000,
@@ -1005,7 +1041,7 @@ The `dump` interceptor enables you to dump the response body from a request upon
 const { Client, interceptors } = require("undici");
 const { dump } = interceptors;
 
-const client = new Client("http://example.com").compose(
+const client = new Client("http://service.example").compose(
   dump({
     maxSize: 1024,
   })
@@ -1035,10 +1071,10 @@ The `dns` interceptor enables you to cache DNS lookups for a given duration, per
 - `dualStack` - Whether to resolve both IPv4 and IPv6 addresses. Default: `true`.
   - It will also attempt a happy-eyeballs-like approach to connect to the available addresses in case of a connection failure.
 - `affinity` - Whether to use IPv4 or IPv6 addresses. Default: `4`.
-  - It can be either `'4` or `6`.
+  - It can be either `4` or `6`.
   - It will only take effect if `dualStack` is `false`.
 - `lookup: (hostname: string, options: LookupOptions, callback: (err: NodeJS.ErrnoException | null, addresses: DNSInterceptorRecord[]) => void) => void` - Custom lookup function. Default: `dns.lookup`.
-  - For more info see [dns.lookup](https://nodejs.org/api/dns.html#dns_dns_lookup_hostname_options_callback).
+  - For more info see [dns.lookup](https://nodejs.org/api/dns.html#dnslookuphostname-options-callback).
 - `pick: (origin: URL, records: DNSInterceptorRecords, affinity: 4 | 6) => DNSInterceptorRecord` - Custom pick function. Default: `RoundRobin`.
   - The function should return a single record from the records array.
   - By default a simplified version of Round Robin is used.
@@ -1131,7 +1167,7 @@ The `responseError` interceptor throws an error for responses with status code e
 const { Client, interceptors } = require("undici");
 const { responseError } = interceptors;
 
-const client = new Client("http://example.com").compose(
+const client = new Client("http://service.example").compose(
   responseError()
 );
 
@@ -1159,7 +1195,7 @@ The `decompress` interceptor automatically decompresses response bodies that are
 const { Client, interceptors } = require("undici");
 const { decompress } = interceptors;
 
-const client = new Client("http://example.com").compose(
+const client = new Client("http://service.example").compose(
   decompress()
 );
 
@@ -1176,7 +1212,7 @@ const response = await client.request({
 const { Client, interceptors } = require("undici");
 const { decompress } = interceptors;
 
-const client = new Client("http://example.com").compose(
+const client = new Client("http://service.example").compose(
   decompress({
     skipErrorResponses: false, // Decompress 5xx responses
     skipStatusCodes: [204, 304, 201] // Skip these status codes
@@ -1213,6 +1249,28 @@ The `cache` interceptor implements client-side response caching as described in
 - `cacheByDefault` - The default expiration time to cache responses by if they don't have an explicit expiration and cannot have an heuristic expiry computed. If this isn't present, responses neither with an explicit expiration nor heuristically cacheable will not be cached. Default `undefined`.
 - `type` - The [type of cache](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Caching#types_of_caches) for Undici to act as. Can be `shared` or `private`. Default `shared`. `private` implies privately cacheable responses will be cached and potentially shared with other users of your application.
 
+**Usage with `fetch`**
+
+```js
+const { Agent, cacheStores, interceptors, setGlobalDispatcher } = require('undici')
+
+const client = new Agent().compose(interceptors.cache({
+  store: new cacheStores.MemoryCacheStore({
+    maxSize: 100 * 1024 * 1024, // 100MB
+    maxCount: 1000,
+    maxEntrySize: 5 * 1024 * 1024 // 5MB
+  })
+}))
+
+setGlobalDispatcher(client)
+
+// First request goes to the network and is cached when cache headers allow it.
+const first = await fetch('https://example.com/data')
+
+// Second request can be served from cache according to RFC9111 rules.
+const second = await fetch('https://example.com/data')
+```
+
 ##### `Deduplicate Interceptor`
 
 The `deduplicate` interceptor deduplicates concurrent identical requests. When multiple identical requests are made while one is already in-flight, only one request is sent to the origin server, and all waiting handlers receive the same response. This reduces server load and improves performance.
@@ -1222,6 +1280,7 @@ The `deduplicate` interceptor deduplicates concurrent identical requests. When m
 - `methods` - The [**safe** HTTP methods](https://www.rfc-editor.org/rfc/rfc9110#section-9.2.1) to deduplicate. Default `['GET']`.
 - `skipHeaderNames` - Header names that, if present in a request, will cause the request to skip deduplication entirely. Useful for headers like `idempotency-key` where presence indicates unique processing. Header name matching is case-insensitive. Default `[]`.
 - `excludeHeaderNames` - Header names to exclude from the deduplication key. Requests with different values for these headers will still be deduplicated together. Useful for headers like `x-request-id` that vary per request but shouldn't affect deduplication. Header name matching is case-insensitive. Default `[]`.
+- `maxBufferSize` - Maximum bytes buffered per paused waiting deduplicated handler. If a waiting handler remains paused and exceeds this threshold, it is failed with an abort error to prevent unbounded memory growth. Default `5 * 1024 * 1024`.
 
 **Usage**
 
@@ -1230,12 +1289,12 @@ const { Client, interceptors } = require("undici");
 const { deduplicate, cache } = interceptors;
 
 // Deduplicate only
-const client = new Client("http://example.com").compose(
+const client = new Client("http://service.example").compose(
   deduplicate()
 );
 
 // Deduplicate with caching
-const clientWithCache = new Client("http://example.com").compose(
+const clientWithCache = new Client("http://service.example").compose(
   deduplicate(),
   cache()
 );
@@ -1302,6 +1361,10 @@ Header arguments such as `options.headers` in [`Client.dispatch`](/docs/docs/api
 * As an array of strings. An array representation of a header list must have an even length, or an `InvalidArgumentError` will be thrown.
 * As an iterable that can encompass `Headers`, `Map`, or a custom iterator returning key-value pairs.
 Keys are lowercase and values are not modified.
+
+Undici validates header syntax at the protocol level (for example, invalid header names and invalid control characters in string values), but it does not sanitize untrusted application input. Validate and sanitize any user-provided header names and values before passing them to Undici to prevent header/body injection vulnerabilities.
+
+When using the array header format (`string[]`), Undici processes only indexed elements. Additional properties assigned to the array object are ignored.
 
 Response headers will derive a `host` from the `url` of the [Client](/docs/docs/api/Client.md#class-client) instance if no `host` header was previously specified.
 

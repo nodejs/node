@@ -131,20 +131,14 @@ class Cache extends BaseCommand {
     const cachePath = this.npm.flatOptions.cache
     if (args.length === 0) {
       if (!this.npm.config.get('force')) {
-        throw new Error(`As of npm@5, the npm cache self-heals from corruption issues
-  by treating integrity mismatches as cache misses.  As a result,
-  data extracted from the cache is guaranteed to be valid.  If you
-  want to make sure everything is consistent, use \`npm cache verify\`
-  instead.  Deleting the cache can only make npm go slower, and is
-  not likely to correct any problems you may be encountering!
+        throw new Error(`As of npm@5, the npm cache self-heals from corruption issues by treating integrity mismatches as cache misses.
+As a result, data extracted from the cache is guaranteed to be valid.
+If you want to make sure everything is consistent, use \`npm cache verify\` instead.
+Deleting the cache can only make npm go slower, and is not likely to correct any problems you may be encountering!
 
-  On the other hand, if you're debugging an issue with the installer,
-  or race conditions that depend on the timing of writing to an empty
-  cache, you can use \`npm install --cache /tmp/empty-cache\` to use a
-  temporary cache instead of nuking the actual one.
+On the other hand, if you're debugging an issue with the installer, or race conditions that depend on the timing of writing to an empty cache, you can use \`npm install --cache /tmp/empty-cache\` to use a temporary cache instead of removing the actual one.
 
-  If you're sure you want to delete the entire cache, rerun this command
-  with --force.`)
+If you're sure you want to delete the entire cache, rerun this command with --force.`)
       }
       return fs.rm(cachePath, { recursive: true, force: true })
     }
@@ -175,17 +169,16 @@ class Cache extends BaseCommand {
 
     await Promise.all(args.map(async spec => {
       log.silly('cache add', 'spec', spec)
-      // we ask pacote for the thing, and then just throw the data
-      // away so that it tee-pipes it into the cache like it does
-      // for a normal request.
+      // we ask pacote for the thing, and then just throw the data away so that it tee-pipes it into the cache like it does for a normal request.
       await pacote.tarball.stream(spec, stream => {
         stream.resume()
         return stream.promise()
-      }, { ...this.npm.flatOptions })
+      }, { ...this.npm.flatOptions, _isRoot: true })
 
       await pacote.manifest(spec, {
         ...this.npm.flatOptions,
         fullMetadata: true,
+        _isRoot: true,
       })
     }))
   }
@@ -362,7 +355,7 @@ class Cache extends BaseCommand {
       if (valid) {
         output.standard(results.join('\n'))
       }
-      output.standard('')
+      output.standard()
     }
   }
 }

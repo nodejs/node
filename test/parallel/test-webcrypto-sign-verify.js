@@ -118,12 +118,12 @@ if (hasOpenSSL(3)) {
 
     const signature = await subtle.sign({
       name,
-      length: 256,
+      outputLength: 256,
     }, key, ec.encode(data));
 
     assert(await subtle.verify({
       name,
-      length: 256,
+      outputLength: 256,
     }, key, signature, ec.encode(data)));
   }
 

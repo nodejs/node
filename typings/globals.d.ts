@@ -2,6 +2,7 @@ import { AsyncContextFrameBinding } from './internalBinding/async_context_frame'
 import { AsyncWrapBinding } from './internalBinding/async_wrap';
 import { BlobBinding } from './internalBinding/blob';
 import { BufferBinding } from './internalBinding/buffer';
+import { CJSLexerBinding } from './internalBinding/cjs_lexer';
 import { ConfigBinding } from './internalBinding/config';
 import { ConstantsBinding } from './internalBinding/constants';
 import { DebugBinding } from './internalBinding/debug';
@@ -18,6 +19,7 @@ import { OSBinding } from './internalBinding/os';
 import { ProcessBinding } from './internalBinding/process';
 import { SeaBinding } from './internalBinding/sea';
 import { SerdesBinding } from './internalBinding/serdes';
+import { StringDecoderBinding } from './internalBinding/string_decoder';
 import { SymbolsBinding } from './internalBinding/symbols';
 import { TimersBinding } from './internalBinding/timers';
 import { TypesBinding } from './internalBinding/types';
@@ -35,6 +37,7 @@ interface InternalBindingMap {
   async_wrap: AsyncWrapBinding;
   blob: BlobBinding;
   buffer: BufferBinding;
+  cjs_lexer: CJSLexerBinding;
   config: ConfigBinding;
   constants: ConstantsBinding;
   debug: DebugBinding;
@@ -52,6 +55,7 @@ interface InternalBindingMap {
   process: ProcessBinding;
   sea: SeaBinding;
   serdes: SerdesBinding;
+  string_decoder: StringDecoderBinding;
   symbols: SymbolsBinding;
   timers: TimersBinding;
   types: TypesBinding;
@@ -82,6 +86,20 @@ declare global {
     | Float64Array
     | BigUint64Array
     | BigInt64Array;
+
+  type TypedArrayConstructor =
+    | typeof Uint8Array
+    | typeof Uint8ClampedArray
+    | typeof Uint16Array
+    | typeof Uint32Array
+    | typeof Int8Array
+    | typeof Int16Array
+    | typeof Int32Array
+    | typeof Float16Array
+    | typeof Float32Array
+    | typeof Float64Array
+    | typeof BigUint64Array
+    | typeof BigInt64Array;
 
   namespace NodeJS {
     interface Global {

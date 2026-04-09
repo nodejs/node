@@ -23,6 +23,18 @@ If the package has a package-lock, or an npm shrinkwrap file, or a yarn lock fil
 
 See [package-lock.json](/configuring-npm/package-lock-json) and [`npm shrinkwrap`](/commands/npm-shrinkwrap).
 
+#### How `npm install` uses `package-lock.json`
+
+When you run `npm install` without arguments, npm compares `package.json` and `package-lock.json`:
+
+* **If the lockfile's resolved versions satisfy the `package.json` ranges:** npm uses the exact versions from `package-lock.json` to ensure reproducible builds across environments.
+
+* **If the ranges don't match:** npm resolves new versions that satisfy the `package.json` ranges and updates `package-lock.json` accordingly. This happens when you modify version ranges in `package.json` (e.g., changing `^7.0.0` to `^8.0.0`). Note that changing a range within the same major version (e.g., `^7.0.0` to `^7.1.0`) will only update the metadata in the lockfile if the currently installed version still satisfies the new range.
+
+In essence, `package-lock.json` locks your dependencies to specific versions, but `package.json` is the source of truth for acceptable version ranges. When the lockfile's versions satisfy the `package.json` ranges, the lockfile wins. When they conflict, `package.json` wins and the lockfile is updated.
+
+If you want to install packages while ensuring that `package.json` is not modified and that both files are strictly in sync, use [`npm ci`](/commands/npm-ci) instead.
+
 A `package` is:
 
 * a) a folder containing a program described by a [`package.json`](/configuring-npm/package-json) file
@@ -549,6 +561,24 @@ run any pre- or post-scripts.
 
 
 
+#### `allow-git`
+
+* Default: "all"
+* Type: "all", "none", or "root"
+
+Limits the ability for npm to fetch dependencies from git references. That
+is, dependencies that point to a git repo instead of a version or semver
+range. Please note that this could leave your tree incomplete and some
+packages may not function as intended or designed.
+
+`all` allows any git dependencies to be fetched and installed. `none`
+prevents any git dependencies from being fetched and installed. `root` only
+allows git dependencies defined in your project's package.json to be fetched
+installed. Also allows git dependencies to be fetched for other commands
+like `npm view`
+
+
+
 #### `audit`
 
 * Default: true
@@ -576,7 +606,24 @@ If the requested version is a `dist-tag` and the given tag does not pass the
 will be used. For example, `foo@latest` might install `foo@1.2` even though
 `latest` is `2.0`.
 
+This config cannot be used with: `min-release-age`
 
+#### `min-release-age`
+
+* Default: null
+* Type: null or Number
+
+If set, npm will build the npm tree such that only versions that were
+available more than the given number of days ago will be installed. If there
+are no versions available for the current set of dependencies, the command
+will error.
+
+This flag is a complement to `before`, which accepts an exact date instead
+of a relative number of days.
+
+This config cannot be used with: `before`
+
+This value is not exported to the environment for child processes.
 
 #### `bin-links`
 

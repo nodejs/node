@@ -2,6 +2,10 @@
 
 <!-- YAML
 changes:
+  - version: v25.9.0
+    pr-url: https://github.com/nodejs/node/pull/62183
+    description: TurboSHAKE and KangarooTwelve algorithms
+      are now supported.
   - version: v24.8.0
     pr-url: https://github.com/nodejs/node/pull/59647
     description: KMAC algorithms are now supported.
@@ -122,6 +126,8 @@ Algorithms:
 * `'cSHAKE256'`
 * `'KMAC128'`[^openssl30]
 * `'KMAC256'`[^openssl30]
+* `'KT128'`
+* `'KT256'`
 * `'ML-DSA-44'`[^openssl35]
 * `'ML-DSA-65'`[^openssl35]
 * `'ML-DSA-87'`[^openssl35]
@@ -131,6 +137,8 @@ Algorithms:
 * `'SHA3-256'`
 * `'SHA3-384'`
 * `'SHA3-512'`
+* `'TurboSHAKE128'`
+* `'TurboSHAKE256'`
 
 Key Formats:
 
@@ -575,6 +583,8 @@ implementation and the APIs supported for each:
 | `'HMAC'`                             |            | ✔                  |                        |              |                   |        |
 | `'KMAC128'`[^modern-algos]           |            | ✔                  |                        |              |                   |        |
 | `'KMAC256'`[^modern-algos]           |            | ✔                  |                        |              |                   |        |
+| `'KT128'`[^modern-algos]             |            |                    |                        |              |                   | ✔      |
+| `'KT256'`[^modern-algos]             |            |                    |                        |              |                   | ✔      |
 | `'ML-DSA-44'`[^modern-algos]         |            | ✔                  |                        |              |                   |        |
 | `'ML-DSA-65'`[^modern-algos]         |            | ✔                  |                        |              |                   |        |
 | `'ML-DSA-87'`[^modern-algos]         |            | ✔                  |                        |              |                   |        |
@@ -592,6 +602,8 @@ implementation and the APIs supported for each:
 | `'SHA3-256'`[^modern-algos]          |            |                    |                        |              |                   | ✔      |
 | `'SHA3-384'`[^modern-algos]          |            |                    |                        |              |                   | ✔      |
 | `'SHA3-512'`[^modern-algos]          |            |                    |                        |              |                   | ✔      |
+| `'TurboSHAKE128'`[^modern-algos]     |            |                    |                        |              |                   | ✔      |
+| `'TurboSHAKE256'`[^modern-algos]     |            |                    |                        |              |                   | ✔      |
 | `'X25519'`                           |            |                    | ✔                      |              |                   |        |
 | `'X448'`[^secure-curves]             |            |                    | ✔                      |              |                   |        |
 
@@ -999,6 +1011,10 @@ The algorithms currently supported include:
 <!-- YAML
 added: v15.0.0
 changes:
+  - version: v25.9.0
+    pr-url: https://github.com/nodejs/node/pull/62183
+    description: TurboSHAKE and KangarooTwelve algorithms
+      are now supported.
   - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59365
     description: SHA-3 algorithms are now supported.
@@ -1007,7 +1023,7 @@ changes:
     description: SHAKE algorithms are now supported.
 -->
 
-* `algorithm` {string|Algorithm|CShakeParams}
+* `algorithm` {string|Algorithm|CShakeParams|TurboShakeParams|KangarooTwelveParams}
 * `data` {ArrayBuffer|TypedArray|DataView|Buffer}
 * Returns: {Promise} Fulfills with an {ArrayBuffer} upon success.
 
@@ -1019,6 +1035,8 @@ If `algorithm` is provided as a {string}, it must be one of:
 
 * `'cSHAKE128'`[^modern-algos]
 * `'cSHAKE256'`[^modern-algos]
+* `'KT128'`[^modern-algos]
+* `'KT256'`[^modern-algos]
 * `'SHA-1'`
 * `'SHA-256'`
 * `'SHA-384'`
@@ -1026,6 +1044,8 @@ If `algorithm` is provided as a {string}, it must be one of:
 * `'SHA3-256'`[^modern-algos]
 * `'SHA3-384'`[^modern-algos]
 * `'SHA3-512'`[^modern-algos]
+* `'TurboSHAKE128'`[^modern-algos]
+* `'TurboSHAKE256'`[^modern-algos]
 
 If `algorithm` is provided as an {Object}, it must have a `name` property
 whose value is one of the above.
@@ -1260,6 +1280,10 @@ The {CryptoKey} (secret key) generating algorithms supported include:
 <!-- YAML
 added: v15.0.0
 changes:
+  - version: v25.9.0
+    pr-url: https://github.com/nodejs/node/pull/62218
+    description: Importing ML-DSA and ML-KEM PKCS#8 keys
+      without a seed is no longer supported.
   - version: v24.8.0
     pr-url: https://github.com/nodejs/node/pull/59647
     description: KMAC algorithms are now supported.
@@ -1869,19 +1893,27 @@ the message.
 
 <!-- YAML
 added: v24.7.0
+changes:
+  - version: v25.9.0
+    pr-url: https://github.com/nodejs/node/pull/61875
+    description: Renamed `cShakeParams.length` to `cShakeParams.outputLength`.
 -->
 
-#### `cShakeParams.customization`
+#### `cShakeParams.name`
 
 <!-- YAML
 added: v24.7.0
 -->
 
-* Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
+* Type: {string} Must be `'cSHAKE128'`[^modern-algos] or `'cSHAKE256'`[^modern-algos]
 
-The `customization` member represents the customization string.
-The Node.js Web Crypto API implementation only supports zero-length customization
-which is equivalent to not providing customization at all.
+#### `cShakeParams.outputLength`
+
+<!-- YAML
+added: v25.9.0
+-->
+
+* Type: {number} represents the requested output length in bits.
 
 #### `cShakeParams.functionName`
 
@@ -1896,21 +1928,17 @@ functions based on cSHAKE.
 The Node.js Web Crypto API implementation only supports zero-length functionName
 which is equivalent to not providing functionName at all.
 
-#### `cShakeParams.length`
+#### `cShakeParams.customization`
 
 <!-- YAML
 added: v24.7.0
 -->
 
-* Type: {number} represents the requested output length in bits.
+* Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
 
-#### `cShakeParams.name`
-
-<!-- YAML
-added: v24.7.0
--->
-
-* Type: {string} Must be `'cSHAKE128'`[^modern-algos] or `'cSHAKE256'`[^modern-algos]
+The `customization` member represents the customization string.
+The Node.js Web Crypto API implementation only supports zero-length customization
+which is equivalent to not providing customization at all.
 
 ### Class: `EcdhKeyDeriveParams`
 
@@ -2308,6 +2336,38 @@ added: v15.0.0
 
 * Type: {string}
 
+### Class: `KangarooTwelveParams`
+
+<!-- YAML
+added: v25.9.0
+-->
+
+#### `kangarooTwelveParams.customization`
+
+<!-- YAML
+added: v25.9.0
+-->
+
+* Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
+
+The optional customization string for KangarooTwelve.
+
+#### `kangarooTwelveParams.name`
+
+<!-- YAML
+added: v25.9.0
+-->
+
+* Type: {string} Must be `'KT128'`[^modern-algos] or `'KT256'`[^modern-algos]
+
+#### `kangarooTwelveParams.outputLength`
+
+<!-- YAML
+added: v25.9.0
+-->
+
+* Type: {number} represents the requested output length in bits.
+
 ### Class: `KmacImportParams`
 
 <!-- YAML
@@ -2387,6 +2447,10 @@ added: v24.8.0
 
 <!-- YAML
 added: v24.8.0
+changes:
+  - version: v25.9.0
+    pr-url: https://github.com/nodejs/node/pull/61875
+    description: Renamed `kmacParams.length` to `kmacParams.outputLength`.
 -->
 
 #### `kmacParams.algorithm`
@@ -2397,6 +2461,16 @@ added: v24.8.0
 
 * Type: {string} Must be `'KMAC128'` or `'KMAC256'`.
 
+#### `kmacParams.outputLength`
+
+<!-- YAML
+added: v25.9.0
+-->
+
+* Type: {number}
+
+The length of the output in bytes. This must be a positive integer.
+
 #### `kmacParams.customization`
 
 <!-- YAML
@@ -2406,16 +2480,6 @@ added: v24.8.0
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
 
 The `customization` member represents the optional customization string.
-
-#### `kmacParams.length`
-
-<!-- YAML
-added: v24.8.0
--->
-
-* Type: {number}
-
-The length of the output in bytes. This must be a positive integer.
 
 ### Class: `Pbkdf2Params`
 
@@ -2673,6 +2737,38 @@ added: v15.0.0
 * Type: {number}
 
 The length (in bytes) of the random salt to use.
+
+### Class: `TurboShakeParams`
+
+<!-- YAML
+added: v25.9.0
+-->
+
+#### `turboShakeParams.domainSeparation`
+
+<!-- YAML
+added: v25.9.0
+-->
+
+* Type: {number|undefined}
+
+The optional domain separation byte (0x01-0x7f). Defaults to `0x1f`.
+
+#### `turboShakeParams.name`
+
+<!-- YAML
+added: v25.9.0
+-->
+
+* Type: {string} Must be `'TurboSHAKE128'`[^modern-algos] or `'TurboSHAKE256'`[^modern-algos]
+
+#### `turboShakeParams.outputLength`
+
+<!-- YAML
+added: v25.9.0
+-->
+
+* Type: {number} represents the requested output length in bits.
 
 [^secure-curves]: See [Secure Curves in the Web Cryptography API][]
 

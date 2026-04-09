@@ -84,6 +84,9 @@
     }, { # POSIX
       'defines': [ '__POSIX__' ],
     }],
+    [ 'OS=="aix" or OS=="os400"', {
+      'cflags': [ '-mcpu=power9' ],
+    }],
     [ 'node_enable_d8=="true"', {
       'dependencies': [ 'tools/v8_gypfiles/d8.gyp:d8' ],
     }],
@@ -226,11 +229,15 @@
         'dependencies': [ 'deps/ada/ada.gyp:ada' ],
     }],
 
+    [ 'node_shared_merve=="false"', {
+        'dependencies': [ 'deps/merve/merve.gyp:merve' ],
+    }],
+
     [ 'node_shared_simdjson=="false"', {
         'dependencies': [ 'deps/simdjson/simdjson.gyp:simdjson' ],
     }],
 
-    [ 'node_shared_simdutf=="false"', {
+    [ 'node_shared_simdutf=="false" and node_use_bundled_v8!="false"', {
         'dependencies': [ 'tools/v8_gypfiles/v8.gyp:simdutf' ],
     }],
 
@@ -244,6 +251,7 @@
 
     [ 'node_shared_zstd=="false"', {
       'dependencies': [ 'deps/zstd/zstd.gyp:zstd' ],
+      'defines': [ 'NODE_BUNDLED_ZSTD' ],
     }],
 
     [ 'OS=="mac"', {
@@ -312,8 +320,8 @@
         'NODE_PLATFORM="sunos"',
       ],
     }],
-    [ '(OS=="freebsd" or OS=="linux" or OS=="openharmony") and node_shared=="false"'
-        ' and force_load=="true"', {
+    [ 'node_use_bundled_v8=="true" and (OS=="freebsd" or OS=="linux" or OS=="openharmony") '
+        'and node_shared=="false" and force_load=="true"', {
       'ldflags': [
         '-Wl,-z,noexecstack',
         '-Wl,--whole-archive <(v8_base)',
@@ -385,13 +393,9 @@
           'defines': [ 'OPENSSL_API_COMPAT=0x10100000L', ],
           'dependencies': [
             './deps/openssl/openssl.gyp:openssl',
-            './deps/ngtcp2/ngtcp2.gyp:ngtcp2',
-            './deps/ngtcp2/ngtcp2.gyp:nghttp3',
 
             # For tests
             './deps/openssl/openssl.gyp:openssl-cli',
-            './deps/ngtcp2/ngtcp2.gyp:ngtcp2_test_server',
-            './deps/ngtcp2/ngtcp2.gyp:ngtcp2_test_client',
           ],
           'conditions': [
             # -force_load or --whole-archive are not applicable for
@@ -442,6 +446,23 @@
       'defines': [ 'HAVE_SQLITE=1' ],
     }, {
       'defines': [ 'HAVE_SQLITE=0' ]
+    }],
+    [ 'node_use_quic=="true"', {
+      'defines': [ 'HAVE_QUIC=1' ],
+      'conditions': [
+        [ 'node_shared_openssl=="false"', {
+          'dependencies': [
+            './deps/ngtcp2/ngtcp2.gyp:ngtcp2',
+            './deps/ngtcp2/ngtcp2.gyp:nghttp3',
+
+            # For tests
+            './deps/ngtcp2/ngtcp2.gyp:ngtcp2_test_server',
+            './deps/ngtcp2/ngtcp2.gyp:ngtcp2_test_client',
+          ],
+        }],
+      ],
+    }, {
+      'defines': [ 'HAVE_QUIC=0' ]
     }],
   ],
 }

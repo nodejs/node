@@ -89,6 +89,7 @@
 
 #include "gtest/gtest-message.h"
 #include "gtest/gtest-spi.h"
+#include "gtest/gtest.h"
 #include "gtest/internal/gtest-internal.h"
 #include "gtest/internal/gtest-string.h"
 #include "src/gtest-internal-inl.h"
@@ -301,6 +302,22 @@ bool AutoHandle::IsCloseable() const {
   // invalid handle.
   return handle_ != nullptr && handle_ != INVALID_HANDLE_VALUE;
 }
+
+#if !GTEST_HAS_NOTIFICATION_ && defined(GTEST_OS_WINDOWS_MINGW)
+Notification::Notification() {
+  // Create a manual-reset event object.
+  event_ = ::CreateEvent(nullptr, TRUE, FALSE, nullptr);
+  GTEST_CHECK_(event_ != nullptr);
+}
+
+Notification::~Notification() { ::CloseHandle(event_); }
+
+void Notification::Notify() { GTEST_CHECK_(::SetEvent(event_)); }
+
+void Notification::WaitForNotification() {
+  GTEST_CHECK_(::WaitForSingleObject(event_, INFINITE) == WAIT_OBJECT_0);
+}
+#endif  // !GTEST_HAS_NOTIFICATION_ && defined(GTEST_OS_WINDOWS_MINGW)
 
 Mutex::Mutex()
     : owner_thread_id_(0),
@@ -729,7 +746,7 @@ void RE::Init(const char* regex) {
   char* const full_pattern = new char[full_regex_len];
 
   snprintf(full_pattern, full_regex_len, "^(%s)$", regex);
-  is_valid_ = regcomp(&full_regex_, full_pattern, reg_flags) == 0;
+  int error = regcomp(&full_regex_, full_pattern, reg_flags);
   // We want to call regcomp(&partial_regex_, ...) even if the
   // previous expression returns false.  Otherwise partial_regex_ may
   // not be properly initialized can may cause trouble when it's
@@ -738,13 +755,13 @@ void RE::Init(const char* regex) {
   // Some implementation of POSIX regex (e.g. on at least some
   // versions of Cygwin) doesn't accept the empty string as a valid
   // regex.  We change it to an equivalent form "()" to be safe.
-  if (is_valid_) {
+  if (!error) {
     const char* const partial_regex = (*regex == '\0') ? "()" : regex;
-    is_valid_ = regcomp(&partial_regex_, partial_regex, reg_flags) == 0;
+    error = regcomp(&partial_regex_, partial_regex, reg_flags);
   }
-  EXPECT_TRUE(is_valid_)
-      << "Regular expression \"" << regex
-      << "\" is not a valid POSIX Extended regular expression.";
+  is_valid_ = error == 0;
+  EXPECT_EQ(error, 0) << "Regular expression \"" << regex
+                      << "\" is not a valid POSIX Extended regular expression.";
 
   delete[] full_pattern;
 }

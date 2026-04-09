@@ -122,7 +122,8 @@ Maybe<void> KmacTraits::AdditionalConfig(
 bool KmacTraits::DeriveBits(Environment* env,
                             const KmacConfig& params,
                             ByteSource* out,
-                            CryptoJobMode mode) {
+                            CryptoJobMode mode,
+                            CryptoErrorStore* errors) {
   if (params.length == 0) {
     *out = ByteSource();
     return true;
@@ -133,6 +134,7 @@ bool KmacTraits::DeriveBits(Environment* env,
   size_t key_size = params.key.GetSymmetricKeySize();
 
   if (key_size == 0) {
+    errors->Insert(NodeCryptoError::KMAC_FAILED);
     return false;
   }
 
@@ -202,7 +204,8 @@ MaybeLocal<Value> KmacTraits::EncodeOutput(Environment* env,
       return Boolean::New(
           env->isolate(),
           out->size() > 0 && out->size() == params.signature.size() &&
-              memcmp(out->data(), params.signature.data(), out->size()) == 0);
+              CRYPTO_memcmp(
+                  out->data(), params.signature.data(), out->size()) == 0);
   }
   UNREACHABLE();
 }

@@ -32,21 +32,21 @@
 #include "internal/thread_once.h"
 #include "self_test.h"
 
-#define FIPS_STATE_INIT     0
+#define FIPS_STATE_INIT 0
 #define FIPS_STATE_SELFTEST 1
-#define FIPS_STATE_RUNNING  2
-#define FIPS_STATE_ERROR    3
+#define FIPS_STATE_RUNNING 2
+#define FIPS_STATE_ERROR 3
 
 /*
  * The number of times the module will report it is in the error state
  * before going quiet.
  */
-#define FIPS_ERROR_REPORTING_RATE_LIMIT     10
+#define FIPS_ERROR_REPORTING_RATE_LIMIT 10
 
 /* The size of a temp buffer used to read in data */
 #define INTEGRITY_BUF_SIZE (4096)
 #define MAX_MD_SIZE 64
-#define MAC_NAME    "HMAC"
+#define MAC_NAME "HMAC"
 #define DIGEST_NAME "SHA256"
 
 static int FIPS_conditional_error_check = 1;
@@ -72,9 +72,9 @@ DEFINE_RUN_ONCE_STATIC(do_fips_self_test_init)
  * Declarations for the DEP entry/exit points.
  * Ones not required or incorrect need to be undefined or redefined respectively.
  */
-#define DEP_INITIAL_STATE   FIPS_STATE_INIT
-#define DEP_INIT_ATTRIBUTE  static
-#define DEP_FINI_ATTRIBUTE  static
+#define DEP_INITIAL_STATE FIPS_STATE_INIT
+#define DEP_INIT_ATTRIBUTE static
+#define DEP_FINI_ATTRIBUTE static
 
 static void init(void);
 static void cleanup(void);
@@ -84,14 +84,14 @@ static void cleanup(void);
  * See FIPS 140-2 IG 9.10
  */
 #if defined(_WIN32) || defined(__CYGWIN__)
-# ifdef __CYGWIN__
+#ifdef __CYGWIN__
 /* pick DLL_[PROCESS|THREAD]_[ATTACH|DETACH] definitions */
-#  include <windows.h>
+#include <windows.h>
 /*
  * this has side-effect of _WIN32 getting defined, which otherwise is
  * mutually exclusive with __CYGWIN__...
  */
-# endif
+#endif
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved);
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
@@ -110,20 +110,20 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 }
 
 #elif defined(__GNUC__) && !defined(_AIX)
-# undef DEP_INIT_ATTRIBUTE
-# undef DEP_FINI_ATTRIBUTE
-# define DEP_INIT_ATTRIBUTE static __attribute__((constructor))
-# define DEP_FINI_ATTRIBUTE static __attribute__((destructor))
+#undef DEP_INIT_ATTRIBUTE
+#undef DEP_FINI_ATTRIBUTE
+#define DEP_INIT_ATTRIBUTE static __attribute__((constructor))
+#define DEP_FINI_ATTRIBUTE static __attribute__((destructor))
 
 #elif defined(__sun)
-# pragma init(init)
-# pragma fini(cleanup)
+#pragma init(init)
+#pragma fini(cleanup)
 
 #elif defined(_AIX) && !defined(__GNUC__)
 void _init(void);
 void _cleanup(void);
-# pragma init(_init)
-# pragma fini(_cleanup)
+#pragma init(_init)
+#pragma fini(_cleanup)
 void _init(void)
 {
     init();
@@ -134,17 +134,19 @@ void _cleanup(void)
 }
 
 #elif defined(__hpux)
-# pragma init "init"
-# pragma fini "cleanup"
+#pragma init "init"
+#pragma fini "cleanup"
 
 #elif defined(__TANDEM)
 /* Method automatically called by the NonStop OS when the DLL loads */
-void __INIT__init(void) {
+void __INIT__init(void)
+{
     init();
 }
 
 /* Method automatically called by the NonStop OS prior to unloading the DLL */
-void __TERM__cleanup(void) {
+void __TERM__cleanup(void)
+{
     cleanup();
 }
 
@@ -154,10 +156,10 @@ void __TERM__cleanup(void) {
  * We force the self-tests to run as part of the FIPS provider initialisation
  * rather than being triggered by the DEP.
  */
-# undef DEP_INIT_ATTRIBUTE
-# undef DEP_FINI_ATTRIBUTE
-# undef DEP_INITIAL_STATE
-# define DEP_INITIAL_STATE  FIPS_STATE_SELFTEST
+#undef DEP_INIT_ATTRIBUTE
+#undef DEP_FINI_ATTRIBUTE
+#undef DEP_INITIAL_STATE
+#define DEP_INITIAL_STATE FIPS_STATE_SELFTEST
 #endif
 
 static TSAN_QUALIFIER int FIPS_state = DEP_INITIAL_STATE;
@@ -204,28 +206,28 @@ static int integrity_self_test(OSSL_SELF_TEST *ev, OSSL_LIB_CTX *libctx)
     unsigned char out[EVP_MAX_MD_SIZE];
     size_t out_len = 0;
 
-    OSSL_PARAM   params[2];
-    EVP_MAC     *mac = EVP_MAC_fetch(libctx, MAC_NAME, NULL);
+    OSSL_PARAM params[2];
+    EVP_MAC *mac = EVP_MAC_fetch(libctx, MAC_NAME, NULL);
     EVP_MAC_CTX *ctx = EVP_MAC_CTX_new(mac);
 
     OSSL_SELF_TEST_onbegin(ev, OSSL_SELF_TEST_TYPE_KAT_INTEGRITY,
-                               OSSL_SELF_TEST_DESC_INTEGRITY_HMAC);
+        OSSL_SELF_TEST_DESC_INTEGRITY_HMAC);
 
     params[0] = OSSL_PARAM_construct_utf8_string("digest", DIGEST_NAME, 0);
     params[1] = OSSL_PARAM_construct_end();
 
     if (ctx == NULL
-            || mac == NULL
-            || !EVP_MAC_init(ctx, hmac_kat_key, sizeof(hmac_kat_key), params)
-            || !EVP_MAC_update(ctx, hmac_kat_pt, sizeof(hmac_kat_pt))
-            || !EVP_MAC_final(ctx, out, &out_len, MAX_MD_SIZE))
+        || mac == NULL
+        || !EVP_MAC_init(ctx, hmac_kat_key, sizeof(hmac_kat_key), params)
+        || !EVP_MAC_update(ctx, hmac_kat_pt, sizeof(hmac_kat_pt))
+        || !EVP_MAC_final(ctx, out, &out_len, MAX_MD_SIZE))
         goto err;
 
     /* Optional corruption */
     OSSL_SELF_TEST_oncorrupt_byte(ev, out);
 
     if (out_len != sizeof(hmac_kat_digest)
-            || memcmp(out, hmac_kat_digest, out_len) != 0)
+        || memcmp(out, hmac_kat_digest, out_len) != 0)
         goto err;
     ok = 1;
 err:
@@ -241,9 +243,9 @@ err:
  * Return 1 if verified, or 0 if it fails.
  */
 static int verify_integrity(OSSL_CORE_BIO *bio, OSSL_FUNC_BIO_read_ex_fn read_ex_cb,
-                            unsigned char *expected, size_t expected_len,
-                            OSSL_LIB_CTX *libctx, OSSL_SELF_TEST *ev,
-                            const char *event_type)
+    unsigned char *expected, size_t expected_len,
+    OSSL_LIB_CTX *libctx, OSSL_SELF_TEST *ev,
+    const char *event_type)
 {
     int ret = 0, status;
     unsigned char out[MAX_MD_SIZE];
@@ -283,16 +285,16 @@ static int verify_integrity(OSSL_CORE_BIO *bio, OSSL_FUNC_BIO_read_ex_fn read_ex
 
     OSSL_SELF_TEST_oncorrupt_byte(ev, out);
     if (expected_len != out_len
-            || memcmp(expected, out, out_len) != 0)
+        || memcmp(expected, out, out_len) != 0)
         goto err;
     ret = 1;
 err:
     OSSL_SELF_TEST_onend(ev, ret);
     EVP_MAC_CTX_free(ctx);
     EVP_MAC_free(mac);
-# ifdef OPENSSL_PEDANTIC_ZEROIZATION
+#ifdef OPENSSL_PEDANTIC_ZEROIZATION
     OPENSSL_cleanse(out, sizeof(out));
-# endif
+#endif
     return ret;
 }
 #endif /* OPENSSL_NO_FIPS_POST */
@@ -353,7 +355,7 @@ int SELF_TEST_post(SELF_TEST_POST_PARAMS *st, int on_demand_test)
     }
 
     if (st == NULL
-            || st->module_checksum_data == NULL) {
+        || st->module_checksum_data == NULL) {
         ERR_raise(ERR_LIB_PROV, PROV_R_MISSING_CONFIG_DATA);
         goto end;
     }
@@ -363,7 +365,7 @@ int SELF_TEST_post(SELF_TEST_POST_PARAMS *st, int on_demand_test)
         goto end;
 
     module_checksum = OPENSSL_hexstr2buf(st->module_checksum_data,
-                                         &checksum_len);
+        &checksum_len);
     if (module_checksum == NULL) {
         ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_CONFIG_DATA);
         goto end;
@@ -372,9 +374,9 @@ int SELF_TEST_post(SELF_TEST_POST_PARAMS *st, int on_demand_test)
 
     /* Always check the integrity of the fips module */
     if (bio_module == NULL
-            || !verify_integrity(bio_module, st->bio_read_ex_cb,
-                                 module_checksum, checksum_len, st->libctx,
-                                 ev, OSSL_SELF_TEST_TYPE_MODULE_INTEGRITY)) {
+        || !verify_integrity(bio_module, st->bio_read_ex_cb,
+            module_checksum, checksum_len, st->libctx,
+            ev, OSSL_SELF_TEST_TYPE_MODULE_INTEGRITY)) {
         ERR_raise(ERR_LIB_PROV, PROV_R_MODULE_INTEGRITY_FAILURE);
         goto end;
     }
@@ -388,8 +390,9 @@ int SELF_TEST_post(SELF_TEST_POST_PARAMS *st, int on_demand_test)
     rng = ossl_rand_get0_private_noncreating(st->libctx);
     if (rng != NULL)
         if ((testrand = EVP_RAND_fetch(st->libctx, "TEST-RAND", NULL)) == NULL
-                || strcmp(EVP_RAND_get0_name(EVP_RAND_CTX_get0_rand(rng)),
-                          EVP_RAND_get0_name(testrand)) == 0) {
+            || strcmp(EVP_RAND_get0_name(EVP_RAND_CTX_get0_rand(rng)),
+                   EVP_RAND_get0_name(testrand))
+                == 0) {
             ERR_raise(ERR_LIB_PROV, PROV_R_SELF_TEST_KAT_FAILURE);
             goto end;
         }

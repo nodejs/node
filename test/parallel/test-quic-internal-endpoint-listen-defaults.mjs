@@ -28,15 +28,23 @@ assert.strictEqual(endpoint.address, undefined);
 await assert.rejects(listen(123, { keys, certs, endpoint }), {
   code: 'ERR_INVALID_ARG_TYPE',
 });
+// Buffer is not detached.
+assert.strictEqual(certs.buffer.detached, false);
 
 await assert.rejects(listen(() => {}, 123), {
   code: 'ERR_INVALID_ARG_TYPE',
 });
 
 await listen(() => {}, { keys, certs, endpoint });
+// Buffer is not detached.
+assert.strictEqual(certs.buffer.detached, false);
+
 await assert.rejects(listen(() => {}, { keys, certs, endpoint }), {
   code: 'ERR_INVALID_STATE',
 });
+// Buffer is not detached.
+assert.strictEqual(certs.buffer.detached, false);
+
 assert.ok(state.isBound);
 assert.ok(state.isReceiving);
 assert.ok(state.isListening);
@@ -58,6 +66,9 @@ assert.ok(endpoint.destroyed);
 await assert.rejects(listen(() => {}, { keys, certs, endpoint }), {
   code: 'ERR_INVALID_STATE',
 });
+// Buffer is not detached.
+assert.strictEqual(certs.buffer.detached, false);
+
 assert.throws(() => { endpoint.busy = true; }, {
   code: 'ERR_INVALID_STATE',
 });

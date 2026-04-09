@@ -2,7 +2,7 @@
 
 const common = require('../../common');
 
-// This tests the promise-related n-api calls
+// This tests the promise-related Node-API calls
 
 const assert = require('assert');
 const test_promise = require(`./build/${common.buildType}/test_promise`);

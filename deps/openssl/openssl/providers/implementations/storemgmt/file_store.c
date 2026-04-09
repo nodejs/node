@@ -11,7 +11,7 @@
 
 #include <string.h>
 #include <sys/stat.h>
-#include <ctype.h>  /* isdigit */
+#include <ctype.h> /* isdigit */
 #include <assert.h>
 
 #include <openssl/core_dispatch.h>
@@ -22,11 +22,11 @@
 #include <openssl/params.h>
 #include <openssl/decoder.h>
 #include <openssl/proverr.h>
-#include <openssl/store.h>       /* The OSSL_STORE_INFO type numbers */
+#include <openssl/store.h> /* The OSSL_STORE_INFO type numbers */
 #include "internal/cryptlib.h"
 #include "internal/o_dir.h"
 #include "crypto/decoder.h"
-#include "crypto/ctype.h"        /* ossl_isdigit() */
+#include "crypto/ctype.h" /* ossl_isdigit() */
 #include "prov/implementations.h"
 #include "prov/bio.h"
 #include "prov/providercommon.h"
@@ -35,11 +35,11 @@
 DEFINE_STACK_OF(OSSL_STORE_INFO)
 
 #ifdef _WIN32
-# define stat _stat
+#define stat _stat
 #endif
 
 #ifndef S_ISDIR
-# define S_ISDIR(a) (((a) & S_IFMT) == S_IFDIR)
+#define S_ISDIR(a) (((a) & S_IFMT) == S_IFDIR)
 #endif
 
 static OSSL_FUNC_store_open_fn file_open;
@@ -64,10 +64,10 @@ static OSSL_FUNC_store_close_fn file_close;
 
 struct file_ctx_st {
     void *provctx;
-    char *uri;                   /* The URI we currently try to load */
+    char *uri; /* The URI we currently try to load */
     enum {
-        IS_FILE = 0,             /* Read file and pass results */
-        IS_DIR                   /* Pass directory entry names */
+        IS_FILE = 0, /* Read file and pass results */
+        IS_DIR /* Pass directory entry names */
     } type;
 
     union {
@@ -77,7 +77,7 @@ struct file_ctx_st {
 
             OSSL_DECODER_CTX *decoderctx;
             char *input_type;
-            char *propq;    /* The properties we got as a parameter */
+            char *propq; /* The properties we got as a parameter */
         } file;
 
         /* Used with |IS_DIR| */
@@ -121,7 +121,7 @@ static void free_file_ctx(struct file_ctx_st *ctx)
 }
 
 static struct file_ctx_st *new_file_ctx(int type, const char *uri,
-                                        void *provctx)
+    void *provctx)
 {
     struct file_ctx_st *ctx = NULL;
 
@@ -149,7 +149,7 @@ static OSSL_DECODER_CLEANUP file_load_cleanup;
  *
  */
 static struct file_ctx_st *file_open_stream(BIO *source, const char *uri,
-                                            void *provctx)
+    void *provctx)
 {
     struct file_ctx_st *ctx;
 
@@ -161,7 +161,7 @@ static struct file_ctx_st *file_open_stream(BIO *source, const char *uri,
     ctx->_.file.file = source;
 
     return ctx;
- err:
+err:
     free_file_ctx(ctx);
     return NULL;
 }
@@ -180,13 +180,13 @@ static void *file_open_dir(const char *path, const char *uri, void *provctx)
     if (ctx->_.dir.last_entry == NULL) {
         if (ctx->_.dir.last_errno != 0) {
             ERR_raise_data(ERR_LIB_SYS, ctx->_.dir.last_errno,
-                           "Calling OPENSSL_DIR_read(\"%s\")", path);
+                "Calling OPENSSL_DIR_read(\"%s\")", path);
             goto err;
         }
         ctx->_.dir.end_reached = 1;
     }
     return ctx;
- err:
+err:
     file_close(ctx);
     return NULL;
 }
@@ -197,7 +197,7 @@ static void *file_open(void *provctx, const char *uri)
     struct stat st;
     struct {
         const char *path;
-        unsigned int check_absolute:1;
+        unsigned int check_absolute : 1;
     } path_data[2];
     size_t path_data_n = 0, i;
     const char *path, *p = uri, *q;
@@ -220,9 +220,9 @@ static void *file_open(void *provctx, const char *uri)
     if (CHECK_AND_SKIP_CASE_PREFIX(p, "file:")) {
         q = p;
         if (CHECK_AND_SKIP_CASE_PREFIX(q, "//")) {
-            path_data_n--;           /* Invalidate using the full URI */
+            path_data_n--; /* Invalidate using the full URI */
             if (CHECK_AND_SKIP_CASE_PREFIX(q, "localhost/")
-                    || CHECK_AND_SKIP_CASE_PREFIX(q, "/")) {
+                || CHECK_AND_SKIP_CASE_PREFIX(q, "/")) {
                 p = q - 1;
             } else {
                 ERR_clear_last_mark();
@@ -247,7 +247,6 @@ static void *file_open(void *provctx, const char *uri)
         path_data[path_data_n++].path = p;
     }
 
-
     for (i = 0, path = NULL; path == NULL && i < path_data_n; i++) {
         /*
          * If the scheme "file" was an explicit part of the URI, the path must
@@ -256,14 +255,14 @@ static void *file_open(void *provctx, const char *uri)
         if (path_data[i].check_absolute && path_data[i].path[0] != '/') {
             ERR_clear_last_mark();
             ERR_raise_data(ERR_LIB_PROV, PROV_R_PATH_MUST_BE_ABSOLUTE,
-                           "Given path=%s", path_data[i].path);
+                "Given path=%s", path_data[i].path);
             return NULL;
         }
 
         if (stat(path_data[i].path, &st) < 0) {
             ERR_raise_data(ERR_LIB_SYS, errno,
-                           "calling stat(%s)",
-                           path_data[i].path);
+                "calling stat(%s)",
+                path_data[i].path);
         } else {
             path = path_data[i].path;
         }
@@ -279,7 +278,7 @@ static void *file_open(void *provctx, const char *uri)
     if (S_ISDIR(st.st_mode))
         ctx = file_open_dir(path, uri, provctx);
     else if ((bio = BIO_new_file(path, "rb")) == NULL
-             || (ctx = file_open_stream(bio, uri, provctx)) == NULL)
+        || (ctx = file_open_stream(bio, uri, provctx)) == NULL)
         BIO_free_all(bio);
 
     return ctx;
@@ -354,7 +353,7 @@ static int file_set_ctx_params(void *loaderctx, const OSSL_PARAM params[])
 
         if (ctx->type != IS_DIR) {
             ERR_raise(ERR_LIB_PROV,
-                      PROV_R_SEARCH_ONLY_SUPPORTED_FOR_DIRECTORIES);
+                PROV_R_SEARCH_ONLY_SUPPORTED_FOR_DIRECTORIES);
             return 0;
         }
 
@@ -362,10 +361,10 @@ static int file_set_ctx_params(void *loaderctx, const OSSL_PARAM params[])
             || (x509_name = d2i_X509_NAME(NULL, &der, der_len)) == NULL)
             return 0;
         hash = X509_NAME_hash_ex(x509_name,
-                                 ossl_prov_ctx_get0_libctx(ctx->provctx), NULL,
-                                 &ok);
+            ossl_prov_ctx_get0_libctx(ctx->provctx), NULL,
+            &ok);
         BIO_snprintf(ctx->_.dir.search_name, sizeof(ctx->_.dir.search_name),
-                     "%08lx", hash);
+            "%08lx", hash);
         X509_NAME_free(x509_name);
         if (ok == 0)
             return 0;
@@ -384,7 +383,7 @@ struct file_load_data_st {
 };
 
 static int file_load_construct(OSSL_DECODER_INSTANCE *decoder_inst,
-                               const OSSL_PARAM *params, void *construct_data)
+    const OSSL_PARAM *params, void *construct_data)
 {
     struct file_load_data_st *data = construct_data;
 
@@ -428,7 +427,7 @@ static int file_setup_decoders(struct file_ctx_st *ctx)
 
         /* Make sure the input type is set */
         if (!OSSL_DECODER_CTX_set_input_type(ctx->_.file.decoderctx,
-                                             ctx->_.file.input_type)) {
+                ctx->_.file.input_type)) {
             ERR_raise(ERR_LIB_PROV, ERR_R_OSSL_DECODER_LIB);
             goto err;
         }
@@ -443,7 +442,7 @@ static int file_setup_decoders(struct file_ctx_st *ctx)
         case OSSL_STORE_INFO_PUBKEY:
             input_structure = "SubjectPublicKeyInfo";
             if (!OSSL_DECODER_CTX_set_input_structure(ctx->_.file.decoderctx,
-                                                      input_structure)) {
+                    input_structure)) {
                 ERR_raise(ERR_LIB_PROV, ERR_R_OSSL_DECODER_LIB);
                 goto err;
             }
@@ -460,7 +459,7 @@ static int file_setup_decoders(struct file_ctx_st *ctx)
              */
             input_structure = "EncryptedPrivateKeyInfo";
             if (!OSSL_DECODER_CTX_set_input_structure(ctx->_.file.decoderctx,
-                                                      input_structure)) {
+                    input_structure)) {
                 ERR_raise(ERR_LIB_PROV, ERR_R_OSSL_DECODER_LIB);
                 goto err;
             }
@@ -468,7 +467,7 @@ static int file_setup_decoders(struct file_ctx_st *ctx)
         case OSSL_STORE_INFO_CERT:
             input_structure = "Certificate";
             if (!OSSL_DECODER_CTX_set_input_structure(ctx->_.file.decoderctx,
-                                                      input_structure)) {
+                    input_structure)) {
                 ERR_raise(ERR_LIB_PROV, ERR_R_OSSL_DECODER_LIB);
                 goto err;
             }
@@ -476,7 +475,7 @@ static int file_setup_decoders(struct file_ctx_st *ctx)
         case OSSL_STORE_INFO_CRL:
             input_structure = "CertificateList";
             if (!OSSL_DECODER_CTX_set_input_structure(ctx->_.file.decoderctx,
-                                                      input_structure)) {
+                    input_structure)) {
                 ERR_raise(ERR_LIB_PROV, ERR_R_OSSL_DECODER_LIB);
                 goto err;
             }
@@ -486,8 +485,8 @@ static int file_setup_decoders(struct file_ctx_st *ctx)
         }
 
         for (to_algo = ossl_any_to_obj_algorithm;
-             to_algo->algorithm_names != NULL;
-             to_algo++) {
+            to_algo->algorithm_names != NULL;
+            to_algo++) {
             OSSL_DECODER *to_obj = NULL;
             OSSL_DECODER_INSTANCE *to_obj_inst = NULL;
             const char *input_type;
@@ -500,9 +499,8 @@ static int file_setup_decoders(struct file_ctx_st *ctx)
              */
             to_obj = ossl_decoder_from_algorithm(0, to_algo, NULL);
             if (to_obj != NULL)
-                to_obj_inst =
-                    ossl_decoder_instance_new_forprov(to_obj, ctx->provctx,
-                                                      input_structure);
+                to_obj_inst = ossl_decoder_instance_new_forprov(to_obj, ctx->provctx,
+                    input_structure);
             OSSL_DECODER_free(to_obj);
             if (to_obj_inst == NULL)
                 goto err;
@@ -521,7 +519,7 @@ static int file_setup_decoders(struct file_ctx_st *ctx)
             }
 
             if (!ossl_decoder_ctx_add_decoder_inst(ctx->_.file.decoderctx,
-                                                   to_obj_inst)) {
+                    to_obj_inst)) {
                 ossl_decoder_instance_free(to_obj_inst);
                 ERR_raise(ERR_LIB_PROV, ERR_R_OSSL_DECODER_LIB);
                 goto err;
@@ -529,7 +527,7 @@ static int file_setup_decoders(struct file_ctx_st *ctx)
         }
         /* Add on the usual extra decoders */
         if (!OSSL_DECODER_CTX_add_extra(ctx->_.file.decoderctx,
-                                        libctx, ctx->_.file.propq)) {
+                libctx, ctx->_.file.propq)) {
             ERR_raise(ERR_LIB_PROV, ERR_R_OSSL_DECODER_LIB);
             goto err;
         }
@@ -539,22 +537,22 @@ static int file_setup_decoders(struct file_ctx_st *ctx)
          * data to the load callback
          */
         if (!OSSL_DECODER_CTX_set_construct(ctx->_.file.decoderctx,
-                                            file_load_construct)
+                file_load_construct)
             || !OSSL_DECODER_CTX_set_cleanup(ctx->_.file.decoderctx,
-                                             file_load_cleanup)) {
+                file_load_cleanup)) {
             ERR_raise(ERR_LIB_PROV, ERR_R_OSSL_DECODER_LIB);
             goto err;
         }
     }
 
     ok = 1;
- err:
+err:
     return ok;
 }
 
 static int file_load_file(struct file_ctx_st *ctx,
-                          OSSL_CALLBACK *object_cb, void *object_cbarg,
-                          OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
+    OSSL_CALLBACK *object_cb, void *object_cbarg,
+    OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
 {
     struct file_load_data_st data;
     int ret, err;
@@ -674,8 +672,8 @@ static int file_name_check(struct file_ctx_st *ctx, const char *name)
 }
 
 static int file_load_dir_entry(struct file_ctx_st *ctx,
-                               OSSL_CALLBACK *object_cb, void *object_cbarg,
-                               OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
+    OSSL_CALLBACK *object_cb, void *object_cbarg,
+    OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
 {
     /* Prepare as much as possible in advance */
     static const int object_type = OSSL_OBJECT_NAME;
@@ -703,8 +701,7 @@ static int file_load_dir_entry(struct file_ctx_st *ctx,
             && file_name_check(ctx, ctx->_.dir.last_entry)) {
 
             /* If we can't allocate the new name, we fail */
-            if ((newname =
-                 file_name_to_uri(ctx, ctx->_.dir.last_entry)) == NULL)
+            if ((newname = file_name_to_uri(ctx, ctx->_.dir.last_entry)) == NULL)
                 return 0;
         }
 
@@ -733,8 +730,8 @@ static int file_load_dir_entry(struct file_ctx_st *ctx,
  */
 
 static int file_load(void *loaderctx,
-                     OSSL_CALLBACK *object_cb, void *object_cbarg,
-                     OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
+    OSSL_CALLBACK *object_cb, void *object_cbarg,
+    OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
 {
     struct file_ctx_st *ctx = loaderctx;
 
@@ -742,8 +739,7 @@ static int file_load(void *loaderctx,
     case IS_FILE:
         return file_load_file(ctx, object_cb, object_cbarg, pw_cb, pw_cbarg);
     case IS_DIR:
-        return
-            file_load_dir_entry(ctx, object_cb, object_cbarg, pw_cb, pw_cbarg);
+        return file_load_dir_entry(ctx, object_cb, object_cbarg, pw_cb, pw_cbarg);
     default:
         break;
     }
@@ -820,7 +816,7 @@ const OSSL_DISPATCH ossl_file_store_functions[] = {
     { OSSL_FUNC_STORE_OPEN, (void (*)(void))file_open },
     { OSSL_FUNC_STORE_ATTACH, (void (*)(void))file_attach },
     { OSSL_FUNC_STORE_SETTABLE_CTX_PARAMS,
-      (void (*)(void))file_settable_ctx_params },
+        (void (*)(void))file_settable_ctx_params },
     { OSSL_FUNC_STORE_SET_CTX_PARAMS, (void (*)(void))file_set_ctx_params },
     { OSSL_FUNC_STORE_LOAD, (void (*)(void))file_load },
     { OSSL_FUNC_STORE_EOF, (void (*)(void))file_eof },

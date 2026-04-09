@@ -12,15 +12,14 @@
 #include <crypto/x509.h>
 #include "ext_dat.h"
 
-ASN1_ITEM_TEMPLATE(OSSL_ATTRIBUTES_SYNTAX) =
-        ASN1_EX_TEMPLATE_TYPE(ASN1_TFLG_SEQUENCE_OF, 0, Attributes, X509_ATTRIBUTE)
+ASN1_ITEM_TEMPLATE(OSSL_ATTRIBUTES_SYNTAX) = ASN1_EX_TEMPLATE_TYPE(ASN1_TFLG_SEQUENCE_OF, 0, Attributes, X509_ATTRIBUTE)
 ASN1_ITEM_TEMPLATE_END(OSSL_ATTRIBUTES_SYNTAX)
 
 IMPLEMENT_ASN1_FUNCTIONS(OSSL_ATTRIBUTES_SYNTAX)
 
 static int i2r_ATTRIBUTES_SYNTAX(X509V3_EXT_METHOD *method,
-                                 OSSL_ATTRIBUTES_SYNTAX *attrlst,
-                                 BIO *out, int indent)
+    OSSL_ATTRIBUTES_SYNTAX *attrlst,
+    BIO *out, int indent)
 {
     X509_ATTRIBUTE *attr;
     ASN1_TYPE *av;
@@ -54,8 +53,7 @@ static int i2r_ATTRIBUTES_SYNTAX(X509V3_EXT_METHOD *method,
         }
 
         if (X509_ATTRIBUTE_count(attr)) {
-            for (j = 0; j < X509_ATTRIBUTE_count(attr); j++)
-            {
+            for (j = 0; j < X509_ATTRIBUTE_count(attr); j++) {
                 av = X509_ATTRIBUTE_get0_type(attr, j);
                 if (ossl_print_attribute_value(out, attr_nid, av, indent + 4) <= 0)
                     return 0;

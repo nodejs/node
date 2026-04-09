@@ -507,7 +507,7 @@ class Parser {
     client.emit('disconnect', client[kUrl], [client], new InformationalError('upgrade'))
 
     try {
-      request.onUpgrade(statusCode, headers, socket)
+      request.onRequestUpgrade(statusCode, headers, socket)
     } catch (err) {
       util.destroy(socket, err)
     }
@@ -605,7 +605,7 @@ class Parser {
       socket[kReset] = true
     }
 
-    const pause = request.onHeaders(statusCode, headers, this.resume, statusText) === false
+    const pause = request.onResponseStart(statusCode, headers, this.resume, statusText) === false
 
     if (request.aborted) {
       return -1
@@ -657,7 +657,7 @@ class Parser {
 
     this.bytesRead += buf.length
 
-    if (request.onData(buf) === false) {
+    if (request.onResponseData(buf) === false) {
       return constants.ERROR.PAUSED
     }
 
@@ -703,7 +703,7 @@ class Parser {
       return -1
     }
 
-    request.onComplete(headers)
+    request.onResponseEnd(headers)
 
     client[kQueue][client[kRunningIdx]++] = null
 
@@ -735,8 +735,13 @@ class Parser {
   }
 }
 
-function onParserTimeout (parser) {
-  const { socket, timeoutType, client, paused } = parser.deref()
+function onParserTimeout (parserWeakRef) {
+  const parser = parserWeakRef.deref()
+  if (!parser) {
+    return
+  }
+
+  const { socket, timeoutType, client, paused } = parser
 
   if (timeoutType === TIMEOUT_HEADERS) {
     if (!socket[kWriting] || socket.writableNeedDrain || client[kRunning] > 1) {
@@ -1073,7 +1078,7 @@ function writeH1 (client, request) {
   }
 
   try {
-    request.onConnect(abort)
+    request.onRequestStart(abort, null)
   } catch (err) {
     util.errorRequest(client, request, err)
   }
@@ -1107,6 +1112,10 @@ function writeH1 (client, request) {
 
   if (blocking) {
     socket[kBlocking] = true
+  }
+
+  if (socket.setTypeOfService) {
+    socket.setTypeOfService(request.typeOfService)
   }
 
   let header = `${method} ${path} HTTP/1.1\r\n`

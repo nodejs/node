@@ -103,7 +103,7 @@ const response = await fetch('https://api.example.com/data');
 - Superior performance, especially with `undici.request`
 - HTTP/1.1 pipelining support
 - Custom interceptors and middleware
-- Advanced features like `ProxyAgent`, `MockAgent`
+- Advanced features like `ProxyAgent`, `Socks5Agent`, `MockAgent`
 
 **Cons:**
 - Additional dependency to manage
@@ -122,7 +122,7 @@ const response = await fetch('https://api.example.com/data');
 #### Use Undici Module When:
 - You need the latest undici features and performance improvements
 - You require advanced connection pooling configuration
-- You need APIs not available in the built-in fetch (`ProxyAgent`, `MockAgent`, etc.)
+- You need APIs not available in the built-in fetch (`ProxyAgent`, `Socks5Agent`, `MockAgent`, etc.)
 - Performance is critical (use `undici.request` for maximum speed)
 - You want better error handling and debugging capabilities
 - You need HTTP/1.1 pipelining or advanced interceptors
@@ -153,6 +153,57 @@ import { request } from 'undici';
 const { statusCode, body } = await request('https://api.example.com/data');
 const data = await body.json();
 ```
+
+### Keep `fetch` and `FormData` together
+
+When you send a `FormData` body, keep `fetch` and `FormData` from the same
+implementation.
+
+Use one of these patterns:
+
+```js
+// Built-in globals
+const body = new FormData()
+body.set('name', 'some')
+await fetch('https://example.com', {
+  method: 'POST',
+  body
+})
+```
+
+```js
+// undici module imports
+import { fetch, FormData } from 'undici'
+
+const body = new FormData()
+body.set('name', 'some')
+await fetch('https://example.com', {
+  method: 'POST',
+  body
+})
+```
+
+If you want the installed `undici` package to provide the globals, call
+`install()` first:
+
+```js
+import { install } from 'undici'
+
+install()
+
+const body = new FormData()
+body.set('name', 'some')
+await fetch('https://example.com', {
+  method: 'POST',
+  body
+})
+```
+
+`install()` replaces the global `fetch`, `Headers`, `Response`, `Request`, and
+`FormData` implementations with undici's versions, so they all match.
+
+Avoid mixing a global `FormData` with `undici.fetch()`, or `undici.FormData`
+with the built-in global `fetch()`.
 
 ### Version Compatibility
 
@@ -262,6 +313,11 @@ The `install()` function adds the following classes to `globalThis`:
 - `WebSocket` - WebSocket client
 - `CloseEvent`, `ErrorEvent`, `MessageEvent` - WebSocket events
 - `EventSource` - Server-sent events client
+
+When you call `install()`, these globals come from the same undici
+implementation. For example, global `fetch` and global `FormData` will both be
+undici's versions, which is the recommended setup if you want to use undici
+through globals.
 
 This is useful for:
 - Polyfilling environments that don't have fetch
@@ -562,6 +618,12 @@ See [Dispatcher.upgrade](./docs/docs/api/Dispatcher.md#dispatcherupgradeoptions-
 
 Sets the global dispatcher used by Common API Methods. Global dispatcher is shared among compatible undici modules,
 including undici that is bundled internally with node.js.
+
+Undici stores this dispatcher under `Symbol.for('undici.globalDispatcher.2')`.
+
+`setGlobalDispatcher()` also mirrors the configured dispatcher to
+`Symbol.for('undici.globalDispatcher.1')` using `Dispatcher1Wrapper`, so Node.js built-in `fetch`
+can keep using the legacy handler contract while Undici uses the new handler API.
 
 ### `undici.getGlobalDispatcher()`
 

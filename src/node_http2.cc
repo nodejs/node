@@ -1154,8 +1154,14 @@ int Http2Session::OnInvalidFrame(nghttp2_session* handle,
   // The GOAWAY frame includes an error code that indicates the type of error"
   // The GOAWAY frame is already sent by nghttp2. We emit the error
   // to liberate the Http2Session to destroy.
+  //
+  // ERR_FLOW_CONTROL: A WINDOW_UPDATE on stream 0 pushed the connection-level
+  // flow control window past 2^31-1. nghttp2 sends GOAWAY internally but
+  // without propagating this error the Http2Session would never be destroyed,
+  // causing a memory leak.
   if (nghttp2_is_fatal(lib_error_code) ||
       lib_error_code == NGHTTP2_ERR_STREAM_CLOSED ||
+      lib_error_code == NGHTTP2_ERR_FLOW_CONTROL ||
       lib_error_code == NGHTTP2_ERR_PROTO) {
     Environment* env = session->env();
     Isolate* isolate = env->isolate();
@@ -3476,7 +3482,7 @@ void Initialize(Local<Object> target,
   Local<FunctionTemplate> setting = FunctionTemplate::New(env->isolate());
   setting->Inherit(AsyncWrap::GetConstructorTemplate(env));
   Local<ObjectTemplate> settingt = setting->InstanceTemplate();
-  settingt->SetInternalFieldCount(AsyncWrap::kInternalFieldCount);
+  settingt->SetInternalFieldCount(Http2Settings::kInternalFieldCount);
   env->set_http2settings_constructor_template(settingt);
 
   Local<FunctionTemplate> stream = FunctionTemplate::New(env->isolate());
@@ -3492,7 +3498,7 @@ void Initialize(Local<Object> target,
   stream->Inherit(AsyncWrap::GetConstructorTemplate(env));
   StreamBase::AddMethods(env, stream);
   Local<ObjectTemplate> streamt = stream->InstanceTemplate();
-  streamt->SetInternalFieldCount(StreamBase::kInternalFieldCount);
+  streamt->SetInternalFieldCount(Http2Stream::kInternalFieldCount);
   env->set_http2stream_constructor_template(streamt);
   SetConstructorFunction(context, target, "Http2Stream", stream);
 

@@ -2,6 +2,32 @@
 const common = require('../common');
 const http = require('http');
 const assert = require('assert');
+const { OutgoingMessage } = require('http');
+
+// OutgoingMessage.destroy() with no socket should emit 'close' and set closed.
+{
+  const msg = new OutgoingMessage();
+  assert.strictEqual(msg.destroyed, false);
+  assert.strictEqual(msg.closed, false);
+  msg.on('close', common.mustCall(() => {
+    assert.strictEqual(msg.destroyed, true);
+    assert.strictEqual(msg.closed, true);
+  }));
+  msg.destroy();
+  assert.strictEqual(msg.destroyed, true);
+}
+
+// OutgoingMessage.destroy(err) with no socket should set errored and emit 'close'.
+{
+  const msg = new OutgoingMessage();
+  const err = new Error('test destroy');
+  msg.on('close', common.mustCall(() => {
+    assert.strictEqual(msg.closed, true);
+    assert.strictEqual(msg.errored, err);
+  }));
+  msg.destroy(err);
+  assert.strictEqual(msg.errored, err);
+}
 
 {
   const server = http.createServer(common.mustCall((req, res) => {

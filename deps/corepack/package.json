@@ -1,6 +1,6 @@
 {
   "name": "corepack",
-  "version": "0.34.5",
+  "version": "0.34.6",
   "homepage": "https://github.com/nodejs/corepack#readme",
   "bugs": {
     "url": "https://github.com/nodejs/corepack/issues"
@@ -34,7 +34,7 @@
     "proxy-from-env": "^1.1.0",
     "semver": "^7.6.3",
     "supports-color": "^10.0.0",
-    "tar": "^7.4.0",
+    "tar": "^7.5.4",
     "tsx": "^4.16.2",
     "typescript": "^5.7.3",
     "undici": "^6.21.2",

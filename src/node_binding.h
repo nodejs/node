@@ -49,6 +49,7 @@ static_assert(static_cast<int>(NM_F_LINKED) ==
   V(blob)                                                                      \
   V(builtins)                                                                  \
   V(contextify)                                                                \
+  V(diagnostics_channel)                                                       \
   V(encoding_binding)                                                          \
   V(fs)                                                                        \
   V(fs_dir)                                                                    \

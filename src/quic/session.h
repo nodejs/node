@@ -58,6 +58,7 @@ class Endpoint;
 // object itself is closed/destroyed by user code.
 class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
  public:
+  SessionTicket::AppData::Source& ticket_app_data_source() { return *this; }
   // For simplicity, we use the same Application::Options struct for all
   // Application types. This may change in the future. Not all of the options
   // are going to be relevant for all Application types.
@@ -175,6 +176,11 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     // like. Additional performance profiling will be needed to determine which
     // is the better of the two for our needs.
     ngtcp2_cc_algo cc_algorithm = CC_ALGO_CUBIC;
+
+    // An optional NEW_TOKEN from a previous connection to the same
+    // server. When set, the token is included in the Initial packet
+    // to skip address validation. Client-side only.
+    std::optional<Store> token;
 
     void MemoryInfo(MemoryTracker* tracker) const override;
     SET_MEMORY_INFO_NAME(Session::Options)
@@ -322,8 +328,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
                const SocketAddress& local_address,
                const SocketAddress& remote_address);
 
-  void Send(const BaseObjectPtr<Packet>& packet);
-  void Send(const BaseObjectPtr<Packet>& packet, const PathStorage& path);
+  void Send(Packet::Ptr packet);
+  void Send(Packet::Ptr packet, const PathStorage& path);
   datagram_id SendDatagram(Store&& data);
 
   // A non-const variation to allow certain modifications.
@@ -477,6 +483,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
                           const ValidatedPath& newPath,
                           const std::optional<ValidatedPath>& oldPath);
   void EmitSessionTicket(Store&& ticket);
+  void EmitNewToken(const uint8_t* token, size_t len);
   void EmitStream(const BaseObjectWeakPtr<Stream>& stream);
   void EmitVersionNegotiation(const ngtcp2_pkt_hd& hd,
                               const uint32_t* sv,

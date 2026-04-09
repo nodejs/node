@@ -16,8 +16,8 @@
 #include "des_local.h"
 
 void DES_ecb3_encrypt(const_DES_cblock *input, DES_cblock *output,
-                      DES_key_schedule *ks1, DES_key_schedule *ks2,
-                      DES_key_schedule *ks3, int enc)
+    DES_key_schedule *ks1, DES_key_schedule *ks2,
+    DES_key_schedule *ks3, int enc)
 {
     register DES_LONG l0, l1;
     DES_LONG ll[2];

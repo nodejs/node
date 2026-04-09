@@ -519,7 +519,7 @@ added: v23.8.0
 
 Sends an unreliable datagram to the remote peer, returning the datagram ID.
 If the datagram payload is specified as an `ArrayBufferView`, then ownership of
-that view will be transfered to the underlying stream.
+that view will be transferred to the underlying stream.
 
 ### `session.stats`
 
@@ -1197,9 +1197,13 @@ True to enable TLS keylogging output.
 
 <!-- YAML
 added: v23.8.0
+changes:
+  - version: v25.9.0
+    pr-url: https://github.com/nodejs/node/pull/62335
+    description: CryptoKey is no longer accepted.
 -->
 
-* Type: {KeyObject|CryptoKey|KeyObject\[]|CryptoKey\[]}
+* Type: {KeyObject|KeyObject\[]}
 
 The TLS crypto keys to use for sessions.
 

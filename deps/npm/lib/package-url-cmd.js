@@ -23,12 +23,12 @@ class PackageUrlCommand extends BaseCommand {
     }
 
     for (const arg of args) {
-      // XXX It is very odd that `where` is how pacote knows to look anywhere
-      // other than the cwd.
+      // XXX It is very odd that `where` is how pacote knows to look anywhere other than the cwd.
       const opts = {
         ...this.npm.flatOptions,
         where: this.npm.localPrefix,
         fullMetadata: true,
+        _isRoot: true,
       }
       const mani = await pacote.manifest(arg, opts)
       const url = this.getUrl(arg, mani)
@@ -45,9 +45,8 @@ class PackageUrlCommand extends BaseCommand {
     return this.exec(this.workspacePaths)
   }
 
-  // given a manifest, try to get the hosted git info from it based on
-  // repository (if a string) or repository.url (if an object) returns null
-  // if it's not a valid repo, or not a known hosted repo
+  // given a manifest, try to get the hosted git info from it based on repository (if a string) or repository.url (if an object)
+  // returns null if it's not a valid repo, or not a known hosted repo
   hostedFromMani (mani) {
     const hostedGitInfo = require('hosted-git-info')
     const r = mani.repository

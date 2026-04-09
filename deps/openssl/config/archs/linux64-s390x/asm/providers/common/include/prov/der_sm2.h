@@ -14,6 +14,7 @@
 #include "internal/der.h"
 
 /* Well known OIDs precompiled */
+/* clang-format off */
 
 /*
  * sm2-with-SM3 OBJECT IDENTIFIER ::= { sm-scheme 501 }
@@ -29,9 +30,10 @@ extern const unsigned char ossl_der_oid_sm2_with_SM3[DER_OID_SZ_sm2_with_SM3];
 #define DER_OID_SZ_curveSM2 10
 extern const unsigned char ossl_der_oid_curveSM2[DER_OID_SZ_curveSM2];
 
+/* clang-format on */
 
 /* Subject Public Key Info */
 int ossl_DER_w_algorithmIdentifier_SM2(WPACKET *pkt, int cont, EC_KEY *ec);
 /* Signature */
 int ossl_DER_w_algorithmIdentifier_SM2_with_MD(WPACKET *pkt, int cont,
-                                               EC_KEY *ec, int mdnid);
+    EC_KEY *ec, int mdnid);

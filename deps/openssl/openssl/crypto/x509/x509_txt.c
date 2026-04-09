@@ -102,8 +102,7 @@ const char *X509_verify_cert_error_string(long n)
     case X509_V_ERR_KEYUSAGE_NO_DIGITAL_SIGNATURE:
         return "key usage does not include digital signature";
     case X509_V_ERR_PROXY_CERTIFICATES_NOT_ALLOWED:
-        return
-            "proxy certificates not allowed, please set the appropriate flag";
+        return "proxy certificates not allowed, please set the appropriate flag";
     case X509_V_ERR_INVALID_EXTENSION:
         return "invalid or inconsistent certificate extension";
     case X509_V_ERR_INVALID_POLICY_EXTENSION:

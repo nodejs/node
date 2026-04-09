@@ -154,9 +154,9 @@ int ngtcp2_dcidtr_bind_dcid(ngtcp2_dcidtr *dtr, ngtcp2_dcid **pdest,
  *     There is no Destination Connection ID that matches the given
  *     |path| and |token|.
  */
-int ngtcp2_dcidtr_verify_stateless_reset(const ngtcp2_dcidtr *dtr,
-                                         const ngtcp2_path *path,
-                                         const uint8_t *token);
+int ngtcp2_dcidtr_verify_stateless_reset(
+  const ngtcp2_dcidtr *dtr, const ngtcp2_path *path,
+  const ngtcp2_stateless_reset_token *token);
 
 /*
  * ngtcp2_dcidtr_verify_token_uniqueness verifies that the uniqueness
@@ -180,9 +180,9 @@ int ngtcp2_dcidtr_verify_stateless_reset(const ngtcp2_dcidtr *dtr,
  *     The given combination of values does not satisfy the above
  *     conditions.
  */
-int ngtcp2_dcidtr_verify_token_uniqueness(const ngtcp2_dcidtr *dtr, int *pfound,
-                                          uint64_t seq, const ngtcp2_cid *cid,
-                                          const uint8_t *token);
+int ngtcp2_dcidtr_verify_token_uniqueness(
+  const ngtcp2_dcidtr *dtr, int *pfound, uint64_t seq, const ngtcp2_cid *cid,
+  const ngtcp2_stateless_reset_token *token);
 
 /*
  * ngtcp2_dcidtr_retire_inactive_dcid_prior_to retires inactive
@@ -273,7 +273,8 @@ ngtcp2_tstamp ngtcp2_dcidtr_earliest_retired_ts(const ngtcp2_dcidtr *dtr);
  * buffer space is full, the earliest ngtcp2_dcid is removed.
  */
 void ngtcp2_dcidtr_push_unused(ngtcp2_dcidtr *dtr, uint64_t seq,
-                               const ngtcp2_cid *cid, const uint8_t *token);
+                               const ngtcp2_cid *cid,
+                               const ngtcp2_stateless_reset_token *token);
 
 /*
  * ngtcp2_dcidtr_pop_unused_cid_token removes an unused Destination

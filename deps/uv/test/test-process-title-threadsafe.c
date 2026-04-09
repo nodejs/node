@@ -85,8 +85,16 @@ TEST_IMPL(process_title_threadsafe) {
   int i;
 
 #if defined(__sun) || defined(__CYGWIN__) || defined(__MSYS__) || \
-    defined(__MVS__) || defined(__PASE__)
+    defined(__MVS__) || defined(__PASE__) || defined(__QNX__)
   RETURN_SKIP("uv_(get|set)_process_title is not implemented.");
+#endif
+
+#if defined(__ASAN__) && defined(__APPLE__)
+  /* uv_set_process_title loads and unloads a bunch of dynamic libraries,
+   * and that's quite slow and prone to time out when running concurrently
+   * under AddressSanitizer.
+   */
+  RETURN_SKIP("too slow under ASAN");
 #endif
 
   ASSERT_OK(uv_set_process_title(titles[0]));
