@@ -2164,8 +2164,9 @@ void ParseNodeOptionsEnvVarBinding(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Value> v8_result;
-  CHECK(ToV8Value(context, result).ToLocal(&v8_result));
-  args.GetReturnValue().Set(v8_result);
+  if (ToV8Value(context, result).ToLocal(&v8_result)) {
+    args.GetReturnValue().Set(v8_result);
+  }
 }
 
 void Initialize(Local<Object> target,
