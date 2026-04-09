@@ -81,7 +81,6 @@ namespace quic {
   V(HANDSHAKE_COMPLETED_AT, handshake_completed_at)                            \
   V(HANDSHAKE_CONFIRMED_AT, handshake_confirmed_at)                            \
   V(BYTES_RECEIVED, bytes_received)                                            \
-  V(BYTES_SENT, bytes_sent)                                                    \
   V(BIDI_IN_STREAM_COUNT, bidi_in_stream_count)                                \
   V(BIDI_OUT_STREAM_COUNT, bidi_out_stream_count)                              \
   V(UNI_IN_STREAM_COUNT, uni_in_stream_count)                                  \
@@ -95,6 +94,14 @@ namespace quic {
   V(RTTVAR, rttvar)                                                            \
   V(SMOOTHED_RTT, smoothed_rtt)                                                \
   V(SSTHRESH, ssthresh)                                                        \
+  V(PKT_SENT, pkt_sent)                                                        \
+  V(BYTES_SENT, bytes_sent)                                                    \
+  V(PKT_RECV, pkt_recv)                                                        \
+  V(BYTES_RECV, bytes_recv)                                                    \
+  V(PKT_LOST, pkt_lost)                                                        \
+  V(BYTES_LOST, bytes_lost)                                                    \
+  V(PING_RECV, ping_recv)                                                      \
+  V(PKT_DISCARDED, pkt_discarded)                                              \
   V(DATAGRAMS_RECEIVED, datagrams_received)                                    \
   V(DATAGRAMS_SENT, datagrams_sent)                                            \
   V(DATAGRAMS_ACKNOWLEDGED, datagrams_acknowledged)                            \
@@ -1801,8 +1808,6 @@ void Session::Send(Packet::Ptr packet) {
   }
 
   Debug(this, "Session is sending %s", packet->ToString());
-  auto& stats_ = impl_->stats_;
-  STAT_INCREMENT_N(Stats, bytes_sent, packet->length());
   endpoint().Send(std::move(packet));
 }
 
@@ -1976,7 +1981,6 @@ datagram_id Session::SendDatagram(Store&& data) {
       Debug(this, "Datagram %" PRIu64 " sent", did);
       auto& stats_ = impl_->stats_;
       STAT_INCREMENT(Stats, datagrams_sent);
-      STAT_INCREMENT_N(Stats, bytes_sent, vec.len);
       impl_->state_->last_datagram_id = did;
       return did;
     }
@@ -2331,6 +2335,15 @@ void Session::UpdateDataStats() {
   STAT_SET(Stats, rttvar, info.rttvar);
   STAT_SET(Stats, smoothed_rtt, info.smoothed_rtt);
   STAT_SET(Stats, ssthresh, info.ssthresh);
+  STAT_SET(Stats, pkt_sent, info.pkt_sent);
+  STAT_SET(Stats, bytes_sent, info.bytes_sent);
+  STAT_SET(Stats, pkt_recv, info.pkt_recv);
+  STAT_SET(Stats, bytes_recv, info.bytes_recv);
+  STAT_SET(Stats, pkt_lost, info.pkt_lost);
+  STAT_SET(Stats, bytes_lost, info.bytes_lost);
+  STAT_SET(Stats, ping_recv, info.ping_recv);
+  STAT_SET(Stats, pkt_discarded, info.pkt_discarded);
+
   STAT_SET(
       Stats,
       max_bytes_in_flight,
