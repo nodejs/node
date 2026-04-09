@@ -153,6 +153,7 @@ TransportParams::TransportParams(const Config& config, const Options& options)
   SET_PARAM_V(max_idle_timeout, options.max_idle_timeout * NGTCP2_SECONDS);
   SET_PARAM_V(disable_active_migration,
               options.disable_active_migration ? 1 : 0);
+  SET_PARAM_V(grease_quic_bit, 1);
   SET_PARAM_V(preferred_addr_present, 0);
   SET_PARAM_V(stateless_reset_token_present, 0);
   SET_PARAM_V(retry_scid_present, 0);
