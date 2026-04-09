@@ -32,16 +32,17 @@ const clientSession = await connect(serverEndpoint.address, {
 await clientSession.opened;
 await serverOpened.promise;
 
-// Test 1: Priority returns null for non-HTTP/3 sessions
+// Test 1: Priority getter returns null for non-HTTP/3 sessions.
+//         setPriority throws because the session doesn't support priority.
 {
   const stream = await clientSession.createBidirectionalStream();
-  // Catch the closed rejection when the session closes with open streams
   stream.closed.catch(() => {});
   assert.strictEqual(stream.priority, null);
 
-  // setPriority should be a no-op (not throw)
-  stream.setPriority({ level: 'high', incremental: true });
-  assert.strictEqual(stream.priority, null);
+  assert.throws(
+    () => stream.setPriority({ level: 'high', incremental: true }),
+    { code: 'ERR_INVALID_STATE' },
+  );
 }
 
 // Test 2: Validation of createStream priority/incremental options
@@ -64,16 +65,23 @@ await serverOpened.promise;
   );
 }
 
-// Test 3: setPriority is a no-op on non-H3 sessions (does not throw
-//         even with invalid arguments, because it returns early)
+// Test 3: setPriority throws on non-H3 sessions regardless of arguments
 {
   const stream = await clientSession.createBidirectionalStream();
   stream.closed.catch(() => {});
-  stream.setPriority({ level: 'high' });
-  stream.setPriority({ level: 'low', incremental: true });
-  stream.setPriority({ level: 'default', incremental: false });
-  stream.setPriority({ level: 'urgent' });
-  stream.setPriority('high');
+
+  assert.throws(
+    () => stream.setPriority({ level: 'high' }),
+    { code: 'ERR_INVALID_STATE' },
+  );
+  assert.throws(
+    () => stream.setPriority({ level: 'low', incremental: true }),
+    { code: 'ERR_INVALID_STATE' },
+  );
+  assert.throws(
+    () => stream.setPriority(),
+    { code: 'ERR_INVALID_STATE' },
+  );
 }
 
 clientSession.close();
