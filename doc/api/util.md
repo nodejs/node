@@ -2551,7 +2551,7 @@ changes:
 
 * `format` {string | Array} A text format or an Array
   of text formats defined in `util.inspect.colors`.
-* `text` {string} The text to to be formatted.
+* `text` {string} The text to be formatted.
 * `options` {Object}
   * `validateStream` {boolean} When true, `stream` is checked to see if it can handle colors. **Default:** `true`.
   * `stream` {Stream} A stream that will be validated if it can be colored. **Default:** `process.stdout`.
