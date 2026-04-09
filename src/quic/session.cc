@@ -107,17 +107,20 @@ namespace quic {
   V(DATAGRAMS_ACKNOWLEDGED, datagrams_acknowledged)                            \
   V(DATAGRAMS_LOST, datagrams_lost)
 
+#define NO_SIDE_EFFECT true
+#define SIDE_EFFECT false
+
 #define SESSION_JS_METHODS(V)                                                  \
-  V(Destroy, destroy, false)                                                   \
-  V(GetRemoteAddress, getRemoteAddress, true)                                  \
-  V(GetCertificate, getCertificate, true)                                      \
-  V(GetEphemeralKeyInfo, getEphemeralKey, true)                                \
-  V(GetPeerCertificate, getPeerCertificate, true)                              \
-  V(GracefulClose, gracefulClose, false)                                       \
-  V(SilentClose, silentClose, false)                                           \
-  V(UpdateKey, updateKey, false)                                               \
-  V(OpenStream, openStream, false)                                             \
-  V(SendDatagram, sendDatagram, false)
+  V(Destroy, destroy, SIDE_EFFECT)                                             \
+  V(GetRemoteAddress, getRemoteAddress, NO_SIDE_EFFECT)                        \
+  V(GetCertificate, getCertificate, NO_SIDE_EFFECT)                            \
+  V(GetEphemeralKeyInfo, getEphemeralKey, NO_SIDE_EFFECT)                      \
+  V(GetPeerCertificate, getPeerCertificate, NO_SIDE_EFFECT)                    \
+  V(GracefulClose, gracefulClose, SIDE_EFFECT)                                 \
+  V(SilentClose, silentClose, SIDE_EFFECT)                                     \
+  V(UpdateKey, updateKey, SIDE_EFFECT)                                         \
+  V(OpenStream, openStream, SIDE_EFFECT)                                       \
+  V(SendDatagram, sendDatagram, SIDE_EFFECT)
 
 struct Session::State final {
 #define V(_, name, type) type name;
@@ -1234,7 +1237,7 @@ struct Session::Impl final : public MemoryRetainer {
       on_receive_datagram,
       on_acknowledge_datagram,
       on_lost_datagram,
-      ngtcp2_crypto_get_path_challenge_data_cb,
+      nullptr,  // get_path_challenge_data (deprecated, use v2 below)
       on_stream_stop_sending,
       ngtcp2_crypto_version_negotiation_cb,
       on_receive_rx_key,
@@ -1244,7 +1247,7 @@ struct Session::Impl final : public MemoryRetainer {
       on_receive_stateless_reset,
       on_get_new_cid,
       on_cid_status,
-      nullptr};
+      ngtcp2_crypto_get_path_challenge_data2_cb};
 
   static constexpr ngtcp2_callbacks SERVER = {
       nullptr,
@@ -1281,7 +1284,7 @@ struct Session::Impl final : public MemoryRetainer {
       on_receive_datagram,
       on_acknowledge_datagram,
       on_lost_datagram,
-      ngtcp2_crypto_get_path_challenge_data_cb,
+      nullptr,  // get_path_challenge_data (deprecated, use v2 below)
       on_stream_stop_sending,
       ngtcp2_crypto_version_negotiation_cb,
       nullptr,
@@ -1291,7 +1294,7 @@ struct Session::Impl final : public MemoryRetainer {
       on_receive_stateless_reset,
       on_get_new_cid,
       on_cid_status,
-      nullptr};
+      ngtcp2_crypto_get_path_challenge_data2_cb};
 };
 
 #undef NGTCP2_CALLBACK_SCOPE
