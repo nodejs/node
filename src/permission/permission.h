@@ -118,6 +118,10 @@ class Permission {
   void Apply(Environment* env,
              const std::vector<std::string>& allow,
              PermissionScope scope);
+  // Runtime Call
+  void Drop(Environment* env,
+            PermissionScope scope,
+            const std::string_view& param = "");
   void EnablePermissions();
   void EnableWarningOnly();
 

@@ -53,6 +53,29 @@ constexpr std::string_view GetDiagnosticsChannelName(PermissionScope scope) {
   }
 }
 
+// permission.drop('fs.read', '/tmp/')
+// permission.drop('child')
+static void Drop(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsString());
+
+  const std::string deny_scope = Utf8Value(env->isolate(), args[0]).ToString();
+  PermissionScope scope = Permission::StringToPermission(deny_scope);
+  if (scope == PermissionScope::kPermissionsRoot) {
+    return;
+  }
+
+  if (args.Length() > 1 && !args[1]->IsUndefined()) {
+    Utf8Value utf8_arg(env->isolate(), args[1]);
+    if (utf8_arg.length() > 0) {
+      env->permission()->Drop(env, scope, utf8_arg.ToStringView());
+      return;
+    }
+  }
+
+  env->permission()->Drop(env, scope);
+}
+
 // permission.has('fs.in', '/tmp/')
 // permission.has('fs.in')
 static void Has(const FunctionCallbackInfo<Value>& args) {
@@ -283,17 +306,61 @@ void Permission::Apply(Environment* env,
   }
 }
 
+void Permission::Drop(Environment* env,
+                       PermissionScope scope,
+                       const std::string_view& param) {
+  auto permission = nodes_.find(scope);
+  if (permission != nodes_.end()) {
+    permission->second->Drop(env, scope, param);
+  }
+
+  // Publish to diagnostics channel so observers can track drops
+  auto channel_name = GetDiagnosticsChannelName(scope);
+  if (!channel_name.empty() && !publishing_) {
+    auto ch = GetOrCreateChannel(env, scope);
+    if (ch && ch->HasSubscribers()) {
+      publishing_ = true;
+      v8::Isolate* isolate = env->isolate();
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = env->context();
+      v8::Local<v8::Object> msg =
+          v8::Object::New(isolate, v8::Null(isolate), nullptr, nullptr, 0);
+      const char* perm_str = PermissionToString(scope);
+      msg->Set(context,
+               FIXED_ONE_BYTE_STRING(isolate, "permission"),
+               v8::String::NewFromUtf8(isolate, perm_str).ToLocalChecked())
+          .Check();
+      msg->Set(context,
+               FIXED_ONE_BYTE_STRING(isolate, "resource"),
+               v8::String::NewFromUtf8(isolate,
+                                       param.data(),
+                                       v8::NewStringType::kNormal,
+                                       static_cast<int>(param.size()))
+                   .ToLocalChecked())
+          .Check();
+      msg->Set(context,
+               FIXED_ONE_BYTE_STRING(isolate, "drop"),
+               v8::Boolean::New(isolate, true))
+          .Check();
+      ch->Publish(env, msg);
+      publishing_ = false;
+    }
+  }
+}
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
   SetMethodNoSideEffect(context, target, "has", Has);
+  SetMethod(context, target, "drop", Drop);
 
   target->SetIntegrityLevel(context, IntegrityLevel::kFrozen).FromJust();
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Has);
+  registry->Register(Drop);
 }
 
 }  // namespace permission

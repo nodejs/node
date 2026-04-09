@@ -15,6 +15,12 @@ void WASIPermission::Apply(Environment* env,
   deny_all_ = true;
 }
 
+void WASIPermission::Drop(Environment* env,
+                           PermissionScope scope,
+                           const std::string_view& param) {
+  deny_all_ = true;
+}
+
 bool WASIPermission::is_granted(Environment* env,
                                 PermissionScope perm,
                                 const std::string_view& param) const {

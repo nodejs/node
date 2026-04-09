@@ -78,7 +78,7 @@ flag. For WASI, use the [`--allow-wasi`][] flag. For FFI, use the
 
 When enabling the Permission Model through the [`--permission`][]
 flag a new property `permission` is added to the `process` object.
-This property contains one function:
+This property contains the following functions:
 
 ##### `permission.has(scope[, reference])`
 
@@ -90,6 +90,36 @@ process.permission.has('fs.write', '/home/rafaelgss/protected-folder'); // true
 
 process.permission.has('fs.read'); // true
 process.permission.has('fs.read', '/home/rafaelgss/protected-folder'); // false
+```
+
+##### `permission.drop(scope[, reference])`
+
+API call to drop permissions at runtime. This operation is **irreversible**.
+
+When called without a reference, the entire scope is dropped. When called
+with a reference, only the permission for that specific resource is revoked.
+
+You can only drop the exact resource that was explicitly granted. The
+reference passed to `drop()` must match the original grant. If a permission
+was granted using a wildcard (`*`), only the entire scope can be dropped
+(by calling `drop()` without a reference). If a directory was granted
+(e.g. `--allow-fs-read=/my/folder`), you cannot drop individual files
+inside it - you must drop the same directory that was originally granted.
+
+```js
+const fs = require('node:fs');
+
+// Read config at startup while we still have permission
+const config = fs.readFileSync('/etc/myapp/config.json', 'utf8');
+
+// Drop read access to /etc/myapp after initialization
+process.permission.drop('fs.read', '/etc/myapp');
+
+// This will now throw ERR_ACCESS_DENIED
+process.permission.has('fs.read', '/etc/myapp/config.json'); // false
+
+// Drop child process permission entirely
+process.permission.drop('child');
 ```
 
 #### File System Permissions
