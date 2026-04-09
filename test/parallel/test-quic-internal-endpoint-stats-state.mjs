@@ -154,8 +154,11 @@ assert.strictEqual(sessionState.isStatelessReset, false);
 assert.strictEqual(sessionState.isHandshakeCompleted, false);
 assert.strictEqual(sessionState.isHandshakeConfirmed, false);
 assert.strictEqual(sessionState.isStreamOpenAllowed, false);
+assert.strictEqual(sessionState.hasDatagramStatusListener, false);
 assert.strictEqual(sessionState.isPrioritySupported, false);
+assert.strictEqual(sessionState.headersSupported, 0);
 assert.strictEqual(sessionState.isWrapped, false);
+assert.strictEqual(sessionState.maxDatagramSize, 0n);
 assert.strictEqual(sessionState.lastDatagramId, 0n);
 
 assert.strictEqual(typeof streamState.toJSON(), 'object');

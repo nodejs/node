@@ -548,18 +548,56 @@ added: v23.8.0
 
 The local and remote socket addresses associated with the session. Read only.
 
-### `session.sendDatagram(datagram)`
+### `session.sendDatagram(datagram[, encoding])`
 
 <!-- YAML
 added: v23.8.0
 -->
 
-* `datagram` {string|ArrayBufferView}
-* Returns: {bigint}
+* `datagram` {string|ArrayBufferView|Promise}
+* `encoding` {string} The encoding to use if `datagram` is a string.
+  **Default:** `'utf8'`.
+* Returns: {Promise} for a {bigint} datagram ID.
 
-Sends an unreliable datagram to the remote peer, returning the datagram ID.
-If the datagram payload is specified as an `ArrayBufferView`, then ownership of
-that view will be transferred to the underlying stream.
+Sends an unreliable datagram to the remote peer, returning a promise for
+the datagram ID.
+
+If `datagram` is a string, it will be encoded using the specified `encoding`.
+
+If `datagram` is an `ArrayBufferView`, the underlying `ArrayBuffer` will be
+transferred if possible (taking ownership to prevent mutation after send).
+If the buffer is not transferable (e.g., a `SharedArrayBuffer` or a view
+over a subset of a larger buffer such as a pooled `Buffer`), the data will
+be copied instead.
+
+If `datagram` is a `Promise`, it will be awaited before sending. If the
+session closes while awaiting, `0n` is returned silently (datagrams are
+inherently unreliable).
+
+If the datagram payload is zero-length (empty string after encoding, detached
+buffer, or zero-length view), `0n` is returned and no datagram is sent.
+
+Datagrams cannot be fragmented — each must fit within a single QUIC packet.
+The maximum datagram size is determined by the peer's
+`maxDatagramFrameSize` transport parameter (which the peer advertises during
+the handshake). If the peer sets this to `0`, datagrams are not supported
+and `0n` will be returned. If the datagram exceeds the peer's limit, it
+will be silently dropped and `0n` returned. The local
+`maxDatagramFrameSize` transport parameter (default: `1200` bytes) controls
+what this endpoint advertises to the peer as its own maximum.
+
+### `session.maxDatagramSize`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {bigint}
+
+The maximum datagram payload size in bytes that the peer will accept,
+as advertised in the peer's `maxDatagramFrameSize` transport parameter.
+Returns `0n` if the peer does not support datagrams or if the handshake
+has not yet completed. Datagrams larger than this value will not be sent.
 
 ### `session.stats`
 
@@ -1679,6 +1717,13 @@ added: v23.8.0
 -->
 
 * Type: {bigint|number}
+* **Default:** `1200`
+
+The maximum size in bytes of a DATAGRAM frame payload that this endpoint
+is willing to receive. Set to `0` to disable datagram support. The peer
+will not send datagrams larger than this value. The actual maximum size of
+a datagram that can be _sent_ is determined by the peer's
+`maxDatagramFrameSize`, not this endpoint's value.
 
 ## Callbacks
 

@@ -61,6 +61,7 @@ namespace quic {
   V(PATH_VALIDATION, path_validation, uint8_t)                                 \
   V(VERSION_NEGOTIATION, version_negotiation, uint8_t)                         \
   V(DATAGRAM, datagram, uint8_t)                                               \
+  V(DATAGRAM_STATUS, datagram_status, uint8_t)                                 \
   V(SESSION_TICKET, session_ticket, uint8_t)                                   \
   V(CLOSING, closing, uint8_t)                                                 \
   V(GRACEFUL_CLOSE, graceful_close, uint8_t)                                   \
@@ -73,6 +74,7 @@ namespace quic {
   V(HEADERS_SUPPORTED, headers_supported, uint8_t)                             \
   V(WRAPPED, wrapped, uint8_t)                                                 \
   V(APPLICATION_TYPE, application_type, uint8_t)                               \
+  V(MAX_DATAGRAM_SIZE, max_datagram_size, uint64_t)                            \
   V(LAST_DATAGRAM_ID, last_datagram_id, datagram_id)
 
 #define SESSION_STATS(V)                                                       \
@@ -219,7 +221,7 @@ void ngtcp2_debug_log(void* user_data, const char* fmt, ...) {
   va_end(ap);
 }
 
-template <typename Opt, PreferredAddress::Policy Opt::* member>
+template <typename Opt, PreferredAddress::Policy Opt::*member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -234,7 +236,7 @@ bool SetOption(Environment* env,
   return true;
 }
 
-template <typename Opt, TLSContext::Options Opt::* member>
+template <typename Opt, TLSContext::Options Opt::*member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -249,7 +251,7 @@ bool SetOption(Environment* env,
   return true;
 }
 
-template <typename Opt, TransportParams::Options Opt::* member>
+template <typename Opt, TransportParams::Options Opt::*member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -264,7 +266,7 @@ bool SetOption(Environment* env,
   return true;
 }
 
-template <typename Opt, ngtcp2_cc_algo Opt::* member>
+template <typename Opt, ngtcp2_cc_algo Opt::*member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -1858,17 +1860,22 @@ datagram_id Session::SendDatagram(Store&& data) {
   const ngtcp2_transport_params* tp = remote_transport_params();
   uint64_t max_datagram_size = tp->max_datagram_frame_size;
 
+  // These size and length checks should have been caught by the JavaScript
+  // side, but handle it gracefully here just in case. We might have some future
+  // case where datagram frames are sent from C++ code directly, so it's good to
+  // have these checks as a backstop regardless.
+
   if (max_datagram_size == 0) {
     Debug(this, "Datagrams are disabled");
     return 0;
   }
 
-  if (data.length() > max_datagram_size) {
+  if (data.length() > max_datagram_size) [[unlikely]] {
     Debug(this, "Ignoring oversized datagram");
     return 0;
   }
 
-  if (data.length() == 0) {
+  if (data.length() == 0) [[unlikely]] {
     Debug(this, "Ignoring empty datagram");
     return 0;
   }
@@ -1879,6 +1886,11 @@ datagram_id Session::SendDatagram(Store&& data) {
   ngtcp2_vec vec = data;
   PathStorage path;
   int flags = NGTCP2_WRITE_DATAGRAM_FLAG_MORE;
+  // There's always the slightest possibility that the datagram ID could wrap
+  // around, but that's a lot of datagrams and we would have to be sending
+  // them at a very high rate for a very long time, so we'll just let it
+  // wrap around naturally if it ever does. If anyone accomplishes that feat,
+  // we can throw them a party.
   datagram_id did = impl_->state_->last_datagram_id + 1;
 
   Debug(this, "Sending %zu-byte datagram %" PRIu64, data.length(), did);
@@ -1987,7 +1999,7 @@ datagram_id Session::SendDatagram(Store&& data) {
           break;
         }
       }
-      SetLastError(QuicError::ForTransport(nwrite));
+      SetLastError(QuicError::ForNgtcp2Error(nwrite));
       Close(CloseMethod::SILENT);
       return 0;
     }
@@ -2479,7 +2491,9 @@ void Session::DatagramStatus(datagram_id datagramId,
       break;
     }
   }
-  EmitDatagramStatus(datagramId, status);
+  if (impl_->state_->datagram_status) {
+    EmitDatagramStatus(datagramId, status);
+  }
 }
 
 void Session::DatagramReceived(const uint8_t* data,
@@ -2519,6 +2533,11 @@ bool Session::HandshakeCompleted() {
   auto& stats_ = impl_->stats_;
   STAT_RECORD_TIMESTAMP(Stats, handshake_completed_at);
   SetStreamOpenAllowed();
+
+  // Capture the peer's max datagram frame size from the remote transport
+  // parameters so JavaScript can check it without a C++ round-trip.
+  const ngtcp2_transport_params* tp = remote_transport_params();
+  impl_->state_->max_datagram_size = tp->max_datagram_frame_size;
 
   // If early data was attempted but rejected by the server,
   // tell ngtcp2 so it can retransmit the data as 1-RTT.
