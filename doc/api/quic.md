@@ -385,6 +385,36 @@ to complete but no new streams will be opened. Once all streams have closed,
 the session will be destroyed. The returned promise will be fulfilled once
 the session has been destroyed.
 
+### `session.opened`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Promise} for an {Object}
+  * `local` {net.SocketAddress} The local socket address.
+  * `remote` {net.SocketAddress} The remote socket address.
+  * `servername` {string} The SNI server name negotiated during the handshake.
+  * `protocol` {string} The ALPN protocol negotiated during the handshake.
+  * `cipher` {string} The name of the negotiated TLS cipher suite.
+  * `cipherVersion` {string} The TLS protocol version of the cipher suite
+    (e.g., `'TLSv1.3'`).
+  * `validationErrorReason` {string} If certificate validation failed, the
+    reason string. Empty string if validation succeeded.
+  * `validationErrorCode` {number} If certificate validation failed, the
+    error code. `0` if validation succeeded.
+  * `earlyDataAttempted` {boolean} Whether 0-RTT early data was attempted.
+  * `earlyDataAccepted` {boolean} Whether 0-RTT early data was accepted by
+    the server.
+
+A promise that is fulfilled once the TLS handshake completes successfully.
+The resolved value contains information about the established session
+including the negotiated protocol, cipher suite, certificate validation
+status, and 0-RTT early data status.
+
+If the handshake fails or the session is destroyed before the handshake
+completes, the promise will be rejected.
+
 ### `session.closed`
 
 <!-- YAML
@@ -496,6 +526,30 @@ added: v23.8.0
 
 The callback to invoke when the TLS handshake is completed. Read/write.
 
+### `session.onnewtoken`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {quic.OnNewTokenCallback}
+
+The callback to invoke when a NEW\_TOKEN token is received from the server.
+The token can be passed as the `token` option on a future connection to
+the same server to skip address validation. Read/write.
+
+### `session.onorigin`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {quic.OnOriginCallback}
+
+The callback to invoke when an ORIGIN frame (RFC 9412) is received from
+the server, indicating which origins the server is authoritative for.
+Read/write.
+
 ### `session.createBidirectionalStream([options])`
 
 <!-- YAML
@@ -586,6 +640,42 @@ will be silently dropped and `0n` returned. The local
 `maxDatagramFrameSize` transport parameter (default: `1200` bytes) controls
 what this endpoint advertises to the peer as its own maximum.
 
+### `session.certificate`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Object|undefined}
+
+The local certificate as an object with properties such as `subject`,
+`issuer`, `valid_from`, `valid_to`, `fingerprint`, etc. Returns `undefined`
+if the session is destroyed or no certificate is available.
+
+### `session.peerCertificate`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Object|undefined}
+
+The peer's certificate as an object with properties such as `subject`,
+`issuer`, `valid_from`, `valid_to`, `fingerprint`, etc. Returns `undefined`
+if the session is destroyed or the peer did not present a certificate.
+
+### `session.ephemeralKeyInfo`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Object|undefined}
+
+The ephemeral key information for the session, with properties such as
+`type`, `name`, and `size`. Only available on client sessions. Returns
+`undefined` for server sessions or if the session is destroyed.
+
 ### `session.maxDatagramSize`
 
 <!-- YAML
@@ -608,19 +698,6 @@ added: v23.8.0
 * Type: {quic.QuicSession.Stats}
 
 Return the current statistics for the session. Read only.
-
-### `session.token`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* Type: {object|undefined}
-
-The most recently received NEW\_TOKEN token from the server, if any.
-The object has `token` {Buffer} and `address` {SocketAddress} properties.
-The token can be passed as the `token` option on a future connection to
-the same server to skip address validation.
 
 ### `session.updateKey()`
 
@@ -1537,9 +1614,9 @@ added: REPLACEME
 * Type: {ArrayBufferView}
 
 An opaque address validation token previously received from the server
-via `session.token`. Providing a valid token on reconnection allows
-the client to skip the server's address validation, reducing handshake
-latency.
+via the [`session.onnewtoken`][] callback. Providing a valid token on
+reconnection allows the client to skip the server's address validation,
+reducing handshake latency.
 
 #### `sessionOptions.transportParams`
 
@@ -1817,6 +1894,25 @@ added: v23.8.0
 * `earlyDataAttempted` {boolean}
 * `earlyDataAccepted` {boolean}
 
+### Callback: `OnNewTokenCallback`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `this` {quic.QuicSession}
+* `token` {Buffer} The NEW\_TOKEN token data.
+* `address` {SocketAddress} The remote address the token is associated with.
+
+### Callback: `OnOriginCallback`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `this` {quic.QuicSession}
+* `origins` {string\[]} The list of origins the server is authoritative for.
+
 ### Callback: `OnBlockedCallback`
 
 <!-- YAML
@@ -1983,5 +2079,6 @@ added: v23.8.0
 added: v23.8.0
 -->
 
+[`session.onnewtoken`]: #sessiononnewtoken
 [`sessionOptions.sni`]: #sessionoptionssni-server-only
 [`stream.setPriority()`]: #streamsetpriorityoptions

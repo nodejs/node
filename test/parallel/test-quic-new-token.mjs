@@ -23,17 +23,13 @@ await assert.rejects(connect({ port: 1234 }, {
 });
 
 // After a successful handshake, the server automatically sends a
-// NEW_TOKEN frame. The client should receive it and make it
-// available via session.token.
+// NEW_TOKEN frame. The client should receive it via the onnewtoken
+// callback set at connection time.
 
-const serverOpened = Promise.withResolvers();
 const clientToken = Promise.withResolvers();
 
 const serverEndpoint = await listen(mustCall((serverSession) => {
-  serverSession.opened.then(mustCall((info) => {
-    serverOpened.resolve();
-    // Don't close immediately — give time for NEW_TOKEN to be sent
-  }));
+  serverSession.opened.then(mustCall());
 }), {
   sni: { '*': { keys: [key], certs: [cert] } },
   alpn: ['quic-test'],
@@ -42,28 +38,16 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
 const clientSession = await connect(serverEndpoint.address, {
   alpn: 'quic-test',
   servername: 'localhost',
+  // Set onnewtoken at connection time to avoid missing the event.
+  onnewtoken: mustCall(function(token, address) {
+    assert.ok(Buffer.isBuffer(token), 'token should be a Buffer');
+    assert.ok(token.length > 0, 'token should not be empty');
+    assert.ok(address !== undefined, 'address should be defined');
+    clientToken.resolve();
+  }),
 });
 
 await clientSession.opened;
-await serverOpened.promise;
-
-// Wait briefly for the NEW_TOKEN frame to arrive. The server submits
-// it during handshake confirmation, but it may take an additional
-// packet exchange to reach the client.
-const checkToken = () => {
-  if (clientSession.token !== undefined) {
-    clientToken.resolve();
-  } else {
-    setTimeout(checkToken, 10);
-  }
-};
-checkToken();
-
 await clientToken.promise;
-
-const { token, address } = clientSession.token;
-assert.ok(Buffer.isBuffer(token), 'token should be a Buffer');
-assert.ok(token.length > 0, 'token should not be empty');
-assert.ok(address !== undefined, 'address should be defined');
 
 clientSession.close();

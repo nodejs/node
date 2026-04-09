@@ -57,12 +57,44 @@ using v8::Value;
 
 namespace quic {
 
+// Listener flags are packed into a single uint32_t bitfield to reduce
+// the size of the shared state buffer. Each bit indicates whether a
+// corresponding JS callback is registered.
+enum class SessionListenerFlags : uint32_t {
+  PATH_VALIDATION = 1 << 0,
+  DATAGRAM = 1 << 1,
+  DATAGRAM_STATUS = 1 << 2,
+  SESSION_TICKET = 1 << 3,
+  NEW_TOKEN = 1 << 4,
+  ORIGIN = 1 << 5,
+};
+
+inline SessionListenerFlags operator|(SessionListenerFlags a,
+                                      SessionListenerFlags b) {
+  return static_cast<SessionListenerFlags>(static_cast<uint32_t>(a) |
+                                           static_cast<uint32_t>(b));
+}
+
+inline SessionListenerFlags operator&(SessionListenerFlags a,
+                                      SessionListenerFlags b) {
+  return static_cast<SessionListenerFlags>(static_cast<uint32_t>(a) &
+                                           static_cast<uint32_t>(b));
+}
+
+inline SessionListenerFlags operator&(uint32_t a, SessionListenerFlags b) {
+  return static_cast<SessionListenerFlags>(a & static_cast<uint32_t>(b));
+}
+
+inline bool operator!(SessionListenerFlags a) {
+  return static_cast<uint32_t>(a) == 0;
+}
+
+inline bool HasListenerFlag(uint32_t flags, SessionListenerFlags flag) {
+  return !!(flags & flag);
+}
+
 #define SESSION_STATE(V)                                                       \
-  V(PATH_VALIDATION, path_validation, uint8_t)                                 \
-  V(VERSION_NEGOTIATION, version_negotiation, uint8_t)                         \
-  V(DATAGRAM, datagram, uint8_t)                                               \
-  V(DATAGRAM_STATUS, datagram_status, uint8_t)                                 \
-  V(SESSION_TICKET, session_ticket, uint8_t)                                   \
+  V(LISTENER_FLAGS, listener_flags, uint32_t)                                  \
   V(CLOSING, closing, uint8_t)                                                 \
   V(GRACEFUL_CLOSE, graceful_close, uint8_t)                                   \
   V(SILENT_CLOSE, silent_close, uint8_t)                                       \
@@ -2313,7 +2345,9 @@ bool Session::is_in_draining_period() const {
 }
 
 bool Session::wants_session_ticket() const {
-  return !is_destroyed() && impl_->state_->session_ticket == 1;
+  return !is_destroyed() &&
+         HasListenerFlag(impl_->state_->listener_flags,
+                         SessionListenerFlags::SESSION_TICKET);
 }
 
 void Session::SetStreamOpenAllowed() {
@@ -2507,7 +2541,8 @@ void Session::DatagramStatus(datagram_id datagramId,
       break;
     }
   }
-  if (impl_->state_->datagram_status) {
+  if (HasListenerFlag(impl_->state_->listener_flags,
+                      SessionListenerFlags::DATAGRAM_STATUS)) {
     EmitDatagramStatus(datagramId, status);
   }
 }
@@ -2518,7 +2553,10 @@ void Session::DatagramReceived(const uint8_t* data,
   DCHECK(!is_destroyed());
   // If there is nothing watching for the datagram on the JavaScript side,
   // or if the datagram is zero-length, we just drop it on the floor.
-  if (impl_->state_->datagram == 0 || datalen == 0) return;
+  if (!HasListenerFlag(impl_->state_->listener_flags,
+                       SessionListenerFlags::DATAGRAM) ||
+      datalen == 0)
+    return;
 
   Debug(this, "Session is receiving datagram of size %zu", datalen);
   auto& stats_ = impl_->stats_;
@@ -2821,7 +2859,8 @@ void Session::EmitPathValidation(PathValidationResult result,
 
   if (!env()->can_call_into_js()) return;
 
-  if (impl_->state_->path_validation == 0) [[likely]] {
+  if (!HasListenerFlag(impl_->state_->listener_flags,
+                       SessionListenerFlags::PATH_VALIDATION)) [[likely]] {
     return;
   }
 
@@ -2865,7 +2904,8 @@ void Session::EmitSessionTicket(Store&& ticket) {
 
   // If there is nothing listening for the session ticket, don't bother
   // emitting.
-  if (impl_->state_->session_ticket == 0) [[likely]] {
+  if (!HasListenerFlag(impl_->state_->listener_flags,
+                       SessionListenerFlags::SESSION_TICKET)) [[likely]] {
     Debug(this, "Session ticket was discarded");
     return;
   }
@@ -2889,6 +2929,9 @@ void Session::EmitSessionTicket(Store&& ticket) {
 
 void Session::EmitNewToken(const uint8_t* token, size_t len) {
   DCHECK(!is_destroyed());
+  if (!HasListenerFlag(impl_->state_->listener_flags,
+                       SessionListenerFlags::NEW_TOKEN))
+    return;
   if (!env()->can_call_into_js()) return;
 
   CallbackScope<Session> cb_scope(this);
@@ -2962,6 +3005,9 @@ void Session::EmitVersionNegotiation(const ngtcp2_pkt_hd& hd,
 
 void Session::EmitOrigins(std::vector<std::string>&& origins) {
   DCHECK(!is_destroyed());
+  if (!HasListenerFlag(impl_->state_->listener_flags,
+                       SessionListenerFlags::ORIGIN))
+    return;
   if (!env()->can_call_into_js()) return;
 
   CallbackScope<Session> cb_scope(this);
