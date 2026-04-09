@@ -252,7 +252,7 @@ inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, int errcode) {
 
   Environment* env = Environment::GetCurrent(isolate);
   Local<Object> error;
-  if (env && CreateSQLiteError(isolate, errstr).ToLocal(&error) &&
+  if (CreateSQLiteError(isolate, errstr).ToLocal(&error) &&
       error
           ->Set(isolate->GetCurrentContext(),
                 env->errcode_string(),
