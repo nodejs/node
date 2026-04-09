@@ -589,7 +589,6 @@ bool KangarooTwelveTraits::DeriveBits(Environment* env,
                                       CryptoJobMode mode,
                                       CryptoErrorStore* errors) {
   CHECK_GT(params.output_length, 0);
-  char* buf = MallocOpenSSL<char>(params.output_length);
 
   const uint8_t* input = reinterpret_cast<const uint8_t*>(params.data.data());
   size_t input_len = params.data.size();
@@ -597,6 +596,18 @@ bool KangarooTwelveTraits::DeriveBits(Environment* env,
   const uint8_t* custom =
       reinterpret_cast<const uint8_t*>(params.customization.data());
   size_t custom_len = params.customization.size();
+
+  // Guard against size_t overflow in KangarooTwelve's s_len computation:
+  //   s_len = msg_len + custom_len + LengthEncode(custom_len).size()
+  // LengthEncode produces at most sizeof(size_t) + 1 bytes.
+  static constexpr size_t kMaxLengthEncodeSize = sizeof(size_t) + 1;
+  if (input_len > SIZE_MAX - custom_len ||
+      input_len + custom_len > SIZE_MAX - kMaxLengthEncodeSize) {
+    errors->Insert(NodeCryptoError::DERIVING_BITS_FAILED);
+    return false;
+  }
+
+  char* buf = MallocOpenSSL<char>(params.output_length);
 
   switch (params.variant) {
     case KangarooTwelveVariant::KT128:
