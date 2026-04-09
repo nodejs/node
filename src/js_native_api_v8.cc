@@ -3141,6 +3141,8 @@ napi_status NAPI_CDECL node_api_create_external_sharedarraybuffer(
     void (*finalize_cb)(void* external_data, void* finalize_hint),
     void* finalize_hint,
     napi_value* result) {
+  NAPI_PREAMBLE(env);
+  CHECK_ARG(env, result);
 #ifdef V8_ENABLE_SANDBOX
   return napi_set_last_error(env, napi_no_external_buffers_allowed);
 #else
