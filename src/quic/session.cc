@@ -216,7 +216,7 @@ void ngtcp2_debug_log(void* user_data, const char* fmt, ...) {
   va_end(ap);
 }
 
-template <typename Opt, PreferredAddress::Policy Opt::*member>
+template <typename Opt, PreferredAddress::Policy Opt::* member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -231,7 +231,7 @@ bool SetOption(Environment* env,
   return true;
 }
 
-template <typename Opt, TLSContext::Options Opt::*member>
+template <typename Opt, TLSContext::Options Opt::* member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -246,7 +246,7 @@ bool SetOption(Environment* env,
   return true;
 }
 
-template <typename Opt, TransportParams::Options Opt::*member>
+template <typename Opt, TransportParams::Options Opt::* member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -261,7 +261,7 @@ bool SetOption(Environment* env,
   return true;
 }
 
-template <typename Opt, ngtcp2_cc_algo Opt::*member>
+template <typename Opt, ngtcp2_cc_algo Opt::* member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
@@ -626,9 +626,9 @@ struct Session::Impl final : public MemoryRetainer {
         ngtcp2_conn_get_scid(*session_, nullptr));
     ngtcp2_conn_get_scid(*session_, cids.out());
 
-    MaybeStackBuffer<ngtcp2_cid_token, 10> tokens(
-        ngtcp2_conn_get_active_dcid(*session_, nullptr));
-    ngtcp2_conn_get_active_dcid(*session_, tokens.out());
+    MaybeStackBuffer<ngtcp2_cid_token2, 10> tokens(
+        ngtcp2_conn_get_active_dcid2(*session_, nullptr));
+    ngtcp2_conn_get_active_dcid2(*session_, tokens.out());
 
     endpoint->DisassociateCID(config_.dcid);
     endpoint->DisassociateCID(config_.preferred_address_cid);
@@ -640,7 +640,7 @@ struct Session::Impl final : public MemoryRetainer {
     for (size_t n = 0; n < tokens.length(); n++) {
       if (tokens[n].token_present) {
         endpoint->DisassociateStatelessResetToken(
-            StatelessResetToken(tokens[n].token));
+            StatelessResetToken(&tokens[n].token));
       }
     }
 
@@ -874,7 +874,7 @@ struct Session::Impl final : public MemoryRetainer {
                            ngtcp2_connection_id_status_type type,
                            uint64_t seq,
                            const ngtcp2_cid* cid,
-                           const uint8_t* token,
+                           const ngtcp2_stateless_reset_token* token,
                            void* user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
     std::optional<StatelessResetToken> maybe_reset_token;
@@ -946,7 +946,7 @@ struct Session::Impl final : public MemoryRetainer {
 
   static int on_get_new_cid(ngtcp2_conn* conn,
                             ngtcp2_cid* cid,
-                            uint8_t* token,
+                            ngtcp2_stateless_reset_token* token,
                             size_t cidlen,
                             void* user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
@@ -1043,7 +1043,7 @@ struct Session::Impl final : public MemoryRetainer {
   }
 
   static int on_receive_stateless_reset(ngtcp2_conn* conn,
-                                        const ngtcp2_pkt_stateless_reset* sr,
+                                        const ngtcp2_pkt_stateless_reset2* sr,
                                         void* user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
     session->impl_->state_->stateless_reset = 1;
@@ -1212,12 +1212,12 @@ struct Session::Impl final : public MemoryRetainer {
       on_acknowledge_stream_data_offset,
       nullptr,
       on_stream_close,
-      on_receive_stateless_reset,
+      nullptr,  // recv_stateless_reset (deprecated, use v2 below)
       ngtcp2_crypto_recv_retry_cb,
       on_extend_max_streams_bidi,
       on_extend_max_streams_uni,
       on_rand,
-      on_get_new_cid,
+      nullptr,  // get_new_connection_id (deprecated, use v2 below)
       on_remove_connection_id,
       ngtcp2_crypto_update_key_cb,
       on_path_validation,
@@ -1226,7 +1226,7 @@ struct Session::Impl final : public MemoryRetainer {
       on_extend_max_remote_streams_bidi,
       on_extend_max_remote_streams_uni,
       on_extend_max_stream_data,
-      on_cid_status,
+      nullptr,  // dcid_status (deprecated, use v2 below)
       on_handshake_confirmed,
       on_receive_new_token,
       ngtcp2_crypto_delete_crypto_aead_ctx_cb,
@@ -1241,9 +1241,9 @@ struct Session::Impl final : public MemoryRetainer {
       nullptr,
       on_early_data_rejected,
       on_begin_path_validation,
-      nullptr,
-      nullptr,
-      nullptr,
+      on_receive_stateless_reset,
+      on_get_new_cid,
+      on_cid_status,
       nullptr};
 
   static constexpr ngtcp2_callbacks SERVER = {
@@ -1259,12 +1259,12 @@ struct Session::Impl final : public MemoryRetainer {
       on_acknowledge_stream_data_offset,
       nullptr,
       on_stream_close,
-      on_receive_stateless_reset,
+      nullptr,  // recv_stateless_reset (deprecated, use v2 below)
       nullptr,
       on_extend_max_streams_bidi,
       on_extend_max_streams_uni,
       on_rand,
-      on_get_new_cid,
+      nullptr,  // get_new_connection_id (deprecated, use v2 below)
       on_remove_connection_id,
       ngtcp2_crypto_update_key_cb,
       on_path_validation,
@@ -1273,7 +1273,7 @@ struct Session::Impl final : public MemoryRetainer {
       on_extend_max_remote_streams_bidi,
       on_extend_max_remote_streams_uni,
       on_extend_max_stream_data,
-      on_cid_status,
+      nullptr,  // dcid_status (deprecated, use v2 below)
       nullptr,
       nullptr,
       ngtcp2_crypto_delete_crypto_aead_ctx_cb,
@@ -1288,9 +1288,9 @@ struct Session::Impl final : public MemoryRetainer {
       on_receive_tx_key,
       on_early_data_rejected,
       on_begin_path_validation,
-      nullptr,
-      nullptr,
-      nullptr,
+      on_receive_stateless_reset,
+      on_get_new_cid,
+      on_cid_status,
       nullptr};
 };
 
@@ -2497,7 +2497,7 @@ void Session::DatagramReceived(const uint8_t* data,
 
 void Session::GenerateNewConnectionId(ngtcp2_cid* cid,
                                       size_t len,
-                                      uint8_t* token) {
+                                      ngtcp2_stateless_reset_token* token) {
   DCHECK(!is_destroyed());
   CID cid_ = impl_->config_.options.cid_factory->GenerateInto(cid, len);
   Debug(this, "Generated new connection id %s", cid_);

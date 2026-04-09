@@ -501,7 +501,9 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   void DatagramReceived(const uint8_t* data,
                         size_t datalen,
                         DatagramReceivedFlags flag);
-  void GenerateNewConnectionId(ngtcp2_cid* cid, size_t len, uint8_t* token);
+  void GenerateNewConnectionId(ngtcp2_cid* cid,
+                               size_t len,
+                               ngtcp2_stateless_reset_token* token);
   bool HandshakeCompleted();
   void HandshakeConfirmed();
   void SelectPreferredAddress(PreferredAddress* preferredAddress);

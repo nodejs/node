@@ -160,7 +160,7 @@ Packet::Ptr Packet::CreateStatelessResetPacket(
   if (!packet) return packet;
   ngtcp2_vec vec = *packet;
 
-  ssize_t nwrite = ngtcp2_pkt_write_stateless_reset(
+  auto nwrite = ngtcp2_pkt_write_stateless_reset2(
       vec.base, pktlen, token, random, kRandlen);
   if (nwrite <= static_cast<ssize_t>(kMinStatelessResetLen)) return Ptr();
 
