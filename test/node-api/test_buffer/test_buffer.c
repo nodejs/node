@@ -73,12 +73,12 @@ static napi_value newExternalSharedArrayBuffer(napi_env env,
   napi_value sab;
   NODE_API_CALL(
       env,
-      napi_create_external_sharedarraybuffer(env,
-                                             externalSharedArrayBufferData,
-                                             1,
-                                             freeExternalSharedArrayBuffer,
-                                             NULL,
-                                             &sab));
+      node_api_create_external_sharedarraybuffer(env,
+                                                 externalSharedArrayBufferData,
+                                                 1,
+                                                 freeExternalSharedArrayBuffer,
+                                                 NULL,
+                                                 &sab));
   return sab;
 }
 

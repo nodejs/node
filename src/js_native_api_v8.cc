@@ -136,42 +136,6 @@ napi_status NewExternalString(napi_env env,
   return status;
 }
 
-napi_status NewExternalSharedArrayBuffer(
-    napi_env env,
-    void* external_data,
-    size_t byte_length,
-    void (*finalize_cb)(void* external_data, void* finalize_hint),
-    void* finalize_hint,
-    napi_value* result) {
-  struct FinalizerData {
-    void (*cb)(void* external_data, void* finalize_hint);
-    void* hint;
-  };
-  auto deleter = [](void* external_data, size_t length, void* deleter_data) {
-    if (auto fd = static_cast<FinalizerData*>(deleter_data)) {
-      fd->cb(external_data, fd->hint);
-      delete fd;
-    }
-  };
-  FinalizerData* deleter_data = nullptr;
-  if (finalize_cb != nullptr) {
-    deleter_data = new FinalizerData{finalize_cb, finalize_hint};
-  }
-  auto unique_backing_store = v8::SharedArrayBuffer::NewBackingStore(
-      external_data,
-      byte_length,
-      deleter,
-      reinterpret_cast<void*>(deleter_data));
-  CHECK(!!unique_backing_store);  // Cannot fail.
-  auto shared_backing_store =
-      std::shared_ptr<v8::BackingStore>(std::move(unique_backing_store));
-  auto shared_array_buffer =
-      v8::SharedArrayBuffer::New(env->isolate, shared_backing_store);
-  CHECK_MAYBE_EMPTY(env, shared_array_buffer, napi_generic_failure);
-  *result = v8impl::JsValueFromV8LocalValue(shared_array_buffer);
-  return napi_clear_last_error(env);
-}
-
 class TrackedStringResource : private RefTracker {
  public:
   TrackedStringResource(napi_env env,
@@ -3170,15 +3134,45 @@ napi_create_external_arraybuffer(napi_env env,
       env, buffer, nullptr, nullptr, nullptr, result, nullptr);
 }
 
-napi_status NAPI_CDECL napi_create_external_sharedarraybuffer(
+napi_status NAPI_CDECL node_api_create_external_sharedarraybuffer(
     napi_env env,
     void* external_data,
     size_t byte_length,
     void (*finalize_cb)(void* external_data, void* finalize_hint),
     void* finalize_hint,
     napi_value* result) {
-  return v8impl::NewExternalSharedArrayBuffer(
-      env, external_data, byte_length, finalize_cb, finalize_hint, result);
+#ifdef V8_ENABLE_SANDBOX
+  return napi_set_last_error(env, napi_no_external_buffers_allowed);
+#else
+  struct FinalizerData {
+    void (*cb)(void* external_data, void* finalize_hint);
+    void* hint;
+  };
+  auto deleter = [](void* external_data, size_t length, void* deleter_data) {
+    if (auto fd = static_cast<FinalizerData*>(deleter_data)) {
+      fd->cb(external_data, fd->hint);
+      delete fd;
+    }
+  };
+  FinalizerData* deleter_data = nullptr;
+  if (finalize_cb != nullptr) {
+    deleter_data = new FinalizerData{finalize_cb, finalize_hint};
+  }
+  auto unique_backing_store = v8::SharedArrayBuffer::NewBackingStore(
+      external_data,
+      byte_length,
+      deleter,
+      reinterpret_cast<void*>(deleter_data));
+  CHECK(!!unique_backing_store);  // Cannot fail.
+  auto shared_backing_store =
+      std::shared_ptr<v8::BackingStore>(std::move(unique_backing_store));
+  auto shared_array_buffer = v8::SharedArrayBuffer::New(
+      env->isolate,
+      std::move(shared_backing_store));
+  CHECK_MAYBE_EMPTY(env, shared_array_buffer, napi_generic_failure);
+  *result = v8impl::JsValueFromV8LocalValue(shared_array_buffer);
+  return napi_clear_last_error(env);
+#endif  // V8_ENABLE_SANDBOX
 }
 
 napi_status NAPI_CDECL napi_get_arraybuffer_info(napi_env env,
