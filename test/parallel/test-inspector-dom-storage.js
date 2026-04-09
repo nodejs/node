@@ -2,9 +2,14 @@
 'use strict';
 
 const common = require('../common');
-const assert = require('assert');
 common.skipIfSQLiteMissing();
 common.skipIfInspectorDisabled();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
+// Change cwd to tmpdir so that --localstorage-file=./localstorage.db resolves there.
+process.chdir(tmpdir.path);
+
+const assert = require('assert');
 const { DOMStorage, Session } = require('node:inspector/promises');
 const { pathToFileURL } = require('node:url');
 const path = require('node:path');
@@ -16,7 +21,7 @@ async function testRegisterStorage() {
   await session.post('DOMStorage.enable');
 
   const localStorageFileUrl =
-    pathToFileURL(path.join(process.cwd(), 'localstorage.db')).href;
+    pathToFileURL(path.join(tmpdir.path, 'localstorage.db')).href;
 
   const { storageKey } = await session.post('Storage.getStorageKey');
   assert.strictEqual(
