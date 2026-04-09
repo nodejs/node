@@ -510,6 +510,10 @@ class Http3ApplicationImpl final : public Session::Application {
   }
 
   StreamPriorityResult GetStreamPriority(const Stream& stream) override {
+    // nghttp3_conn_get_stream_priority is only available on the server side.
+    if (!session().is_server()) {
+      return {StreamPriority::DEFAULT, StreamPriorityFlags::NON_INCREMENTAL};
+    }
     nghttp3_pri pri;
     if (nghttp3_conn_get_stream_priority(*this, &pri, stream.id()) == 0) {
       StreamPriority level;
