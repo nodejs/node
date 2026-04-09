@@ -34,7 +34,6 @@
           'variables': {
             'libffi_arch_sources': [
               'src/aarch64/ffi.c',
-              'src/aarch64/win64_armasm.S',
             ],
           },
         }],
@@ -164,6 +163,40 @@
                 'include',
                 '--include-dir',
                 'src/x86',
+                '--define',
+                'FFI_STATIC_BUILD',
+              ],
+            },
+          ],
+        }],
+        ['OS == "win" and target_arch == "arm64"', {
+          'actions': [
+            {
+              'action_name': 'preprocess_win64_arm_asm',
+              'process_outputs_as_sources': 1,
+              'inputs': [
+                'preprocess_asm.py',
+                'include/ffi_cfi.h',
+                'src/aarch64/internal.h',
+                'src/aarch64/ksarm64.h',
+                'src/aarch64/win64_armasm.S',
+                '<(INTERMEDIATE_DIR)/ffi.h',
+                '<(INTERMEDIATE_DIR)/fficonfig.h',
+              ],
+              'outputs': [
+                '<(INTERMEDIATE_DIR)/win64_armasm.asm',
+              ],
+              'action': [
+                '<(python)',
+                'preprocess_asm.py',
+                '--input',
+                'src/aarch64/win64_armasm.S',
+                '--output',
+                '<@(_outputs)',
+                '--include-dir',
+                'include',
+                '--include-dir',
+                'src/aarch64',
                 '--define',
                 'FFI_STATIC_BUILD',
               ],
