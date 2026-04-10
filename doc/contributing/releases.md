@@ -1124,7 +1124,7 @@ This script will use the promoted builds and changelog to generate the post.
 
 The nodejs.org website will automatically rebuild and include the new version.
 To announce the build on social media, please ping the @nodejs-social-team
-on offical slack channel.
+on official slack channel.
 
 Node.js is also available on Bluesky and a release announcement can be
 reposted using [nodejs/bluesky](https://github.com/nodejs/bluesky) repository.
