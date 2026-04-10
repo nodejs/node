@@ -42,7 +42,7 @@ assert.match(jsonAsText.default, /"im broken"/);
 
 await assert.rejects(
   import('data:text/plain,hello%20world'),
-  { code: 'ERR_UNKNOWN_MODULE_FORMAT' },
+  { code: 'ERR_IMPORT_ATTRIBUTE_MISSING' },
 );
 
 await assert.rejects(
