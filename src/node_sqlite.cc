@@ -546,8 +546,10 @@ class BackupJob : public ThreadPoolWork {
         TryCatch try_catch(env()->isolate());
         USE(fn->Call(env()->context(), Null(env()->isolate()), 1, argv));
         if (try_catch.HasCaught()) {
+          Local<Value> exception = try_catch.Exception();
           Finalize();
-          resolver->Reject(env()->context(), try_catch.Exception()).ToChecked();
+          resolver->Reject(env()->context(), exception).ToChecked();
+          delete this;
           return;
         }
       }
@@ -566,11 +568,15 @@ class BackupJob : public ThreadPoolWork {
     resolver
         ->Resolve(env()->context(), Integer::New(env()->isolate(), total_pages))
         .ToChecked();
+    delete this;
   }
 
   void Finalize() {
     Cleanup();
-    source_->RemoveBackup(this);
+    if (source_) {
+      source_->RemoveBackup(this);
+      source_.reset();
+    }
   }
 
   void Cleanup() {
@@ -591,28 +597,32 @@ class BackupJob : public ThreadPoolWork {
     Local<Object> e;
     if (!CreateSQLiteError(env()->isolate(), dest_).ToLocal(&e)) {
       Finalize();
+      delete this;
       return;
     }
 
     Finalize();
     resolver->Reject(env()->context(), e).ToChecked();
+    delete this;
   }
 
   void HandleBackupError(Local<Promise::Resolver> resolver, int errcode) {
     Local<Object> e;
     if (!CreateSQLiteError(env()->isolate(), errcode).ToLocal(&e)) {
       Finalize();
+      delete this;
       return;
     }
 
     Finalize();
     resolver->Reject(env()->context(), e).ToChecked();
+    delete this;
   }
 
   Environment* env() const { return env_; }
 
   Environment* env_;
-  DatabaseSync* source_;
+  BaseObjectPtr<DatabaseSync> source_;
   Global<Promise::Resolver> resolver_;
   Global<Function> progressFunc_;
   sqlite3* dest_ = nullptr;
