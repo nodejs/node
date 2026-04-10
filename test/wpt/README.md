@@ -243,9 +243,9 @@ would match all `.any.js` files under the `subdir` directory. A test file
 can match multiple rules (both an exact match and one or more wildcard
 patterns); all matched rules are merged.
 
+[GitHub Actions workflow]: ../../.github/workflows/daily-wpt-fyi.yml
 [Web Platform Tests]: https://github.com/web-platform-tests/wpt
 [`test/fixtures/wpt/README.md`]: ../fixtures/wpt/README.md
 [git node wpt]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md#git-node-wpt
-[GitHub Actions workflow]: ../../.github/workflows/daily-wpt-fyi.yml
 [wpt.fyi]: https://wpt.fyi
 [wpt.fyi dashboard]: https://wpt.fyi/results/?label=master&label=experimental&product=node.js&product=chrome&product=firefox&product=safari&product=ladybird&product=servo&q=node.js%3A%21missing
