@@ -815,7 +815,7 @@ added: v23.8.0
 
 * Type: {bigint}
 
-### `sessionStats.maxBytesInFlights`
+### `sessionStats.maxBytesInFlight`
 
 <!-- YAML
 added: v23.8.0

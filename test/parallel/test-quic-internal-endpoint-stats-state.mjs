@@ -194,7 +194,7 @@ assert.strictEqual(typeof sessionStats.bidiInStreamCount, 'bigint');
 assert.strictEqual(typeof sessionStats.bidiOutStreamCount, 'bigint');
 assert.strictEqual(typeof sessionStats.uniInStreamCount, 'bigint');
 assert.strictEqual(typeof sessionStats.uniOutStreamCount, 'bigint');
-assert.strictEqual(typeof sessionStats.maxBytesInFlights, 'bigint');
+assert.strictEqual(typeof sessionStats.maxBytesInFlight, 'bigint');
 assert.strictEqual(typeof sessionStats.bytesInFlight, 'bigint');
 assert.strictEqual(typeof sessionStats.blockCount, 'bigint');
 assert.strictEqual(typeof sessionStats.cwnd, 'bigint');
