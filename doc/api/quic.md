@@ -1149,13 +1149,85 @@ Sets the priority of the stream. Throws `ERR_INVALID_STATE` if the session
 does not support priority (e.g. non-HTTP/3). Has no effect if the stream
 has been destroyed.
 
-### `stream.readable`
+### `stream[Symbol.asyncIterator]()`
 
 <!-- YAML
-added: v23.8.0
+added: REPLACEME
 -->
 
-* Type: {ReadableStream}
+* Returns: {AsyncIterableIterator} yielding {Uint8Array\[]}
+
+The stream implements `Symbol.asyncIterator`, making it directly usable
+in `for await...of` loops. Each iteration yields a batch of `Uint8Array`
+chunks.
+
+Only one async iterator can be obtained per stream. A second call throws
+`ERR_INVALID_STATE`. Non-readable streams (outbound-only unidirectional
+or closed) return an immediately-finished iterator.
+
+```mjs
+for await (const chunks of stream) {
+  for (const chunk of chunks) {
+    // Process each Uint8Array chunk
+  }
+}
+```
+
+Compatible with stream/iter utilities:
+
+```mjs
+import Stream from 'node:stream/iter';
+const body = await Stream.bytes(stream);
+const text = await Stream.text(stream);
+await Stream.pipeTo(stream, someWriter);
+```
+
+### `stream.writer`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Object}
+
+Returns a Writer object for pushing data to the stream incrementally.
+The Writer implements the stream/iter Writer interface with the
+try-sync-fallback-to-async pattern.
+
+Only available when no `body` source was provided at creation time or via
+[`stream.setBody()`][]. Non-writable streams return an already-closed
+Writer. Throws `ERR_INVALID_STATE` if the outbound is already configured.
+
+The Writer has the following methods:
+
+* `writeSync(chunk)` — Synchronous write. Returns `true` if accepted,
+  `false` if flow-controlled. Data is NOT accepted on `false`.
+* `write(chunk[, options])` — Async write with drain wait. `options.signal`
+  is checked at entry but not observed during the write.
+* `writevSync(chunks)` — Synchronous vectored write. All-or-nothing.
+* `writev(chunks[, options])` — Async vectored write.
+* `endSync()` — Synchronous close. Returns total bytes or `-1`.
+* `end([options])` — Async close.
+* `fail(reason)` — Errors the stream (sends RESET\_STREAM to peer).
+* `desiredSize` — Available capacity in bytes, or `null` if closed/errored.
+
+### `stream.setBody(body)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `body` {string|ArrayBuffer|SharedArrayBuffer|TypedArray|Blob|AsyncIterable|Iterable|Promise|null}
+
+Sets the outbound body source for the stream. Can only be called once.
+Mutually exclusive with [`stream.writer`][].
+
+If `body` is `null`, the writable side is closed immediately (FIN sent).
+If `body` is a `Promise`, it is awaited and the resolved value is used.
+Other types are handled per their optimization tier (see below).
+
+Throws `ERR_INVALID_STATE` if the outbound is already configured or if
+the writer has been accessed.
 
 ### `stream.session`
 
@@ -2235,4 +2307,6 @@ added: v23.8.0
 [`stream.onwanttrailers`]: #streamonwanttrailers
 [`stream.pendingTrailers`]: #streampendingtrailers
 [`stream.sendTrailers()`]: #streamsendtrailersheaders
+[`stream.setBody()`]: #streamsetbodybody
 [`stream.setPriority()`]: #streamsetpriorityoptions
+[`stream.writer`]: #streamwriter

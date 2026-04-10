@@ -43,6 +43,7 @@ namespace quic {
   V(READ_ENDED, read_ended, uint8_t)                                           \
   V(WRITE_ENDED, write_ended, uint8_t)                                         \
   V(RESET, reset, uint8_t)                                                     \
+  V(RESET_CODE, reset_code, uint64_t)                                          \
   V(HAS_OUTBOUND, has_outbound, uint8_t)                                       \
   V(HAS_READER, has_reader, uint8_t)                                           \
   /* Set when the stream has a block event handler */                          \
@@ -52,7 +53,8 @@ namespace quic {
   /* Set when the stream has a reset event handler */                          \
   V(WANTS_RESET, wants_reset, uint8_t)                                         \
   /* Set when the stream has a trailers event handler */                       \
-  V(WANTS_TRAILERS, wants_trailers, uint8_t)
+  V(WANTS_TRAILERS, wants_trailers, uint8_t)                                   \
+  V(WRITE_DESIRED_SIZE, write_desired_size, uint64_t)
 
 #define STREAM_STATS(V)                                                        \
   /* Marks the timestamp when the stream object was created. */                \
@@ -523,6 +525,7 @@ class Stream::Outbound final : public MemoryRetainer {
 
   bool is_streaming() const { return streaming_; }
   size_t total() const { return total_; }
+  size_t uncommitted() const { return uncommitted_; }
 
   // Appends an entry to the underlying DataQueue. Only valid when
   // the Outbound was created in streaming mode.
@@ -1187,6 +1190,7 @@ void Stream::WriteStreamData(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   if (!is_pending()) session_->ResumeStream(id());
 
+  UpdateWriteDesiredSize();
   args.GetReturnValue().Set(static_cast<double>(outbound_->total()));
 }
 
@@ -1282,6 +1286,7 @@ void Stream::Acknowledge(size_t datalen) {
   // Consumes the given number of bytes in the buffer.
   outbound_->Acknowledge(datalen);
   STAT_RECORD_TIMESTAMP(Stats, acked_at);
+  UpdateWriteDesiredSize();
 }
 
 void Stream::Commit(size_t datalen, bool fin) {
@@ -1409,6 +1414,7 @@ void Stream::ReceiveStreamReset(uint64_t final_size, QuicError error) {
         "Received stream reset with final size %" PRIu64 " and error %s",
         final_size,
         error);
+  state_->reset_code = error.code();
   EndReadable(final_size);
   EmitReset(error);
 }
@@ -1424,6 +1430,38 @@ void Stream::EmitBlocked() {
   }
   CallbackScope<Stream> cb_scope(this);
   MakeCallback(BindingData::Get(env()).stream_blocked_callback(), 0, nullptr);
+}
+
+void Stream::EmitDrain() {
+  if (!env()->can_call_into_js()) return;
+  CallbackScope<Stream> cb_scope(this);
+  MakeCallback(BindingData::Get(env()).stream_drain_callback(), 0, nullptr);
+}
+
+void Stream::UpdateWriteDesiredSize() {
+  if (!outbound_ || !outbound_->is_streaming()) return;
+
+  // Calculate available capacity based on QUIC flow control.
+  // The effective limit is the minimum of stream-level and
+  // connection-level flow control remaining.
+  ngtcp2_conn* conn = session();
+  uint64_t stream_left = ngtcp2_conn_get_max_stream_data_left(conn, id());
+  uint64_t conn_left = ngtcp2_conn_get_max_data_left(conn);
+  uint64_t available = std::min(stream_left, conn_left);
+
+  // Subtract uncommitted bytes — data queued but not yet sent.
+  // Committed bytes are already on the wire (retained only for
+  // retransmission) and don't count toward backpressure.
+  uint64_t buffered = outbound_->uncommitted();
+  uint64_t desired = (available > buffered) ? (available - buffered) : 0;
+
+  uint64_t old_size = state_->write_desired_size;
+  state_->write_desired_size = desired;
+
+  // Fire drain when transitioning from 0 to non-zero
+  if (old_size == 0 && desired > 0) {
+    EmitDrain();
+  }
 }
 
 void Stream::EmitClose(const QuicError& error) {

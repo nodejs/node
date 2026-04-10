@@ -326,6 +326,14 @@ class Stream final : public AsyncWrap,
   // blocked because of flow control restriction.
   void EmitBlocked();
 
+  // Notifies the JavaScript side that the outbound buffer has capacity
+  // for more data. Fires when write_desired_size transitions from 0 to > 0.
+  void EmitDrain();
+
+  // Updates the write_desired_size state field based on current flow control
+  // and outbound buffer state. Emits drain if transitioning from 0 to > 0.
+  void UpdateWriteDesiredSize();
+
   // Delivers the set of inbound headers that have been collected.
   void EmitHeaders();
 

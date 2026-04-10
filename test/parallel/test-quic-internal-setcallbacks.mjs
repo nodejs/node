@@ -24,6 +24,7 @@ const callbacks = {
   onStreamCreated() {},
   onStreamBlocked() {},
   onStreamClose() {},
+  onStreamDrain() {},
   onStreamReset() {},
   onStreamHeaders() {},
   onStreamTrailers() {},
