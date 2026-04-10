@@ -558,17 +558,26 @@ added: v23.8.0
 
 * `options` {Object}
   * `body` {ArrayBuffer | ArrayBufferView | Blob}
+  * `headers` {Object} Initial request or response headers to send. Only
+    used when the session supports headers (e.g. HTTP/3). If `body` is not
+    specified and `headers` is provided, the stream is treated as
+    headers-only (terminal).
   * `priority` {string} The priority level of the stream. One of `'high'`,
     `'default'`, or `'low'`. **Default:** `'default'`.
   * `incremental` {boolean} When `true`, data from this stream may be
     interleaved with data from other streams of the same priority level.
     When `false`, the stream should be completed before same-priority peers.
     **Default:** `false`.
+  * `onheaders` {quic.OnHeadersCallback} Callback for received headers.
+  * `ontrailers` {quic.OnTrailersCallback} Callback for received trailers.
+  * `onwanttrailers` {Function} Callback when trailers should be sent.
 * Returns: {Promise} for a {quic.QuicStream}
 
 Open a new bidirectional stream. If the `body` option is not specified,
 the outgoing stream will be half-closed. The `priority` and `incremental`
 options are only used when the session supports priority (e.g. HTTP/3).
+The `headers`, `onheaders`, `ontrailers`, and `onwanttrailers` options
+are only used when the session supports headers (e.g. HTTP/3).
 
 ### `session.createUnidirectionalStream([options])`
 
@@ -578,12 +587,16 @@ added: v23.8.0
 
 * `options` {Object}
   * `body` {ArrayBuffer | ArrayBufferView | Blob}
+  * `headers` {Object} Initial request headers to send.
   * `priority` {string} The priority level of the stream. One of `'high'`,
     `'default'`, or `'low'`. **Default:** `'default'`.
   * `incremental` {boolean} When `true`, data from this stream may be
     interleaved with data from other streams of the same priority level.
     When `false`, the stream should be completed before same-priority peers.
     **Default:** `false`.
+  * `onheaders` {quic.OnHeadersCallback} Callback for received headers.
+  * `ontrailers` {quic.OnTrailersCallback} Callback for received trailers.
+  * `onwanttrailers` {Function} Callback when trailers should be sent.
 * Returns: {Promise} for a {quic.QuicStream}
 
 Open a new unidirectional stream. If the `body` option is not specified,
@@ -981,6 +994,124 @@ added: v23.8.0
 * Type: {quic.OnStreamErrorCallback}
 
 The callback to invoke when the stream is reset. Read/write.
+
+### `stream.headers`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Object|undefined}
+
+The buffered initial headers received on this stream, or `undefined` if the
+application does not support headers or no headers have been received yet.
+For server-side streams, this contains the request headers (e.g., `:method`,
+`:path`, `:scheme`). For client-side streams, this contains the response
+headers (e.g., `:status`).
+
+Header names are lowercase strings. Multi-value headers are represented as
+arrays. The object has `__proto__: null`.
+
+### `stream.onheaders`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {quic.OnHeadersCallback}
+
+The callback to invoke when headers are received on the stream. The callback
+receives `(headers, kind)` where `headers` is an object (same format as
+`stream.headers`) and `kind` is one of `'initial'` or `'informational'`
+(for 1xx responses). Throws `ERR_INVALID_STATE` if set on a session that
+does not support headers. Read/write.
+
+### `stream.ontrailers`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {quic.OnTrailersCallback}
+
+The callback to invoke when trailing headers are received from the peer.
+The callback receives `(trailers)` where `trailers` is an object in the
+same format as `stream.headers`. Throws `ERR_INVALID_STATE` if set on a
+session that does not support headers. Read/write.
+
+### `stream.onwanttrailers`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Function}
+
+The callback to invoke when the application is ready for trailing headers
+to be sent. This is called synchronously — the user must call
+[`stream.sendTrailers()`][] within this callback. Throws
+`ERR_INVALID_STATE` if set on a session that does not support headers.
+Read/write.
+
+### `stream.pendingTrailers`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Object|undefined}
+
+Set trailing headers to be sent automatically when the application requests
+them. This is an alternative to the [`stream.onwanttrailers`][] callback
+for cases where the trailers are known before the body completes. Throws
+`ERR_INVALID_STATE` if set on a session that does not support headers.
+Read/write.
+
+### `stream.sendHeaders(headers[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `headers` {Object} Header object with string keys and string or
+  string-array values. Pseudo-headers (`:method`, `:path`, etc.) must
+  appear before regular headers.
+* `options` {Object}
+  * `terminal` {boolean} If `true`, the stream is closed for sending
+    after the headers (no body will follow). **Default:** `false`.
+* Returns: {boolean}
+
+Sends initial or response headers on the stream. For client-side streams,
+this sends request headers. For server-side streams, this sends response
+headers. Throws `ERR_INVALID_STATE` if the session does not support headers.
+
+### `stream.sendInformationalHeaders(headers)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `headers` {Object} Header object. Must include `:status` with a 1xx
+  value (e.g., `{ ':status': '103', 'link': '</style.css>; rel=preload' }`).
+* Returns: {boolean}
+
+Sends informational (1xx) response headers. Server only. Throws
+`ERR_INVALID_STATE` if the session does not support headers.
+
+### `stream.sendTrailers(headers)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `headers` {Object} Trailing header object. Pseudo-headers must not be
+  included in trailers.
+* Returns: {boolean}
+
+Sends trailing headers on the stream. Must be called synchronously during
+the [`stream.onwanttrailers`][] callback, or set ahead of time via
+[`stream.pendingTrailers`][]. Throws `ERR_INVALID_STATE` if the session
+does not support headers.
 
 ### `stream.priority`
 
@@ -1930,6 +2061,26 @@ added: v23.8.0
 * `this` {quic.QuicStream}
 * `error` {any}
 
+### Callback: `OnHeadersCallback`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `this` {quic.QuicStream}
+* `headers` {Object} Header object with lowercase string keys and
+  string or string-array values.
+* `kind` {string} One of `'initial'` or `'informational'`.
+
+### Callback: `OnTrailersCallback`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `this` {quic.QuicStream}
+* `trailers` {Object} Trailing header object.
+
 ## Diagnostic Channels
 
 ### Channel: `quic.endpoint.created`
@@ -2081,4 +2232,7 @@ added: v23.8.0
 
 [`session.onnewtoken`]: #sessiononnewtoken
 [`sessionOptions.sni`]: #sessionoptionssni-server-only
+[`stream.onwanttrailers`]: #streamonwanttrailers
+[`stream.pendingTrailers`]: #streampendingtrailers
+[`stream.sendTrailers()`]: #streamsendtrailersheaders
 [`stream.setPriority()`]: #streamsetpriorityoptions

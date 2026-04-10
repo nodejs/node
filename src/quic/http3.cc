@@ -678,8 +678,7 @@ class Http3ApplicationImpl final : public Session::Application {
   }
 
   void OnBeginHeaders(int64_t stream_id) {
-    auto stream = session().FindStream(stream_id);
-    // If the stream does not exist or is destroyed, ignore!
+    auto stream = FindOrCreateStream(conn_.get(), &session(), stream_id);
     if (!stream) [[unlikely]]
       return;
     Debug(&session(),
@@ -729,7 +728,7 @@ class Http3ApplicationImpl final : public Session::Application {
   }
 
   void OnBeginTrailers(int64_t stream_id) {
-    auto stream = session().FindStream(stream_id);
+    auto stream = FindOrCreateStream(conn_.get(), &session(), stream_id);
     if (!stream) [[unlikely]]
       return;
     Debug(&session(),
