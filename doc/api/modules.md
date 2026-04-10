@@ -175,7 +175,8 @@ added:
   - v20.17.0
 changes:
   - version:
-    - v25.4.0
+     - v25.4.0
+     - v24.15.0
     pr-url: https://github.com/nodejs/node/pull/60959
     description: This feature is no longer experimental.
   - version:

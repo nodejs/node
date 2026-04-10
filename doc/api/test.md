@@ -3524,7 +3524,9 @@ The corresponding execution ordered event is `'test:complete'`.
 ### Event: `'test:interrupted'`
 
 <!-- YAML
-added: v25.7.0
+added:
+ - v25.7.0
+ - v24.15.0
 -->
 
 * `data` {Object}
@@ -4105,7 +4107,9 @@ the second attempt is `1`, and so on. This property is useful in conjunction wit
 ### `context.workerId`
 
 <!-- YAML
-added: v25.8.0
+added:
+ - v25.8.0
+ - v24.15.0
 -->
 
 * Type: {number|undefined}
