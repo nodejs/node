@@ -1448,7 +1448,7 @@ Emitted when [`process.execve()`][] is invoked.
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: REPLACEME
+added: v24.15.0
 -->
 
 These channels are emitted for each [`locks.request()`][] call. See

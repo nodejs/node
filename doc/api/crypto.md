@@ -2393,7 +2393,7 @@ type, value, and parameters. This method is not
 <!-- YAML
 added: v11.6.0
 changes:
-  - version: REPLACEME
+  - version: v24.15.0
     pr-url: https://github.com/nodejs/node/pull/62240
     description: Added support for `'raw-public'`, `'raw-private'`,
                  and `'raw-seed'` formats.
@@ -3913,7 +3913,7 @@ input.on('readable', () => {
 <!-- YAML
 added: v11.6.0
 changes:
-  - version: REPLACEME
+  - version: v24.15.0
     pr-url: https://github.com/nodejs/node/pull/62240
     description: Added support for `'raw-private'` and `'raw-seed'`
                  formats.
@@ -3961,7 +3961,7 @@ of the passphrase is limited to 1024 bytes.
 <!-- YAML
 added: v11.6.0
 changes:
-  - version: REPLACEME
+  - version: v24.15.0
     pr-url: https://github.com/nodejs/node/pull/62240
     description: Added support for `'raw-public'` format.
   - version: v24.6.0

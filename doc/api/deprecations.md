@@ -4334,7 +4334,7 @@ import { opendir } from 'node:fs/promises';
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.15.0
     pr-url: https://github.com/nodejs/node/pull/61632
     description: Documentation-only deprecation.
 -->
@@ -4349,7 +4349,7 @@ type of the readable half of the constructed readable-writable pair, use the
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.15.0
     pr-url: https://github.com/nodejs/node/pull/61713
     description: Documentation-only deprecation.
 -->
@@ -4385,7 +4385,7 @@ const server = http2.createSecureServer({
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.15.0
     pr-url: https://github.com/nodejs/node/pull/62321
     description: Documentation-only deprecation.
 -->
@@ -4407,7 +4407,7 @@ will throw an error in a future version. This includes
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.15.0
     pr-url: https://github.com/nodejs/node/pull/62321
     description: Documentation-only deprecation.
 -->
@@ -4421,7 +4421,7 @@ deprecated and will throw an error in a future version.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.15.0
     pr-url: https://github.com/nodejs/node/pull/62395
     description: Documentation-only deprecation.
 -->

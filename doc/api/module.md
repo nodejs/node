@@ -178,7 +178,7 @@ isBuiltin('wss'); // false
 added:
   - v20.6.0
   - v18.19.0
-deprecated: REPLACEME
+deprecated: v24.15.0
 changes:
   - version:
     - v23.6.1
@@ -470,7 +470,7 @@ separately if the same base directory is used to persist the cache, so they can 
 <!-- YAML
 added: v22.8.0
 changes:
-  - version: REPLACEME
+  - version: v24.15.0
     pr-url: https://github.com/nodejs/node/pull/60971
     description: This feature is no longer experimental.
 -->
@@ -525,7 +525,7 @@ The following constants are returned as the `status` field in the object returne
 <!-- YAML
 added: v22.8.0
 changes:
-  - version: REPLACEME
+  - version: v24.15.0
     pr-url: https://github.com/nodejs/node/pull/60971
     description: This feature is no longer experimental.
   - version: v24.12.0
@@ -581,7 +581,7 @@ added:
  - v23.0.0
  - v22.10.0
 changes:
-  - version: REPLACEME
+  - version: v24.15.0
     pr-url: https://github.com/nodejs/node/pull/60971
     description: This feature is no longer experimental.
 -->
@@ -597,7 +597,7 @@ interfere with the actual operation of the application.
 <!-- YAML
 added: v22.8.0
 changes:
-  - version: REPLACEME
+  - version: v24.15.0
     pr-url: https://github.com/nodejs/node/pull/60971
     description: This feature is no longer experimental.
 -->

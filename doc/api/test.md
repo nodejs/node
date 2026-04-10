@@ -3416,7 +3416,7 @@ The corresponding execution ordered event is `'test:complete'`.
 ### Event: `'test:interrupted'`
 
 <!-- YAML
-added: REPLACEME
+added: v24.15.0
 -->
 
 * `data` {Object}
@@ -3872,7 +3872,7 @@ Number of times the test has been attempted.
 ### `context.workerId`
 
 <!-- YAML
-added: REPLACEME
+added: v24.15.0
 -->
 
 * Type: {number|undefined}

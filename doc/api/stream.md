@@ -3377,7 +3377,7 @@ duplex.once('readable', () => console.log('readable', duplex.read()));
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.15.0
     pr-url: https://github.com/nodejs/node/pull/61632
     description: Added the 'readableType' option to specify the ReadableStream
                  type. The 'type' option is deprecated.

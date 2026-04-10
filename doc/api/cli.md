@@ -1828,7 +1828,7 @@ added:
   - v20.17.0
 changes:
   - version:
-    - REPLACEME
+    - v24.15.0
     pr-url: https://github.com/nodejs/node/pull/60959
     description: The flag was renamed from `--no-experimental-require-module` to
                  `--no-require-module`, with the former marked as legacy.
@@ -1917,11 +1917,11 @@ added:
   - v20.17.0
 changes:
   - version:
-    - REPLACEME
+    - v24.15.0
     pr-url: https://github.com/nodejs/node/pull/60959
     description: This flag is no longer experimental.
   - version:
-    - REPLACEME
+    - v24.15.0
     pr-url: https://github.com/nodejs/node/pull/60959
     description: This flag was renamed from `--no-experimental-require-module`
                  to `--no-require-module`.
@@ -3323,7 +3323,7 @@ Any other value will result in colorized output being disabled.
 <!-- YAML
 added: v22.1.0
 changes:
-  - version: REPLACEME
+  - version: v24.15.0
     pr-url: https://github.com/nodejs/node/pull/60971
     description: This feature is no longer experimental.
 -->

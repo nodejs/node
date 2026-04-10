@@ -1259,7 +1259,7 @@ The {CryptoKey} (secret key) generating algorithms supported include:
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.15.0
     pr-url: https://github.com/nodejs/node/pull/62218
     description: Importing ML-DSA and ML-KEM PKCS#8 keys
       without a seed is no longer supported.
@@ -1873,7 +1873,7 @@ the message.
 <!-- YAML
 added: v24.7.0
 changes:
-  - version: REPLACEME
+  - version: v24.15.0
     pr-url: https://github.com/nodejs/node/pull/61875
     description: Renamed `cShakeParams.length` to `cShakeParams.outputLength`.
 -->
@@ -1889,7 +1889,7 @@ added: v24.7.0
 #### `cShakeParams.outputLength`
 
 <!-- YAML
-added: REPLACEME
+added: v24.15.0
 -->
 
 * Type: {number} represents the requested output length in bits.
@@ -2395,7 +2395,7 @@ added: v24.8.0
 <!-- YAML
 added: v24.8.0
 changes:
-  - version: REPLACEME
+  - version: v24.15.0
     pr-url: https://github.com/nodejs/node/pull/61875
     description: Renamed `kmacParams.length` to `kmacParams.outputLength`.
 -->
@@ -2411,7 +2411,7 @@ added: v24.8.0
 #### `kmacParams.outputLength`
 
 <!-- YAML
-added: REPLACEME
+added: v24.15.0
 -->
 
 * Type: {number}
