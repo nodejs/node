@@ -23,6 +23,7 @@ namespace sqlite {
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::BackingStoreInitializationMode;
+using v8::BackingStoreOnFailureMode;
 using v8::BigInt;
 using v8::Boolean;
 using v8::ConstructorBehavior;
@@ -1716,6 +1717,136 @@ void DatabaseSync::Location(const FunctionCallbackInfo<Value>& args) {
   Local<String> ret;
   if (String::NewFromUtf8(env->isolate(), db_filename).ToLocal(&ret)) {
     args.GetReturnValue().Set(ret);
+  }
+}
+
+void DatabaseSync::Serialize(const FunctionCallbackInfo<Value>& args) {
+  DatabaseSync* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+
+  std::string db_name = "main";
+  if (!args[0]->IsUndefined()) {
+    if (!args[0]->IsString()) {
+      THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                                 "The \"dbName\" argument must be a string.");
+      return;
+    }
+    db_name = Utf8Value(env->isolate(), args[0].As<String>()).ToString();
+  }
+
+  sqlite3_int64 size = 0;
+  unsigned char* data =
+      sqlite3_serialize(db->connection_, db_name.c_str(), &size, 0);
+
+  if (data == nullptr) {
+    if (size == 0) {
+      Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), 0);
+      args.GetReturnValue().Set(Uint8Array::New(ab, 0, 0));
+      return;
+    }
+    THROW_ERR_SQLITE_ERROR(env->isolate(), db);
+    return;
+  }
+
+  // V8 sandbox forbids external backing stores so allocate inside the
+  // sandbox and copy. Without sandbox wrap the output directly using
+  // sqlite3_free as the destructor to avoid the copy.
+#ifdef V8_ENABLE_SANDBOX
+  auto free_data = OnScopeLeave([&] { sqlite3_free(data); });
+  auto store = ArrayBuffer::NewBackingStore(
+      env->isolate(),
+      size,
+      BackingStoreInitializationMode::kUninitialized,
+      BackingStoreOnFailureMode::kReturnNull);
+  if (!store) {
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+    return;
+  }
+  memcpy(store->Data(), data, size);
+  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(store));
+#else
+  auto store = ArrayBuffer::NewBackingStore(
+      data, size, [](void* ptr, size_t, void*) { sqlite3_free(ptr); }, nullptr);
+  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(store));
+#endif
+
+  args.GetReturnValue().Set(Uint8Array::New(ab, 0, size));
+}
+
+void DatabaseSync::Deserialize(const FunctionCallbackInfo<Value>& args) {
+  DatabaseSync* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+
+  if (!args[0]->IsUint8Array()) {
+    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                               "The \"buffer\" argument must be a Uint8Array.");
+    return;
+  }
+
+  Local<Uint8Array> input = args[0].As<Uint8Array>();
+  size_t byte_length = input->ByteLength();
+
+  if (byte_length == 0) {
+    THROW_ERR_INVALID_ARG_VALUE(env,
+                                "The \"buffer\" argument must not be empty.");
+    return;
+  }
+
+  std::string db_name = "main";
+  if (args.Length() > 1 && !args[1]->IsUndefined()) {
+    if (!args[1]->IsObject()) {
+      THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                                 "The \"options\" argument must be an object.");
+      return;
+    }
+
+    Local<Object> options = args[1].As<Object>();
+    Local<String> db_name_key = FIXED_ONE_BYTE_STRING(env->isolate(), "dbName");
+    Local<Value> db_name_value;
+    if (!options->Get(env->context(), db_name_key).ToLocal(&db_name_value)) {
+      return;
+    }
+
+    if (!db_name_value->IsUndefined()) {
+      if (!db_name_value->IsString()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.dbName\" argument must be a string.");
+        return;
+      }
+      db_name =
+          Utf8Value(env->isolate(), db_name_value.As<String>()).ToString();
+    }
+  }
+
+  // sqlite3_malloc64 is required because SQLITE_DESERIALIZE_FREEONCLOSE
+  // transfers ownership to SQLite, which calls sqlite3_free() on close.
+  // See: https://www.sqlite.org/c3ref/deserialize.html
+  unsigned char* buf =
+      static_cast<unsigned char*>(sqlite3_malloc64(byte_length));
+  if (buf == nullptr) {
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+    return;
+  }
+
+  input->CopyContents(buf, byte_length);
+
+  db->FinalizeStatements();
+
+  int r = sqlite3_deserialize(
+      db->connection_,
+      db_name.c_str(),
+      buf,
+      byte_length,
+      byte_length,
+      SQLITE_DESERIALIZE_FREEONCLOSE | SQLITE_DESERIALIZE_RESIZEABLE);
+  if (r != SQLITE_OK) {
+    THROW_ERR_SQLITE_ERROR(env->isolate(), db);
+    return;
   }
 }
 
@@ -3766,6 +3897,8 @@ static void Initialize(Local<Object> target,
       isolate, db_tmpl, "enableDefensive", DatabaseSync::EnableDefensive);
   SetProtoMethod(
       isolate, db_tmpl, "loadExtension", DatabaseSync::LoadExtension);
+  SetProtoMethod(isolate, db_tmpl, "serialize", DatabaseSync::Serialize);
+  SetProtoMethod(isolate, db_tmpl, "deserialize", DatabaseSync::Deserialize);
   SetProtoMethod(
       isolate, db_tmpl, "setAuthorizer", DatabaseSync::SetAuthorizer);
   SetSideEffectFreeGetter(isolate,
