@@ -9,7 +9,6 @@ if (!isMainThread) {
 }
 
 const assert = require('assert');
-const fs = require('fs');
 
 {
   assert.ok(process.permission.has('fs.write'));

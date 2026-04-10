@@ -15,8 +15,8 @@ void InspectorPermission::Apply(Environment* env,
 }
 
 void InspectorPermission::Drop(Environment* env,
-                                PermissionScope scope,
-                                const std::string_view& param) {
+                               PermissionScope scope,
+                               const std::string_view& param) {
   deny_all_ = true;
 }
 

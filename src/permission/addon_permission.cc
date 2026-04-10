@@ -15,8 +15,8 @@ void AddonPermission::Apply(Environment* env,
 }
 
 void AddonPermission::Drop(Environment* env,
-                            PermissionScope scope,
-                            const std::string_view& param) {
+                           PermissionScope scope,
+                           const std::string_view& param) {
   deny_all_ = true;
 }
 

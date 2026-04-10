@@ -307,8 +307,8 @@ void Permission::Apply(Environment* env,
 }
 
 void Permission::Drop(Environment* env,
-                       PermissionScope scope,
-                       const std::string_view& param) {
+                      PermissionScope scope,
+                      const std::string_view& param) {
   auto permission = nodes_.find(scope);
   if (permission != nodes_.end()) {
     permission->second->Drop(env, scope, param);

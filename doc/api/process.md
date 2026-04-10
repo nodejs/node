@@ -4677,7 +4677,6 @@ cases:
 [`ChildProcess.disconnect()`]: child_process.md#subprocessdisconnect
 [`ChildProcess.send()`]: child_process.md#subprocesssendmessage-sendhandle-options-callback
 [`ChildProcess`]: child_process.md#class-childprocess
-[`ERR_ACCESS_DENIED`]: errors.md#err_access_denied
 [`Error`]: errors.md#class-error
 [`EventEmitter`]: events.md#class-eventemitter
 [`NODE_OPTIONS`]: cli.md#node_optionsoptions

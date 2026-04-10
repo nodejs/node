@@ -155,8 +155,8 @@ void FSPermission::Apply(Environment* env,
 }
 
 void FSPermission::Drop(Environment* env,
-                         PermissionScope scope,
-                         const std::string_view& param) {
+                        PermissionScope scope,
+                        const std::string_view& param) {
   if (param.empty()) {
     // Drop all access for this scope
     if (scope == PermissionScope::kFileSystemRead ||
@@ -192,19 +192,18 @@ void FSPermission::Drop(Environment* env,
   }
 }
 
-void FSPermission::RevokeAccess(PermissionScope perm,
-                                 const std::string& res) {
+void FSPermission::RevokeAccess(PermissionScope perm, const std::string& res) {
   const std::string path = WildcardIfDir(res);
   if (perm == PermissionScope::kFileSystemRead) {
-    auto it = std::find(granted_paths_in_.begin(),
-                        granted_paths_in_.end(), path);
+    auto it =
+        std::find(granted_paths_in_.begin(), granted_paths_in_.end(), path);
     if (it != granted_paths_in_.end()) {
       granted_paths_in_.erase(it);
       RebuildTree(PermissionScope::kFileSystemRead);
     }
   } else if (perm == PermissionScope::kFileSystemWrite) {
-    auto it = std::find(granted_paths_out_.begin(),
-                        granted_paths_out_.end(), path);
+    auto it =
+        std::find(granted_paths_out_.begin(), granted_paths_out_.end(), path);
     if (it != granted_paths_out_.end()) {
       granted_paths_out_.erase(it);
       RebuildTree(PermissionScope::kFileSystemWrite);

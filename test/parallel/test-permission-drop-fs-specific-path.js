@@ -1,5 +1,7 @@
 'use strict';
 
+require('../common');
+
 const { spawnSync } = require('child_process');
 const assert = require('assert');
 const { isMainThread } = require('worker_threads');
@@ -7,8 +9,6 @@ const { isMainThread } = require('worker_threads');
 if (!isMainThread) {
   process.exit(0);
 }
-
-const common = require('../common');
 const tmpdir = require('../common/tmpdir');
 const fs = require('fs');
 const path = require('path');
@@ -57,4 +57,4 @@ if (child.status !== 0) {
   console.error('stdout:', child.stdout?.toString());
   console.error('stderr:', child.stderr?.toString());
 }
-assert.strictEqual(child.status, 0, 'Child process should exit with code 0');
+assert.strictEqual(child.status, 0);

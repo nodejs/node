@@ -16,8 +16,8 @@ void ChildProcessPermission::Apply(Environment* env,
 }
 
 void ChildProcessPermission::Drop(Environment* env,
-                                   PermissionScope scope,
-                                   const std::string_view& param) {
+                                  PermissionScope scope,
+                                  const std::string_view& param) {
   deny_all_ = true;
 }
 

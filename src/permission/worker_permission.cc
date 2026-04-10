@@ -16,8 +16,8 @@ void WorkerPermission::Apply(Environment* env,
 }
 
 void WorkerPermission::Drop(Environment* env,
-                             PermissionScope scope,
-                             const std::string_view& param) {
+                            PermissionScope scope,
+                            const std::string_view& param) {
   deny_all_ = true;
 }
 

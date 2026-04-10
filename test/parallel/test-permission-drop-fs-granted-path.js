@@ -1,6 +1,6 @@
 'use strict';
 
-// Tests that drop() only revokes the exact resource that was explicitly granted.
+require('../common');
 
 const { spawnSync } = require('child_process');
 const assert = require('assert');
@@ -9,8 +9,6 @@ const { isMainThread } = require('worker_threads');
 if (!isMainThread) {
   process.exit(0);
 }
-
-require('../common');
 const tmpdir = require('../common/tmpdir');
 const fs = require('fs');
 const path = require('path');
@@ -45,7 +43,7 @@ fs.writeFileSync(path.join(dir, 'item2.txt'), 'bbb');
   if (child.status !== 0) {
     console.error('Case 1 stderr:', child.stderr?.toString());
   }
-  assert.strictEqual(child.status, 0, 'Case 1 failed');
+  assert.strictEqual(child.status, 0);
 }
 
 // Grant a directory, drop the same directory - should revoke all access
@@ -69,7 +67,7 @@ fs.writeFileSync(path.join(dir, 'item2.txt'), 'bbb');
   if (child.status !== 0) {
     console.error('Case 2 stderr:', child.stderr?.toString());
   }
-  assert.strictEqual(child.status, 0, 'Case 2 failed');
+  assert.strictEqual(child.status, 0);
 }
 
 // Grant two directories, drop one - the other remains accessible
@@ -105,7 +103,7 @@ fs.writeFileSync(path.join(dir, 'item2.txt'), 'bbb');
   if (child.status !== 0) {
     console.error('Case 3 stderr:', child.stderr?.toString());
   }
-  assert.strictEqual(child.status, 0, 'Case 3 failed');
+  assert.strictEqual(child.status, 0);
 }
 
 // Grant a directory and a file inside it separately, drop the file
@@ -132,7 +130,7 @@ fs.writeFileSync(path.join(dir, 'item2.txt'), 'bbb');
   if (child.status !== 0) {
     console.error('Case 4 stderr:', child.stderr?.toString());
   }
-  assert.strictEqual(child.status, 0, 'Case 4 failed');
+  assert.strictEqual(child.status, 0);
 }
 
 // Drop entire scope without reference - revokes everything
@@ -156,5 +154,5 @@ fs.writeFileSync(path.join(dir, 'item2.txt'), 'bbb');
   if (child.status !== 0) {
     console.error('Case 5 stderr:', child.stderr?.toString());
   }
-  assert.strictEqual(child.status, 0, 'Case 5 failed');
+  assert.strictEqual(child.status, 0);
 }

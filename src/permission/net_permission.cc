@@ -14,8 +14,8 @@ void NetPermission::Apply(Environment* env,
 }
 
 void NetPermission::Drop(Environment* env,
-                          PermissionScope scope,
-                          const std::string_view& param) {
+                         PermissionScope scope,
+                         const std::string_view& param) {
   allow_net_ = false;
 }
 
