@@ -44,6 +44,29 @@ tmpdir.refresh();
 }
 
 {
+  assert.throws(
+    () => fs.watch(nonexistentFile, { throwIfNoEntry: true }, common.mustNotCall()),
+    {
+      path: nonexistentFile,
+      filename: nonexistentFile,
+      code: /^(ENOENT|ENODEV)$/,
+    },
+  );
+}
+
+{
+  if (common.isAIX) {
+    assert.throws(
+      () => fs.watch(nonexistentFile, { throwIfNoEntry: false }, common.mustNotCall()),
+      { code: 'ENODEV' },
+    );
+  } else {
+    const watcher = fs.watch(nonexistentFile, { throwIfNoEntry: false }, common.mustNotCall());
+    watcher.close();
+  }
+}
+
+{
   if (common.isMacOS || common.isWindows) {
     const file = tmpdir.resolve('file-to-watch');
     fs.writeFileSync(file, 'test');
