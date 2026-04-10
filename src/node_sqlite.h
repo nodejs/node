@@ -195,6 +195,8 @@ class DatabaseSync : public BaseObject {
   static void EnableDefensive(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void LimitsGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void LoadExtension(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Serialize(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Deserialize(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetAuthorizer(const v8::FunctionCallbackInfo<v8::Value>& args);
   static int AuthorizerCallback(void* user_data,
                                 int action_code,
