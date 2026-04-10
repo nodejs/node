@@ -93,8 +93,9 @@ class ReportResult {
 // Checkout https://github.com/web-platform-tests/wpt.fyi/tree/main/api#results-creation
 // for more details.
 class WPTReport {
-  constructor(path) {
-    this.filename = `report-${path.replaceAll('/', '-')}.json`;
+  constructor(testPath) {
+    this.filename = `report-${testPath.replaceAll('/', '-')}.json`;
+    this.filepath = path.join(__dirname, `../../out/wpt/${this.filename}`);
     /** @type {Map<string, ReportResult>} */
     this.results = new Map();
     this.time_start = Date.now();
@@ -139,7 +140,7 @@ class WPTReport {
       os: getOs(),
     };
 
-    fs.writeFileSync(`out/wpt/${this.filename}`, JSON.stringify({
+    fs.writeFileSync(this.filepath, JSON.stringify({
       time_start: this.time_start,
       time_end: this.time_end,
       run_info: this.run_info,
