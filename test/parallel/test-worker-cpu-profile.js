@@ -17,6 +17,14 @@ worker.on('online', common.mustCall(async () => {
   }
 
   {
+    const handle = await worker.startCpuProfile({
+      sampleInterval: 0.5,
+      maxBufferSize: 8,
+    });
+    JSON.parse(await handle.stop());
+  }
+
+  {
     const [handle1, handle2] = await Promise.all([
       worker.startCpuProfile(),
       worker.startCpuProfile(),
@@ -37,6 +45,11 @@ worker.on('online', common.mustCall(async () => {
 }));
 
 worker.once('exit', common.mustCall(async () => {
+  assert.throws(
+    () => worker.startCpuProfile({ maxBufferSize: 0 }),
+    common.expectsError({
+      code: 'ERR_OUT_OF_RANGE',
+    }));
   await assert.rejects(worker.startCpuProfile(), {
     code: 'ERR_WORKER_NOT_RUNNING'
   });

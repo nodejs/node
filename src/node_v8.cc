@@ -250,7 +250,8 @@ void SetFlagsFromString(const FunctionCallbackInfo<Value>& args) {
 void StartCpuProfile(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
-  CpuProfilingResult result = env->StartCpuProfile();
+  CpuProfileOptions options = ParseCpuProfileOptions(args);
+  CpuProfilingResult result = env->StartCpuProfile(options);
   if (result.status == CpuProfilingStatus::kErrorTooManyProfilers) {
     return THROW_ERR_CPU_PROFILE_TOO_MANY(isolate,
                                           "There are too many CPU profiles");
