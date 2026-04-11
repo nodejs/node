@@ -9,6 +9,37 @@ const { once } = require('events');
 const { setTimeout } = require('timers/promises');
 
 {
+  // Filter works on empty streams with a synchronous predicate
+  const stream = Readable.from([]).filter((x) => true);
+  (async () => {
+    for await (const item of stream) {
+      assert.fail(`${item} should not exist`);
+    }
+  })().then(common.mustCall());
+}
+
+{
+  // Filter works on synchronous streams with a synchronous predicate
+  const stream = Readable.from([1, 2, 3, 4, 5]).filter((x) => x < 10);
+  const result = [1, 2, 3, 4, 5];
+  (async () => {
+    for await (const item of stream) {
+      assert.strictEqual(item, result.shift());
+    }
+  })().then(common.mustCall());
+}
+
+{
+  // Filter works on synchronous streams with a synchronous predicate
+  const stream = Readable.from([1, 2, 3, 4, 5]).filter((x) => x > 10);
+  (async () => {
+    for await (const item of stream) {
+      assert.fail(`${item} should not exist`);
+    }
+  })().then(common.mustCall());
+}
+
+{
   // Filter works on synchronous streams with a synchronous predicate
   const stream = Readable.from([1, 2, 3, 4, 5]).filter((x) => x < 3);
   const result = [1, 2];
