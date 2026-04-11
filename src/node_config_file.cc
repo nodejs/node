@@ -1,5 +1,7 @@
 #include "node_config_file.h"
+#include "ata.h"
 #include "debug_utils-inl.h"
+#include "node_config_schema.h"
 #include "simdjson.h"
 
 namespace node {
@@ -254,6 +256,33 @@ ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
       FPrintF(stderr, "Can't parse %s\n", config_path.data());
     }
     return ParseResult::InvalidContent;
+  }
+
+  // Validate against JSON Schema after basic parsing succeeds.
+  // This catches type errors in properties before the option
+  // parsing loop, which would otherwise produce less clear messages.
+  {
+    auto schema = ata::compile(kNodeConfigSchema);
+    if (schema) {
+      auto result = ata::validate(schema, file_content);
+      if (!result.valid) {
+        for (const auto& err : result.errors) {
+          if (err.code != ata::error_code::additional_property_not_allowed) {
+            FPrintF(
+                stderr, "Invalid configuration in %s:\n", config_path.data());
+            for (const auto& e : result.errors) {
+              if (e.code != ata::error_code::additional_property_not_allowed) {
+                FPrintF(stderr,
+                        "  %s: %s\n",
+                        e.path.empty() ? "/" : e.path,
+                        e.message);
+              }
+            }
+            return ParseResult::InvalidContent;
+          }
+        }
+      }
+    }
   }
 
   // Get all available namespaces for validation

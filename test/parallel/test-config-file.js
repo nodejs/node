@@ -302,7 +302,7 @@ test('non object node options', async () => {
     `--experimental-config-file=${fixtures.path('rc/non-object-node-options.json')}`,
     '-p', '"Hello, World!"',
   ]);
-  assert.match(result.stderr, /"nodeOptions" value unexpected for/);
+  assert.match(result.stderr, /Invalid configuration/);
   assert.strictEqual(result.stdout, '');
   assert.strictEqual(result.code, 9);
 });
@@ -674,4 +674,22 @@ describe('namespace-scoped options', () => {
     assert.strictEqual(result.stdout, 'false\n');
     assert.strictEqual(result.code, 0);
   });
+});
+
+test('should reject config with schema validation errors', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--experimental-config-file',
+    fixtures.path('rc/invalid-schema-type.json'),
+    '-p', '"Hello"',
+  ]);
+  assert.match(result.stderr, /Invalid configuration/);
+  assert.strictEqual(result.code, 9);
+});
+
+test('process.versions.ata should be defined', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '-p', 'process.versions.ata',
+  ]);
+  assert.match(result.stdout, /\d+\.\d+\.\d+/);
+  assert.strictEqual(result.code, 0);
 });

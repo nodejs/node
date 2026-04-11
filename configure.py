@@ -561,6 +561,28 @@ shared_optgroup.add_argument('--shared-simdjson-libpath',
     help='a directory to search for the shared simdjson DLL')
 
 
+shared_optgroup.add_argument('--shared-ata',
+    action='store_true',
+    dest='shared_ata',
+    default=None,
+    help='link to a shared ata DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-ata-includes',
+    action='store',
+    dest='shared_ata_includes',
+    help='directory containing ata header files')
+
+shared_optgroup.add_argument('--shared-ata-libname',
+    action='store',
+    dest='shared_ata_libname',
+    default='ata',
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-ata-libpath',
+    action='store',
+    dest='shared_ata_libpath',
+    help='a directory to search for the shared ata DLL')
+
 shared_optgroup.add_argument('--shared-simdutf',
     action='store_true',
     dest='shared_simdutf',
@@ -2791,6 +2813,7 @@ configure_library('http_parser', output, pkgname='libllhttp')
 configure_library('libuv', output)
 configure_library('ada', output)
 configure_library('simdjson', output)
+configure_library('ata', output)
 configure_library('simdutf', output)
 configure_library('brotli', output, pkgname=['libbrotlidec', 'libbrotlienc'])
 configure_library('cares', output, pkgname='libcares')

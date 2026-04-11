@@ -31,6 +31,7 @@ let
         ../../common.gypi
         ../../configure.py
         ../../deps/v8
+        ../../deps/ata
         ../../node.gyp
         ../../node.gypi
         ../../src/node_version.h
