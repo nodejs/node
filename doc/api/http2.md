@@ -3966,7 +3966,7 @@ const server = createSecureServer(
 ).listen(8000);
 
 function onRequest(req, res) {
-  // Detects if it is a HTTPS request or HTTP/2
+  // Detects if it is an HTTPS request or HTTP/2
   const { socket: { alpnProtocol } } = req.httpVersion === '2.0' ?
     req.stream.session : req;
   res.writeHead(200, { 'content-type': 'application/json' });
@@ -3990,7 +3990,7 @@ const server = createSecureServer(
 ).listen(4443);
 
 function onRequest(req, res) {
-  // Detects if it is a HTTPS request or HTTP/2
+  // Detects if it is an HTTPS request or HTTP/2
   const { socket: { alpnProtocol } } = req.httpVersion === '2.0' ?
     req.stream.session : req;
   res.writeHead(200, { 'content-type': 'application/json' });

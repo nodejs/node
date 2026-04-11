@@ -364,7 +364,7 @@ changes:
 
 The module compile cache can be enabled either using the [`module.enableCompileCache()`][]
 method or the [`NODE_COMPILE_CACHE=dir`][] environment variable. After it is enabled,
-whenever Node.js compiles a CommonJS, a ECMAScript Module, or a TypeScript module, it will
+whenever Node.js compiles a CommonJS, an ECMAScript Module, or a TypeScript module, it will
 use on-disk [V8 code cache][] persisted in the specified directory to speed up the compilation.
 This may slow down the first load of a module graph, but subsequent loads of the same module
 graph may get a significant speedup if the contents of the modules do not change.
