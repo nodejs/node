@@ -701,6 +701,10 @@ Enable experimental \fBimport.meta.resolve()\fR parent URL support, which allows
 passing a second \fBparentURL\fR argument for contextual resolution.
 Previously gated the entire \fBimport.meta.resolve\fR feature.
 .
+.It Fl -experimental-import-text
+Enable experimental support for importing modules with
+\fBwith { type: 'text' }\fR.
+.
 .It Fl -experimental-inspector-network-resource
 Enable experimental support for inspector network resources.
 .
@@ -1858,6 +1862,8 @@ one is included in the list below.
 \fB--experimental-eventsource\fR
 .It
 \fB--experimental-import-meta-resolve\fR
+.It
+\fB--experimental-import-text\fR
 .It
 \fB--experimental-json-modules\fR
 .It
