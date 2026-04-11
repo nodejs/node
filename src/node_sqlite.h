@@ -15,6 +15,7 @@
 #include <optional>
 #include <string_view>
 #include <unordered_set>
+#include <vector>
 
 namespace node {
 namespace sqlite {
@@ -279,6 +280,7 @@ class StatementSync : public BaseObject {
   static void SetReturnArrays(const v8::FunctionCallbackInfo<v8::Value>& args);
   v8::MaybeLocal<v8::Value> ColumnToValue(const int column);
   v8::MaybeLocal<v8::Name> ColumnNameToName(const int column);
+  bool GetCachedColumnNames(v8::LocalVector<v8::Name>* keys);
   void Finalize();
   bool IsFinalized();
 
@@ -296,6 +298,9 @@ class StatementSync : public BaseObject {
   uint64_t reset_generation_ = 0;
   std::optional<std::map<std::string, std::string>> bare_named_params_;
   inline int ResetStatement();
+  std::vector<v8::Global<v8::Name>> cached_column_names_;
+  int cached_column_names_reprepare_count_ = -1;
+  void InvalidateColumnNameCache();
   bool BindParams(const v8::FunctionCallbackInfo<v8::Value>& args);
   bool BindValue(const v8::Local<v8::Value>& value, const int index);
 
