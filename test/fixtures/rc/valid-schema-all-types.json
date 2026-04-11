@@ -1,0 +1,6 @@
+{
+  "nodeOptions": {
+    "addons": false,
+    "max-http-header-size": 8192
+  }
+}
