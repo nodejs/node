@@ -9,9 +9,9 @@ export interface BufferBinding {
   compare(a: ArrayBufferView, b: ArrayBufferView): number;
   compareOffset(source: ArrayBufferView, target: ArrayBufferView, targetStart?: number, sourceStart?: number, targetEnd?: number, sourceEnd?: number): number;
   fill(buf: ArrayBufferView, val: any, start?: number, end?: number, encoding?: number): -1 | -2 | void;
-  indexOfBuffer(haystack: ArrayBufferView, needle: ArrayBufferView, offset?: number, encoding?: number, isForward?: boolean): number;
-  indexOfNumber(buf: ArrayBufferView, needle: number, offset?: number, isForward?: boolean): number;
-  indexOfString(buf: ArrayBufferView, needle: string, offset?: number, encoding?: number, isForward?: boolean): number;
+  indexOfBuffer(haystack: ArrayBufferView, needle: ArrayBufferView, offset?: number, encoding?: number, isForward?: boolean, end?: number): number;
+  indexOfNumber(buf: ArrayBufferView, needle: number, offset?: number, isForward?: boolean, end?: number): number;
+  indexOfString(buf: ArrayBufferView, needle: string, offset?: number, encoding?: number, isForward?: boolean, end?: number): number;
 
   copyArrayBuffer(destination: ArrayBuffer | SharedArrayBuffer, destinationOffset: number, source: ArrayBuffer | SharedArrayBuffer, sourceOffset: number, bytesToCopy: number): void;
 
