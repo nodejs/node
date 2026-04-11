@@ -1329,6 +1329,7 @@ resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 [Node.js Module Resolution And Loading Algorithm]: #resolution-algorithm-specification
 [Source Phase Imports]: https://github.com/tc39/proposal-source-phase-imports
 [Terminology]: #terminology
+[Text modules]: #text-modules
 [URL]: https://url.spec.whatwg.org/
 [WebAssembly JS String Builtins Proposal]: https://github.com/WebAssembly/js-string-builtins
 [`"exports"`]: packages.md#exports
