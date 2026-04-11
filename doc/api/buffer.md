@@ -2069,11 +2069,14 @@ console.log(buf.fill('zz', 'hex'));
 // Throws an exception.
 ```
 
-### `buf.includes(value[, byteOffset][, encoding])`
+### `buf.includes(value[, start[, end]][, encoding])`
 
 <!-- YAML
 added: v5.3.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62390
+    description: Added the `end` parameter.
   - version:
      - v25.5.0
      - v24.13.1
@@ -2082,8 +2085,10 @@ changes:
 -->
 
 * `value` {string|Buffer|Uint8Array|integer} What to search for.
-* `byteOffset` {integer} Where to begin searching in `buf`. If negative, then
+* `start` {integer} Where to begin searching in `buf`. If negative, then
   offset is calculated from the end of `buf`. **Default:** `0`.
+* `end` {integer} Where to stop searching in `buf` (exclusive). **Default:**
+  `buf.length`.
 * `encoding` {string} If `value` is a string, this is its encoding.
   **Default:** `'utf8'`.
 * Returns: {boolean} `true` if `value` was found in `buf`, `false` otherwise.
@@ -2132,11 +2137,14 @@ console.log(buf.includes('this', 4));
 // Prints: false
 ```
 
-### `buf.indexOf(value[, byteOffset][, encoding])`
+### `buf.indexOf(value[, start[, end]][, encoding])`
 
 <!-- YAML
 added: v1.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62390
+    description: Added the `end` parameter.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/10236
     description: The `value` can now be a `Uint8Array`.
@@ -2149,8 +2157,10 @@ changes:
 -->
 
 * `value` {string|Buffer|Uint8Array|integer} What to search for.
-* `byteOffset` {integer} Where to begin searching in `buf`. If negative, then
+* `start` {integer} Where to begin searching in `buf`. If negative, then
   offset is calculated from the end of `buf`. **Default:** `0`.
+* `end` {integer} Where to stop searching in `buf` (exclusive). **Default:**
+  `buf.length`.
 * `encoding` {string} If `value` is a string, this is the encoding used to
   determine the binary representation of the string that will be searched for in
   `buf`. **Default:** `'utf8'`.
@@ -2310,20 +2320,25 @@ for (const key of buf.keys()) {
 //   5
 ```
 
-### `buf.lastIndexOf(value[, byteOffset][, encoding])`
+### `buf.lastIndexOf(value[, start[, end]][, encoding])`
 
 <!-- YAML
 added: v6.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62390
+    description: Added the `end` parameter.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/10236
     description: The `value` can now be a `Uint8Array`.
 -->
 
 * `value` {string|Buffer|Uint8Array|integer} What to search for.
-* `byteOffset` {integer} Where to begin searching in `buf`. If negative, then
+* `start` {integer} Where to begin searching in `buf`. If negative, then
   offset is calculated from the end of `buf`. **Default:**
   `buf.length - 1`.
+* `end` {integer} Where to stop searching in `buf` (exclusive). **Default:**
+  `buf.length`.
 * `encoding` {string} If `value` is a string, this is the encoding used to
   determine the binary representation of the string that will be searched for in
   `buf`. **Default:** `'utf8'`.
