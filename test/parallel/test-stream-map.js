@@ -28,10 +28,26 @@ function createDependentPromises(n) {
 }
 
 {
+  // Map works on empty streams with a synchronous mapper
+  const stream = Readable.from([]).map((x) => x);
+  (async () => {
+    assert.deepStrictEqual(await stream.toArray(), []);
+  })().then(common.mustCall());
+}
+
+{
   // Map works on synchronous streams with a synchronous mapper
   const stream = Readable.from([1, 2, 3, 4, 5]).map((x) => x + x);
   (async () => {
     assert.deepStrictEqual(await stream.toArray(), [2, 4, 6, 8, 10]);
+  })().then(common.mustCall());
+}
+
+{
+  // Double Map works on synchronous streams with a synchronous mapper
+  const stream = Readable.from([1, 2, 3, 4, 5]).map((x) => x + x).map((x) => x + x);
+  (async () => {
+    assert.deepStrictEqual(await stream.toArray(), [4, 8, 12, 16, 20]);
   })().then(common.mustCall());
 }
 
@@ -47,6 +63,17 @@ function createDependentPromises(n) {
 }
 
 {
+  // Map works on synchronous streams with an asynchronous mapper
+  const stream = Readable.from([1, 2, 3, 4, 5]).map((x) => x + x).map(async (x) => {
+    await Promise.resolve();
+    return x + x;
+  });
+  (async () => {
+    assert.deepStrictEqual(await stream.toArray(), [4, 8, 12, 16, 20]);
+  })().then(common.mustCall());
+}
+
+{
   // Map works on asynchronous streams with a asynchronous mapper
   const stream = Readable.from([1, 2, 3, 4, 5]).map(async (x) => {
     return x + x;
@@ -57,7 +84,23 @@ function createDependentPromises(n) {
 }
 
 {
-  // Map works on an infinite stream
+  // Map works on an infinite stream - sync
+  const stream = Readable.from(async function* () {
+    while (true) yield 1;
+  }()).map(common.mustCall((x) => {
+    return x + x;
+  }, 5));
+  (async () => {
+    let i = 1;
+    for await (const item of stream) {
+      assert.strictEqual(item, 2);
+      if (++i === 5) break;
+    }
+  })().then(common.mustCall());
+}
+
+{
+  // Map works on an infinite stream - async
   const stream = Readable.from(async function* () {
     while (true) yield 1;
   }()).map(common.mustCall(async (x) => {

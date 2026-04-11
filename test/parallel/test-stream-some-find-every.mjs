@@ -116,6 +116,52 @@ function oneTo5Async() {
 }
 
 {
+  // Errors from any active predicate take precedence over a concurrent match.
+  const first = Promise.withResolvers();
+  const second = Promise.withResolvers();
+  const error = new Error('boom');
+  const result = Readable.from([1, 2]).find(common.mustCall((val) => {
+    return val === 1 ? first.promise : second.promise;
+  }, 2), { concurrency: 2 });
+
+  second.resolve(true);
+  await setTimeout();
+  first.reject(error);
+  await assert.rejects(result, error);
+}
+
+{
+  // Synchronous throws and rejected promises from predicates are propagated.
+  for (const op of ['some', 'every', 'find']) {
+    const syncError = new Error(`${op} sync`);
+    const syncStream = oneTo5();
+    await assert.rejects(syncStream[op](common.mustCall(() => {
+      throw syncError;
+    }, 1)), syncError);
+    assert.strictEqual(syncStream.destroyed, true);
+
+    const asyncError = new Error(`${op} async`);
+    const asyncStream = oneTo5();
+    await assert.rejects(asyncStream[op](common.mustCall(async () => {
+      throw asyncError;
+    }, 1)), asyncError);
+    assert.strictEqual(asyncStream.destroyed, true);
+  }
+}
+
+{
+  // Find can leave the source open after a match.
+  const stream = oneTo5();
+  const found = await stream.find((x) => x === 2, {
+    destroyOnReturn: false,
+  });
+  assert.strictEqual(found, 2);
+  assert.strictEqual(stream.destroyed, false);
+  assert.strictEqual(stream.read(), 3);
+  stream.destroy();
+}
+
+{
   // Support for AbortSignal
   for (const op of ['some', 'every', 'find']) {
     {
@@ -158,6 +204,11 @@ function oneTo5Async() {
         signal: true
       });
     }, /ERR_INVALID_ARG_TYPE/, `${op} should throw for invalid signal`).then(common.mustCall());
+    assert.rejects(async () => {
+      await Readable.from([1])[op]((x) => x, {
+        destroyOnReturn: 'false'
+      });
+    }, /ERR_INVALID_ARG_TYPE/, `${op} should throw for invalid destroyOnReturn`).then(common.mustCall());
   }
 }
 {

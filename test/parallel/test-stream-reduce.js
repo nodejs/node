@@ -50,12 +50,59 @@ function sum(p, c) {
     assert.strictEqual(six, 6);
   })().then(common.mustCall());
 }
+
+{
+  // Works with thenables and preserves their receiver.
+  (async () => {
+    const result = await Readable.from([2, 3]).reduce((previous, current) => {
+      const thenable = {
+        value: previous + current,
+        then: common.mustSucceed(function(resolve) {
+          assert.strictEqual(this, thenable);
+          resolve(this.value);
+        }),
+      };
+      return thenable;
+    }, 1);
+    assert.strictEqual(result, 6);
+
+    const nonThenable = { then: null };
+    const objectResult = await Readable.from([1]).reduce(
+      () => nonThenable,
+      0,
+    );
+    assert.strictEqual(objectResult, nonThenable);
+  })().then(common.mustCall());
+}
+
+{
+  // Synchronous reducer failures, including a throwing `then` getter,
+  // reject the operation and destroy the stream.
+  const syncError = new Error('sync boom');
+  const syncStream = Readable.from([1]);
+  assert.rejects(syncStream.reduce(() => {
+    throw syncError;
+  }, 0), syncError).then(common.mustCall(() => {
+    assert.strictEqual(syncStream.destroyed, true);
+  }));
+
+  const getterError = new Error('then boom');
+  const getterStream = Readable.from([1]);
+  assert.rejects(getterStream.reduce(() => ({
+    get then() {
+      throw getterError;
+    },
+  }), 0), getterError).then(common.mustCall(() => {
+    assert.strictEqual(getterStream.destroyed, true);
+  }));
+}
+
 {
   // Works lazily
   assert.rejects(Readable.from([1, 2, 3, 4, 5, 6])
     .map(common.mustCall((x) => {
       return x;
-    }, 3)) // Two consumed and one buffered by `map` due to default concurrency
+    }, 2))
     .reduce(async (p, c) => {
       if (p === 1) {
         throw new Error('boom');
@@ -119,6 +166,10 @@ function sum(p, c) {
 
 {
   // Error cases
+  assert.rejects(Readable.from([]).reduce(sum), {
+    code: 'ERR_MISSING_ARGS',
+    message: 'Reduce of an empty stream requires an initial value',
+  }).then(common.mustCall());
   assert.rejects(() => Readable.from([]).reduce(1), /TypeError/).then(common.mustCall());
   assert.rejects(() => Readable.from([]).reduce('5'), /TypeError/).then(common.mustCall());
   assert.rejects(() => Readable.from([]).reduce((x, y) => x + y, 0, 1), /ERR_INVALID_ARG_TYPE/).then(common.mustCall());
