@@ -55,7 +55,7 @@ function sum(p, c) {
   assert.rejects(Readable.from([1, 2, 3, 4, 5, 6])
     .map(common.mustCall((x) => {
       return x;
-    }, 3)) // Two consumed and one buffered by `map` due to default concurrency
+    }, 2))
     .reduce(async (p, c) => {
       if (p === 1) {
         throw new Error('boom');
