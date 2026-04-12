@@ -3228,66 +3228,73 @@ napi_status NAPI_CDECL napi_create_typedarray(napi_env env,
   CHECK_ARG(env, result);
 
   v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(arraybuffer);
-  RETURN_STATUS_IF_FALSE(env, value->IsArrayBuffer(), napi_invalid_arg);
+  auto create_typedarray = [&](auto buffer) -> napi_status {
+    v8::Local<v8::TypedArray> typedArray;
 
-  v8::Local<v8::ArrayBuffer> buffer = value.As<v8::ArrayBuffer>();
-  v8::Local<v8::TypedArray> typedArray;
+    switch (type) {
+      case napi_int8_array:
+        CREATE_TYPED_ARRAY(
+            env, Int8Array, 1, buffer, byte_offset, length, typedArray);
+        break;
+      case napi_uint8_array:
+        CREATE_TYPED_ARRAY(
+            env, Uint8Array, 1, buffer, byte_offset, length, typedArray);
+        break;
+      case napi_uint8_clamped_array:
+        CREATE_TYPED_ARRAY(
+            env, Uint8ClampedArray, 1, buffer, byte_offset, length, typedArray);
+        break;
+      case napi_int16_array:
+        CREATE_TYPED_ARRAY(
+            env, Int16Array, 2, buffer, byte_offset, length, typedArray);
+        break;
+      case napi_uint16_array:
+        CREATE_TYPED_ARRAY(
+            env, Uint16Array, 2, buffer, byte_offset, length, typedArray);
+        break;
+      case napi_int32_array:
+        CREATE_TYPED_ARRAY(
+            env, Int32Array, 4, buffer, byte_offset, length, typedArray);
+        break;
+      case napi_uint32_array:
+        CREATE_TYPED_ARRAY(
+            env, Uint32Array, 4, buffer, byte_offset, length, typedArray);
+        break;
+      case napi_float32_array:
+        CREATE_TYPED_ARRAY(
+            env, Float32Array, 4, buffer, byte_offset, length, typedArray);
+        break;
+      case napi_float64_array:
+        CREATE_TYPED_ARRAY(
+            env, Float64Array, 8, buffer, byte_offset, length, typedArray);
+        break;
+      case napi_bigint64_array:
+        CREATE_TYPED_ARRAY(
+            env, BigInt64Array, 8, buffer, byte_offset, length, typedArray);
+        break;
+      case napi_biguint64_array:
+        CREATE_TYPED_ARRAY(
+            env, BigUint64Array, 8, buffer, byte_offset, length, typedArray);
+        break;
+      case napi_float16_array:
+        CREATE_TYPED_ARRAY(
+            env, Float16Array, 2, buffer, byte_offset, length, typedArray);
+        break;
+      default:
+        return napi_set_last_error(env, napi_invalid_arg);
+    }
 
-  switch (type) {
-    case napi_int8_array:
-      CREATE_TYPED_ARRAY(
-          env, Int8Array, 1, buffer, byte_offset, length, typedArray);
-      break;
-    case napi_uint8_array:
-      CREATE_TYPED_ARRAY(
-          env, Uint8Array, 1, buffer, byte_offset, length, typedArray);
-      break;
-    case napi_uint8_clamped_array:
-      CREATE_TYPED_ARRAY(
-          env, Uint8ClampedArray, 1, buffer, byte_offset, length, typedArray);
-      break;
-    case napi_int16_array:
-      CREATE_TYPED_ARRAY(
-          env, Int16Array, 2, buffer, byte_offset, length, typedArray);
-      break;
-    case napi_uint16_array:
-      CREATE_TYPED_ARRAY(
-          env, Uint16Array, 2, buffer, byte_offset, length, typedArray);
-      break;
-    case napi_int32_array:
-      CREATE_TYPED_ARRAY(
-          env, Int32Array, 4, buffer, byte_offset, length, typedArray);
-      break;
-    case napi_uint32_array:
-      CREATE_TYPED_ARRAY(
-          env, Uint32Array, 4, buffer, byte_offset, length, typedArray);
-      break;
-    case napi_float32_array:
-      CREATE_TYPED_ARRAY(
-          env, Float32Array, 4, buffer, byte_offset, length, typedArray);
-      break;
-    case napi_float64_array:
-      CREATE_TYPED_ARRAY(
-          env, Float64Array, 8, buffer, byte_offset, length, typedArray);
-      break;
-    case napi_bigint64_array:
-      CREATE_TYPED_ARRAY(
-          env, BigInt64Array, 8, buffer, byte_offset, length, typedArray);
-      break;
-    case napi_biguint64_array:
-      CREATE_TYPED_ARRAY(
-          env, BigUint64Array, 8, buffer, byte_offset, length, typedArray);
-      break;
-    case napi_float16_array:
-      CREATE_TYPED_ARRAY(
-          env, Float16Array, 2, buffer, byte_offset, length, typedArray);
-      break;
-    default:
-      return napi_set_last_error(env, napi_invalid_arg);
+    *result = v8impl::JsValueFromV8LocalValue(typedArray);
+    return GET_RETURN_STATUS(env);
+  };
+
+  if (value->IsArrayBuffer()) {
+    return create_typedarray(value.As<v8::ArrayBuffer>());
+  } else if (value->IsSharedArrayBuffer()) {
+    return create_typedarray(value.As<v8::SharedArrayBuffer>());
+  } else {
+    return napi_set_last_error(env, napi_invalid_arg);
   }
-
-  *result = v8impl::JsValueFromV8LocalValue(typedArray);
-  return GET_RETURN_STATUS(env);
 }
 
 napi_status NAPI_CDECL napi_get_typedarray_info(napi_env env,
