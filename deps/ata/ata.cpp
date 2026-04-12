@@ -1,4 +1,4 @@
-/* auto-generated on 2026-04-10 20:35:19 +0300. Do not edit! */
+/* auto-generated on 2026-04-12 17:45:05 +0300. Do not edit! */
 /* begin file src/ata.cpp */
 #include "ata.h"
 
@@ -438,6 +438,10 @@ struct compiled_schema {
     std::unordered_map<std::string, schema_node_ptr>> resource_dynamic_anchors;
   bool has_dynamic_refs = false;
   std::string current_resource_id;  // compile-time only
+
+  // compile-time warnings (misplaced keywords, etc.)
+  std::vector<schema_warning> warnings;
+  std::string compile_path;  // current JSON pointer during compilation
 };
 
 // Thread-local persistent parsers — reused across all validate calls on the
@@ -825,6 +829,61 @@ static schema_node_ptr compile_node(dom::element el,
       auto compiled = compile_node(val, ctx);
       ctx.defs[def_path] = compiled;
       node->defs[std::string(key)] = compiled;
+    }
+  }
+
+  // Warn about keywords used at the wrong type level.
+  // Only check when an explicit "type" is declared (type_mask != 0).
+  if (node->type_mask != 0) {
+    const uint8_t array_bit = json_type_bit(json_type::array);
+    const uint8_t string_bit = json_type_bit(json_type::string);
+    const uint8_t number_bits = json_type_bit(json_type::number) |
+                                json_type_bit(json_type::integer);
+    const uint8_t object_bit = json_type_bit(json_type::object);
+
+    auto warn = [&](const char* keyword, const char* expected_type) {
+      ctx.warnings.push_back({
+        ctx.compile_path,
+        std::string(keyword) + " has no effect on type \"" +
+        (node->type_mask & json_type_bit(json_type::string) ? "string" :
+         node->type_mask & json_type_bit(json_type::boolean) ? "boolean" :
+         node->type_mask & json_type_bit(json_type::number) ? "number" :
+         node->type_mask & object_bit ? "object" :
+         node->type_mask & array_bit ? "array" : "unknown") +
+        "\", only applies to " + expected_type
+      });
+    };
+
+    // Array keywords on non-array type
+    if (!(node->type_mask & array_bit)) {
+      if (node->min_items.has_value()) warn("minItems", "array");
+      if (node->max_items.has_value()) warn("maxItems", "array");
+      if (node->unique_items) warn("uniqueItems", "array");
+      if (!node->prefix_items.empty()) warn("prefixItems", "array");
+      if (node->items_schema) warn("items", "array");
+      if (node->contains_schema) warn("contains", "array");
+    }
+
+    // String keywords on non-string type
+    if (!(node->type_mask & string_bit)) {
+      if (node->min_length.has_value()) warn("minLength", "string");
+      if (node->max_length.has_value()) warn("maxLength", "string");
+      if (node->pattern.has_value()) warn("pattern", "string");
+    }
+
+    // Numeric keywords on non-numeric type
+    if (!(node->type_mask & number_bits)) {
+      if (node->minimum.has_value()) warn("minimum", "number");
+      if (node->maximum.has_value()) warn("maximum", "number");
+      if (node->exclusive_minimum.has_value()) warn("exclusiveMinimum", "number");
+      if (node->exclusive_maximum.has_value()) warn("exclusiveMaximum", "number");
+      if (node->multiple_of.has_value()) warn("multipleOf", "number");
+    }
+
+    // Object keywords on non-object type
+    if (!(node->type_mask & object_bit)) {
+      if (!node->properties.empty()) warn("properties", "object");
+      if (!node->required.empty()) warn("required", "object");
     }
   }
 
@@ -2622,6 +2681,7 @@ schema_ref compile(std::string_view schema_json) {
 
   schema_ref ref;
   ref.impl = ctx;
+  ref.warnings = std::move(ctx->warnings);
   return ref;
 }
 
