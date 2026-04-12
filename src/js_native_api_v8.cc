@@ -3134,13 +3134,13 @@ napi_create_external_arraybuffer(napi_env env,
       env, buffer, nullptr, nullptr, nullptr, result, nullptr);
 }
 
-napi_status NAPI_CDECL node_api_create_external_sharedarraybuffer(
-    napi_env env,
-    void* external_data,
-    size_t byte_length,
-    node_api_noenv_finalize finalize_cb,
-    void* finalize_hint,
-    napi_value* result) {
+napi_status NAPI_CDECL
+node_api_create_external_sharedarraybuffer(napi_env env,
+                                           void* external_data,
+                                           size_t byte_length,
+                                           node_api_noenv_finalize finalize_cb,
+                                           void* finalize_hint,
+                                           napi_value* result) {
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, result);
 #ifdef V8_ENABLE_SANDBOX
