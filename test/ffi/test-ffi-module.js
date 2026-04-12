@@ -105,9 +105,11 @@ test('ffi exports expected API surface', () => {
     'setUint32',
     'setUint64',
     'setUint8',
+    'suffix',
     'toArrayBuffer',
     'toBuffer',
     'toString',
+    'types',
   ];
 
   assert.deepStrictEqual(Object.keys(ffi).sort(), expected);
@@ -140,4 +142,35 @@ test('ffi exports expected API surface', () => {
   assert.strictEqual(typeof ffi.toString, 'function');
   assert.strictEqual(typeof ffi.toBuffer, 'function');
   assert.strictEqual(typeof ffi.toArrayBuffer, 'function');
+  assert.strictEqual(typeof ffi.types, 'object');
+});
+
+test('ffi.types exports canonical type constants', () => {
+  const ffi = require('node:ffi');
+  const expected = {
+    __proto__: null,
+    VOID: 'void',
+    POINTER: 'pointer',
+    BUFFER: 'buffer',
+    ARRAY_BUFFER: 'arraybuffer',
+    FUNCTION: 'function',
+    BOOL: 'bool',
+    CHAR: 'char',
+    STRING: 'string',
+    FLOAT: 'float',
+    DOUBLE: 'double',
+    INT_8: 'int8',
+    UINT_8: 'uint8',
+    INT_16: 'int16',
+    UINT_16: 'uint16',
+    INT_32: 'int32',
+    UINT_32: 'uint32',
+    INT_64: 'int64',
+    UINT_64: 'uint64',
+    FLOAT_32: 'float32',
+    FLOAT_64: 'float64',
+  };
+
+  assert.deepStrictEqual(ffi.types, expected);
+  assert.strictEqual(Object.isFrozen(ffi.types), true);
 });

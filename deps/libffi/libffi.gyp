@@ -178,7 +178,6 @@
                 'preprocess_asm.py',
                 'include/ffi_cfi.h',
                 'src/aarch64/internal.h',
-                'src/aarch64/ksarm64.h',
                 'src/aarch64/win64_armasm.S',
                 '<(INTERMEDIATE_DIR)/ffi.h',
                 '<(INTERMEDIATE_DIR)/fficonfig.h',

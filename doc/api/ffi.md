@@ -76,6 +76,29 @@ Supported type names:
 * `arraybuffer`
 * `function`
 
+These type names are also exposed as constants on `ffi.types`:
+
+* `ffi.types.VOID` = `'void'`
+* `ffi.types.POINTER` = `'pointer'`
+* `ffi.types.BUFFER` = `'buffer'`
+* `ffi.types.ARRAY_BUFFER` = `'arraybuffer'`
+* `ffi.types.FUNCTION` = `'function'`
+* `ffi.types.BOOL` = `'bool'`
+* `ffi.types.CHAR` = `'char'`
+* `ffi.types.STRING` = `'string'`
+* `ffi.types.FLOAT` = `'float'`
+* `ffi.types.DOUBLE` = `'double'`
+* `ffi.types.INT_8` = `'int8'`
+* `ffi.types.UINT_8` = `'uint8'`
+* `ffi.types.INT_16` = `'int16'`
+* `ffi.types.UINT_16` = `'uint16'`
+* `ffi.types.INT_32` = `'int32'`
+* `ffi.types.UINT_32` = `'uint32'`
+* `ffi.types.INT_64` = `'int64'`
+* `ffi.types.UINT_64` = `'uint64'`
+* `ffi.types.FLOAT_32` = `'float32'`
+* `ffi.types.FLOAT_64` = `'float64'`
+
 Pointer-like types (`pointer`, `string`, `buffer`, `arraybuffer`, and
 `function`) are all passed through the native layer as pointers.
 
@@ -112,6 +135,28 @@ const signature = {
   result: 'i32',
   parameters: ['i32', 'i32'],
 };
+```
+
+## `ffi.suffix`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+The native shared library suffix for the current platform:
+
+* `'dylib'` on macOS
+* `'so'` on Unix-like platforms
+* `'dll'` on Windows
+
+This can be used to build portable library paths:
+
+```cjs
+const { suffix } = require('node:ffi');
+
+const path = `libsqlite3.${suffix}`;
 ```
 
 ## `ffi.dlopen(path[, definitions])`
