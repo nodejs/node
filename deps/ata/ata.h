@@ -1,4 +1,4 @@
-/* auto-generated on 2026-04-10 20:35:19 +0300. Do not edit! */
+/* auto-generated on 2026-04-12 17:45:05 +0300. Do not edit! */
 /* begin file include/ata.h */
 #pragma once
 
@@ -10,16 +10,16 @@
 #include <variant>
 #include <vector>
 
-#define ATA_VERSION "0.8.0"
+#define ATA_VERSION "0.9.0"
 
 namespace ata {
 
 inline constexpr uint32_t VERSION_MAJOR = 0;
-inline constexpr uint32_t VERSION_MINOR = 8;
+inline constexpr uint32_t VERSION_MINOR = 9;
 inline constexpr uint32_t VERSION_REVISION = 0;
 
 inline constexpr std::string_view version() noexcept {
-  return "0.8.0";
+  return "0.9.0";
 }
 
 enum class error_code : uint8_t {
@@ -68,8 +68,14 @@ struct validation_result {
 
 struct compiled_schema;
 
+struct schema_warning {
+  std::string path;
+  std::string message;
+};
+
 struct schema_ref {
   std::shared_ptr<compiled_schema> impl;
+  std::vector<schema_warning> warnings;
 
   explicit operator bool() const noexcept { return impl != nullptr; }
 };
