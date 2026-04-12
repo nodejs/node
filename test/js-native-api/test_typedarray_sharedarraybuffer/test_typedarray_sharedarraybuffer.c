@@ -22,12 +22,8 @@ static napi_value CreateTypedArray(napi_env env,
 
   napi_value typedarray;
   NODE_API_CALL(env,
-                napi_create_typedarray(env,
-                                       type,
-                                       length,
-                                       args[0],
-                                       byte_offset,
-                                       &typedarray));
+                napi_create_typedarray(
+                    env, type, length, args[0], byte_offset, &typedarray));
 
   return typedarray;
 }
@@ -52,9 +48,9 @@ static napi_value GetArrayBuffer(napi_env env, napi_callback_info info) {
   NODE_API_ASSERT(env, argc == 1, "Wrong number of arguments");
 
   napi_value arraybuffer;
-  NODE_API_CALL(
-      env,
-      napi_get_typedarray_info(env, args[0], NULL, NULL, NULL, &arraybuffer, NULL));
+  NODE_API_CALL(env,
+                napi_get_typedarray_info(
+                    env, args[0], NULL, NULL, NULL, &arraybuffer, NULL));
 
   return arraybuffer;
 }
@@ -62,14 +58,18 @@ static napi_value GetArrayBuffer(napi_env env, napi_callback_info info) {
 EXTERN_C_START
 napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
-    DECLARE_NODE_API_PROPERTY("CreateUint8Array", CreateUint8Array),
-    DECLARE_NODE_API_PROPERTY("CreateUint16Array", CreateUint16Array),
-    DECLARE_NODE_API_PROPERTY("CreateInt32Array", CreateInt32Array),
-    DECLARE_NODE_API_PROPERTY("GetArrayBuffer", GetArrayBuffer),
+      DECLARE_NODE_API_PROPERTY("CreateUint8Array", CreateUint8Array),
+      DECLARE_NODE_API_PROPERTY("CreateUint16Array", CreateUint16Array),
+      DECLARE_NODE_API_PROPERTY("CreateInt32Array", CreateInt32Array),
+      DECLARE_NODE_API_PROPERTY("GetArrayBuffer", GetArrayBuffer),
   };
 
-  NODE_API_CALL(env, napi_define_properties(
-      env, exports, sizeof(descriptors) / sizeof(*descriptors), descriptors));
+  NODE_API_CALL(
+      env,
+      napi_define_properties(env,
+                             exports,
+                             sizeof(descriptors) / sizeof(*descriptors),
+                             descriptors));
 
   return exports;
 }
