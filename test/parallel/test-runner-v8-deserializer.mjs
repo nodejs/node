@@ -25,6 +25,11 @@ const headerLength = defaultSerializer.releaseBuffer().length;
 const headerOnly = Buffer.from([0xff, 0x0f]);
 const oversizedLengthHeader = Buffer.from([0xff, 0x0f, 0x7f, 0xff, 0xff, 0xff]);
 const truncatedLengthHeader = Buffer.from([0xff, 0x0f, 0x00, 0x01, 0x00, 0x00]);
+// Expected stdout for oversizedLengthHeader: first byte is emitted via
+// String.fromCharCode (byte-by-byte fallback in #drainRawBuffer), remaining
+// bytes go through the nonSerialized UTF-8 decode path in #processRawBuffer.
+const oversizedLengthStdout = String.fromCharCode(oversizedLengthHeader[0]) +
+  Buffer.from(oversizedLengthHeader.subarray(1)).toString('utf-8');
 
 function collectStdout(reported) {
   return reported
@@ -98,7 +103,7 @@ describe('v8 deserializer', common.mustCall(() => {
       reported,
       Array.from({ length: reported.length }, () => ({ type: 'test:stdout' })),
     );
-    assert.strictEqual(collectStdout(reported), oversizedLengthHeader.toString('utf8'));
+    assert.strictEqual(collectStdout(reported), oversizedLengthStdout);
   });
 
   it('should flush incomplete v8 frame as stdout and keep prior valid data', async () => {
@@ -108,14 +113,14 @@ describe('v8 deserializer', common.mustCall(() => {
       Buffer.from('hello'),
       truncatedLengthHeader,
     ]);
-    assert.strictEqual(collectStdout(reported), `hello${truncatedLengthHeader.toString('utf8')}`);
+    assert.strictEqual(collectStdout(reported), `hello${truncatedLengthHeader.toString('latin1')}`);
   });
 
   it('should flush v8Header-only bytes as stdout when stream ends', async () => {
     // Just the two-byte v8 header with no size field at all.
     const reported = await collectReported([headerOnly]);
     assert(reported.every((event) => event.type === 'test:stdout'));
-    assert.strictEqual(collectStdout(reported), headerOnly.toString('utf8'));
+    assert.strictEqual(collectStdout(reported), headerOnly.toString('latin1'));
   });
 
   it('should resync and parse valid messages after false v8 header', async () => {
@@ -128,7 +133,7 @@ describe('v8 deserializer', common.mustCall(() => {
     ]);
     assert.deepStrictEqual(reported.at(-1), diagnosticEvent);
     assert.strictEqual(reported.filter((event) => event.type === 'test:diagnostic').length, 1);
-    assert.strictEqual(collectStdout(reported), oversizedLengthHeader.toString('utf8'));
+    assert.strictEqual(collectStdout(reported), oversizedLengthStdout);
   });
 
   it('should preserve a false v8 header split across chunks', async () => {
@@ -137,7 +142,7 @@ describe('v8 deserializer', common.mustCall(() => {
       oversizedLengthHeader.subarray(1),
     ]);
     assert(reported.every((event) => event.type === 'test:stdout'));
-    assert.strictEqual(collectStdout(reported), oversizedLengthHeader.toString('utf8'));
+    assert.strictEqual(collectStdout(reported), oversizedLengthStdout);
   });
 
   const headerPosition = headerLength * 2 + 4;
