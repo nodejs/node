@@ -28,5 +28,10 @@ spawnSyncAndAssert(
   },
   {
     stdout: /All SEA VFS tests passed!/,
+    stderr(stderr) {
+      if (/ExperimentalWarning: VirtualFileSystem/.test(stderr)) {
+        throw new Error('SEA VFS should not emit the public VirtualFileSystem warning');
+      }
+    },
   },
 );
