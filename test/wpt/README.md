@@ -1,18 +1,16 @@
 # Web Platform Tests
 
-The tests here are drivers for running the [Web Platform Tests][].
+This directory contains test runners that execute upstream
+[Web Platform Tests][] against Node.js using the WPT harness.
+The actual test files live in `test/fixtures/wpt`, a subset of the
+upstream WPT repository containing only the modules relevant to Node.js.
+Each module is updated independently using [git node wpt][], so
+different modules may be pinned to different upstream commits.
 
-See [`test/fixtures/wpt/README.md`][] for a hash of the last
-updated WPT commit for each module being covered here.
-
-See the json files in [the `status` folder](./status) for prerequisites,
-expected failures, and support status for specific tests in each module.
-
-Currently there are still some Web Platform Tests titled `test-whatwg-*`
-under `test/parallel` that have not been migrated to be run with the
-WPT harness and have automatic updates. There are also a few
-`test-whatwg-*-custom-*` tests that may need to be upstreamed.
-This folder covers the tests that have been migrated.
+Each module has a status file in the [`status` folder](./status) that
+declares build requirements, expected failures, and tests to skip.
+See [`test/fixtures/wpt/README.md`][] for the pinned WPT commit
+hashes for each module.
 
 <a id="add-tests"></a>
 
@@ -20,10 +18,10 @@ This folder covers the tests that have been migrated.
 
 ### 1. Create a status file
 
-For example, to add the URL tests, add a `test/wpt/status/url.json` file.
+For example, to add the URL tests, add a `test/wpt/status/url.cjs` file.
 
-In the beginning, it's fine to leave an empty object `{}` in the file if
-it's not yet clear how compliant the implementation is,
+In the beginning, it's fine to leave an empty object `module.exports = {}`
+in the file if it's not yet clear how compliant the implementation is,
 the requirements and expected failures can be figured out in a later step
 when the tests are run for the first time.
 
@@ -39,7 +37,7 @@ cd /path/to/node/project
 git node wpt url
 ```
 
-### 3. Create the test driver
+### 3. Create the test runner
 
 For example, for the URL tests, add a file `test/wpt/test-url.js`:
 
@@ -50,21 +48,49 @@ const { WPTRunner } = require('../common/wpt');
 
 const runner = new WPTRunner('url');
 
-// Set Node.js flags required for the tests.
-runner.setFlags(['--expose-internals']);
-
-// Set a script that will be executed in the worker before running the tests.
-runner.setInitScript(`
-  const { internalBinding } = require('internal/test/binding');
-  const { DOMException } = internalBinding('messaging');
-  global.DOMException = DOMException;
-`);
-
+runner.pretendGlobalThisAs('Window');
 runner.runJsTests();
 ```
 
-This driver is capable of running the tests located in `test/fixtures/wpt/url`
-with the WPT harness while taking the status file into account.
+The runner loads the tests from `test/fixtures/wpt/url`, applies the
+status rules from `test/wpt/status/url.cjs`, and runs them using
+worker threads.
+
+#### `new WPTRunner(path[, options])`
+
+* `path` {string} Relative path of the WPT module
+  (e.g. `'url'`, `'html/webappapis/timers'`).
+* `options` {Object}
+  * `concurrency` {number} Number of tests to run in parallel.
+    Defaults to `os.availableParallelism() - 1`. Set to `1` for tests
+    that require sequential execution (e.g. web-locks, webstorage).
+
+#### `runner.setFlags(flags)`
+
+* `flags` {string\[]} Node.js CLI flags passed to each worker thread
+  (e.g. `['--expose-internals']`).
+
+#### `runner.setInitScript(script)`
+
+* `script` {string} JavaScript code executed in the worker before
+  the tests run. Useful for setting up globals needed by the tests.
+
+#### `runner.setScriptModifier(modifier)`
+
+* `modifier` {Function} A callback `(meta) => void` invoked for each
+  script before it is run in the worker. `meta` is an object with
+  `code` {string} and `filename` {string} properties that can be
+  mutated.
+
+#### `runner.pretendGlobalThisAs(name)`
+
+* `name` {string} Currently only `'Window'` is supported. Sets up
+  `globalThis.Window` so that WPT tests checking the global scope
+  type work correctly.
+
+#### `runner.runJsTests()`
+
+Starts running the tests. Must be called last, after all configuration.
 
 ### 4. Run the tests
 
@@ -76,26 +102,28 @@ tools/test.py wpt/test-url
 ```
 
 To run a specific test in WPT, for example, `url/url-searchparams.any.js`,
-pass the file name as argument to the corresponding test driver:
+pass the file name as argument to the corresponding test runner:
 
 ```bash
 node test/wpt/test-url.js url-searchparams.any.js
 ```
 
 If there are any failures, update the corresponding status file
-(in this case, `test/wpt/status/url.json`) to make the test pass.
+(in this case, `test/wpt/status/url.cjs`) to make the test pass.
 
 For example, to mark `url/url-searchparams.any.js` as expected to fail,
-add this to `test/wpt/status/url.json`:
+add this to `test/wpt/status/url.cjs`:
 
-```json
-  "url-searchparams.any.js": {
-    "fail": {
-      "expected": [
-        "test name in the WPT test case, e.g. second argument passed to test()"
-      ]
-    }
-  }
+```js
+module.exports = {
+  'url-searchparams.any.js': {
+    fail: {
+      expected: [
+        'test name in the WPT test case, e.g. second argument passed to test()',
+      ],
+    },
+  },
+};
 ```
 
 See [Format of a status file](#status-format) for details.
@@ -110,90 +138,78 @@ The tests can be updated in a way similar to how they are added.
 Run Step 2 and Step 4 of [adding tests for a new module](#add-tests).
 
 The [git node wpt][] command maintains the status of the local
-WPT subset, if no files are updated after running it for a module,
-the local subset is up to date and there is no need to update them
-until they are changed in the upstream.
+WPT subset. If no files are updated after running it for a module,
+the local subset is up to date and there is no need to create a PR.
+When files are updated, run the tests and update the status file to
+account for any new failures or passes before submitting.
 
-## How it works
+## Daily WPT report
 
-Note: currently this test suite only supports `.js` tests. There is
-ongoing work in the upstream to properly split out the tests into files
-that can be run in a shell environment like Node.js.
+A [GitHub Actions workflow][] runs every night and uploads results to
+[wpt.fyi][]. It tests all active Node.js release lines and the latest
+nightly build against the WPT `epochs/daily` branch, which is a daily
+snapshot of the upstream WPT repository.
 
-### Getting the original test files and harness from WPT
-
-The original files and harness from WPT are downloaded and stored in
-`test/fixtures/wpt`.
-
-The [git node wpt][] command automate this process while maintaining a map
-containing the hash of the last updated commit for each module in
-`test/fixtures/wpt/versions.json` and [`test/fixtures/wpt/README.md`][].
-It also maintains the LICENSE file in `test/fixtures/wpt`.
-
-### Loading and running the tests
-
-Given a module, the `WPTRunner` class in [`test/common/wpt`](../common/wpt.js)
-loads:
-
-* `.js` test files (for example, `test/common/wpt/url/*.js` for `url`)
-* Status file (for example, `test/wpt/status/url.json` for `url`)
-* The WPT harness
-
-Then, for each test, it creates a worker thread with the globals and mocks,
-sets up the harness result hooks, loads the metadata in the test (including
-loading extra resources), and runs all the tests in that worker thread,
-skipping tests that cannot be run because of lack of dependency or
-expected failures.
+Unlike the pinned fixtures used in CI, this workflow replaces
+`test/fixtures/wpt` with the full `epochs/daily` checkout so that
+results reflect the latest upstream tests. Results can be viewed on
+the [wpt.fyi dashboard][].
 
 <a id="status-format"></a>
 
 ## Format of a status file
 
-```json
-{
-  "something.scope.js": {  // the file name
-    // Optional: If the requirement is not met, this test will be skipped
-    "requires": ["small-icu"],  // supports: "small-icu", "full-icu", "crypto"
+The status file can be either a `.json` file or a `.cjs` module that exports
+the same object. Using CJS allows for conditional logic and regular
+expressions, which JSON does not support.
 
-    // Optional: the entire file will be skipped with the reason printed
-    "skip": "explain why we cannot run a test that's supposed to pass",
+```js
+module.exports = {
+  'something.scope.js': { // the file name
+    // Optional: If the requirement is not met, this test will be skipped.
+    // Supported values:
+    //   'small-icu' - requires at least small-icu intl support
+    //   'full-icu'  - requires full-icu intl support
+    //   'crypto'    - requires crypto (OpenSSL) support
+    //   'inspector' - requires the inspector to be available
+    requires: ['small-icu'],
 
-    // Optional: failing tests
-    "fail": {
-      "note": "You may leave an optional arbitrary note e.g. with TODOs",
-      "expected": [
-        "test name in the WPT test case, e.g. second argument passed to test()",
-        "another test name"
+    // Optional: the entire file will be skipped with the reason printed.
+    skip: 'explain why we cannot run a test that is supposed to pass',
+
+    // Optional: failing tests.
+    fail: {
+      // Tests that are expected to fail consistently.
+      expected: [
+        'test name in the WPT test case, e.g. second argument passed to test()',
+        'another test name',
       ],
-      "flaky": [
-        "flaky test name"
-      ]
-    }
-  }
-}
+      // Tests that fail intermittently. These are treated as expected
+      // failures but are not flagged as unexpected passes when they
+      // succeed.
+      flaky: [
+        'flaky test name',
+      ],
+    },
+  },
+};
 ```
+
+A test should be marked with `skip` when it cannot be run at all, for
+example, because it depends on a browser-only Web API or a harness feature
+that has not been ported to the Node.js runner. Use `fail` instead when
+the test can run but produces incorrect results due to an implementation
+bug or missing feature.
 
 ### Skipping individual subtests
 
 To skip specific subtests within a file (rather than skipping the entire file),
-use `skipTests` with an array of exact test names:
-
-```json
-{
-  "something.scope.js": {
-    "skipTests": [
-      "exact test name to skip"
-    ]
-  }
-}
-```
-
-When the status file is a CJS module, regular expressions can also be used:
+use `skipTests` with an array of exact test names or regular expressions:
 
 ```js
 module.exports = {
   'something.scope.js': {
-    'skipTests': [
+    skipTests: [
       'exact test name to skip',
       /regexp pattern to match/,
     ],
@@ -205,18 +221,31 @@ Skipped subtests are reported as `[SKIP]` in the output, recorded as `NOTRUN`
 in the WPT report, and counted separately in the summary line.
 
 This is useful for skipping a particular subtest that crashes the runner,
-which would otherwise prevent the rest of the file from being run. When using
-CJS status files, this also enables conditionally skipping slow or
-resource-heavy subtests in CI on specific architectures.
+which would otherwise prevent the rest of the file from being run. Using CJS
+status files also enables conditionally skipping slow or resource-heavy
+subtests in CI on specific architectures.
 
-A test may have to be skipped because it depends on another irrelevant
-Web API, or certain harness has not been ported in our test runner yet.
-In that case it needs to be marked with `skip` instead of `fail`.
+### Wildcard patterns in file names
 
-The status file may optionally also be a CJS module that exports the object.
-This allows for more complex logic to be used to determine the expected status
-of a test.
+File name keys can include a `*` character to match multiple test files
+with a single entry. For example, to skip all `.window.js` tests:
 
+```js
+module.exports = {
+  '*.window.js': {
+    skip: 'window tests are not relevant for Node.js',
+  },
+};
+```
+
+The `*` is converted to a `.*` regular expression, so `"subdir/*.any.js"`
+would match all `.any.js` files under the `subdir` directory. A test file
+can match multiple rules (both an exact match and one or more wildcard
+patterns); all matched rules are merged.
+
+[GitHub Actions workflow]: ../../.github/workflows/daily-wpt-fyi.yml
 [Web Platform Tests]: https://github.com/web-platform-tests/wpt
 [`test/fixtures/wpt/README.md`]: ../fixtures/wpt/README.md
 [git node wpt]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md#git-node-wpt
+[wpt.fyi]: https://wpt.fyi
+[wpt.fyi dashboard]: https://wpt.fyi/results/?label=master&label=experimental&product=node.js&product=chrome&product=firefox&product=safari&product=ladybird&product=servo&q=node.js%3A%21missing
