@@ -551,8 +551,8 @@ const followSymlinkExpectedWithFollow = [
   'follow/link/file.txt'.replaceAll('/', sep),
 ].sort();
 
-const assertNoNestedCycleMatches = (matches) => {
-  assert.ok(!matches.some((match) => match.startsWith(`follow${sep}cycle${sep}`)), matches.join('\n'));
+const getNestedCycleMatches = (matches) => {
+  return matches.filter((match) => match.startsWith(`follow${sep}cycle${sep}`));
 };
 
 describe('glob - followSymlinks', function() {
@@ -569,7 +569,7 @@ describe('glob - followSymlinks', function() {
       followSymlinks: true,
     })).sort();
     assert.deepStrictEqual(actual, followSymlinkExpectedWithFollow);
-    assertNoNestedCycleMatches(actual);
+    assert.deepStrictEqual(getNestedCycleMatches(actual), []);
   });
 });
 
@@ -596,7 +596,7 @@ describe('globSync - followSymlinks', function() {
       followSymlinks: true,
     }).sort();
     assert.deepStrictEqual(actual, followSymlinkExpectedWithFollow);
-    assertNoNestedCycleMatches(actual);
+    assert.deepStrictEqual(getNestedCycleMatches(actual), []);
   });
 
   test('supports withFileTypes when following symlinked directories', () => {
@@ -608,7 +608,7 @@ describe('globSync - followSymlinks', function() {
     assertDirents(actual);
     const normalized = actual.map(normalizeDirent).sort();
     assert.deepStrictEqual(normalized, followSymlinkExpectedWithFollow);
-    assertNoNestedCycleMatches(normalized);
+    assert.deepStrictEqual(getNestedCycleMatches(normalized), []);
   });
 });
 
@@ -628,7 +628,7 @@ describe('fsPromises glob - followSymlinks', function() {
     })) actual.push(item);
     actual.sort();
     assert.deepStrictEqual(actual, followSymlinkExpectedWithFollow);
-    assertNoNestedCycleMatches(actual);
+    assert.deepStrictEqual(getNestedCycleMatches(actual), []);
   });
 });
 
