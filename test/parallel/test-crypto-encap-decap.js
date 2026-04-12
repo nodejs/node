@@ -137,15 +137,11 @@ for (const [name, {
       publicKey: formatKeyAs(keyObjects.publicKey, { format: 'der', type: 'spki' }),
       privateKey: formatKeyAs(keyObjects.privateKey, { format: 'der', type: 'pkcs8' })
     },
-  ];
-
-  // TODO(@panva): ML-KEM does not have a JWK format defined yet, add once standardized
-  if (!keyObjects.privateKey.asymmetricKeyType.startsWith('ml')) {
-    keyPairs.push({
+    {
       publicKey: formatKeyAs(keyObjects.publicKey, { format: 'jwk' }),
       privateKey: formatKeyAs(keyObjects.privateKey, { format: 'jwk' })
-    });
-  }
+    },
+  ];
 
   if (raw) {
     const { asymmetricKeyType } = keyObjects.privateKey;
