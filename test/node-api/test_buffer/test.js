@@ -32,7 +32,7 @@ const tick = util.promisify(require('../../common/tick'));
   // calling gc().
   let sab = binding.newExternalSharedArrayBuffer();
   assert(util.types.isSharedArrayBuffer(sab));
-  sab = null;  // eslint-disable-line no-unused-vars
+  sab = null;
   global.gc();
   await tick(10);
   console.log('gc3');
