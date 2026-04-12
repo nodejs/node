@@ -27,6 +27,114 @@ assert.throws(() => crypto.diffieHellman([]), {
     'Received an instance of Array',
 });
 
+assert.throws(() => crypto.diffieHellman(
+  crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' }), null), {
+  name: 'TypeError',
+  code: 'ERR_INVALID_ARG_TYPE',
+  message: 'The "callback" argument must be of type function. Received null'
+});
+
+{
+  const kp = {
+    privateKey: crypto.generateKeySync('aes', { length: 128 }),
+    publicKey: crypto.generateKeyPairSync('x25519').publicKey,
+  };
+
+  assert.throws(() => {
+    test(kp, kp);
+  }, {
+    code: 'ERR_CRYPTO_INVALID_KEY_OBJECT_TYPE',
+    message: 'Invalid key object type secret, expected private.'
+  });
+}
+
+{
+  const kp = {
+    privateKey: crypto.generateKeyPairSync('x25519').publicKey,
+    publicKey: crypto.generateKeyPairSync('x25519').privateKey,
+  };
+
+  assert.throws(() => {
+    test(kp, kp);
+  }, {
+    code: 'ERR_CRYPTO_INVALID_KEY_OBJECT_TYPE',
+    message: 'Invalid key object type public, expected private.'
+  });
+}
+
+{
+  const { publicKey: pub } = crypto.generateKeyPairSync('x25519');
+
+  assert.throws(() => {
+    crypto.diffieHellman({
+      privateKey: pub,
+      publicKey: pub,
+    });
+  }, {
+    code: 'ERR_CRYPTO_INVALID_KEY_OBJECT_TYPE',
+    message: 'Invalid key object type public, expected private.'
+  });
+}
+
+{
+  const kp = {
+    privateKey: crypto.generateKeyPairSync('x25519').privateKey,
+    publicKey: crypto.generateKeySync('aes', { length: 128 }),
+  };
+
+  assert.throws(() => {
+    test(kp, kp);
+  }, {
+    code: 'ERR_CRYPTO_INVALID_KEY_OBJECT_TYPE',
+    message: 'Invalid key object type secret, expected private or public.'
+  });
+}
+
+// Test that error messages include the correct property path
+{
+  const kp = crypto.generateKeyPairSync('x25519');
+  const pub = kp.publicKey.export({ type: 'spki', format: 'pem' });
+  const priv = kp.privateKey.export({ type: 'pkcs8', format: 'pem' });
+
+  // Invalid privateKey format
+  assert.throws(() => crypto.diffieHellman({
+    privateKey: { key: Buffer.alloc(0), format: 'banana', type: 'pkcs8' },
+    publicKey: pub,
+  }), {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /options\.privateKey\.format/,
+  });
+
+  // Invalid privateKey type
+  assert.throws(() => crypto.diffieHellman({
+    privateKey: { key: Buffer.alloc(0), format: 'der', type: 'banana' },
+    publicKey: pub,
+  }), {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /options\.privateKey\.type/,
+  });
+
+  // Invalid publicKey format
+  assert.throws(() => crypto.diffieHellman({
+    publicKey: { key: Buffer.alloc(0), format: 'banana', type: 'spki' },
+    privateKey: priv,
+  }), {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /options\.publicKey\.format/,
+  });
+
+  // Invalid publicKey type
+  assert.throws(() => crypto.diffieHellman({
+    publicKey: { key: Buffer.alloc(0), format: 'der', type: 'banana' },
+    privateKey: priv,
+  }), {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /options\.publicKey\.type/,
+  });
+}
+
+// Runs diffieHellman for key pairs in both directions,
+// verifies results match, and checks both sync and async paths.
 function test({ publicKey: alicePublicKey, privateKey: alicePrivateKey },
               { publicKey: bobPublicKey, privateKey: bobPrivateKey },
               expectedValue) {
@@ -47,6 +155,46 @@ function test({ publicKey: alicePublicKey, privateKey: alicePrivateKey },
 
   if (expectedValue !== undefined)
     assert.deepStrictEqual(buf1, expectedValue);
+
+  // Verify async produces the same results
+  crypto.diffieHellman({
+    privateKey: alicePrivateKey,
+    publicKey: bobPublicKey
+  }, common.mustSucceed((asyncBuf) => {
+    assert.deepStrictEqual(asyncBuf, buf1);
+  }));
+  crypto.diffieHellman({
+    privateKey: bobPrivateKey,
+    publicKey: alicePublicKey
+  }, common.mustSucceed((asyncBuf) => {
+    assert.deepStrictEqual(asyncBuf, buf1);
+  }));
+}
+
+// Verifies diffieHellman succeeds sync and async with expected result.
+function testDH(options, expected) {
+  const syncResult = crypto.diffieHellman(options);
+  if (expected !== undefined) {
+    assert.deepStrictEqual(syncResult, expected);
+  }
+  crypto.diffieHellman(options, common.mustSucceed((asyncResult) => {
+    assert.deepStrictEqual(asyncResult, syncResult);
+  }));
+}
+
+// Verifies diffieHellman fails with expected error, both sync and async.
+function testDHError(options, expected) {
+  assert.throws(() => crypto.diffieHellman(options), expected);
+  crypto.diffieHellman(options, common.mustCall((err) => {
+    assert.ok(err);
+    for (const [key, value] of Object.entries(expected)) {
+      if (value instanceof RegExp) {
+        assert.match(err[key], value);
+      } else {
+        assert.strictEqual(err[key], value);
+      }
+    }
+  }));
 }
 
 const alicePrivateKey = crypto.createPrivateKey({
@@ -110,14 +258,12 @@ const bobPublicKey = crypto.createPublicKey({
 
 assert.throws(() => crypto.diffieHellman({ privateKey: alicePrivateKey }), {
   name: 'TypeError',
-  code: 'ERR_INVALID_ARG_VALUE',
-  message: "The property 'options.publicKey' is invalid. Received undefined"
+  code: 'ERR_INVALID_ARG_TYPE',
 });
 
 assert.throws(() => crypto.diffieHellman({ publicKey: alicePublicKey }), {
   name: 'TypeError',
-  code: 'ERR_INVALID_ARG_VALUE',
-  message: "The property 'options.privateKey' is invalid. Received undefined"
+  code: 'ERR_INVALID_ARG_TYPE',
 });
 
 const privateKey = Buffer.from(
@@ -150,33 +296,39 @@ test(crypto.generateKeyPairSync('dh', { group: 'modp5' }),
 test(crypto.generateKeyPairSync('dh', { group: 'modp5' }),
      crypto.generateKeyPairSync('dh', { prime: group.getPrime() }));
 
-const list = [
-  // Same generator, but different primes.
-  [{ group: 'modp5' }, { group: 'modp18' }]];
-
-// TODO(danbev): Take a closer look if there should be a check in OpenSSL3
-// when the dh parameters differ.
-if (!hasOpenSSL(3)) {
-  // Same primes, but different generator.
-  list.push([{ group: 'modp5' }, { prime: group.getPrime(), generator: 5 }]);
-  // Same generator, but different primes.
-  list.push([{ primeLength: 1024 }, { primeLength: 1024 }]);
-}
-
-for (const [params1, params2] of list) {
-  assert.throws(() => {
-    test(crypto.generateKeyPairSync('dh', params1),
-         crypto.generateKeyPairSync('dh', params2));
-  }, hasOpenSSL(3) ? {
-    name: 'Error',
-    code: 'ERR_OSSL_MISMATCHING_DOMAIN_PARAMETERS'
-  } : {
-    name: 'Error',
-    code: 'ERR_OSSL_EVP_DIFFERENT_PARAMETERS'
-  });
-}
+// DH parameter mismatch tests
 {
-  const privateKey = crypto.createPrivateKey({
+  const list = [
+    // Same generator, but different primes.
+    [{ group: 'modp5' }, { group: 'modp18' }]];
+
+  // TODO(danbev): Take a closer look if there should be a check in OpenSSL3
+  // when the dh parameters differ.
+  if (!hasOpenSSL(3)) {
+    // Same primes, but different generator.
+    list.push([{ group: 'modp5' }, { prime: group.getPrime(), generator: 5 }]);
+    // Same generator, but different primes.
+    list.push([{ primeLength: 1024 }, { primeLength: 1024 }]);
+  }
+
+  for (const [params1, params2] of list) {
+    const options = {
+      privateKey: crypto.generateKeyPairSync('dh', params1).privateKey,
+      publicKey: crypto.generateKeyPairSync('dh', params2).publicKey,
+    };
+    testDHError(options, {
+      name: 'Error',
+      code: hasOpenSSL(3) ?
+        'ERR_OSSL_MISMATCHING_DOMAIN_PARAMETERS' :
+        'ERR_OSSL_EVP_DIFFERENT_PARAMETERS'
+    });
+  }
+}
+
+// This key combination will result in an unusually short secret, and should
+// not cause an assertion failure.
+{
+  const shortPrivateKey = crypto.createPrivateKey({
     key: '-----BEGIN PRIVATE KEY-----\n' +
          'MIIBoQIBADCB1QYJKoZIhvcNAQMBMIHHAoHBAP//////////yQ/aoiFowjTExmKL\n' +
          'gNwc0SkCTgiKZ8x0Agu+pjsTmyJRSgh5jjQE3e+VGbPNOkMbMCsKbfJfFDdP4TVt\n' +
@@ -189,7 +341,7 @@ for (const [params1, params2] of list) {
          '2j6RUKYNj1Pv+B4zdMgiLLjILAs8WUfbHciU21KSJh1izVQaUQ==\n' +
          '-----END PRIVATE KEY-----'
   });
-  const publicKey = crypto.createPublicKey({
+  const shortPublicKey = crypto.createPublicKey({
     key: '-----BEGIN PUBLIC KEY-----\n' +
          'MIIBoDCB1QYJKoZIhvcNAQMBMIHHAoHBAP//////////yQ/aoiFowjTExmKLgNwc\n' +
          '0SkCTgiKZ8x0Agu+pjsTmyJRSgh5jjQE3e+VGbPNOkMbMCsKbfJfFDdP4TVtbVHC\n' +
@@ -204,17 +356,16 @@ for (const [params1, params2] of list) {
     format: 'pem'
   });
 
-  // This key combination will result in an unusually short secret, and should
-  // not cause an assertion failure.
-  const secret = crypto.diffieHellman({ publicKey, privateKey });
-  assert.strictEqual(secret.toString('hex'),
-                     '0099d0fa242af5db9ea7330e23937a27db041f79c581500fc7f9976' +
-                     '554d59d5b9ced934778d72e19a1fefc81e9d981013198748c0b5c6c' +
-                     '762985eec687dc5bec5c9367b05837daee9d0bcc29024ed7f3abba1' +
-                     '2794b65a745117fb0d87bc5b1b2b68c296c3f686cc29e450e4e1239' +
-                     '21f56a5733fe58aabf71f14582954059c2185d342b9b0fa10c2598a' +
-                     '5426c2baee7f9a686fc1e16cd4757c852bf7225a2732250548efe28' +
-                     'debc26f1acdec51efe23d20786a6f8a14d360803bbc71972e87fd3');
+  testDH({ publicKey: shortPublicKey, privateKey: shortPrivateKey },
+         Buffer.from(
+           '0099d0fa242af5db9ea7330e23937a27db041f79c581500fc7f9976' +
+           '554d59d5b9ced934778d72e19a1fefc81e9d981013198748c0b5c6c' +
+           '762985eec687dc5bec5c9367b05837daee9d0bcc29024ed7f3abba1' +
+           '2794b65a745117fb0d87bc5b1b2b68c296c3f686cc29e450e4e1239' +
+           '21f56a5733fe58aabf71f14582954059c2185d342b9b0fa10c2598a' +
+           '5426c2baee7f9a686fc1e16cd4757c852bf7225a2732250548efe28' +
+           'debc26f1acdec51efe23d20786a6f8a14d360803bbc71972e87fd3',
+           'hex'));
 }
 
 // Test ECDH.
@@ -222,16 +373,18 @@ for (const [params1, params2] of list) {
 test(crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' }),
      crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' }));
 
-assert.throws(() => {
-  test(crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' }),
-       crypto.generateKeyPairSync('ec', { namedCurve: 'P-384' }));
-}, hasOpenSSL(3) ? {
-  name: 'Error',
-  code: 'ERR_OSSL_MISMATCHING_DOMAIN_PARAMETERS'
-} : {
-  name: 'Error',
-  code: 'ERR_OSSL_EVP_DIFFERENT_PARAMETERS'
-});
+{
+  const options = {
+    privateKey: crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' }).privateKey,
+    publicKey: crypto.generateKeyPairSync('ec', { namedCurve: 'P-384' }).publicKey,
+  };
+  testDHError(options, {
+    name: 'Error',
+    code: hasOpenSSL(3) ?
+      'ERR_OSSL_MISMATCHING_DOMAIN_PARAMETERS' :
+      'ERR_OSSL_EVP_DIFFERENT_PARAMETERS'
+  });
+}
 
 test(crypto.generateKeyPairSync('x448'),
      crypto.generateKeyPairSync('x448'));
@@ -239,68 +392,14 @@ test(crypto.generateKeyPairSync('x448'),
 test(crypto.generateKeyPairSync('x25519'),
      crypto.generateKeyPairSync('x25519'));
 
-assert.throws(() => {
-  test(crypto.generateKeyPairSync('x448'),
-       crypto.generateKeyPairSync('x25519'));
-}, {
-  name: 'Error',
-  code: 'ERR_CRYPTO_INCOMPATIBLE_KEY',
-  message: 'Incompatible key types for Diffie-Hellman: x448 and x25519'
-});
-
 {
-  const kp = {
-    privateKey: crypto.generateKeySync('aes', { length: 128 }),
+  const options = {
+    privateKey: crypto.generateKeyPairSync('x448').privateKey,
     publicKey: crypto.generateKeyPairSync('x25519').publicKey,
   };
-
-  assert.throws(() => {
-    test(kp, kp);
-  }, {
-    code: 'ERR_CRYPTO_INVALID_KEY_OBJECT_TYPE',
-    message: 'Invalid key object type secret, expected private.'
-  });
-}
-
-{
-  const kp = {
-    privateKey: crypto.generateKeyPairSync('x25519').publicKey,
-    publicKey: crypto.generateKeyPairSync('x25519').privateKey,
-  };
-
-  assert.throws(() => {
-    test(kp, kp);
-  }, {
-    code: 'ERR_CRYPTO_INVALID_KEY_OBJECT_TYPE',
-    message: 'Invalid key object type public, expected private.'
-  });
-}
-
-{
-  const kp = {
-    privateKey: crypto.generateKeyPairSync('x25519').privateKey,
-    publicKey: crypto.generateKeySync('aes', { length: 128 }),
-  };
-
-  assert.throws(() => {
-    test(kp, kp);
-  }, {
-    code: 'ERR_CRYPTO_INVALID_KEY_OBJECT_TYPE',
-    message: 'Invalid key object type secret, expected private or public.'
-  });
-}
-
-{
-  const { privateKey } = crypto.generateKeyPairSync('x25519');
-  const publicKey = crypto.createPublicKey('-----BEGIN PUBLIC KEY-----\n' +
-    'MCowBQYDK2VuAyEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\n' +
-    '-----END PUBLIC KEY-----');
-  assert.throws(
-    () => crypto.diffieHellman({ publicKey, privateKey }),
-    hasOpenSSL(3) ?
-      { name: 'Error', code: 'ERR_OSSL_FAILED_DURING_DERIVATION' } :
-      { name: 'Error', message: /Deriving bits failed/ },
-  );
+  testDHError(options, { code: hasOpenSSL(3) ?
+    'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE' :
+    'ERR_OSSL_EVP_DIFFERENT_KEY_TYPES' });
 }
 
 // Test all key encoding formats
@@ -394,77 +493,78 @@ for (const { privateKey: alicePriv, publicKey: bobPub } of [
   }
 
   for (const options of encodings) {
-    assert.deepStrictEqual(crypto.diffieHellman(options), expected);
+    testDH(options, expected);
   }
 }
 
-// Test that error messages include the correct property path
-{
-  const kp = crypto.generateKeyPairSync('x25519');
-  const pub = kp.publicKey.export({ type: 'spki', format: 'pem' });
-  const priv = kp.privateKey.export({ type: 'pkcs8', format: 'pem' });
-
-  // Invalid privateKey format
-  assert.throws(() => crypto.diffieHellman({
-    privateKey: { key: Buffer.alloc(0), format: 'banana', type: 'pkcs8' },
-    publicKey: pub,
-  }), {
-    code: 'ERR_INVALID_ARG_VALUE',
-    message: /options\.privateKey\.format/,
-  });
-
-  // Invalid privateKey type
-  assert.throws(() => crypto.diffieHellman({
-    privateKey: { key: Buffer.alloc(0), format: 'der', type: 'banana' },
-    publicKey: pub,
-  }), {
-    code: 'ERR_INVALID_ARG_VALUE',
-    message: /options\.privateKey\.type/,
-  });
-
-  // Invalid publicKey format
-  assert.throws(() => crypto.diffieHellman({
-    publicKey: { key: Buffer.alloc(0), format: 'banana', type: 'spki' },
-    privateKey: priv,
-  }), {
-    code: 'ERR_INVALID_ARG_VALUE',
-    message: /options\.publicKey\.format/,
-  });
-
-  // Invalid publicKey type
-  assert.throws(() => crypto.diffieHellman({
-    publicKey: { key: Buffer.alloc(0), format: 'der', type: 'banana' },
-    privateKey: priv,
-  }), {
-    code: 'ERR_INVALID_ARG_VALUE',
-    message: /options\.publicKey\.type/,
-  });
-}
-
-// Test C++ error conditions
+// Test C++ error conditions (both sync throws and async callback)
 {
   const ec256 = crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' });
   const ec384 = crypto.generateKeyPairSync('ec', { namedCurve: 'P-384' });
+  const x448 = crypto.generateKeyPairSync('x448');
   const x25519 = crypto.generateKeyPairSync('x25519');
   const ed25519 = crypto.generateKeyPairSync('ed25519');
 
-  // Mismatching EC curves
-  assert.throws(() => crypto.diffieHellman({
-    privateKey: ec256.privateKey.export({ type: 'pkcs8', format: 'pem' }),
-    publicKey: ec384.publicKey.export({ type: 'spki', format: 'pem' }),
-  }), { code: hasOpenSSL(3) ?
-    'ERR_OSSL_MISMATCHING_DOMAIN_PARAMETERS' : 'ERR_OSSL_EVP_DIFFERENT_PARAMETERS' });
+  const zeroX25519PublicKey = crypto.createPublicKey('-----BEGIN PUBLIC KEY-----\n' +
+    'MCowBQYDK2VuAyEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\n' +
+    '-----END PUBLIC KEY-----');
 
-  // Incompatible key types (ec + x25519)
-  assert.throws(() => crypto.diffieHellman({
-    privateKey: ec256.privateKey.export({ type: 'pkcs8', format: 'pem' }),
-    publicKey: x25519.publicKey.export({ type: 'spki', format: 'pem' }),
-  }), { code: hasOpenSSL(3) ?
-    'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE' : 'ERR_OSSL_EVP_DIFFERENT_KEY_TYPES' });
+  const encodings = [
+    {
+      privateKey: (key) => key.export({ type: 'pkcs8', format: 'pem' }),
+      publicKey: (key) => key.export({ type: 'spki', format: 'pem' }),
+    },
+    {
+      privateKey: (key) => key.export({ type: 'pkcs8', format: 'pem' }),
+      publicKey: (key) => key,
+    },
+    {
+      privateKey: (key) => key,
+      publicKey: (key) => key.export({ type: 'spki', format: 'pem' }),
+    },
+    {
+      privateKey: (key) => key,
+      publicKey: (key) => key,
+    },
+  ];
 
-  // Unsupported key type (ed25519)
-  assert.throws(() => crypto.diffieHellman({
-    privateKey: ed25519.privateKey.export({ type: 'pkcs8', format: 'pem' }),
-    publicKey: ed25519.publicKey.export({ type: 'spki', format: 'pem' }),
-  }), { code: 'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE' });
+  for (const { privateKey: privKey, publicKey: pubKey } of encodings) {
+    // Mismatching EC curves
+    testDHError({
+      privateKey: privKey(ec256.privateKey),
+      publicKey: pubKey(ec384.publicKey),
+    }, { code: hasOpenSSL(3) ?
+      'ERR_OSSL_MISMATCHING_DOMAIN_PARAMETERS' :
+      'ERR_OSSL_EVP_DIFFERENT_PARAMETERS' });
+
+    // Incompatible key types (ec + x25519)
+    testDHError({
+      privateKey: privKey(ec256.privateKey),
+      publicKey: pubKey(x25519.publicKey),
+    }, { code: hasOpenSSL(3) ?
+      'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE' :
+      'ERR_OSSL_EVP_DIFFERENT_KEY_TYPES' });
+
+    // Unsupported key type (ed25519)
+    testDHError({
+      privateKey: privKey(ed25519.privateKey),
+      publicKey: pubKey(ed25519.publicKey),
+    }, { code: 'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE' });
+
+    // Incompatible key types (x448 + x25519)
+    testDHError({
+      privateKey: privKey(x448.privateKey),
+      publicKey: pubKey(x25519.publicKey),
+    }, { code: hasOpenSSL(3) ?
+      'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE' :
+      'ERR_OSSL_EVP_DIFFERENT_KEY_TYPES' });
+
+    // Zero x25519 public key
+    testDHError({
+      privateKey: privKey(x25519.privateKey),
+      publicKey: pubKey(zeroX25519PublicKey),
+    }, hasOpenSSL(3) ?
+      { code: 'ERR_OSSL_FAILED_DURING_DERIVATION' } :
+      { message: /Deriving bits failed/ });
+  }
 }
