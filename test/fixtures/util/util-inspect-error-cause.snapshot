@@ -1,0 +1,69 @@
+Error: Number error cause
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at * {
+  [cause]: 42
+}
+Error: Object cause
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at * {
+  [cause]: {
+    message: 'Unique',
+    name: 'Error',
+    stack: 'Error: Unique\n' +
+      '      at Module._compile (node:internal*modules*cjs*loader:*:*)'
+  }
+}
+Error: undefined cause
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at * {
+  [cause]: undefined
+}
+Error: Stack causes
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at * {
+  [cause]: FoobarError: Individual message
+      at *
+      at *
+      at *
+      at *
+      at *
+      at *
+      at *
+      at * {
+    status: 'Feeling good',
+    extraProperties: 'Yes!',
+    [cause]: TypeError: Inner error
+        at *
+        at *
+        at *
+        at *
+        at *
+        at *
+        at *
+        at *
+  }
+}
