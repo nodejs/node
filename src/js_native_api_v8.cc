@@ -3138,7 +3138,7 @@ napi_status NAPI_CDECL node_api_create_external_sharedarraybuffer(
     napi_env env,
     void* external_data,
     size_t byte_length,
-    void (*finalize_cb)(void* external_data, void* finalize_hint),
+    node_api_noenv_finalize finalize_cb,
     void* finalize_hint,
     napi_value* result) {
   NAPI_PREAMBLE(env);
