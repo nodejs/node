@@ -7926,6 +7926,35 @@ StatFs {
 }
 ```
 
+To calculate disk space from a `StatFs` object, multiply the block count
+properties by the fundamental block size (`statfs.frsize`) to convert
+them to bytes. Pass `{ bigint: true }` to avoid loss of precision on
+large file systems:
+
+```mjs
+import { statfs } from 'node:fs/promises';
+
+const stats = await statfs('/', { bigint: true });
+const blockSize = stats.frsize;
+
+console.log(`Total: ${stats.blocks * blockSize} bytes`);
+console.log(`Free:  ${stats.bfree * blockSize} bytes`);
+console.log(`Available: ${stats.bavail * blockSize} bytes`);
+```
+
+```cjs
+const { statfs } = require('node:fs');
+
+statfs('/', { bigint: true }, (err, stats) => {
+  if (err) throw err;
+  const blockSize = stats.frsize;
+
+  console.log(`Total: ${stats.blocks * blockSize} bytes`);
+  console.log(`Free:  ${stats.bfree * blockSize} bytes`);
+  console.log(`Available: ${stats.bavail * blockSize} bytes`);
+});
+```
+
 #### `statfs.bavail`
 
 <!-- YAML
@@ -7936,7 +7965,8 @@ added:
 
 * Type: {number|bigint}
 
-Free blocks available to unprivileged users.
+Free blocks available to unprivileged users. Unlike [`statfs.bfree`][],
+this value excludes blocks reserved for privileged processes.
 
 #### `statfs.bfree`
 
@@ -7948,7 +7978,9 @@ added:
 
 * Type: {number|bigint}
 
-Free blocks in file system.
+Free blocks in file system, including blocks reserved for privileged
+processes. See [`statfs.bavail`][] for the count available to
+unprivileged users.
 
 #### `statfs.blocks`
 
@@ -7972,7 +8004,7 @@ added:
 
 * Type: {number|bigint}
 
-Optimal transfer block size.
+Optimal transfer block size, in bytes.
 
 #### `statfs.frsize`
 
@@ -7982,7 +8014,7 @@ added: REPLACEME
 
 * Type: {number|bigint}
 
-Fundamental file system block size.
+Fundamental file system block size, in bytes.
 
 #### `statfs.ffree`
 
@@ -7994,7 +8026,7 @@ added:
 
 * Type: {number|bigint}
 
-Free file nodes in file system.
+Free file nodes (inodes) in file system.
 
 #### `statfs.files`
 
@@ -8006,7 +8038,7 @@ added:
 
 * Type: {number|bigint}
 
-Total file nodes in file system.
+Total file nodes (inodes) in file system.
 
 #### `statfs.type`
 
@@ -8018,7 +8050,11 @@ added:
 
 * Type: {number|bigint}
 
-Type of file system.
+Type of file system. On Linux this is a filesystem magic number (for
+example, `0xEF53` for ext2/ext3/ext4, `0x5346544e` for NTFS,
+`0x01021994` for tmpfs, and `0x6969` for NFS). The value is
+platform-dependent and may be `0` on systems where libuv does not
+report it.
 
 ### Class: `fs.Utf8Stream`
 
@@ -9052,6 +9088,8 @@ the file contents.
 [`fs.rmdir()`]: #fsrmdirpath-options-callback
 [`fs.stat()`]: #fsstatpath-options-callback
 [`fs.statfs()`]: #fsstatfspath-options-callback
+[`statfs.bavail`]: #statfsbavail
+[`statfs.bfree`]: #statfsbfree
 [`fs.symlink()`]: #fssymlinktarget-path-type-callback
 [`fs.utimes()`]: #fsutimespath-atime-mtime-callback
 [`fs.watch()`]: #fswatchfilename-options-listener
