@@ -4,7 +4,8 @@
 const common = require('../../common');
 const binding = require(`./build/${common.buildType}/test_buffer`);
 const assert = require('assert');
-const tick = require('util').promisify(require('../../common/tick'));
+const util = require('util');
+const tick = util.promisify(require('../../common/tick'));
 
 (async function() {
   assert.strictEqual(binding.newBuffer().toString(), binding.theText);
@@ -30,6 +31,7 @@ const tick = require('util').promisify(require('../../common/tick'));
   // store is reclaimed; at least some of the time it happens even before
   // calling gc().
   let sab = binding.newExternalSharedArrayBuffer();
+  assert(util.types.isSharedArrayBuffer(sab));
   sab = null;  // eslint-disable-line no-unused-vars
   global.gc();
   await tick(10);
