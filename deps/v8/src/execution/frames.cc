@@ -3233,13 +3233,22 @@ FrameSummaries OptimizedJSFrame::Summarize(bool never_allocate) const {
       // Skip remaining header operands to reach the values.
       it.SkipOperands(TranslationOpcodeOperandCount(opcode) - 2);
 
-      // Resolve closure and receiver from the live frame.  Both are always
-      // encoded as LITERAL or TAGGED_STACK_SLOT in the deopt translation.
-      Tagged<Object> function_obj =
-          TranslatedState::ResolveTaggedValue(&it, fp(), literal_array);
-      DCHECK(IsJSFunction(function_obj));
-      Tagged<Object> receiver_obj =
-          TranslatedState::ResolveTaggedValue(&it, fp(), literal_array);
+      // Resolve closure and receiver from the live frame.  The closure is
+      // always tagged (LITERAL or TAGGED_STACK_SLOT), but the receiver is
+      // just parameter 0 of the (possibly inlined) frame and may be encoded
+      // in any representation the optimizer chose (e.g. DOUBLE_STACK_SLOT
+      // for an unboxed Float64). Fall back to the full materialization path
+      // in that case.
+      std::optional<Tagged<Object>> function_obj =
+          TranslatedState::TryResolveTaggedValue(&it, fp(), literal_array);
+      DCHECK(function_obj.has_value());
+      DCHECK(IsJSFunction(*function_obj));
+      std::optional<Tagged<Object>> receiver_obj =
+          TranslatedState::TryResolveTaggedValue(&it, fp(), literal_array);
+      if (!receiver_obj.has_value()) {
+        needs_full_walk = true;
+        break;
+      }
 
       Tagged<AbstractCode> abstract_code;
       int code_offset;
@@ -3255,7 +3264,7 @@ FrameSummaries OptimizedJSFrame::Summarize(bool never_allocate) const {
 
       DirectHandle<FixedArray> params = GetParameters(never_allocate);
       FrameSummary::JavaScriptFrameSummary summary(
-          isolate(), receiver_obj, Cast<JSFunction>(function_obj),
+          isolate(), *receiver_obj, Cast<JSFunction>(*function_obj),
           abstract_code, code_offset, is_constructor, *params);
       summaries.frames.push_back(summary);
       is_constructor = false;

@@ -1890,7 +1890,7 @@ Address TranslatedState::DecompressIfNeeded(intptr_t value) {
 }
 
 // static
-Tagged<Object> TranslatedState::ResolveTaggedValue(
+std::optional<Tagged<Object>> TranslatedState::TryResolveTaggedValue(
     DeoptTranslationIterator* it, Address fp,
     Tagged<DeoptimizationLiteralArray> literals) {
   TranslationOpcode opcode = it->NextOpcode();
@@ -1906,7 +1906,11 @@ Tagged<Object> TranslatedState::ResolveTaggedValue(
       return Tagged<Object>(DecompressIfNeeded(value));
     }
     default:
-      UNREACHABLE();
+      // Any other encoding (unboxed numerics, register-resident values,
+      // captured objects, etc.) requires the full TranslatedState path to
+      // materialize. Caller should fall back.
+      it->SkipOperands(TranslationOpcodeOperandCount(opcode));
+      return std::nullopt;
   }
 }
 
