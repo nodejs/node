@@ -3,6 +3,10 @@ const common = require('../common');
 if (process.config.variables.node_without_node_options)
   common.skip('missing NODE_OPTIONS support');
 
+if (common.isWindows) {
+  common.skip('`make doc` does not run on Windows');
+}
+
 // Test options specified by env variable.
 
 const assert = require('assert');
@@ -22,7 +26,7 @@ const addOptionRE = /AddOption[\s\n\r]*\([\s\n\r]*"([^"]+)"(.*?)\);/gs;
 const nodeOptionsText = cliText.match(/<!-- node-options-node start -->(.*)<!-- node-options-others end -->/s)[1];
 const v8OptionsText = cliText.match(/<!-- v8-options start -->(.*)<!-- v8-options end -->/s)[1];
 
-const manPage = path.join(rootDir, 'doc', 'node.1');
+const manPage = path.join(rootDir, 'out', 'doc', 'node.1');
 const manPageText = fs.readFileSync(manPage, { encoding: 'utf8' });
 
 // Documented in /doc/api/deprecations.md
