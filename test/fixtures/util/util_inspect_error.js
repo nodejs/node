@@ -1,6 +1,5 @@
 'use strict';
 
-require('../../common');
 const util = require('util');
 
 const err = new Error('foo\nbar');
