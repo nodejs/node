@@ -1,59 +1,28 @@
 { err:
    Error: foo
    bar
-       at *util_inspect_error*
-       at *
-       at *
-       at *
-       at *
-       at *
-       at *
-       at *
-  nested:
-   { err:
+      at Object.<anonymous> (<project-root>/test/fixtures/util/util_inspect_error.js:5:13)
+      at <node-internal-frames>,
+   nested:
+    { err:
        Error: foo
        bar
-           at *util_inspect_error*
-           at *
-           at *
-           at *
-           at *
-           at *
-           at *
-           at * } }
+         at Object.<anonymous> (<project-root>/test/fixtures/util/util_inspect_error.js:5:13)
+         at <node-internal-frames> } }
 {
   err: Error: foo
   bar
-      at *util_inspect_error*
-      at *
-      at *
-      at *
-      at *
-      at *
-      at *
-      at *,
+     at Object.<anonymous> (<project-root>/test/fixtures/util/util_inspect_error.js:5:13)
+     at <node-internal-frames>,
   nested: {
     err: Error: foo
     bar
-        at *util_inspect_error*
-        at *
-        at *
-        at *
-        at *
-        at *
-        at *
-        at *
+      at Object.<anonymous> (<project-root>/test/fixtures/util/util_inspect_error.js:5:13)
+      at <node-internal-frames>
   }
 }
-Error: foo
-bar
-    at *util_inspect_error*
-    at *
-    at *
-    at *
-    at *
-    at *
-    at *
-    at * {
-  foo: 'bar'
-}
+{ Error: foo
+  bar
+    at Object.<anonymous> (<project-root>/test/fixtures/util/util_inspect_error.js:5:13)
+    at <node-internal-frames>
+  foo: 'bar' }
