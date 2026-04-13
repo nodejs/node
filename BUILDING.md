@@ -128,16 +128,16 @@ releases for these platforms. Test failures on experimental platforms do not
 block releases. Contributions to improve support for these platforms are
 welcome.
 
-| Operating System | Architectures    | Versions[^5]                  | Notes                                          |
-| ---------------- | ---------------- | ----------------------------- | ---------------------------------------------- |
-| GNU/Linux        | x64              | kernel >= 6.6, musl >= 1.2.4  | e.g. Alpine 3.19                               |
-| GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17 | Downgraded as of Node.js 10                    |
-| GNU/Linux        | armv7            | kernel >= 4.18, glibc >= 2.28 | Downgraded as of Node.js 24                    |
-| GNU/Linux        | armv6            | kernel >= 4.18, glibc >= 2.28 | Downgraded as of Node.js 12                    |
-| GNU/Linux        | loong64          | kernel >= 6.8, glibc >= 2.39  | e.g. Ubuntu 24.04                              |
-| GNU/Linux        | riscv64          | kernel >= 6.8, glibc >= 2.39  | GCC >= 14 or Clang >= 19 for native builds[^6] |
-| FreeBSD          | x64              | >= 13.2                       |                                                |
-| OpenHarmony      | arm64            | >= 5.0                        |                                                |
+| Operating System | Architectures    | Versions[^5]                  | Notes                        |
+| ---------------- | ---------------- | ----------------------------- | ---------------------------- |
+| GNU/Linux        | x64              | kernel >= 6.6, musl >= 1.2.4  | e.g. Alpine 3.19             |
+| GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17 | Downgraded as of Node.js 10  |
+| GNU/Linux        | armv7            | kernel >= 4.18, glibc >= 2.28 | Downgraded as of Node.js 24  |
+| GNU/Linux        | armv6            | kernel >= 4.18, glibc >= 2.28 | Downgraded as of Node.js 12  |
+| GNU/Linux        | loong64          | kernel >= 6.8, glibc >= 2.39  | e.g. Ubuntu 24.04            |
+| GNU/Linux        | riscv64          | kernel >= 6.8, glibc >= 2.39  | GCC >= 14 or Clang >= 19[^6] |
+| FreeBSD          | x64              | >= 13.2                       |                              |
+| OpenHarmony      | arm64            | >= 5.0                        |                              |
 
 <!--lint disable final-definition-->
 
