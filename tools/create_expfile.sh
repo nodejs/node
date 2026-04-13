@@ -62,7 +62,7 @@ echo "#!." > "$2.tmp"
 # any key in V[], the lookup returns an empty string, which is perfect for
 # handling the variable field positions caused by the blank visibility column.
 #
-find "$1" -name "*.a" | grep -v gtest | while read f; do
+find "$1" -name "*.a" | grep -v gtest | while read -r f; do
     dump -tov -X 32_64 "$f" 2>/dev/null | \
     awk '
         BEGIN {
