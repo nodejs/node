@@ -3,6 +3,7 @@
 import argparse
 import os
 from pathlib import Path
+import re
 import shlex
 import shutil
 import subprocess
@@ -72,7 +73,12 @@ def preprocess(args):
         sys.stderr.write(result.stderr)
         raise RuntimeError(f'Preprocessing failed: {" ".join(command)}')
 
-    output.write_text(result.stdout, encoding='utf-8')
+    # Strip preprocessor line directives that some assemblers can't handle
+    # (e.g., armasm64.exe doesn't accept #line directives)
+    cleaned = re.sub(r'^#\s*\d+\s+"[^"]*".*$', '', result.stdout, flags=re.MULTILINE)
+    cleaned = re.sub(r'^#\s*line\s+\d+.*$', '', cleaned, flags=re.MULTILINE)
+
+    output.write_text(cleaned, encoding='utf-8')
 
 
 def main(argv=None):
