@@ -204,6 +204,12 @@ added: v23.8.0
 
 True if `endpoint.destroy()` has been called. Read only.
 
+### `endpoint.listening`
+
+* Type: {boolean}
+
+True if the endpoint is actively listening for incoming connections. Read only.
+
 ### `endpoint.setSNIContexts(entries[, options])`
 
 <!-- YAML
