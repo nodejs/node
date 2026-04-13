@@ -443,7 +443,6 @@
       },
       'defines': [
         'LIEF_STATIC',
-        'testtttt'
         'MBEDTLS_CONFIG_FILE="config/mbedtls/config.h"',
         'MBEDTLS_NO_PLATFORM_ENTROPY',
         'SPDLOG_DISABLE_DEFAULT_LOGGER',
