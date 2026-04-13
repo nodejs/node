@@ -552,9 +552,10 @@ FFI_BINDING_SOURCES := \
 	$(wildcard test/ffi/*/*.def)
 
 ifndef NOFFI
-# Implicitly depends on $(NODE_EXE), see the build-ffi-tests rule for rationale.
+# Depends on $(NODE_EXE) as order-only to avoid ETXTBSY on AIX when make
+# tries to execute node while it is still being linked in parallel.
 test/ffi/.buildstamp: $(ADDONS_PREREQS) \
-	$(FFI_BINDING_GYPS) $(FFI_BINDING_SOURCES)
+	$(FFI_BINDING_GYPS) $(FFI_BINDING_SOURCES) | $(NODE_EXE)
 	@$(call run_build_addons,"$$PWD/test/ffi",$@)
 else
 test/ffi/.buildstamp:
@@ -562,11 +563,7 @@ endif
 
 .PHONY: build-ffi-tests
 ifndef NOFFI
-# .buildstamp needs $(NODE_EXE) but cannot depend on it
-# directly because it calls make recursively.  The parent make cannot know
-# if the subprocess touched anything so it pessimistically assumes that
-# .buildstamp is out of date and need a rebuild.
-build-ffi-tests: | $(NODE_EXE) test/ffi/.buildstamp ## Build FFI tests.
+build-ffi-tests: | test/ffi/.buildstamp ## Build FFI tests.
 else
 build-ffi-tests:
 endif
