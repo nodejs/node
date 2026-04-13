@@ -2748,6 +2748,10 @@ Language Specification.
 <!-- YAML
 added: v8.0.0
 napiVersion: 1
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62710
+    description: Added support for `SharedArrayBuffer`.
 -->
 
 ```c
@@ -2778,6 +2782,9 @@ underlying binary scalar datatype.
 It is required that `(length * size_of_element) + byte_offset` is less than or
 equal to the size in bytes of the `ArrayBuffer` or `SharedArrayBuffer` passed
 in. If not, a `RangeError` exception is raised.
+
+For element sizes greater than 1, `byte_offset` is required to be a multiple
+of the element size. If not, a `RangeError` exception is raised.
 
 JavaScript `TypedArray` objects are described in
 [Section TypedArray objects][] of the ECMAScript Language Specification.

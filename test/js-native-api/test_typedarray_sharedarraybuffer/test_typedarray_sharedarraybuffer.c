@@ -5,39 +5,44 @@
 #include "../common.h"
 #include "../entry_point.h"
 
-static napi_value CreateTypedArray(napi_env env,
-                                   napi_callback_info info,
-                                   napi_typedarray_type type) {
-  size_t argc = 3;
-  napi_value args[3];
+static napi_value CreateTypedArray(napi_env env, napi_callback_info info) {
+  size_t argc = 4;
+  napi_value args[4];
   NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
 
-  NODE_API_ASSERT(env, argc == 3, "Wrong number of arguments");
+  NODE_API_ASSERT(env, argc == 2 || argc == 4, "Wrong number of arguments");
 
-  uint32_t byte_offset;
-  NODE_API_CALL(env, napi_get_value_uint32(env, args[1], &byte_offset));
+  bool is_typedarray;
+  NODE_API_CALL(env, napi_is_typedarray(env, args[0], &is_typedarray));
+  NODE_API_ASSERT(env,
+                  is_typedarray,
+                  "Wrong type of arguments. Expects a typed array as first "
+                  "argument.");
 
-  uint32_t length;
-  NODE_API_CALL(env, napi_get_value_uint32(env, args[2], &length));
+  napi_typedarray_type type;
+  size_t length;
+  size_t byte_offset;
+  NODE_API_CALL(env,
+                napi_get_typedarray_info(
+                    env, args[0], &type, &length, NULL, NULL, &byte_offset));
+
+  if (argc == 4) {
+    uint32_t uint32_length;
+    NODE_API_CALL(env, napi_get_value_uint32(env, args[2], &uint32_length));
+    length = uint32_length;
+
+    uint32_t uint32_byte_offset;
+    NODE_API_CALL(env,
+                  napi_get_value_uint32(env, args[3], &uint32_byte_offset));
+    byte_offset = uint32_byte_offset;
+  }
 
   napi_value typedarray;
   NODE_API_CALL(env,
                 napi_create_typedarray(
-                    env, type, length, args[0], byte_offset, &typedarray));
+                    env, type, length, args[1], byte_offset, &typedarray));
 
   return typedarray;
-}
-
-static napi_value CreateUint8Array(napi_env env, napi_callback_info info) {
-  return CreateTypedArray(env, info, napi_uint8_array);
-}
-
-static napi_value CreateUint16Array(napi_env env, napi_callback_info info) {
-  return CreateTypedArray(env, info, napi_uint16_array);
-}
-
-static napi_value CreateInt32Array(napi_env env, napi_callback_info info) {
-  return CreateTypedArray(env, info, napi_int32_array);
 }
 
 static napi_value GetArrayBuffer(napi_env env, napi_callback_info info) {
@@ -58,9 +63,7 @@ static napi_value GetArrayBuffer(napi_env env, napi_callback_info info) {
 EXTERN_C_START
 napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
-      DECLARE_NODE_API_PROPERTY("CreateUint8Array", CreateUint8Array),
-      DECLARE_NODE_API_PROPERTY("CreateUint16Array", CreateUint16Array),
-      DECLARE_NODE_API_PROPERTY("CreateInt32Array", CreateInt32Array),
+      DECLARE_NODE_API_PROPERTY("CreateTypedArray", CreateTypedArray),
       DECLARE_NODE_API_PROPERTY("GetArrayBuffer", GetArrayBuffer),
   };
 
