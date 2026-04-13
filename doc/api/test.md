@@ -277,11 +277,6 @@ it.todo('should do the thing', { expectFailure: true }, () => {
 
 ## Flaky tests
 
-<!-- YAML
-added:
- - REPLACEME
--->
-
 This flag causes a test or suite to be re-run a number of times until it
 either passes or has not passed after the final re-try.
 
@@ -3437,7 +3432,7 @@ Emitted when a test is enqueued for execution.
   * `testNumber` {number} The ordinal number of the test.
   * `todo` {string|boolean|undefined} Present if [`context.todo`][] is called
   * `skip` {string|boolean|undefined} Present if [`context.skip`][] is called
-  * `flakyRetriedCount` {number|undefined} The number of retries taken for a
+  * `retryCount` {number|undefined} The number of retries taken for a
     flaky test. Present when a test is marked as flaky.
 
 Emitted when a test fails.
@@ -3467,7 +3462,7 @@ The corresponding execution ordered event is `'test:complete'`.
   * `testNumber` {number} The ordinal number of the test.
   * `todo` {string|boolean|undefined} Present if [`context.todo`][] is called
   * `skip` {string|boolean|undefined} Present if [`context.skip`][] is called
-  * `flakyRetriedCount` {number|undefined} The number of retries taken for a
+  * `retryCount` {number|undefined} The number of retries taken for a
     flaky test. Present when a test is marked as flaky and passed after retries.
 
 Emitted when a test passes.
