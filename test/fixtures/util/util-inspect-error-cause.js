@@ -1,7 +1,5 @@
 'use strict';
 
-require('../../common');
-
 const { inspect } = require('util');
 
 class FoobarError extends Error {
