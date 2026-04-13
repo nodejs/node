@@ -1,9 +1,7 @@
 'use strict';
 
 // This tests that import() works in a CJS single executable application
-// when useCodeCache is true. A V8 fix (https://chromium-review.googlesource.com
-// /c/v8/v8/+/5401780) resolved the issue where code cache serialization
-// wiped host-defined options needed by HostImportModuleDynamically.
+// when useCodeCache is true.
 
 require('../common');
 
