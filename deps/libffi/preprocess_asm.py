@@ -33,6 +33,26 @@ def find_compiler():
     raise RuntimeError('Unable to locate a compiler for preprocessing assembly')
 
 
+def find_armasm64():
+    """Find armasm64.exe in the PATH or common Visual Studio locations."""
+    # First check PATH
+    path = shutil.which('armasm64.exe')
+    if path:
+        return path
+
+    # Check common VS locations via environment
+    vc_install_dir = os.environ.get('VCINSTALLDIR', '')
+    if vc_install_dir:
+        candidate = os.path.join(vc_install_dir, 'bin', 'Hostx64', 'arm64', 'armasm64.exe')
+        if os.path.exists(candidate):
+            return candidate
+        candidate = os.path.join(vc_install_dir, 'bin', 'Hostarm64', 'arm64', 'armasm64.exe')
+        if os.path.exists(candidate):
+            return candidate
+
+    raise RuntimeError('Unable to locate armasm64.exe')
+
+
 def normalize_path(value):
     return str(value).strip().strip('"')
 
@@ -73,12 +93,28 @@ def preprocess(args):
         sys.stderr.write(result.stderr)
         raise RuntimeError(f'Preprocessing failed: {" ".join(command)}')
 
-    # Strip preprocessor line directives that some assemblers can't handle
-    # (e.g., armasm64.exe doesn't accept #line directives)
-    cleaned = re.sub(r'^#\s*\d+\s+"[^"]*".*$', '', result.stdout, flags=re.MULTILINE)
-    cleaned = re.sub(r'^#\s*line\s+\d+.*$', '', cleaned, flags=re.MULTILINE)
+    # Strip all preprocessor directives that assemblers can't handle
+    # (e.g., armasm64.exe doesn't accept any # directives)
+    # Remove lines starting with # (preprocessor output like #line, # 1 "file", etc.)
+    lines = result.stdout.splitlines(keepends=True)
+    cleaned_lines = [line for line in lines if not line.lstrip().startswith('#')]
+    cleaned = ''.join(cleaned_lines)
 
     output.write_text(cleaned, encoding='utf-8')
+
+    # If --assemble is specified, also run the assembler to produce an object file
+    if args.assemble:
+        assemble_output = Path(normalize_path(args.assemble))
+        assemble_output.parent.mkdir(parents=True, exist_ok=True)
+
+        armasm64 = find_armasm64()
+        asm_command = [armasm64, '-nologo', '-g', str(output), '-o', str(assemble_output)]
+
+        asm_result = subprocess.run(asm_command, capture_output=True, text=True)
+        if asm_result.returncode != 0:
+            sys.stderr.write(asm_result.stderr)
+            sys.stderr.write(asm_result.stdout)
+            raise RuntimeError(f'Assembly failed: {" ".join(asm_command)}')
 
 
 def main(argv=None):
@@ -87,6 +123,7 @@ def main(argv=None):
     parser.add_argument('--output', required=True)
     parser.add_argument('--include-dir', action='append', default=[])
     parser.add_argument('--define', action='append', default=[])
+    parser.add_argument('--assemble', help='Also assemble the output to this object file')
     args = parser.parse_args(argv)
 
     preprocess(args)

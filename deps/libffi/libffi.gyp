@@ -170,10 +170,14 @@
           ],
         }],
         ['OS == "win" and target_arch == "arm64"', {
+          # Link the prebuilt object file directly
+          'libraries': [
+            '<(INTERMEDIATE_DIR)/win64_armasm.obj',
+          ],
           'actions': [
             {
-              'action_name': 'preprocess_win64_arm_asm',
-              'process_outputs_as_sources': 1,
+              'action_name': 'assemble_win64_arm_asm',
+              # Don't use process_outputs_as_sources - we link the .obj directly
               'inputs': [
                 'preprocess_asm.py',
                 'include/ffi_cfi.h',
@@ -183,7 +187,7 @@
                 '<(INTERMEDIATE_DIR)/fficonfig.h',
               ],
               'outputs': [
-                '<(INTERMEDIATE_DIR)/win64_armasm.asm',
+                '<(INTERMEDIATE_DIR)/win64_armasm.obj',
               ],
               'action': [
                 '<(python)',
@@ -191,13 +195,15 @@
                 '--input',
                 'src/aarch64/win64_armasm.S',
                 '--output',
-                '<@(_outputs)',
+                '<(INTERMEDIATE_DIR)/win64_armasm.asm',
                 '--include-dir',
                 'include',
                 '--include-dir',
                 'src/aarch64',
                 '--define',
                 'FFI_STATIC_BUILD',
+                '--assemble',
+                '<@(_outputs)',
               ],
             },
           ],
