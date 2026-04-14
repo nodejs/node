@@ -96,6 +96,7 @@
     {
       'target_name': 'libffi',
       'type': 'static_library',
+      'hard_dependency': 1,
       'cflags': ['-fvisibility=hidden'],
       'xcode_settings': {
         'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES',

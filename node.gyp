@@ -1015,6 +1015,10 @@
                   'include_dirs': [
                     '<(PRODUCT_DIR)/obj/libffi',
                   ],
+                }, 'OS=="mac"', {
+                  'include_dirs': [
+                    '<(PRODUCT_DIR)/obj/deps/libffi/libffi.gen',
+                  ],
                 }, {
                   'include_dirs': [
                     '<(PRODUCT_DIR)/obj.target/libffi/geni',
@@ -1092,6 +1096,10 @@
                 [ 'OS=="win"', {
                   'include_dirs': [
                     '<(PRODUCT_DIR)/obj/libffi',
+                  ],
+                }, 'OS=="mac"', {
+                  'include_dirs': [
+                    '<(PRODUCT_DIR)/obj/deps/libffi/libffi.gen',
                   ],
                 }, {
                   'include_dirs': [
