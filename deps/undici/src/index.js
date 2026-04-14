@@ -105,14 +105,14 @@ function makeDispatcher (fn) {
       url = util.parseURL(url)
     }
 
-    const { agent, dispatcher = getGlobalDispatcher() } = opts
+    const { agent, dispatcher = getGlobalDispatcher(), ...restOpts } = opts
 
     if (agent) {
       throw new InvalidArgumentError('unsupported opts.agent. Did you mean opts.client?')
     }
 
     return fn.call(dispatcher, {
-      ...opts,
+      ...restOpts,
       origin: url.origin,
       path: url.search ? `${url.pathname}${url.search}` : url.pathname,
       method: opts.method || (opts.body ? 'PUT' : 'GET')

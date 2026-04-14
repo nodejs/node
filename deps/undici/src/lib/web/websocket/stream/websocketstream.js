@@ -1,6 +1,5 @@
 'use strict'
 
-const { createDeferredPromise } = require('../../../util/promise')
 const { environmentSettingsObject } = require('../../fetch/util')
 const { states, opcodes, sentCloseFrameState } = require('../constants')
 const { webidl } = require('../../webidl')
@@ -21,11 +20,11 @@ class WebSocketStream {
   #url
 
   // Each WebSocketStream object has an associated opened promise , which is a promise.
-  /** @type {import('../../../util/promise').DeferredPromise} */
+  /** @type {ReturnType<typeof Promise.withResolvers>} */
   #openedPromise
 
   // Each WebSocketStream object has an associated closed promise , which is a promise.
-  /** @type {import('../../../util/promise').DeferredPromise} */
+  /** @type {ReturnType<typeof Promise.withResolvers>} */
   #closedPromise
 
   // Each WebSocketStream object has an associated readable stream , which is a ReadableStream .
@@ -113,8 +112,8 @@ class WebSocketStream {
     this.#url = urlRecord.toString()
 
     // 6. Set this 's opened promise and closed promise to new promises.
-    this.#openedPromise = createDeferredPromise()
-    this.#closedPromise = createDeferredPromise()
+    this.#openedPromise = Promise.withResolvers()
+    this.#closedPromise = Promise.withResolvers()
 
     // 7. Apply backpressure to the WebSocket.
     // TODO
@@ -202,7 +201,7 @@ class WebSocketStream {
     chunk = webidl.converters.WebSocketStreamWrite(chunk)
 
     // 1. Let promise be a new promise created in stream ’s relevant realm .
-    const promise = createDeferredPromise()
+    const promise = Promise.withResolvers()
 
     // 2. Let data be null.
     let data = null
