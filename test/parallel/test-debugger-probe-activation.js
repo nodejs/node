@@ -1,4 +1,6 @@
-// This tests that probe mode only activates when --probe is present.
+// This tests that probe mode only activates when --probe is present,
+// so that other options can be used as user script arguments without
+// accidentally activating probe mode.
 'use strict';
 
 const common = require('../common');
@@ -24,6 +26,7 @@ const cli = startCLI([
     await cli.waitForInitialBreak();
     await cli.waitForPrompt();
     await cli.command('exec JSON.stringify(process.argv.slice(2))');
+    // Check that it's parsable as usual.
     assert.match(
       cli.output,
       /\["--json","--preview","--timeout=1","--expr","value"\]/,
