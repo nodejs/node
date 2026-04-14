@@ -107,7 +107,7 @@
       ],
       'include_dirs': [
         'include',
-        '<(INTERMEDIATE_DIR)',
+        '<(SHARED_INTERMEDIATE_DIR)/libffi',
       ],
       'sources': [
         '<@(libffi_sources)',
@@ -124,15 +124,15 @@
             'src/x86/ffitarget.h',
           ],
           'outputs': [
-            '<(INTERMEDIATE_DIR)/ffi.h',
-            '<(INTERMEDIATE_DIR)/fficonfig.h',
-            '<(INTERMEDIATE_DIR)/ffitarget.h',
+            '<(SHARED_INTERMEDIATE_DIR)/libffi/ffi.h',
+            '<(SHARED_INTERMEDIATE_DIR)/libffi/fficonfig.h',
+            '<(SHARED_INTERMEDIATE_DIR)/libffi/ffitarget.h',
           ],
           'action': [
             '<(python)',
             'generate-headers.py',
             '--output-dir',
-            '<(INTERMEDIATE_DIR)',
+            '<(SHARED_INTERMEDIATE_DIR)/libffi',
           ],
         },
       ],
@@ -213,7 +213,7 @@
       'direct_dependent_settings': {
         'include_dirs': [
           'include',
-          '<(INTERMEDIATE_DIR)',
+          '<(SHARED_INTERMEDIATE_DIR)/libffi',
         ],
         'defines': [
           'FFI_STATIC_BUILD',
