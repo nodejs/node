@@ -948,6 +948,12 @@ parser.add_argument('--without-amaro',
     default=None,
     help='do not install the bundled Amaro (TypeScript utils)')
 
+parser.add_argument('--without-dtrace',
+    action='store_true',
+    dest='without_dtrace',
+    default=None,
+    help='build without DTrace/USDT probe support')
+
 parser.add_argument('--without-lief',
     action='store_true',
     dest='without_lief',
@@ -1244,6 +1250,31 @@ def B(value):
 
 def to_utf8(s):
   return s if isinstance(s, str) else s.decode("utf-8")
+
+def has_working_dtrace_h():
+  """Check whether a dtrace tool that supports -h is available.
+
+  Supported on Linux (SystemTap dtrace wrapper), macOS, FreeBSD, and
+  illumos/SmartOS (native DTrace).  Non-Linux platforms require -xnolibs
+  to avoid loading standard D libraries during header generation."""
+  dtrace = shutil.which('dtrace')
+  if dtrace is None:
+    return False
+  # -xnolibs is required on macOS/FreeBSD/illumos (native DTrace) to avoid
+  # loading standard D libraries.  Linux (SystemTap wrapper) does not
+  # recognise this flag, so only pass it on non-Linux platforms.
+  cmd = [dtrace, '-h', '-s', '/dev/stdin', '-o', '/dev/null']
+  if sys.platform != 'linux':
+    cmd.insert(2, '-xnolibs')
+  try:
+    proc = subprocess.run(
+        cmd,
+        input=b'provider _test { probe _test(); };',
+        capture_output=True, timeout=10)
+    return proc.returncode == 0
+  except (OSError, subprocess.TimeoutExpired) as e:
+    warn('dtrace probe check failed: %s' % e)
+    return False
 
 def pkg_config(pkg):
   """Run pkg-config on the specified package
@@ -2011,6 +2042,16 @@ def configure_node(o):
   if options.node_builtin_modules_path:
     print('Warning! Loading builtin modules from disk is for development')
     o['variables']['node_builtin_modules_path'] = options.node_builtin_modules_path
+
+  o['variables']['node_no_usdt'] = b(options.without_dtrace)
+  use_dtrace = not options.without_dtrace and has_working_dtrace_h()
+  o['variables']['node_use_dtrace'] = b(use_dtrace)
+  if options.without_dtrace:
+    print('USDT probes: disabled (--without-dtrace)')
+  elif use_dtrace:
+    print('USDT probes: enabled (dtrace -h, semaphore support)')
+  else:
+    print('USDT probes: fallback (sys/sdt.h) or disabled')
 
 def configure_napi(output):
   version = getnapibuildversion.get_napi_version()

@@ -37,6 +37,8 @@
     'node_use_openssl%': 'true',
     'node_use_quic%': 'false',
     'node_use_sqlite%': 'true',
+    'node_use_dtrace%': 'false',
+    'node_no_usdt%': 'false',
     'node_use_v8_platform%': 'true',
     'node_v8_options%': '',
     'node_write_snapshot_as_string_literals': 'true',
@@ -273,6 +275,8 @@
       'src/node_metadata.h',
       'src/node_mutex.h',
       'src/node_diagnostics_channel.h',
+      'src/node_usdt.h',
+      'src/node_provider.d',
       'src/node_modules.h',
       'src/node_object_wrap.h',
       'src/node_options.h',
@@ -951,6 +955,43 @@
           'xcode_settings': {
             'WARNING_CFLAGS': [ '-Werror' ],
           },
+        }],
+        [ 'node_no_usdt=="true"', {
+          'defines': [ 'NODE_NO_USDT=1' ],
+        }],
+        [ 'node_use_dtrace=="true"', {
+          'defines': [ 'NODE_HAVE_DTRACE=1' ],
+          'conditions': [
+            [ 'OS=="linux"', {
+              'actions': [
+                {
+                  'action_name': 'node_dtrace_header',
+                  'inputs': [ 'src/node_provider.d' ],
+                  'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/node_provider.h' ],
+                  'action': [
+                    'dtrace', '-h',
+                    '-s', 'src/node_provider.d',
+                    '-o', '<(SHARED_INTERMEDIATE_DIR)/node_provider.h',
+                  ],
+                },
+              ],
+            }, {
+              # macOS, FreeBSD, illumos: native DTrace requires -xnolibs
+              # to avoid loading kernel D libraries during header generation.
+              'actions': [
+                {
+                  'action_name': 'node_dtrace_header',
+                  'inputs': [ 'src/node_provider.d' ],
+                  'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/node_provider.h' ],
+                  'action': [
+                    'dtrace', '-h', '-xnolibs',
+                    '-s', 'src/node_provider.d',
+                    '-o', '<(SHARED_INTERMEDIATE_DIR)/node_provider.h',
+                  ],
+                },
+              ],
+            }],
+          ],
         }],
         [ 'node_builtin_modules_path!=""', {
           'defines': [ 'NODE_BUILTIN_MODULES_PATH="<(node_builtin_modules_path)"' ],
