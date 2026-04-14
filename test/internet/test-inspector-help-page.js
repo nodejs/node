@@ -28,7 +28,7 @@ function check(url, cb) {
     });
 
     res.on('end', common.mustCall(() => {
-      assert.match(result, />Debugging Node\.js</);
+      assert.match(result, /<title>Inspector \| Node\.js/);
       cb();
     }));
   })).on('error', common.mustNotCall);
