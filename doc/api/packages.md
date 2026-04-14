@@ -720,6 +720,24 @@ least specific in object order_.
 
 Using the `"import"` and `"require"` conditions can lead to some hazards,
 which are further explained in [the dual CommonJS/ES module packages section][].
+As an alternative to using `"import"` and `"require"`, packages can use
+`"node"` and `"default"` conditions to avoid the dual package hazard while
+still providing ES modules for non-Node.js environments.
+
+For example, using `"node"` and `"default"` instead of `"require"` and `"import"`:
+
+```json
+{
+  "exports": {
+    "node": "./index.cjs",
+    "default": "./index.mjs"
+  }
+}
+```
+
+This approach avoids the dual package hazard in Node.js (since `"node"` always
+matches for any Node.js environment) while still allowing bundlers to use the
+ES module version when targeting other JavaScript runtimes.
 
 The `"node-addons"` condition can be used to provide an entry point which
 uses native C++ addons. However, this condition can be disabled via the
