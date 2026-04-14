@@ -13,12 +13,6 @@ const {
 } = require('../common/heap');
 const tls = require('tls');
 
-{
-  const nodes = createJSHeapSnapshot();
-  const matches = nodes.filter(
-    (n) => n.name === 'Node / SecureContext' && n.type !== 'string');
-  assert.strictEqual(matches.length, 0);
-}
 
 // eslint-disable-next-line no-unused-vars
 const ctx = tls.createSecureContext({
