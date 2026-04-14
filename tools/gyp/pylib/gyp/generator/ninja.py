@@ -246,7 +246,7 @@ class NinjaWriter:
         if flavor == "win":
             # See docstring of msvs_emulation.GenerateEnvironmentFiles().
             self.win_env = {}
-            for arch in ("x86", "x64"):
+            for arch in ("x86", "x64", "arm64"):
                 self.win_env[arch] = "environment." + arch
 
         # Relative path from build output dir to base dir.
@@ -2339,6 +2339,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params, config_name
         master_ninja.variable("rc", "rc.exe")
         master_ninja.variable("ml_x86", "ml.exe")
         master_ninja.variable("ml_x64", "ml64.exe")
+        master_ninja.variable("ml_arm64", "armasm64.exe")
         master_ninja.variable("mt", "mt.exe")
     else:
         master_ninja.variable("ld", CommandWithWrapper("LINK", wrappers, ld))
