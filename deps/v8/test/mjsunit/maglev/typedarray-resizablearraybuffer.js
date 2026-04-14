@@ -237,7 +237,6 @@ for (let shared of [false, true]) {
           %ArrayBufferDetach(ab);
           assertEquals(0, ByteLength(ta));
           assertEquals(0, Length(ta));
-          assertOptimized(Length);
         }
       }
     }

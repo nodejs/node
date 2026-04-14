@@ -44,6 +44,11 @@
 #define TSA_SLOW_DCHECK(assembler, ...) ((void)0)
 #endif
 
+#define FIELD(class_name, field_name)                              \
+  HeapObjectField<class_name, decltype(class_name::field_name)> {  \
+    offsetof(class_name, field_name), #class_name "::" #field_name \
+  }
+
 #define LIKELY(...) \
   compiler::turboshaft::ConditionWithHint(__VA_ARGS__, BranchHint::kTrue)
 #define UNLIKELY(...) \

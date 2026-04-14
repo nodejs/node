@@ -147,10 +147,7 @@ Reduction JSNativeContextSpecialization::Reduce(Node* node) {
 std::optional<size_t> JSNativeContextSpecialization::GetMaxStringLength(
     JSHeapBroker* broker, Node* node) {
   HeapObjectMatcher matcher(node);
-  if (matcher.HasResolvedValue() &&
-      !matcher.Is(
-          broker->local_isolate_or_isolate()->factory()->the_hole_value()) &&
-      matcher.Ref(broker).IsString()) {
+  if (matcher.HasResolvedValue() && matcher.Ref(broker).IsString()) {
     StringRef input = matcher.Ref(broker).AsString();
     return input.length();
   }
@@ -3091,7 +3088,7 @@ JSNativeContextSpecialization::BuildPropertyAccess(
   UNREACHABLE();
 }
 
-JSNativeContextSpecialization::ValueEffectControl
+std::optional<JSNativeContextSpecialization::ValueEffectControl>
 JSNativeContextSpecialization::BuildPropertyStore(
     Node* receiver, Node* value, Node* context, Node* frame_state, Node* effect,
     Node* control, NameRef name, ZoneVector<Node*>* if_exceptions,
@@ -3246,7 +3243,10 @@ JSNativeContextSpecialization::BuildPropertyStore(
       // Check if we need to grow the properties backing store
       // with this transitioning store.
       MapRef transition_map_ref = transition_map.value();
-      MapRef original_map = transition_map_ref.GetBackPointer(broker()).AsMap();
+      OptionalHeapObjectRef back_pointer =
+          transition_map_ref.GetBackPointer(broker());
+      if (!back_pointer.has_value()) return std::nullopt;
+      MapRef original_map = back_pointer->AsMap();
       if (!field_index.is_inobject()) {
         // If slack tracking ends after this compilation started but before it's
         // finished, then we could {original_map} could be out-of-sync with
@@ -3954,7 +3954,9 @@ JSNativeContextSpecialization::
         simplified()->NumberEqual(),
         graph()->NewNode(
             simplified()->NumberBitwiseAnd(), buffer_bit_field,
-            jsgraph()->ConstantNoHole(JSArrayBuffer::WasDetachedBit::kMask)),
+            jsgraph()->ConstantNoHole(JSArrayBuffer::NotValidMask(
+                keyed_mode.IsStore() ? TypedArrayAccessMode::kWrite
+                                     : TypedArrayAccessMode::kRead))),
         jsgraph()->ZeroConstant());
     effect = graph()->NewNode(
         simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasDetached), check,
@@ -4279,11 +4281,15 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
       details = descs.GetPropertyDetails(descriptor);
     }
     DCHECK_EQ(i, details.field_index() - in_object_length);
+    Representation repr = details.representation();
+    MapRef field_owner_map = map.FindFieldOwner(broker(), descriptor);
+    dependencies()->DependOnFieldRepresentation(map, field_owner_map,
+                                                descriptor, repr);
     Node* value = effect = graph()->NewNode(
         simplified()->LoadField(
-            AccessBuilder::ForPropertyArraySlot(i, details.representation())),
+            AccessBuilder::ForPropertyArraySlot(i, repr, false)),
         properties, effect, control);
-    values.push_back({value, details.representation()});
+    values.push_back({value, repr});
   }
   // Initialize the new fields to undefined.
   for (int i = 0; i < JSObject::kFieldsAdded; ++i) {
@@ -4326,7 +4332,7 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
   a.Store(AccessBuilder::ForMap(), jsgraph()->PropertyArrayMapConstant());
   a.Store(AccessBuilder::ForPropertyArrayLengthAndHash(), new_length_and_hash);
   for (int i = 0; i < new_length; ++i) {
-    a.Store(AccessBuilder::ForPropertyArraySlot(i, values[i].second),
+    a.Store(AccessBuilder::ForPropertyArraySlot(i, values[i].second, false),
             values[i].first);
   }
   return a.Finish();
@@ -4337,9 +4343,17 @@ Node* JSNativeContextSpecialization::BuildCheckEqualsName(NameRef name,
                                                           Node* effect,
                                                           Node* control) {
   DCHECK(name.IsUniqueName());
-  Operator const* const op =
-      name.IsSymbol() ? simplified()->CheckEqualsSymbol()
-                      : simplified()->CheckEqualsInternalizedString();
+  Operator const* op;
+  if (name.IsSymbol()) {
+    op = simplified()->CheckEqualsSymbol();
+    // CheckEqualsSymbol is really just a TaggedEqual and will just return false
+    // if {value} is not a Symbol.
+  } else {
+    DCHECK(name.IsString());
+    op = simplified()->CheckEqualsInternalizedString();
+    effect = graph()->NewNode(simplified()->CheckString(FeedbackSource()),
+                              value, effect, control);
+  }
   return graph()->NewNode(op, jsgraph()->ConstantNoHole(name, broker()), value,
                           effect, control);
 }
@@ -4352,7 +4366,7 @@ bool JSNativeContextSpecialization::CanTreatHoleAsUndefined(
   for (MapRef receiver_map : receiver_maps) {
     ObjectRef receiver_prototype = receiver_map.prototype(broker());
     if (!receiver_prototype.IsJSObject() ||
-        !broker()->IsArrayOrObjectPrototype(receiver_prototype.AsJSObject())) {
+        !receiver_prototype.AsJSObject().IsArrayOrObjectPrototype(broker())) {
       return false;
     }
   }

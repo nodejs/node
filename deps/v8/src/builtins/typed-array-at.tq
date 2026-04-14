@@ -10,7 +10,8 @@ transitioning javascript builtin TypedArrayPrototypeAt(
   // 2. Perform ? ValidateTypedArray(O).
   // 3. Let len be IntegerIndexedObjectLength(O).
   const len = Convert<Number>(ValidateTypedArrayAndGetLength(
-      context, receiver, '%TypedArray%.prototype.at'));
+      context, receiver, '%TypedArray%.prototype.at',
+      TypedArrayAccessMode::kRead));
 
   // 4. Let relativeIndex be ? ToInteger(index).
   const relativeIndex = ToInteger_Inline(index);

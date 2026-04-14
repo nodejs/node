@@ -522,6 +522,7 @@ V8_OBJECT class String : public Name {
   // ~536.8M chars.
   // See include/v8.h for the definition.
   static const uint32_t kMaxLength = v8::String::kMaxLength;
+  static_assert(kMaxLength <= kMaxInt);
 
   // Max length for computing hash. For strings longer than this limit the
   // string length is used as the hash value.

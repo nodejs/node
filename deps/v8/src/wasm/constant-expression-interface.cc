@@ -135,10 +135,11 @@ void ConstantExpressionInterface::RefFunc(FullDecoder* decoder,
   CanonicalValueType type =
       CanonicalValueType::Ref(module_->canonical_type_id(sig_index),
                               function_is_shared, RefTypeKind::kFunction);
-  // Imported functions can be subtypes of their static import type,
-  // for non-imported functions we can return an exact type.
+  // Imported functions can be subtypes of their static import type; for
+  // non-imported or exactly imported functions we can return an exact type.
   if (decoder->enabled_.has_custom_descriptors() &&
-      function_index >= module_->num_imported_functions) {
+      (function_index >= module_->num_imported_functions ||
+       module_->functions[function_index].exact)) {
     type = type.AsExact();
   }
   DirectHandle<WasmFuncRef> func_ref =
@@ -214,6 +215,8 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
   DirectHandle<WasmStruct> obj;
   WriteBarrierMode mode = UPDATE_WRITE_BARRIER;
   if (type.is_descriptor()) {
+    // TODO(14616): Support shared custom descriptors.
+    if (type.is_shared) UNIMPLEMENTED();
     DirectHandle<Object> first_field =
         struct_type->first_field_can_be_prototype()
             ? args[0].runtime_value.to_ref()
@@ -221,8 +224,10 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
     obj = WasmStruct::AllocateDescriptorUninitialized(isolate_, data, imm.index,
                                                       rtt, first_field);
   } else {
-    obj = isolate_->factory()->NewWasmStructUninitialized(struct_type, rtt);
-    mode = SKIP_WRITE_BARRIER;  // Object is in new space.
+    obj = isolate_->factory()->NewWasmStructUninitialized(
+        struct_type, rtt,
+        type.is_shared ? AllocationType::kSharedOld : AllocationType::kYoung);
+    if (!type.is_shared) mode = SKIP_WRITE_BARRIER;  // Object is in new space.
   }
   DisallowGarbageCollection no_gc;  // Must initialize fields first.
 
@@ -315,11 +320,15 @@ void ConstantExpressionInterface::StructNewDefault(
 
   DirectHandle<WasmStruct> obj;
   if (type.is_descriptor()) {
+    // TODO(14616): Implement shared custom descriptors.
+    if (type.is_shared) UNIMPLEMENTED();
     DirectHandle<Object> first_field(Smi::zero(), isolate_);
     obj = WasmStruct::AllocateDescriptorUninitialized(isolate_, data, imm.index,
                                                       rtt, first_field);
   } else {
-    obj = isolate_->factory()->NewWasmStructUninitialized(struct_type, rtt);
+    obj = isolate_->factory()->NewWasmStructUninitialized(
+        struct_type, rtt,
+        type.is_shared ? AllocationType::kSharedOld : AllocationType::kYoung);
   }
   DisallowGarbageCollection no_gc;  // Must initialize fields first.
 
@@ -429,19 +438,17 @@ void ConstantExpressionInterface::ArrayNewSegment(
   CanonicalValueType result_type =
       rtt->wasm_type_info()->type().AsExactIfEnabled(decoder->enabled_);
   if (element_type.is_numeric()) {
-    const WasmDataSegment& data_segment =
-        module_->data_segments[segment_imm.index];
     uint32_t length_in_bytes =
         length * array_imm.array_type->element_type().value_kind_size();
-
+    WireBytesRef segment_source = data->data_segments()->get(segment_imm.index);
     if (!base::IsInBounds<uint32_t>(offset, length_in_bytes,
-                                    data_segment.source.length())) {
+                                    segment_source.length())) {
       error_ = MessageTemplate::kWasmTrapDataSegmentOutOfBounds;
       return;
     }
 
-    Address source =
-        data->data_segment_starts()->get(segment_imm.index) + offset;
+    base::Vector<const uint8_t> source =
+        data->native_module()->wire_bytes() + offset;
     DirectHandle<WasmArray> array_value =
         isolate_->factory()->NewWasmArrayFromMemory(length, rtt, element_type,
                                                     source);
@@ -449,8 +456,9 @@ void ConstantExpressionInterface::ArrayNewSegment(
   } else {
     const wasm::WasmElemSegment* elem_segment =
         &decoder->module_->elem_segments[segment_imm.index];
-    // A constant expression should not observe if a passive segment is dropped.
-    // However, it should consider active and declarative segments as empty.
+    // A constant expression should not observe if a passive segment_source is
+    // dropped. However, it should consider active and declarative segments as
+    // empty.
     if (!base::IsInBounds<size_t>(
             offset, length,
             elem_segment->status == WasmElemSegment::kStatusPassive

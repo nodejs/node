@@ -72,9 +72,7 @@ cc_library(
         "//absl/base:core_headers",
         "//absl/base:raw_logging_internal",
         "//absl/time",
-    ] + select({
-        "//conditions:default": [],
-    }),
+    ],
 )
 
 cc_test(

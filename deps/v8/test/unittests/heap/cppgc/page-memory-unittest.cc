@@ -176,12 +176,10 @@ TEST(PageBackendPoolTest, AddTake) {
   EXPECT_EQ(writable_base1, writable_base2);
 }
 
-namespace {
-void AddTakeWithDiscardInBetween(bool decommit_pooled_pages) {
+TEST(PageBackendPoolTest, AddTakeWithReleasePooledPagesInBetween) {
   v8::base::PageAllocator allocator;
   PageBackend backend(allocator, allocator);
   auto& pool = backend.page_pool();
-  pool.SetDecommitPooledPages(decommit_pooled_pages);
   auto& raw_pool = pool.get_raw_pool_for_testing();
 
   EXPECT_TRUE(raw_pool.empty());
@@ -206,15 +204,6 @@ void AddTakeWithDiscardInBetween(bool decommit_pooled_pages) {
   EXPECT_EQ(writable_base1, writable_base2);
   // Should not die: memory is writable.
   memset(writable_base2, 12, size);
-}
-}  // namespace
-
-TEST(PageBackendPoolTest, AddTakeWithDiscardInBetween) {
-  AddTakeWithDiscardInBetween(false);
-}
-
-TEST(PageBackendPoolTest, AddTakeWithDiscardInBetweenWithDecommit) {
-  AddTakeWithDiscardInBetween(true);
 }
 
 TEST(PageBackendPoolTest, PoolMemoryAccounting) {

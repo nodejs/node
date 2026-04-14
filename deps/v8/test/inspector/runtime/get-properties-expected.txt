@@ -218,3 +218,14 @@ Running test: testWeakRef
 Internal properties
   [[Prototype]] object undefined
   [[WeakRefTarget]] object undefined
+
+Running test: testArrayBufferDetached
+  __proto__ inherited no value, getter, setter
+  detached inherited boolean true
+
+Running test: testArrayBufferAttached
+  __proto__ inherited no value, getter, setter
+  byteLength inherited number 16
+  maxByteLength inherited number 16
+
+

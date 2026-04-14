@@ -523,8 +523,7 @@ WasmLoadElimination::AbstractState const* WasmLoadElimination::ComputeLoopState(
   DCHECK_EQ(node->opcode(), IrOpcode::kEffectPhi);
   if (state->mutable_state.IsEmpty()) return state;
   std::queue<Node*> queue;
-  AccountingAllocator allocator;
-  Zone temp_set_zone(&allocator, ZONE_NAME);
+  Zone temp_set_zone(zone()->allocator(), ZONE_NAME);
   ZoneUnorderedSet<Node*> visited(&temp_set_zone);
   visited.insert(node);
   for (int i = 1; i < node->InputCount() - 1; ++i) {

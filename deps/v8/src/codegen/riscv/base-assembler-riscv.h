@@ -57,13 +57,13 @@
 namespace v8 {
 namespace internal {
 
+#ifdef DEBUG
 class DebugFile : public std::ofstream {
  public:
   static DebugFile& GetDebugFile() {
-    static DebugFile debug_file;
-    return debug_file;
+    static DebugFile* debug_file = new DebugFile();
+    return *debug_file;
   }
-  ~DebugFile() { flush(); }
   DebugFile(const DebugFile&) = delete;
   DebugFile& operator=(const DebugFile&) = delete;
 
@@ -81,6 +81,9 @@ class DebugFile : public std::ofstream {
       PrintF(__VA_ARGS__);                                                     \
     }                                                                          \
   }
+#else
+#define DEBUG_PRINTF(...)
+#endif
 
 class SafepointTableBuilder;
 

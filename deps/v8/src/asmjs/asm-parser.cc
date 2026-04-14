@@ -12,6 +12,7 @@
 
 #include "src/asmjs/asm-js.h"
 #include "src/asmjs/asm-types.h"
+#include "src/base/iterator.h"
 #include "src/base/overflowing-math.h"
 #include "src/flags/flags.h"
 #include "src/numbers/conversions-inl.h"
@@ -300,31 +301,31 @@ void AsmJsParser::BareEnd() {
 
 int AsmJsParser::FindContinueLabelDepth(AsmJsScanner::token_t label) {
   int count = 0;
-  for (auto it = block_stack_.rbegin(); it != block_stack_.rend();
-       ++it, ++count) {
+  for (const auto& info : base::Reversed(block_stack_)) {
     // A 'continue' statement targets ...
     //  - The innermost {kLoop} block if no label is given.
     //  - The matching {kLoop} block (when a label is provided).
-    if (it->kind == BlockKind::kLoop &&
-        (label == kTokenNone || it->label == label)) {
+    if (info.kind == BlockKind::kLoop &&
+        (label == kTokenNone || info.label == label)) {
       return count;
     }
+    ++count;
   }
   return -1;
 }
 
 int AsmJsParser::FindBreakLabelDepth(AsmJsScanner::token_t label) {
   int count = 0;
-  for (auto it = block_stack_.rbegin(); it != block_stack_.rend();
-       ++it, ++count) {
+  for (const auto& info : base::Reversed(block_stack_)) {
     // A 'break' statement targets ...
     //  - The innermost {kRegular} block if no label is given.
     //  - The matching {kRegular} or {kNamed} block (when a label is provided).
-    if ((it->kind == BlockKind::kRegular &&
-         (label == kTokenNone || it->label == label)) ||
-        (it->kind == BlockKind::kNamed && it->label == label)) {
+    if ((info.kind == BlockKind::kRegular &&
+         (label == kTokenNone || info.label == label)) ||
+        (info.kind == BlockKind::kNamed && info.label == label)) {
       return count;
     }
+    ++count;
   }
   return -1;
 }
@@ -1891,7 +1892,6 @@ AsmType* AsmJsParser::ShiftExpression() {
 #define HANDLE_CASE(op, opcode, name, result)                        \
   case TOK(op): {                                                    \
     EXPECT_TOKENn(TOK(op));                                          \
-    heap_access_shift_position_ = kNoHeapAccessShift;                \
     AsmType* b = nullptr;                                            \
     RECURSEn(b = AdditiveExpression());                              \
     if (!(a->IsA(AsmType::Intish()) && b->IsA(AsmType::Intish()))) { \
@@ -1899,6 +1899,8 @@ AsmType* AsmJsParser::ShiftExpression() {
     }                                                                \
     current_function_builder_->Emit(kExpr##opcode);                  \
     a = AsmType::result();                                           \
+    /* Must happen after the RECURSE call to unset its state! */     \
+    heap_access_shift_position_ = kNoHeapAccessShift;                \
     continue;                                                        \
   }
         HANDLE_CASE(SHL, I32Shl, "<<", Signed);

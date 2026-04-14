@@ -47,9 +47,15 @@ V8_OBJECT class Tuple2 : public StructLayout {
   inline Tagged<Object> value1() const;
   inline void set_value1(Tagged<Object> value,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Tagged<Object> value1(RelaxedLoadTag) const;
+  inline void set_value1(Tagged<Object> value, RelaxedStoreTag,
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<Object> value2() const;
   inline void set_value2(Tagged<Object> value,
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Tagged<Object> value2(RelaxedLoadTag) const;
+  inline void set_value2(Tagged<Object> value, RelaxedStoreTag,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   DECL_VERIFIER(Tuple2)

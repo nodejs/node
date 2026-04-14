@@ -19,6 +19,9 @@ const sourceHelpers = require('./source_helpers.js');
 // We drop files containing dropped flags with a high probability.
 const DROP_DISCOURAGED_FILES_PROB = 0.8;
 
+// Transpile some code patterns to ES2015 with a probability.
+const TRANSPILE_PROB = 0.1;
+
 const WASM_MODULE_BUILDER = 'test/mjsunit/wasm/wasm-module-builder.js';
 const WASM_LOAD_LINE = `d8.file.execute("${WASM_MODULE_BUILDER}")`;
 
@@ -106,6 +109,10 @@ class Corpus extends sourceHelpers.BaseCorpus {
     return this;
   }
 
+  isEmpty() {
+    return this.softSkippedFiles.length + this.permittedFiles.length == 0;
+  }
+
   /**
    * Enable subclasses to decide on more skipped files.
    */
@@ -153,7 +160,8 @@ class Corpus extends sourceHelpers.BaseCorpus {
   loadTestcase(relPath, strict, label) {
     const start = Date.now();
     try {
-      const source = sourceHelpers.loadSource(this, relPath, strict);
+      const source = sourceHelpers.loadSource(
+          this, relPath, strict, random.choose(module.exports.TRANSPILE_PROB));
       if (program.verbose) {
         const duration = Date.now() - start;
         console.log(`Parsing ${relPath} ${label} took ${duration} ms.`);
@@ -335,5 +343,6 @@ function create(inputDir, corpusName, ...args) {
 
 module.exports = {
   DROP_DISCOURAGED_FILES_PROB: DROP_DISCOURAGED_FILES_PROB,
+  TRANSPILE_PROB: TRANSPILE_PROB,
   create: create,
 }

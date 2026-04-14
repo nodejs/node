@@ -48,7 +48,7 @@ void Heap::ForceGarbageCollectionSlow(const char* source, const char* reason,
   internal::Heap::From(this)->CollectGarbage(
       {internal::CollectionType::kMajor, stack_state, MarkingType::kAtomic,
        SweepingType::kAtomic,
-       internal::GCConfig::FreeMemoryHandling::kDiscardWherePossible,
+       internal::GCConfig::FreeMemoryHandling::kReleaseMemory,
        internal::GCConfig::IsForcedGC::kForced});
 }
 

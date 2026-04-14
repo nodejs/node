@@ -31,9 +31,9 @@
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
 #include "test/common/wasm/flag-utils.h"
+#include "test/common/wasm/fuzzer-common.h"
 #include "test/common/wasm/wasm-module-runner.h"
 #include "test/fuzzer/fuzzer-support.h"
-#include "test/fuzzer/wasm/fuzzer-common.h"
 
 namespace v8::internal::wasm::fuzzing {
 
@@ -117,7 +117,7 @@ WasmInterpretationResult FastInterpretWasmModule(
       wasm::GetOrCreateInterpreterHandle(isolate, interpreter_object);
 
   for (const WasmValue& arg : args) {
-    if (arg.type().is_reference()) {
+    if (arg.type().is_ref()) {
       // We should pass WasmNull as null argument, not a JS null value.
       CHECK(!IsNull(*arg.to_ref(), isolate));
     }
@@ -128,8 +128,7 @@ WasmInterpretationResult FastInterpretWasmModule(
   // Returned values should not be the hole value.
   if (success) {
     for (auto& wasm_value : rets) {
-      if (wasm_value.type().is_reference())
-        CHECK(!IsTheHole(*wasm_value.to_ref()));
+      if (wasm_value.type().is_ref()) CHECK(!IsTheHole(*wasm_value.to_ref()));
     }
   }
 
@@ -359,7 +358,7 @@ std::vector<WasmValue> FastMakeDefaultInterpreterArguments(
           canonical_type = CanonicalValueType{type};
         }
 
-        if (type.heap_representation() == HeapType::kExtern) {
+        if (type.AsNullable() == wasm::kWasmExternRef) {
           arguments[i] = WasmValue(
               Cast<Object>(isolate->factory()->NewHeapNumber(rand_num + 0.125)),
               canonical_type);

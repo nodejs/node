@@ -722,6 +722,10 @@ RUNTIME_FUNCTION(Runtime_ReportMessageFromMicrotask) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
 
+  // Valid context is required for calling Object::ToString as a part of
+  // rendering of an unhandled exception report.
+  DCHECK(!isolate->context().is_null());
+
   DirectHandle<Object> exception = args.at(0);
 
   DCHECK(!isolate->has_exception());

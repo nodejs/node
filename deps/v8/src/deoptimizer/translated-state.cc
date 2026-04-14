@@ -557,18 +557,21 @@ Tagged<Object> TranslatedValue::GetRawValue() const {
   // If we have a value, return it.
   if (materialization_state() == kFinished) {
     int smi;
-    if (!IsAnyHole(*storage_) && IsHeapNumber(*storage_) &&
+    if (IsHeapNumber(*storage_) &&
         DoubleToSmiInteger(Object::NumberValue(*storage_), &smi)) {
       return Smi::FromInt(smi);
     }
     return *storage_;
   }
 
+  AllowSandboxAccess sandbox_access(
+      "Accessing in-sandbox data for obtaining translated value");
+
   // Otherwise, do a best effort to get the value without allocation.
   switch (kind()) {
     case kTagged: {
       Tagged<Object> object = raw_literal();
-      if (!IsAnyHole(object) && IsSlicedString(object)) {
+      if (IsSlicedString(object)) {
         // If {object} is a sliced string of length smaller than
         // SlicedString::kMinLength, then trim the underlying SeqString and
         // return it. This assumes that such sliced strings are only built by
@@ -1441,8 +1444,6 @@ int TranslatedState::CreateNextTranslatedValue(
       intptr_t value = registers->GetRegister(input_reg);
       Address uncompressed_value = DecompressIfNeeded(value);
       if (trace_file != nullptr) {
-        // Need temporary access to in-sandbox memory for printing the object.
-        AllowSandboxAccess temporary_sandbox_access;
         PrintF(trace_file, V8PRIxPTR_FMT " ; %s ", uncompressed_value,
                converter.NameOfCPURegister(input_reg));
         ShortPrint(Tagged<Object>(uncompressed_value), trace_file);
@@ -1648,8 +1649,6 @@ int TranslatedState::CreateNextTranslatedValue(
       intptr_t value = *(reinterpret_cast<intptr_t*>(fp + slot_offset));
       Address uncompressed_value = DecompressIfNeeded(value);
       if (trace_file != nullptr) {
-        // Need temporary access to in-sandbox memory for printing the object.
-        AllowSandboxAccess temporary_sandbox_access;
         PrintF(trace_file, V8PRIxPTR_FMT " ;  [fp %c %3d]  ",
                uncompressed_value, slot_offset < 0 ? '-' : '+',
                std::abs(slot_offset));
@@ -2186,13 +2185,11 @@ void TranslatedState::MaterializeFixedDoubleArray(TranslatedFrame* frame,
     CHECK_NE(TranslatedValue::kCapturedObject,
              frame->values_[*value_index].kind());
     DirectHandle<Object> value = frame->values_[*value_index].GetValue();
-    if (value.is_identical_to(isolate()->factory()->the_hole_value())) {
-      // See is_hole_nan conversions in maglev-code-generator.cc and
-      // turbolev-graph-builder.cc.
-      array->set_the_hole(isolate(), i);
-    } else {
-      CHECK(IsNumber(*value));
+    if (IsNumber(*value)) {
       array->set(i, Object::NumberValue(*value));
+    } else {
+      CHECK(value.is_identical_to(isolate()->factory()->the_hole_value()));
+      array->set_the_hole(isolate(), i);
     }
     (*value_index)++;
   }
@@ -2607,7 +2604,7 @@ void TranslatedState::InitializeJSObjectAt(
 
     CHECK_EQ(kStoreTagged, marker);
     DirectHandle<Object> field_value = slot->GetValue();
-    DCHECK_IMPLIES(!IsAnyHole(*field_value) && IsHeapNumber(*field_value),
+    DCHECK_IMPLIES(IsHeapNumber(*field_value),
                    !IsSmiDouble(Object::NumberValue(*field_value)));
     WRITE_FIELD(*object_storage, offset, *field_value);
     WRITE_BARRIER(*object_storage, offset, *field_value);
@@ -2658,7 +2655,7 @@ void TranslatedState::InitializeObjectWithTaggedFieldsAt(
     } else {
       CHECK(marker == kStoreTagged || i == 1);
       field_value = slot->GetValue();
-      DCHECK_IMPLIES(!IsAnyHole(*field_value) && IsHeapNumber(*field_value),
+      DCHECK_IMPLIES(IsHeapNumber(*field_value),
                      !IsSmiDouble(Object::NumberValue(*field_value)));
     }
     WRITE_FIELD(*object_storage, offset, *field_value);

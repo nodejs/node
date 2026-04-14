@@ -12,6 +12,7 @@
 #include "src/base/platform/semaphore.h"
 #include "src/execution/local-isolate.h"
 #include "src/heap/local-heap.h"
+#include "src/sandbox/sandboxable-thread.h"
 
 namespace v8 {
 namespace internal {
@@ -194,9 +195,9 @@ class V8_NODISCARD ParkingSemaphore final : public base::Semaphore {
   using base::Semaphore::WaitFor;
 };
 
-class ParkingThread : public v8::base::Thread {
+class ParkingThread : public SandboxableThread {
  public:
-  explicit ParkingThread(const Options& options) : v8::base::Thread(options) {}
+  explicit ParkingThread(const Options& options) : SandboxableThread(options) {}
 
   V8_INLINE void ParkedJoin(LocalIsolate* local_isolate);
   V8_INLINE void ParkedJoin(LocalHeap* local_heap);

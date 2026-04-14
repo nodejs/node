@@ -745,7 +745,8 @@ static unsigned TsanFlags(Mutex::MuHow how) {
 Mutex::~Mutex() { Dtor(); }
 #endif
 
-#if !defined(NDEBUG) || defined(ABSL_HAVE_THREAD_SANITIZER)
+#if !defined(NDEBUG) || defined(ABSL_HAVE_THREAD_SANITIZER) || \
+    defined(ABSL_BUILD_DLL)
 void Mutex::Dtor() {
   if (kDebugMode) {
     this->ForgetDeadlockInfo();

@@ -33,7 +33,6 @@ class V8_EXPORT Extension {
   }
 
   const char* name() const { return name_; }
-  size_t source_length() const { return source_length_; }
   const String::ExternalOneByteStringResource* source() const {
     return source_;
   }
@@ -48,7 +47,6 @@ class V8_EXPORT Extension {
 
  private:
   const char* name_;
-  size_t source_length_;  // expected to initialize before source_
   String::ExternalOneByteStringResource* source_;
   int dep_count_;
   const char** deps_;

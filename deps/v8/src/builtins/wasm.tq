@@ -29,7 +29,8 @@ extern runtime TrapHandlerThrowWasmError(Context): never;
 extern runtime WasmThrowTypeError(Context, Smi, JSAny): never;
 extern runtime WasmThrowDataViewTypeError(Context, Smi, JSAny): never;
 extern runtime WasmThrowDataViewDetachedError(Context, Smi): never;
-extern runtime WasmThrow(Context, Object, FixedArray): JSAny;
+extern runtime WasmThrow(Context, Object, FixedArray, WasmTrustedInstanceData):
+    JSAny;
 extern runtime WasmReThrow(Context, Object): JSAny;
 extern runtime WasmTriggerTierUp(Context, WasmTrustedInstanceData): JSAny;
 extern runtime WasmStackGuard(Context, Smi): JSAny;
@@ -116,8 +117,7 @@ const kAnyType: constexpr int31
     generates 'wasm::kWasmAnyRef.raw_bit_field()';
 const kSharedAnyType: constexpr int31
     generates 'wasm::kWasmSharedAnyRef.raw_bit_field()';
-const kMaxPolymorphism:
-    constexpr int31 generates 'wasm::kMaxPolymorphism';
+const kMaxPolymorphism: constexpr int31 generates 'wasm::kMaxPolymorphism';
 const kFixedFrameSizeAboveFp: constexpr int32
     generates 'CommonFrameConstants::kFixedFrameSizeAboveFp';
 const kDoubleAligned: constexpr int31 generates 'kDoubleAligned';
@@ -208,10 +208,36 @@ builtin WasmTaggedNonSmiToInt32(implicit context: Context)(
 }
 
 builtin WasmTaggedToFloat64(implicit context: Context)(val: JSAny): float64 {
+  // TODO(nicohartmann,385155404): When passing a NaN to Wasm, every single
+  // bit can be observable when the float64 is reinterpret casted to an
+  // integral type. Hence, differences in NaN bit patterns are detected by
+  // differential fuzzing, in particular the difference between the shipped
+  // NaN pattern produced from undefined and the new pattern used for the
+  // undefined double experiment. In order to silence these false positives,
+  // we temporarily fall back to the old pattern. This should be removed
+  // when the feature is shipped.
+  @if(V8_ENABLE_UNDEFINED_DOUBLE) {
+    if (val == Undefined) {
+      return kCppQuietNaN64;
+    }
+  }
   return ChangeTaggedToFloat64(val);
 }
 
 builtin WasmTaggedToFloat32(implicit context: Context)(val: JSAny): float32 {
+  // TODO(nicohartmann,385155404): When passing a NaN to Wasm, every single
+  // bit can be observable when the float32 is reinterpret casted to an
+  // integral type. Hence, differences in NaN bit patterns are detected by
+  // differential fuzzing, in particular the difference between the shipped
+  // NaN pattern produced from undefined and the new pattern used for the
+  // undefined double experiment. In order to silence these false positives,
+  // we temporarily fall back to the old pattern. This should be removed
+  // when the feature is shipped.
+  @if(V8_ENABLE_UNDEFINED_DOUBLE) {
+    if (val == Undefined) {
+      return kCppQuietNaN32;
+    }
+  }
   return TruncateFloat64ToFloat32(ChangeTaggedToFloat64(val));
 }
 
@@ -449,8 +475,10 @@ builtin WasmLiftoffDeoptFinish(): Undefined {
   tail runtime::WasmLiftoffDeoptFinish(kNoContext, trustedData);
 }
 
-builtin WasmThrow(tag: Object, values: FixedArray): JSAny {
-  tail runtime::WasmThrow(LoadContextFromFrame(), tag, values);
+builtin WasmThrow(
+    tag: Object, values: FixedArray,
+    instanceData: WasmTrustedInstanceData): JSAny {
+  tail runtime::WasmThrow(LoadContextFromFrame(), tag, values, instanceData);
 }
 
 builtin WasmRethrow(exception: Object): JSAny {
@@ -1251,7 +1279,7 @@ builtin ThrowDataViewTypeError(value: JSAny): JSAny {
 
 builtin ThrowDataViewDetachedError(): JSAny {
   const context = LoadContextFromFrame();
-  const error = MessageTemplate::kDetachedOperation;
+  const error = MessageTemplate::kTypedArrayValidateErrorOperation;
   runtime::WasmThrowDataViewDetachedError(context, SmiConstant(error));
 }
 

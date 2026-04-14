@@ -1591,6 +1591,7 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
     bool configurable = false;
 
     bool isAccessorProperty = false;
+    bool isSideEffectFreeGetter = false;
     v8::TryCatch tryCatchAttributes(isolate);
     if (!iterator->attributes().To(&attributes)) {
       exceptionMirror =
@@ -1607,6 +1608,7 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
         enumerable = !(attributes & v8::PropertyAttribute::DontEnum);
         configurable = !(attributes & v8::PropertyAttribute::DontDelete);
         isAccessorProperty = getterMirror || setterMirror;
+        isSideEffectFreeGetter = true;
       } else {
         v8::TryCatch tryCatchDescriptor(isolate);
         v8::debug::PropertyDescriptor descriptor;
@@ -1637,6 +1639,7 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
                   v8::UnboundScript::kNoScriptId &&
               !doesAttributeHaveObservableSideEffectOnGet(context, object,
                                                           v8Name)) {
+            isSideEffectFreeGetter = true;
             v8::TryCatch tryCatchFunction(isolate);
             v8::Local<v8::Value> value;
             if (object->Get(context, v8Name).ToLocal(&value)) {
@@ -1654,6 +1657,15 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
       }
     }
     if (accessorPropertiesOnly && !isAccessorProperty) continue;
+    if (accessorPropertiesOnly && isAccessorProperty && !isOwn &&
+        isSideEffectFreeGetter) {
+      v8::Local<v8::Value> currentValue;
+      if (object->Get(context, v8Name).ToLocal(&currentValue)) {
+        if (!currentValue->ToBoolean(isolate)->Value()) {
+          continue;
+        }
+      }
+    }
     auto mirror = PropertyMirror{name,
                                  writable,
                                  configurable,

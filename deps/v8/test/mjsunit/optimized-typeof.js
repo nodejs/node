@@ -54,3 +54,58 @@ typeofMinifiedDirectly();
 typeofMinifiedDirectly();
 %OptimizeFunctionOnNextCall(typeofMinifiedDirectly);
 typeofMinifiedDirectly();
+
+function typeofMinifiedNotUndefinedDirectly() {
+  return typeof{}<'u';
+};
+%PrepareFunctionForOptimization(typeofMinifiedNotUndefinedDirectly);
+typeofMinifiedNotUndefinedDirectly();
+typeofMinifiedNotUndefinedDirectly();
+%OptimizeFunctionOnNextCall(typeofMinifiedNotUndefinedDirectly);
+typeofMinifiedNotUndefinedDirectly();
+
+// Test typeof on right side: 'u' < typeof(x) is equivalent to typeof(x) > 'u'
+function typeofMinifiedReversed() {
+  return 'u'<typeof{};
+};
+%PrepareFunctionForOptimization(typeofMinifiedReversed);
+typeofMinifiedReversed();
+typeofMinifiedReversed();
+%OptimizeFunctionOnNextCall(typeofMinifiedReversed);
+typeofMinifiedReversed();
+
+// Test typeof in if statement (test context) - should use InvertControlFlow
+function typeofInIfStatement(x) {
+  if (typeof x < 'u') return 1;
+  return 0;
+};
+%PrepareFunctionForOptimization(typeofInIfStatement);
+assertEquals(1, typeofInIfStatement("string"));
+assertEquals(0, typeofInIfStatement(undefined));
+%OptimizeFunctionOnNextCall(typeofInIfStatement);
+assertEquals(1, typeofInIfStatement("string"));
+assertEquals(0, typeofInIfStatement(undefined));
+
+// Test typeof > 'u' in if statement
+function typeofGreaterInIfStatement(x) {
+  if (typeof x > 'u') return 1;
+  return 0;
+};
+%PrepareFunctionForOptimization(typeofGreaterInIfStatement);
+assertEquals(0, typeofGreaterInIfStatement("string"));
+assertEquals(1, typeofGreaterInIfStatement(undefined));
+%OptimizeFunctionOnNextCall(typeofGreaterInIfStatement);
+assertEquals(0, typeofGreaterInIfStatement("string"));
+assertEquals(1, typeofGreaterInIfStatement(undefined));
+
+// Test 'u' > typeof(x) in if statement (equivalent to typeof(x) < 'u')
+function typeofReversedInIfStatement(x) {
+  if ('u' > typeof x) return 1;
+  return 0;
+};
+%PrepareFunctionForOptimization(typeofReversedInIfStatement);
+assertEquals(1, typeofReversedInIfStatement("string"));
+assertEquals(0, typeofReversedInIfStatement(undefined));
+%OptimizeFunctionOnNextCall(typeofReversedInIfStatement);
+assertEquals(1, typeofReversedInIfStatement("string"));
+assertEquals(0, typeofReversedInIfStatement(undefined));
