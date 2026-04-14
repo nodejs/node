@@ -11,26 +11,36 @@ import unittest
 from pathlib import Path
 
 from gyp.generator import ninja
+from gyp.MSVSVersion import SelectVisualStudioVersion
+
+
+def _has_visual_studio():
+    """Check if Visual Studio can be detected by gyp's registry-based detection."""
+    if not sys.platform.startswith("win"):
+        return False
+    try:
+        SelectVisualStudioVersion("auto", allow_fallback=False)
+        return True
+    except ValueError:
+        return False
 
 
 class TestPrefixesAndSuffixes(unittest.TestCase):
+    @unittest.skipUnless(
+        _has_visual_studio(),
+        "requires Windows with a Visual Studio installation detected via the registry",
+    )
     def test_BinaryNamesWindows(self):
-        # These cannot run on non-Windows as they require a VS installation to
-        # correctly handle variable expansion.
-        if sys.platform.startswith("win"):
-            writer = ninja.NinjaWriter(
-                "foo", "wee", ".", ".", "build.ninja", ".", "build.ninja", "win"
-            )
-            spec = {"target_name": "wee"}
-            self.assertTrue(
-                writer.ComputeOutputFileName(spec, "executable").endswith(".exe")
-            )
-            self.assertTrue(
-                writer.ComputeOutputFileName(spec, "shared_library").endswith(".dll")
-            )
-            self.assertTrue(
-                writer.ComputeOutputFileName(spec, "static_library").endswith(".lib")
-            )
+        writer = ninja.NinjaWriter(
+            "foo", "wee", ".", ".", "build.ninja", ".", "build.ninja", "win"
+        )
+        spec = {"target_name": "wee"}
+        for key, ext in {
+            "executable": ".exe",
+            "shared_library": ".dll",
+            "static_library": ".lib",
+        }:
+            self.assertTrue(writer.ComputeOutputFileName(spec, key).endswith(ext))
 
     def test_BinaryNamesLinux(self):
         writer = ninja.NinjaWriter(
