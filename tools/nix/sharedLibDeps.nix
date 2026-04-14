@@ -48,7 +48,7 @@
   inherit (pkgs) sqlite;
 })
 // (pkgs.lib.optionalAttrs withFFI {
-  ffi = pkgs.libffi;
+  ffi = pkgs.libffiReal;
 })
 // (pkgs.lib.optionalAttrs withSSL (
   let
