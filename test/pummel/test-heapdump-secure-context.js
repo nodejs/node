@@ -6,7 +6,7 @@ const common = require('../common');
 if (!common.hasCrypto) common.skip('missing crypto');
 
 const fixtures = require('../common/fixtures');
-const assert = require('assert');
+
 const {
   createJSHeapSnapshot,
   validateByRetainingPathFromNodes,
