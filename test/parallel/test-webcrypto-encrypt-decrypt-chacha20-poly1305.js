@@ -81,6 +81,21 @@ async function testEncryptWrongAlg({ keyBuffer, algorithm, plaintext }, alg) {
   });
 }
 
+async function testDecryptWrongAlg({ keyBuffer, algorithm, result }, alg) {
+  if (result === undefined) return;
+  assert.notStrictEqual(algorithm.name, alg);
+  const key = await subtle.importKey(
+    'raw-secret',
+    keyBuffer,
+    { name: alg },
+    false,
+    ['decrypt']);
+
+  return assert.rejects(subtle.decrypt(algorithm, key, result), {
+    message: /Key algorithm mismatch/
+  });
+}
+
 async function testDecrypt({ keyBuffer, algorithm, result }) {
   const key = await subtle.importKey(
     'raw-secret',
@@ -107,6 +122,7 @@ async function testDecrypt({ keyBuffer, algorithm, result }) {
       variations.push(testEncryptNoEncrypt(vector));
       variations.push(testEncryptNoDecrypt(vector));
       variations.push(testEncryptWrongAlg(vector, 'AES-GCM'));
+      variations.push(testDecryptWrongAlg(vector, 'AES-GCM'));
     });
 
     failing.forEach((vector) => {
