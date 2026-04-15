@@ -4,6 +4,9 @@
     'v8_trace_maps%': 0,
     'v8_enable_pointer_compression%': 0,
     'v8_enable_31bit_smis_on_64bit_arch%': 0,
+    # Matches V8 default (BUILD.gn); must be declared here for GYP conditions
+    # that gate V8_HEAP_PROFILER_SAMPLE_LABELS below.
+    'v8_enable_continuation_preserved_embedder_data%': 1,
     'force_dynamic_crt%': 0,
     'node_builtin_modules_path%': '',
     'node_core_target_name%': 'node',
@@ -937,6 +940,12 @@
       'msvs_disabled_warnings!': [4244],
 
       'conditions': [
+        [ 'v8_enable_continuation_preserved_embedder_data==1', {
+          'defines': [
+            # Enable heap profiler sample labels when CPED is available.
+            'V8_HEAP_PROFILER_SAMPLE_LABELS',
+          ],
+        }],
         [ 'openssl_default_cipher_list!=""', {
           'defines': [
             'NODE_OPENSSL_DEFAULT_CIPHER_LIST="<(openssl_default_cipher_list)"'
@@ -1322,6 +1331,11 @@
       'sources': [ '<@(node_cctest_sources)' ],
 
       'conditions': [
+        [ 'v8_enable_continuation_preserved_embedder_data==1', {
+          'defines': [
+            'V8_HEAP_PROFILER_SAMPLE_LABELS',
+          ],
+        }],
         [ 'node_shared_gtest=="false"', {
           'dependencies': [
             'deps/googletest/googletest.gyp:gtest',

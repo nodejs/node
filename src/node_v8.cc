@@ -27,11 +27,16 @@
 #include "node.h"
 #include "node_external_reference.h"
 #include "util-inl.h"
+#include "v8-container.h"
 #include "v8-profiler.h"
 #include "v8.h"
 
 namespace node {
 namespace v8_utils {
+
+// V8's default sampling interval for the sampling heap profiler (512 KB).
+static constexpr uint64_t kDefaultSamplingInterval = 512 * 1024;
+using v8::AllocationProfile;
 using v8::Array;
 using v8::BigInt;
 using v8::CFunction;
@@ -44,12 +49,14 @@ using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::HeapCodeStatistics;
+using v8::HeapProfiler;
 using v8::HeapSpaceStatistics;
 using v8::HeapStatistics;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::LocalVector;
+using v8::Map;
 using v8::MaybeLocal;
 using v8::Number;
 using v8::Object;
@@ -58,6 +65,63 @@ using v8::String;
 using v8::Uint32;
 using v8::V8;
 using v8::Value;
+
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+// V8 callback invoked at profile-read time (BuildSamples) for each sample
+// that has a stored CPED. Receives the CPED (AsyncContextFrame = JS Map),
+// looks up the heap profile labels ALS store value, and converts the
+// pre-flattened [key1, val1, key2, val2, ...] array to string pairs.
+//
+// GC safety: this callback is invoked from GetAllocationProfile() BEFORE
+// BuildSamples() iteration, in a context where GC is allowed. The caller
+// iterates a snapshot of ALS values (not the live samples_ map), so
+// GC-triggered weak callbacks that erase from samples_ cannot cause
+// iterator invalidation. Array::Get() may allocate on the V8 heap — that
+// is safe in this pre-resolution phase.
+//
+// The |context| parameter is the ALS value (flat [key1, val1, key2, val2, ...]
+// array) extracted by V8 at allocation time via OrderedHashMap::FindEntry.
+// If no ALS value was found for a sample, context will be empty or undefined.
+static bool HeapProfileLabelsCallback(
+    void* data, v8::Local<v8::Value> context,
+    std::vector<std::pair<std::string, std::string>>* out_labels) {
+  auto* binding_data = static_cast<BindingData*>(data);
+  if (!binding_data) return false;
+
+  // context is the ALS value (flat label array) — no Map lookup needed.
+  if (context.IsEmpty() || !context->IsArray()) return false;
+
+  Isolate* isolate = binding_data->env()->isolate();
+  HandleScope handle_scope(isolate);
+  Local<v8::Context> v8_context = isolate->GetCurrentContext();
+
+  // Convert flat [key1, val1, key2, val2, ...] array to string pairs.
+  Local<Array> flat = context.As<Array>();
+  uint32_t len = flat->Length();
+  std::vector<std::pair<std::string, std::string>> result;
+  for (uint32_t j = 0; j + 1 < len; j += 2) {
+    Local<Value> k, v;
+    if (!flat->Get(v8_context, j).ToLocal(&k)) return false;
+    if (!flat->Get(v8_context, j + 1).ToLocal(&v)) return false;
+    String::Utf8Value key_str(isolate, k);
+    String::Utf8Value val_str(isolate, v);
+    if (*key_str == nullptr || *val_str == nullptr) continue;
+    result.emplace_back(*key_str, *val_str);
+  }
+
+  *out_labels = std::move(result);
+  return !out_labels->empty();
+}
+
+// C++ binding: store the AsyncLocalStorage instance used for heap profile
+// labels. V8 uses this key at allocation time to extract the ALS value from
+// the CPED (AsyncContextFrame) via OrderedHashMap::FindEntry.
+void SetHeapProfileLabelsStore(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  BindingData* binding_data = Realm::GetBindingData<BindingData>(args);
+  binding_data->heap_profile_labels_als_key.Reset(isolate, args[0]);
+}
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
 
 #define HEAP_STATISTICS_PROPERTIES(V)                                          \
   V(0, total_heap_size, kTotalHeapSizeIndex)                                   \
@@ -103,6 +167,9 @@ static const size_t kHeapCodeStatisticsPropertiesCount =
     HEAP_CODE_STATISTICS_PROPERTIES(V);
 #undef V
 
+// Forward declaration for the env cleanup hook (used by ~BindingData).
+static void CleanupHeapProfiling(void* data);
+
 BindingData::BindingData(Realm* realm,
                          Local<Object> obj,
                          InternalFieldInfo* info)
@@ -142,6 +209,25 @@ BindingData::BindingData(Realm* realm,
   heap_statistics_buffer.MakeWeak();
   heap_space_statistics_buffer.MakeWeak();
   heap_code_statistics_buffer.MakeWeak();
+}
+
+BindingData::~BindingData() {
+  // BindingData is destroyed during Realm::RunCleanup() (via
+  // binding_data_store_.reset()), which runs BEFORE the environment cleanup
+  // queue is drained.  At this point the Isolate and Environment are
+  // guaranteed to still be alive (Realm::RunCleanup runs inside
+  // Environment::RunCleanup, before the Environment is deleted and long
+  // before the Isolate is disposed).
+  //
+  // If profiling was active, DoCleanup() stops the sampler, clears V8's
+  // callback pointer into this (about-to-be-destroyed) BindingData, and
+  // disables the allocator tracker — preventing use-after-free.
+  if (heap_profiling_cleanup_ != nullptr) {
+    heap_profiling_cleanup_->DoCleanup();
+    env()->RemoveCleanupHook(CleanupHeapProfiling, heap_profiling_cleanup_);
+    delete heap_profiling_cleanup_;
+    heap_profiling_cleanup_ = nullptr;
+  }
 }
 
 bool BindingData::PrepareForSerialization(Local<Context> context,
@@ -186,6 +272,9 @@ void BindingData::MemoryInfo(MemoryTracker* tracker) const {
                       heap_space_statistics_buffer);
   tracker->TrackField("heap_code_statistics_buffer",
                       heap_code_statistics_buffer);
+  tracker->TrackFieldWithSize("heap_profile_labels_als_key",
+                              heap_profile_labels_als_key.IsEmpty() ? 0 :
+                                  sizeof(v8::Global<v8::Value>));
 }
 
 void CachedDataVersionTag(const FunctionCallbackInfo<Value>& args) {
@@ -673,6 +762,180 @@ void GCProfiler::Stop(const FunctionCallbackInfo<v8::Value>& args) {
   }
 }
 
+// Data captured when heap profiling starts, used by the cleanup hook to
+// safely tear down profiler state if the Environment is destroyed while
+// profiling is still active (e.g. worker thread termination).
+//
+// Raw pointers are safe here because Environment cleanup hooks are
+// guaranteed to run before the Isolate is disposed: FreeEnvironment()
+// calls env->RunCleanup() (which drains the cleanup queue) while still
+// inside Isolate::Scope, and the ArrayBufferAllocator that owns
+// ProfilingArrayBufferAllocator outlives the Isolate.
+//
+// We intentionally do NOT store a BindingData* here — Realm::RunCleanup()
+// destroys BindingData (via binding_data_store_.reset()) before the
+// environment cleanup queue is drained, so any BindingData* would be
+// dangling by the time this hook fires.
+struct HeapProfilingCleanup {
+  Isolate* isolate;
+  bool cleaned_up = false;
+
+  // Idempotent: stops the sampling profiler and clears the labels callback.
+  // Safe to call multiple times — only the first call has effect.
+  void DoCleanup() {
+    if (cleaned_up) return;
+    cleaned_up = true;
+
+    HeapProfiler* profiler = isolate->GetHeapProfiler();
+    profiler->StopSamplingHeapProfiler();
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+    profiler->SetHeapProfileSampleLabelsCallback(nullptr, nullptr);
+    profiler->SetHeapProfileSampleLabelsKey(Local<Value>());
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
+    isolate = nullptr;
+  }
+};
+
+static void CleanupHeapProfiling(void* data) {
+  auto* ctx = static_cast<HeapProfilingCleanup*>(data);
+  ctx->DoCleanup();
+  delete ctx;
+}
+
+void StartSamplingHeapProfiler(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  HeapProfiler* profiler = isolate->GetHeapProfiler();
+  BindingData* binding_data = Realm::GetBindingData<BindingData>(args);
+  uint64_t interval = kDefaultSamplingInterval;
+  if (args.Length() > 0 && args[0]->IsNumber()) {
+    interval = static_cast<uint64_t>(args[0].As<Number>()->Value());
+  }
+  int stack_depth = 16;  // Default stack depth
+  if (args.Length() > 1 && args[1]->IsNumber()) {
+    stack_depth = static_cast<int>(args[1].As<Number>()->Value());
+  }
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+  profiler->SetHeapProfileSampleLabelsCallback(
+      HeapProfileLabelsCallback, binding_data);
+  if (!binding_data->heap_profile_labels_als_key.IsEmpty()) {
+    profiler->SetHeapProfileSampleLabelsKey(
+        binding_data->heap_profile_labels_als_key.Get(isolate));
+  }
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
+  // By default, GC'd samples are removed from the profile (live-memory mode).
+  // When includeCollectedObjects is true, retain GC'd samples so allocation
+  // attribution reflects total allocations (allocation-rate mode).
+  v8::HeapProfiler::SamplingFlags flags =
+      static_cast<v8::HeapProfiler::SamplingFlags>(
+          v8::HeapProfiler::kSamplingNoFlags);
+  if (args.Length() > 2 && args[2]->IsObject()) {
+    Local<Object> options = args[2].As<Object>();
+    Local<String> key = String::NewFromUtf8Literal(isolate,
+                                                    "includeCollectedObjects");
+    Local<Value> val;
+    if (options->Get(context, key).ToLocal(&val) && val->IsTrue()) {
+      flags = static_cast<v8::HeapProfiler::SamplingFlags>(
+          v8::HeapProfiler::kSamplingIncludeObjectsCollectedByMajorGC |
+          v8::HeapProfiler::kSamplingIncludeObjectsCollectedByMinorGC);
+    }
+  }
+  profiler->StartSamplingHeapProfiler(interval, stack_depth, flags);
+
+  // Register a cleanup hook so that if the Environment is torn down while
+  // profiling is active (e.g. a worker thread is terminated), V8's callback
+  // pointer into the now-destroyed BindingData is cleared.  Remove any prior
+  // hook first (handles repeated Start calls without an intervening Stop).
+  Environment* env = Environment::GetCurrent(args);
+  if (binding_data->heap_profiling_cleanup_ != nullptr) {
+    binding_data->heap_profiling_cleanup_->DoCleanup();
+    env->RemoveCleanupHook(
+        CleanupHeapProfiling, binding_data->heap_profiling_cleanup_);
+    delete binding_data->heap_profiling_cleanup_;
+  }
+  auto* cleanup = new HeapProfilingCleanup{isolate};
+  env->AddCleanupHook(CleanupHeapProfiling, cleanup);
+  binding_data->heap_profiling_cleanup_ = cleanup;
+}
+
+void StopSamplingHeapProfiler(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  BindingData* binding_data = Realm::GetBindingData<BindingData>(args);
+
+  if (binding_data->heap_profiling_cleanup_ != nullptr) {
+    binding_data->heap_profiling_cleanup_->DoCleanup();
+    env->RemoveCleanupHook(
+        CleanupHeapProfiling, binding_data->heap_profiling_cleanup_);
+    delete binding_data->heap_profiling_cleanup_;
+    binding_data->heap_profiling_cleanup_ = nullptr;
+  }
+}
+
+void GetAllocationProfile(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  HeapProfiler* profiler = isolate->GetHeapProfiler();
+  HandleScope scope(isolate);
+  Local<Context> context = isolate->GetCurrentContext();
+
+  std::unique_ptr<AllocationProfile> profile(profiler->GetAllocationProfile());
+  if (!profile) {
+    return;  // Returns undefined if profiler not started
+  }
+
+  const std::vector<AllocationProfile::Sample>& samples = profile->GetSamples();
+  Local<Array> js_samples = Array::New(isolate, samples.size());
+
+  for (size_t i = 0; i < samples.size(); i++) {
+    const AllocationProfile::Sample& sample = samples[i];
+    Local<Object> js_sample = Object::New(isolate);
+
+    if (js_sample->Set(context,
+                       FIXED_ONE_BYTE_STRING(isolate, "nodeId"),
+                       Integer::NewFromUnsigned(isolate, sample.node_id))
+            .IsNothing()) return;
+    if (js_sample->Set(context,
+                       FIXED_ONE_BYTE_STRING(isolate, "size"),
+                       Number::New(isolate, static_cast<double>(sample.size)))
+            .IsNothing()) return;
+    if (js_sample->Set(context,
+                       FIXED_ONE_BYTE_STRING(isolate, "count"),
+                       Integer::NewFromUnsigned(isolate, sample.count))
+            .IsNothing()) return;
+    if (js_sample->Set(context,
+                       FIXED_ONE_BYTE_STRING(isolate, "sampleId"),
+                       Number::New(isolate, static_cast<double>(sample.sample_id)))
+            .IsNothing()) return;
+
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+    // Always emit labels field (empty {} when no labels captured)
+    Local<Object> js_labels = Object::New(isolate);
+    for (const auto& label : sample.labels) {
+      Local<String> key;
+      if (!String::NewFromUtf8(isolate, label.first.c_str(),
+                               v8::NewStringType::kNormal)
+               .ToLocal(&key)) return;
+      Local<String> value;
+      if (!String::NewFromUtf8(isolate, label.second.c_str(),
+                               v8::NewStringType::kNormal)
+               .ToLocal(&value)) return;
+      if (js_labels->Set(context, key, value).IsNothing()) return;
+    }
+    if (js_sample->Set(context,
+                       FIXED_ONE_BYTE_STRING(isolate, "labels"),
+                       js_labels).IsNothing()) return;
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
+
+    if (js_samples->Set(context, i, js_sample).IsNothing()) return;
+  }
+
+  Local<Object> result = Object::New(isolate);
+  if (result->Set(context,
+                  FIXED_ONE_BYTE_STRING(isolate, "samples"),
+                  js_samples).IsNothing()) return;
+
+  args.GetReturnValue().Set(result);
+}
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -741,6 +1004,18 @@ void Initialize(Local<Object> target,
   SetMethod(context, target, "startCpuProfile", StartCpuProfile);
   SetMethod(context, target, "stopCpuProfile", StopCpuProfile);
 
+  // Sampling heap profiler with context support
+  SetMethod(context, target, "startSamplingHeapProfiler",
+            StartSamplingHeapProfiler);
+  SetMethod(context, target, "stopSamplingHeapProfiler",
+            StopSamplingHeapProfiler);
+  SetMethod(context, target, "getAllocationProfile",
+            GetAllocationProfile);
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+  SetMethod(context, target, "setHeapProfileLabelsStore",
+            SetHeapProfileLabelsStore);
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
+
   // Export symbols used by v8.isStringOneByteRepresentation()
   SetFastMethodNoSideEffect(context,
                             target,
@@ -787,6 +1062,12 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(fast_is_string_one_byte_representation_);
   registry->Register(StartCpuProfile);
   registry->Register(StopCpuProfile);
+  registry->Register(StartSamplingHeapProfiler);
+  registry->Register(StopSamplingHeapProfiler);
+  registry->Register(GetAllocationProfile);
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+  registry->Register(SetHeapProfileLabelsStore);
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
 }
 
 }  // namespace v8_utils

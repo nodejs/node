@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include <sstream>
+#include <string>
 #include "aliased_buffer.h"
 #include "base_object.h"
 #include "json_utils.h"
@@ -17,6 +18,9 @@ class Environment;
 struct InternalFieldInfoBase;
 
 namespace v8_utils {
+
+struct HeapProfilingCleanup;
+
 class BindingData : public SnapshotableObject {
  public:
   struct InternalFieldInfo : public node::InternalFieldInfoBase {
@@ -27,6 +31,7 @@ class BindingData : public SnapshotableObject {
   BindingData(Realm* realm,
               v8::Local<v8::Object> obj,
               InternalFieldInfo* info = nullptr);
+  ~BindingData() override;
 
   SERIALIZABLE_OBJECT_METHODS()
   SET_BINDING_ID(v8_binding_data)
@@ -34,6 +39,36 @@ class BindingData : public SnapshotableObject {
   AliasedFloat64Array heap_statistics_buffer;
   AliasedFloat64Array heap_space_statistics_buffer;
   AliasedFloat64Array heap_code_statistics_buffer;
+
+  // Reference to the JS AsyncLocalStorage instance used by
+  // withHeapProfileLabels/setHeapProfileLabels. The V8 callback uses this
+  // as the key to look up label values in the stored CPED (AsyncContextFrame
+  // Map) at profile-read time.
+  v8::Global<v8::Value> heap_profile_labels_als_key;
+
+  // Typed pointer to HeapProfilingCleanup state registered with
+  // AddCleanupHook when profiling is active.
+  //
+  // Lifetime contract — three paths may trigger cleanup, all on the
+  // main thread:
+  //
+  //  1. StopSamplingHeapProfiler (explicit user call):
+  //     Calls DoCleanup(), removes the env cleanup hook, deletes
+  //     the struct, and nulls this pointer.
+  //
+  //  2. ~BindingData (Realm teardown — runs BEFORE env cleanup hooks):
+  //     Calls DoCleanup(), removes the env cleanup hook, deletes
+  //     the struct, and nulls this pointer.
+  //
+  //  3. CleanupHeapProfiling (env cleanup hook):
+  //     Fires only if neither (1) nor (2) removed the hook first.
+  //     Calls DoCleanup() and deletes the struct.
+  //
+  // DoCleanup() is idempotent (guarded by cleaned_up flag), so
+  // multiple paths calling it is safe.  The first path that runs
+  // removes the hook and deletes the struct; subsequent paths see
+  // nullptr and skip.
+  HeapProfilingCleanup* heap_profiling_cleanup_ = nullptr;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_SELF_SIZE(BindingData)
