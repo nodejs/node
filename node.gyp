@@ -1010,17 +1010,6 @@
               'dependencies': [
                 'deps/libffi/libffi.gyp:libffi',
               ],
-              'conditions': [
-                [ 'OS=="win"', {
-                  'include_dirs': [
-                    '<(PRODUCT_DIR)/obj/libffi',
-                  ],
-                }, {
-                  'include_dirs': [
-                    '<(PRODUCT_DIR)/obj.target/libffi/geni',
-                  ],
-                }],
-              ],
             }],
           ],
         }],
@@ -1087,17 +1076,6 @@
             [ 'node_shared_ffi=="false"', {
               'dependencies': [
                 'deps/libffi/libffi.gyp:libffi',
-              ],
-              'conditions': [
-                [ 'OS=="win"', {
-                  'include_dirs': [
-                    '<(PRODUCT_DIR)/obj/libffi',
-                  ],
-                }, {
-                  'include_dirs': [
-                    '<(PRODUCT_DIR)/obj.target/libffi/geni',
-                  ],
-                }],
               ],
             }],
           ],
