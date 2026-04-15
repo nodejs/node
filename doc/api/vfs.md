@@ -72,6 +72,18 @@ fs.readFileSync('/etc/hostname', 'utf8'); // Real file content
 
 See [Security considerations][] for important warnings about overlay mode.
 
+## Debugging
+
+Set `NODE_DEBUG=vfs` to log VFS mount, routing, and module-loading decisions to
+`stderr`.
+
+```console
+$ NODE_DEBUG=vfs node app.js
+VFS 12345: mount /virtual overlay=false moduleHooks=true virtualCwd=false
+VFS 12345: register mount=/virtual overlay=false active=1
+VFS 12345: read /virtual/app/config.json -> hit (mount=/virtual overlay=false)
+```
+
 ## Basic usage
 
 The following example shows how to create a virtual file system, add files,
