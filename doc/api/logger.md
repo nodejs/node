@@ -306,6 +306,8 @@ logger.fatal(new Error('Unrecoverable error'));
 added: REPLACEME
 -->
 
+> Stability: 1.1 - Active Development
+
 * `bindings` {Object} Additional context fields for the child logger.
 * `options` {Object}
   * `level` {string} Log level for the child logger.
@@ -382,6 +384,18 @@ added: REPLACEME
 
 The `LogConsumer` class is the base class for log consumers. Consumers
 subscribe to `diagnostics_channel` events and process log records.
+
+One channel is published per log level. The channel names are:
+
+* `log:trace`
+* `log:debug`
+* `log:info`
+* `log:warn`
+* `log:error`
+* `log:fatal`
+
+Advanced users may subscribe to these channels directly via
+`diagnostics_channel.channel(name)` instead of using a `LogConsumer`.
 
 ### `new LogConsumer([options])`
 
@@ -559,6 +573,11 @@ JSON-serializable will cause an error at log time:
 * `Symbol` values are silently omitted by `JSON.stringify()`.
 * Functions are silently omitted by `JSON.stringify()`.
 * Circular references throw a `TypeError`.
+
+`Error` objects are an exception: the built-in `err` serializer runs by
+default and converts them to plain objects (with `type`, `message`, `stack`,
+and a recursively serialized `cause`) before they reach `JSON.stringify()`,
+so logging errors directly does not trigger the issues above.
 
 To log `BigInt` values, convert them to strings or numbers first:
 
