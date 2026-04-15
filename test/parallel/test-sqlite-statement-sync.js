@@ -1421,5 +1421,44 @@ suite('StatementSync.prototype[Symbol.dispose]()', () => {
     const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
     stmt[Symbol.dispose]();
     db.close();
+  })
+})
+
+suite('options.persistent', () => {
+  test('statement executes correctly when persistent is true', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;');
+    db.exec('INSERT INTO data (key, val) VALUES (1, 42);');
+    using stmt = db.prepare('SELECT val FROM data', { persistent: true });
+    t.assert.deepStrictEqual(stmt.get(), { __proto__: null, val: 42 });
+  });
+
+  test('statement executes correctly when persistent is false', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;');
+    db.exec('INSERT INTO data (key, val) VALUES (1, 42);');
+    using stmt = db.prepare('SELECT val FROM data', { persistent: false });
+    t.assert.deepStrictEqual(stmt.get(), { __proto__: null, val: 42 });
+  });
+
+  test('throws when input is not a boolean', (t) => {
+    using db = new DatabaseSync(':memory:');
+    t.assert.throws(() => {
+      db.prepare('SELECT 1', { persistent: 'yes' });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "options\.persistent" argument must be a boolean/,
+    });
+  });
+
+  test('can be combined with other options', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;');
+    db.exec('INSERT INTO data (key, val) VALUES (1, 42);');
+    using stmt = db.prepare(
+      'SELECT val FROM data',
+      { persistent: true, readBigInts: true }
+    );
+    t.assert.deepStrictEqual(stmt.get(), { __proto__: null, val: 42n });
   });
 });
