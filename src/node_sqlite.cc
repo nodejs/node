@@ -3552,8 +3552,12 @@ BaseObjectPtr<StatementSync> SQLTagStore::PrepareStatement(
 
   if (stmt == nullptr) {
     sqlite3_stmt* s = nullptr;
-    int r = sqlite3_prepare_v2(
-        session->database_->connection_, sql.data(), sql.size(), &s, nullptr);
+    int r = sqlite3_prepare_v3(session->database_->connection_,
+                               sql.data(),
+                               sql.size(),
+                               SQLITE_PREPARE_PERSISTENT,
+                               &s,
+                               nullptr);
 
     if (r != SQLITE_OK) {
       THROW_ERR_SQLITE_ERROR(isolate, session->database_.get());
