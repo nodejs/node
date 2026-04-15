@@ -15,7 +15,9 @@
 #include "node_realm-inl.h"
 #include "node_shadow_realm.h"
 #include "node_snapshot_builder.h"
+#include "node_v8.h"
 #include "node_v8_platform-inl.h"
+#include "v8-profiler.h"
 #include "node_wasm_web_api.h"
 #include "uv.h"
 #ifdef NODE_ENABLE_VTUNE_PROFILING
@@ -117,6 +119,10 @@ void* NodeArrayBufferAllocator::Allocate(size_t size) {
   ret = allocator_->Allocate(size);
   if (ret != nullptr) [[likely]] {
     total_mem_usage_.fetch_add(size, std::memory_order_relaxed);
+    auto* pa = profiling_allocator_.load(std::memory_order_acquire);
+    if (pa != nullptr) [[unlikely]] {
+      pa->TrackAllocate(ret, size);
+    }
   }
   return ret;
 }
@@ -126,13 +132,36 @@ void* NodeArrayBufferAllocator::AllocateUninitialized(size_t size) {
   void* ret = allocator_->AllocateUninitialized(size);
   if (ret != nullptr) [[likely]] {
     total_mem_usage_.fetch_add(size, std::memory_order_relaxed);
+    auto* pa = profiling_allocator_.load(std::memory_order_acquire);
+    if (pa != nullptr) [[unlikely]] {
+      pa->TrackAllocate(ret, size);
+    }
   }
   return ret;
 }
 
 void NodeArrayBufferAllocator::Free(void* data, size_t size) {
+  auto* pa = profiling_allocator_.load(std::memory_order_acquire);
+  if (pa != nullptr) [[unlikely]] {
+    pa->TrackFree(data);
+  }
   total_mem_usage_.fetch_sub(size, std::memory_order_relaxed);
   allocator_->Free(data, size);
+}
+
+ProfilingArrayBufferAllocator*
+NodeArrayBufferAllocator::CreateProfilingAllocator() {
+  if (!owned_profiling_allocator_) {
+    owned_profiling_allocator_ =
+        std::make_unique<ProfilingArrayBufferAllocator>();
+  }
+  auto* pa = owned_profiling_allocator_.get();
+  profiling_allocator_.store(pa, std::memory_order_release);
+  return pa;
+}
+
+void NodeArrayBufferAllocator::ClearProfilingAllocator() {
+  profiling_allocator_.store(nullptr, std::memory_order_release);
 }
 
 DebuggingArrayBufferAllocator::~DebuggingArrayBufferAllocator() {
@@ -191,11 +220,154 @@ void DebuggingArrayBufferAllocator::RegisterPointerInternal(void* data,
   allocations_[data] = size;
 }
 
+void ProfilingArrayBufferAllocator::TrackAllocate(void* data, size_t size) {
+  // GC safety: this runs inside the ArrayBuffer allocator where V8 may
+  // prohibit heap allocation and JS execution (e.g. BackingStore::Allocate
+  // inside the ArrayBuffer constructor).  Extract only the ALS value
+  // from the CPED at allocation time via HeapProfiler::LookupAlsValue(),
+  // which uses OrderedHashMap::FindEntry (zero-allocation, GC-safe).
+  // HandleScope, GetContinuationPreservedEmbedderData, Global::Reset,
+  // and OrderedHashMap::FindEntry use the handle-scope stack / malloc,
+  // not the V8 heap.
+  v8::Isolate* isolate = isolate_.load(std::memory_order_relaxed);
+  if (std::this_thread::get_id() != main_thread_id_ ||
+      isolate == nullptr) {
+    return;
+  }
+  v8::HandleScope handle_scope(isolate);
+  v8::Local<v8::Value> cped =
+      isolate->GetContinuationPreservedEmbedderData();
+  if (!cped.IsEmpty() && cped->IsMap()) {
+    v8::HeapProfiler* profiler = isolate->GetHeapProfiler();
+    v8::Local<v8::Value> als_value;
+    if (profiler->LookupAlsValue(cped).ToLocal(&als_value)) {
+      Mutex::ScopedLock lock(mutex_);
+      auto& entry = allocations_[data];
+      entry.label_value.Reset(isolate, als_value);
+      entry.size = size;
+    }
+  }
+}
+
+void ProfilingArrayBufferAllocator::TrackFree(void* data) {
+  Mutex::ScopedLock lock(mutex_);
+  allocations_.erase(data);
+}
+
+void ProfilingArrayBufferAllocator::Enable(v8::Isolate* isolate) {
+  // Synchronization strategy: isolate_ serves as the "enabled" sentinel.
+  // TrackAllocate() and GetPerLabelBytes() check isolate_ == nullptr without
+  // holding the mutex as an early-exit guard.  We set isolate_ LAST here so
+  // that by the time any reader sees non-null isolate_, main_thread_id_ is
+  // already valid.  The corresponding Disable() sets isolate_ FIRST (to
+  // nullptr) before clearing other fields.  All accesses to isolate_ outside
+  // the mutex happen on the main thread, so relaxed memory ordering
+  // suffices — std::atomic prevents compiler reordering and torn reads.
+  Mutex::ScopedLock lock(mutex_);
+  main_thread_id_ = std::this_thread::get_id();
+  isolate_.store(isolate, std::memory_order_relaxed);
+}
+
+void ProfilingArrayBufferAllocator::Disable() {
+  // Clear isolate_ FIRST — it is the "enabled" sentinel checked by
+  // TrackAllocate() and GetPerLabelBytes() without holding the mutex.
+  // Setting it to nullptr before clearing other state ensures any
+  // re-entrant call (e.g., if allocations_.clear() triggers a Global
+  // destructor → GC → allocation → TrackAllocate on the same thread)
+  // will see null and exit early.
+  isolate_.store(nullptr, std::memory_order_relaxed);
+  Mutex::ScopedLock lock(mutex_);
+  allocations_.clear();
+}
+
+std::vector<ProfilingArrayBufferAllocator::LabeledBytes>
+ProfilingArrayBufferAllocator::GetPerLabelBytes() const {
+  v8::Isolate* isolate = isolate_.load(std::memory_order_relaxed);
+  if (isolate == nullptr) {
+    return {};
+  }
+
+  v8::HandleScope handle_scope(isolate);
+
+  // Snapshot: convert stored Globals to Locals under the lock, then release
+  // the lock before doing V8 API calls that may trigger GC.  If GC fires
+  // weak callbacks that call Free(), they acquire the lock independently
+  // without deadlocking.
+  struct SnapshotEntry {
+    v8::Local<v8::Value> label_value;
+    size_t size;
+  };
+  std::vector<SnapshotEntry> snapshot;
+  {
+    Mutex::ScopedLock lock(mutex_);
+    snapshot.reserve(allocations_.size());
+    for (const auto& [ptr, entry] : allocations_) {
+      if (!entry.label_value.IsEmpty()) {
+        snapshot.push_back({entry.label_value.Get(isolate), entry.size});
+      }
+    }
+  }
+
+  // Resolve labels outside the lock.  Array::Get() and String::Utf8Value
+  // may allocate on the V8 heap — safe here because GetPerLabelBytes is
+  // called from GetAllocationProfile (a JS callback) where GC is allowed.
+  // The stored values are ALS values (flat [key, val, ...] arrays) extracted
+  // at allocation time — no Map lookup needed.
+  v8::Local<v8::Context> v8_context = isolate->GetCurrentContext();
+  std::unordered_map<std::string, LabeledBytes> aggregated;
+  for (const auto& snap : snapshot) {
+    if (!snap.label_value->IsArray()) continue;
+    v8::Local<v8::Array> flat = snap.label_value.As<v8::Array>();
+    uint32_t len = flat->Length();
+    LabelPairs labels;
+    for (uint32_t j = 0; j + 1 < len; j += 2) {
+      v8::Local<v8::Value> k, v;
+      if (!flat->Get(v8_context, j).ToLocal(&k)) continue;
+      if (!flat->Get(v8_context, j + 1).ToLocal(&v)) continue;
+      v8::String::Utf8Value key_str(isolate, k);
+      v8::String::Utf8Value val_str(isolate, v);
+      if (*key_str == nullptr || *val_str == nullptr) continue;
+      labels.emplace_back(*key_str, *val_str);
+    }
+    if (labels.empty()) continue;
+    std::string key = SerializeLabels(labels);
+    auto& agg = aggregated[key];
+    if (agg.labels.empty()) agg.labels = std::move(labels);
+    agg.bytes += static_cast<int64_t>(snap.size);
+  }
+
+  std::vector<LabeledBytes> result;
+  result.reserve(aggregated.size());
+  for (auto& [key, entry] : aggregated) {
+    if (entry.bytes > 0) {
+      result.push_back(std::move(entry));
+    }
+  }
+  return result;
+}
+
+std::string ProfilingArrayBufferAllocator::SerializeLabels(
+    const LabelPairs& labels) {
+  std::string key;
+  for (const auto& [k, v] : labels) {
+    if (!key.empty()) key += '\0';
+    key += k;
+    key += '\0';
+    key += v;
+  }
+  return key;
+}
+
 std::unique_ptr<ArrayBufferAllocator> ArrayBufferAllocator::Create(bool debug) {
   if (debug || per_process::cli_options->debug_arraybuffer_allocations)
     return std::make_unique<DebuggingArrayBufferAllocator>();
-  else
-    return std::make_unique<NodeArrayBufferAllocator>();
+  // Use the plain NodeArrayBufferAllocator by default.  When heap profiling
+  // with labels is started (v8.startSamplingHeapProfiler), a
+  // ProfilingArrayBufferAllocator tracker is created on demand and installed
+  // as a delegate — see NodeArrayBufferAllocator::CreateProfilingAllocator().
+  // This ensures ZERO per-allocation overhead when profiling is not active:
+  // no atomic load, no virtual dispatch change, just a predicted null-branch.
+  return std::make_unique<NodeArrayBufferAllocator>();
 }
 
 ArrayBufferAllocator* CreateArrayBufferAllocator() {

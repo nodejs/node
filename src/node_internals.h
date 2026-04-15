@@ -123,9 +123,11 @@ v8::Maybe<void> InitializePrimordials(v8::Local<v8::Context> context,
 v8::MaybeLocal<v8::Object> InitializePrivateSymbols(
     v8::Local<v8::Context> context, IsolateData* isolate_data);
 
+class ProfilingArrayBufferAllocator;  // Forward declaration.
+
 class NodeArrayBufferAllocator : public ArrayBufferAllocator {
  public:
-  void* Allocate(size_t size) override;  // Defined in src/node.cc
+  void* Allocate(size_t size) override;
   void* AllocateUninitialized(size_t size) override;
   void Free(void* data, size_t size) override;
   virtual void RegisterPointer(void* data, size_t size) {
@@ -136,6 +138,17 @@ class NodeArrayBufferAllocator : public ArrayBufferAllocator {
   }
 
   NodeArrayBufferAllocator* GetImpl() final { return this; }
+  // Returns the profiling tracker if active, nullptr otherwise.
+  ProfilingArrayBufferAllocator* GetProfilingAllocator() {
+    return profiling_allocator_.load(std::memory_order_acquire);
+  }
+  // Lazily create and install a ProfilingArrayBufferAllocator.  Returns the
+  // tracker (reuses existing one if already created).
+  ProfilingArrayBufferAllocator* CreateProfilingAllocator();
+  // Disconnect the profiling allocator so Allocate/Free no longer delegate.
+  // The tracker object stays alive for thread safety and is reused on next
+  // CreateProfilingAllocator() call.
+  void ClearProfilingAllocator();
   inline uint64_t total_mem_usage() const {
     return total_mem_usage_.load(std::memory_order_relaxed);
   }
@@ -146,6 +159,15 @@ class NodeArrayBufferAllocator : public ArrayBufferAllocator {
   // Delegate to V8's allocator for compatibility with the V8 memory cage.
   std::unique_ptr<v8::ArrayBuffer::Allocator> allocator_{
       v8::ArrayBuffer::Allocator::NewDefaultAllocator()};
+
+  // Owned profiling tracker — created lazily on first profiling start.
+  std::unique_ptr<ProfilingArrayBufferAllocator> owned_profiling_allocator_;
+  // Atomic pointer for fast null-check on the allocation hot path.
+  // Points into owned_profiling_allocator_ when profiling is active, nullptr
+  // otherwise.  Uses acquire/release ordering to pair with the release store
+  // in CreateProfilingAllocator/ClearProfilingAllocator — ensures Free()
+  // (called from GC threads) sees the fully constructed object.
+  std::atomic<ProfilingArrayBufferAllocator*> profiling_allocator_{nullptr};
 };
 
 class DebuggingArrayBufferAllocator final : public NodeArrayBufferAllocator {
@@ -162,6 +184,64 @@ class DebuggingArrayBufferAllocator final : public NodeArrayBufferAllocator {
   void UnregisterPointerInternal(void* data, size_t size);
   Mutex mutex_;
   std::unordered_map<void*, size_t> allocations_;
+};
+
+// Tracks per-label external memory (Buffer/ArrayBuffer backing stores) when
+// heap profiling with labels is active.  NOT an allocator itself — installed
+// as a delegate on NodeArrayBufferAllocator via CreateProfilingAllocator().
+// When inactive, there is zero overhead on the allocation path because
+// NodeArrayBufferAllocator skips delegation when the pointer is null.
+//
+// Synchronization model:
+//   isolate_ serves as the "enabled" sentinel.  TrackAllocate() and
+//   GetPerLabelBytes() check isolate_ == nullptr as the first guard,
+//   WITHOUT holding the mutex (they only lock to access allocations_).
+//   Enable() sets isolate_ LAST (after main_thread_id_); Disable()
+//   sets isolate_ FIRST (to nullptr, before clearing other state and
+//   locking).  This ordering ensures any re-entrant call that reads
+//   isolate_ either sees null (exits early) or sees a fully initialized
+//   state.  All reads/writes of isolate_ happen on the main thread,
+//   so relaxed memory ordering suffices, but isolate_ is std::atomic
+//   to prevent compiler reordering and torn reads.  The mutex protects
+//   allocations_ which is accessed cross-thread (main thread writes,
+//   GC threads call Free).
+class ProfilingArrayBufferAllocator {
+ public:
+  using LabelPairs = std::vector<std::pair<std::string, std::string>>;
+
+  struct LabeledBytes {
+    LabelPairs labels;
+    int64_t bytes = 0;
+  };
+
+  // Called from NodeArrayBufferAllocator::Allocate/AllocateUninitialized
+  // when the profiling delegate is active.
+  void TrackAllocate(void* data, size_t size);
+  // Called from NodeArrayBufferAllocator::Free.
+  void TrackFree(void* data);
+
+  // Called from StartSamplingHeapProfiler/StopSamplingHeapProfiler.
+  void Enable(v8::Isolate* isolate);
+  void Disable();
+
+  // Returns per-label live external bytes (for getAllocationProfile).
+  std::vector<LabeledBytes> GetPerLabelBytes() const;
+
+ private:
+  static std::string SerializeLabels(const LabelPairs& labels);
+
+  std::atomic<v8::Isolate*> isolate_{nullptr};
+
+  std::thread::id main_thread_id_ = std::this_thread::get_id();
+
+  mutable Mutex mutex_;
+  // Maps allocation pointer to the ALS value (flat label array) extracted
+  // at allocation time and the allocation size.
+  struct AllocationEntry {
+    v8::Global<v8::Value> label_value;
+    size_t size;
+  };
+  std::unordered_map<void*, AllocationEntry> allocations_;
 };
 
 namespace Buffer {

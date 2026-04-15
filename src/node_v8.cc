@@ -25,6 +25,7 @@
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node.h"
+#include "node_internals.h"
 #include "node_external_reference.h"
 #include "util-inl.h"
 #include "v8-container.h"
@@ -778,10 +779,13 @@ void GCProfiler::Stop(const FunctionCallbackInfo<v8::Value>& args) {
 // dangling by the time this hook fires.
 struct HeapProfilingCleanup {
   Isolate* isolate;
+  NodeArrayBufferAllocator* node_allocator;
+  ProfilingArrayBufferAllocator* profiling_allocator;
   bool cleaned_up = false;
 
-  // Idempotent: stops the sampling profiler and clears the labels callback.
-  // Safe to call multiple times — only the first call has effect.
+  // Idempotent: stops the sampling profiler, clears the labels callback,
+  // and disables the allocator tracker.  Safe to call multiple times —
+  // only the first call has effect.
   void DoCleanup() {
     if (cleaned_up) return;
     cleaned_up = true;
@@ -792,7 +796,15 @@ struct HeapProfilingCleanup {
     profiler->SetHeapProfileSampleLabelsCallback(nullptr, nullptr);
     profiler->SetHeapProfileSampleLabelsKey(Local<Value>());
 #endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
+    if (node_allocator != nullptr) {
+      node_allocator->ClearProfilingAllocator();
+    }
+    if (profiling_allocator != nullptr) {
+      profiling_allocator->Disable();
+    }
     isolate = nullptr;
+    node_allocator = nullptr;
+    profiling_allocator = nullptr;
   }
 };
 
@@ -842,18 +854,31 @@ void StartSamplingHeapProfiler(const FunctionCallbackInfo<Value>& args) {
   }
   profiler->StartSamplingHeapProfiler(interval, stack_depth, flags);
 
+  // Enable external memory tracking on the allocator.  The profiling tracker
+  // is created lazily on first use — when profiling is not active there is
+  // zero overhead on every Allocate/Free call (no atomic load, no vtable
+  // change, just a predicted null-branch in NodeArrayBufferAllocator).
+  Environment* env = Environment::GetCurrent(args);
+  auto* node_allocator = env->isolate_data()->node_allocator();
+  ProfilingArrayBufferAllocator* profiling_allocator = nullptr;
+  if (node_allocator != nullptr) {
+    profiling_allocator = node_allocator->CreateProfilingAllocator();
+    profiling_allocator->Enable(isolate);
+  }
+
   // Register a cleanup hook so that if the Environment is torn down while
   // profiling is active (e.g. a worker thread is terminated), V8's callback
-  // pointer into the now-destroyed BindingData is cleared.  Remove any prior
-  // hook first (handles repeated Start calls without an intervening Stop).
-  Environment* env = Environment::GetCurrent(args);
+  // pointer into the now-destroyed BindingData is cleared and the allocator
+  // tracking is disabled.  Remove any prior hook first (handles repeated
+  // Start calls without an intervening Stop).
   if (binding_data->heap_profiling_cleanup_ != nullptr) {
     binding_data->heap_profiling_cleanup_->DoCleanup();
     env->RemoveCleanupHook(
         CleanupHeapProfiling, binding_data->heap_profiling_cleanup_);
     delete binding_data->heap_profiling_cleanup_;
   }
-  auto* cleanup = new HeapProfilingCleanup{isolate};
+  auto* cleanup = new HeapProfilingCleanup{
+      isolate, node_allocator, profiling_allocator};
   env->AddCleanupHook(CleanupHeapProfiling, cleanup);
   binding_data->heap_profiling_cleanup_ = cleanup;
 }
@@ -932,6 +957,48 @@ void GetAllocationProfile(const FunctionCallbackInfo<Value>& args) {
   if (result->Set(context,
                   FIXED_ONE_BYTE_STRING(isolate, "samples"),
                   js_samples).IsNothing()) return;
+
+  // Include per-label external memory (Buffer/ArrayBuffer) if profiling
+  // allocator is active. Each entry has { labels: { key: val, ... }, bytes: N }
+  // matching the labels structure used in heap samples.
+  Environment* env = Environment::GetCurrent(args);
+  auto* node_allocator = env->isolate_data()->node_allocator();
+  auto* profiling_allocator = node_allocator != nullptr
+      ? node_allocator->GetProfilingAllocator() : nullptr;
+  if (profiling_allocator != nullptr) {
+    auto per_label = profiling_allocator->GetPerLabelBytes();
+    if (!per_label.empty()) {
+      Local<Array> js_external = Array::New(isolate, per_label.size());
+      for (size_t idx = 0; idx < per_label.size(); idx++) {
+        const auto& entry = per_label[idx];
+        Local<Object> js_entry = Object::New(isolate);
+        Local<Object> js_labels = Object::New(isolate);
+        for (const auto& [lk, lv] : entry.labels) {
+          Local<String> key;
+          if (!String::NewFromUtf8(isolate, lk.c_str(),
+                                   v8::NewStringType::kNormal)
+                   .ToLocal(&key)) return;
+          Local<String> value;
+          if (!String::NewFromUtf8(isolate, lv.c_str(),
+                                   v8::NewStringType::kNormal)
+                   .ToLocal(&value)) return;
+          if (js_labels->Set(context, key, value).IsNothing()) return;
+        }
+        if (js_entry->Set(context,
+                          FIXED_ONE_BYTE_STRING(isolate, "labels"),
+                          js_labels).IsNothing()) return;
+        if (js_entry->Set(context,
+                          FIXED_ONE_BYTE_STRING(isolate, "bytes"),
+                          Number::New(isolate,
+                                      static_cast<double>(entry.bytes)))
+                .IsNothing()) return;
+        if (js_external->Set(context, idx, js_entry).IsNothing()) return;
+      }
+      if (result->Set(context,
+                      FIXED_ONE_BYTE_STRING(isolate, "externalBytes"),
+                      js_external).IsNothing()) return;
+    }
+  }
 
   args.GetReturnValue().Set(result);
 }
