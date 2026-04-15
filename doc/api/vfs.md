@@ -155,11 +155,9 @@ system's dynamic linker, which cannot access virtual files.
 
 ### Child processes
 
-Child processes spawned via `child_process.spawn()`, `child_process.exec()`,
-or similar methods cannot directly access VFS files. The child process runs
-in a separate address space and does not inherit the parent's VFS mounts.
-To share data with child processes, write files to the real file system or
-use inter-process communication.
+Other processes, including any child processes of the Node.js process, cannot
+access virtual file systems. Node.js child processes do not inherit the
+parent's VFS mounts.
 
 ### Worker threads
 
