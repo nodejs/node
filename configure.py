@@ -2388,6 +2388,7 @@ def configure_intl(o):
 
   # always set icu_small, node.gyp depends on it being defined.
   o['variables']['icu_small'] = b(False)
+  o['variables']['icu_system'] = b(False)
 
   # prevent data override
   o['defines'] += ['ICU_NO_USER_DATA_OVERRIDE']
@@ -2424,6 +2425,7 @@ def configure_intl(o):
     o['variables']['v8_enable_i18n_support'] = 1
   elif with_intl == 'system-icu':
     # ICU from pkg-config.
+    o['variables']['icu_system'] = b(True)
     o['variables']['v8_enable_i18n_support'] = 1
     pkgicu = pkg_config(['icu-i18n', 'icu-uc'])
     if not pkgicu[0]:
