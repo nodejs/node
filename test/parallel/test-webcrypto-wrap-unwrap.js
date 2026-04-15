@@ -378,3 +378,68 @@ function testWrapping(name, keys) {
   });
   await Promise.all(variations);
 })().then(common.mustCall());
+
+// Test that wrapKey validates the wrapping key's algorithm and usage
+// before attempting to export the key to be wrapped.
+// Spec: https://w3c.github.io/webcrypto/#SubtleCrypto-method-wrapKey
+// Steps 9-10 (wrapping key checks) must precede step 12 (exportKey).
+(async function() {
+  const hmacKey = await subtle.generateKey(
+    { name: 'HMAC', hash: 'SHA-256' },
+    true,
+    ['sign', 'verify'],
+  );
+
+  const ecKey = await subtle.generateKey(
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    true,
+    ['sign', 'verify'],
+  );
+
+  // Wrong algorithm: wrapping key is HMAC but algorithm says AES-GCM.
+  // Even though exporting ecKey.privateKey as 'spki' would also fail
+  // (wrong key type for spki), the wrapping key check must come first.
+  await assert.rejects(
+    subtle.wrapKey('spki', ecKey.privateKey, hmacKey, {
+      name: 'AES-GCM',
+      iv: new Uint8Array(12),
+    }), {
+      name: 'InvalidAccessError',
+      message: 'The requested operation is not valid for the provided key',
+    });
+
+  // Missing wrapKey usage: aesKey only has encrypt/decrypt, not wrapKey.
+  // Even though exporting ecKey.privateKey as 'spki' would also fail,
+  // the usage check must come first.
+  const aesKey = await subtle.generateKey(
+    { name: 'AES-GCM', length: 128 },
+    true,
+    ['encrypt', 'decrypt'],
+  );
+
+  await assert.rejects(
+    subtle.wrapKey('spki', ecKey.privateKey, aesKey, {
+      name: 'AES-GCM',
+      iv: new Uint8Array(12),
+    }), {
+      name: 'InvalidAccessError',
+      message: 'The requested operation is not valid for the provided key',
+    });
+
+  // Correct wrapping key algorithm and usage results in the expected
+  // exportKey error (not the wrapping key validation error).
+  const wrapKey = await subtle.generateKey(
+    { name: 'AES-GCM', length: 128 },
+    true,
+    ['wrapKey'],
+  );
+
+  await assert.rejects(
+    subtle.wrapKey('spki', ecKey.privateKey, wrapKey, {
+      name: 'AES-GCM',
+      iv: new Uint8Array(12),
+    }), {
+      // exportKey('spki', privateKey) throws NotSupportedError
+      name: 'NotSupportedError',
+    });
+})().then(common.mustCall());
