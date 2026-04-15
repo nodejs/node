@@ -11840,6 +11840,10 @@ void HeapProfiler::SetHeapProfileSampleLabelsKey(Local<Value> key) {
   reinterpret_cast<i::HeapProfiler*>(this)
       ->SetHeapProfileSampleLabelsKey(key);
 }
+
+MaybeLocal<Value> HeapProfiler::LookupAlsValue(Local<Value> cped) {
+  return reinterpret_cast<i::HeapProfiler*>(this)->LookupAlsValue(cped);
+}
 #endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
 
 bool HeapProfiler::IsTakingSnapshot() {

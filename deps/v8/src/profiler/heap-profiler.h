@@ -105,6 +105,10 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   const v8::Global<v8::Value>& sample_labels_als_key() const {
     return sample_labels_als_key_;
   }
+
+  // Extracts the ALS value from a CPED Map using the stored ALS key.
+  // Uses OrderedHashMap::FindEntry — zero-allocation, GC-safe.
+  v8::MaybeLocal<v8::Value> LookupAlsValue(v8::Local<v8::Value> cped);
 #endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
 
   void StartHeapObjectsTracking(bool track_allocations);

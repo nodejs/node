@@ -1330,6 +1330,16 @@ class V8_EXPORT HeapProfiler {
    * Pass an empty handle to clear.
    */
   void SetHeapProfileSampleLabelsKey(Local<Value> key);
+
+  /**
+   * Extracts the ALS value from a CPED (ContinuationPreservedEmbedderData)
+   * Map using the stored ALS key (set via SetHeapProfileSampleLabelsKey).
+   *
+   * Uses OrderedHashMap::FindEntry internally — zero-allocation, GC-safe.
+   * Returns an empty MaybeLocal if the CPED is not a Map, no ALS key is set,
+   * or the key is not found in the Map.
+   */
+  MaybeLocal<Value> LookupAlsValue(Local<Value> cped);
 #endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
 
   /**

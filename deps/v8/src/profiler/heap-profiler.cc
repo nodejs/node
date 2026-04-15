@@ -18,6 +18,8 @@
 #include "src/heap/heap.h"
 #include "src/objects/cpp-heap-object-wrapper-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/js-collection-inl.h"
+#include "src/objects/ordered-hash-table.h"
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
 #include "src/profiler/sampling-heap-profiler.h"
@@ -404,5 +406,28 @@ void HeapProfiler::QueryObjects(DirectHandle<Context> context,
     }
   });
 }
+
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+v8::MaybeLocal<v8::Value> HeapProfiler::LookupAlsValue(
+    v8::Local<v8::Value> cped) {
+  if (sample_labels_als_key_.IsEmpty() || cped.IsEmpty()) {
+    return v8::MaybeLocal<v8::Value>();
+  }
+  Tagged<Object> cped_obj = *Utils::OpenDirectHandle(*cped);
+  if (!IsJSMap(cped_obj)) return v8::MaybeLocal<v8::Value>();
+
+  Tagged<JSMap> js_map = Cast<JSMap>(cped_obj);
+  Tagged<OrderedHashMap> table = Cast<OrderedHashMap>(js_map->table());
+
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate());
+  v8::Local<v8::Value> als_key_local = sample_labels_als_key_.Get(v8_isolate);
+  Tagged<Object> key_obj = *Utils::OpenDirectHandle(*als_key_local);
+  InternalIndex entry = table->FindEntry(isolate(), key_obj);
+  if (!entry.is_found()) return v8::MaybeLocal<v8::Value>();
+
+  Tagged<Object> value = table->ValueAt(entry);
+  return Utils::ToLocal(direct_handle(value, isolate()));
+}
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
 
 }  // namespace v8::internal
