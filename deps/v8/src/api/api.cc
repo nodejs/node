@@ -11829,6 +11829,19 @@ void HeapProfiler::SetGetDetachednessCallback(GetDetachednessCallback callback,
                                                                        data);
 }
 
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+void HeapProfiler::SetHeapProfileSampleLabelsCallback(
+    HeapProfileSampleLabelsCallback callback, void* data) {
+  reinterpret_cast<i::HeapProfiler*>(this)
+      ->SetHeapProfileSampleLabelsCallback(callback, data);
+}
+
+void HeapProfiler::SetHeapProfileSampleLabelsKey(Local<Value> key) {
+  reinterpret_cast<i::HeapProfiler*>(this)
+      ->SetHeapProfileSampleLabelsKey(key);
+}
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
+
 bool HeapProfiler::IsTakingSnapshot() {
   return reinterpret_cast<i::HeapProfiler*>(this)->IsTakingSnapshot();
 }

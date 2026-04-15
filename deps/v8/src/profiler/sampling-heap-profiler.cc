@@ -15,6 +15,9 @@
 #include "src/execution/isolate.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap.h"
+#include "src/objects/js-collection-inl.h"
+#include "src/objects/ordered-hash-table.h"
+#include "src/profiler/heap-profiler.h"
 #include "src/profiler/strings-storage.h"
 
 namespace v8 {
@@ -96,6 +99,47 @@ void SamplingHeapProfiler::SampleObject(Address soon_object, size_t size) {
   node->allocations_[size]++;
   auto sample =
       std::make_unique<Sample>(size, node, loc, this, next_sample_id());
+
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+  // Extract the ALS value from the CPED Map at allocation time.
+  // The CPED (ContinuationPreservedEmbedderData) is a JSMap containing
+  // ALL ALS stores.  We look up only our ALS key via
+  // OrderedHashMap::FindEntry (zero-allocation, GC-safe) and store just
+  // the resulting value (the flat label array).  This avoids retaining
+  // the entire CPED for the lifetime of each sample.
+  // Global::Reset is safe inside DisallowGC (uses malloc, not V8 heap).
+  {
+    HeapProfiler* hp = isolate_->heap()->heap_profiler();
+    if (hp->sample_labels_callback()) {
+      const v8::Global<v8::Value>& als_key_global =
+          hp->sample_labels_als_key();
+      if (!als_key_global.IsEmpty()) {
+        v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
+        v8::Local<v8::Value> context =
+            v8_isolate->GetContinuationPreservedEmbedderData();
+        if (!context.IsEmpty() && !context->IsUndefined()) {
+          Tagged<Object> cped_obj = *Utils::OpenDirectHandle(*context);
+          if (IsJSMap(cped_obj)) {
+            Tagged<JSMap> js_map = Cast<JSMap>(cped_obj);
+            Tagged<OrderedHashMap> table =
+                Cast<OrderedHashMap>(js_map->table());
+            v8::Local<v8::Value> als_key_local =
+                als_key_global.Get(v8_isolate);
+            Tagged<Object> key_obj = *Utils::OpenDirectHandle(*als_key_local);
+            InternalIndex entry = table->FindEntry(isolate_, key_obj);
+            if (entry.is_found()) {
+              Tagged<Object> value = table->ValueAt(entry);
+              v8::Local<v8::Value> value_local =
+                  Utils::ToLocal(direct_handle(value, isolate_));
+              sample->label_value.Reset(v8_isolate, value_local);
+            }
+          }
+        }
+      }
+    }
+  }
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
+
   sample->global.SetWeak(sample.get(), OnWeakCallback,
                          WeakCallbackType::kParameter);
   samples_.emplace(sample.get(), std::move(sample));
@@ -299,22 +343,103 @@ v8::AllocationProfile* SamplingHeapProfiler::GetAllocationProfile() {
       scripts[script->id()] = handle(script, isolate_);
     }
   }
+
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+  // Pre-resolve labels while GC is still allowed.
+  // The labels callback may allocate on the V8 heap. These MUST NOT run
+  // during BuildSamples() iteration — GC would fire weak callbacks that
+  // erase from samples_, causing iterator invalidation / UAF.
+  //
+  // Two-phase approach:
+  //   Phase 1: snapshot sample IDs and ALS values (Global::Get + Global
+  //            ctor use malloc, not V8 heap — no GC risk during iteration).
+  //   Phase 2: invoke the callback for each snapshot entry. GC may fire
+  //            here but we iterate our snapshot vector, not samples_.
+  ResolvedLabelsMap resolved_labels;
+  {
+    HeapProfiler* hp = heap_->heap_profiler();
+    auto callback = hp->sample_labels_callback();
+    void* callback_data = hp->sample_labels_data();
+    if (callback) {
+      v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
+
+      // Phase 1: snapshot ALS values keyed by sample_id.
+      // Global ctor (GlobalizeReference) and Global::Get use global handle
+      // storage (malloc), not the V8 heap — safe under DisallowGarbageCollection.
+      // Locals from Get() are immediately consumed by Global ctor, so a single
+      // HandleScope outside the loop suffices (no per-iteration scope churn).
+      struct LabelValueSnapshot {
+        uint64_t sample_id;
+        v8::Global<v8::Value> label_value;
+      };
+      std::vector<LabelValueSnapshot> snapshot;
+      snapshot.reserve(samples_.size());
+      {
+        HandleScope handle_scope(isolate_);
+        DisallowGarbageCollection no_gc;
+        for (const auto& [ptr, sample] : samples_) {
+          if (!sample->label_value.IsEmpty()) {
+            snapshot.push_back(
+                {sample->sample_id,
+                 v8::Global<v8::Value>(
+                     v8_isolate, sample->label_value.Get(v8_isolate))});
+          }
+        }
+      }
+
+      // Phase 2: resolve labels via callback (GC allowed).
+      // The callback receives the ALS value (flat label array) directly —
+      // the CPED Map lookup was already done at allocation time.
+      for (auto& entry : snapshot) {
+        HandleScope scope(isolate_);
+        v8::Local<v8::Value> value_local = entry.label_value.Get(v8_isolate);
+        std::vector<std::pair<std::string, std::string>> labels;
+        if (callback(callback_data, value_local, &labels) && !labels.empty()) {
+          resolved_labels[entry.sample_id] = std::move(labels);
+        }
+      }
+    }
+  }
+#endif
+
   auto profile = new v8::internal::AllocationProfile();
   TranslateAllocationNode(profile, &profile_root_, scripts);
+
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+  profile->samples_ = BuildSamples(std::move(resolved_labels));
+#else
   profile->samples_ = BuildSamples();
+#endif
 
   return profile;
 }
 
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+const std::vector<v8::AllocationProfile::Sample>
+SamplingHeapProfiler::BuildSamples(ResolvedLabelsMap resolved_labels) const {
+#else
 const std::vector<v8::AllocationProfile::Sample>
 SamplingHeapProfiler::BuildSamples() const {
+#endif
   std::vector<v8::AllocationProfile::Sample> samples;
   samples.reserve(samples_.size());
+
   for (const auto& it : samples_) {
     const Sample* sample = it.second.get();
-    samples.emplace_back(v8::AllocationProfile::Sample{
-        sample->owner->id_, sample->size, ScaleSample(sample->size, 1).count,
-        sample->sample_id});
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+    std::vector<std::pair<std::string, std::string>> labels;
+    auto label_it = resolved_labels.find(sample->sample_id);
+    if (label_it != resolved_labels.end()) {
+      labels = std::move(label_it->second);
+    }
+    samples.emplace_back(sample->owner->id_, sample->size,
+                         ScaleSample(sample->size, 1).count,
+                         sample->sample_id, std::move(labels));
+#else
+    samples.emplace_back(sample->owner->id_, sample->size,
+                         ScaleSample(sample->size, 1).count,
+                         sample->sample_id);
+#endif
   }
   return samples;
 }

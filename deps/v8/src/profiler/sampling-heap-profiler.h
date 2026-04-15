@@ -114,6 +114,14 @@ class SamplingHeapProfiler {
     Global<Value> global;
     SamplingHeapProfiler* const profiler;
     const uint64_t sample_id;
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+    // ALS value extracted from the CPED Map at allocation time via
+    // OrderedHashMap::FindEntry.  Storing only the ALS value (the flat
+    // label array) instead of the full CPED avoids retaining all ALS
+    // stores for the lifetime of the sample.  Labels are resolved from
+    // this at read time (in GetAllocationProfile) via the callback.
+    Global<Value> label_value;
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
   };
 
   SamplingHeapProfiler(Heap* heap, StringsStorage* names, uint64_t rate,
@@ -160,7 +168,14 @@ class SamplingHeapProfiler {
 
   void SampleObject(Address soon_object, size_t size);
 
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+  using ResolvedLabelsMap = std::unordered_map<
+      uint64_t, std::vector<std::pair<std::string, std::string>>>;
+  const std::vector<v8::AllocationProfile::Sample> BuildSamples(
+      ResolvedLabelsMap resolved_labels) const;
+#else
   const std::vector<v8::AllocationProfile::Sample> BuildSamples() const;
+#endif
 
   AllocationNode* FindOrAddChildNode(AllocationNode* parent, const char* name,
                                      int script_id, int start_position);

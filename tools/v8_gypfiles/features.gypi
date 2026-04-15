@@ -523,7 +523,12 @@
         'defines': ['V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS',],
       }],
       ['v8_enable_continuation_preserved_embedder_data==1', {
-        'defines': ['V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA',],
+        'defines': [
+          'V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA',
+          # Enable heap profiler sample labels for per-context memory
+          # attribution when CPED is available.
+          'V8_HEAP_PROFILER_SAMPLE_LABELS',
+        ],
       }],
       ['v8_enable_allocation_folding==1', {
         'defines': ['V8_ALLOCATION_FOLDING',],

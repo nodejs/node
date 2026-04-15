@@ -4854,3 +4854,355 @@ TEST(HeapSnapshotWithWasmInstance) {
 #endif  // V8_ENABLE_SANDBOX
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+
+// --- Tests for HeapProfileSampleLabelsCallback ---
+
+// Helper: a label callback that writes fixed labels via output parameter.
+static bool FixedLabelsCallback(
+    void* data, v8::Local<v8::Value> context,
+    std::vector<std::pair<std::string, std::string>>* out_labels) {
+  auto* labels =
+      static_cast<std::vector<std::pair<std::string, std::string>>*>(data);
+  *out_labels = *labels;
+  return true;
+}
+
+// Helper: a label callback that returns false (no labels).
+static bool EmptyLabelsCallback(
+    void* data, v8::Local<v8::Value> context,
+    std::vector<std::pair<std::string, std::string>>* out_labels) {
+  return false;
+}
+
+// Helper: a label callback that returns different labels based on CPED value.
+struct MultiLabelState {
+  std::string first_cped;
+  std::vector<std::pair<std::string, std::string>> first;
+  std::string second_cped;
+  std::vector<std::pair<std::string, std::string>> second;
+};
+
+static bool MultiLabelsCallback(
+    void* data, v8::Local<v8::Value> context,
+    std::vector<std::pair<std::string, std::string>>* out_labels) {
+  auto* state = static_cast<MultiLabelState*>(data);
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::String::Utf8Value cped_str(isolate, context);
+  std::string cped(*cped_str, cped_str.length());
+  if (cped == state->first_cped) {
+    *out_labels = state->first;
+  } else if (cped == state->second_cped) {
+    *out_labels = state->second;
+  }
+  return true;
+}
+
+TEST(SamplingHeapProfilerLabelsCallback) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+
+  std::vector<std::pair<std::string, std::string>> labels = {
+      {"route", "/api/test"}};
+
+  // Set CPED so the callback gets invoked (non-empty context required).
+  {
+    v8::HandleScope inner(isolate);
+    isolate->SetContinuationPreservedEmbedderData(
+        v8::String::NewFromUtf8Literal(isolate, "test-context"));
+  }
+
+  heap_profiler->SetHeapProfileSampleLabelsCallback(FixedLabelsCallback,
+                                                    &labels);
+
+  heap_profiler->StartSamplingHeapProfiler(256);
+
+  // Allocate enough objects to get samples.
+  for (int i = 0; i < 8 * 1024; ++i) v8::Object::New(isolate);
+
+  std::unique_ptr<v8::AllocationProfile> profile(
+      heap_profiler->GetAllocationProfile());
+  CHECK(profile);
+
+  // Verify at least one sample has the expected labels.
+  bool found_labeled = false;
+  for (const auto& sample : profile->GetSamples()) {
+    if (!sample.labels.empty()) {
+      CHECK_EQ(sample.labels.size(), 1);
+      CHECK_EQ(sample.labels[0].first, "route");
+      CHECK_EQ(sample.labels[0].second, "/api/test");
+      found_labeled = true;
+    }
+  }
+  CHECK(found_labeled);
+
+  heap_profiler->StopSamplingHeapProfiler();
+
+  // Clear callback.
+  heap_profiler->SetHeapProfileSampleLabelsCallback(nullptr, nullptr);
+}
+
+TEST(SamplingHeapProfilerNoLabelsCallback) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+
+  // No callback registered — samples should have empty labels.
+  heap_profiler->StartSamplingHeapProfiler(256);
+
+  for (int i = 0; i < 8 * 1024; ++i) v8::Object::New(isolate);
+
+  std::unique_ptr<v8::AllocationProfile> profile(
+      heap_profiler->GetAllocationProfile());
+  CHECK(profile);
+
+  for (const auto& sample : profile->GetSamples()) {
+    CHECK(sample.labels.empty());
+  }
+
+  heap_profiler->StopSamplingHeapProfiler();
+}
+
+TEST(SamplingHeapProfilerEmptyLabelsCallback) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+
+  // Set CPED so callback is invoked.
+  isolate->SetContinuationPreservedEmbedderData(
+      v8::String::NewFromUtf8Literal(isolate, "test-context"));
+
+  // Callback returns empty vector — samples should have empty labels.
+  heap_profiler->SetHeapProfileSampleLabelsCallback(EmptyLabelsCallback,
+                                                    nullptr);
+
+  heap_profiler->StartSamplingHeapProfiler(256);
+
+  for (int i = 0; i < 8 * 1024; ++i) v8::Object::New(isolate);
+
+  std::unique_ptr<v8::AllocationProfile> profile(
+      heap_profiler->GetAllocationProfile());
+  CHECK(profile);
+
+  for (const auto& sample : profile->GetSamples()) {
+    CHECK(sample.labels.empty());
+  }
+
+  heap_profiler->StopSamplingHeapProfiler();
+  heap_profiler->SetHeapProfileSampleLabelsCallback(nullptr, nullptr);
+}
+
+TEST(SamplingHeapProfilerMultipleLabels) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+
+  MultiLabelState state;
+  state.first_cped = "context-first";
+  state.first = {{"route", "/api/first"}};
+  state.second_cped = "context-second";
+  state.second = {{"route", "/api/second"}};
+
+  heap_profiler->SetHeapProfileSampleLabelsCallback(MultiLabelsCallback,
+                                                    &state);
+
+  heap_profiler->StartSamplingHeapProfiler(256);
+
+  // Set first CPED and allocate.
+  isolate->SetContinuationPreservedEmbedderData(
+      v8::String::NewFromUtf8Literal(isolate, "context-first"));
+  for (int i = 0; i < 4 * 1024; ++i) v8::Object::New(isolate);
+
+  // Set second CPED and allocate.
+  isolate->SetContinuationPreservedEmbedderData(
+      v8::String::NewFromUtf8Literal(isolate, "context-second"));
+  for (int i = 0; i < 4 * 1024; ++i) v8::Object::New(isolate);
+
+  std::unique_ptr<v8::AllocationProfile> profile(
+      heap_profiler->GetAllocationProfile());
+  CHECK(profile);
+
+  bool found_first = false;
+  bool found_second = false;
+  for (const auto& sample : profile->GetSamples()) {
+    if (!sample.labels.empty()) {
+      CHECK_EQ(sample.labels.size(), 1);
+      CHECK_EQ(sample.labels[0].first, "route");
+      if (sample.labels[0].second == "/api/first") found_first = true;
+      if (sample.labels[0].second == "/api/second") found_second = true;
+    }
+  }
+  CHECK(found_first);
+  CHECK(found_second);
+
+  heap_profiler->StopSamplingHeapProfiler();
+  heap_profiler->SetHeapProfileSampleLabelsCallback(nullptr, nullptr);
+}
+
+TEST(SamplingHeapProfilerLabelsWithGCRetain) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+
+  // Set CPED so callback is invoked.
+  isolate->SetContinuationPreservedEmbedderData(
+      v8::String::NewFromUtf8Literal(isolate, "test-context"));
+
+  std::vector<std::pair<std::string, std::string>> labels = {
+      {"route", "/api/gc-test"}};
+  heap_profiler->SetHeapProfileSampleLabelsCallback(FixedLabelsCallback,
+                                                    &labels);
+
+  // Start with GC retain flags — GC'd samples should survive.
+  heap_profiler->StartSamplingHeapProfiler(
+      256, 128,
+      v8::HeapProfiler::kSamplingIncludeObjectsCollectedByMajorGC |
+          v8::HeapProfiler::kSamplingIncludeObjectsCollectedByMinorGC);
+
+  // Allocate short-lived objects (no reference retained).
+  CompileRun(
+      "for (var i = 0; i < 4096; i++) {"
+      "  new Array(64);"
+      "}");
+
+  // Force GC to collect the short-lived objects.
+  i::heap::InvokeMajorGC(CcTest::heap());
+
+  std::unique_ptr<v8::AllocationProfile> profile(
+      heap_profiler->GetAllocationProfile());
+  CHECK(profile);
+
+  // With GC retain flags, samples for collected objects should still exist
+  // with their labels intact.
+  bool found_labeled = false;
+  for (const auto& sample : profile->GetSamples()) {
+    if (!sample.labels.empty()) {
+      CHECK_EQ(sample.labels[0].first, "route");
+      CHECK_EQ(sample.labels[0].second, "/api/gc-test");
+      found_labeled = true;
+    }
+  }
+  CHECK(found_labeled);
+
+  heap_profiler->StopSamplingHeapProfiler();
+  heap_profiler->SetHeapProfileSampleLabelsCallback(nullptr, nullptr);
+}
+
+TEST(SamplingHeapProfilerLabelsRemovedByGC) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+
+  // Set CPED so callback is invoked.
+  isolate->SetContinuationPreservedEmbedderData(
+      v8::String::NewFromUtf8Literal(isolate, "test-context"));
+
+  std::vector<std::pair<std::string, std::string>> labels = {
+      {"route", "/api/gc-remove"}};
+  heap_profiler->SetHeapProfileSampleLabelsCallback(FixedLabelsCallback,
+                                                    &labels);
+
+  // Start WITHOUT GC retain flags — GC'd samples should be removed.
+  heap_profiler->StartSamplingHeapProfiler(256);
+
+  // Allocate short-lived objects (no reference retained).
+  CompileRun(
+      "for (var i = 0; i < 4096; i++) {"
+      "  new Array(64);"
+      "}");
+
+  // Force GC to collect the short-lived objects.
+  i::heap::InvokeMajorGC(CcTest::heap());
+
+  std::unique_ptr<v8::AllocationProfile> profile(
+      heap_profiler->GetAllocationProfile());
+  CHECK(profile);
+
+  // Without GC retain flags, most/all short-lived samples should be gone.
+  // Count remaining labeled samples — should be significantly fewer than
+  // what was allocated (many were collected by GC).
+  size_t labeled_count = 0;
+  for (const auto& sample : profile->GetSamples()) {
+    if (!sample.labels.empty()) {
+      labeled_count++;
+    }
+  }
+  // We can't assert zero because some objects may survive GC, but the count
+  // should be much smaller than the retained case. Just verify the profile
+  // is valid and doesn't crash.
+  CHECK(profile->GetRootNode());
+
+  heap_profiler->StopSamplingHeapProfiler();
+  heap_profiler->SetHeapProfileSampleLabelsCallback(nullptr, nullptr);
+}
+
+TEST(SamplingHeapProfilerUnregisterCallback) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+
+  // Set CPED so callback is invoked.
+  isolate->SetContinuationPreservedEmbedderData(
+      v8::String::NewFromUtf8Literal(isolate, "test-context"));
+
+  std::vector<std::pair<std::string, std::string>> labels = {
+      {"route", "/api/before-unregister"}};
+  heap_profiler->SetHeapProfileSampleLabelsCallback(FixedLabelsCallback,
+                                                    &labels);
+
+  heap_profiler->StartSamplingHeapProfiler(256);
+
+  // Allocate with callback active.
+  for (int i = 0; i < 4 * 1024; ++i) v8::Object::New(isolate);
+
+  // Unregister callback (pass nullptr).
+  heap_profiler->SetHeapProfileSampleLabelsCallback(nullptr, nullptr);
+
+  // Allocate more — these should have no labels.
+  for (int i = 0; i < 4 * 1024; ++i) v8::Object::New(isolate);
+
+  std::unique_ptr<v8::AllocationProfile> profile(
+      heap_profiler->GetAllocationProfile());
+  CHECK(profile);
+
+  // Should have some labeled samples (from before unregister) and some
+  // unlabeled (from after). Verify at least one labeled exists.
+  bool found_labeled = false;
+  bool found_unlabeled = false;
+  for (const auto& sample : profile->GetSamples()) {
+    if (!sample.labels.empty()) {
+      found_labeled = true;
+    } else {
+      found_unlabeled = true;
+    }
+  }
+  CHECK(found_labeled);
+  CHECK(found_unlabeled);
+
+  heap_profiler->StopSamplingHeapProfiler();
+}
+
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS

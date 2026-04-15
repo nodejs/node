@@ -79,6 +79,34 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   bool is_sampling_allocations() { return !!sampling_heap_profiler_; }
   AllocationProfile* GetAllocationProfile();
 
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+  void SetHeapProfileSampleLabelsCallback(
+      v8::HeapProfiler::HeapProfileSampleLabelsCallback callback,
+      void* data) {
+    sample_labels_callback_ = callback;
+    sample_labels_data_ = data;
+  }
+
+  void SetHeapProfileSampleLabelsKey(v8::Local<v8::Value> key) {
+    if (key.IsEmpty()) {
+      sample_labels_als_key_.Reset();
+    } else {
+      sample_labels_als_key_.Reset(
+          reinterpret_cast<v8::Isolate*>(isolate()), key);
+    }
+  }
+
+  v8::HeapProfiler::HeapProfileSampleLabelsCallback
+  sample_labels_callback() const {
+    return sample_labels_callback_;
+  }
+  void* sample_labels_data() const { return sample_labels_data_; }
+
+  const v8::Global<v8::Value>& sample_labels_als_key() const {
+    return sample_labels_als_key_;
+  }
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
+
   void StartHeapObjectsTracking(bool track_allocations);
   void StopHeapObjectsTracking();
   AllocationTracker* allocation_tracker() const {
@@ -176,6 +204,18 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   std::pair<v8::HeapProfiler::GetDetachednessCallback, void*>
       get_detachedness_callback_;
   std::unique_ptr<HeapProfilerNativeMoveListener> native_move_listener_;
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+  // All three fields are written only from the main thread via
+  // SetHeapProfileSampleLabelsCallback() / SetHeapProfileSampleLabelsKey()
+  // and read during GetAllocationProfile() or SampleObject() (also main
+  // thread).  No cross-thread access, so no synchronization is required.
+  v8::HeapProfiler::HeapProfileSampleLabelsCallback sample_labels_callback_ =
+      nullptr;
+  void* sample_labels_data_ = nullptr;
+  // The ALS key used at allocation time to extract the label value from
+  // the CPED Map via OrderedHashMap::FindEntry.
+  v8::Global<v8::Value> sample_labels_als_key_;
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
 };
 
 }  // namespace internal

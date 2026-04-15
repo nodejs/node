@@ -11,6 +11,11 @@
 #include <unordered_set>
 #include <vector>
 
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+#include <string>
+#include <utility>
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
+
 #include "cppgc/common.h"          // NOLINT(build/include_directory)
 #include "v8-local-handle.h"       // NOLINT(build/include_directory)
 #include "v8-message.h"            // NOLINT(build/include_directory)
@@ -791,26 +796,42 @@ class V8_EXPORT AllocationProfile {
    * Represent a single sample recorded for an allocation.
    */
   struct Sample {
-    /**
-     * id of the node in the profile tree.
-     */
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+    Sample(uint32_t node_id, size_t size, unsigned int count,
+           uint64_t sample_id,
+           std::vector<std::pair<std::string, std::string>> labels = {})
+        : node_id(node_id),
+          size(size),
+          count(count),
+          sample_id(sample_id),
+          labels(std::move(labels)) {}
+#else
+    Sample(uint32_t node_id, size_t size, unsigned int count,
+           uint64_t sample_id)
+        : node_id(node_id), size(size), count(count), sample_id(sample_id) {}
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
+
+    /** id of the node in the profile tree. */
     uint32_t node_id;
-
-    /**
-     * Size of the sampled allocation object.
-     */
+    /** Size of the sampled allocation object. */
     size_t size;
-
-    /**
-     * The number of objects of such size that were sampled.
-     */
+    /** The number of objects of such size that were sampled. */
     unsigned int count;
-
     /**
      * Unique time-ordered id of the allocation sample. Can be used to track
      * what samples were added or removed between two snapshots.
      */
     uint64_t sample_id;
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+    /**
+     * Embedder-provided labels resolved by the HeapProfileSampleLabelsCallback
+     * during GetAllocationProfile(). The ALS value is captured at allocation
+     * time; labels are parsed from it when the profile is read. Each pair is
+     * (key, value). Empty if no callback is registered or the callback
+     * returned no labels for this sample.
+     */
+    std::vector<std::pair<std::string, std::string>> labels;
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
   };
 
   /**
@@ -1000,6 +1021,31 @@ class V8_EXPORT HeapProfiler {
   using GetDetachednessCallback = EmbedderGraph::Node::Detachedness (*)(
       v8::Isolate* isolate, const v8::Local<v8::Value>& v8_value,
       uint16_t class_id, void* data);
+
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+  /**
+   * Callback invoked during GetAllocationProfile() to resolve labels from
+   * the ALS value captured at allocation time.
+   *
+   * |data| is the opaque pointer passed to SetHeapProfileSampleLabelsCallback.
+   * |context| is the ALS value (e.g. a flat [key, val, ...] array) that was
+   * extracted from the ContinuationPreservedEmbedderData (CPED) Map at
+   * allocation time using the ALS key set via SetHeapProfileSampleLabelsKey.
+   * The extraction uses OrderedHashMap::FindEntry (zero-allocation, GC-safe).
+   * The callback parses this value directly to produce labels — no Map lookup
+   * is needed at callback time.
+   *
+   * Only invoked for samples that had an ALS value at allocation time (i.e.
+   * the ALS key was found in the CPED Map).
+   *
+   * Write labels to |out_labels| and return true, or return false if no
+   * labels apply. The caller provides a stack-local vector; returning false
+   * avoids any heap allocation on the hot path.
+   */
+  using HeapProfileSampleLabelsCallback = bool (*)(
+      void* data, v8::Local<v8::Value> context,
+      std::vector<std::pair<std::string, std::string>>* out_labels);
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
 
   /** Returns the number of snapshots taken. */
   int GetSnapshotCount();
@@ -1260,6 +1306,31 @@ class V8_EXPORT HeapProfiler {
                                         void* data);
 
   void SetGetDetachednessCallback(GetDetachednessCallback callback, void* data);
+
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+  /**
+   * Registers a callback invoked during GetAllocationProfile() to resolve
+   * embedder-defined labels from the ALS value extracted at allocation time.
+   * The labels are stored on AllocationProfile::Sample::labels.
+   *
+   * Pass nullptr to clear the callback.
+   */
+  void SetHeapProfileSampleLabelsCallback(
+      HeapProfileSampleLabelsCallback callback, void* data = nullptr);
+
+  /**
+   * Sets the AsyncLocalStorage (ALS) key used to extract the label value
+   * from the ContinuationPreservedEmbedderData (CPED) Map at allocation
+   * time.  When a heap sample is taken, SampleObject uses this key with
+   * OrderedHashMap::FindEntry to look up the corresponding ALS value and
+   * store it on the sample.  The stored value is later passed to the
+   * HeapProfileSampleLabelsCallback as the |context| parameter.
+   *
+   * Must be called before starting the sampling profiler.
+   * Pass an empty handle to clear.
+   */
+  void SetHeapProfileSampleLabelsKey(Local<Value> key);
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
 
   /**
    * Returns whether the heap profiler is currently taking a snapshot.
