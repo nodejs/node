@@ -379,8 +379,8 @@ function testWrapping(name, keys) {
   await Promise.all(variations);
 })().then(common.mustCall());
 
-// Test that wrapKey validates the wrapping key's algorithm and usage
-// before attempting to export the key to be wrapped.
+// Test that wrapKey/unwrapKey validate the wrapping/unwrapping key's
+// algorithm and usage before proceeding.
 // Spec: https://w3c.github.io/webcrypto/#SubtleCrypto-method-wrapKey
 // Steps 9-10 (wrapping key checks) must precede step 12 (exportKey).
 (async function() {
@@ -441,5 +441,29 @@ function testWrapping(name, keys) {
     }), {
       // exportKey('spki', privateKey) throws NotSupportedError
       name: 'NotSupportedError',
+    });
+
+  // --- unwrapKey validation tests ---
+
+  const ciphertext = new Uint8Array(32); // Dummy ciphertext
+
+  // Wrong algorithm: unwrapping key is HMAC but algorithm says AES-GCM.
+  await assert.rejects(
+    subtle.unwrapKey('raw', ciphertext, hmacKey, {
+      name: 'AES-GCM',
+      iv: new Uint8Array(12),
+    }, { name: 'AES-GCM', length: 128 }, true, ['encrypt']), {
+      name: 'InvalidAccessError',
+      message: 'The requested operation is not valid for the provided key',
+    });
+
+  // Missing unwrapKey usage: aesKey only has encrypt/decrypt, not unwrapKey.
+  await assert.rejects(
+    subtle.unwrapKey('raw', ciphertext, aesKey, {
+      name: 'AES-GCM',
+      iv: new Uint8Array(12),
+    }, { name: 'AES-GCM', length: 128 }, true, ['encrypt']), {
+      name: 'InvalidAccessError',
+      message: 'The requested operation is not valid for the provided key',
     });
 })().then(common.mustCall());
