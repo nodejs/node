@@ -49,7 +49,7 @@ async function testEncryptNoEncrypt({ keyBuffer, algorithm, plaintext }) {
     ['decrypt']);
 
   return assert.rejects(subtle.encrypt(algorithm, key, plaintext), {
-    message: /The requested operation is not valid for the provided key/
+    message: /Unable to use this key to encrypt/
   });
 }
 
@@ -65,7 +65,7 @@ async function testEncryptNoDecrypt({ keyBuffer, algorithm, plaintext }) {
   const output = await subtle.encrypt(algorithm, key, plaintext);
 
   return assert.rejects(subtle.decrypt(algorithm, key, output), {
-    message: /The requested operation is not valid for the provided key/
+    message: /Unable to use this key to decrypt/
   });
 }
 
@@ -80,7 +80,7 @@ async function testEncryptWrongAlg({ keyBuffer, algorithm, plaintext }, alg) {
     ['encrypt']);
 
   return assert.rejects(subtle.encrypt(algorithm, key, plaintext), {
-    message: /The requested operation is not valid for the provided key/
+    message: /Key algorithm mismatch/
   });
 }
 

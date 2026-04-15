@@ -405,7 +405,7 @@ function testWrapping(name, keys) {
       iv: new Uint8Array(12),
     }), {
       name: 'InvalidAccessError',
-      message: 'The requested operation is not valid for the provided key',
+      message: 'Key algorithm mismatch',
     });
 
   // Missing wrapKey usage: aesKey only has encrypt/decrypt, not wrapKey.
@@ -423,7 +423,7 @@ function testWrapping(name, keys) {
       iv: new Uint8Array(12),
     }), {
       name: 'InvalidAccessError',
-      message: 'The requested operation is not valid for the provided key',
+      message: 'Unable to use this key to wrapKey',
     });
 
   // Correct wrapping key algorithm and usage results in the expected
@@ -454,7 +454,7 @@ function testWrapping(name, keys) {
       iv: new Uint8Array(12),
     }, { name: 'AES-GCM', length: 128 }, true, ['encrypt']), {
       name: 'InvalidAccessError',
-      message: 'The requested operation is not valid for the provided key',
+      message: 'Key algorithm mismatch',
     });
 
   // Missing unwrapKey usage: aesKey only has encrypt/decrypt, not unwrapKey.
@@ -464,6 +464,6 @@ function testWrapping(name, keys) {
       iv: new Uint8Array(12),
     }, { name: 'AES-GCM', length: 128 }, true, ['encrypt']), {
       name: 'InvalidAccessError',
-      message: 'The requested operation is not valid for the provided key',
+      message: 'Unable to use this key to unwrapKey',
     });
 })().then(common.mustCall());
