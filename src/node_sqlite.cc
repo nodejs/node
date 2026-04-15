@@ -1441,6 +1441,7 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
   std::optional<bool> use_big_ints;
   std::optional<bool> allow_bare_named_params;
   std::optional<bool> allow_unknown_named_params;
+  std::optional<bool> persistent;
 
   if (args.Length() > 1 && !args[1]->IsUndefined()) {
     if (!args[1]->IsObject()) {
@@ -1521,11 +1522,31 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
       }
       allow_unknown_named_params = allow_unknown_named_params_v->IsTrue();
     }
+
+    Local<Value> persistent_v;
+    if (!options
+             ->Get(env->context(),
+                   FIXED_ONE_BYTE_STRING(env->isolate(), "persistent"))
+             .ToLocal(&persistent_v)) {
+      return;
+    }
+    if (!persistent_v->IsUndefined()) {
+      if (!persistent_v->IsBoolean()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.persistent\" argument must be a boolean.");
+        return;
+      }
+      persistent = persistent_v->IsTrue();
+    }
   }
 
   Utf8Value sql(env->isolate(), args[0].As<String>());
   sqlite3_stmt* s = nullptr;
-  int r = sqlite3_prepare_v2(db->connection_, *sql, -1, &s, nullptr);
+  unsigned int prep_flags =
+      persistent.value_or(false) ? SQLITE_PREPARE_PERSISTENT : 0;
+  int r =
+      sqlite3_prepare_v3(db->connection_, *sql, -1, prep_flags, &s, nullptr);
 
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
   BaseObjectPtr<StatementSync> stmt =
