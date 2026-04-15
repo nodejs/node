@@ -71,21 +71,35 @@ describe('Logger', () => {
 
   describe('msg field validation', () => {
     it('should throw when object is missing msg field', () => {
+      const stream = new TestStream();
+      const consumer = new JSONConsumer({ stream, level: 'info' });
+      consumer.attach();
       const logger = new Logger();
-      assert.throws(() => {
-        logger.info({ userId: 123 }); // Missing msg
-      }, {
-        code: 'ERR_INVALID_ARG_TYPE',
-      });
+      try {
+        assert.throws(() => {
+          logger.info({ userId: 123 }); // Missing msg
+        }, {
+          code: 'ERR_INVALID_ARG_TYPE',
+        });
+      } finally {
+        consumer.detach();
+      }
     });
 
     it('should throw when msg is not a string', () => {
+      const stream = new TestStream();
+      const consumer = new JSONConsumer({ stream, level: 'info' });
+      consumer.attach();
       const logger = new Logger();
-      assert.throws(() => {
-        logger.info({ msg: 123 }); // msg is not a string
-      }, {
-        code: 'ERR_INVALID_ARG_TYPE',
-      });
+      try {
+        assert.throws(() => {
+          logger.info({ msg: 123 }); // msg is not a string
+        }, {
+          code: 'ERR_INVALID_ARG_TYPE',
+        });
+      } finally {
+        consumer.detach();
+      }
     });
 
     it('should accept string message without second argument', () => {
@@ -107,12 +121,19 @@ describe('Logger', () => {
 
   describe('invalid fields argument', () => {
     it('should throw when fields is not an object', () => {
+      const stream = new TestStream();
+      const consumer = new JSONConsumer({ stream, level: 'info' });
+      consumer.attach();
       const logger = new Logger();
-      assert.throws(() => {
-        logger.info('message', 'not an object');
-      }, {
-        code: 'ERR_INVALID_ARG_TYPE',
-      });
+      try {
+        assert.throws(() => {
+          logger.info('message', 'not an object');
+        }, {
+          code: 'ERR_INVALID_ARG_TYPE',
+        });
+      } finally {
+        consumer.detach();
+      }
     });
   });
 });
