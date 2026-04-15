@@ -248,7 +248,7 @@ void PrintDebuggerReadyMessage(
     }
   }
   fprintf(out, "For help, see: %s\n",
-          "https://nodejs.org/en/docs/inspector");
+          "https://nodejs.org/api/inspector.html");
   fflush(out);
 }
 
