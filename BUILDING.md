@@ -1049,8 +1049,8 @@ linking statically or dynamically with a version of [temporal\_rs](https://githu
 
 To build Node.js with Temporal support, a Rust toolchain is required:
 
-* rustc >= 1.82 (with LLVM >= 19)
-* cargo >= 1.82
+* rustc >= 1.86 (with LLVM >= 19)
+* cargo >= 1.86
 
 ## Building Node.js with external core modules
 
