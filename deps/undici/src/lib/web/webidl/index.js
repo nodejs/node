@@ -2,7 +2,7 @@
 
 const assert = require('node:assert')
 const { types, inspect } = require('node:util')
-const { runtimeFeatures } = require('../../util/runtime-features')
+const { markAsUncloneable } = require('node:worker_threads')
 
 const UNDEFINED = 1
 const BOOLEAN = 2
@@ -158,9 +158,7 @@ webidl.util.TypeValueToString = function (o) {
   }
 }
 
-webidl.util.markAsUncloneable = runtimeFeatures.has('markAsUncloneable')
-  ? require('node:worker_threads').markAsUncloneable
-  : () => {}
+webidl.util.markAsUncloneable = markAsUncloneable
 
 // https://webidl.spec.whatwg.org/#abstract-opdef-converttoint
 webidl.util.ConvertToInt = function (V, bitLength, signedness, flags) {
