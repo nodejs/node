@@ -20,5 +20,6 @@ output_type:
 lifetimes: {}
 attrs: {}
 docs:
-  - ""
+  - - cfg: Star
+      lines: ""
   - []

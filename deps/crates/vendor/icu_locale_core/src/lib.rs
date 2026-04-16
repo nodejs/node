@@ -2,6 +2,19 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
+// https://github.com/unicode-org/icu4x/blob/main/documents/process/boilerplate.md#library-annotations
+#![cfg_attr(not(any(test, doc)), no_std)]
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::indexing_slicing,
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::panic,
+    )
+)]
+#![warn(missing_docs)]
+
 //! Parsing, manipulating, and serializing Unicode Language and Locale Identifiers.
 //!
 //! This module is published as its own crate ([`icu_locale_core`](https://docs.rs/icu_locale_core/latest/icu_locale_core/))
@@ -48,23 +61,6 @@
 //! [`ICU4X`]: ../icu/index.html
 //! [`Unicode Extensions`]: extensions
 
-// https://github.com/unicode-org/icu4x/blob/main/documents/process/boilerplate.md#library-annotations
-#![cfg_attr(not(any(test, doc)), no_std)]
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::indexing_slicing,
-        clippy::unwrap_used,
-        clippy::expect_used,
-        clippy::panic,
-        clippy::exhaustive_structs,
-        clippy::exhaustive_enums,
-        clippy::trivially_copy_pass_by_ref,
-        missing_debug_implementations,
-    )
-)]
-#![warn(missing_docs)]
-
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
@@ -89,7 +85,7 @@ pub mod subtags;
 pub mod preferences;
 pub mod zerovec;
 
-#[cfg(feature = "serde")]
+#[cfg(all(feature = "alloc", feature = "serde"))]
 mod serde;
 
 #[cfg(feature = "databake")]

@@ -437,7 +437,7 @@ impl AttributeInfo {
             } else if ident == "diplomat" {
                 if attr.path().segments.len() == 2 {
                     let seg = &attr.path().segments.iter().nth(1).unwrap().ident;
-                    if seg == "opaque" {
+                    if seg == "opaque" || seg == "opaque_mut" {
                         opaque = true;
                         return false;
                     } else if seg == "out" {
@@ -446,8 +446,10 @@ impl AttributeInfo {
                     } else if seg == "rust_link"
                         || seg == "out"
                         || seg == "attr"
+                        || seg == "cfg"
                         || seg == "abi_rename"
                         || seg == "demo"
+                        || seg == "docs"
                     {
                         // diplomat-tool reads these, not diplomat::bridge.
                         // throw them away so rustc doesn't complain about unknown attributes
@@ -459,7 +461,7 @@ impl AttributeInfo {
                     } else if seg == "config" {
                         panic!("#[diplomat::config] is restricted to top level types in lib.rs.");
                     } else {
-                        panic!("Only #[diplomat::opaque] and #[diplomat::rust_link] are supported: {seg:?}")
+                        panic!("Only #[diplomat::opaque], #[diplomat::opaque_mut], and #[diplomat::rust_link] are supported: {seg:?}")
                     }
                 } else {
                     panic!("#[diplomat::foo] attrs have a single-segment path name")
@@ -554,6 +556,14 @@ fn gen_bridge(mut input: ItemMod) -> ItemMod {
                         };
                     }
                 }
+            }
+        }
+        Item::Fn(f) => {
+            for i in f.sig.inputs.iter_mut() {
+                let _attrs = match i {
+                    syn::FnArg::Receiver(s) => AttributeInfo::extract(&mut s.attrs),
+                    syn::FnArg::Typed(t) => AttributeInfo::extract(&mut t.attrs),
+                };
             }
         }
         _ => (),
@@ -684,6 +694,14 @@ pub fn config(
     "".parse().unwrap()
 }
 
+#[proc_macro_attribute]
+pub fn docs(
+    _attr: proc_macro::TokenStream,
+    _input: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    "".parse().unwrap()
+}
+
 /// Generate From and Into implementations for a Diplomat enum
 ///
 /// This is invoked as `#[diplomat::enum_convert(OtherEnumName)]`
@@ -770,7 +788,7 @@ macro_rules! expose_attrs {
     }
 }
 
-expose_attrs! {opaque, attr, demo}
+expose_attrs! {opaque, opaque_mut, attr, demo, skip_private_items}
 
 #[cfg(test)]
 mod tests {

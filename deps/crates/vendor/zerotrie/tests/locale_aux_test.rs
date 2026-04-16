@@ -30,7 +30,7 @@ fn test_combined() {
 
     // Size including pointer array:
     assert_eq!(
-        vzv.as_bytes().len() + STRINGS.len() * core::mem::size_of::<usize>(),
+        vzv.as_bytes().len() + STRINGS.len() * size_of::<usize>(),
         18635
     );
 
@@ -41,7 +41,7 @@ fn test_combined() {
 
     // Size including pointer array:
     assert_eq!(
-        trie.byte_len() + NUM_UNIQUE_BLOBS * core::mem::size_of::<usize>(),
+        trie.byte_len() + NUM_UNIQUE_BLOBS * size_of::<usize>(),
         8392
     );
 
@@ -52,7 +52,7 @@ fn test_combined() {
 
     // Size including pointer array:
     assert_eq!(
-        trie.byte_len() + NUM_UNIQUE_BLOBS * core::mem::size_of::<usize>(),
+        trie.byte_len() + NUM_UNIQUE_BLOBS * size_of::<usize>(),
         8445
     );
 
@@ -60,23 +60,20 @@ fn test_combined() {
     assert_eq!(total_str_len, 8115);
 
     // Lookup table size:
-    assert_eq!(
-        total_str_len + STRINGS.len() * core::mem::size_of::<usize>(),
-        16531
-    );
+    assert_eq!(total_str_len + STRINGS.len() * size_of::<usize>(), 16531);
 
     // Size including pointer array: (2x for the lookup array and value array)
     assert_eq!(
-        total_str_len + 2 * STRINGS.len() * core::mem::size_of::<usize>(),
+        total_str_len + 2 * STRINGS.len() * size_of::<usize>(),
         24947
     );
 
     // Size including u16 pointer array:
     assert_eq!(
         total_str_len
-            + STRINGS.len() * core::mem::size_of::<usize>()
-            + STRINGS.len() * core::mem::size_of::<u16>()
-            + NUM_UNIQUE_BLOBS * core::mem::size_of::<usize>(),
+            + STRINGS.len() * size_of::<usize>()
+            + STRINGS.len() * size_of::<u16>()
+            + NUM_UNIQUE_BLOBS * size_of::<usize>(),
         21923
     );
 }
@@ -142,29 +139,26 @@ fn test_aux_split() {
 
     // Size including pointer array:
     assert_eq!(
-        total_simpleascii_len + NUM_UNIQUE_BLOBS * core::mem::size_of::<usize>(),
+        total_simpleascii_len + NUM_UNIQUE_BLOBS * size_of::<usize>(),
         8386
     );
     assert_eq!(
-        total_perfecthash_len + NUM_UNIQUE_BLOBS * core::mem::size_of::<usize>(),
+        total_perfecthash_len + NUM_UNIQUE_BLOBS * size_of::<usize>(),
         8590
     );
-    assert_eq!(
-        total_vzv_len + STRINGS.len() * core::mem::size_of::<usize>(),
-        13902
-    );
+    assert_eq!(total_vzv_len + STRINGS.len() * size_of::<usize>(), 13902);
     // 2x for the lookup arrays and value arrays
     assert_eq!(
-        total_unique_locale_str_len + 2 * STRINGS.len() * core::mem::size_of::<usize>(),
+        total_unique_locale_str_len + 2 * STRINGS.len() * size_of::<usize>(),
         17777
     );
 
     // Size including u16 pointer array:
     assert_eq!(
         total_unique_locale_str_len
-            + STRINGS.len() * core::mem::size_of::<usize>()
-            + STRINGS.len() * core::mem::size_of::<u16>()
-            + NUM_UNIQUE_BLOBS * core::mem::size_of::<usize>(),
+            + STRINGS.len() * size_of::<usize>()
+            + STRINGS.len() * size_of::<u16>()
+            + NUM_UNIQUE_BLOBS * size_of::<usize>(),
         14753
     );
 }

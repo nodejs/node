@@ -7,6 +7,7 @@ use tinystr::TinyAsciiStr;
 
 use crate::{
     builtins::calendar::{CalendarFields, YearMonthCalendarFields},
+    error::ErrorMessage,
     iso::{year_month_within_limits, IsoDate, IsoDateTime, IsoTime},
     options::{
         DifferenceOperation, DifferenceSettings, Disambiguation, DisplayCalendar, Overflow,
@@ -15,14 +16,11 @@ use crate::{
     parsed_intermediates::ParsedDate,
     parsers::{FormattableCalendar, FormattableDate, FormattableYearMonth},
     provider::{NeverProvider, TimeZoneProvider},
-    temporal_assert,
     unix_time::EpochNanoseconds,
-    Calendar, MonthCode, TemporalError, TemporalResult, TemporalUnwrap, TimeZone,
+    Calendar, MonthCode, TemporalError, TemporalResult, TimeZone,
 };
 
-use super::{
-    duration::normalized::InternalDurationRecord, DateDuration, Duration, PlainDate, PlainDateTime,
-};
+use super::{duration::normalized::InternalDurationRecord, Duration, PlainDate, PlainDateTime};
 use writeable::Writeable;
 
 /// A partial PlainYearMonth record
@@ -190,71 +188,51 @@ impl PlainYearMonth {
         // NOTE: The following operation has been moved to the caller.
         //    MOVE: 2. If operation is subtract, set duration to CreateNegatedTemporalDuration(duration).
 
+        // 3. Let internalDuration be ToInternalDurationRecord(duration).
+        let internal_duration = duration.to_internal_duration_record();
+
+        // 4. Let durationToAdd be internalDuration.[[Date]].
+        let duration_to_add = internal_duration.date();
+
         // NOTE: The following are engine specific:
-        //    SKIP: 3. Let resolvedOptions be ? GetOptionsObject(options).
-        //    SKIP: 4. Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+        //    SKIP: 5. Let resolvedOptions be ? GetOptionsObject(options).
+        //    SKIP: 6. Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
 
-        // 5. Let sign be DurationSign(duration).
-        let sign = duration.sign();
+        // 7. If durationToAdd.[[Weeks]] ≠ 0, or durationToAdd.[[Days]] ≠ 0, or internalDuration.[[Time]] ≠ 0,
+        // throw a RangeError exception.
 
-        // 6. Let calendar be yearMonth.[[Calendar]].
+        if duration_to_add.weeks != 0
+            || duration_to_add.days != 0
+            || internal_duration.normalized_time_duration().0 != 0
+        {
+            return Err(TemporalError::range()
+                .with_message("Can only add years or months to PlainYearMonth."));
+        }
+
+        // 8. Let calendar be yearMonth.[[Calendar]].
         let calendar = self.calendar();
 
-        // 7. Let fields be ISODateToFields(calendar, yearMonth.[[ISODate]], year-month).
+        // 9. Let fields be ISODateToFields(calendar, yearMonth.[[ISODate]], year-month).
         let fields = CalendarFields::from(YearMonthCalendarFields::try_from_year_month(self)?);
 
-        // 8. Set fields.[[Day]] to 1.
+        // 10. Set fields.[[Day]] to 1.
         let fields = fields.with_day(1);
 
-        // 9. Let intermediateDate be ? CalendarDateFromFields(calendar, fields, constrain).
-        let intermediate_date = calendar.date_from_fields(fields, overflow)?;
+        // 11. Let date be ? CalendarDateFromFields(calendar, fields, constrain).
+        let date = calendar.date_from_fields(fields, Overflow::Constrain)?;
 
-        // 10. If sign < 0, then
-        let date = if sign.as_sign_multiplier() < 0 {
-            // a. Let oneMonthDuration be ! CreateDateDurationRecord(0, 1, 0, 0).
-            let one_month_duration = DateDuration::new_unchecked(0, 1, 0, 0);
+        // 12. Let addedDate be ? CalendarDateAdd(calendar, date, durationToAdd, overflow).
+        let added_date = calendar.date_add(&date.iso, &duration_to_add, overflow)?;
 
-            // b. Let nextMonth be ? CalendarDateAdd(calendar, intermediateDate, oneMonthDuration, constrain).
-            let next_month = calendar.date_add(
-                &intermediate_date.iso,
-                &one_month_duration,
-                Overflow::Constrain,
-            )?;
-
-            // c. Let date be BalanceISODate(nextMonth.[[Year]], nextMonth.[[Month]], nextMonth.[[Day]] - 1).
-            let date = IsoDate::balance(
-                next_month.year(),
-                i32::from(next_month.month()),
-                i32::from(next_month.day())
-                    .checked_sub(1)
-                    .temporal_unwrap()?,
-            );
-
-            // d. Assert: ISODateWithinLimits(date) is true.
-            temporal_assert!(date.is_valid());
-
-            date
-        } else {
-            // 11. Else,
-            //    a. Let date be intermediateDate.
-            intermediate_date.iso
-        };
-
-        // 12. Let durationToAdd be ToDateDurationRecordWithoutTime(duration).
-        let duration_to_add = duration.to_date_duration_record_without_time()?;
-
-        // 13. Let addedDate be ? CalendarDateAdd(calendar, date, durationToAdd, overflow).
-        let added_date = calendar.date_add(&date, &duration_to_add, overflow)?;
-
-        // 14. Let addedDateFields be ISODateToFields(calendar, addedDate, year-month).
+        // 13. Let addedDateFields be ISODateToFields(calendar, addedDate, year-month).
         let added_date_fields = YearMonthCalendarFields::new()
             .with_month_code(added_date.month_code())
             .with_year(added_date.year());
 
-        // 15. Let isoDate be ? CalendarYearMonthFromFields(calendar, addedDateFields, overflow).
+        // 14. Let isoDate be ? CalendarYearMonthFromFields(calendar, addedDateFields, overflow).
         let iso_date = calendar.year_month_from_fields(added_date_fields, overflow)?;
 
-        // 16. Return ! CreateTemporalYearMonth(isoDate, calendar).
+        // 15. Return ! CreateTemporalYearMonth(isoDate, calendar).
         Ok(iso_date)
     }
 
@@ -300,19 +278,25 @@ impl PlainYearMonth {
         // 7. Let thisFields be ISODateToFields(calendar, yearMonth.[[ISODate]], year-month).
         // 8. Set thisFields.[[Day]] to 1.
         // 9. Let thisDate be ? CalendarDateFromFields(calendar, thisFields, constrain).
-        let mut this_iso = self.iso;
-        this_iso.day = 1;
-        this_iso.check_within_limits()?;
+        let this_fields = CalendarFields::from(YearMonthCalendarFields::try_from_year_month(self)?);
+        let this_fields = this_fields.with_day(1);
+        let this_date = self
+            .calendar()
+            .date_from_fields(this_fields, Overflow::Constrain)?;
         // 10. Let otherFields be ISODateToFields(calendar, other.[[ISODate]], year-month).
         // 11. Set otherFields.[[Day]] to 1.
         // 12. Let otherDate be ? CalendarDateFromFields(calendar, otherFields, constrain).
-        let mut other_iso = other.iso;
-        other_iso.day = 1;
-        other_iso.check_within_limits()?;
-        // 13. Let dateDifference be CalendarDateUntil(calendar, thisDate, otherDate, settings.[[LargestUnit]]).
-        let result = self
+        let other_fields =
+            CalendarFields::from(YearMonthCalendarFields::try_from_year_month(other)?);
+        let other_fields = other_fields.with_day(1);
+        let other_date = self
             .calendar()
-            .date_until(&this_iso, &other_iso, resolved.largest_unit)?;
+            .date_from_fields(other_fields, Overflow::Constrain)?;
+
+        // 13. Let dateDifference be CalendarDateUntil(calendar, thisDate, otherDate, settings.[[LargestUnit]]).
+        let result =
+            self.calendar()
+                .date_until(&this_date.iso, &other_date.iso, resolved.largest_unit)?;
         // 14. Let yearsMonthsDifference be ! AdjustDateDurationRecord(dateDifference, 0, 0).
         let result = result.date().adjust(0, Some(0), None)?;
 
@@ -322,13 +306,15 @@ impl PlainYearMonth {
         // 16. If settings.[[SmallestUnit]] is not month or settings.[[RoundingIncrement]] ≠ 1, then
         if resolved.smallest_unit != Unit::Month || resolved.increment != RoundingIncrement::ONE {
             // a. Let isoDateTime be CombineISODateAndTimeRecord(thisDate, MidnightTimeRecord()).
-            let iso_date_time = IsoDateTime::new_unchecked(this_iso, IsoTime::default());
+            let iso_date_time = IsoDateTime::new_unchecked(this_date.iso, IsoTime::default());
             // b. Let isoDateTimeOther be CombineISODateAndTimeRecord(otherDate, MidnightTimeRecord()).
-            let target_iso_date_time = IsoDateTime::new_unchecked(other_iso, IsoTime::default());
+            let target_iso_date_time =
+                IsoDateTime::new_unchecked(other_date.iso, IsoTime::default());
             // c. Let destEpochNs be GetUTCEpochNanoseconds(isoDateTimeOther).
             let dest_epoch_ns = target_iso_date_time.as_nanoseconds();
             // d. Set duration to ? RoundRelativeDuration(duration, destEpochNs, isoDateTime, unset, calendar, resolved.[[LargestUnit]], resolved.[[RoundingIncrement]], resolved.[[SmallestUnit]], resolved.[[RoundingMode]]).
             duration = duration.round_relative_duration(
+                iso_date_time.as_nanoseconds(),
                 dest_epoch_ns.as_i128(),
                 &PlainDateTime::new_unchecked(iso_date_time, self.calendar.clone()),
                 Option::<(&TimeZone, &NeverProvider)>::None,
@@ -541,6 +527,9 @@ impl PlainYearMonth {
         // 4. Let calendar be yearMonth.[[Calendar]].
         // 5. Let fields be ISODateToFields(calendar, yearMonth.[[ISODate]], year-month).
         // 6. Let partialYearMonth be ? PrepareCalendarFields(calendar, temporalYearMonthLike, « year, month, month-code », « », partial).
+        if fields.is_empty() {
+            return Err(TemporalError::r#type().with_enum(ErrorMessage::EmptyFieldsIsInvalid));
+        }
         // 7. Set fields to CalendarMergeFields(calendar, fields, partialYearMonth).
         // 8. Let resolvedOptions be ? GetOptionsObject(options).
         // 9. Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
@@ -548,7 +537,7 @@ impl PlainYearMonth {
         // 11. Return ! CreateTemporalYearMonth(isoDate, calendar).
         let overflow = overflow.unwrap_or(Overflow::Constrain);
         self.calendar.year_month_from_fields(
-            fields.with_fallback_year_month(self, self.calendar.kind(), overflow)?,
+            fields.with_fallback_year_month(self, self.calendar.kind())?,
             overflow,
         )
     }
@@ -609,13 +598,11 @@ impl PlainYearMonth {
     }
 
     /// Gets the epochMilliseconds represented by this YearMonth in the given timezone
-    /// (using the reference year, and noon time)
-    ///
-    // Useful for implementing HandleDateTimeTemporalYearMonth
+    /// (using the reference day, and noon time)
     pub fn epoch_ns_for_with_provider(
         &self,
         time_zone: TimeZone,
-        provider: &impl TimeZoneProvider,
+        provider: &(impl TimeZoneProvider + ?Sized),
     ) -> TemporalResult<EpochNanoseconds> {
         // 2. Let isoDateTime be CombineISODateAndTimeRecord(temporalYearMonth.[[ISODate]], NoonTimeRecord()).
         let iso = IsoDateTime::new(self.iso, IsoTime::noon())?;
@@ -623,6 +610,19 @@ impl PlainYearMonth {
         Ok(time_zone
             .get_epoch_nanoseconds_for(iso, Disambiguation::Compatible, provider)?
             .ns)
+    }
+
+    /// Gets the EpochNanoseconds represented by this YearMonth
+    /// (using the reference day, noon time, and UTC timezone)
+    ///
+    // Useful for implementing HandleDateTimeTemporalYearMonth
+    pub fn epoch_ns_for_utc(&self) -> EpochNanoseconds {
+        // 2. Let isoDateTime be CombineISODateAndTimeRecord(temporalYearMonth.[[ISODate]], NoonTimeRecord()).
+        // new_unchecked: PYM is supposed to support year-months outside of the ISO range as well as long
+        // as the year is in range
+        let iso = IsoDateTime::new_unchecked(self.iso, IsoTime::noon());
+        // 3. Let epochNs be ? GetUTCEpochNanoseconds(isoDateTime).
+        iso.as_nanoseconds()
     }
 
     /// Returns a RFC9557 IXDTF string for the current `PlainYearMonth`
@@ -798,6 +798,24 @@ mod tests {
             assert_eq!(until.years(), 1);
             assert_eq!(since.years(), -1);
         }
+
+        // Ensure that the day = 1 setting before diff works in non-ISO calendars
+        {
+            let earlier = PlainYearMonth::from_str("2000-07-02[u-ca=chinese]").unwrap();
+            let later = PlainYearMonth::from_str("2000-12-26[u-ca=chinese]").unwrap();
+            assert_eq!(earlier.month(), 6);
+            assert_eq!(later.month(), 12);
+            let settings = DifferenceSettings {
+                smallest_unit: Some(Unit::Month),
+                ..Default::default()
+            };
+
+            let until = earlier.until(&later, settings).unwrap();
+            let since = earlier.since(&later, settings).unwrap();
+
+            assert_eq!(until.months(), 6);
+            assert_eq!(since.months(), -6);
+        }
     }
     #[test]
     fn test_diff_with_different_calendars() {
@@ -941,19 +959,17 @@ mod tests {
         ); // assert month code has changed
         assert_eq!(with_month_code.iso_month(), 5); // month is changed as well
 
-        // Day
-        let fields = YearMonthCalendarFields::new();
-        let with_day = base.with(fields, None).unwrap();
-        assert_eq!(with_day.iso_year(), 2025); // year is not changed
-        assert_eq!(with_day.iso_month(), 3); // month is not changed
-        assert_eq!(with_day.iso.day, 1); // day is ignored
-
         // All
         let fields = YearMonthCalendarFields::new().with_year(2001).with_month(2);
         let with_all = base.with(fields, None).unwrap();
         assert_eq!(with_all.iso_year(), 2001); // year is changed
         assert_eq!(with_all.iso_month(), 2); // month is changed
         assert_eq!(with_all.iso.day, 1); // day is ignored
+
+        // Empty fields -> throws error
+        let fields = YearMonthCalendarFields::new();
+        let empty = base.with(fields, None);
+        assert!(empty.is_err());
     }
 
     #[test]
@@ -982,6 +998,11 @@ mod tests {
             "+275760-10-01",
             "+275760-10-01T00:00",
             "1976-11[u-ca=hebrew]",
+            // built-ins/Temporal/PlainYearMonth/from/argument-string-too-many-decimals
+            "1970-01-01T00:00:00.1234567891",
+            "1970-01-01T00:00:00.1234567890",
+            "1970-01-01T00+00:00:00.1234567891",
+            "1970-01-01T00+00:00:00.1234567890",
         ];
 
         for invalid_case in invalid_strings {
@@ -1079,18 +1100,20 @@ mod tests {
 
     #[test]
     fn test_reference_day() {
+        // Note: Japanese reference days are also day 1 even at era boundaries
+        // https://github.com/tc39/proposal-temporal/issues/3150
         assert_eq!(
             PlainYearMonth::from_str("1868-10-30[u-ca=japanese]")
                 .unwrap()
                 .reference_day(),
-            23
+            1
         );
         // Still happens for dates that are in the previous era but same month
         assert_eq!(
             PlainYearMonth::from_str("1868-10-20[u-ca=japanese]")
                 .unwrap()
                 .reference_day(),
-            23
+            1
         );
         // Won't happen for dates in other months
         assert_eq!(
@@ -1128,5 +1151,33 @@ mod tests {
                 }
             )
             .is_err());
+    }
+
+    #[test]
+    fn test_subtract_one_month() {
+        // https://github.com/boa-dev/temporal/issues/643
+        let chinese_m12_1 = PlainYearMonth::from_str("2002-01-13[u-ca=chinese]").unwrap();
+        let minus_one_month = Duration::from_str("P1M").unwrap();
+        let prev = chinese_m12_1
+            .subtract(&minus_one_month, Overflow::Constrain)
+            .unwrap();
+        assert_eq!(
+            prev.to_ixdtf_string(Default::default()),
+            "2001-12-15[u-ca=chinese]"
+        );
+    }
+
+    #[test]
+    /// Should be able to subtract years from a leap month
+    ///
+    /// Regression test for bugs fixed by <https://github.com/tc39/proposal-temporal/pull/3253/>
+    fn test_subtract_years_from_leap_month() {
+        let dangi_m03l_2012 = PlainYearMonth::from_str("2012-04-21[u-ca=dangi]").unwrap();
+        let minus_19y = Duration::from_str("-P19Y").unwrap();
+        let prev = dangi_m03l_2012.add(&minus_19y, Overflow::Reject).unwrap();
+        assert_eq!(
+            prev.to_ixdtf_string(Default::default()),
+            "1993-04-22[u-ca=dangi]"
+        );
     }
 }

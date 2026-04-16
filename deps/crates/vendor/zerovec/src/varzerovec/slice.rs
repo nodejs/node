@@ -9,10 +9,12 @@ use crate::ule::*;
 use core::cmp::{Ord, Ordering, PartialOrd};
 use core::fmt;
 use core::marker::PhantomData;
-use core::mem;
 
 use core::ops::Index;
 use core::ops::Range;
+
+#[cfg(feature = "alloc")]
+use alloc::{boxed::Box, vec::Vec};
 
 /// A zero-copy "slice", that works for unsized types, i.e. the zero-copy version of `[T]`
 /// where `T` is not `Sized`.
@@ -78,7 +80,7 @@ use core::ops::Range;
 /// ## Iterate over Windows
 ///
 /// Although [`VarZeroSlice`] does not itself have a `.windows` iterator like
-/// [core::slice::Windows], this behavior can be easily modeled using an iterator:
+/// [`core::slice::Windows`], this behavior can be easily modeled using an iterator:
 ///
 /// ```
 /// use zerovec::VarZeroVec;
@@ -104,10 +106,10 @@ pub struct VarZeroSlice<T: ?Sized, F = Index16> {
 }
 
 impl<T: VarULE + ?Sized, F: VarZeroVecFormat> VarZeroSlice<T, F> {
-    /// Construct a new empty VarZeroSlice
+    /// Construct a new empty [`VarZeroSlice`]
     pub const fn new_empty() -> &'static Self {
         // The empty VZV is special-cased to the empty slice
-        unsafe { mem::transmute(&[] as &[u8]) }
+        unsafe { &*(&[] as *const [u8] as *const Self) }
     }
 
     /// Obtain a [`VarZeroVecComponents`] borrowing from the internal buffer
@@ -126,7 +128,7 @@ impl<T: VarULE + ?Sized, F: VarZeroVecFormat> VarZeroSlice<T, F> {
     /// `bytes` need to be an output from [`VarZeroSlice::as_bytes()`].
     pub const unsafe fn from_bytes_unchecked(bytes: &[u8]) -> &Self {
         // self is really just a wrapper around a byte slice
-        mem::transmute(bytes)
+        &*(bytes as *const [u8] as *const Self)
     }
 
     /// Get the number of elements in this slice
@@ -232,7 +234,7 @@ impl<T: VarULE + ?Sized, F: VarZeroVecFormat> VarZeroSlice<T, F> {
     ///
     /// ✨ *Enabled with the `alloc` Cargo feature.*
     #[cfg(feature = "alloc")]
-    pub fn to_vec(&self) -> alloc::vec::Vec<alloc::boxed::Box<T>> {
+    pub fn to_vec(&self) -> Vec<Box<T>> {
         self.as_components().to_vec()
     }
 
@@ -265,7 +267,7 @@ impl<T: VarULE + ?Sized, F: VarZeroVecFormat> VarZeroSlice<T, F> {
         VarZeroVec(VarZeroVecInner::Borrowed(self))
     }
 
-    /// Parse a VarZeroSlice from a slice of the appropriate format
+    /// Parse a [`VarZeroSlice`] from a slice of the appropriate format
     ///
     /// Slices of the right format can be obtained via [`VarZeroSlice::as_bytes()`]
     pub fn parse_bytes<'a>(slice: &'a [u8]) -> Result<&'a Self, UleError> {
@@ -443,14 +445,14 @@ where
 //  7. VarZeroSlice byte equality is semantic equality (relying on the guideline of the underlying VarULE type)
 unsafe impl<T: VarULE + ?Sized + 'static, F: VarZeroVecFormat> VarULE for VarZeroSlice<T, F> {
     fn validate_bytes(bytes: &[u8]) -> Result<(), UleError> {
-        let _: VarZeroVecComponents<T, F> =
-            VarZeroVecComponents::parse_bytes(bytes).map_err(|_| UleError::parse::<Self>())?;
+        let _ = VarZeroVecComponents::<T, F>::parse_bytes(bytes)
+            .map_err(|_| UleError::parse::<Self>())?;
         Ok(())
     }
 
     unsafe fn from_bytes_unchecked(bytes: &[u8]) -> &Self {
         // self is really just a wrapper around a byte slice
-        mem::transmute(bytes)
+        &*(bytes as *const [u8] as *const Self)
     }
 
     fn as_bytes(&self) -> &[u8] {

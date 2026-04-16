@@ -2,11 +2,11 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
-/// Take a VarULE type and serialize it both in human and machine readable contexts,
+/// Take a `VarULE` type and serialize it both in human and machine readable contexts,
 /// and ensure it roundtrips correctly
 ///
 /// Note that the concrete type may need to be explicitly specified to prevent issues with
-/// https://github.com/rust-lang/rust/issues/130180
+/// <https://github.com/rust-lang/rust/issues/130180>
 #[cfg(feature = "serde")]
 pub(crate) fn assert_serde_roundtrips<T>(var: &T)
 where

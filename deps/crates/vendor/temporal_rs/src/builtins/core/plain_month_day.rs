@@ -5,6 +5,7 @@ use core::str::FromStr;
 
 use crate::{
     builtins::calendar::CalendarFields,
+    error::ErrorMessage,
     iso::{IsoDate, IsoDateTime, IsoTime},
     options::{Disambiguation, DisplayCalendar, Overflow},
     parsed_intermediates::ParsedDate,
@@ -250,7 +251,7 @@ impl PlainMonthDay {
             .month_day_from_fields(fields, Overflow::Constrain)
     }
 
-    /// Create a `PlainYearMonth` from a `PartialDate`
+    /// Create a `PlainMonthDay` from a `PartialDate`
     pub fn from_partial(partial: PartialDate, overflow: Option<Overflow>) -> TemporalResult<Self> {
         partial
             .calendar
@@ -265,7 +266,7 @@ impl PlainMonthDay {
         //
         // NOTE:  We assert that partial is not empty per step 6
         if fields.is_empty() {
-            return Err(TemporalError::r#type().with_message("partial object must have a field."));
+            return Err(TemporalError::r#type().with_enum(ErrorMessage::EmptyFieldsIsInvalid));
         }
 
         // NOTE: We only need to set month / month_code and day, per spec.
@@ -353,7 +354,7 @@ impl PlainMonthDay {
     pub fn epoch_ns_for_with_provider(
         &self,
         time_zone: TimeZone,
-        provider: &impl TimeZoneProvider,
+        provider: &(impl TimeZoneProvider + ?Sized),
     ) -> TemporalResult<EpochNanoseconds> {
         // 2. Let isoDateTime be CombineISODateAndTimeRecord(temporalYearMonth.[[ISODate]], NoonTimeRecord()).
         let iso = IsoDateTime::new(self.iso, IsoTime::noon())?;
@@ -361,6 +362,18 @@ impl PlainMonthDay {
         Ok(time_zone
             .get_epoch_nanoseconds_for(iso, Disambiguation::Compatible, provider)?
             .ns)
+    }
+
+    /// Gets the EpochNanoseconds represented by this MonthDay
+    /// (using the reference year, noon time, and UTC timezone)
+    ///
+    // Useful for implementing HandleDateTimeTemporalYearMonth
+    pub fn epoch_ns_for_utc(&self) -> EpochNanoseconds {
+        // 2. Let isoDateTime be CombineISODateAndTimeRecord(temporalMonthDay.[[ISODate]], NoonTimeRecord()).
+        let iso = IsoDateTime::new(self.iso, IsoTime::noon());
+        debug_assert!(iso.is_ok());
+        // 3. Let epochNs be ? GetUTCEpochNanoseconds(isoDateTime).
+        iso.unwrap_or_default().as_nanoseconds()
     }
 
     /// Creates a RFC9557 IXDTF string from the current `PlainMonthDay`.
@@ -528,34 +541,30 @@ mod tests {
 
     #[test]
     /// This test is for calendars where we don't wish to hardcode dates; but we do wish to know
-    /// that monthcodes can be constructed without issue
-    fn automated_reference_year() {
+    /// that monthcodes can be constructed without issue (currently only UAQ)
+    fn automated_uaq_reference_year() {
         let reference_iso = IsoDate::new_unchecked(1972, 12, 31);
-        for cal in [
-            AnyCalendarKind::HijriSimulatedMecca,
-            AnyCalendarKind::HijriUmmAlQura,
-        ] {
-            let calendar = Calendar::new(cal);
-            for month in 1..=12 {
-                for day in [29, 30] {
-                    let month_code = crate::builtins::calendar::month_to_month_code(month).unwrap();
 
-                    let calendar_fields = CalendarFields {
-                        month_code: Some(month_code),
-                        day: Some(day),
-                        ..Default::default()
-                    };
+        let calendar = Calendar::new(AnyCalendarKind::HijriUmmAlQura);
+        for month in 1..=12 {
+            for day in [29, 30] {
+                let month_code = crate::builtins::calendar::month_to_month_code(month).unwrap();
 
-                    let md = calendar
-                        .month_day_from_fields(calendar_fields, Overflow::Reject)
-                        .unwrap();
+                let calendar_fields = CalendarFields {
+                    month_code: Some(month_code),
+                    day: Some(day),
+                    ..Default::default()
+                };
 
-                    assert!(
-                        md.iso <= reference_iso,
-                        "Reference ISO for {month}-{day} must be before 1972-12-31, found, {:?}",
-                        md.iso,
-                    );
-                }
+                let md = calendar
+                    .month_day_from_fields(calendar_fields, Overflow::Reject)
+                    .unwrap();
+
+                assert!(
+                    md.iso <= reference_iso,
+                    "Reference ISO for {month}-{day} must be before 1972-12-31, found, {:?}",
+                    md.iso,
+                );
             }
         }
     }
@@ -648,5 +657,100 @@ mod tests {
                 md_from_partial.iso
             );
         }
+    }
+
+    #[test]
+    fn month_day_range_check_with_year_iso() {
+        // https://github.com/boa-dev/temporal/issues/688
+        let iso = IsoDate::new_unchecked(1972, 1, 1);
+        let md = PlainMonthDay::new_unchecked(iso, Calendar::ISO);
+        let mut partial = CalendarFields {
+            year: Some(-271821),
+            ..Default::default()
+        };
+        let _ = md.with(partial.clone(), None).expect("should not throw");
+
+        partial.year = Some(i32::MIN);
+
+        let _ = md.with(partial, None).expect("should not throw");
+        let fields = CalendarFields {
+            year: Some(-27182100),
+            month: Some(2),
+            day: Some(29),
+            ..Default::default()
+        };
+        let mut partial = PartialDate {
+            calendar_fields: fields,
+            calendar: Calendar::ISO,
+        };
+        let resolved = PlainMonthDay::from_partial(partial.clone(), Some(Overflow::Constrain))
+            .expect("should not throw");
+
+        assert_eq!(
+            resolved.day(),
+            28,
+            "Should use provided year for constraining"
+        );
+
+        partial.calendar_fields.year = Some(-27182400);
+        let resolved = PlainMonthDay::from_partial(partial.clone(), Some(Overflow::Constrain))
+            .expect("should not throw");
+        assert_eq!(
+            resolved.day(),
+            29,
+            "Should use provided year for constraining"
+        );
+    }
+
+    #[test]
+    fn month_day_range_check_with_year_non_iso() {
+        use crate::builtins::calendar::month_to_month_code;
+
+        // https://github.com/boa-dev/temporal/issues/688
+        // Here we need to actually make sure that years get range checked for the calendar,
+        // since the spec wants us to allow YMD inputs that are out of ISO range, *as long as*
+        // the year can produce in-ISO-range values for *some* MD values.
+
+        let fields = CalendarFields {
+            year: Some(-27182100),
+            month_code: Some(month_to_month_code(1).unwrap()),
+            day: Some(1),
+            ..Default::default()
+        };
+        let mut partial = PartialDate {
+            calendar_fields: fields,
+            calendar: Calendar::CHINESE,
+        };
+        let _ = PlainMonthDay::from_partial(partial.clone(), Some(Overflow::Constrain))
+            .expect_err("Should not allow far past dates");
+        PlainDate::from_partial(partial.clone(), Some(Overflow::Constrain))
+            .expect_err("PlainDate should not be as lenient");
+        partial.calendar_fields.year = Some(-271821);
+
+        let _ = PlainMonthDay::from_partial(partial.clone(), Some(Overflow::Constrain))
+            .expect("should not throw");
+        PlainDate::from_partial(partial.clone(), Some(Overflow::Constrain))
+            .expect_err("PlainDate should not be as lenient");
+
+        let fields = CalendarFields {
+            year: Some(27576000),
+            month_code: Some(month_to_month_code(12).unwrap()),
+            day: Some(30),
+            ..Default::default()
+        };
+        let mut partial = PartialDate {
+            calendar_fields: fields,
+            calendar: Calendar::CHINESE,
+        };
+        let _ = PlainMonthDay::from_partial(partial.clone(), Some(Overflow::Constrain))
+            .expect_err("Should not allow far future dates");
+        PlainDate::from_partial(partial.clone(), Some(Overflow::Constrain))
+            .expect_err("PlainDate should not be as lenient");
+        partial.calendar_fields.year = Some(275760);
+
+        let _ = PlainMonthDay::from_partial(partial.clone(), Some(Overflow::Constrain))
+            .expect("should not throw");
+        PlainDate::from_partial(partial.clone(), Some(Overflow::Constrain))
+            .expect_err("PlainDate should not be as lenient");
     }
 }

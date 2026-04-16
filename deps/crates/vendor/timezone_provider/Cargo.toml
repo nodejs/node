@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.82.0"
+rust-version = "1.86.0"
 name = "timezone_provider"
-version = "0.1.0"
+version = "0.2.3"
 authors = ["boa-dev"]
 build = false
 include = [
@@ -34,6 +34,9 @@ readme = "README.md"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/boa-dev/temporal"
 
+[package.metadata.docs.rs]
+all-features = true
+
 [features]
 datagen = [
     "std",
@@ -52,7 +55,10 @@ datagen = [
     "experimental_tzif",
 ]
 default = []
-experimental_tzif = []
+experimental_tzif = [
+    "dep:zerofrom",
+    "zerofrom/derive",
+]
 std = []
 tzif = [
     "dep:tzif",
@@ -89,7 +95,7 @@ version = "1.0.145"
 optional = true
 
 [dependencies.tinystr]
-version = "0.8.1"
+version = "0.8.0"
 features = ["zerovec"]
 
 [dependencies.tzif]
@@ -101,21 +107,33 @@ version = "0.8.0"
 features = ["derive"]
 optional = true
 
+[dependencies.zerofrom]
+version = "0.1.6"
+optional = true
+
 [dependencies.zerotrie]
-version = "0.2.2"
+version = "0.2.0"
 
 [dependencies.zerovec]
-version = "0.11.4"
+version = "0.11.0"
 features = [
     "derive",
     "alloc",
 ]
 
 [dependencies.zoneinfo64]
-version = "0.2.0"
+version = "0.3.0"
 optional = true
 
 [dependencies.zoneinfo_rs]
-version = "~0.0.17"
-features = ["std"]
+version = "0.1.0"
+features = [
+    "std",
+    "unstable",
+]
 optional = true
+default-features = false
+
+[dev-dependencies.icu_time]
+version = "2"
+features = ["compiled_data"]

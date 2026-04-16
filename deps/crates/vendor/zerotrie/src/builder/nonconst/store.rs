@@ -9,7 +9,7 @@ use super::super::konst::ConstArrayBuilder;
 use alloc::collections::VecDeque;
 use alloc::vec::Vec;
 
-/// A trait applied to a data structure for building a ZeroTrie.
+/// A trait applied to a data structure for building a [`ZeroTrie`](crate::ZeroTrie).
 pub(crate) trait TrieBuilderStore {
     /// Create a new empty store.
     fn atbs_new_empty() -> Self;
@@ -162,7 +162,7 @@ impl NonConstLengthsStack {
             }
             let i = self.data.len() - ix - 1;
             // Won't panic because len <= 256
-            result = result.const_push_front_or_panic(match self.data.get(i) {
+            result.const_push_front_or_panic(match self.data.get(i) {
                 Some(x) => *x,
                 None => unreachable!("Not enough items in the ConstLengthsStack"),
             });

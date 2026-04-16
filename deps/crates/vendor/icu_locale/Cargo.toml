@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.82"
+rust-version = "1.86"
 name = "icu_locale"
-version = "2.0.0"
+version = "2.2.0"
 authors = ["The ICU4X Project Developers"]
 build = false
 include = [
@@ -35,7 +35,17 @@ autobenches = false
 description = "API for Unicode Language and Locale Identifiers canonicalization"
 homepage = "https://icu4x.unicode.org"
 readme = "README.md"
-categories = ["internationalization"]
+keywords = [
+    "unicode",
+    "language-tags",
+    "bcp47",
+]
+categories = [
+    "internationalization",
+    "localization",
+    "no-std",
+    "embedded",
+]
 license = "Unicode-3.0"
 repository = "https://github.com/unicode-org/icu4x"
 
@@ -91,16 +101,12 @@ features = ["derive"]
 optional = true
 default-features = false
 
-[dependencies.displaydoc]
-version = "0.2.3"
-default-features = false
-
 [dependencies.icu_collections]
-version = "~2.0.0"
+version = "~2.2.0"
 default-features = false
 
 [dependencies.icu_locale_core]
-version = "2.0.0"
+version = "2.2.0"
 features = [
     "alloc",
     "zerovec",
@@ -108,16 +114,17 @@ features = [
 default-features = false
 
 [dependencies.icu_locale_data]
-version = "~2.0.0"
+version = "~2.2.0"
 optional = true
 default-features = false
 
 [dependencies.icu_provider]
-version = "2.0.0"
+version = "2.2.0"
+features = ["alloc"]
 default-features = false
 
 [dependencies.potential_utf]
-version = "0.1.1"
+version = "0.1.3"
 features = [
     "alloc",
     "zerovec",
@@ -125,7 +132,7 @@ features = [
 default-features = false
 
 [dependencies.serde]
-version = "1.0.110"
+version = "1.0.220"
 features = [
     "derive",
     "alloc",
@@ -134,7 +141,7 @@ optional = true
 default-features = false
 
 [dependencies.tinystr]
-version = "0.8.0"
+version = "0.8.3"
 features = [
     "alloc",
     "zerovec",
@@ -142,7 +149,7 @@ features = [
 default-features = false
 
 [dependencies.zerovec]
-version = "0.11.1"
+version = "0.11.6"
 features = [
     "alloc",
     "yoke",
@@ -150,7 +157,7 @@ features = [
 default-features = false
 
 [dev-dependencies.serde]
-version = "1.0.110"
+version = "1.0.220"
 features = ["derive"]
 default-features = false
 
@@ -159,3 +166,52 @@ version = "1.0.45"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies.criterion]
 version = "0.5.0"
+
+[lints.clippy]
+alloc-instead-of-core = "warn"
+branches-sharing-code = "warn"
+collection_is_never_read = "warn"
+crosspointer_transmute = "warn"
+dbg_macro = "warn"
+debug_assert_with_mut_call = "warn"
+doc_markdown = "warn"
+exhaustive_enums = "deny"
+exhaustive_structs = "deny"
+fn_to_numeric_cast_any = "warn"
+infinite_loop = "warn"
+large_stack_arrays = "warn"
+mismatching_type_param_order = "warn"
+missing_fields_in_debug = "warn"
+missing_transmute_annotations = "warn"
+negative_feature_names = "warn"
+or-fun-call = "warn"
+same_functions_in_if_condition = "warn"
+todo = "warn"
+transmute_bytes_to_str = "warn"
+transmute_int_to_bool = "warn"
+transmute_int_to_non_zero = "warn"
+transmute_ptr_to_ptr = "warn"
+transmute_ptr_to_ref = "warn"
+transmute_undefined_repr = "warn"
+transmutes_expressible_as_ptr_casts = "warn"
+trivially_copy_pass_by_ref = "deny"
+unnecessary-wraps = "warn"
+useless_transmute = "warn"
+wildcard_dependencies = "warn"
+
+[lints.rust]
+missing_debug_implementations = "deny"
+trivial_numeric_casts = "deny"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+unused_qualifications = "warn"
+
+[lints.rust.unexpected_cfgs]
+level = "warn"
+priority = 0
+check-cfg = [
+    "cfg(icu4c_enable_renaming)",
+    "cfg(needs_alloc_error_handler)",
+    "cfg(icu4x_run_size_tests)",
+    "cfg(icu4x_unstable_fast_trie_only)",
+]
