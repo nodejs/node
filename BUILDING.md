@@ -1053,8 +1053,8 @@ linking statically or dynamically with a version of [temporal\_rs](https://githu
 Temporal support is enabled by default starting in Node.js 26. Building it
 requires a Rust toolchain:
 
-* rustc >= 1.82 (with LLVM >= 19)
-* cargo >= 1.82
+* rustc >= 1.86 (with LLVM >= 19)
+* cargo >= 1.86
 
 If `--v8-enable-temporal-support` and `--v8-disable-temporal-support` are both
 omitted, `configure.py` probes for `cargo` and `rustc`. If either is missing,

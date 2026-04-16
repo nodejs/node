@@ -66,7 +66,7 @@ env:
   PYTHON_VERSION: '3.14'
   XCODE_VERSION: '16.4'
   FLAKY_TESTS: keep_retrying
-  RUSTC_VERSION: '1.82'
+  RUSTC_VERSION: '1.86'
 
 permissions:
   contents: read
