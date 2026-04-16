@@ -57,9 +57,6 @@ class BalancedPool extends PoolBase {
     super()
 
     this[kOptions] = { ...util.deepClone(opts) }
-    this[kOptions].interceptors = opts.interceptors
-      ? { ...opts.interceptors }
-      : undefined
     this[kIndex] = -1
     this[kCurrentWeight] = 0
 

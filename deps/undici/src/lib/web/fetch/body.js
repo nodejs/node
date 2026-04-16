@@ -14,7 +14,6 @@ const { isErrored, isDisturbed } = require('node:stream')
 const { isUint8Array } = require('node:util/types')
 const { serializeAMimeType } = require('./data-url')
 const { multipartFormDataParser } = require('./formdata-parser')
-const { createDeferredPromise } = require('../../util/promise')
 const { parseJSONFromBytes } = require('../infra')
 const { utf8DecodeBytes } = require('../../encoding')
 const { runtimeFeatures } = require('../../util/runtime-features.js')
@@ -431,7 +430,7 @@ function consumeBody (object, convertBytesToJSValue, instance, getInternalState)
   }
 
   // 2. Let promise be a new promise.
-  const promise = createDeferredPromise()
+  const promise = Promise.withResolvers()
 
   // 3. Let errorSteps given error be to reject promise with error.
   const errorSteps = promise.reject

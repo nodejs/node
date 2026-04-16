@@ -7,7 +7,7 @@ const maxInt = Math.pow(2, 31) - 1
 
 function hasSafeIterator (headers) {
   const prototype = Object.getPrototypeOf(headers)
-  const ownIterator = Object.prototype.hasOwnProperty.call(headers, Symbol.iterator)
+  const ownIterator = Object.hasOwn(headers, Symbol.iterator)
   return ownIterator || (prototype != null && prototype !== Object.prototype && typeof headers[Symbol.iterator] === 'function')
 }
 

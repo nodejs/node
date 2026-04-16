@@ -64,12 +64,7 @@ const { getGlobalDispatcher } = require('../../global')
 const { webidl } = require('../webidl')
 const { STATUS_CODES } = require('node:http')
 const { bytesMatch } = require('../subresource-integrity/subresource-integrity')
-const { createDeferredPromise } = require('../../util/promise')
 const { isomorphicEncode } = require('../infra')
-const { runtimeFeatures } = require('../../util/runtime-features')
-
-// Node.js v23.8.0+ and v22.15.0+ supports Zstandard
-const hasZstd = runtimeFeatures.has('zstd')
 
 const GET_OR_HEAD = ['GET', 'HEAD']
 
@@ -136,7 +131,7 @@ function fetch (input, init = undefined) {
   webidl.argumentLengthCheck(arguments, 1, 'globalThis.fetch')
 
   // 1. Let p be a new promise.
-  let p = createDeferredPromise()
+  let p = Promise.withResolvers()
 
   // 2. Let requestObject be the result of invoking the initial value of
   // Request as constructor with input and init as arguments. If this throws
@@ -1644,12 +1639,25 @@ async function httpNetworkOrCacheFetch (
   // 14. If response’s status is 401, httpRequest’s response tainting is not "cors",
   //     includeCredentials is true, and request’s traversable for user prompts is
   //     a traversable navigable:
-  if (response.status === 401 && httpRequest.responseTainting !== 'cors' && includeCredentials && isTraversableNavigable(request.traversableForUserPrompts)) {
+  //
+  //     In Node.js there is no traversable navigable to prompt the user, but we
+  //     still need to handle URL-embedded credentials so authentication retries
+  //     for WebSocket handshakes continue to work.
+  if (response.status === 401 && httpRequest.responseTainting !== 'cors' && includeCredentials && (
+    request.useURLCredentials !== undefined ||
+    isTraversableNavigable(request.traversableForUserPrompts)
+  )) {
     // 2. If request’s body is non-null, then:
     if (request.body != null) {
       // 1. If request’s body’s source is null, then return a network error.
       if (request.body.source == null) {
-        return makeNetworkError('expected non-null body source')
+        // Note: In Node.js, this code path should not be reached because
+        // isTraversableNavigable() returns false for non-navigable contexts.
+        // However, we handle it gracefully by returning the response instead of
+        // a network error, as we won't actually retry the request.
+        // This aligns with the Fetch spec discussion in whatwg/fetch#1132,
+        // which allows implementations flexibility when credentials can't be obtained.
+        return response
       }
 
       // 2. Set request’s body to the body of the result of safely extracting
@@ -2251,7 +2259,7 @@ async function httpNetworkFetch (
                     flush: zlib.constants.BROTLI_OPERATION_FLUSH,
                     finishFlush: zlib.constants.BROTLI_OPERATION_FLUSH
                   }))
-                } else if (coding === 'zstd' && hasZstd) {
+                } else if (coding === 'zstd') {
                   decoders.push(zlib.createZstdDecompress({
                     flush: zlib.constants.ZSTD_e_continue,
                     finishFlush: zlib.constants.ZSTD_e_end

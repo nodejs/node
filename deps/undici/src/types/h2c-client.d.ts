@@ -32,7 +32,7 @@ export declare namespace H2CClient {
     maxHeaderSize?: number;
     /** The amount of time, in milliseconds, the parser will wait to receive the complete HTTP headers (Node 14 and above only). Default: `300e3` milliseconds (300s). */
     headersTimeout?: number;
-    /** TODO */
+    /** The timeout for establishing a socket connection, in milliseconds. Use `0` to disable it entirely. Default: `10e3` milliseconds (10s). */
     connectTimeout?: number;
     /** The timeout after which a request will time out, in milliseconds. Monitors time between receiving body data. Use `0` to disable it entirely. Default: `300e3` milliseconds (300s). */
     bodyTimeout?: number;
@@ -42,19 +42,19 @@ export declare namespace H2CClient {
     keepAliveMaxTimeout?: number;
     /** A number of milliseconds subtracted from server *keep-alive* hints when overriding `idleTimeout` to account for timing inaccuracies caused by e.g. transport latency. Default: `1e3` milliseconds (1s). */
     keepAliveTimeoutThreshold?: number;
-    /** TODO */
+    /** An IPC endpoint, either a Unix domain socket or Windows named pipe. Default: `null`. */
     socketPath?: string;
     /** The amount of concurrent requests to be sent over the single TCP/TLS connection according to [RFC7230](https://tools.ietf.org/html/rfc7230#section-6.3.2). Default: `1`. */
     pipelining?: number;
     /** If `true`, an error is thrown when the request content-length header doesn't match the length of the request body. Default: `true`. */
     strictContentLength?: boolean;
-    /** TODO */
+    /** Maximum number of TLS cached sessions used by the built-in connector. Use `0` to disable TLS session caching. Default: `100`. */
     maxCachedSessions?: number;
-    /** TODO */
+    /** Connector options passed to `buildConnector`, or a custom connector function. Default: `null`. */
     connect?: Omit<Partial<buildConnector.BuildOptions>, 'allowH2'> | buildConnector.connector;
-    /** TODO */
+    /** The maximum number of requests to send over a single connection before it is reset. Use `0` to disable this limit. Default: `null`. */
     maxRequestsPerClient?: number;
-    /** TODO */
+    /** Local IP address the socket should connect from. */
     localAddress?: string;
     /** Max response body size in bytes, -1 is disabled */
     maxResponseSize?: number;

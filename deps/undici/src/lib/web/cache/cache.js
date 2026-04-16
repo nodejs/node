@@ -10,8 +10,6 @@ const { cloneResponse, fromInnerResponse, getResponseState } = require('../fetch
 const { Request, fromInnerRequest, getRequestState } = require('../fetch/request')
 const { fetching } = require('../fetch/index')
 const { urlIsHttpHttpsScheme, readAllBytes } = require('../fetch/util')
-const { createDeferredPromise } = require('../../util/promise')
-
 /**
  * @see https://w3c.github.io/ServiceWorker/#dfn-cache-batch-operation
  * @typedef {Object} CacheBatchOperation
@@ -153,7 +151,7 @@ class Cache {
       requestList.push(r)
 
       // 5.6
-      const responsePromise = createDeferredPromise()
+      const responsePromise = Promise.withResolvers()
 
       // 5.7
       fetchControllers.push(fetching({
@@ -231,7 +229,7 @@ class Cache {
     }
 
     // 7.5
-    const cacheJobPromise = createDeferredPromise()
+    const cacheJobPromise = Promise.withResolvers()
 
     // 7.6.1
     let errorData = null
@@ -325,7 +323,7 @@ class Cache {
     const clonedResponse = cloneResponse(innerResponse)
 
     // 10.
-    const bodyReadPromise = createDeferredPromise()
+    const bodyReadPromise = Promise.withResolvers()
 
     // 11.
     if (innerResponse.body != null) {
@@ -364,7 +362,7 @@ class Cache {
     }
 
     // 19.1
-    const cacheJobPromise = createDeferredPromise()
+    const cacheJobPromise = Promise.withResolvers()
 
     // 19.2.1
     let errorData = null
@@ -427,7 +425,7 @@ class Cache {
 
     operations.push(operation)
 
-    const cacheJobPromise = createDeferredPromise()
+    const cacheJobPromise = Promise.withResolvers()
 
     let errorData = null
     let requestResponses
@@ -483,7 +481,7 @@ class Cache {
     }
 
     // 4.
-    const promise = createDeferredPromise()
+    const promise = Promise.withResolvers()
 
     // 5.
     // 5.1

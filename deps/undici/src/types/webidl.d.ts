@@ -87,7 +87,6 @@ interface WebidlUtil {
 
   /**
    * Mark a value as uncloneable for Node.js.
-   * This is only effective in some newer Node.js versions.
    */
   markAsUncloneable (V: any): void
 
