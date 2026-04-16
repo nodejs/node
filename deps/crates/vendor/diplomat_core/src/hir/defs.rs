@@ -5,7 +5,7 @@ use super::{
     Attrs, Callback, Everywhere, IdentBuf, Method, OutputOnly, SpecialMethodPresence, TyPosition,
     Type,
 };
-use crate::ast::Docs;
+use crate::hir::Docs;
 
 #[non_exhaustive]
 pub enum ReturnableStructDef<'tcx> {

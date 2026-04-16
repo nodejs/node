@@ -12,6 +12,11 @@ impl<H: HostHooks> Now<H> {
         self.time_zone_with_provider(&*TZ_PROVIDER)
     }
 
+    /// Converts the current [`Now`] into an [`ZonedDateTime`] with an ISO8601 calendar.
+    pub fn zoned_date_time_iso(self, time_zone: Option<TimeZone>) -> TemporalResult<ZonedDateTime> {
+        self.zoned_date_time_iso_with_provider(time_zone, &*TZ_PROVIDER)
+    }
+
     /// Returns the current system time as a [`PlainDateTime`] with an optional
     /// [`TimeZone`].
     ///
@@ -33,11 +38,6 @@ impl<H: HostHooks> Now<H> {
     ///
     /// Enable with the `compiled_data` and `sys` feature flags.
     pub fn plain_time_iso(self, time_zone: Option<TimeZone>) -> TemporalResult<PlainTime> {
-        self.plain_time_with_provider(time_zone, &*TZ_PROVIDER)
-    }
-
-    /// Converts the current [`Now`] into an [`ZonedDateTime`] with an ISO8601 calendar.
-    pub fn zoned_date_time_iso(self, time_zone: Option<TimeZone>) -> TemporalResult<ZonedDateTime> {
-        self.zoned_date_time_iso_with_provider(time_zone, &*TZ_PROVIDER)
+        self.plain_time_iso_with_provider(time_zone, &*TZ_PROVIDER)
     }
 }

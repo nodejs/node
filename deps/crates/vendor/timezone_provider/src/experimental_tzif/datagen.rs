@@ -10,6 +10,8 @@ impl From<&zoneinfo_rs::tzif::LocalTimeRecord> for LocalTimeRecord {
     fn from(value: &zoneinfo_rs::tzif::LocalTimeRecord) -> Self {
         Self {
             offset: value.offset,
+            is_dst: value.is_dst,
+            index: value.index,
         }
     }
 }
@@ -22,14 +24,15 @@ impl ZeroTzif<'_> {
         let mapped_local_records: Vec<LocalTimeRecord> =
             tzif.local_time_types.iter().map(Into::into).collect();
         let types = ZeroVec::alloc_from_slice(&mapped_local_records);
-        // TODO: handle this much better.
         let posix = PosixZone::from(&data.posix_time_zone);
+        let designations = ZeroVec::alloc_from_slice(&tzif.designations);
 
         Self {
             transitions,
             transition_types,
             types,
             posix,
+            designations,
         }
     }
 }

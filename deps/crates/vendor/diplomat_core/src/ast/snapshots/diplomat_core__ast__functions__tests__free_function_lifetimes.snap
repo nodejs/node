@@ -31,5 +31,6 @@ lifetimes:
   a: []
 attrs: {}
 docs:
-  - ""
+  - - cfg: Star
+      lines: ""
   - []

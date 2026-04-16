@@ -1,14 +1,15 @@
 use super::{
     AttributeContext, AttributeValidator, Attrs, Borrow, BoundedLifetime, Callback, CallbackParam,
     EnumDef, EnumPath, EnumVariant, Everywhere, IdentBuf, InputOnly, Lifetime, LifetimeEnv,
-    LifetimeLowerer, LookupId, MaybeOwn, Method, NonOptional, OpaqueDef, OpaquePath, Optional,
-    OutStructDef, OutStructField, OutStructPath, OutType, Param, ParamLifetimeLowerer, ParamSelf,
-    PrimitiveType, ReturnLifetimeLowerer, ReturnType, ReturnableStructPath,
+    LifetimeLowerer, LookupId, MaybeOwn, Method, Mutability, NonOptional, OpaqueDef, OpaquePath,
+    Optional, OutStructDef, OutStructField, OutStructPath, OutType, Param, ParamLifetimeLowerer,
+    ParamSelf, PrimitiveType, ReturnLifetimeLowerer, ReturnType, ReturnableStructPath,
     SelfParamLifetimeLowerer, SelfType, Slice, SpecialMethod, SpecialMethodPresence, StructDef,
-    StructField, StructPath, SuccessType, SymbolId, TraitDef, TraitParamSelf, TraitPath,
-    TyPosition, Type, TypeDef, TypeId,
+    StructField, StructPath, SuccessType, TraitDef, TraitParamSelf, TraitPath, TyPosition, Type,
+    TypeDef, TypeId,
 };
 use crate::ast::attrs::AttrInheritContext;
+use crate::hir::Docs;
 use crate::{ast, Env};
 use core::fmt;
 use strck::IntoCk;
@@ -125,7 +126,6 @@ pub(crate) struct ItemAndInfo<'ast, Ast> {
 
     /// Any parent attributes resolved from the module, for a method context
     pub(crate) method_parent_attrs: Attrs,
-    pub(crate) id: SymbolId,
 }
 
 impl<'ast> LoweringContext<'ast> {
@@ -226,7 +226,7 @@ impl<'ast> LoweringContext<'ast> {
             match (name, &mut variants) {
                 (Ok(name), Ok(variants)) => {
                     let variant = EnumVariant {
-                        docs: docs.clone(),
+                        docs: Docs::from_ast(docs, self.attr_validator.as_ref(), &mut self.errors),
                         name,
                         discriminant: *discriminant,
                         attrs,
@@ -250,13 +250,16 @@ impl<'ast> LoweringContext<'ast> {
                 &ast_enum.methods[..],
                 item.in_path,
                 &item.method_parent_attrs,
-                item.id.try_into()?,
                 &mut special_method_presence,
             )?
         };
 
         let def = EnumDef::new(
-            ast_enum.docs.clone(),
+            Docs::from_ast(
+                &ast_enum.docs,
+                self.attr_validator.as_ref(),
+                &mut self.errors,
+            ),
             name?,
             variants?,
             methods,
@@ -292,14 +295,17 @@ impl<'ast> LoweringContext<'ast> {
                 &ast_opaque.methods[..],
                 item.in_path,
                 &item.method_parent_attrs,
-                item.id.try_into()?,
                 &mut special_method_presence,
             )?
         };
         let lifetimes = self.lower_type_lifetime_env(&ast_opaque.lifetimes);
 
         let def = OpaqueDef::new(
-            ast_opaque.docs.clone(),
+            Docs::from_ast(
+                &ast_opaque.docs,
+                self.attr_validator.as_ref(),
+                &mut self.errors,
+            ),
             name?,
             methods,
             attrs,
@@ -356,7 +362,7 @@ impl<'ast> LoweringContext<'ast> {
 
                 match (ty, &mut fields) {
                     (Ok(ty), Ok(fields)) => fields.push(StructField {
-                        docs: docs.clone(),
+                        docs: Docs::from_ast(docs, self.attr_validator.as_ref(), &mut self.errors),
                         name,
                         ty,
                         attrs: field_attrs,
@@ -385,12 +391,15 @@ impl<'ast> LoweringContext<'ast> {
                 &ast_struct.methods[..],
                 item.in_path,
                 &item.method_parent_attrs,
-                item.id.try_into()?,
                 &mut special_method_presence,
             )?
         };
         let def = StructDef::new(
-            ast_struct.docs.clone(),
+            Docs::from_ast(
+                &ast_struct.docs,
+                self.attr_validator.as_ref(),
+                &mut self.errors,
+            ),
             struct_name,
             fields?,
             methods,
@@ -449,7 +458,17 @@ impl<'ast> LoweringContext<'ast> {
             fcts
         };
         let lifetimes = self.lower_type_lifetime_env(&ast_trait.lifetimes);
-        let def = TraitDef::new(ast_trait.docs.clone(), trait_name, fcts, attrs, lifetimes?);
+        let def = TraitDef::new(
+            Docs::from_ast(
+                &ast_trait.docs,
+                self.attr_validator.as_ref(),
+                &mut self.errors,
+            ),
+            trait_name,
+            fcts,
+            attrs,
+            lifetimes?,
+        );
 
         self.attr_validator
             .validate(&def.attrs, AttributeContext::Trait(&def), &mut self.errors);
@@ -495,7 +514,11 @@ impl<'ast> LoweringContext<'ast> {
             output: Box::new(return_type),
             name: Some(self.lower_ident(&name, "trait name")?),
             attrs: Some(attrs),
-            docs: Some(ast_trait_method.docs.clone()),
+            docs: Some(Docs::from_ast(
+                &ast_trait_method.docs,
+                self.attr_validator.as_ref(),
+                &mut self.errors,
+            )),
         })
     }
 
@@ -523,7 +546,7 @@ impl<'ast> LoweringContext<'ast> {
 
         if !attrs.disable && !self.attr_validator.attrs_supported().free_functions {
             self.errors.push(LoweringError::Other(
-                format!("Could not lower public function {}, backend does not support free functions. Try #[diplomat::attr(not(supports = free_functions), disable)].", ast_function.item.name.as_str())
+                format!("Could not lower public function {}, backend does not support free functions. Try #[diplomat::cfg(supports = free_functions)].", ast_function.item.name.as_str())
             ));
             return Err(());
         }
@@ -548,7 +571,11 @@ impl<'ast> LoweringContext<'ast> {
         };
 
         let def = Method {
-            docs: ast_function.item.docs.clone(),
+            docs: Docs::from_ast(
+                &ast_function.item.docs,
+                self.attr_validator.as_ref(),
+                &mut self.errors,
+            ),
             name: self.lower_ident(&name, "function name")?,
             abi_name: self.lower_ident(&ast_function.item.abi_name, "function abi name")?,
             lifetime_env,
@@ -593,7 +620,11 @@ impl<'ast> LoweringContext<'ast> {
 
                     match (name, ty, &mut fields) {
                         (Ok(name), Ok(ty), Ok(fields)) => fields.push(OutStructField {
-                            docs: docs.clone(),
+                            docs: Docs::from_ast(
+                                docs,
+                                self.attr_validator.as_ref(),
+                                &mut self.errors,
+                            ),
                             name,
                             ty,
                             attrs: self.attr_validator.attr_from_ast(
@@ -617,14 +648,17 @@ impl<'ast> LoweringContext<'ast> {
                 &ast_out_struct.methods[..],
                 item.in_path,
                 &item.method_parent_attrs,
-                item.id.try_into()?,
                 &mut special_method_presence,
             )?
         };
 
         let lifetimes = self.lower_type_lifetime_env(&ast_out_struct.lifetimes);
         let def = OutStructDef::new(
-            ast_out_struct.docs.clone(),
+            Docs::from_ast(
+                &ast_out_struct.docs,
+                self.attr_validator.as_ref(),
+                &mut self.errors,
+            ),
             name?,
             fields?,
             methods,
@@ -649,7 +683,6 @@ impl<'ast> LoweringContext<'ast> {
         method: &'ast ast::Method,
         in_path: &ast::Path,
         attrs: Attrs,
-        self_id: TypeId,
         special_method_presence: &mut SpecialMethodPresence,
     ) -> Result<Method, ()> {
         let name = self.lower_ident(&method.name, "method name");
@@ -679,8 +712,9 @@ impl<'ast> LoweringContext<'ast> {
         )?;
 
         let abi_name = self.lower_ident(&method.abi_name, "method abi name")?;
+
         let hir_method = Method {
-            docs: method.docs.clone(),
+            docs: Docs::from_ast(&method.docs, self.attr_validator.as_ref(), &mut self.errors),
             name: name?,
             abi_name,
             lifetime_env,
@@ -690,9 +724,11 @@ impl<'ast> LoweringContext<'ast> {
             attrs,
         };
 
+        let self_type_id = self.lower_self_type(method, in_path);
+
         self.attr_validator.validate(
             &hir_method.attrs,
-            AttributeContext::Method(&hir_method, self_id, special_method_presence),
+            AttributeContext::Method(&hir_method, self_type_id, special_method_presence),
             &mut self.errors,
         );
 
@@ -710,6 +746,39 @@ impl<'ast> LoweringContext<'ast> {
         Ok(hir_method)
     }
 
+    fn lower_self_type(
+        &mut self,
+        method: &'ast ast::Method,
+        in_path: &ast::Path,
+    ) -> Option<TypeId> {
+        method
+            .self_type
+            .as_ref()
+            .map(|self_type| match self_type.resolve(in_path, self.env) {
+                ast::CustomType::Enum(e) => self
+                    .lookup_id
+                    .resolve_enum(e)
+                    .expect("enum is in env")
+                    .into(),
+                ast::CustomType::Opaque(o) => self
+                    .lookup_id
+                    .resolve_opaque(o)
+                    .expect("opaque is in env")
+                    .into(),
+                ast::CustomType::Struct(s) => {
+                    if let Some(s_id) = self.lookup_id.resolve_struct(s) {
+                        s_id.into()
+                    } else if let Some(os_id) = self.lookup_id.resolve_out_struct(s) {
+                        os_id.into()
+                    } else {
+                        unreachable!(
+                            "struct `{}` not found in the set of structs or out_structs.",
+                            s.name
+                        )
+                    }
+                }
+            })
+    }
     /// Lowers many [`ast::Method`]s into a vector of [`hir::Method`]s.
     ///
     /// If there are any errors, they're pushed to `errors` and `None` is returned.
@@ -718,7 +787,6 @@ impl<'ast> LoweringContext<'ast> {
         ast_methods: &'ast [ast::Method],
         in_path: &ast::Path,
         method_parent_attrs: &Attrs,
-        self_id: TypeId,
         special_method_presence: &mut SpecialMethodPresence,
     ) -> Result<Vec<Method>, ()> {
         let mut methods = Ok(Vec::with_capacity(ast_methods.len()));
@@ -734,17 +802,18 @@ impl<'ast> LoweringContext<'ast> {
             if attrs.disable {
                 continue;
             }
-            let method =
-                self.lower_method(method, in_path, attrs, self_id, special_method_presence);
+            let method = self.lower_method(method, in_path, attrs, special_method_presence);
             match (method, &mut methods) {
                 (Ok(method), Ok(methods)) => {
                     if matches!(
                         method.attrs.special_method,
                         Some(SpecialMethod::Constructor)
                     ) {
-                        if !has_unnamed_constructor {
-                            methods.push(method);
+                        if self.attr_validator.attrs_supported().method_overloading
+                            || !has_unnamed_constructor
+                        {
                             has_unnamed_constructor = true;
+                            methods.push(method);
                         } else {
                             self.errors.push(LoweringError::Other(format!(
                                 "At most one unnamed constructor is allowed, see https://github.com/rust-diplomat/diplomat/issues/234 if you need overloading (extra abi_name: {})",
@@ -849,6 +918,11 @@ impl<'ast> LoweringContext<'ast> {
                 ast::TypeName::Named(path) | ast::TypeName::SelfType(path) => {
                     match path.resolve(in_path, self.env) {
                         ast::CustomType::Opaque(opaque) => {
+                            if *mutability == Mutability::Mutable
+                                && opaque.mutability != Mutability::Mutable
+                            {
+                                self.errors.push(LoweringError::Other(format!("found opaque type {} being passed around as &mut without #[diplomat::opaque_mut] annotation", opaque.name)));
+                            }
                             let borrow = Borrow::new(ltl.lower_lifetime(lifetime), *mutability);
                             let lifetimes = ltl.lower_generics(
                                 &path.lifetimes[..],
@@ -1023,12 +1097,17 @@ impl<'ast> LoweringContext<'ast> {
             ast::TypeName::StrReference(lifetime, encoding, _stdlib) => {
                 if lifetime.is_none() {
                     disallow_in_callbacks("Cannot return owned slices from callbacks")?;
+                    if !self.attr_validator.attrs_supported().owned_slices {
+                        self.errors.push(LoweringError::Other(
+                            "Owned slices are not supported in this backend.".into(),
+                        ));
+                    }
                 }
                 let new_lifetime = lifetime.as_ref().map(|lt| ltl.lower_lifetime(lt));
                 if let Some(super::MaybeStatic::Static) = new_lifetime {
                     if !self.attr_validator.attrs_supported().static_slices {
                         self.errors.push(LoweringError::Other(
-                            "'static string slice types are not supported. Try #[diplomat::attr(not(supports = static_slices), disable)]".into()
+                            "'static string slice types are not supported. Try #[diplomat::cfg(supports = static_slices)]".into()
                         ));
                     }
                 }
@@ -1038,6 +1117,11 @@ impl<'ast> LoweringContext<'ast> {
             ast::TypeName::PrimitiveSlice(lm, prim, _stdlib) => {
                 if lm.is_none() {
                     disallow_in_callbacks("Cannot return owned slices from callbacks")?;
+                    if !self.attr_validator.attrs_supported().owned_slices {
+                        self.errors.push(LoweringError::Other(
+                            "Owned slices are not supported in this backend.".into(),
+                        ));
+                    }
                 }
                 let new_lifetime = lm
                     .as_ref()
@@ -1047,7 +1131,7 @@ impl<'ast> LoweringContext<'ast> {
                     if let super::MaybeStatic::Static = b.lifetime {
                         if !self.attr_validator.attrs_supported().static_slices {
                             self.errors.push(LoweringError::Other(
-                                format!("'static {prim:?} slice types not supported. Try #[diplomat::attr(not(supports = static_slices), disable)]")
+                                format!("'static {prim:?} slice types not supported. Try #[diplomat::cfg(supports = static_slices)]")
                             ));
                         }
                     }
@@ -1086,7 +1170,7 @@ impl<'ast> LoweringContext<'ast> {
                     if let super::MaybeStatic::Static = b.lifetime {
                         if !self.attr_validator.attrs_supported().static_slices {
                             self.errors.push(LoweringError::Other(
-                                format!("'static {type_name:?} slice types not supported. Try #[diplomat::attr(not(supports = static_slices), disable)]")
+                                format!("'static {type_name:?} slice types not supported. Try #[diplomat::cfg(supports = static_slices)]")
                             ));
                         }
                     }
@@ -1445,7 +1529,7 @@ impl<'ast> LoweringContext<'ast> {
                     if let super::MaybeStatic::Static = b.lifetime {
                         if !self.attr_validator.attrs_supported().static_slices {
                             self.errors.push(LoweringError::Other(
-                                format!("'static {type_name:?} slice types not supported. Try #[diplomat::attr(not(supports = static_slices), disable)]")
+                                format!("'static {type_name:?} slice types not supported. Try #[diplomat::cfg(supports = static_slices)]")
                             ));
                         }
                     }
@@ -1579,6 +1663,11 @@ impl<'ast> LoweringContext<'ast> {
                     .expect("opaque is in env");
 
                 if let Some((lifetime, mutability)) = &self_param.reference {
+                    if *mutability == Mutability::Mutable
+                        && opaque.mutability != Mutability::Mutable
+                    {
+                        self.errors.push(LoweringError::Other(format!("found opaque type {} being passed around as &mut without #[diplomat::opaque_mut] annotation", opaque.name)));
+                    }
                     let (borrow_lifetime, mut param_ltl) = self_param_ltl.lower_self_ref(lifetime);
                     let borrow = Borrow::new(borrow_lifetime, *mutability);
                     let lifetimes = param_ltl.lower_generics(

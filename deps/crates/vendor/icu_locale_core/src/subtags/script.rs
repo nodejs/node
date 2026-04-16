@@ -7,8 +7,9 @@ use crate::subtags::Subtag;
 impl_tinystr_subtag!(
     /// A script subtag (examples: `"Latn"`, `"Arab"`, etc.)
     ///
-    /// [`Script`] represents a Unicode base language code conformant to the
-    /// [`unicode_script_id`] field of the Language and Locale Identifier.
+    /// [`Script`] represents a Unicode script code conformant to the
+    /// [`unicode_script_subtag`] field of the Language and Locale Identifier,
+    /// i.e. an [ISO 15924] value.
     ///
     /// # Examples
     ///
@@ -19,7 +20,8 @@ impl_tinystr_subtag!(
     ///     "Latn".parse().expect("Failed to parse a script subtag.");
     /// ```
     ///
-    /// [`unicode_script_id`]: https://unicode.org/reports/tr35/#unicode_script_id
+    /// [`unicode_script_subtag`]: https://unicode.org/reports/tr35/#unicode_script_subtag_validity
+    /// [ISO 15924]: https://www.unicode.org/iso15924/index.html
     Script,
     subtags,
     script,

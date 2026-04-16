@@ -2,6 +2,19 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
+// https://github.com/unicode-org/icu4x/blob/main/documents/process/boilerplate.md#library-annotations
+#![cfg_attr(not(any(test, doc)), no_std)]
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::indexing_slicing,
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::panic,
+    )
+)]
+#![warn(missing_docs)]
+
 //! This crate contains utilities for working with ICU4C's zoneinfo64 format
 //!
 //! ```rust
@@ -11,7 +24,7 @@
 //! let resb = resb::include_bytes_as_u32!("./data/zoneinfo64.res");
 //! // Then we parse the data
 //! let zoneinfo = ZoneInfo64::try_from_u32s(resb)
-//!            .expect("Error processing resource bundle file");
+//!     .expect("Error processing resource bundle file");
 //!
 //! let pacific = zoneinfo.get("America/Los_Angeles").unwrap();
 //! // Calculate the timezone offset for 2024-01-01
@@ -21,18 +34,29 @@
 //!
 //! // Calculate possible offsets at 2025-11-02T01:00:00
 //! // This is during a DST switchover and is ambiguous
-//! let possible = pacific.for_date_time(2025, 11, 2, 1, 0, 0);
+//! let PossibleOffset::Ambiguous {
+//!     before,
+//!     after,
+//!     transition,
+//! } = pacific.for_date_time(2025, 11, 2, 1, 0, 0)
+//! else {
+//!     panic!()
+//! };
 //! let offset_eight = UtcOffset::from_seconds(-8 * 3600);
-//! assert_eq!(possible, PossibleOffset::Ambiguous {
-//!     before: Offset { offset: offset_seven, rule_applies: true },
-//!     after: Offset { offset: offset_eight, rule_applies: false },
-//!     transition: 1762074000,
-//! });
+//! assert_eq!(before.offset, offset_seven);
+//! assert!(before.rule_applies);
+//! assert_eq!(after.offset, offset_eight);
+//! assert!(!after.rule_applies);
+//! assert_eq!(transition, 1762074000);
 //! ```
 
-use std::fmt::Debug;
+extern crate alloc;
 
+use alloc::boxed::Box;
+use alloc::string::String;
+use alloc::vec::Vec;
 use calendrical_calculations::rata_die::RataDie;
+use core::fmt::Debug;
 use potential_utf::PotentialUtf16;
 use resb::binary::BinaryDeserializerError;
 
@@ -49,7 +73,7 @@ mod deserialize;
 /// as to the version in use; though we will try to keep it up to date.
 pub const ZONEINFO64_RES_FOR_TESTING: &[u32] = resb::include_bytes_as_u32!("./data/zoneinfo64.res");
 
-const EPOCH: RataDie = calendrical_calculations::iso::const_fixed_from_iso(1970, 1, 1);
+const EPOCH: RataDie = calendrical_calculations::gregorian::fixed_from_gregorian(1970, 1, 1);
 const SECONDS_IN_UTC_DAY: i64 = 24 * 60 * 60;
 
 /// An offset from UTC time (stored to seconds precision)
@@ -57,17 +81,19 @@ const SECONDS_IN_UTC_DAY: i64 = 24 * 60 * 60;
 pub struct UtcOffset(i32);
 
 impl UtcOffset {
+    /// Construct an offset from a number of seconds
     pub fn from_seconds(x: i32) -> Self {
         Self(x)
     }
 
+    /// Return the number of seconds of this offset
     pub fn seconds(self) -> i32 {
         self.0
     }
 }
 
 #[derive(Debug)]
-/// The primary type containing parsed ZoneInfo64 data
+/// The primary type containing parsed [`ZoneInfo64`] data
 pub struct ZoneInfo64<'a> {
     // Invariant: non-empty
     zones: Vec<TzZone<'a>>,
@@ -88,32 +114,35 @@ enum TzZone<'a> {
 
 #[derive(Clone)]
 struct TzZoneData<'a> {
-    /// Transitions before the epoch of i32::MIN
+    /// Transitions before the epoch of `i32::MIN`
     trans_pre32: &'a [(i32, i32)],
     /// Transitions with epoch values that can fit in an i32
     trans: &'a [i32],
-    /// Transitions after the epoch of i32::MAX
+    /// Transitions after the epoch of `i32::MAX`
     trans_post32: &'a [(i32, i32)],
-    /// Map to offset from transitions. Treat [trans_pre32, trans, trans_post32]
+    /// Map to offset from transitions. Treat [`trans_pre32`, trans, `trans_post32`]
     /// as a single array and use its corresponding index into this to get the index
-    /// in type_offsets. The index in type_offsets is the *new* offset after the
+    /// in `type_offsets`. The index in `type_offsets` is the *new* offset after the
     /// matching transition
     type_map: &'a [u8],
     /// Offsets. First entry is standard time, second entry is offset from standard time (if any)
     type_offsets: &'a [(i32, i32)],
     /// An index into the Rules table,
-    /// its standard_offset_seconds, and its starting year.
+    /// its `standard_offset_seconds`, and its starting year.
     final_rule_offset_year: Option<(u32, i32, i32)>,
     #[allow(dead_code)]
     links: &'a [u32],
 }
 
 impl Debug for TzZoneData<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        #![allow(clippy::indexing_slicing)] // by invariants
+
         write!(f, "TzZoneData {{ ")?;
 
-        fn dbg_timestamp(f: &mut std::fmt::Formatter<'_>, t: i64) -> std::fmt::Result {
+        fn dbg_timestamp(f: &mut core::fmt::Formatter<'_>, t: i64) -> core::fmt::Result {
             #[cfg(feature = "chrono")]
+            #[allow(clippy::unwrap_used)] // in range for chrono
             let t = chrono::DateTime::from_timestamp(t, 0).unwrap();
             write!(f, "{t:?}, ")
         }
@@ -149,7 +178,7 @@ impl Debug for TzZoneData<'_> {
 impl<'a> ZoneInfo64<'a> {
     /// Parse this object from 4-byte aligned data
     pub fn try_from_u32s(resb: &'a [u32]) -> Result<Self, BinaryDeserializerError> {
-        crate::deserialize::deserialize(resb)
+        deserialize::deserialize(resb)
     }
     #[cfg(test)]
     fn is_alias(&self, iana: &str) -> bool {
@@ -239,7 +268,7 @@ impl<'a> Zone<'a> {
 }
 
 impl Debug for Zone<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Zone")
             .field("simple", self.simple())
             .field("rule", &self.simple().final_rule(&self.info.rules))
@@ -266,6 +295,7 @@ impl PartialEq for Zone<'_> {
 
 /// A resolved offset for a given point in time
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[non_exhaustive]
 pub struct Offset {
     /// The offset from UTC of this time zone
     pub offset: UtcOffset,
@@ -275,6 +305,7 @@ pub struct Offset {
 
 /// A transition
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[non_exhaustive]
 pub struct Transition {
     /// When the transition starts
     pub since: i64,
@@ -295,6 +326,7 @@ impl From<Transition> for Offset {
 
 /// Possible offsets for a local datetime
 #[derive(Debug, PartialEq)]
+#[non_exhaustive]
 pub enum PossibleOffset {
     /// There is a single possible offset
     Single(Offset),
@@ -444,9 +476,9 @@ impl<'a> Zone<'a> {
         minute: u8,
         second: u8,
     ) -> PossibleOffset {
-        let day_before_year = calendrical_calculations::iso::day_before_year(year);
+        let day_before_year = calendrical_calculations::gregorian::day_before_year(year);
         let seconds_since_local_epoch = (day_before_year
-            + calendrical_calculations::iso::days_before_month(year, month) as i64
+            + calendrical_calculations::gregorian::days_before_month(year, month) as i64
             + day as i64
             - EPOCH)
             * SECONDS_IN_UTC_DAY
@@ -675,13 +707,13 @@ impl<'a> Zone<'a> {
         })
     }
 
-    // Returns the name of the timezone
+    /// Returns the name of the timezone
     pub fn name(&self) -> &'a PotentialUtf16 {
         #[expect(clippy::indexing_slicing)] // idx is a valid index into info.names
         self.info.names[self.idx as usize]
     }
 
-    // Returns the region of the timezone
+    /// Returns the region of the timezone
     pub fn region(&self) -> Region {
         #[expect(clippy::indexing_slicing)]
         // idx is a valid index into info.names, which has the same length as info.regions
@@ -768,6 +800,11 @@ mod tests {
 
         for chrono in time_zones_to_test() {
             let iana = chrono.name();
+
+            if iana == "America/Tijuana" {
+                // 2025c not yet in chrono
+                continue;
+            }
 
             let zoneinfo64 = TZDB.get(iana).unwrap();
 
@@ -859,6 +896,7 @@ mod tests {
             }
 
             // TODO: investigate why these zones don't work with jiff/tzdb-bundle-always
+            // https://github.com/unicode-org/icu4x/issues/7813
             if matches!(
                 iana,
                 "America/Ciudad_Juarez"
@@ -867,6 +905,8 @@ mod tests {
                     | "America/Indiana/Winamac"
                     | "America/Metlakatla"
                     | "America/North_Dakota/Beulah"
+                    // Broke in the 2025c update
+                    | "Europe/Chisinau"
             ) {
                 continue;
             }
@@ -892,7 +932,7 @@ mod tests {
 
                 assert_eq!(
                     zoneinfo64.prev_transition(curr.since - 1, true, require_offset_change),
-                    Some(prev)
+                    Some(prev),
                 );
                 assert_eq!(
                     zoneinfo64.prev_transition(curr.since - 1, false, require_offset_change),
@@ -905,7 +945,7 @@ mod tests {
 
                 assert_eq!(
                     zoneinfo64.prev_transition(curr.since, false, require_offset_change),
-                    Some(curr)
+                    Some(curr),
                 );
                 assert_eq!(
                     zoneinfo64.prev_transition(curr.since + 1, true, require_offset_change),

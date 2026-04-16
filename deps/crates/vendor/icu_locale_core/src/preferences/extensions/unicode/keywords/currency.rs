@@ -14,8 +14,8 @@ struct_keyword!(
     CurrencyType,
     "cu",
     TinyAsciiStr<3>,
-    |input: Value| {
-        if let Some(subtag) = input.into_single_subtag() {
+    |input: &Value| {
+        if let Some(subtag) = input.as_single_subtag() {
             let ts = subtag.as_tinystr();
             if ts.len() == 3 && ts.is_ascii_alphabetic() {
                 return Ok(Self(ts.resize()));
@@ -23,8 +23,8 @@ struct_keyword!(
         }
         Err(PreferencesParseError::InvalidKeywordValue)
     },
-    |input: CurrencyType| {
-        crate::extensions::unicode::Value::from_subtag(Some(
+    |input: &CurrencyType| {
+        Value::from_subtag(Some(
             Subtag::from_tinystr_unvalidated(input.0.resize()),
         ))
     }

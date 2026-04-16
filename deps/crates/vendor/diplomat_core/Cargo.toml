@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.81"
 name = "diplomat_core"
-version = "0.13.0"
+version = "0.15.0"
 authors = [
     "Shadaj Laddad <shadaj@users.noreply.github.com>",
     "Manish Goregaokar <manishsmail@gmail.com>",

@@ -103,9 +103,7 @@ impl DataExporter for Box<dyn DataExporter> {
 /// A [`DynamicDataProvider`] that can be used for exporting data.
 ///
 /// Use [`make_exportable_provider`] to implement this.
-pub trait ExportableProvider:
-    crate::data_provider::IterableDynamicDataProvider<ExportMarker> + Sync
-{
+pub trait ExportableProvider: IterableDynamicDataProvider<ExportMarker> + Sync {
     /// Returns the set of supported markers
     fn supported_markers(&self) -> BTreeSet<DataMarkerInfo>;
 }
@@ -168,7 +166,7 @@ impl MultiExporter {
 }
 
 impl core::fmt::Debug for MultiExporter {
-    fn fmt(&self, f: &mut alloc::fmt::Formatter<'_>) -> alloc::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("MultiExporter")
             .field("0", &format!("vec[len = {}]", self.0.len()))
             .finish()
