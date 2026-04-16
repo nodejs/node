@@ -7,7 +7,7 @@
 
 #include "temporal_rs/Provider.d.hpp"
 
-#ifdef V8_INTL_SUPPORT
+#ifdef V8_USE_ICU_ZONEINFO64
 #include "unicode/udata.h"
 #else
 #include <vector>
@@ -37,7 +37,7 @@ class ZoneInfo64Provider {
   ZoneInfo64Provider();
   ~ZoneInfo64Provider();
   std::unique_ptr<temporal_rs::Provider> provider;
-#ifdef V8_INTL_SUPPORT
+#ifdef V8_USE_ICU_ZONEINFO64
   UDataMemory* memory;
 #endif
 };

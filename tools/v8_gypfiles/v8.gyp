@@ -1379,6 +1379,9 @@
              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_i18n_support.*?sources -= ")',
            ],
          }],
+        ['v8_enable_temporal_support==1', {
+          'dependencies': ['make_temporal_zoneinfo_cpp'],
+        }],
         ['v8_postmortem_support', {
           'dependencies': ['postmortem-metadata#target'],
         }],
@@ -1955,6 +1958,40 @@
         "<(V8_ROOT)/src/regexp/special-case.h",
       ],
     },  # gen-regexp-special-case
+    {
+      'target_name': 'make_temporal_zoneinfo_cpp',
+      'type': 'none',
+      'toolsets': ['host', 'target'],
+      'conditions': [
+        ['v8_enable_temporal_support==1', {
+          'actions': [
+            {
+              'action_name': 'make_temporal_zoneinfo_cpp_action',
+              'inputs': [
+                '<(V8_ROOT)/tools/include-file-as-bytes.py',
+                '<(V8_ROOT)/../crates/vendor/zoneinfo64/src/data/zoneinfo64.res',
+              ],
+              'outputs': [
+                '<(SHARED_INTERMEDIATE_DIR)/src/builtins/builtins-temporal-zoneinfo64-data.cc',
+              ],
+              'action': [
+                '<(python)',
+                '<(V8_ROOT)/tools/include-file-as-bytes.py',
+                '<(V8_ROOT)/../crates/vendor/zoneinfo64/src/data/zoneinfo64.res',
+                '<@(_outputs)',
+                'zoneinfo64_static_data',
+              ],
+              'message': 'Generating temporal zoneinfo static data',
+            },
+          ],
+        }],
+      ],
+      'direct_dependent_settings': {
+        'sources': [
+          '<(SHARED_INTERMEDIATE_DIR)/src/builtins/builtins-temporal-zoneinfo64-data.cc',
+        ],
+      },
+    },
     {
       'target_name': 'run_gen-regexp-special-case',
       'type': 'none',
