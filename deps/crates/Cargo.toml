@@ -5,25 +5,25 @@
 edition = "2021"
 name = "node_crates"
 version = "0.1.0"
-rust-version = "1.82"
+rust-version = "1.86"
 
 [lib]
 crate-type = ["staticlib"]
 
 [dependencies]
-# Pin all temporal dependencies to the last version support rustc 1.82
-icu_collections = "~2.0.0"
-icu_locale_core = "~2.0.0"
-icu_provider = "~2.0.0"
-timezone_provider = "=0.1.0"
+# Pin all temporal dependencies to the last version support rustc 1.86
+icu_collections = "~2.2.0"
+icu_locale_core = "~2.2.0"
+icu_provider = "~2.2.0"
+timezone_provider = "=0.2.3"
 
 [dependencies.temporal_capi]
-version = "=0.1.0"
+version = "=0.2.3"
 features = ["zoneinfo64"]
 default-features = false
 
 [dependencies.temporal_rs]
-version = "=0.1.0"
+version = "=0.2.3"
 default-features = false
 # This is necessary to enable a spec-compliance quirk when upgrading to v0.1.2
 # features = ["float64_representable_durations"]
@@ -32,16 +32,12 @@ default-features = false
 # `compiled_data` features. However these datasets are still enabled until
 # https://github.com/boa-dev/temporal/pull/694 lands.
 [dependencies.icu_calendar]
-version = "~2.0.0"
+version = "~2.2.0"
 features = [
   "ixdtf", # Parser for Internet eXtended DateTime Format
 ]
 default-features = false
 
 [dependencies.icu_locale]
-version = "~2.0.0"
+version = "~2.2.0"
 default-features = false
-
-[patch.crates-io]
-# Float https://github.com/unicode-org/icu4x/pull/7658 until crate is updated.
-resb = { path="patches/resb" }
