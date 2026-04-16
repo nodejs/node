@@ -431,30 +431,37 @@ for (const isolation of ['none', 'process']) {
 }
 
 {
-  // Should not propagate --experimental-config-file option to sub test in isolation process
+  // Should not propagate config file options to sub tests in isolation process.
   const fixturePath = join(testFixtures, 'options-propagation');
-  const args = [
-    '--test-reporter=tap',
-    '--no-warnings',
-    `--experimental-config-file=node.config.json`,
-    '--expose-internals',
-    '--test',
+  const configFlagVariants = [
+    ['--experimental-config-file=node.config.json'],
+    ['--experimental-config-file'],
+    ['--experimental-default-config-file'],
   ];
-  const child = spawnSync(process.execPath, args, { cwd: fixturePath });
 
-  assert.strictEqual(child.stderr.toString(), '');
-  const stdout = child.stdout.toString();
+  for (const configArgs of configFlagVariants) {
+    const args = [
+      '--test-reporter=tap',
+      '--no-warnings',
+      ...configArgs,
+      '--expose-internals',
+      '--test',
+    ];
+    const child = spawnSync(process.execPath, args, { cwd: fixturePath });
 
-  assert.match(stdout, /tests 1/);
-  assert.match(stdout, /suites 0/);
-  assert.match(stdout, /pass 1/);
-  assert.match(stdout, /fail 0/);
-  assert.match(stdout, /cancelled 0/);
-  assert.match(stdout, /skipped 0/);
-  assert.match(stdout, /todo 0/);
+    assert.strictEqual(child.stderr.toString(), '');
+    const stdout = child.stdout.toString();
 
+    assert.match(stdout, /tests 1/);
+    assert.match(stdout, /suites 0/);
+    assert.match(stdout, /pass 1/);
+    assert.match(stdout, /fail 0/);
+    assert.match(stdout, /cancelled 0/);
+    assert.match(stdout, /skipped 0/);
+    assert.match(stdout, /todo 0/);
 
-  assert.strictEqual(child.status, 0);
+    assert.strictEqual(child.status, 0);
+  }
 }
 
 {
