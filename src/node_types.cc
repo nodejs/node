@@ -19,7 +19,6 @@ namespace {
   V(AsyncFunction)                                                             \
   V(BigIntObject)                                                              \
   V(BooleanObject)                                                             \
-  V(DataView)                                                                  \
   V(Date)                                                                      \
   V(External)                                                                  \
   V(GeneratorFunction)                                                         \
