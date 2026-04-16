@@ -3,9 +3,10 @@ use alloc::boxed::Box;
 use core::ffi::c_void;
 #[cfg(feature = "jvm-callback-support")]
 use jni::{
-    objects::{GlobalRef, JObject},
+    errors::{Result, ThrowRuntimeExAndDefault},
+    objects::{Global, JObject},
     sys::jlong,
-    JNIEnv,
+    EnvUnowned,
 };
 
 /// Struct representing a callback from Rust into a foreign language
@@ -39,24 +40,27 @@ impl<ReturnType> Drop for DiplomatCallback<ReturnType> {
     }
 }
 
-// return a pointer to a JNI GlobalRef, which is a JVM GC root to the object provided.
+// return a pointer to a JNI Global, which is a JVM GC root to the object provided.
 // this can then be stored as a field in a struct, so that the struct
 // is not deallocated until the JVM calls a destructor that unwraps
-// the GlobalRef so it can be dropped.
+// the Global so it can be dropped.
 #[cfg(feature = "jvm-callback-support")]
 #[no_mangle]
 extern "system" fn create_rust_jvm_cookie<'local>(
-    env: JNIEnv<'local>,
+    mut env: EnvUnowned<'local>,
     obj_to_ref: JObject<'local>,
 ) -> jlong {
-    let global_ref = env.new_global_ref(obj_to_ref).unwrap();
-    Box::into_raw(Box::new(global_ref)) as jlong
+    env.with_env(|env| -> Result<jlong> {
+        let global_ref = env.new_global_ref(obj_to_ref).unwrap();
+        Ok(Box::into_raw(Box::new(global_ref)) as jlong)
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[cfg(feature = "jvm-callback-support")]
 #[no_mangle]
 extern "system" fn destroy_rust_jvm_cookie(global_ref_boxed: jlong) {
     unsafe {
-        drop(Box::from_raw(global_ref_boxed as *mut GlobalRef));
+        drop(Box::from_raw(global_ref_boxed as *mut Global<JObject>));
     }
 }

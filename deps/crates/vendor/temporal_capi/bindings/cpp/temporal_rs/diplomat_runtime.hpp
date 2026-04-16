@@ -512,9 +512,10 @@ template <typename Ret, typename... Args> struct fn_traits<std::function<Ret(Arg
 template<class T>
 fn_traits(T) -> fn_traits<T>;
 
-// Trait for extracting inner types from either std::optional or std::unique_ptr.
-// These are the two potential types returned by next() functions
-template<typename T> struct inner { using type = T; };
+// Trait for extracting inner types from either T*, std::optional, or std::unique_ptr.
+// These are the three potential types returned by next() functions
+template<typename T> struct inner { /* only T*, std::optional, and std::unique_ptr are supported */ };
+template<typename T> struct inner<T*> { using type = T; };
 template<typename T> struct inner<std::unique_ptr<T>> { using type = T; };
 template<typename T> struct inner<std::optional<T>>{ using type = T; };
 

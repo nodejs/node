@@ -1,0 +1,14 @@
+---
+source: utils/zerovec/src/schemars.rs
+expression: schema
+---
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ZeroVec<Character>",
+  "type": "array",
+  "items": {
+    "type": "string",
+    "maxLength": 1,
+    "minLength": 1
+  }
+}

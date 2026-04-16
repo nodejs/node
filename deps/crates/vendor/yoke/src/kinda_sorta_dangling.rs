@@ -12,7 +12,7 @@ use core::ops::{Deref, DerefMut};
 /// expected to have any memory dependent validity properties (`dereferenceable`, `noalias`).
 ///
 /// See [#3696] for a testcase where `Yoke` fails under miri's field-retagging mode if not using
-/// KindaSortaDangling.
+/// [`KindaSortaDangling`].
 ///
 /// This has `T: 'static` since we don't need anything
 /// else and we don't want to have to think (more) about variance over lifetimes or dropck.
@@ -30,8 +30,8 @@ use core::ops::{Deref, DerefMut};
 #[repr(transparent)]
 pub(crate) struct KindaSortaDangling<T: 'static> {
     /// Safety invariant: This is always an initialized T, never uninit or other
-    /// invalid bit patterns. Its drop glue will execute during Drop::drop rather than
-    /// during the drop glue for KindaSortaDangling, which means that we have to be careful about
+    /// invalid bit patterns. Its drop glue will execute during [`Drop::drop`] rather than
+    /// during the drop glue for [`KindaSortaDangling`], which means that we have to be careful about
     /// not touching the values as initialized during `drop` after that, but that's a short period of time.
     dangle: MaybeUninit<T>,
 }

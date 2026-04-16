@@ -2,6 +2,19 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
+// https://github.com/unicode-org/icu4x/blob/main/documents/process/boilerplate.md#library-annotations
+#![cfg_attr(not(any(test, doc)), no_std)]
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::indexing_slicing,
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::panic,
+    )
+)]
+#![warn(missing_docs)]
+
 //! Types for dealing with dates and custom calendars.
 //!
 //! This module is published as its own crate ([`icu_calendar`](https://docs.rs/icu_calendar/latest/icu_calendar/))
@@ -33,7 +46,7 @@
 //! let mut date_iso = Date::try_new_iso(1992, 9, 2)
 //!     .expect("Failed to initialize ISO Date instance.");
 //!
-//! assert_eq!(date_iso.day_of_week(), Weekday::Wednesday);
+//! assert_eq!(date_iso.weekday(), Weekday::Wednesday);
 //! assert_eq!(date_iso.era_year().year, 1992);
 //! assert_eq!(date_iso.month().ordinal, 9);
 //! assert_eq!(date_iso.day_of_month().0, 2);
@@ -72,22 +85,9 @@
 //!
 //! [`ICU4X`]: ../icu/index.html
 
-// https://github.com/unicode-org/icu4x/blob/main/documents/process/boilerplate.md#library-annotations
-#![cfg_attr(not(any(test, doc)), no_std)]
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::indexing_slicing,
-        clippy::unwrap_used,
-        clippy::expect_used,
-        clippy::panic,
-        clippy::exhaustive_structs,
-        clippy::exhaustive_enums,
-        clippy::trivially_copy_pass_by_ref,
-        missing_debug_implementations,
-    )
-)]
-#![warn(missing_docs)]
+// It's not worth it to try and maintain clean import lists for both
+// stable and unstable mode when the code is so entangled.
+#![cfg_attr(not(feature = "unstable"), allow(unused))]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -98,23 +98,30 @@ mod date;
 // Public modules
 mod any_calendar;
 pub mod cal;
+pub mod options;
 pub mod provider;
 pub mod types;
+#[path = "third_party.rs"]
+pub mod unstable_third_party;
 pub mod week;
 
 mod calendar;
 mod calendar_arithmetic;
+#[cfg(feature = "unstable_chrono_0_4")]
+mod chrono;
 mod duration;
-mod error;
+pub mod error;
 #[cfg(feature = "ixdtf")]
 mod ixdtf;
+#[cfg(feature = "unstable_jiff_0_2")]
+mod jiff;
+#[cfg(feature = "unstable_time_0_3")]
+mod time_crate;
 
 // Top-level types
 pub use any_calendar::IntoAnyCalendar;
 pub use calendar::Calendar;
 pub use date::{AsCalendar, Date, Ref};
-#[doc(hidden)] // unstable
-pub use duration::{DateDuration, DateDurationUnit};
 pub use error::{DateError, RangeError};
 #[cfg(feature = "ixdtf")]
 pub use ixdtf::ParseError;
@@ -123,18 +130,7 @@ pub use ixdtf::ParseError;
 #[doc(no_inline)]
 pub use cal::{AnyCalendar, AnyCalendarKind, Gregorian, Iso};
 
-/// Locale preferences used by this crate
-pub mod preferences {
-    pub use crate::any_calendar::CalendarPreferences;
-    #[doc(inline)]
-    /// **This is a reexport of a type in [`icu::locale`](icu_locale_core::preferences::extensions::unicode::keywords)**.
-    #[doc = "\n"] // prevent autoformatting
-    pub use icu_locale_core::preferences::extensions::unicode::keywords::CalendarAlgorithm;
-    #[doc(inline)]
-    /// **This is a reexport of a type in [`icu::locale`](icu_locale_core::preferences::extensions::unicode::keywords)**.
-    #[doc = "\n"] // prevent autoformatting
-    pub use icu_locale_core::preferences::extensions::unicode::keywords::HijriCalendarAlgorithm;
-}
+pub mod preferences;
 
 #[cfg(test)]
 mod tests;

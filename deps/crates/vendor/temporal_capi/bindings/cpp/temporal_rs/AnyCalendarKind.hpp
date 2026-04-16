@@ -34,6 +34,7 @@ inline temporal_rs::capi::AnyCalendarKind temporal_rs::AnyCalendarKind::AsFFI() 
 
 inline temporal_rs::AnyCalendarKind temporal_rs::AnyCalendarKind::FromFFI(temporal_rs::capi::AnyCalendarKind c_enum) {
     switch (c_enum) {
+        case temporal_rs::capi::AnyCalendarKind_Iso:
         case temporal_rs::capi::AnyCalendarKind_Buddhist:
         case temporal_rs::capi::AnyCalendarKind_Chinese:
         case temporal_rs::capi::AnyCalendarKind_Coptic:
@@ -44,10 +45,8 @@ inline temporal_rs::AnyCalendarKind temporal_rs::AnyCalendarKind::FromFFI(tempor
         case temporal_rs::capi::AnyCalendarKind_Hebrew:
         case temporal_rs::capi::AnyCalendarKind_Indian:
         case temporal_rs::capi::AnyCalendarKind_HijriTabularTypeIIFriday:
-        case temporal_rs::capi::AnyCalendarKind_HijriSimulatedMecca:
         case temporal_rs::capi::AnyCalendarKind_HijriTabularTypeIIThursday:
         case temporal_rs::capi::AnyCalendarKind_HijriUmmAlQura:
-        case temporal_rs::capi::AnyCalendarKind_Iso:
         case temporal_rs::capi::AnyCalendarKind_Japanese:
         case temporal_rs::capi::AnyCalendarKind_JapaneseExtended:
         case temporal_rs::capi::AnyCalendarKind_Persian:

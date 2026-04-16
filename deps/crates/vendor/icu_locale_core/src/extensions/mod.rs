@@ -194,7 +194,8 @@ impl Extensions {
             && self.other.is_empty()
     }
 
-    #[allow(clippy::type_complexity)]
+    #[expect(clippy::type_complexity)]
+    #[cfg_attr(not(feature = "alloc"), expect(clippy::needless_borrow))]
     pub(crate) fn as_tuple(
         &self,
     ) -> (
@@ -208,8 +209,8 @@ impl Extensions {
             )>,
             &transform::Fields,
         ),
-        &private::Private,
-        &[other::Other],
+        &Private,
+        &[Other],
     ) {
         (
             self.unicode.as_tuple(),
@@ -230,6 +231,8 @@ impl Extensions {
     }
 
     /// Retains the specified extension types, clearing all others.
+    ///
+    /// ✨ *Enabled with the `alloc` Cargo feature.*
     ///
     /// # Examples
     ///
@@ -252,6 +255,7 @@ impl Extensions {
     /// });
     /// assert_eq!(only_t_z, "und-t-mul-z-zzz".parse().unwrap());
     /// ```
+    #[cfg(feature = "alloc")]
     pub fn retain_by_type<F>(&mut self, mut predicate: F)
     where
         F: FnMut(ExtensionType) -> bool,
@@ -360,7 +364,6 @@ impl Extensions {
     }
 }
 
-#[cfg(feature = "alloc")]
 impl_writeable_for_each_subtag_str_no_test!(Extensions);
 
 #[test]

@@ -140,6 +140,8 @@ pub const MARKERS: &[DataMarkerInfo] = &[
     LocaleScriptDirectionV1::INFO,
 ];
 
+#[cfg(doc)]
+use crate::LanguageIdentifier;
 use alloc::borrow::Cow;
 use icu_collections::codepointinvliststringlist::CodePointInversionListAndStringList;
 use icu_locale_core::subtags::{Language, Region, Script, Variant};
@@ -179,7 +181,7 @@ type UnvalidatedLanguageVariantsPair = LanguageStrStrPairVarULE;
     zerovec::derive(Serialize),
     databake(path = icu_locale::provider),
 )]
-/// A pair of strings with a EncodeAsVarULE implementation.
+/// A pair of strings with a [`EncodeAsVarULE`](zerovec::ule::EncodeAsVarULE) implementation.
 ///
 /// <div class="stab unstable">
 /// 🚧 This code is considered unstable; it may change at any time, in breaking or non-breaking ways,
@@ -205,7 +207,7 @@ pub struct StrStrPair<'a>(
     zerovec::derive(Serialize),
     databake(path = icu_locale::provider),
 )]
-/// A triplet of strings with a EncodeAsVarULE implementation.
+/// A triplet of strings with a [`EncodeAsVarULE`](zerovec::ule::EncodeAsVarULE) implementation.
 pub struct LanguageStrStrPair<'a>(
     pub Language,
     #[cfg_attr(feature = "serde", serde(borrow))] pub Cow<'a, str>,
@@ -221,7 +223,7 @@ pub struct LanguageStrStrPair<'a>(
 ///
 /// Each field defines a
 /// mapping from an old identifier to a new identifier, based upon the rules in
-/// from <http://unicode.org/reports/tr35/#LocaleId_Canonicalization>. The data
+/// from <https://unicode.org/reports/tr35/#LocaleId_Canonicalization>. The data
 /// is stored in sorted order, allowing for binary search to identify rules to
 /// apply. It is broken down into smaller vectors based upon some characteristic
 /// of the data, to help avoid unnecessary searches. For example, the `sgn_region`
@@ -302,9 +304,9 @@ icu_provider::data_struct!(
 /// The data is stored is broken down into smaller vectors based upon the rules
 /// defined for the likely subtags maximize algorithm.
 ///
-/// For efficiency, only the relevant part of the LanguageIdentifier is stored
+/// For efficiency, only the relevant part of the [`LanguageIdentifier`] is stored
 /// for searching and replacing. E.g., the `language_script` field is used to store
-/// rules for `LanguageIdentifier`s that contain a language and a script, but not a
+/// rules for [`LanguageIdentifier`]s that contain a language and a script, but not a
 /// region.
 ///
 /// This struct contains mappings when the input contains a language subtag.
@@ -348,9 +350,9 @@ icu_provider::data_struct!(
 /// The data is stored is broken down into smaller vectors based upon the rules
 /// defined for the likely subtags maximize algorithm.
 ///
-/// For efficiency, only the relevant part of the LanguageIdentifier is stored
+/// For efficiency, only the relevant part of the [`LanguageIdentifier`] is stored
 /// for searching and replacing. E.g., the `script_region` field is used to store
-/// rules for `LanguageIdentifier`s that contain a script and a region, but not a
+/// rules for [`LanguageIdentifier`]s that contain a script and a region, but not a
 /// language.
 ///
 /// This struct contains mappings when the input does not contain a language subtag.

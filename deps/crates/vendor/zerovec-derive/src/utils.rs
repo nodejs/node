@@ -79,7 +79,7 @@ pub fn semi_for(f: &Fields) -> TokenStream2 {
     }
 }
 
-/// Returns the repr attribute to be applied to the resultant ULE or VarULE type
+/// Returns the repr attribute to be applied to the resultant ULE or `VarULE` type
 pub fn repr_for(f: &Fields) -> TokenStream2 {
     if f.len() == 1 {
         quote!(transparent)
@@ -92,8 +92,8 @@ fn suffixed_ident(name: &str, suffix: usize, s: Span) -> Ident {
     Ident::new(&format!("{name}_{suffix}"), s)
 }
 
-/// Given an iterator over ULE or AsULE struct fields, returns code that calculates field sizes and generates a line
-/// of code per field based on the per_field_code function (whose parameters are the field, the identifier of the const
+/// Given an iterator over ULE or `AsULE` struct fields, returns code that calculates field sizes and generates a line
+/// of code per field based on the `per_field_code` function (whose parameters are the field, the identifier of the const
 /// for the previous offset, the identifier for the const for the next offset, and the field index)
 pub(crate) fn generate_per_field_offsets<'a>(
     fields: &[FieldInfo<'a>],
@@ -101,7 +101,7 @@ pub(crate) fn generate_per_field_offsets<'a>(
     fields_are_asule: bool,
     // (field, prev_offset_ident, size_ident)
     mut per_field_code: impl FnMut(&FieldInfo<'a>, &Ident, &Ident) -> TokenStream2, /* (code, remaining_offset) */
-) -> (TokenStream2, syn::Ident) {
+) -> (TokenStream2, Ident) {
     let mut prev_offset_ident = Ident::new("ZERO", Span::call_site());
     let mut code = quote!(
         const ZERO: usize = 0;
@@ -321,7 +321,7 @@ pub struct ZeroVecAttrs {
     pub vzv_format: Option<TokenStream2>,
 }
 
-/// Removes all known zerovec:: attributes from struct attrs and validates them
+/// Removes all known `zerovec::` attributes from struct attrs and validates them
 pub fn extract_attributes_common(
     attrs: &mut Vec<Attribute>,
     span: Span,

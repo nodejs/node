@@ -541,6 +541,12 @@ fn test_quote_raw_id() {
 }
 
 #[test]
+fn test_quote_raw_lifetime() {
+    let lifetime = quote!('r#async);
+    assert_eq!(lifetime.to_string(), "'r#async");
+}
+
+#[test]
 fn test_type_inference_for_span() {
     trait CallSite {
         fn get() -> Self;
@@ -561,6 +567,7 @@ fn test_type_inference_for_span() {
     let inferred = CallSite::get();
     let _ = quote_spanned!(inferred=> ...);
 
+    #[cfg(feature = "proc-macro")]
     if false {
         let proc_macro_span = proc_macro::Span::call_site();
         let _ = quote_spanned!(proc_macro_span.into()=> ...);

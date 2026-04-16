@@ -25,6 +25,8 @@ pub enum LocaleFallbackPriority {
     /// Prioritize the region.
     ///
     /// For example, `"en-US"` should go to `"und-US"` and then `"und"`.
+    ///
+    /// This should be used for [data that is region-specific](https://github.com/unicode-org/cldr/blob/main/common/supplemental/rgScope.xml).
     Region,
 }
 

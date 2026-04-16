@@ -34,7 +34,22 @@ impl<const N: usize> UnvalidatedTinyAsciiStr<N> {
     }
 
     #[inline]
-    /// Unsafely converts into a [`TinyAsciiStr`].
+    /// Creates one of these from a byte slice. Fails if the bytes are too long, but
+    /// does not check whether the bytes are a valid ASCII string.
+    pub fn try_from_utf8(bytes: &[u8]) -> Result<Self, ParseError> {
+        if bytes.len() > N {
+            return Err(ParseError::TooLong {
+                max: N,
+                len: bytes.len(),
+            });
+        }
+        let mut target = [0u8; N];
+        target[0..bytes.len()].copy_from_slice(bytes);
+        Ok(Self(target))
+    }
+
+    #[inline]
+    /// Creates one of these from a raw byte array.
     pub const fn from_utf8_unchecked(bytes: [u8; N]) -> Self {
         Self(bytes)
     }

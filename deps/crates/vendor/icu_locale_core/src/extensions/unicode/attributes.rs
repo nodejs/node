@@ -57,6 +57,8 @@ impl Attributes {
 
     /// A constructor which takes a str slice, parses it and
     /// produces a well-formed [`Attributes`].
+    ///
+    /// ✨ *Enabled with the `alloc` Cargo feature.*
     #[inline]
     #[cfg(feature = "alloc")]
     pub fn try_from_str(s: &str) -> Result<Self, ParseError> {
@@ -64,14 +66,17 @@ impl Attributes {
     }
 
     /// See [`Self::try_from_str`]
+    ///
+    /// ✨ *Enabled with the `alloc` Cargo feature.*
     #[cfg(feature = "alloc")]
     pub fn try_from_utf8(code_units: &[u8]) -> Result<Self, ParseError> {
         let mut iter = SubtagIterator::new(code_units);
-        Self::try_from_iter(&mut iter)
+        Ok(Self::from_iter(&mut iter))
     }
 
     /// A constructor which takes a pre-sorted list of [`Attribute`] elements.
     ///
+    /// ✨ *Enabled with the `alloc` Cargo feature.*
     ///
     /// # Examples
     ///
@@ -121,7 +126,7 @@ impl Attributes {
     }
 
     #[cfg(feature = "alloc")]
-    pub(crate) fn try_from_iter(iter: &mut SubtagIterator) -> Result<Self, ParseError> {
+    pub(crate) fn from_iter(iter: &mut SubtagIterator) -> Self {
         let mut attributes = ShortBoxSlice::new();
 
         while let Some(subtag) = iter.peek() {
@@ -134,7 +139,7 @@ impl Attributes {
             }
             iter.next();
         }
-        Ok(Self(attributes))
+        Self(attributes)
     }
 
     pub(crate) fn for_each_subtag_str<E, F>(&self, f: &mut F) -> Result<(), E>
@@ -143,8 +148,32 @@ impl Attributes {
     {
         self.deref().iter().map(|t| t.as_str()).try_for_each(f)
     }
+
+    /// Extends the `Attributes` with values from another `Attributes`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use icu::locale::extensions::unicode::Attributes;
+    ///
+    /// let mut attrs: Attributes = "foobar-foobaz".parse().unwrap();
+    /// let attrs2: Attributes = "foobar-fooqux".parse().unwrap();
+    ///
+    /// attrs.extend_from_attributes(attrs2);
+    ///
+    /// assert_eq!(attrs, "foobar-foobaz-fooqux".parse().unwrap());
+    /// ```
+    #[cfg(feature = "alloc")]
+    pub fn extend_from_attributes(&mut self, other: Attributes) {
+        for attr in other.0 {
+            if let Err(idx) = self.binary_search(&attr) {
+                self.0.insert(idx, attr);
+            }
+        }
+    }
 }
 
+/// ✨ *Enabled with the `alloc` Cargo feature.*
 #[cfg(feature = "alloc")]
 impl FromStr for Attributes {
     type Err = ParseError;

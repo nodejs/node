@@ -19,6 +19,9 @@ use zerovec::{VarZeroVec, ZeroVec};
 #[cfg(feature = "datagen")]
 pub(crate) mod datagen;
 
+#[cfg(test)]
+mod cldr_test;
+
 /// A data struct for IANA identifier normalization
 #[derive(PartialEq, Debug, Clone)]
 #[cfg_attr(

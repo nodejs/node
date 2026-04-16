@@ -10,7 +10,7 @@ use syn::spanned::Spanned;
 use syn::{Data, DeriveInput, Error, Ident};
 
 /// Implementation for derive(VarULE). `custom_varule_validator` validates the last field bytes `last_field_bytes`
-/// if specified, if not, the VarULE implementation will be used.
+/// if specified, if not, the `VarULE` implementation will be used.
 pub fn derive_impl(
     input: &DeriveInput,
     custom_varule_validator: Option<TokenStream2>,
@@ -120,7 +120,7 @@ pub fn derive_impl(
                 let unsized_ref = <#unsized_field as zerovec::ule::VarULE>::from_bytes_unchecked(unsized_bytes);
                 // We should use the pointer metadata APIs here when they are stable: https://github.com/rust-lang/rust/issues/81513
                 // For now we rely on all DST metadata being a usize to extract it via a fake slice pointer
-                let (_ptr, metadata): (usize, usize) = ::core::mem::transmute(unsized_ref);
+                let (_ptr, metadata) = ::core::mem::transmute::<&#unsized_field, (usize, usize)>(unsized_ref);
                 let entire_struct_as_slice: *const [u8] = ::core::slice::from_raw_parts(bytes.as_ptr(), metadata);
                 &*(entire_struct_as_slice as *const Self)
             }
