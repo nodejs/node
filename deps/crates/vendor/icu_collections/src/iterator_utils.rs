@@ -39,7 +39,7 @@ where
         };
 
         // Keep pulling ranges
-        #[allow(clippy::while_let_on_iterator)]
+        #[expect(clippy::while_let_on_iterator)]
         // can't move the iterator, also we want it to be explicit that we're not draining the iterator
         while let Some(next) = self.iter.next() {
             if *next.range.start() == ret.range.end() + 1 && next.value == ret.value {
@@ -60,10 +60,10 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::codepointinvlist::CodePointInversionListBuilder;
     use core::fmt::Debug;
-    use icu::collections::codepointinvlist::CodePointInversionListBuilder;
-    use icu::properties::props::{BinaryProperty, EnumeratedProperty};
-    use icu::properties::{CodePointMapData, CodePointSetData};
+    use icu_properties::props::{BinaryProperty, EnumeratedProperty};
+    use icu_properties::{CodePointMapData, CodePointSetData};
 
     fn test_set<P: BinaryProperty>(name: &str) {
         let mut builder = CodePointInversionListBuilder::new();
@@ -106,7 +106,7 @@ mod tests {
 
     #[test]
     fn test_complement_sets() {
-        use icu::properties::props::*;
+        use icu_properties::props::*;
         // Stress test the RangeListIteratorComplementer logic by ensuring it works for
         // a whole bunch of binary properties
         test_set::<AsciiHexDigit>("ASCII_Hex_Digit");
@@ -178,7 +178,7 @@ mod tests {
 
     #[test]
     fn test_complement_maps() {
-        use icu::properties::props::{GeneralCategory, Script};
+        use icu_properties::props::{GeneralCategory, Script};
         test_map(GeneralCategory::UppercaseLetter, "gc");
         test_map(GeneralCategory::OtherPunctuation, "gc");
         test_map(Script::Devanagari, "script");

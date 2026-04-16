@@ -43,10 +43,7 @@ mod idents;
 pub use idents::Ident;
 
 mod docs;
-pub use docs::{
-    DocType, Docs, DocsUrlGenerator, RustLink, RustLinkDisplay,
-    TypeReferenceSyntax as DocsTypeReferenceSyntax,
-};
+pub use docs::{DocType, Docs, RustLink, RustLinkDisplay};
 
 mod macros;
 pub use macros::{MacroDef, MacroUse, Macros};

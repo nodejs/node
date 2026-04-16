@@ -57,7 +57,11 @@ impl From<tzif::data::time::Seconds> for EpochNanoseconds {
 }
 
 #[inline]
-#[cfg(any(feature = "tzif", feature = "zoneinfo64"))]
+#[cfg(any(
+    feature = "tzif",
+    feature = "zoneinfo64",
+    feature = "experimental_tzif"
+))]
 pub(crate) fn seconds_to_nanoseconds(seconds: i64) -> i128 {
     seconds as i128 * NS_IN_S
 }

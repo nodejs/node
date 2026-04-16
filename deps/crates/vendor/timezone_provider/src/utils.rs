@@ -23,12 +23,12 @@ pub fn epoch_days_to_epoch_ms(day: i64, time: i64) -> i64 {
 /// `EpochTimeToDayNumber`
 ///
 /// This equation is the equivalent to `ECMAScript`'s `Date(t)`
-#[cfg(feature = "tzif")]
+#[cfg(any(feature = "tzif", feature = "experimental_tzif"))]
 pub(crate) fn epoch_time_to_day_number(t: i64) -> i32 {
     t.div_euclid(MS_PER_DAY as i64) as i32
 }
 
-#[cfg(feature = "tzif")]
+#[cfg(any(feature = "tzif", feature = "experimental_tzif"))]
 pub(crate) fn epoch_ms_to_ms_in_day(t: i64) -> u32 {
     (t.rem_euclid(i64::from(MS_PER_DAY))) as u32
 }
@@ -48,7 +48,7 @@ pub(crate) fn is_leap(y: i32) -> bool {
     }
 }
 
-#[cfg(feature = "tzif")]
+#[cfg(any(feature = "tzif", feature = "experimental_tzif"))]
 pub(crate) fn epoch_time_to_iso_year(t: i64) -> i32 {
     let epoch_days = epoch_ms_to_epoch_days(t);
     let (rata_die, shift_constant) = neri_schneider::rata_die_for_epoch_days(epoch_days);
@@ -56,7 +56,7 @@ pub(crate) fn epoch_time_to_iso_year(t: i64) -> i32 {
 }
 
 /// Returns the epoch day number for a given year.
-#[cfg(feature = "tzif")]
+#[cfg(any(feature = "tzif", feature = "experimental_tzif"))]
 pub(crate) fn epoch_days_for_year(y: i32) -> i32 {
     365 * (y - 1970) + (y - 1969).div_euclid(4) - (y - 1901).div_euclid(100)
         + (y - 1601).div_euclid(400)
@@ -71,7 +71,7 @@ pub fn ymd_from_epoch_milliseconds(epoch_milliseconds: i64) -> (i32, u8, u8) {
     neri_schneider::ymd_from_epoch_days(epoch_days)
 }
 
-#[cfg(feature = "tzif")]
+#[cfg(any(feature = "tzif", feature = "experimental_tzif"))]
 pub(crate) fn month_to_day(m: u8, is_leap: bool) -> u16 {
     let leap_day = u16::from(is_leap);
     match m {
@@ -91,12 +91,12 @@ pub(crate) fn month_to_day(m: u8, is_leap: bool) -> u16 {
     }
 }
 
-#[cfg(feature = "tzif")]
+#[cfg(any(feature = "tzif", feature = "experimental_tzif"))]
 pub(crate) fn epoch_time_to_day_in_year(t: i64) -> i32 {
     epoch_time_to_day_number(t) - (epoch_days_for_year(epoch_time_to_iso_year(t)))
 }
 
-#[cfg(feature = "tzif")]
+#[cfg(any(feature = "tzif", feature = "experimental_tzif"))]
 pub(crate) fn epoch_seconds_to_day_of_week(t: i64) -> u8 {
     ((t / 86_400) + 4).rem_euclid(7) as u8
 }

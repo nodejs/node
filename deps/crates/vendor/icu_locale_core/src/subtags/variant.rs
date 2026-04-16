@@ -6,7 +6,7 @@ impl_tinystr_subtag!(
     /// A variant subtag (examples: `"macos"`, `"posix"`, `"1996"` etc.)
     ///
     /// [`Variant`] represents a Unicode base language code conformant to the
-    /// [`unicode_variant_id`] field of the Language and Locale Identifier.
+    /// [`unicode_variant_subtag`] field of the Language and Locale Identifier.
     ///
     /// # Examples
     ///
@@ -17,7 +17,7 @@ impl_tinystr_subtag!(
     ///     "macos".parse().expect("Failed to parse a variant subtag.");
     /// ```
     ///
-    /// [`unicode_variant_id`]: https://unicode.org/reports/tr35/#unicode_variant_id
+    /// [`unicode_variant_subtag`]: https://unicode.org/reports/tr35/#unicode_variant_subtag_validity
     Variant,
     subtags,
     variant,

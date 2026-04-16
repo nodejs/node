@@ -1,0 +1,15 @@
+---
+source: utils/zerovec/src/schemars.rs
+expression: schema
+---
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ZeroMap<uint32, string>",
+  "type": "object",
+  "additionalProperties": false,
+  "patternProperties": {
+    "^\\d+$": {
+      "type": "string"
+    }
+  }
+}

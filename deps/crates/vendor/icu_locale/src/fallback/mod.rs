@@ -104,15 +104,18 @@ impl LocaleFallbacker {
     ///
     /// [📚 Help choosing a constructor](icu_provider::constructors)
     #[cfg(feature = "compiled_data")]
-    #[allow(clippy::new_ret_no_self)] // keeping constructors together
-    #[allow(clippy::new_without_default)] // Deliberate choice, see #5554
+    #[expect(clippy::new_ret_no_self)] // keeping constructors together
     pub const fn new<'a>() -> LocaleFallbackerBorrowed<'a> {
         // Safety: we're transmuting down from LocaleFallbackerBorrowed<'static> to LocaleFallbackerBorrowed<'a>
         // ZeroMaps use associated types in a way that confuse the compiler which gives up and marks them
         // as invariant. However, they are covariant, and in non-const code this covariance can be safely triggered
         // using Yokeable::transform. In const code we must transmute. In the long run we should
         // be able to `transform()` in const code, and also we will have hopefully improved map polymorphism (#3128)
-        unsafe { core::mem::transmute(LocaleFallbackerBorrowed::<'static>::new()) }
+        unsafe {
+            core::mem::transmute::<LocaleFallbackerBorrowed<'static>, LocaleFallbackerBorrowed<'a>>(
+                LocaleFallbackerBorrowed::new(),
+            )
+        }
     }
 
     icu_provider::gen_buffer_data_constructors!(() -> error: DataError,
@@ -157,12 +160,12 @@ impl LocaleFallbacker {
 
     /// Associates a configuration with this fallbacker.
     #[inline]
-    pub fn for_config(&self, config: LocaleFallbackConfig) -> LocaleFallbackerWithConfig {
+    pub fn for_config(&self, config: LocaleFallbackConfig) -> LocaleFallbackerWithConfig<'_> {
         self.as_borrowed().for_config(config)
     }
 
     /// Creates a borrowed version of this fallbacker for performance.
-    pub fn as_borrowed(&self) -> LocaleFallbackerBorrowed {
+    pub fn as_borrowed(&self) -> LocaleFallbackerBorrowed<'_> {
         LocaleFallbackerBorrowed {
             likely_subtags: self.likely_subtags.get(),
             parents: self.parents.get(),
@@ -189,11 +192,11 @@ impl LocaleFallbackerBorrowed<'static> {
     ///
     /// [📚 Help choosing a constructor](icu_provider::constructors)
     #[cfg(feature = "compiled_data")]
-    #[allow(clippy::new_without_default)]
+    #[expect(clippy::new_without_default)]
     pub const fn new() -> Self {
         Self {
-            likely_subtags: crate::provider::Baked::SINGLETON_LOCALE_LIKELY_SUBTAGS_LANGUAGE_V1,
-            parents: crate::provider::Baked::SINGLETON_LOCALE_PARENTS_V1,
+            likely_subtags: Baked::SINGLETON_LOCALE_LIKELY_SUBTAGS_LANGUAGE_V1,
+            parents: Baked::SINGLETON_LOCALE_PARENTS_V1,
         }
     }
 
@@ -212,9 +215,12 @@ impl LocaleFallbackerBorrowed<'static> {
 impl<'a> LocaleFallbackerWithConfig<'a> {
     /// Creates an iterator based on a [`DataLocale`].
     ///
-    /// If you have a [`Locale`](icu_locale_core::Locale), call `.into()` to get a [`DataLocale`].
+    /// If you have a [`Locale`], see the [`DataLocale`] docs for information
+    /// on converting it first.
     ///
     /// When first initialized, the locale is normalized according to the fallback algorithm.
+    ///
+    /// [`Locale`]: icu_locale_core::Locale
     pub fn fallback_for(&self, mut locale: DataLocale) -> LocaleFallbackIterator<'a> {
         let mut default_script = None;
         self.normalize(&mut locale, &mut default_script);

@@ -2,6 +2,8 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
+#![allow(dead_code)]
+
 use icu_collections::codepointtrie::planes::get_planes_trie;
 use icu_collections::codepointtrie::*;
 use zerovec::ZeroVec;
@@ -231,16 +233,16 @@ fn small0_in_fast_small16() {
 /// See [`UCPTrieValueWidth`](https://unicode-org.github.io/icu-docs/apidoc/dev/icu4c/ucptrie_8h.html) in ICU4C.
 #[derive(Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum ValueWidthEnum {
+enum ValueWidthEnum {
     Bits16 = 0,
     Bits32 = 1,
     Bits8 = 2,
 }
 
-/// Test .get() on CodePointTrie by iterating through each range in
-/// check_ranges and assert that the associated
+/// Test .`get()` on [`CodePointTrie`] by iterating through each range in
+/// `check_ranges` and assert that the associated
 /// value matches the trie value for each code point in the range.
-pub fn check_trie<T: TrieValue + Into<u32>>(trie: &CodePointTrie<T>, check_ranges: &[u32]) {
+fn check_trie<T: TrieValue + Into<u32>>(trie: &CodePointTrie<T>, check_ranges: &[u32]) {
     assert_eq!(
         0,
         check_ranges.len() % 2,
@@ -255,18 +257,18 @@ pub fn check_trie<T: TrieValue + Into<u32>>(trie: &CodePointTrie<T>, check_range
         let range_value = range_tuple[1];
         // Check all values in this range, one-by-one
         while i < range_limit {
-            assert_eq!(range_value, trie.get32(i).into(), "trie_get({})", i,);
+            assert_eq!(range_value, trie.get32(i).into(), "trie_get({i})",);
             i += 1;
         }
     }
 }
 
-/// Test `.get_range()` / `.iter_ranges()` on CodePointTrie by calling
+/// Test `.get_range()` / `.iter_ranges()` on [`CodePointTrie`] by calling
 /// `.iter_ranges()` on the trie.
 ///
 /// `.iter_ranges()` returns an iterator that produces values
-/// by calls to .get_range, and this checks if it matches the values in check_ranges.
-pub fn test_check_ranges_get_ranges<T: TrieValue + Into<u32>>(
+/// by calls to .`get_range`, and this checks if it matches the values in `check_ranges`.
+fn test_check_ranges_get_ranges<T: TrieValue + Into<u32>>(
     trie: &CodePointTrie<T>,
     check_ranges: &[u32],
 ) {
@@ -308,8 +310,8 @@ pub fn test_check_ranges_get_ranges<T: TrieValue + Into<u32>>(
     assert!(trie_ranges.next().is_none(), "CodePointTrie iter_ranges() produces more ranges than the check_ranges field in testdata has");
 }
 
-/// Run above tests that verify the validity of CodePointTrie methods
-pub fn run_trie_tests<T: TrieValue + Into<u32>>(trie: &CodePointTrie<T>, check_ranges: &[u32]) {
+/// Run above tests that verify the validity of [`CodePointTrie`] methods
+fn run_trie_tests<T: TrieValue + Into<u32>>(trie: &CodePointTrie<T>, check_ranges: &[u32]) {
     check_trie(trie, check_ranges);
     test_check_ranges_get_ranges(trie, check_ranges);
 }
@@ -318,28 +320,27 @@ pub fn run_trie_tests<T: TrieValue + Into<u32>>(trie: &CodePointTrie<T>, check_r
 // main `CodePointTrie` struct in the corresponding data provider.
 
 #[cfg_attr(any(feature = "serde", test), derive(serde::Deserialize))]
-pub struct UnicodeEnumeratedProperty {
-    pub code_point_map: EnumPropCodePointMap,
-    pub code_point_trie: EnumPropSerializedCPT,
+struct UnicodeEnumeratedProperty {
+    code_point_map: EnumPropCodePointMap,
+    code_point_trie: EnumPropSerializedCPT,
 }
 
 #[cfg_attr(any(feature = "serde", test), derive(serde::Deserialize))]
-pub struct EnumPropCodePointMap {
-    pub data: EnumPropCodePointMapData,
+struct EnumPropCodePointMap {
+    data: EnumPropCodePointMapData,
 }
 
 #[cfg_attr(any(feature = "serde", test), derive(serde::Deserialize))]
-pub struct EnumPropCodePointMapData {
-    pub long_name: String,
-    pub name: String,
-    pub ranges: Vec<(u32, u32, u32)>,
+struct EnumPropCodePointMapData {
+    long_name: String,
+    name: String,
+    ranges: Vec<(u32, u32, u32)>,
 }
 
-#[allow(clippy::upper_case_acronyms)]
 #[cfg_attr(any(feature = "serde", test), derive(serde::Deserialize))]
-pub struct EnumPropSerializedCPT {
+struct EnumPropSerializedCPT {
     #[cfg_attr(any(feature = "serde", test), serde(rename = "struct"))]
-    pub trie_struct: EnumPropSerializedCPTStruct,
+    trie_struct: EnumPropSerializedCPTStruct,
 }
 
 // These structs support the test data dumped as TOML files from ICU.
@@ -347,34 +348,33 @@ pub struct EnumPropSerializedCPT {
 // using similar functions, some of these structs may be useful to refactor
 // into main code at a later point.
 
-#[allow(clippy::upper_case_acronyms)]
 #[cfg_attr(any(feature = "serde", test), derive(serde::Deserialize))]
-pub struct EnumPropSerializedCPTStruct {
+struct EnumPropSerializedCPTStruct {
     #[cfg_attr(any(feature = "serde", test), serde(skip))]
-    pub long_name: String,
-    pub name: String,
-    pub index: Vec<u16>,
-    pub data_8: Option<Vec<u8>>,
-    pub data_16: Option<Vec<u16>>,
-    pub data_32: Option<Vec<u32>>,
+    long_name: String,
+    name: String,
+    index: Vec<u16>,
+    data_8: Option<Vec<u8>>,
+    data_16: Option<Vec<u16>>,
+    data_32: Option<Vec<u32>>,
     #[cfg_attr(any(feature = "serde", test), serde(skip))]
-    pub index_length: u32,
+    index_length: u32,
     #[cfg_attr(any(feature = "serde", test), serde(skip))]
-    pub data_length: u32,
+    data_length: u32,
     #[cfg_attr(any(feature = "serde", test), serde(rename = "highStart"))]
-    pub high_start: u32,
+    high_start: u32,
     #[cfg_attr(any(feature = "serde", test), serde(rename = "shifted12HighStart"))]
-    pub shifted12_high_start: u16,
+    shifted12_high_start: u16,
     #[cfg_attr(any(feature = "serde", test), serde(rename = "type"))]
-    pub trie_type_enum_val: u8,
+    trie_type_enum_val: u8,
     #[cfg_attr(any(feature = "serde", test), serde(rename = "valueWidth"))]
-    pub value_width_enum_val: u8,
+    value_width_enum_val: u8,
     #[cfg_attr(any(feature = "serde", test), serde(rename = "index3NullOffset"))]
-    pub index3_null_offset: u16,
+    index3_null_offset: u16,
     #[cfg_attr(any(feature = "serde", test), serde(rename = "dataNullOffset"))]
-    pub data_null_offset: u32,
+    data_null_offset: u32,
     #[cfg_attr(any(feature = "serde", test), serde(rename = "nullValue"))]
-    pub null_value: u32,
+    null_value: u32,
 }
 
 // Given a .toml file dumped from ICU4C test data for UCPTrie, run the test
@@ -383,17 +383,17 @@ pub struct EnumPropSerializedCPTStruct {
 // "check ranges" (inversion map ranges) using `check_trie` to verify the
 // validity of the `CodePointTrie`'s behavior for all code points.
 #[allow(dead_code)]
-pub fn run_deserialize_test_from_test_data(test_file: &str) {
+fn run_deserialize_test_from_test_data(test_file: &str) {
     // The following structs are specific to the TOML format files for dumped ICU
     // test data.
 
     #[derive(serde::Deserialize)]
-    pub struct TestFile {
+    struct TestFile {
         code_point_trie: TestCodePointTrie,
     }
 
     #[derive(serde::Deserialize)]
-    pub struct TestCodePointTrie {
+    struct TestCodePointTrie {
         // The trie_struct field for test data files is dumped from the same source
         // (ICU4C) using the same function (usrc_writeUCPTrie) as property data
         // for the provider, so we can reuse the same struct here.
@@ -404,7 +404,7 @@ pub fn run_deserialize_test_from_test_data(test_file: &str) {
     }
 
     #[derive(serde::Deserialize)]
-    pub struct TestData {
+    struct TestData {
         #[serde(rename(deserialize = "checkRanges"))]
         check_ranges: Vec<u32>,
     }

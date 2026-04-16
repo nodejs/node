@@ -1,7 +1,8 @@
 use crate::{
     duration::DateDuration,
     options::{
-        OffsetDisambiguation, RelativeTo, RoundingIncrement, RoundingMode, RoundingOptions, Unit,
+        OffsetDisambiguation, Overflow, RelativeTo, RoundingIncrement, RoundingMode,
+        RoundingOptions, Unit,
     },
     partial::PartialDuration,
     Calendar, PlainDate, TimeZone, ZonedDateTime,
@@ -627,6 +628,24 @@ fn add_normalized_time_duration_out_of_range() {
 }
 
 #[test]
+fn add_large_durations() {
+    // Testcases found by fuzzing <https://github.com/unicode-org/icu4x/pull/7206>
+    let base = PlainDate::new(2000, 1, 1, Calendar::from_str("dangi").unwrap()).unwrap();
+
+    let test_duration = Duration::from(DateDuration::new(4294901760, 256, 0, 0).unwrap());
+    assert!(base.add(&test_duration, Some(Overflow::Constrain)).is_err());
+
+    let test_duration = Duration::from(DateDuration::new(0, 1281, 0, 8589934592).unwrap());
+    assert!(base.add(&test_duration, Some(Overflow::Constrain)).is_err());
+
+    let test_duration = Duration::from(DateDuration::new(2046820352, 0, 0, 0).unwrap());
+    assert!(base.add(&test_duration, Some(Overflow::Constrain)).is_err());
+
+    let test_duration = Duration::from(DateDuration::new(0, 0, 2516582400, 0).unwrap());
+    assert!(base.add(&test_duration, Some(Overflow::Constrain)).is_err());
+}
+
+#[test]
 fn test_rounding_boundaries() {
     let relative_to = PlainDate::new(2000, 1, 1, Calendar::default()).unwrap();
 
@@ -842,4 +861,46 @@ fn bubble_smallest_becomes_day() {
         24,
         "Expected rounding to fail, got {rounded:?}"
     );
+}
+
+#[test]
+fn round_zero_duration() {
+    // Tests that totalling the zero duration returns zero
+    let d0 = Duration::new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0).unwrap();
+    let rounding_options = RoundingOptions {
+        largest_unit: Some(Unit::Day),
+        smallest_unit: Some(Unit::Hour),
+        ..Default::default()
+    };
+    let relative_to = ZonedDateTime::try_new(0, TimeZone::utc(), Calendar::default()).unwrap();
+    let rounded_duration = d0
+        .round(
+            rounding_options,
+            Some(RelativeTo::ZonedDateTime(relative_to)),
+        )
+        .unwrap();
+
+    assert_eq!(rounded_duration, d0);
+}
+
+#[test]
+fn round_increment_regression_test() {
+    let duration = Duration::new(0, 0, 0, 0, 48, 0, 0, 0, 0, 0).unwrap();
+    let relative_to = ZonedDateTime::try_new(0_i128, TimeZone::utc(), Calendar::ISO).unwrap();
+    let options = RoundingOptions {
+        smallest_unit: Some(Unit::Day),
+        increment: Some(RoundingIncrement::new_unchecked(
+            NonZeroU32::new(2).unwrap(),
+        )),
+        ..Default::default()
+    };
+
+    let result = duration.round(options, None).unwrap();
+    assert_eq!(result.days(), 2);
+
+    // The result should be same with a UTC relativeTo
+    let result = duration
+        .round(options, Some(RelativeTo::ZonedDateTime(relative_to)))
+        .unwrap();
+    assert_eq!(result.days(), 2);
 }

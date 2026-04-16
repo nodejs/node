@@ -2,7 +2,6 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
-use crate::builder::bytestr::ByteStr;
 use crate::options::ZeroTrieWithOptions;
 use crate::zerotrie::ZeroTrieFlavor;
 use crate::ZeroAsciiIgnoreCaseTrie;
@@ -45,45 +44,59 @@ impl<'de> Visitor<'de> for ByteStrVisitor {
     }
 }
 
-impl<'data, 'de: 'data> Deserialize<'de> for &'data ByteStr {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s = <&'data [u8]>::deserialize(deserializer)?;
-        Ok(ByteStr::from_bytes(s))
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[repr(transparent)]
+pub(crate) struct SerdeByteStrOwned(pub(crate) Box<[u8]>);
+
+impl SerdeByteStrOwned {
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
     }
 }
 
-impl<'de> Deserialize<'de> for Box<ByteStr> {
+impl<'de> Deserialize<'de> for SerdeByteStrOwned {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
         if deserializer.is_human_readable() {
             let s = deserializer.deserialize_any(ByteStrVisitor)?;
-            Ok(ByteStr::from_boxed_bytes(s))
+            Ok(SerdeByteStrOwned(s))
         } else {
             let s = Vec::<u8>::deserialize(deserializer)?;
-            Ok(ByteStr::from_boxed_bytes(s.into_boxed_slice()))
+            Ok(SerdeByteStrOwned(s.into_boxed_slice()))
         }
     }
 }
 
-impl Serialize for &ByteStr {
+impl Serialize for SerdeByteStrOwned {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        let bytes = self.as_bytes();
+        let bytes: &[u8] = &self.0;
         if serializer.is_human_readable() {
-            match core::str::from_utf8(bytes) {
-                Ok(s) => serializer.serialize_str(s),
-                Err(_) => serializer.serialize_bytes(bytes),
+            if let Ok(s) = core::str::from_utf8(bytes) {
+                return serializer.serialize_str(s);
             }
-        } else {
-            serializer.serialize_bytes(bytes)
         }
+        serializer.serialize_bytes(bytes)
+    }
+}
+
+struct SerdeByteStr<'a>(&'a [u8]);
+
+impl Serialize for SerdeByteStr<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        if serializer.is_human_readable() {
+            if let Ok(s) = core::str::from_utf8(self.0) {
+                return serializer.serialize_str(s);
+            }
+        }
+        serializer.serialize_bytes(self.0)
     }
 }
 
@@ -100,7 +113,7 @@ where
         D: Deserializer<'de>,
     {
         if deserializer.is_human_readable() {
-            let lm = LiteMap::<Box<ByteStr>, usize>::deserialize(deserializer)?;
+            let lm = LiteMap::<SerdeByteStrOwned, usize>::deserialize(deserializer)?;
             ZeroTrieSimpleAscii::try_from_serde_litemap(&lm)
                 .map_err(D::Error::custom)
                 .map(|trie| trie.convert_store())
@@ -124,11 +137,10 @@ where
         S: Serializer,
     {
         if serializer.is_human_readable() {
-            let lm = self.to_litemap();
+            let lm = self.to_litemap_serde();
             lm.serialize(serializer)
         } else {
-            // Note: `impl Serialize for ByteStr` uses `serialize_bytes`
-            (Self::FLAGS, ByteStr::from_bytes(self.as_bytes())).serialize(serializer)
+            (Self::FLAGS, SerdeByteStr(self.as_bytes())).serialize(serializer)
         }
     }
 }
@@ -147,7 +159,7 @@ where
         D: Deserializer<'de>,
     {
         if deserializer.is_human_readable() {
-            let lm = LiteMap::<Box<ByteStr>, usize>::deserialize(deserializer)?;
+            let lm = LiteMap::<SerdeByteStrOwned, usize>::deserialize(deserializer)?;
             ZeroAsciiIgnoreCaseTrie::try_from_serde_litemap(&lm)
                 .map_err(D::Error::custom)
                 .map(|trie| trie.convert_store())
@@ -171,15 +183,10 @@ where
         S: Serializer,
     {
         if serializer.is_human_readable() {
-            let lm = self.to_litemap();
+            let lm = self.to_litemap_serde();
             lm.serialize(serializer)
         } else {
-            // Note: `impl Serialize for ByteStr` uses `serialize_bytes`
-            (
-                Self::OPTIONS.to_u8_flags(),
-                ByteStr::from_bytes(self.as_bytes()),
-            )
-                .serialize(serializer)
+            (Self::OPTIONS.to_u8_flags(), SerdeByteStr(self.as_bytes())).serialize(serializer)
         }
     }
 }
@@ -194,7 +201,7 @@ where
         D: Deserializer<'de>,
     {
         if deserializer.is_human_readable() {
-            let lm = LiteMap::<Box<ByteStr>, usize>::deserialize(deserializer)?;
+            let lm = LiteMap::<SerdeByteStrOwned, usize>::deserialize(deserializer)?;
             ZeroTriePerfectHash::try_from_serde_litemap(&lm)
                 .map_err(D::Error::custom)
                 .map(|trie| trie.convert_store())
@@ -218,19 +225,10 @@ where
         S: Serializer,
     {
         if serializer.is_human_readable() {
-            let lm = self.to_litemap();
-            let lm = lm
-                .iter()
-                .map(|(k, v)| (ByteStr::from_bytes(k), v))
-                .collect::<LiteMap<_, _>>();
+            let lm = self.to_litemap_serde();
             lm.serialize(serializer)
         } else {
-            // Note: `impl Serialize for ByteStr` uses `serialize_bytes`
-            (
-                Self::OPTIONS.to_u8_flags(),
-                ByteStr::from_bytes(self.as_bytes()),
-            )
-                .serialize(serializer)
+            (Self::OPTIONS.to_u8_flags(), SerdeByteStr(self.as_bytes())).serialize(serializer)
         }
     }
 }
@@ -245,7 +243,7 @@ where
         D: Deserializer<'de>,
     {
         if deserializer.is_human_readable() {
-            let lm = LiteMap::<Box<ByteStr>, usize>::deserialize(deserializer)?;
+            let lm = LiteMap::<SerdeByteStrOwned, usize>::deserialize(deserializer)?;
             ZeroTrieExtendedCapacity::try_from_serde_litemap(&lm)
                 .map_err(D::Error::custom)
                 .map(|trie| trie.convert_store())
@@ -271,19 +269,10 @@ where
         S: Serializer,
     {
         if serializer.is_human_readable() {
-            let lm = self.to_litemap();
-            let lm = lm
-                .iter()
-                .map(|(k, v)| (ByteStr::from_bytes(k), v))
-                .collect::<LiteMap<_, _>>();
+            let lm = self.to_litemap_serde();
             lm.serialize(serializer)
         } else {
-            // Note: `impl Serialize for ByteStr` uses `serialize_bytes`
-            (
-                Self::OPTIONS.to_u8_flags(),
-                ByteStr::from_bytes(self.as_bytes()),
-            )
-                .serialize(serializer)
+            (Self::OPTIONS.to_u8_flags(), SerdeByteStr(self.as_bytes())).serialize(serializer)
         }
     }
 }
@@ -298,7 +287,7 @@ where
         D: Deserializer<'de>,
     {
         if deserializer.is_human_readable() {
-            let lm = LiteMap::<Box<ByteStr>, usize>::deserialize(deserializer)?;
+            let lm = LiteMap::<SerdeByteStrOwned, usize>::deserialize(deserializer)?;
             ZeroTrie::<Vec<u8>>::try_from(&lm)
                 .map_err(D::Error::custom)
                 .map(|trie| trie.convert_store())
@@ -307,7 +296,7 @@ where
             let bytes = <&[u8]>::deserialize(deserializer)?;
             let (tag, trie_bytes) = bytes
                 .split_first()
-                .ok_or(D::Error::custom("expected at least 1 byte for ZeroTrie"))?;
+                .ok_or_else(|| D::Error::custom("expected at least 1 byte for ZeroTrie"))?;
             let store = Store::from(trie_bytes);
             let zerotrie = if *tag == ZeroTrieSimpleAscii::<u8>::OPTIONS.to_u8_flags() {
                 ZeroTrieSimpleAscii::from_store(store).into_zerotrie()
@@ -332,11 +321,7 @@ where
         S: Serializer,
     {
         if serializer.is_human_readable() {
-            let lm = self.to_litemap();
-            let lm = lm
-                .iter()
-                .map(|(k, v)| (ByteStr::from_bytes(k), v))
-                .collect::<LiteMap<_, _>>();
+            let lm = self.to_litemap_serde();
             lm.serialize(serializer)
         } else {
             let (tag, bytes) = match &self.0 {

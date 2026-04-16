@@ -30,12 +30,12 @@ const MAX_ITERS_FOR_MONTHS_OF_YEAR: u8 = 14;
 pub const WELL_BEHAVED_ASTRONOMICAL_RANGE: Range<RataDie> =
     RataDie::new(365 * -10_000)..RataDie::new(365 * 10_000);
 
-/// The trait ChineseBased is used by Chinese-based calendars to perform computations shared by such calendar.
+/// The trait [`ChineseBased`] is used by Chinese-based calendars to perform computations shared by such calendar.
 /// To do so, calendars should:
 ///
 /// - Implement `fn location` by providing a location at which observations of the moon are recorded, which
 ///   may change over time (the zone is important, long, lat, and elevation are not relevant for these calculations)
-/// - Define `const EPOCH` as a `RataDie` marking the start date of the era of the Calendar for internal use,
+/// - Define `const EPOCH` as a [`RataDie`] marking the start date of the era of the Calendar for internal use,
 ///   which may not accurately reflect how years or eras are marked traditionally or seen by end-users
 pub trait ChineseBased {
     /// Given a fixed date, return the UTC offset used for observations of the new moon in order to
@@ -43,7 +43,7 @@ pub trait ChineseBased {
     /// changed over the years, and can cause differences in calendar date.
     fn utc_offset(fixed: RataDie) -> f64;
 
-    /// The RataDie of the beginning of the epoch used for internal computation; this may not
+    /// The [`RataDie`] of the beginning of the epoch used for internal computation; this may not
     /// reflect traditional methods of year-tracking or eras, since Chinese-based calendars
     /// may not track years ordinally in the same way many western calendars do.
     const EPOCH: RataDie;
@@ -87,11 +87,10 @@ pub struct Dangi;
 
 impl ChineseBased for Chinese {
     fn utc_offset(fixed: RataDie) -> f64 {
-        use crate::gregorian::fixed_from_gregorian as gregorian;
         // Before 1929, local time was used, represented as UTC+(1397/180 h).
         // In 1929, China adopted a standard time zone based on 120 degrees of longitude, meaning
         // from 1929 onward, all new moon calculations are based on UTC+8h.
-        if fixed < const { gregorian(1929, 1, 1) } {
+        if fixed < const { fixed_from_gregorian(1929, 1, 1) } {
             1397.0 / 180.0 / 24.0
         } else {
             8.0 / 24.0
@@ -99,23 +98,22 @@ impl ChineseBased for Chinese {
     }
 
     /// The equivalent first day in the Chinese calendar (based on inception of the calendar), Feb. 15, -2636
-    const EPOCH: RataDie = crate::gregorian::fixed_from_gregorian(-2636, 2, 15);
+    const EPOCH: RataDie = fixed_from_gregorian(-2636, 2, 15);
     const DEBUG_NAME: &'static str = "chinese";
 }
 
 impl ChineseBased for Dangi {
     fn utc_offset(fixed: RataDie) -> f64 {
-        use crate::gregorian::fixed_from_gregorian as gregorian;
         // Before 1908, local time was used, represented as UTC+(3809/450 h).
         // This changed multiple times as different standard timezones were adopted in Korea.
         // Currently, UTC+9h is used.
-        if fixed < const { gregorian(1908, 4, 1) } {
+        if fixed < const { fixed_from_gregorian(1908, 4, 1) } {
             3809.0 / 450.0 / 24.0
-        } else if fixed < const { gregorian(1912, 1, 1) } {
+        } else if fixed < const { fixed_from_gregorian(1912, 1, 1) } {
             8.5 / 24.0
-        } else if fixed < const { gregorian(1954, 3, 21) } {
+        } else if fixed < const { fixed_from_gregorian(1954, 3, 21) } {
             9.0 / 24.0
-        } else if fixed < const { gregorian(1961, 8, 10) } {
+        } else if fixed < const { fixed_from_gregorian(1961, 8, 10) } {
             8.5 / 24.0
         } else {
             9.0 / 24.0
@@ -123,7 +121,7 @@ impl ChineseBased for Dangi {
     }
 
     /// The first day in the Korean Dangi calendar (based on the founding of Gojoseon), lunar new year -2332
-    const EPOCH: RataDie = crate::gregorian::fixed_from_gregorian(-2332, 2, 15);
+    const EPOCH: RataDie = fixed_from_gregorian(-2332, 2, 15);
     const DEBUG_NAME: &'static str = "dangi";
 }
 
@@ -138,7 +136,7 @@ pub struct YearBounds {
 }
 
 impl YearBounds {
-    /// Compute the YearBounds for the lunar year (年) containing `date`,
+    /// Compute the [`YearBounds`] for the lunar year (年) containing `date`,
     /// as well as the corresponding solar year (歲). Note that since the two
     /// years overlap significantly but not entirely, the solstice bounds for the solar
     /// year *may* not include `date`.
@@ -175,7 +173,7 @@ impl YearBounds {
 /// Get the current major solar term of a fixed date, output as an integer from 1..=12.
 ///
 /// Based on functions from _Calendrical Calculations_ by Reingold & Dershowitz.
-/// Lisp reference code: https://github.com/EdReingold/calendar-code2/blob/main/calendar.l#L5273-L5281
+/// Lisp reference code: <https://github.com/EdReingold/calendar-code2/blob/main/calendar.l#L5273-L5281>
 pub(crate) fn major_solar_term_from_fixed<C: ChineseBased>(date: RataDie) -> u32 {
     let moment: Moment = date.as_moment();
     let universal = moment - C::utc_offset(date);
@@ -194,7 +192,7 @@ pub(crate) fn major_solar_term_from_fixed<C: ChineseBased>(date: RataDie) -> u32
 /// The fixed date in standard time at the observation location of the next new moon on or after a given Moment.
 ///
 /// Based on functions from _Calendrical Calculations_ by Reingold & Dershowitz.
-/// Lisp reference code: https://github.com/EdReingold/calendar-code2/blob/main/calendar.l#L5329-L5338
+/// Lisp reference code: <https://github.com/EdReingold/calendar-code2/blob/main/calendar.l#L5329-L5338>
 pub(crate) fn new_moon_on_or_after<C: ChineseBased>(moment: Moment) -> RataDie {
     let new_moon_moment = Astronomical::new_moon_at_or_after(midnight::<C>(moment));
     let utc_offset = C::utc_offset(new_moon_moment.as_rata_die());
@@ -204,7 +202,7 @@ pub(crate) fn new_moon_on_or_after<C: ChineseBased>(moment: Moment) -> RataDie {
 /// The fixed date in standard time at the observation location of the previous new moon before a given Moment.
 ///
 /// Based on functions from _Calendrical Calculations_ by Reingold & Dershowitz.
-/// Lisp reference code: https://github.com/EdReingold/calendar-code2/blob/main/calendar.l#L5318-L5327
+/// Lisp reference code: <https://github.com/EdReingold/calendar-code2/blob/main/calendar.l#L5318-L5327>
 pub(crate) fn new_moon_before<C: ChineseBased>(moment: Moment) -> RataDie {
     let new_moon_moment = Astronomical::new_moon_before(midnight::<C>(moment));
     let utc_offset = C::utc_offset(new_moon_moment.as_rata_die());
@@ -214,7 +212,7 @@ pub(crate) fn new_moon_before<C: ChineseBased>(moment: Moment) -> RataDie {
 /// Universal time of midnight at start of a Moment's day at the observation location
 ///
 /// Based on functions from _Calendrical Calculations_ by Reingold & Dershowitz.
-/// Lisp reference code: https://github.com/EdReingold/calendar-code2/blob/main/calendar.l#L5353-L5357
+/// Lisp reference code: <https://github.com/EdReingold/calendar-code2/blob/main/calendar.l#L5353-L5357>
 pub(crate) fn midnight<C: ChineseBased>(moment: Moment) -> Moment {
     moment - C::utc_offset(moment.as_rata_die())
 }
@@ -225,7 +223,7 @@ pub(crate) fn midnight<C: ChineseBased>(moment: Moment) -> Moment {
 /// Calls to `no_major_solar_term` have been inlined for increased efficiency.
 ///
 /// Based on functions from _Calendrical Calculations_ by Reingold & Dershowitz.
-/// Lisp reference code: https://github.com/EdReingold/calendar-code2/blob/main/calendar.l#L5370-L5394
+/// Lisp reference code: <https://github.com/EdReingold/calendar-code2/blob/main/calendar.l#L5370-L5394>
 pub(crate) fn new_year_in_sui<C: ChineseBased>(prior_solstice: RataDie) -> (RataDie, RataDie) {
     // s1 is prior_solstice
     // Using 370 here since solstices are ~365 days apart
@@ -259,7 +257,7 @@ pub(crate) fn new_year_in_sui<C: ChineseBased>(prior_solstice: RataDie) -> (Rata
     }
 }
 
-/// This function forces the RataDie to be on December 20, 21, 22, or 23. It was
+/// This function forces the [`RataDie`] to be on December 20, 21, 22, or 23. It was
 /// created for practical considerations and is not in the text.
 ///
 /// See: <https://github.com/unicode-org/icu4x/pull/4904>
@@ -300,7 +298,7 @@ fn bind_winter_solstice<C: ChineseBased>(solstice: RataDie) -> RataDie {
 /// and negative years. See [`bind_winter_solstice`].
 ///
 /// Based on functions from _Calendrical Calculations_ by Reingold & Dershowitz.
-/// Lisp reference code: https://github.com/EdReingold/calendar-code2/blob/main/calendar.l#L5359-L5368
+/// Lisp reference code: <https://github.com/EdReingold/calendar-code2/blob/main/calendar.l#L5359-L5368>
 pub(crate) fn winter_solstice_on_or_before<C: ChineseBased>(date: RataDie) -> RataDie {
     let approx = Astronomical::estimate_prior_solar_longitude(
         astronomy::WINTER,
@@ -328,10 +326,10 @@ pub(crate) fn winter_solstice_on_or_before<C: ChineseBased>(date: RataDie) -> Ra
 /// This function also returns the solstice following a given date for optimization (see #3743).
 ///
 /// To call this function you must precompute the value of the prior solstice, which
-/// is the result of winter_solstice_on_or_before
+/// is the result of [`winter_solstice_on_or_before`]
 ///
 /// Based on functions from _Calendrical Calculations_ by Reingold & Dershowitz.
-/// Lisp reference code: https://github.com/EdReingold/calendar-code2/blob/main/calendar.l#L5396-L5405
+/// Lisp reference code: <https://github.com/EdReingold/calendar-code2/blob/main/calendar.l#L5396-L5405>
 pub(crate) fn new_year_on_or_before_fixed_date<C: ChineseBased>(
     date: RataDie,
     prior_solstice: RataDie,
@@ -350,10 +348,10 @@ pub(crate) fn new_year_on_or_before_fixed_date<C: ChineseBased>(
     }
 }
 
-/// Get a RataDie in the middle of a year.
+/// Get a [`RataDie`] in the middle of a year.
 ///
 /// This is not necessarily meant for direct use in
-/// calculations; rather, it is useful for getting a RataDie guaranteed to be in a given year
+/// calculations; rather, it is useful for getting a [`RataDie`] guaranteed to be in a given year
 /// as input for other calculations like calculating the leap month in a year.
 ///
 /// Based on functions from _Calendrical Calculations_ by Reingold & Dershowitz
@@ -388,7 +386,7 @@ pub fn days_in_provided_year<C: ChineseBased>(year: i32) -> u16 {
     bounds.count_days()
 }
 
-/// chinese_based_date_from_fixed returns extra things for use in caching
+/// [`chinese_based_date_from_fixed`] returns extra things for use in caching
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct ChineseFromFixedResult {
@@ -494,7 +492,7 @@ pub fn month_days<C: ChineseBased>(year: i32, month: u8) -> u8 {
 }
 
 /// Returns the number of days in the given `month` after the given `new_year`.
-/// Also returns the RataDie of the new moon beginning the next month.
+/// Also returns the [`RataDie`] of the new moon beginning the next month.
 pub fn days_in_month<C: ChineseBased>(
     month: u8,
     new_year: RataDie,
@@ -628,10 +626,10 @@ mod test {
 
     #[test]
     fn test_chinese_new_year_on_or_before() {
-        let fixed = crate::gregorian::fixed_from_gregorian(2023, 6, 22);
+        let fixed = fixed_from_gregorian(2023, 6, 22);
         let prev_solstice = winter_solstice_on_or_before::<Chinese>(fixed);
         let result_fixed = new_year_on_or_before_fixed_date::<Chinese>(fixed, prev_solstice).0;
-        let (y, m, d) = crate::gregorian::gregorian_from_fixed(result_fixed).unwrap();
+        let (y, m, d) = gregorian_from_fixed(result_fixed).unwrap();
         assert_eq!(y, 2023);
         assert_eq!(m, 1);
         assert_eq!(d, 22);
@@ -646,7 +644,7 @@ mod test {
     fn test_month_structure() {
         // Mostly just tests that the assertions aren't hit
         for year in 1900..2050 {
-            let fixed = crate::gregorian::fixed_from_gregorian(year, 1, 1);
+            let fixed = fixed_from_gregorian(year, 1, 1);
             let chinese_year = chinese_based_date_from_fixed::<Chinese>(fixed);
             let (month_lengths, leap) = month_structure_for_year::<Chinese>(
                 chinese_year.year_bounds.new_year,
@@ -794,13 +792,13 @@ mod test {
         ];
 
         for case in cases {
-            let fixed = crate::gregorian::fixed_from_gregorian(
+            let fixed = fixed_from_gregorian(
                 case.gregorian_year,
                 case.gregorian_month,
                 case.gregorian_day,
             );
             let seollal = seollal_on_or_before(fixed);
-            let (y, m, d) = crate::gregorian::gregorian_from_fixed(seollal).unwrap();
+            let (y, m, d) = gregorian_from_fixed(seollal).unwrap();
             assert_eq!(
                 y, case.expected_year,
                 "Year check failed for case: {case:?}"
@@ -811,5 +809,28 @@ mod test {
             );
             assert_eq!(d, case.expected_day, "Day check failed for case: {case:?}");
         }
+    }
+}
+
+#[test]
+fn test_chinese_leap_months() {
+    let expected = [
+        (1933, 6),
+        (1938, 8),
+        (1984, 11),
+        (2009, 6),
+        (2017, 7),
+        (2028, 6),
+    ];
+
+    for (year, expected_month) in expected {
+        let bounds = YearBounds::compute::<Chinese>(fixed_from_gregorian(year, 6, 1));
+
+        assert!(bounds.is_leap(), "{year} should be a leap year");
+        assert_eq!(
+            expected_month,
+            get_leap_month_from_new_year::<Chinese>(bounds.new_year),
+            "{year} have leap month {expected_month}"
+        );
     }
 }

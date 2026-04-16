@@ -220,17 +220,14 @@ fn make_ule_enum_impl(
             type ULE = #ule_name;
 
             fn to_unaligned(self) -> Self::ULE {
-                // safety: the enum is repr(u8) and can be cast to a u8
-                unsafe {
-                    ::core::mem::transmute(self)
-                }
+                #ule_name(self as u8)
             }
 
             fn from_unaligned(other: Self::ULE) -> Self {
                 // safety: the enum is repr(u8) and can be cast from a u8,
                 // and `#ule_name` guarantees a valid value for this enum.
                 unsafe {
-                    ::core::mem::transmute(other)
+                    ::core::mem::transmute::<u8, Self>(other.0)
                 }
             }
         }
@@ -240,9 +237,7 @@ fn make_ule_enum_impl(
             /// returning `None` if not possible
             pub(crate) fn new_from_u8(value: u8) -> Option<Self> {
                 if value <= #max {
-                    unsafe {
-                        Some(::core::mem::transmute(value))
-                    }
+                    Some(zerovec::ule::AsULE::from_unaligned(#ule_name(value)))
                 } else {
                     None
                 }

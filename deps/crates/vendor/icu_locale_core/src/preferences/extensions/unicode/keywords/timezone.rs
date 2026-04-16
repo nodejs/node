@@ -14,13 +14,14 @@ struct_keyword!(
     TimeZoneShortId,
     "tz",
     Subtag,
-    |input: Value| {
+    |input: &Value| {
         input
-            .into_single_subtag()
+            .as_single_subtag()
+            .copied()
             .map(Self)
             .ok_or(PreferencesParseError::InvalidKeywordValue)
     },
-    |input: TimeZoneShortId| {
-        crate::extensions::unicode::Value::from_subtag(Some(input.0))
+    |input: &TimeZoneShortId| {
+        Value::from_subtag(Some(input.0))
     }
 );

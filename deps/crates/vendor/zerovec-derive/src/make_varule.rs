@@ -481,7 +481,7 @@ fn make_encode_impl(
 /// roughly the same in owned and borrowed versions
 #[derive(Copy, Clone, Debug)]
 enum OwnULETy<'a> {
-    /// [T] where T: AsULE<ULE = Self>
+    /// `[T] where T: AsULE<ULE = Self>`
     Slice(&'a Type),
     /// str
     Str,
@@ -494,7 +494,7 @@ enum UnsizedFieldKind<'a> {
     VarZeroCow(OwnULETy<'a>),
     ZeroVec(&'a Type),
     VarZeroVec(&'a Type),
-    /// Custom VarULE type, and the identifier corresponding to the VarULE type
+    /// Custom `VarULE` type, and the identifier corresponding to the `VarULE` type
     Custom(&'a TypePath, Ident),
 
     // Generally you should be using the above ones for maximum zero-copy, but these will still work
@@ -515,7 +515,7 @@ struct UnsizedFields<'a> {
 }
 
 impl<'a> UnsizedFields<'a> {
-    /// The format_param is an optional tokenstream describing a VZVFormat argument needed by MultiFieldsULE
+    /// The `format_param` is an optional tokenstream describing a `VZVFormat` argument needed by `MultiFieldsULE`
     fn new(fields: Vec<UnsizedField<'a>>, format_param: Option<TokenStream2>) -> Self {
         assert!(!fields.is_empty(), "Must have at least one unsized field");
 
@@ -618,7 +618,7 @@ impl<'a> UnsizedFields<'a> {
         }
     }
 
-    /// Constructs ZeroFrom setters for each field of the stack type
+    /// Constructs `ZeroFrom` setters for each field of the stack type
     fn push_zf_setters(&self, lt: &Lifetime, field_inits: &mut Vec<TokenStream2>) {
         let zerofrom_trait = quote!(zerovec::__zerovec_internal_reexport::ZeroFrom);
         if self.fields.len() == 1 {
@@ -712,7 +712,7 @@ impl<'a> UnsizedField<'a> {
         quote!(<#encodeable_ty as #encodeas_trait<#varule_ty>>::#method(#encodeable, #additional_args))
     }
 
-    /// Returns (encodeable_ty, encodeable)
+    /// Returns `(encodeable_ty, encodeable)`
     fn encodeable_tokens(&self) -> (TokenStream2, TokenStream2) {
         let accessor = self.field.accessor.clone();
         let value = quote!(self.#accessor);
@@ -723,7 +723,7 @@ impl<'a> UnsizedField<'a> {
 }
 
 impl<'a> UnsizedFieldKind<'a> {
-    /// Construct a UnsizedFieldKind for the type of a UnsizedFieldKind if possible
+    /// Construct a `UnsizedFieldKind` for the type of a `UnsizedFieldKind` if possible
     fn new(
         ty: &'a Type,
         custom_varule_ident: Option<Ident>,
@@ -803,7 +803,7 @@ impl<'a> UnsizedFieldKind<'a> {
             _ => Err("Can only automatically detect corresponding VarULE types for path and reference types".into()),
         }
     }
-    /// Get the tokens for the corresponding VarULE type
+    /// Get the tokens for the corresponding `VarULE` type
     fn varule_ty(&self) -> TokenStream2 {
         match *self {
             Self::Ref(ref inner)
@@ -834,7 +834,7 @@ impl<'a> UnsizedFieldKind<'a> {
         }
     }
 
-    /// Returns the EncodeAsVarULE type this can be represented as, the same returned by encodeable_value()
+    /// Returns the `EncodeAsVarULE` type this can be represented as, the same returned by `encodeable_value()`
     fn encodeable_ty(&self) -> TokenStream2 {
         match *self {
             Self::Ref(ref inner)
@@ -877,9 +877,9 @@ impl<'a> OwnULETy<'a> {
         }
     }
 
-    /// Get the tokens for the corresponding VarULE type
-    fn varule_ty(&self) -> TokenStream2 {
-        match *self {
+    /// Get the tokens for the corresponding `VarULE` type
+    fn varule_ty(self) -> TokenStream2 {
+        match self {
             OwnULETy::Slice(s) => quote!([#s]),
             OwnULETy::Str => quote!(str),
         }

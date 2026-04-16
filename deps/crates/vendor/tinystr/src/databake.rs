@@ -22,19 +22,19 @@ impl<const N: usize> BakeSize for TinyAsciiStr<N> {
     }
 }
 
-impl<const N: usize> databake::Bake for UnvalidatedTinyAsciiStr<N> {
-    fn bake(&self, env: &databake::CrateEnv) -> databake::TokenStream {
+impl<const N: usize> Bake for UnvalidatedTinyAsciiStr<N> {
+    fn bake(&self, env: &CrateEnv) -> TokenStream {
         match self.try_into_tinystr() {
             Ok(tiny) => {
                 let tiny = tiny.bake(env);
-                databake::quote! {
+                quote! {
                     #tiny.to_unvalidated()
                 }
             }
             Err(_) => {
                 let bytes = self.0.bake(env);
                 env.insert("tinystr");
-                databake::quote! {
+                quote! {
                     tinystr::UnvalidatedTinyAsciiStr::from_utf8_unchecked(#bytes)
                 }
             }
@@ -42,7 +42,7 @@ impl<const N: usize> databake::Bake for UnvalidatedTinyAsciiStr<N> {
     }
 }
 
-impl<const N: usize> databake::BakeSize for UnvalidatedTinyAsciiStr<N> {
+impl<const N: usize> BakeSize for UnvalidatedTinyAsciiStr<N> {
     fn borrows_size(&self) -> usize {
         0
     }

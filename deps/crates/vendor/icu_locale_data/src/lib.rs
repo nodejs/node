@@ -4,7 +4,7 @@
 
 //! Data for the `icu_locale` crate
 //!
-//! This data was generated with CLDR version 47.0.0, ICU version icu4x/2025-05-01/77.x, and
+//! This data was generated with CLDR version 48.2.0, ICU version release-78.1rc, and
 //! LSTM segmenter version v0.1.0.
 
 #![no_std]

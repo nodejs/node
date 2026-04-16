@@ -2,12 +2,12 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
-//! # ZeroTrie Builder
+//! # [`ZeroTrie`](crate::ZeroTrie) Builder
 //!
-//! There are two implementations of the ZeroTrie Builder:
+//! There are two implementations of the [`ZeroTrie`](crate::ZeroTrie) Builder:
 //!
-//! - [konst::ZeroTrieBuilderConst] allows for human-readable const construction
-//! - [nonconst::ZeroTrieBuilder] has the full feaure set but requires `alloc`
+//! - [`konst::ZeroTrieBuilderConst`] allows for human-readable const construction
+//! - [`nonconst::ZeroTrieBuilder`] has the full feaure set but requires `alloc`
 //!
 //! The two builders follow the same algorithm but have different capabilities.
 //!
@@ -149,15 +149,19 @@
 //! assert_eq!(TRIE.get(b"unknown"), None);
 //! ```
 
+#![allow(clippy::panic)]
+
 mod branch_meta;
-pub(crate) mod bytestr;
+#[cfg(all(feature = "alloc", feature = "dense"))]
+pub(crate) mod dense;
 pub(crate) mod konst;
 #[cfg(feature = "litemap")]
 mod litemap;
 #[cfg(feature = "alloc")]
 pub(crate) mod nonconst;
+pub(crate) mod slice_indices;
 
-use bytestr::ByteStr;
+use slice_indices::ByteSliceWithIndices;
 
 use super::ZeroTrieSimpleAscii;
 
@@ -180,7 +184,7 @@ impl<const N: usize> ZeroTrieSimpleAscii<[u8; N]> {
     ///
     /// # Examples
     ///
-    /// Create a `const` ZeroTrieSimpleAscii at compile time:
+    /// Create a `const` [`ZeroTrieSimpleAscii`](crate::ZeroTrieSimpleAscii) at compile time:
     ///
     /// ```
     /// use zerotrie::ZeroTrieSimpleAscii;
@@ -201,7 +205,7 @@ impl<const N: usize> ZeroTrieSimpleAscii<[u8; N]> {
     ///
     /// Panics if strings are not sorted:
     ///
-    /// ```compile_fail
+    /// ```compile_fail,E0080
     /// # use zerotrie::ZeroTrieSimpleAscii;
     /// const TRIE: ZeroTrieSimpleAscii<[u8; 17]> = ZeroTrieSimpleAscii::from_sorted_u8_tuples(&[
     ///     (b"foo", 1),
@@ -212,7 +216,7 @@ impl<const N: usize> ZeroTrieSimpleAscii<[u8; N]> {
     ///
     /// Panics if capacity is too small:
     ///
-    /// ```compile_fail
+    /// ```compile_fail,E0080
     /// # use zerotrie::ZeroTrieSimpleAscii;
     /// const TRIE: ZeroTrieSimpleAscii<[u8; 15]> = ZeroTrieSimpleAscii::from_sorted_u8_tuples(&[
     ///     (b"bar", 2),
@@ -223,7 +227,7 @@ impl<const N: usize> ZeroTrieSimpleAscii<[u8; N]> {
     ///
     /// Panics if capacity is too large:
     ///
-    /// ```compile_fail
+    /// ```compile_fail,E0080
     /// # use zerotrie::ZeroTrieSimpleAscii;
     /// const TRIE: ZeroTrieSimpleAscii<[u8; 20]> = ZeroTrieSimpleAscii::from_sorted_u8_tuples(&[
     ///     (b"bar", 2),
@@ -233,12 +237,9 @@ impl<const N: usize> ZeroTrieSimpleAscii<[u8; N]> {
     /// ```
     pub const fn from_sorted_u8_tuples(tuples: &[(&[u8], usize)]) -> Self {
         use konst::*;
-        let byte_str_slice = ByteStr::from_byte_slice_with_value(tuples);
-        let result = ZeroTrieBuilderConst::<N>::from_tuple_slice::<100>(byte_str_slice);
-        match result {
-            Ok(s) => Self::from_store(s.build_or_panic()),
-            Err(_) => panic!("Failed to build ZeroTrie"),
-        }
+        let byte_str_slice = ByteSliceWithIndices::from_byte_slice(tuples);
+        let s = ZeroTrieBuilderConst::<N>::from_tuple_slice::<100>(byte_str_slice);
+        Self::from_store(s.build_or_panic())
     }
 
     /// **Const Constructor:** Creates an [`ZeroTrieSimpleAscii`] from a sorted slice of keys and values.
@@ -260,7 +261,7 @@ impl<const N: usize> ZeroTrieSimpleAscii<[u8; N]> {
     ///
     /// # Examples
     ///
-    /// Create a `const` ZeroTrieSimpleAscii at compile time:
+    /// Create a `const` [`ZeroTrieSimpleAscii`](crate::ZeroTrieSimpleAscii) at compile time:
     ///
     /// ```
     /// use zerotrie::ZeroTrieSimpleAscii;
@@ -281,7 +282,7 @@ impl<const N: usize> ZeroTrieSimpleAscii<[u8; N]> {
     ///
     /// Panics if the strings are not ASCII:
     ///
-    /// ```compile_fail
+    /// ```compile_fail,E0080
     /// # use zerotrie::ZeroTrieSimpleAscii;
     /// const TRIE: ZeroTrieSimpleAscii<[u8; 100]> = ZeroTrieSimpleAscii::from_sorted_str_tuples(&[
     ///     ("bár", 2),
@@ -291,13 +292,10 @@ impl<const N: usize> ZeroTrieSimpleAscii<[u8; N]> {
     /// ```
     pub const fn from_sorted_str_tuples(tuples: &[(&str, usize)]) -> Self {
         use konst::*;
-        let byte_str_slice = ByteStr::from_str_slice_with_value(tuples);
+        let byte_str_slice = ByteSliceWithIndices::from_str_slice(tuples);
         // 100 is the value of `K`, the size of the lengths stack. If compile errors are
         // encountered, this number may need to be increased.
-        let result = ZeroTrieBuilderConst::<N>::from_tuple_slice::<100>(byte_str_slice);
-        match result {
-            Ok(s) => Self::from_store(s.build_or_panic()),
-            Err(_) => panic!("Failed to build ZeroTrie"),
-        }
+        let s = ZeroTrieBuilderConst::<N>::from_tuple_slice::<100>(byte_str_slice);
+        Self::from_store(s.build_or_panic())
     }
 }

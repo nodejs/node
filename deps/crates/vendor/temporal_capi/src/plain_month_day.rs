@@ -87,14 +87,23 @@ pub mod ffi {
         pub fn day(&self) -> u8 {
             self.0.day()
         }
+
         pub fn calendar<'a>(&'a self) -> &'a Calendar {
             Calendar::transparent_convert(self.0.calendar())
+        }
+
+        pub fn month(&self) -> u8 {
+            self.0.month_code().to_month_integer()
         }
 
         pub fn month_code(&self, write: &mut DiplomatWrite) {
             let code = self.0.month_code();
             // throw away the error, this should always succeed
             let _ = write.write_str(code.as_str());
+        }
+
+        pub fn reference_year(&self) -> i32 {
+            self.0.reference_year()
         }
 
         pub fn to_plain_date(
@@ -105,6 +114,18 @@ pub mod ffi {
                 .to_plain_date(year.map(|y| y.try_into()).transpose()?)
                 .map(|x| Box::new(PlainDate(x)))
                 .map_err(Into::into)
+        }
+
+        pub fn epoch_ms_for_utc(&self) -> Result<i64, TemporalError> {
+            let ns = self.0.epoch_ns_for_utc();
+
+            let ns_i128 = ns.as_i128();
+            let ms = ns_i128 / 1_000_000;
+            if let Ok(ms) = i64::try_from(ms) {
+                Ok(ms)
+            } else {
+                Err(TemporalError::assert("Found an out-of-range MonthDay"))
+            }
         }
 
         #[cfg(feature = "compiled_data")]

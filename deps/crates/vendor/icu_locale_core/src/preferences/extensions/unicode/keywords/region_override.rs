@@ -10,17 +10,37 @@ struct_keyword!(
     /// A Region Override specifies an alternate region to use for obtaining certain region-specific default values.
     ///
     /// The valid values are listed in [LDML](https://unicode.org/reports/tr35/#RegionOverride).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use icu::locale::locale;
+    /// use icu::locale::extensions::unicode::key;
+    /// use icu::locale::preferences::extensions::unicode::keywords::RegionOverride;
+    /// use writeable::assert_writeable_eq;
+    ///
+    /// // American English with British user preferences
+    /// let locale = locale!("en-US-u-rg-gbzzzz");
+    ///
+    /// let normal_region = locale.id.region.unwrap();
+    /// let rg_extension_value = locale.extensions.unicode.keywords.get(&key!("rg")).unwrap();
+    /// let region_override = RegionOverride::try_from(rg_extension_value.clone()).unwrap();
+    ///
+    /// assert_writeable_eq!(normal_region, "US");
+    /// assert_writeable_eq!(region_override.region, "GB");
+    /// assert_writeable_eq!(region_override.suffix, "zzzz");
+    /// ```
     [Copy]
     RegionOverride,
     "rg",
     SubdivisionId,
-    |input: Value| {
+    |input: &Value| {
         input
-            .into_single_subtag()
+            .as_single_subtag()
             .and_then(|subtag| subtag.as_str().parse().ok().map(Self))
             .ok_or(PreferencesParseError::InvalidKeywordValue)
     },
-    |input: RegionOverride| {
+    |input: &RegionOverride| {
         Value::from_subtag(Some(input.0.into_subtag()))
     }
 );
@@ -55,7 +75,7 @@ mod test {
         assert_eq!(rg.0.suffix, subdivision_suffix!("zzzz"));
 
         for i in &["4aabel", "a4bel", "ukabcde"] {
-            let val = unicode::Value::try_from_str(i).unwrap();
+            let val = Value::try_from_str(i).unwrap();
             let rg: Result<RegionOverride, _> = val.try_into();
             assert!(rg.is_err());
         }

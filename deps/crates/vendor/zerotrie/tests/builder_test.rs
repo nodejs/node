@@ -120,7 +120,7 @@ fn test_empty() {
     assert_eq!(trie.byte_len(), 0);
     assert!(trie.is_empty());
     assert_eq!(trie.get(b""), None);
-    assert_eq!(trie.as_bytes(), &[]);
+    assert_eq!(trie.as_bytes(), &[] as &[u8]);
 }
 
 #[test]

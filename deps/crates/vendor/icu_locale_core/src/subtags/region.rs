@@ -3,10 +3,11 @@
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
 impl_tinystr_subtag!(
-    /// A region subtag (examples: `"US"`, `"CN"`, `"AR"` etc.)
+    /// A region subtag (examples: `"US"`, `"CN"`, `"001"` etc.)
     ///
-    /// [`Region`] represents a Unicode base language code conformant to the
-    /// [`unicode_region_id`] field of the Language and Locale Identifier.
+    /// [`Region`] represents a Unicode region code conformant to the
+    /// [`unicode_region_subtag`] field of the Language and Locale Identifier,
+    /// i.e. an [ISO 3166-1 alpha 2] or [UN M.49] (macro regions only) value.
     ///
     /// # Examples
     ///
@@ -17,7 +18,9 @@ impl_tinystr_subtag!(
     ///     "DE".parse().expect("Failed to parse a region subtag.");
     /// ```
     ///
-    /// [`unicode_region_id`]: https://unicode.org/reports/tr35/#unicode_region_id
+    /// [`unicode_region_subtag`]: https://unicode.org/reports/tr35/#unicode_region_subtag_validity
+    /// [ISO 3166-1 alpha 2]: https://en.wikipedia.org/wiki/ISO_3166-1
+    /// [UN M.49]: https://en.wikipedia.org/wiki/UN_M49
     Region,
     subtags,
     region,
@@ -40,7 +43,7 @@ impl_tinystr_subtag!(
         s.is_ascii_numeric()
     },
     InvalidSubtag,
-    ["FR", "123"],
+    ["FR", "009"],
     ["12", "FRA", "b2"],
 );
 

@@ -13,6 +13,11 @@ use crate::rata_die::RataDie;
 // 1st Jan of 1st year proleptic Julian is equivalent to December 30th of 0th year proleptic Gregorian
 const JULIAN_EPOCH: RataDie = crate::gregorian::fixed_from_gregorian(0, 12, 30);
 
+const DAYS_IN_YEAR: i64 = 365;
+
+// One leap year every 4 years
+const DAYS_IN_4_YEAR_CYCLE: i64 = DAYS_IN_YEAR * 4 + 1;
+
 /// Lisp code reference: <https://github.com/EdReingold/calendar-code2/blob/1ee51ecfaae6f856b0d7de3e36e9042100b4f424/calendar.l#L1684-L1687>
 #[inline(always)]
 pub const fn is_leap_year(year: i32) -> bool {
@@ -21,78 +26,76 @@ pub const fn is_leap_year(year: i32) -> bool {
 
 /// Lisp code reference: <https://github.com/EdReingold/calendar-code2/blob/1ee51ecfaae6f856b0d7de3e36e9042100b4f424/calendar.l#L1689-L1709>
 pub const fn fixed_from_julian(year: i32, month: u8, day: u8) -> RataDie {
-    let mut fixed =
-        JULIAN_EPOCH.to_i64_date() - 1 + 365 * (year as i64 - 1) + (year as i64 - 1).div_euclid(4);
-    debug_assert!(month > 0 && month < 13, "Month should be in range 1..=12.");
-    fixed += match month {
-        1 => 0,
-        2 => 31,
-        3 => 59,
-        4 => 90,
-        5 => 120,
-        6 => 151,
-        7 => 181,
-        8 => 212,
-        9 => 243,
-        10 => 273,
-        11 => 304,
-        12 => 334,
-        _ => -1,
-    };
-    // Only add one if the month is after February (month > 2), since leap days are added to the end of February
-    if month > 2 && is_leap_year(year) {
-        fixed += 1;
+    day_before_year(year)
+        .add(days_before_month(year, month) as i64)
+        .add(day as i64)
+}
+
+/// The number of days in this year before this month starts
+///
+/// Inspired by Neri-Schneider <https://onlinelibrary.wiley.com/doi/10.1002/spe.3172>
+pub const fn days_before_month(year: i32, month: u8) -> u16 {
+    if month < 3 {
+        // This compiles to a conditional move, so there's only one branch in this function
+        if month == 1 {
+            0
+        } else {
+            31
+        }
+    } else {
+        31 + 28 + is_leap_year(year) as u16 + ((979 * (month as u32) - 2919) >> 5) as u16
     }
-    RataDie::new(fixed + (day as i64))
+}
+
+/// Lisp code reference: <https://github.com/EdReingold/calendar-code2/blob/1ee51ecfaae6f856b0d7de3e36e9042100b4f424/calendar.l#L1191-L1217>
+const fn year_from_fixed(date: RataDie) -> Result<i32, I32CastError> {
+    // Shouldn't overflow because it's not possbile to construct extreme values of RataDie
+    let date = date.since(JULIAN_EPOCH);
+
+    let (n_4, date) = (
+        date.div_euclid(DAYS_IN_4_YEAR_CYCLE),
+        date.rem_euclid(DAYS_IN_4_YEAR_CYCLE),
+    );
+
+    let n_1 = date / DAYS_IN_YEAR;
+
+    let year = 4 * n_4 + n_1 + (n_1 != 4) as i64;
+
+    i64_to_i32(year)
+}
+
+/// Calculates the day before Jan 1 of `year`.
+pub const fn day_before_year(year: i32) -> RataDie {
+    let prev_year = (year as i64) - 1;
+    // Calculate days per year
+    let mut fixed: i64 = DAYS_IN_YEAR * prev_year;
+    // Adjust for leap year logic. We can avoid the branch of div_euclid by making prev_year positive:
+    // YEAR_SHIFT is larger (in magnitude) than any prev_year, and, being divisible by 4,
+    // distributes correctly over the calculation on the next line.
+    const YEAR_SHIFT: i64 = (-(i32::MIN as i64 - 1) / 4 + 1) * 4;
+    fixed += (prev_year + YEAR_SHIFT) / 4 - const { YEAR_SHIFT / 4 };
+    JULIAN_EPOCH.add(fixed - 1)
+}
+
+/// Calculates the month/day from the 1-based day of the year
+pub fn year_day(year: i32, day_of_year: u16) -> (u8, u8) {
+    // Calculates the prior days of the year, then applies a correction based on leap year conditions for the correct ISO date conversion.
+    let correction = if day_of_year < 31 + 28 + is_leap_year(year) as u16 {
+        -1
+    } else {
+        (!is_leap_year(year)) as i32
+    };
+    let month = ((12 * (day_of_year as i32 + correction) + 373) / 367) as u8; // in 1..12 < u8::MAX
+    let day = (day_of_year - days_before_month(year, month)) as u8; // <= days_in_month < u8::MAX
+    (month, day)
 }
 
 /// Lisp code reference: <https://github.com/EdReingold/calendar-code2/blob/1ee51ecfaae6f856b0d7de3e36e9042100b4f424/calendar.l#L1711-L1738>
 pub fn julian_from_fixed(date: RataDie) -> Result<(i32, u8, u8), I32CastError> {
-    let approx = (4 * date.to_i64_date() + 1464).div_euclid(1461);
-    let year = i64_to_i32(approx)?;
-    let prior_days = date
-        - fixed_from_julian(year, 1, 1)
-        - if is_leap_year(year) && date > fixed_from_julian(year, 2, 28) {
-            1
-        } else {
-            0
-        };
-    let adjusted_year = if prior_days >= 365 {
-        year.saturating_add(1)
-    } else {
-        year
-    };
-    let adjusted_prior_days = prior_days.rem_euclid(365);
-    debug_assert!((0..365).contains(&adjusted_prior_days));
-    let month = if adjusted_prior_days < 31 {
-        1
-    } else if adjusted_prior_days < 59 {
-        2
-    } else if adjusted_prior_days < 90 {
-        3
-    } else if adjusted_prior_days < 120 {
-        4
-    } else if adjusted_prior_days < 151 {
-        5
-    } else if adjusted_prior_days < 181 {
-        6
-    } else if adjusted_prior_days < 212 {
-        7
-    } else if adjusted_prior_days < 243 {
-        8
-    } else if adjusted_prior_days < 273 {
-        9
-    } else if adjusted_prior_days < 304 {
-        10
-    } else if adjusted_prior_days < 334 {
-        11
-    } else {
-        12
-    };
-    let day = (date - fixed_from_julian(adjusted_year, month, 1) + 1) as u8; // as days_in_month is < u8::MAX
-    debug_assert!(day <= 31, "Day assertion failed; date: {date:?}, adjusted_year: {adjusted_year}, prior_days: {prior_days}, month: {month}, day: {day}");
-
-    Ok((adjusted_year, month, day))
+    let year = year_from_fixed(date)?;
+    let day_of_year = date - day_before_year(year);
+    let (month, day) = year_day(year, day_of_year as u16);
+    Ok((year, month, day))
 }
 
 /// Get a fixed date from the ymd of a Julian date.

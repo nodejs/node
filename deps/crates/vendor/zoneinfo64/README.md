@@ -10,7 +10,7 @@ This crate contains utilities for working with ICU4C's zoneinfo64 format
 let resb = resb::include_bytes_as_u32!("./data/zoneinfo64.res");
 // Then we parse the data
 let zoneinfo = ZoneInfo64::try_from_u32s(resb)
-           .expect("Error processing resource bundle file");
+    .expect("Error processing resource bundle file");
 
 let pacific = zoneinfo.get("America/Los_Angeles").unwrap();
 // Calculate the timezone offset for 2024-01-01
@@ -20,13 +20,20 @@ assert_eq!(offset.offset, offset_seven);
 
 // Calculate possible offsets at 2025-11-02T01:00:00
 // This is during a DST switchover and is ambiguous
-let possible = pacific.for_date_time(2025, 11, 2, 1, 0, 0);
+let PossibleOffset::Ambiguous {
+    before,
+    after,
+    transition,
+} = pacific.for_date_time(2025, 11, 2, 1, 0, 0)
+else {
+    panic!()
+};
 let offset_eight = UtcOffset::from_seconds(-8 * 3600);
-assert_eq!(possible, PossibleOffset::Ambiguous {
-    before: Offset { offset: offset_seven, rule_applies: true },
-    after: Offset { offset: offset_eight, rule_applies: false },
-    transition: 1762074000,
-});
+assert_eq!(before.offset, offset_seven);
+assert!(before.rule_applies);
+assert_eq!(after.offset, offset_eight);
+assert!(!after.rule_applies);
+assert_eq!(transition, 1762074000);
 ```
 
 <!-- cargo-rdme end -->

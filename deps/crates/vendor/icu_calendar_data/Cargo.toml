@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.82"
+rust-version = "1.86"
 name = "icu_calendar_data"
-version = "2.0.0"
+version = "2.2.0"
 authors = ["The ICU4X Project Developers"]
 build = "build.rs"
 include = [
@@ -35,15 +35,24 @@ autobenches = false
 description = "Data for the icu_calendar crate"
 homepage = "https://icu4x.unicode.org"
 readme = "README.md"
-categories = ["internationalization"]
+keywords = [
+    "data",
+    "unicode",
+]
+categories = [
+    "internationalization",
+    "localization",
+    "no-std",
+    "embedded",
+]
 license = "Unicode-3.0"
 repository = "https://github.com/unicode-org/icu4x"
 
 [package.metadata.sources.cldr]
-tagged = "47.0.0"
+tagged = "48.2.0"
 
 [package.metadata.sources.icuexport]
-tagged = "icu4x/2025-05-01/77.x"
+tagged = "release-78.1rc"
 
 [package.metadata.sources.segmenter_lstm]
 tagged = "v0.1.0"

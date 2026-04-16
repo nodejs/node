@@ -66,7 +66,7 @@ const P_FAST_MAX: u8 = 95;
 const Q_FAST_MAX: u8 = 95;
 
 /// The maximum allowable value of `p`. This could be raised if found to be necessary.
-/// Values exceeding P_FAST_MAX could use a different `p` algorithm by modifying [`f1`].
+/// Values exceeding `P_FAST_MAX` could use a different `p` algorithm by modifying [`f1`].
 #[cfg(feature = "alloc")] // used in the builder code
 const P_REAL_MAX: u8 = P_FAST_MAX;
 
@@ -263,9 +263,10 @@ where
 impl PerfectByteHashMap<[u8]> {
     /// Creates an instance from pre-existing bytes. See [`Self::as_bytes`].
     #[inline]
+    #[allow(unsafe_code)] // transparent newtype casts are documented
     pub fn from_bytes(bytes: &[u8]) -> &Self {
         // Safety: Self is repr(transparent) over [u8]
-        unsafe { core::mem::transmute(bytes) }
+        unsafe { &*(bytes as *const [u8] as *const Self) }
     }
 }
 

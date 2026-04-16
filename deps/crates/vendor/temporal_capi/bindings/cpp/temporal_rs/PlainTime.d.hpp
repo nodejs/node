@@ -53,6 +53,8 @@ public:
 
   inline static temporal_rs::diplomat::result<std::unique_ptr<temporal_rs::PlainTime>, temporal_rs::TemporalError> from_epoch_nanoseconds_with_provider(temporal_rs::I128Nanoseconds ns, temporal_rs::TimeZone tz, const temporal_rs::Provider& p);
 
+  inline temporal_rs::diplomat::result<int64_t, temporal_rs::TemporalError> epoch_ms_for_utc() const;
+
   inline temporal_rs::diplomat::result<std::unique_ptr<temporal_rs::PlainTime>, temporal_rs::TemporalError> with(temporal_rs::PartialTime partial, std::optional<temporal_rs::ArithmeticOverflow> overflow) const;
 
   inline static temporal_rs::diplomat::result<std::unique_ptr<temporal_rs::PlainTime>, temporal_rs::TemporalError> from_utf8(std::string_view s);

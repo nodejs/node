@@ -294,11 +294,11 @@ fn months() {
 }
 
 #[derive(serde::Deserialize)]
-pub struct TestFile {
+struct TestFile {
     ucharstrie: Char16TrieVec,
 }
 
 #[derive(serde::Deserialize)]
-pub struct Char16TrieVec {
+struct Char16TrieVec {
     data: Vec<u16>,
 }

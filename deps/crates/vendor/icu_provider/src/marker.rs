@@ -17,13 +17,13 @@ use zerovec::ule::*;
 ///
 /// Also see [`DataMarker`].
 ///
-/// Note: `DynamicDataMarker`s are quasi-const-generic compile-time objects, and as such are expected
+/// Note: [`DynamicDataMarker`]s are quasi-const-generic compile-time objects, and as such are expected
 /// to be unit structs. As this is not something that can be enforced by the type system, we
 /// currently only have a `'static` bound on them (which is needed by a lot of our code).
 ///
 /// # Examples
 ///
-/// Manually implementing DynamicDataMarker for a custom type:
+/// Manually implementing [`DynamicDataMarker`] for a custom type:
 ///
 /// ```
 /// use icu_provider::prelude::*;
@@ -230,23 +230,23 @@ impl DataMarkerIdHash {
     }
 }
 
-/// Const function to compute the FxHash of a byte array.
+/// Const function to compute the `FxHash` of a byte array.
 ///
-/// FxHash is a speedy hash algorithm used within rustc. The algorithm is satisfactory for our
+/// `FxHash` is a speedy hash algorithm used within rustc. The algorithm is satisfactory for our
 /// use case since the strings being hashed originate from a trusted source (the ICU4X
 /// components), and the hashes are computed at compile time, so we can check for collisions.
 ///
 /// We could have considered a SHA or other cryptographic hash function. However, we are using
-/// FxHash because:
+/// `FxHash` because:
 ///
 /// 1. There is precedent for this algorithm in Rust
 /// 2. The algorithm is easy to implement as a const function
 /// 3. The amount of code is small enough that we can reasonably keep the algorithm in-tree
-/// 4. FxHash is designed to output 32-bit or 64-bit values, whereas SHA outputs more bits,
+/// 4. `FxHash` is designed to output 32-bit or 64-bit values, whereas SHA outputs more bits,
 ///    such that truncation would be required in order to fit into a u32, partially reducing
 ///    the benefit of a cryptographically secure algorithm
 // The indexing operations in this function have been reviewed in detail and won't panic.
-#[allow(clippy::indexing_slicing)]
+#[expect(clippy::indexing_slicing)]
 const fn fxhash_32(bytes: &[u8]) -> u32 {
     // This code is adapted from https://github.com/rust-lang/rustc-hash,
     // whose license text is reproduced below.
@@ -350,7 +350,7 @@ impl Ord for DataMarkerId {
 impl PartialOrd for DataMarkerId {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
-        Some(self.hash.cmp(&other.hash))
+        Some(self.cmp(other))
     }
 }
 
@@ -422,8 +422,8 @@ impl DataMarkerId {
 /// Used for loading data from a dynamic ICU4X data provider.
 ///
 /// A data marker is tightly coupled with the code that uses it to load data at runtime.
-/// Executables can be searched for `DataMarkerInfo` instances to produce optimized data files.
-/// Therefore, users should not generally create DataMarkerInfo instances; they should instead use
+/// Executables can be searched for [`DataMarkerInfo`] instances to produce optimized data files.
+/// Therefore, users should not generally create [`DataMarkerInfo`] instances; they should instead use
 /// the ones exported by a component.
 #[derive(Copy, Clone, PartialEq, Eq)]
 #[non_exhaustive]
@@ -440,11 +440,14 @@ pub struct DataMarkerInfo {
     /// attributes during provider export.
     #[cfg(feature = "export")]
     pub attributes_domain: &'static str,
+    /// Whether to create constants for each data struct in baked data.
+    #[cfg(feature = "export")]
+    pub expose_baked_consts: bool,
 }
 
 impl PartialOrd for DataMarkerInfo {
     fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
-        Some(self.id.cmp(&other.id))
+        Some(self.cmp(other))
     }
 }
 
@@ -470,6 +473,8 @@ impl DataMarkerInfo {
             has_checksum: false,
             #[cfg(feature = "export")]
             attributes_domain: "",
+            #[cfg(feature = "export")]
+            expose_baked_consts: false,
         }
     }
 
@@ -576,7 +581,6 @@ macro_rules! data_marker {
                 let mut info = const { $crate::DataMarkerInfo::from_id(
                      match $crate::marker::DataMarkerId::from_name(stringify!($name)) {
                         Ok(path) => path,
-                        #[allow(clippy::panic)] // Const context
                         Err(_) => panic!(concat!("Invalid marker name: ", stringify!($name))),
                 })};
                 $(

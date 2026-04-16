@@ -2,9 +2,9 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
-//! # Internal layout of ZeroTrie
+//! # Internal layout of [`ZeroTrie`](crate::ZeroTrie)
 //!
-//! A ZeroTrie is composed of a series of nodes stored in sequence in a byte slice.
+//! A [`ZeroTrie`](crate::ZeroTrie) is composed of a series of nodes stored in sequence in a byte slice.
 //!
 //! There are 4 types of nodes:
 //!
@@ -24,11 +24,11 @@
 //! If reading a Value node, if the string is empty, return `Some(value)`; otherwise, we skip
 //! the Value node and continue on to the next node.
 //!
-//! When a node is consumed, a shorter, well-formed ZeroTrie remains.
+//! When a node is consumed, a shorter, well-formed [`ZeroTrie`](crate::ZeroTrie) remains.
 //!
 //! ### Basic Example
 //!
-//! Here is an example ZeroTrie without branch nodes:
+//! Here is an example [`ZeroTrie`](crate::ZeroTrie) without branch nodes:
 //!
 //! ```
 //! use zerotrie::ZeroTriePerfectHash;
@@ -619,7 +619,7 @@ pub(crate) fn take_value(trie: &mut &[u8]) -> Option<usize> {
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
-/// Iterator type for walking the byte sequences contained in a ZeroTrie.
+/// Iterator type for walking the byte sequences contained in a [`ZeroTrie`](crate::ZeroTrie).
 ///
 /// ✨ *Enabled with the `alloc` Cargo feature.*
 #[cfg(feature = "alloc")]

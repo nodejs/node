@@ -2,7 +2,7 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
-//! Varint spec for ZeroTrie:
+//! Varint spec for [`ZeroTrie`](crate::ZeroTrie):
 //!
 //! - Lead byte: top M (2 or 3) bits are metadata; next is varint extender; rest is value
 //! - Trail bytes: top bit is varint extender; rest are low bits of value
@@ -123,7 +123,7 @@ const MAX_VARINT: usize = usize::MAX;
 
 // *Upper Bound:* Each trail byte stores 7 bits of data, plus the latent value.
 // Add an extra 1 since the lead byte holds only 5 bits of data.
-const MAX_VARINT_LENGTH: usize = 1 + core::mem::size_of::<usize>() * 8 / 7;
+const MAX_VARINT_LENGTH: usize = 1 + usize::BITS as usize / 7;
 
 /// Returns a new [`ConstArrayBuilder`] containing a varint with 2 bits of metadata.
 #[allow(clippy::indexing_slicing)] // Okay so long as MAX_VARINT_LENGTH is correct

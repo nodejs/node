@@ -96,10 +96,12 @@ impl TokenStreamExt for TokenStream {
             I::Item: ToTokens,
             U: ToTokens,
         {
-            for (i, token) in iter.into_iter().enumerate() {
-                if i > 0 {
+            let mut first = true;
+            for token in iter {
+                if !first {
                     op.to_tokens(stream);
                 }
+                first = false;
                 token.to_tokens(stream);
             }
         }

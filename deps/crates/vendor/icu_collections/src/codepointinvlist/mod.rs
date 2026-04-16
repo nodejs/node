@@ -16,7 +16,7 @@
 //! ## Creating a `CodePointInversionList`
 //!
 //! `CodePointSets` are created from either serialized [`CodePointSets`](CodePointInversionList),
-//! represented by [inversion lists](http://userguide.icu-project.org/strings/properties),
+//! represented by [inversion lists](https://unicode-org.github.io/icu/userguide/strings/properties.html),
 //! the [`CodePointInversionListBuilder`], or from the Properties API.
 //!
 //! ```
@@ -51,10 +51,6 @@
 //!
 //! [`ICU4X`]: ../icu/index.html
 
-#![warn(missing_docs)]
-
-extern crate alloc;
-
 #[cfg(feature = "alloc")]
 #[macro_use]
 mod builder;
@@ -64,19 +60,21 @@ mod cpinvlist;
 mod utils;
 
 #[cfg(feature = "alloc")]
+use alloc::vec::Vec;
+#[cfg(feature = "alloc")]
 pub use builder::CodePointInversionListBuilder;
 pub use cpinvlist::CodePointInversionList;
 pub use cpinvlist::CodePointInversionListULE;
 use displaydoc::Display;
 
 #[derive(Display, Debug)]
-/// A CodePointInversionList was constructed with an invalid inversion list
+/// A [`CodePointInversionList`] was constructed with an invalid inversion list
 #[cfg_attr(feature = "alloc", displaydoc("Invalid set: {0:?}"))]
-pub struct InvalidSetError(
-    #[cfg(feature = "alloc")] pub alloc::vec::Vec<potential_utf::PotentialCodePoint>,
-);
+#[allow(clippy::exhaustive_structs)] // newtype
+pub struct InvalidSetError(#[cfg(feature = "alloc")] pub Vec<potential_utf::PotentialCodePoint>);
 
-/// A CodePointInversionList was constructed from an invalid range
+/// A [`CodePointInversionList`] was constructed from an invalid range
 #[derive(Display, Debug)]
 #[displaydoc("Invalid range: {0}..{1}")]
+#[allow(clippy::exhaustive_structs)] // newtype
 pub struct RangeError(pub u32, pub u32);

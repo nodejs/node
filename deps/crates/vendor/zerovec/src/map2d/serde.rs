@@ -41,7 +41,7 @@ where
     }
 }
 
-/// Helper struct for human-serializing the inner map of a ZeroMap2d
+/// Helper struct for human-serializing the inner map of a [`ZeroMap2d`]
 #[cfg(feature = "serde")]
 struct ZeroMap2dInnerMapSerialize<'a, 'l, K0, K1, V>
 where
@@ -94,7 +94,7 @@ where
     }
 }
 
-/// Modified example from https://serde.rs/deserialize-map.html
+/// Modified example from <https://serde.rs/deserialize-map.html>
 struct ZeroMap2dMapVisitor<'a, K0, K1, V>
 where
     K0: ZeroMapKV<'a> + ?Sized + Ord,
@@ -166,7 +166,7 @@ where
     }
 }
 
-/// Helper struct for human-deserializing the inner map of a ZeroMap2d
+/// Helper struct for human-deserializing the inner map of a [`ZeroMap2d`]
 struct TupleVecMap<K1, V> {
     pub entries: Vec<(K1, V)>,
 }

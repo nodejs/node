@@ -35,7 +35,10 @@ pub use niche::{NicheBytes, NichedOption, NichedOptionULE};
 pub use option::{OptionULE, OptionVarULE};
 pub use plain::RawBytesULE;
 
-use core::{any, fmt, mem, slice};
+use core::{any, fmt, slice};
+
+#[cfg(feature = "alloc")]
+use alloc::boxed::Box;
 
 /// Fixed-width, byte-aligned data that can be cast to and from a little-endian byte slice.
 ///
@@ -100,7 +103,7 @@ where
     /// means that the returned slice can span the entire byte slice.
     fn parse_bytes_to_slice(bytes: &[u8]) -> Result<&[Self], UleError> {
         Self::validate_bytes(bytes)?;
-        debug_assert_eq!(bytes.len() % mem::size_of::<Self>(), 0);
+        debug_assert_eq!(bytes.len() % size_of::<Self>(), 0);
         Ok(unsafe { Self::slice_from_bytes_unchecked(bytes) })
     }
 
@@ -131,9 +134,9 @@ where
     #[inline]
     unsafe fn slice_from_bytes_unchecked(bytes: &[u8]) -> &[Self] {
         let data = bytes.as_ptr();
-        let len = bytes.len() / mem::size_of::<Self>();
-        debug_assert_eq!(bytes.len() % mem::size_of::<Self>(), 0);
-        core::slice::from_raw_parts(data as *const Self, len)
+        let len = bytes.len() / size_of::<Self>();
+        debug_assert_eq!(bytes.len() % size_of::<Self>(), 0);
+        slice::from_raw_parts(data as *const Self, len)
     }
 
     /// Given `&[Self]`, returns a `&[u8]` with the same lifetime.
@@ -148,9 +151,7 @@ where
     /// Keep in mind that `&[Self]` and `&[u8]` may have different lengths.
     #[inline]
     fn slice_as_bytes(slice: &[Self]) -> &[u8] {
-        unsafe {
-            slice::from_raw_parts(slice as *const [Self] as *const u8, mem::size_of_val(slice))
-        }
+        unsafe { slice::from_raw_parts(slice as *const [Self] as *const u8, size_of_val(slice)) }
     }
 }
 
@@ -224,7 +225,7 @@ where
         // is equivalent to the byte sequence of &[T::ULE] by the contract of EqULE,
         // and &[T::ULE] has equal or looser alignment than &[T].
         let ule_slice =
-            unsafe { core::slice::from_raw_parts(slice.as_ptr() as *const Self::ULE, slice.len()) };
+            unsafe { slice::from_raw_parts(slice.as_ptr() as *const Self::ULE, slice.len()) };
         Some(ule_slice)
     }
 }
@@ -315,7 +316,7 @@ pub unsafe trait VarULE: 'static {
     fn parse_bytes(bytes: &[u8]) -> Result<&Self, UleError> {
         Self::validate_bytes(bytes)?;
         let result = unsafe { Self::from_bytes_unchecked(bytes) };
-        debug_assert_eq!(mem::size_of_val(result), mem::size_of_val(bytes));
+        debug_assert_eq!(size_of_val(result), size_of_val(bytes));
         Ok(result)
     }
 
@@ -351,7 +352,7 @@ pub unsafe trait VarULE: 'static {
     /// pointer to the correct type.
     #[inline]
     fn as_bytes(&self) -> &[u8] {
-        unsafe { slice::from_raw_parts(self as *const Self as *const u8, mem::size_of_val(self)) }
+        unsafe { slice::from_raw_parts(self as *const Self as *const u8, size_of_val(self)) }
     }
 
     /// Allocate on the heap as a `Box<T>`
@@ -359,12 +360,11 @@ pub unsafe trait VarULE: 'static {
     /// ✨ *Enabled with the `alloc` Cargo feature.*
     #[inline]
     #[cfg(feature = "alloc")]
-    fn to_boxed(&self) -> alloc::boxed::Box<Self> {
+    fn to_boxed(&self) -> Box<Self> {
         use alloc::borrow::ToOwned;
-        use alloc::boxed::Box;
         use core::alloc::Layout;
         let bytesvec = self.as_bytes().to_owned().into_boxed_slice();
-        let bytesvec = mem::ManuallyDrop::new(bytesvec);
+        let bytesvec = core::mem::ManuallyDrop::new(bytesvec);
         unsafe {
             // Get the pointer representation
             let ptr: *mut Self = Self::from_bytes_unchecked(&bytesvec) as *const Self as *mut Self;

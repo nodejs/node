@@ -36,7 +36,7 @@ unsafe impl<'a, T: 'static + AsULE> Yokeable<'a> for ZeroVec<'static, T> {
     }
     #[inline]
     unsafe fn make(from: Self::Output) -> Self {
-        debug_assert!(mem::size_of::<Self::Output>() == mem::size_of::<Self>());
+        debug_assert!(size_of::<Self::Output>() == size_of::<Self>());
         let from = mem::ManuallyDrop::new(from);
         let ptr: *const Self = (&*from as *const Self::Output).cast();
         ptr::read(ptr)
@@ -64,7 +64,7 @@ unsafe impl<'a, T: 'static + VarULE + ?Sized> Yokeable<'a> for VarZeroVec<'stati
     }
     #[inline]
     unsafe fn make(from: Self::Output) -> Self {
-        debug_assert!(mem::size_of::<Self::Output>() == mem::size_of::<Self>());
+        debug_assert!(size_of::<Self::Output>() == size_of::<Self>());
         let from = mem::ManuallyDrop::new(from);
         let ptr: *const Self = (&*from as *const Self::Output).cast();
         ptr::read(ptr)
@@ -92,7 +92,7 @@ unsafe impl<'a, T: 'static + ?Sized> Yokeable<'a> for VarZeroCow<'static, T> {
     }
     #[inline]
     unsafe fn make(from: Self::Output) -> Self {
-        debug_assert!(mem::size_of::<Self::Output>() == mem::size_of::<Self>());
+        debug_assert!(size_of::<Self::Output>() == size_of::<Self>());
         let from = mem::ManuallyDrop::new(from);
         let ptr: *const Self = (&*from as *const Self::Output).cast();
         ptr::read(ptr)
@@ -127,7 +127,7 @@ where
     }
     #[inline]
     fn transform_owned(self) -> Self::Output {
-        debug_assert!(mem::size_of::<Self::Output>() == mem::size_of::<Self>());
+        debug_assert!(size_of::<Self::Output>() == size_of::<Self>());
         unsafe {
             // Similar problem as transform(), but we need to use ptr::read since
             // the compiler isn't sure of the sizes
@@ -138,7 +138,7 @@ where
     }
     #[inline]
     unsafe fn make(from: Self::Output) -> Self {
-        debug_assert!(mem::size_of::<Self::Output>() == mem::size_of::<Self>());
+        debug_assert!(size_of::<Self::Output>() == size_of::<Self>());
         let from = mem::ManuallyDrop::new(from);
         let ptr: *const Self = (&*from as *const Self::Output).cast();
         ptr::read(ptr)
@@ -173,7 +173,7 @@ where
     }
     #[inline]
     fn transform_owned(self) -> Self::Output {
-        debug_assert!(mem::size_of::<Self::Output>() == mem::size_of::<Self>());
+        debug_assert!(size_of::<Self::Output>() == size_of::<Self>());
         unsafe {
             // Similar problem as transform(), but we need to use ptr::read since
             // the compiler isn't sure of the sizes
@@ -184,7 +184,7 @@ where
     }
     #[inline]
     unsafe fn make(from: Self::Output) -> Self {
-        debug_assert!(mem::size_of::<Self::Output>() == mem::size_of::<Self>());
+        debug_assert!(size_of::<Self::Output>() == size_of::<Self>());
         let from = mem::ManuallyDrop::new(from);
         let ptr: *const Self = (&*from as *const Self::Output).cast();
         ptr::read(ptr)
@@ -221,7 +221,7 @@ where
     }
     #[inline]
     fn transform_owned(self) -> Self::Output {
-        debug_assert!(mem::size_of::<Self::Output>() == mem::size_of::<Self>());
+        debug_assert!(size_of::<Self::Output>() == size_of::<Self>());
         unsafe {
             // Similar problem as transform(), but we need to use ptr::read since
             // the compiler isn't sure of the sizes
@@ -232,7 +232,7 @@ where
     }
     #[inline]
     unsafe fn make(from: Self::Output) -> Self {
-        debug_assert!(mem::size_of::<Self::Output>() == mem::size_of::<Self>());
+        debug_assert!(size_of::<Self::Output>() == size_of::<Self>());
         let from = mem::ManuallyDrop::new(from);
         let ptr: *const Self = (&*from as *const Self::Output).cast();
         ptr::read(ptr)
@@ -269,7 +269,7 @@ where
     }
     #[inline]
     fn transform_owned(self) -> Self::Output {
-        debug_assert!(mem::size_of::<Self::Output>() == mem::size_of::<Self>());
+        debug_assert!(size_of::<Self::Output>() == size_of::<Self>());
         unsafe {
             // Similar problem as transform(), but we need to use ptr::read since
             // the compiler isn't sure of the sizes
@@ -280,7 +280,7 @@ where
     }
     #[inline]
     unsafe fn make(from: Self::Output) -> Self {
-        debug_assert!(mem::size_of::<Self::Output>() == mem::size_of::<Self>());
+        debug_assert!(size_of::<Self::Output>() == size_of::<Self>());
         let from = mem::ManuallyDrop::new(from);
         let ptr: *const Self = (&*from as *const Self::Output).cast();
         ptr::read(ptr)

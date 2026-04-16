@@ -39,7 +39,7 @@ pub struct VarZeroCow<'a, V: ?Sized> {
     marker2: PhantomData<Box<V>>,
 }
 
-/// VarZeroCow without the `V` to simulate a dropck eyepatch
+/// [`VarZeroCow`] without the `V` to simulate a dropck eyepatch
 /// (i.e., prove to rustc that the dtor is not able to observe V or 'a)
 ///
 /// This is effectively `Cow<'a, [u8]>`, with the lifetime managed externally
@@ -50,7 +50,7 @@ struct RawVarZeroCow {
     ///
     /// 1. This slice must always be valid as a byte slice
     /// 2. If `owned` is true, this slice can be freed.
-    /// 3. VarZeroCow, the only user of this type, will impose an additional invariant that the buffer is a valid V
+    /// 3. [`VarZeroCow`], the only user of this type, will impose an additional invariant that the buffer is a valid V
     buf: NonNull<[u8]>,
     /// The buffer is `Box<[u8]>` if true
     #[cfg(feature = "alloc")]

@@ -2,13 +2,15 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
+#![allow(dead_code)]
+
 use std::fmt::Debug;
 use ule::ULE;
 use zerovec::*;
 
 #[make_ule(StructULE)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Struct {
+struct Struct {
     a: u8,
     b: u32,
     c: Option<char>,
@@ -17,7 +19,7 @@ pub struct Struct {
 #[make_ule(HashedStructULE)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[zerovec::derive(Debug, Hash)]
-pub struct HashedStruct {
+struct HashedStruct {
     a: u64,
     b: i16,
     c: Option<char>,
@@ -25,13 +27,13 @@ pub struct HashedStruct {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[make_ule(TupleStructULE)]
-pub struct TupleStruct(u8, char);
+struct TupleStruct(u8, char);
 
 #[make_ule(EnumULE)]
 #[repr(u8)]
 #[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Debug)]
 #[zerovec::derive(Debug, Hash)]
-pub enum Enum {
+enum Enum {
     A = 0,
     B = 1,
     D = 2,
@@ -44,7 +46,7 @@ pub enum Enum {
 #[repr(u8)]
 #[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Debug)]
 #[allow(unused)]
-pub enum OutOfOrderMissingZeroEnum {
+enum OutOfOrderMissingZeroEnum {
     E = 3,
     B = 1,
     FooBar = 4,
@@ -55,12 +57,12 @@ pub enum OutOfOrderMissingZeroEnum {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Ord, PartialOrd)]
 #[make_ule(NoKVULE)]
 #[zerovec::skip_derive(ZeroMapKV)]
-pub struct NoKV(u8, char);
+struct NoKV(u8, char);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[make_ule(NoOrdULE)]
 #[zerovec::skip_derive(ZeroMapKV, Ord)]
-pub struct NoOrd(u8, char);
+struct NoOrd(u8, char);
 
 fn test_zerovec<T: ule::AsULE + Debug + PartialEq>(slice: &[T]) {
     let zerovec: ZeroVec<T> = slice.iter().copied().collect();

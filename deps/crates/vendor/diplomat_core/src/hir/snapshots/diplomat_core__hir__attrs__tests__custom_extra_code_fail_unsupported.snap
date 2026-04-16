@@ -1,0 +1,6 @@
+---
+source: core/src/hir/attrs.rs
+expression: output
+---
+Lowering error in IncludeDef::test: Custom bindings not supported by this language.
+Lowering error in IncludeDef::test: `custom_extra_code` only supported on type declarations or free functions.

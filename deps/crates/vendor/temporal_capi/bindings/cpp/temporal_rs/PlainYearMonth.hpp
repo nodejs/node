@@ -67,6 +67,8 @@ namespace capi {
     typedef struct temporal_rs_PlainYearMonth_era_year_result {union {int32_t ok; }; bool is_ok;} temporal_rs_PlainYearMonth_era_year_result;
     temporal_rs_PlainYearMonth_era_year_result temporal_rs_PlainYearMonth_era_year(const temporal_rs::capi::PlainYearMonth* self);
 
+    uint8_t temporal_rs_PlainYearMonth_reference_day(const temporal_rs::capi::PlainYearMonth* self);
+
     const temporal_rs::capi::Calendar* temporal_rs_PlainYearMonth_calendar(const temporal_rs::capi::PlainYearMonth* self);
 
     typedef struct temporal_rs_PlainYearMonth_add_result {union {temporal_rs::capi::PlainYearMonth* ok; temporal_rs::capi::TemporalError err;}; bool is_ok;} temporal_rs_PlainYearMonth_add_result;
@@ -87,6 +89,9 @@ namespace capi {
 
     typedef struct temporal_rs_PlainYearMonth_to_plain_date_result {union {temporal_rs::capi::PlainDate* ok; temporal_rs::capi::TemporalError err;}; bool is_ok;} temporal_rs_PlainYearMonth_to_plain_date_result;
     temporal_rs_PlainYearMonth_to_plain_date_result temporal_rs_PlainYearMonth_to_plain_date(const temporal_rs::capi::PlainYearMonth* self, temporal_rs::capi::PartialDate_option day);
+
+    typedef struct temporal_rs_PlainYearMonth_epoch_ms_for_utc_result {union {int64_t ok; temporal_rs::capi::TemporalError err;}; bool is_ok;} temporal_rs_PlainYearMonth_epoch_ms_for_utc_result;
+    temporal_rs_PlainYearMonth_epoch_ms_for_utc_result temporal_rs_PlainYearMonth_epoch_ms_for_utc(const temporal_rs::capi::PlainYearMonth* self);
 
     typedef struct temporal_rs_PlainYearMonth_epoch_ms_for_result {union {int64_t ok; temporal_rs::capi::TemporalError err;}; bool is_ok;} temporal_rs_PlainYearMonth_epoch_ms_for_result;
     temporal_rs_PlainYearMonth_epoch_ms_for_result temporal_rs_PlainYearMonth_epoch_ms_for(const temporal_rs::capi::PlainYearMonth* self, temporal_rs::capi::TimeZone time_zone);
@@ -204,6 +209,11 @@ inline std::optional<int32_t> temporal_rs::PlainYearMonth::era_year() const {
     return result.is_ok ? std::optional<int32_t>(result.ok) : std::nullopt;
 }
 
+inline uint8_t temporal_rs::PlainYearMonth::reference_day() const {
+    auto result = temporal_rs::capi::temporal_rs_PlainYearMonth_reference_day(this->AsFFI());
+    return result;
+}
+
 inline const temporal_rs::Calendar& temporal_rs::PlainYearMonth::calendar() const {
     auto result = temporal_rs::capi::temporal_rs_PlainYearMonth_calendar(this->AsFFI());
     return *temporal_rs::Calendar::FromFFI(result);
@@ -253,6 +263,11 @@ inline temporal_rs::diplomat::result<std::unique_ptr<temporal_rs::PlainDate>, te
     auto result = temporal_rs::capi::temporal_rs_PlainYearMonth_to_plain_date(this->AsFFI(),
         day.has_value() ? (temporal_rs::capi::PartialDate_option{ { day.value().AsFFI() }, true }) : (temporal_rs::capi::PartialDate_option{ {}, false }));
     return result.is_ok ? temporal_rs::diplomat::result<std::unique_ptr<temporal_rs::PlainDate>, temporal_rs::TemporalError>(temporal_rs::diplomat::Ok<std::unique_ptr<temporal_rs::PlainDate>>(std::unique_ptr<temporal_rs::PlainDate>(temporal_rs::PlainDate::FromFFI(result.ok)))) : temporal_rs::diplomat::result<std::unique_ptr<temporal_rs::PlainDate>, temporal_rs::TemporalError>(temporal_rs::diplomat::Err<temporal_rs::TemporalError>(temporal_rs::TemporalError::FromFFI(result.err)));
+}
+
+inline temporal_rs::diplomat::result<int64_t, temporal_rs::TemporalError> temporal_rs::PlainYearMonth::epoch_ms_for_utc() const {
+    auto result = temporal_rs::capi::temporal_rs_PlainYearMonth_epoch_ms_for_utc(this->AsFFI());
+    return result.is_ok ? temporal_rs::diplomat::result<int64_t, temporal_rs::TemporalError>(temporal_rs::diplomat::Ok<int64_t>(result.ok)) : temporal_rs::diplomat::result<int64_t, temporal_rs::TemporalError>(temporal_rs::diplomat::Err<temporal_rs::TemporalError>(temporal_rs::TemporalError::FromFFI(result.err)));
 }
 
 inline temporal_rs::diplomat::result<int64_t, temporal_rs::TemporalError> temporal_rs::PlainYearMonth::epoch_ms_for(temporal_rs::TimeZone time_zone) const {

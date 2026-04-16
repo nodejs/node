@@ -6,6 +6,7 @@
 use crate::parsers::Precision;
 use crate::TemporalUnwrap;
 use crate::{error::ErrorMessage, TemporalError, TemporalResult, MS_PER_DAY, NS_PER_DAY};
+use core::cmp::Ordering;
 use core::num::NonZeroU128;
 use core::ops::Add;
 use core::{fmt, str::FromStr};
@@ -843,6 +844,62 @@ impl RoundingMode {
             HalfFloor if is_positive => UnsignedRoundingMode::HalfZero,
             HalfFloor | HalfExpand => UnsignedRoundingMode::HalfInfinity,
             HalfEven => UnsignedRoundingMode::HalfEven,
+        }
+    }
+}
+
+impl UnsignedRoundingMode {
+    /// <https://tc39.es/proposal-temporal/#sec-applyunsignedroundingmode>
+    ///
+    /// We represent `x` as `dividend / divisor` so that we can perform math in integer space.
+    pub(crate) fn apply(self, dividend: u128, divisor: u128, r1: i128, r2: i128) -> i128 {
+        // In order to perform the math in integer space, we multiply by `divisor`.
+        //
+        // I think the math stays in range: dividend and divisor are nanosecond
+        // diffs, so they won't be larger than 2 * 8.64e21, which is 74 bits.
+        //
+        // r1 and r2 are calendar units, which aren't larger than 200,000,000.
+
+        // 1. If x = r1, return r1.
+        if dividend as i128 == r1 * divisor as i128 {
+            return r1;
+        }
+        // 4. If unsignedRoundingMode is zero, return r1.
+        if self == UnsignedRoundingMode::Zero {
+            return r1;
+        } else if self == UnsignedRoundingMode::Infinity {
+            return r2;
+        }
+
+        // 6. Let d1 be x – r1.
+        // 7. Let d2 be r2 – x.
+
+        let d1_times_divisor = dividend as i128 - r1 * divisor as i128;
+        let d2_times_divisor = r2 * divisor as i128 - dividend as i128;
+        // 8. If d1 < d2, return r1.
+        // 9. If d2 < d1, return r2.
+        // 10. Assert: d1 is equal to d2.
+        match d1_times_divisor.cmp(&d2_times_divisor) {
+            Ordering::Less => r1,
+            Ordering::Greater => r2,
+            Ordering::Equal => {
+                match self {
+                    UnsignedRoundingMode::HalfZero => r1,
+                    UnsignedRoundingMode::HalfInfinity => r2,
+                    // HalfEven
+                    _ => {
+                        // 14. Let cardinality be (r1 / (r2 – r1)) modulo 2.
+                        let diff = r2 - r1;
+                        let cardinality = r1.div_euclid(diff).rem_euclid(2);
+                        // 15. If cardinality = 0, return r1.
+                        if cardinality == 0 {
+                            r1
+                        } else {
+                            r2
+                        }
+                    }
+                }
+            }
         }
     }
 }

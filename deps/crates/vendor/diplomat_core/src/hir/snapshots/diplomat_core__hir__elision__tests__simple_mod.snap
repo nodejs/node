@@ -5,17 +5,17 @@ expression: tcx
 TypeContext {
     out_structs: [
         StructDef {
-            docs: Docs(
-                "",
-                [],
-            ),
+            docs: Docs {
+                lines: "",
+                rust_links: [],
+            },
             name: "OutStruct",
             fields: [
                 StructField {
-                    docs: Docs(
-                        "",
-                        [],
-                    ),
+                    docs: Docs {
+                        lines: "",
+                        rust_links: [],
+                    },
                     name: "inner",
                     ty: Opaque(
                         OpaquePath {
@@ -62,15 +62,17 @@ TypeContext {
                         },
                         generate_mocking_interface: false,
                         abi_compatible: false,
+                        custom_extra_code: {},
+                        default_value: None,
                     },
                 },
             ],
             methods: [
                 Method {
-                    docs: Docs(
-                        "",
-                        [],
-                    ),
+                    docs: Docs {
+                        lines: "",
+                        rust_links: [],
+                    },
                     name: "new",
                     abi_name: "OutStruct_new",
                     lifetime_env: LifetimeEnv {
@@ -124,6 +126,8 @@ TypeContext {
                                 },
                                 generate_mocking_interface: false,
                                 abi_compatible: false,
+                                custom_extra_code: {},
+                                default_value: None,
                             },
                         },
                     ],
@@ -175,6 +179,8 @@ TypeContext {
                         },
                         generate_mocking_interface: false,
                         abi_compatible: false,
+                        custom_extra_code: {},
+                        default_value: None,
                     },
                 },
             ],
@@ -203,6 +209,8 @@ TypeContext {
                 },
                 generate_mocking_interface: false,
                 abi_compatible: false,
+                custom_extra_code: {},
+                default_value: None,
             },
             lifetimes: LifetimeEnv {
                 nodes: [
@@ -223,17 +231,17 @@ TypeContext {
     ],
     structs: [
         StructDef {
-            docs: Docs(
-                "",
-                [],
-            ),
+            docs: Docs {
+                lines: "",
+                rust_links: [],
+            },
             name: "Struct",
             fields: [
                 StructField {
-                    docs: Docs(
-                        "",
-                        [],
-                    ),
+                    docs: Docs {
+                        lines: "",
+                        rust_links: [],
+                    },
                     name: "s",
                     ty: Slice(
                         Str(
@@ -272,15 +280,17 @@ TypeContext {
                         },
                         generate_mocking_interface: false,
                         abi_compatible: false,
+                        custom_extra_code: {},
+                        default_value: None,
                     },
                 },
             ],
             methods: [
                 Method {
-                    docs: Docs(
-                        "",
-                        [],
-                    ),
+                    docs: Docs {
+                        lines: "",
+                        rust_links: [],
+                    },
                     name: "rustc_elision",
                     abi_name: "Struct_rustc_elision",
                     lifetime_env: LifetimeEnv {
@@ -337,6 +347,8 @@ TypeContext {
                                 },
                                 generate_mocking_interface: false,
                                 abi_compatible: false,
+                                custom_extra_code: {},
+                                default_value: None,
                             },
                         },
                     ),
@@ -380,6 +392,8 @@ TypeContext {
                                 },
                                 generate_mocking_interface: false,
                                 abi_compatible: false,
+                                custom_extra_code: {},
+                                default_value: None,
                             },
                         },
                     ],
@@ -424,6 +438,8 @@ TypeContext {
                         },
                         generate_mocking_interface: false,
                         abi_compatible: false,
+                        custom_extra_code: {},
+                        default_value: None,
                     },
                 },
             ],
@@ -452,6 +468,8 @@ TypeContext {
                 },
                 generate_mocking_interface: false,
                 abi_compatible: false,
+                custom_extra_code: {},
+                default_value: None,
             },
             lifetimes: LifetimeEnv {
                 nodes: [
@@ -472,10 +490,10 @@ TypeContext {
     ],
     opaques: [
         OpaqueDef {
-            docs: Docs(
-                "",
-                [],
-            ),
+            docs: Docs {
+                lines: "",
+                rust_links: [],
+            },
             name: "Opaque",
             methods: [],
             attrs: Attrs {
@@ -503,6 +521,8 @@ TypeContext {
                 },
                 generate_mocking_interface: false,
                 abi_compatible: false,
+                custom_extra_code: {},
+                default_value: None,
             },
             lifetimes: LifetimeEnv {
                 nodes: [

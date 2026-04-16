@@ -10,6 +10,7 @@ use crate::{dynutil::UpcastDataPayload, ule::MaybeAsVarULE};
 use alloc::sync::Arc;
 use databake::{Bake, BakeSize, CrateEnv, TokenStream};
 use yoke::*;
+use zerovec::vecs::Index32;
 use zerovec::VarZeroVec;
 
 #[cfg(doc)]
@@ -41,7 +42,7 @@ where
     }
 
     fn bake_size(&self) -> usize {
-        core::mem::size_of::<<M::DataStruct as Yokeable>::Output>() + self.get().borrows_size()
+        size_of::<<M::DataStruct as Yokeable>::Output>() + self.get().borrows_size()
     }
 
     fn serialize_yoke(
@@ -60,24 +61,25 @@ where
         rest: &[&DataPayload<ExportMarker>],
         ctx: &CrateEnv,
     ) -> Option<TokenStream> {
-        let first_varule = self.get().maybe_encode_as_varule()?;
+        let first_varule = self.get().maybe_as_encodeable()?;
         let recovered_vec: Vec<
-            &<<M::DataStruct as Yokeable<'_>>::Output as MaybeAsVarULE>::EncodedStruct,
+            <<M::DataStruct as Yokeable<'_>>::Output as MaybeEncodeAsVarULE>::EncodeableStruct<'_>,
         > = core::iter::once(first_varule)
             .chain(rest.iter().map(|v| {
-                #[allow(clippy::expect_used)] // exporter code
+                #[expect(clippy::expect_used)] // exporter code
                 v.get()
                     .payload
                     .as_any()
                     .downcast_ref::<Self>()
                     .expect("payloads expected to be same type")
                     .get()
-                    .maybe_encode_as_varule()
+                    .maybe_as_encodeable()
                     .expect("MaybeEncodeAsVarULE impl should be symmetric")
             }))
             .collect();
         let vzv: VarZeroVec<
             <<M::DataStruct as Yokeable<'_>>::Output as MaybeAsVarULE>::EncodedStruct,
+            Index32,
         > = VarZeroVec::from(&recovered_vec);
         let vzs = vzv.as_slice();
         Some(vzs.bake(ctx))

@@ -6,6 +6,8 @@ use super::ShortBoxSlice;
 use super::ShortBoxSliceInner;
 #[cfg(feature = "alloc")]
 use super::ShortBoxSliceIntoIter;
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
 use litemap::store::*;
 
 impl<K, V> StoreConstEmpty<K, V> for ShortBoxSlice<(K, V)> {
@@ -45,6 +47,8 @@ impl<K, V> Store<K, V> for ShortBoxSlice<(K, V)> {
             ZeroOne(ref v) => v.as_ref(),
             #[cfg(feature = "alloc")]
             Multi(ref v) => v.last(),
+            #[cfg(not(feature = "alloc"))]
+            Two([_, ref v]) => Some(v),
         }
         .map(|elt| (&elt.0, &elt.1))
     }
@@ -61,7 +65,7 @@ impl<K, V> Store<K, V> for ShortBoxSlice<(K, V)> {
 #[cfg(feature = "alloc")]
 impl<K: Ord, V> StoreFromIterable<K, V> for ShortBoxSlice<(K, V)> {
     fn lm_sort_from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
-        alloc::vec::Vec::lm_sort_from_iter(iter).into()
+        Vec::lm_sort_from_iter(iter).into()
     }
 }
 
@@ -112,7 +116,7 @@ impl<K: Ord, V> StoreBulkMut<K, V> for ShortBoxSlice<(K, V)> {
         // items if there are more items. Meaning that if items is not
         // empty, first is None.
         let mut first = None;
-        let mut items = alloc::vec::Vec::new();
+        let mut items = Vec::new();
         match core::mem::take(&mut self.0) {
             ShortBoxSliceInner::ZeroOne(zo) => {
                 first = zo;
@@ -167,9 +171,7 @@ impl<'a, K: 'a, V: 'a> StoreIterableMut<'a, K, V> for ShortBoxSlice<(K, V)> {
         for<'r> fn(&'r mut (K, V)) -> (&'r K, &'r mut V),
     >;
 
-    fn lm_iter_mut(
-        &'a mut self,
-    ) -> <Self as litemap::store::StoreIterableMut<'a, K, V>>::KeyValueIterMut {
+    fn lm_iter_mut(&'a mut self) -> <Self as StoreIterableMut<'a, K, V>>::KeyValueIterMut {
         self.iter_mut().map(|elt| (&elt.0, &mut elt.1))
     }
 }

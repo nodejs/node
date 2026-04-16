@@ -135,7 +135,7 @@ where
         })
     }
 
-    /// Given key0_index, returns the corresponding range of keys1, which will be valid
+    /// Given `key0_index`, returns the corresponding range of keys1, which will be valid
     pub(super) fn get_range(&self) -> Range<usize> {
         debug_assert!(self.key0_index < self.joiner.len());
         let start = if self.key0_index == 0 {
@@ -287,7 +287,7 @@ where
         Some(self.values.zvl_get(key1_index).unwrap())
     }
 
-    /// Given key0_index and predicate, returns the index into the values array
+    /// Given `key0_index` and `predicate`, returns the index into the values array
     fn get_key1_index_by(&self, predicate: impl FnMut(&K1) -> Ordering) -> Option<usize> {
         let range = self.get_range();
         debug_assert!(range.start < range.end); // '<' because every key0 should have a key1
@@ -301,7 +301,7 @@ where
         binary_search_result.ok().map(move |s| s + start)
     }
 
-    /// Given key0_index and key1, returns the index into the values array
+    /// Given `key0_index` and `key1`, returns the index into the values array
     fn get_key1_index(&self, key1: &K1) -> Option<usize> {
         let range = self.get_range();
         debug_assert!(range.start < range.end); // '<' because every key0 should have a key1

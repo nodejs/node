@@ -31,22 +31,28 @@ use std::path::Path;
 #[cfg(target_family = "unix")]
 use std::path::PathBuf;
 
-use crate::provider::EpochNanosecondsAndOffset;
+use crate::common::{offset_range, Mwd, MwdForTime, TransitionType};
 use crate::CompiledNormalizer;
+use crate::{
+    common::{
+        DstTransitionInfoForYear, LocalTimeRecordResult, TimeZoneTransitionInfo, TransitionKind,
+    },
+    provider::EpochNanosecondsAndOffset,
+};
 use alloc::collections::BTreeMap;
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::cmp::Ordering;
 use core::ops::Range;
 use core::str;
-use std::sync::RwLock;
+use std::sync::{RwLock, RwLockReadGuard};
 
 use combine::Parser;
 
 use tzif::{
     self,
     data::{
-        posix::{DstTransitionInfo, PosixTzString, TransitionDate, TransitionDay},
+        posix::{PosixTzString, TransitionDate, TransitionDay},
         time::Seconds,
         tzif::{DataBlock, LocalTimeTypeRecord, TzifData, TzifHeader},
     },
@@ -65,54 +71,6 @@ use crate::{
 
 #[cfg(target_family = "unix")]
 const ZONEINFO_DIR: &str = "/usr/share/zoneinfo/";
-
-// TODO: Workshop record name?
-/// The `LocalTimeRecord` result represents the result of searching for a
-/// time zone transition without the offset seconds applied to the
-/// epoch seconds.
-///
-/// As a result of the search, it is possible for the resulting search to be either
-/// Empty (due to an invalid time being provided that would be in the +1 tz shift)
-/// or two time zones (when a time exists in the ambiguous range of a -1 shift).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LocalTimeRecordResult {
-    Empty(GapEntryOffsets),
-    Single(UtcOffsetSeconds),
-    Ambiguous {
-        first: UtcOffsetSeconds,
-        second: UtcOffsetSeconds,
-    },
-}
-
-/// `TimeZoneTransitionInfo` represents information about a timezone transition.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct TimeZoneTransitionInfo {
-    /// The transition time epoch at which the offset needs to be applied.
-    pub transition_epoch: Option<i64>,
-    /// The time zone offset in seconds.
-    pub offset: UtcOffsetSeconds,
-}
-
-impl From<UtcOffsetSeconds> for LocalTimeRecordResult {
-    fn from(value: UtcOffsetSeconds) -> Self {
-        Self::Single(value)
-    }
-}
-
-impl From<LocalTimeTypeRecord> for LocalTimeRecordResult {
-    fn from(value: LocalTimeTypeRecord) -> Self {
-        Self::Single(value.into())
-    }
-}
-
-impl From<(LocalTimeTypeRecord, LocalTimeTypeRecord)> for LocalTimeRecordResult {
-    fn from(value: (LocalTimeTypeRecord, LocalTimeTypeRecord)) -> Self {
-        Self::Ambiguous {
-            first: value.0.into(),
-            second: value.1.into(),
-        }
-    }
-}
 
 /// `TZif` stands for Time zone information format is laid out by [RFC 8536][rfc8536] and
 /// laid out by the [tzdata manual][tzif-manual]
@@ -428,12 +386,12 @@ impl Tzif {
                 // before the unix epoch.
                 let seconds_is_inexact_for_negative = seconds_is_negative && !seconds_is_exact;
                 // We're before the first transition
-                if epoch_seconds < range.start
-                    || (epoch_seconds == range.start && seconds_is_inexact_for_negative)
+                if epoch_seconds.0 < range.start
+                    || (epoch_seconds.0 == range.start && seconds_is_inexact_for_negative)
                 {
                     range.start
-                } else if epoch_seconds < range.end
-                    || (epoch_seconds == range.end && seconds_is_inexact_for_negative)
+                } else if epoch_seconds.0 < range.end
+                    || (epoch_seconds.0 == range.end && seconds_is_inexact_for_negative)
                 {
                     // We're between the first and second transition
                     range.end
@@ -451,12 +409,12 @@ impl Tzif {
                 let seconds_is_ineexact_for_positive = !seconds_is_negative && !seconds_is_exact;
                 // We're after the second transition
                 // (note that seconds_is_exact means that epoch_seconds == range.end actually means equality)
-                if epoch_seconds > range.end
-                    || (epoch_seconds == range.end && seconds_is_ineexact_for_positive)
+                if epoch_seconds.0 > range.end
+                    || (epoch_seconds.0 == range.end && seconds_is_ineexact_for_positive)
                 {
                     range.end
-                } else if epoch_seconds > range.start
-                    || (epoch_seconds == range.start && seconds_is_ineexact_for_positive)
+                } else if epoch_seconds.0 > range.start
+                    || (epoch_seconds.0 == range.start && seconds_is_ineexact_for_positive)
                 {
                     // We're after the first transition
                     range.start
@@ -472,16 +430,16 @@ impl Tzif {
 
         if let Some(last_tzif_transition) = last_tzif_transition {
             // When going Previous, we went back into the area of tzif transition
-            if seconds < last_tzif_transition {
+            if seconds < last_tzif_transition.0 {
                 if let Some(last_real_tzif_transition) = last_real_tzif_transition() {
-                    seconds = last_real_tzif_transition;
+                    seconds = last_real_tzif_transition.0;
                 } else {
                     return Ok(None);
                 }
             }
         }
 
-        Ok(Some(seconds.into()))
+        Ok(Some(EpochNanoseconds::from_seconds(seconds)))
     }
 
     // For more information, see /docs/TZDB.md
@@ -774,61 +732,6 @@ impl TzifTransitionInfo {
     }
 }
 
-#[derive(Debug)]
-enum TransitionKind {
-    // The offsets didn't change (happens when abbreviations/savings values change)
-    Smooth,
-    // The offsets changed in a way that leaves a gap
-    Gap,
-    // The offsets changed in a way that produces overlapping time.
-    Overlap,
-}
-
-/// Stores the information about DST transitions for a given year
-struct DstTransitionInfoForYear {
-    dst_start_seconds: Seconds,
-    dst_end_seconds: Seconds,
-    std_offset: UtcOffsetSeconds,
-    dst_offset: UtcOffsetSeconds,
-}
-
-impl DstTransitionInfoForYear {
-    fn compute(
-        posix_tz_string: &PosixTzString,
-        dst_variant: &DstTransitionInfo,
-        year: i32,
-    ) -> Self {
-        let std_offset = UtcOffsetSeconds::from(&posix_tz_string.std_info);
-        let dst_offset = UtcOffsetSeconds::from(&dst_variant.variant_info);
-        let dst_start_seconds = Seconds(calculate_transition_seconds_for_year(
-            year,
-            dst_variant.start_date,
-            std_offset,
-        ));
-        let dst_end_seconds = Seconds(calculate_transition_seconds_for_year(
-            year,
-            dst_variant.end_date,
-            dst_offset,
-        ));
-        Self {
-            dst_start_seconds,
-            dst_end_seconds,
-            std_offset,
-            dst_offset,
-        }
-    }
-
-    // Returns the range between offsets in this year
-    // This may cover DST or standard time, whichever starts first
-    pub fn transition_range(&self) -> Range<Seconds> {
-        if self.dst_start_seconds > self.dst_end_seconds {
-            self.dst_end_seconds..self.dst_start_seconds
-        } else {
-            self.dst_start_seconds..self.dst_end_seconds
-        }
-    }
-}
-
 // NOTE: seconds here are epoch, so they are exact, not wall time.
 #[inline]
 fn resolve_posix_tz_string_for_epoch_seconds(
@@ -846,8 +749,8 @@ fn resolve_posix_tz_string_for_epoch_seconds(
     let year = utils::epoch_time_to_iso_year(seconds * 1000);
 
     let transition_info = DstTransitionInfoForYear::compute(posix_tz_string, dst_variant, year);
-    let dst_start_seconds = transition_info.dst_start_seconds.0;
-    let dst_end_seconds = transition_info.dst_end_seconds.0;
+    let dst_start_seconds = transition_info.dst_start_seconds;
+    let dst_end_seconds = transition_info.dst_end_seconds;
 
     // Need to determine if the range being tested is standard or savings time.
     let dst_is_inversed = dst_end_seconds < dst_start_seconds;
@@ -1050,119 +953,6 @@ fn resolve_posix_tz_string(
     }
 }
 
-/// The month, week of month, and day of week value built into the POSIX tz string.
-///
-/// For more information, see the [POSIX tz string docs](https://sourceware.org/glibc/manual/2.40/html_node/Proleptic-TZ.html)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-struct Mwd {
-    month: u8,
-    week: u8,
-    day: u8,
-}
-
-impl Mwd {
-    fn from_u16(month: u16, week: u16, day: u16) -> Self {
-        Self::from_u8(
-            u8::try_from(month).unwrap_or(0),
-            u8::try_from(week).unwrap_or(0),
-            u8::try_from(day).unwrap_or(0),
-        )
-    }
-
-    fn from_u8(month: u8, week: u8, day: u8) -> Self {
-        Self { month, week, day }
-    }
-
-    /// Given the day of the week of the 0th day in this month,
-    /// normalize the week to being a week number (1 = first week, ...)
-    /// rather than a weekday ordinal (1 = first friday, etc)
-    fn normalize_to_week_number(&mut self, day_of_week_zeroth_day: u8) {
-        if self.day <= day_of_week_zeroth_day {
-            self.week += 1;
-        }
-    }
-}
-
-/// Represents an MWD for a given time
-#[derive(Debug)]
-struct MwdForTime {
-    /// This will never have day = 5
-    mwd: Mwd,
-    /// The day of the week of the 0th day (the day before the month starts)
-    day_of_week_zeroth_day: u8,
-    /// This is the day of week of the 29th and the last day of the month,
-    /// if the month has more than 28 days.
-    /// Basically, this is the start and end of the "fifth $weekday of the month" period
-    extra_days: Option<(u8, u8)>,
-}
-
-impl MwdForTime {
-    fn from_seconds(seconds: i64) -> Self {
-        let (year, month, day_of_month) = utils::ymd_from_epoch_milliseconds(seconds * 1_000);
-        let week_of_month = day_of_month / 7 + 1;
-        let day_of_week = utils::epoch_seconds_to_day_of_week(seconds);
-        let mut mwd = Mwd::from_u8(month, week_of_month, day_of_week);
-        let days_in_month = utils::iso_days_in_month(year, month);
-        let day_of_week_zeroth_day =
-            (i16::from(day_of_week) - i16::from(day_of_month)).rem_euclid(7) as u8;
-        mwd.normalize_to_week_number(day_of_week_zeroth_day);
-        if day_of_month > 28 {
-            let day_of_week_day_29 = (day_of_week_zeroth_day + 29).rem_euclid(7);
-            let day_of_week_last_day = (day_of_week_zeroth_day + days_in_month).rem_euclid(7);
-            Self {
-                mwd,
-                day_of_week_zeroth_day,
-                extra_days: Some((day_of_week_day_29, day_of_week_last_day)),
-            }
-        } else {
-            // No day 5
-            Self {
-                mwd,
-                day_of_week_zeroth_day,
-                extra_days: None,
-            }
-        }
-    }
-
-    /// MWDs from Posix data can contain `w=5`, which means the *last* $weekday of the month,
-    /// not the 5th. For MWDs in the same month, this normalizes the 5 to the actual number of the
-    /// last weekday of the month (5 or 4)
-    ///
-    /// Furthermore, this turns the week number into a true week number: the "second friday in March"
-    /// will be turned into "the friday in the first week of March" or "the Friday in the second week of March"
-    /// depending on when March starts.
-    ///
-    /// This normalization *only* applies to MWDs in the same month. For other MWDs, such normalization is irrelevant.
-    fn normalize_mwd(&self, other: &mut Mwd) {
-        // If we're in the same month, normalization will actually have a useful effect
-        if self.mwd.month == other.month {
-            // First normalize MWDs that are like "the last $weekday in the month"
-            // the last $weekday in the month, we need special handling
-            if other.week == 5 {
-                if let Some((day_29, last_day)) = self.extra_days {
-                    if day_29 < last_day {
-                        if other.day < day_29 || other.day > last_day {
-                            // This day isn't found in the last week. Subtract one.
-                            other.week = 4;
-                        }
-                    } else {
-                        // The extra part of the month crosses Sunday
-                        if other.day < day_29 && other.day > last_day {
-                            // This day isn't found in the last week. Subtract one.
-                            other.week = 4;
-                        }
-                    }
-                } else {
-                    // There is no week 5 in this month, normalize to 4
-                    other.week = 4;
-                }
-            }
-
-            other.normalize_to_week_number(self.day_of_week_zeroth_day);
-        }
-    }
-}
-
 fn cmp_seconds_to_transitions(
     start: &TransitionDay,
     end: &TransitionDay,
@@ -1225,28 +1015,6 @@ fn cmp_seconds_to_transitions(
         (false, dst) if dst => Ok((false, TransitionType::Dst)),
         (false, _) => Ok((false, TransitionType::Std)),
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum TransitionType {
-    Dst,
-    Std,
-}
-
-impl TransitionType {
-    fn invert(&mut self) {
-        *self = match *self {
-            Self::Dst => Self::Std,
-            Self::Std => Self::Dst,
-        }
-    }
-}
-
-fn offset_range(offset_one: i64, offset_two: i64) -> core::ops::Range<i64> {
-    if offset_one < offset_two {
-        return offset_one..offset_two;
-    }
-    offset_two..offset_one
 }
 
 /// Timezone provider that uses compiled data.
@@ -1385,16 +1153,20 @@ impl TzdbResolverBackend for FsTzdbResolver {
 }
 
 impl<Kind> TzdbResolver<Kind> {
-    /// Get timezone data for a single identifier
-    fn get(&self, id: ResolvedId) -> TimeZoneProviderResult<Tzif> {
+    /// Read access to the internal cache
+    pub fn read_cache(&self) -> TimeZoneProviderResult<RwLockReadGuard<'_, Vec<Tzif>>> {
         self.cache
             .read()
-            .map_err(|_| TimeZoneProviderError::Assert("poisoned RWLock"))?
-            .get(id.0)
-            .cloned()
-            .ok_or(TimeZoneProviderError::Assert(
-                "Time zone identifier does not exist.",
-            ))
+            .map_err(|_| TimeZoneProviderError::Assert("poisoned RWLock"))
+    }
+
+    /// Get timezone data for a single identifier
+    pub fn get(cache: &[Tzif], id: ResolvedId) -> TimeZoneProviderResult<&Tzif> {
+        // TODO(shark): ideally this should get an read lock of the cache and use `RwLockReadGuard::map`, so we don't need to rely on an external lock
+        // see: https://github.com/rust-lang/rust/issues/117108
+        cache.get(id.0).ok_or(TimeZoneProviderError::Assert(
+            "Time zone identifier does not exist.",
+        ))
     }
 }
 
@@ -1430,7 +1202,9 @@ impl<Kind: TzdbResolverBackend> TimeZoneResolver for TzdbResolver<Kind> {
         identifier: ResolvedId,
         local_datetime: IsoDateTime,
     ) -> TimeZoneProviderResult<CandidateEpochNanoseconds> {
-        self.get(identifier)?
+        let cache = self.read_cache()?;
+
+        Self::get(&cache, identifier)?
             .candidate_nanoseconds_for_local_epoch_nanoseconds(local_datetime)
     }
 
@@ -1439,17 +1213,23 @@ impl<Kind: TzdbResolverBackend> TimeZoneResolver for TzdbResolver<Kind> {
         identifier: ResolvedId,
         epoch_nanoseconds: i128,
     ) -> TimeZoneProviderResult<UtcOffsetSeconds> {
-        self.get(identifier)?
+        let cache = self.read_cache()?;
+
+        Self::get(&cache, identifier)?
             .transition_nanoseconds_for_utc_epoch_nanoseconds(epoch_nanoseconds)
     }
 
+    #[inline(always)]
     fn get_time_zone_transition(
         &self,
         identifier: ResolvedId,
         epoch_nanoseconds: i128,
         direction: TransitionDirection,
     ) -> TimeZoneProviderResult<Option<EpochNanoseconds>> {
-        let tzif = self.get(identifier)?;
+        let cache = self.read_cache()?;
+
+        let tzif = Self::get(&cache, identifier)?;
+
         tzif.get_time_zone_transition(epoch_nanoseconds, direction)
     }
 }
@@ -1917,7 +1697,7 @@ mod tests {
             id: &str,
             before_offset: i64,
             after_offset: i64,
-            provider: &impl TimeZoneProvider,
+            provider: &(impl TimeZoneProvider + ?Sized),
         ) {
             let id = provider.get(id.as_bytes()).unwrap();
             let before_possible = provider

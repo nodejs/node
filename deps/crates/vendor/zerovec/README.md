@@ -51,7 +51,7 @@ This crate has several optional Cargo features:
 
 ## Examples
 
-Serialize and deserialize a struct with ZeroVec and VarZeroVec with Bincode:
+Serialize and deserialize a struct with [`ZeroVec`] and [`VarZeroVec`] with Bincode:
 
 ```rust
 use zerovec::{VarZeroVec, ZeroVec};
@@ -85,7 +85,7 @@ assert_eq!(deserialized.strs.get(1), Some("world"));
 assert!(!deserialized.nums.is_owned());
 ```
 
-Use custom types inside of ZeroVec:
+Use custom types inside of [`ZeroVec`]:
 
 ```rust
 use zerovec::{ZeroVec, VarZeroVec, ZeroMap};
@@ -164,7 +164,7 @@ assert_eq!(&deserialized.birthdays_to_people.get(&person1.birthday).unwrap().nam
 `zerovec` is designed for fast deserialization from byte buffers with zero memory allocations
 while minimizing performance regressions for common vector operations.
 
-Benchmark results on x86_64:
+Benchmark results on `x86_64`:
 
 | Operation | `Vec<T>` | `zerovec` |
 |---|---|---|

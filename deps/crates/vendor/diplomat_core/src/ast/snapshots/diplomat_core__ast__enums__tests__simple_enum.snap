@@ -1,10 +1,11 @@
 ---
 source: core/src/ast/enums.rs
-expression: "Enum::new(&syn::parse_quote! {\n                /// Some docs.\n                #[diplomat :: rust_link(foo :: Bar, Enum)] enum MyLocalEnum\n                {\n                    Abc, /// Some more docs.\n                    Def\n                }\n            }, &Default::default())"
+expression: "Enum::new(&syn::parse_quote!\n{\n    #[doc = r\" Some docs.\"] #[diplomat::rust_link(foo::Bar, Enum)] enum\n    MyLocalEnum { Abc, #[doc = r\" Some more docs.\"] Def }\n}, &Default::default())"
 ---
 name: MyLocalEnum
 docs:
-  - Some docs.
+  - - cfg: Star
+      lines: Some docs.
   - - path:
         elements:
           - foo
@@ -14,14 +15,15 @@ docs:
 variants:
   - - Abc
     - 0
-    - - ""
+    - - - cfg: Star
+          lines: ""
       - []
     - {}
   - - Def
     - 1
-    - - Some more docs.
+    - - - cfg: Star
+          lines: Some more docs.
       - []
     - {}
 methods: []
 attrs: {}
-

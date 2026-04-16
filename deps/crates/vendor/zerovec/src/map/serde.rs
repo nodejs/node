@@ -66,7 +66,7 @@ where
     }
 }
 
-/// Modified example from https://serde.rs/deserialize-map.html
+/// Modified example from <https://serde.rs/deserialize-map.html>
 struct ZeroMapMapVisitor<'a, K, V>
 where
     K: ZeroMapKV<'a> + ?Sized + Ord,

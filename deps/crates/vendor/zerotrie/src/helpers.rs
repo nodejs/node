@@ -3,7 +3,7 @@
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
 pub(crate) trait MaybeSplitAt<T> {
-    /// Like slice::split_at but debug-panics and returns an empty second slice
+    /// Like `slice::split_at` but debug-panics and returns an empty second slice
     /// if the index is out of range.
     fn debug_split_at(&self, mid: usize) -> (&Self, &Self);
 }
@@ -58,22 +58,13 @@ macro_rules! debug_unwrap {
             }
         }
     };
-    ($expr:expr, break) => {
-        debug_unwrap!($expr, break, "invalid trie")
-    };
-    ($expr:expr, $($arg:tt)+) => {
-        debug_unwrap!($expr, return (), $($arg)*)
-    };
-    ($expr:expr) => {
-        debug_unwrap!($expr, return ())
-    };
 }
 
 pub(crate) use debug_unwrap;
 
 /// The maximum number of base-10 digits required for rendering a usize.
 /// Note: 24/10 is an approximation of 8*log10(2)
-pub(crate) const MAX_USIZE_LEN_AS_DIGITS: usize = core::mem::size_of::<usize>() * 24 / 10 + 1;
+pub(crate) const MAX_USIZE_LEN_AS_DIGITS: usize = size_of::<usize>() * 24 / 10 + 1;
 
 /// Formats a usize as a string of length N, padded with spaces,
 /// with the given prefix.
@@ -81,7 +72,7 @@ pub(crate) const MAX_USIZE_LEN_AS_DIGITS: usize = core::mem::size_of::<usize>() 
 /// # Panics
 ///
 /// If the string is too short, the function may panic. To prevent
-/// this, N should be MAX_USIZE_LEN_AS_DIGITS larger than M.
+/// this, N should be `MAX_USIZE_LEN_AS_DIGITS` larger than M.
 #[allow(clippy::indexing_slicing)] // documented, and based on const parameters
 pub(crate) const fn const_fmt_int<const M: usize, const N: usize>(
     prefix: [u8; M],

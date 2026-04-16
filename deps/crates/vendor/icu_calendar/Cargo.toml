@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.82"
+rust-version = "1.86"
 name = "icu_calendar"
-version = "2.0.6"
+version = "2.2.1"
 authors = ["The ICU4X Project Developers"]
 build = false
 include = [
@@ -35,15 +35,35 @@ autobenches = false
 description = "Date APIs for Gregorian and non-Gregorian calendars"
 homepage = "https://icu4x.unicode.org"
 readme = "README.md"
-categories = ["internationalization"]
+keywords = [
+    "unicode",
+    "formatting",
+    "date",
+]
+categories = [
+    "internationalization",
+    "localization",
+    "no-std",
+    "embedded",
+]
 license = "Unicode-3.0"
 repository = "https://github.com/unicode-org/icu4x"
 
 [package.metadata.docs.rs]
 all-features = true
 
+[package.metadata.cargo-all-features]
+max_combination_size = 3
+
+[package.metadata.cargo-semver-checks.lints]
+workspace = true
+
 [features]
-alloc = []
+alloc = [
+    "icu_locale_core/alloc",
+    "tinystr/alloc",
+    "serde?/alloc",
+]
 compiled_data = [
     "dep:icu_calendar_data",
     "dep:icu_locale",
@@ -70,10 +90,31 @@ serde = [
     "tinystr/serde",
     "icu_provider/serde",
 ]
+unstable = []
+unstable_chrono_0_4 = ["dep:chrono"]
+unstable_jiff_0_2 = ["dep:jiff"]
+unstable_time_0_3 = ["dep:time"]
 
 [lib]
 name = "icu_calendar"
 path = "src/lib.rs"
+
+[[test]]
+name = "arithmetic"
+path = "tests/arithmetic.rs"
+required-features = ["ixdtf"]
+
+[[test]]
+name = "reference_year"
+path = "tests/reference_year.rs"
+
+[[test]]
+name = "reingold"
+path = "tests/reingold.rs"
+
+[[bench]]
+name = "common"
+path = "benches/common.rs"
 
 [[bench]]
 name = "convert"
@@ -85,8 +126,18 @@ name = "date"
 path = "benches/date.rs"
 harness = false
 
+[[bench]]
+name = "until"
+path = "benches/until.rs"
+harness = false
+
 [dependencies.calendrical_calculations]
-version = "0.2.2"
+version = "0.2.4"
+default-features = false
+
+[dependencies.chrono]
+version = "0.4"
+optional = true
 default-features = false
 
 [dependencies.databake]
@@ -100,58 +151,62 @@ version = "0.2.3"
 default-features = false
 
 [dependencies.icu_calendar_data]
-version = "~2.0.0"
+version = "~2.2.0"
 optional = true
 default-features = false
 
 [dependencies.icu_locale]
-version = "~2.0.0"
+version = "~2.2.0"
 optional = true
 default-features = false
 
 [dependencies.icu_locale_core]
-version = "2.0.0"
-features = ["alloc"]
+version = "2.2.0"
 default-features = false
 
 [dependencies.icu_provider]
-version = "2.0.0"
-features = ["alloc"]
+version = "2.2.0"
 default-features = false
 
 [dependencies.ixdtf]
-version = "0.5.0"
+version = "0.6.5"
+optional = true
+default-features = false
+
+[dependencies.jiff]
+version = "0.2"
 optional = true
 default-features = false
 
 [dependencies.serde]
-version = "1.0.110"
-features = [
-    "derive",
-    "alloc",
-]
+version = "1.0.220"
+features = ["derive"]
+optional = true
+default-features = false
+
+[dependencies.time]
+version = "0.3"
 optional = true
 default-features = false
 
 [dependencies.tinystr]
-version = "0.8.0"
-features = [
-    "alloc",
-    "zerovec",
-]
-default-features = false
-
-[dependencies.writeable]
-version = "0.6.0"
+version = "0.8.3"
+features = ["zerovec"]
 default-features = false
 
 [dependencies.zerovec]
-version = "0.11.1"
+version = "0.11.6"
 features = ["derive"]
 default-features = false
 
+[dev-dependencies.insta]
+version = "1.38.0"
+
+[dev-dependencies.itertools]
+version = "0.14.0"
+
 [dev-dependencies.serde]
-version = "1.0.110"
+version = "1.0.220"
 features = [
     "derive",
     "alloc",
@@ -164,5 +219,62 @@ version = "1.0.45"
 [dev-dependencies.simple_logger]
 version = "5.0.0"
 
+[dev-dependencies.time]
+version = "0.3"
+features = ["large-dates"]
+default-features = false
+
+[dev-dependencies.ureq]
+version = "3.0.0"
+
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies.criterion]
 version = "0.5.0"
+
+[lints.clippy]
+alloc-instead-of-core = "warn"
+branches-sharing-code = "warn"
+collection_is_never_read = "warn"
+crosspointer_transmute = "warn"
+dbg_macro = "warn"
+debug_assert_with_mut_call = "warn"
+doc_markdown = "warn"
+exhaustive_enums = "deny"
+exhaustive_structs = "deny"
+fn_to_numeric_cast_any = "warn"
+infinite_loop = "warn"
+large_stack_arrays = "warn"
+mismatching_type_param_order = "warn"
+missing_fields_in_debug = "warn"
+missing_transmute_annotations = "warn"
+negative_feature_names = "warn"
+or-fun-call = "warn"
+same_functions_in_if_condition = "warn"
+todo = "warn"
+transmute_bytes_to_str = "warn"
+transmute_int_to_bool = "warn"
+transmute_int_to_non_zero = "warn"
+transmute_ptr_to_ptr = "warn"
+transmute_ptr_to_ref = "warn"
+transmute_undefined_repr = "warn"
+transmutes_expressible_as_ptr_casts = "warn"
+trivially_copy_pass_by_ref = "deny"
+unnecessary-wraps = "warn"
+useless_transmute = "warn"
+wildcard_dependencies = "warn"
+
+[lints.rust]
+missing_debug_implementations = "deny"
+trivial_numeric_casts = "deny"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+unused_qualifications = "warn"
+
+[lints.rust.unexpected_cfgs]
+level = "warn"
+priority = 0
+check-cfg = [
+    "cfg(icu4c_enable_renaming)",
+    "cfg(needs_alloc_error_handler)",
+    "cfg(icu4x_run_size_tests)",
+    "cfg(icu4x_unstable_fast_trie_only)",
+]

@@ -2,10 +2,8 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
-#[cfg(feature = "alloc")]
 use crate::preferences::extensions::unicode::enum_keyword;
 
-#[cfg(feature = "alloc")]
 enum_keyword!(
     /// A Measurement Unit Preference Override defines an override for measurement unit preference.
     ///

@@ -9,7 +9,6 @@ use super::{
 use crate::ast::attrs::AttrInheritContext;
 #[allow(unused_imports)] // use in docs links
 use crate::hir;
-use crate::hir::Method;
 use crate::{ast, Env};
 use core::fmt::{self, Display};
 use smallvec::SmallVec;
@@ -25,7 +24,7 @@ pub struct TypeContext {
     opaques: Vec<OpaqueDef>,
     enums: Vec<EnumDef>,
     traits: Vec<TraitDef>,
-    functions: Vec<Method>,
+    functions: Vec<hir::Method>,
 }
 
 /// Additional features/config to support while lowering
@@ -57,7 +56,7 @@ pub struct EnumId(usize);
 pub struct TraitId(usize);
 
 /// Key used to index into a [`TypeContext`] representing a function.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct FunctionId(usize);
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -127,7 +126,7 @@ impl TypeContext {
 
     pub fn all_free_functions<'tcx>(
         &'tcx self,
-    ) -> impl Iterator<Item = (FunctionId, &'tcx Method)> {
+    ) -> impl Iterator<Item = (FunctionId, &'tcx hir::Method)> {
         self.functions
             .iter()
             .enumerate()
@@ -195,7 +194,7 @@ impl TypeContext {
         self.traits.index(id.0)
     }
 
-    pub fn resolve_function(&self, id: FunctionId) -> &Method {
+    pub fn resolve_function(&self, id: FunctionId) -> &hir::Method {
         self.functions.index(id.0)
     }
 
@@ -265,17 +264,11 @@ impl TypeContext {
                 match sym {
                     ast::ModSymbol::CustomType(custom_type) => match custom_type {
                         ast::CustomType::Struct(strct) => {
-                            let id = if strct.output_only {
-                                TypeId::OutStruct(OutStructId(ast_out_structs.len()))
-                            } else {
-                                TypeId::Struct(StructId(ast_structs.len()))
-                            };
                             let item = ItemAndInfo {
                                 item: strct,
                                 in_path: path,
                                 ty_parent_attrs: ty_attrs.clone(),
                                 method_parent_attrs: method_attrs.clone(),
-                                id: id.into(),
                             };
                             if strct.output_only {
                                 ast_out_structs.push(item);
@@ -289,7 +282,6 @@ impl TypeContext {
                                 in_path: path,
                                 ty_parent_attrs: ty_attrs.clone(),
                                 method_parent_attrs: method_attrs.clone(),
-                                id: TypeId::Opaque(OpaqueId(ast_opaques.len())).into(),
                             };
                             ast_opaques.push(item)
                         }
@@ -299,7 +291,6 @@ impl TypeContext {
                                 in_path: path,
                                 ty_parent_attrs: ty_attrs.clone(),
                                 method_parent_attrs: method_attrs.clone(),
-                                id: TypeId::Enum(EnumId(ast_enums.len())).into(),
                             };
                             ast_enums.push(item)
                         }
@@ -310,7 +301,6 @@ impl TypeContext {
                             in_path: path,
                             ty_parent_attrs: ty_attrs.clone(),
                             method_parent_attrs: method_attrs.clone(),
-                            id: TraitId(ast_traits.len()).into(),
                         };
                         ast_traits.push(item)
                     }
@@ -320,7 +310,6 @@ impl TypeContext {
                             in_path: path,
                             ty_parent_attrs: ty_attrs.clone(),
                             method_parent_attrs: method_attrs.clone(),
-                            id: FunctionId(ast_functions.len()).into(),
                         };
                         ast_functions.push(item)
                     }

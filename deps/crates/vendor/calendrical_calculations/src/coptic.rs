@@ -12,6 +12,13 @@ use crate::rata_die::RataDie;
 
 pub(crate) const COPTIC_EPOCH: RataDie = crate::julian::fixed_from_julian(284, 8, 29);
 
+/// Lisp code reference: <https://github.com/EdReingold/calendar-code2/blob/1ee51ecfaae6f856b0d7de3e36e9042100b4f424/calendar.l#L1973>
+#[inline(always)]
+pub const fn is_leap_year(year: i32) -> bool {
+    // The book uses year % 4 == 3, which does not behave correctly for negative numbers
+    (year + 1) % 4 == 0
+}
+
 /// Lisp code reference: <https://github.com/EdReingold/calendar-code2/blob/1ee51ecfaae6f856b0d7de3e36e9042100b4f424/calendar.l#L1978>
 pub fn fixed_from_coptic(year: i32, month: u8, day: u8) -> RataDie {
     COPTIC_EPOCH - 1

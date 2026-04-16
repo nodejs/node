@@ -3,6 +3,7 @@
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
 use crate::extensions::unicode as unicode_ext;
+use crate::preferences::{extensions::unicode::keywords::RegionalSubdivision, LocalePreferences};
 use crate::subtags::{Language, Region, Script, Subtag, Variant};
 #[cfg(feature = "alloc")]
 use crate::ParseError;
@@ -20,16 +21,32 @@ use core::str::FromStr;
 /// [`LanguageIdentifier`] for better size and performance while still meeting
 /// the needs of the ICU4X data pipeline.
 ///
-/// You can create a [`DataLocale`] from a borrowed [`Locale`], which is more
-/// efficient than cloning the [`Locale`], but less efficient than converting an owned
-/// [`Locale`]:
+/// In general, you should not need to construct one of these directly. If you do,
+/// even though there is a direct `From<Locale>` conversion, you should
+/// convert through the [`LocalePreferences`] type:
 ///
 /// ```
 /// use icu_locale_core::locale;
+/// use icu_locale_core::preferences::LocalePreferences;
 /// use icu_provider::DataLocale;
+/// use writeable::assert_writeable_eq;
 ///
-/// let locale1 = locale!("en-u-ca-buddhist");
-/// let data_locale = DataLocale::from(&locale1);
+/// // Locale: American English with British user preferences
+/// let locale = locale!("en-US-u-rg-gbzzzz");
+///
+/// // For language-priority fallback, the region override is ignored
+/// let data_locale =
+///     LocalePreferences::from(&locale).to_data_locale_language_priority();
+/// assert_writeable_eq!(data_locale, "en-US");
+///
+/// // The direct conversion implicitly uses language-priority fallback
+/// // (which is incorrect for some use cases).
+/// assert_eq!(data_locale, DataLocale::from(&locale));
+///
+/// // For region-priority fallback, the region override is applied
+/// let data_locale =
+///     LocalePreferences::from(&locale).to_data_locale_region_priority();
+/// assert_writeable_eq!(data_locale, "en-GB");
 /// ```
 ///
 /// [`DataLocale`] only supports `-u-sd` keywords, to reflect the current state of CLDR data
@@ -48,7 +65,9 @@ use core::str::FromStr;
 ///     DataLocale::from(locale!("hi-IN-u-sd-inas"))
 /// );
 /// ```
-#[derive(Clone, Copy, PartialEq, Hash, Eq)]
+///
+/// [`LocalePreferences`]: crate::preferences::LocalePreferences
+#[derive(Clone, Copy)]
 #[non_exhaustive]
 pub struct DataLocale {
     /// Language subtag
@@ -60,7 +79,22 @@ pub struct DataLocale {
     /// Variant subtag
     pub variant: Option<Variant>,
     /// Subivision (-u-sd-) subtag
+    // TODO(3.0): Use `SubdivisionSuffix` type
     pub subdivision: Option<Subtag>,
+}
+
+impl PartialEq for DataLocale {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_tuple() == other.as_tuple()
+    }
+}
+
+impl Eq for DataLocale {}
+
+impl Hash for DataLocale {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        self.as_tuple().hash(state);
+    }
 }
 
 impl Default for DataLocale {
@@ -101,7 +135,7 @@ impl fmt::Debug for DataLocale {
     }
 }
 
-impl_writeable_for_each_subtag_str_no_test!(DataLocale, selff, selff.script.is_none() && selff.region.is_none() && selff.variant.is_none() && selff.subdivision.is_none() => selff.language.write_to_string());
+impl_writeable_for_each_subtag_str_no_test!(DataLocale, selff, selff.script.is_none() && selff.region.is_none() && selff.variant.is_none() && selff.subdivision.is_none() => Some(selff.language.as_str()));
 
 impl From<LanguageIdentifier> for DataLocale {
     fn from(langid: LanguageIdentifier) -> Self {
@@ -129,18 +163,11 @@ impl From<&LanguageIdentifier> for DataLocale {
 
 impl From<&Locale> for DataLocale {
     fn from(locale: &Locale) -> Self {
-        let mut r = Self::from(&locale.id);
-
-        r.subdivision = locale
-            .extensions
-            .unicode
-            .keywords
-            .get(&unicode_ext::key!("sd"))
-            .and_then(|v| v.as_single_subtag().copied());
-        r
+        LocalePreferences::from(locale).to_data_locale_language_priority()
     }
 }
 
+/// ✨ *Enabled with the `alloc` Cargo feature.*
 #[cfg(feature = "alloc")]
 impl FromStr for DataLocale {
     type Err = ParseError;
@@ -153,12 +180,16 @@ impl FromStr for DataLocale {
 impl DataLocale {
     #[inline]
     /// Parses a [`DataLocale`].
+    ///
+    /// ✨ *Enabled with the `alloc` Cargo feature.*
     #[cfg(feature = "alloc")]
     pub fn try_from_str(s: &str) -> Result<Self, ParseError> {
         Self::try_from_utf8(s.as_bytes())
     }
 
     /// Parses a [`DataLocale`] from a UTF-8 byte slice.
+    ///
+    /// ✨ *Enabled with the `alloc` Cargo feature.*
     #[cfg(feature = "alloc")]
     pub fn try_from_utf8(code_units: &[u8]) -> Result<Self, ParseError> {
         let locale = Locale::try_from_utf8(code_units)?;
@@ -179,7 +210,7 @@ impl DataLocale {
                     .extensions
                     .unicode
                     .keywords
-                    .contains_key(&unicode_ext::key!("sd")))
+                    .contains_key(&RegionalSubdivision::UNICODE_EXTENSION_KEY))
         {
             return Err(ParseError::InvalidExtension);
         }
@@ -201,12 +232,21 @@ impl DataLocale {
         if let Some(ref single_variant) = self.variant {
             f(single_variant.as_str())?;
         }
-        if let Some(ref subdivision) = self.subdivision {
-            f("u")?;
-            f("sd")?;
-            f(subdivision.as_str())?;
+        if let Some(extensions) = self.extensions() {
+            extensions.for_each_subtag_str(f)?;
         }
         Ok(())
+    }
+
+    fn region_and_subdivision(&self) -> Option<unicode_ext::SubdivisionId> {
+        self.subdivision
+            .and_then(|s| unicode_ext::SubdivisionId::try_from_str(s.as_str()).ok())
+            .or_else(|| {
+                self.region.map(|region| unicode_ext::SubdivisionId {
+                    region,
+                    suffix: unicode_ext::SubdivisionSuffix::UNKNOWN,
+                })
+            })
     }
 
     fn as_tuple(
@@ -214,17 +254,38 @@ impl DataLocale {
     ) -> (
         Language,
         Option<Script>,
-        Option<Region>,
+        Option<unicode_ext::SubdivisionId>,
         Option<Variant>,
-        Option<Subtag>,
     ) {
         (
             self.language,
             self.script,
-            self.region,
+            self.region_and_subdivision(),
             self.variant,
-            self.subdivision,
         )
+    }
+
+    pub(crate) const fn from_parts(
+        language: Language,
+        script: Option<Script>,
+        region: Option<unicode_ext::SubdivisionId>,
+        variant: Option<Variant>,
+    ) -> Self {
+        Self {
+            language,
+            script,
+            region: if let Some(r) = region {
+                Some(r.region)
+            } else {
+                None
+            },
+            variant,
+            subdivision: if let Some(r) = region {
+                Some(r.into_subtag())
+            } else {
+                None
+            },
+        }
     }
 
     /// Returns an ordering suitable for use in [`BTreeSet`].
@@ -354,20 +415,25 @@ impl DataLocale {
                     .map(crate::subtags::Variants::from_variant)
                     .unwrap_or_default(),
             },
-            extensions: {
-                let mut extensions = crate::extensions::Extensions::default();
-                if let Some(sd) = self.subdivision {
-                    extensions.unicode = unicode_ext::Unicode {
-                        keywords: unicode_ext::Keywords::new_single(
-                            unicode_ext::key!("sd"),
-                            unicode_ext::Value::from_subtag(Some(sd)),
-                        ),
-                        ..Default::default()
-                    }
-                }
-                extensions
-            },
+            extensions: self.extensions().unwrap_or_default(),
         }
+    }
+
+    fn extensions(&self) -> Option<crate::extensions::Extensions> {
+        Some(crate::extensions::Extensions {
+            unicode: unicode_ext::Unicode {
+                keywords: unicode_ext::Keywords::new_single(
+                    RegionalSubdivision::UNICODE_EXTENSION_KEY,
+                    RegionalSubdivision(
+                        self.region_and_subdivision()
+                            .filter(|sd| !sd.suffix.is_unknown())?,
+                    )
+                    .into(),
+                ),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
     }
 }
 
@@ -385,11 +451,15 @@ fn test_data_locale_to_string() {
         },
         TestCase {
             locale: "und-u-sd-sdd",
-            expected: "und-u-sd-sdd",
+            expected: "und-SD-u-sd-sdd",
         },
         TestCase {
             locale: "en-ZA-u-sd-zaa",
             expected: "en-ZA-u-sd-zaa",
+        },
+        TestCase {
+            locale: "en-ZA-u-sd-sdd",
+            expected: "en-ZA",
         },
     ] {
         let locale = cas.locale.parse::<DataLocale>().unwrap();

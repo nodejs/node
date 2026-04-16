@@ -24,6 +24,9 @@ use ixdtf::records::UtcOffsetRecordOrZ;
 fn extract_kind(calendar: Option<&[u8]>) -> TemporalResult<AnyCalendarKind> {
     Ok(calendar
         .map(Calendar::try_kind_from_utf8)
+        // Note that this will successfully parse AnyCalendarKind::HijriSimulatedMecca
+        // However, Calendar::new will immediately turn it into an ISO calendar,
+        // so we don't need to do anything here.
         .transpose()?
         .unwrap_or(AnyCalendarKind::Iso))
 }
@@ -45,6 +48,16 @@ impl ParsedDate {
         // Assertion: PlainDate must exist on a DateTime parse.
         let record = parse_record.date.temporal_unwrap()?;
 
+        // TODO: Potentially, remove this check in favor of type guarantee of a
+        // Temporal parser.
+        // NOTE: The check here is to confirm that the time component is
+        // valid.
+        let _time = parse_record
+            .time
+            .map(IsoTime::from_time_record)
+            .transpose()?
+            .unwrap_or_default();
+
         Ok(Self { record, calendar })
     }
     /// Converts a UTF-8 encoded YearMonth string into a `ParsedDate`.
@@ -56,8 +69,19 @@ impl ParsedDate {
         // Assertion: PlainDate must exist on a DateTime parse.
         let record = parse_record.date.temporal_unwrap()?;
 
+        // TODO: Potentially, remove this check in favor of type guarantee of a
+        // Temporal parser.
+        // NOTE: The check here is to confirm that the time component is
+        // valid.
+        let _time = parse_record
+            .time
+            .map(IsoTime::from_time_record)
+            .transpose()?
+            .unwrap_or_default();
+
         Ok(Self { record, calendar })
     }
+
     /// Converts a UTF-8 encoded MonthDay string into a `ParsedDate`.
     pub fn month_day_from_utf8(s: &[u8]) -> TemporalResult<Self> {
         let parse_record = parsers::parse_month_day(s)?;
@@ -66,6 +90,16 @@ impl ParsedDate {
 
         // Assertion: PlainDate must exist on a DateTime parse.
         let record = parse_record.date.temporal_unwrap()?;
+
+        // TODO: Potentially, remove this check in favor of type guarantee of a
+        // Temporal parser.
+        // NOTE: The check here is to confirm that the time component is
+        // valid.
+        let _time = parse_record
+            .time
+            .map(IsoTime::from_time_record)
+            .transpose()?
+            .unwrap_or_default();
 
         Ok(Self { record, calendar })
     }
@@ -129,7 +163,7 @@ impl ParsedZonedDateTime {
     /// Converts a UTF-8 encoded string into a `ParsedZonedDateTime`.
     pub fn from_utf8_with_provider(
         source: &[u8],
-        provider: &impl TimeZoneProvider,
+        provider: &(impl TimeZoneProvider + ?Sized),
     ) -> TemporalResult<Self> {
         // Steps from the parse bits of of ToZonedDateTime
 

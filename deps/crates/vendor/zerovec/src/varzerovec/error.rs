@@ -6,7 +6,7 @@ use core::fmt::Display;
 
 #[derive(Debug)]
 pub enum VarZeroVecFormatError {
-    /// The byte buffer was not in the appropriate format for VarZeroVec.
+    /// The byte buffer was not in the appropriate format for [`VarZeroVec`](crate::VarZeroVec).
     Metadata,
     /// One of the values could not be decoded.
     Values(crate::ule::UleError),

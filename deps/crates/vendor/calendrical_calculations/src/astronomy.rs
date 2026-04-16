@@ -44,7 +44,8 @@ pub struct Location {
     pub(crate) longitude: f64,
     /// elevation in meters
     pub(crate) elevation: f64,
-    /// UTC timezone offset in fractional days (1 hr = 1.0 / 24.0 day)
+    /// UTC timezone offset in fractional days (1 hr = 1.0 / 24.0 day),
+    /// within the range (-12.0 / 24.0) to (14.0 / 24.0)
     pub(crate) utc_offset: f64,
 }
 
@@ -77,10 +78,10 @@ pub const WINTER: f64 = 270.0;
 pub const NEW_MOON_ZERO: Moment = Moment::new(11.458922815770109);
 
 impl Location {
-    /// Create a location; latitude is from -90 to 90, and longitude is from -180 to 180;
-    /// attempting to create a location outside of these bounds will result in a LocationOutOfBoundsError.
-    #[allow(dead_code)] // TODO: Remove dead_code tag after use
-    pub(crate) fn try_new(
+    /// Create a location; latitude is from -90 to 90, longitude is from -180 to 180,
+    /// and `utc_offset` is from (-12.0 / 24.0) to (14.0 / 24.0);
+    /// attempting to create a location outside of these bounds will result in a [`LocationOutOfBoundsError`].
+    pub fn try_new(
         latitude: f64,
         longitude: f64,
         elevation: f64,
@@ -170,7 +171,7 @@ impl Location {
 
     /// Given a UTC-offset in hours and a Moment in standard time,
     /// return the Moment in universal time from the time zone with the given offset.
-    /// The field utc_offset should be within the range of possible offsets given by
+    /// The field `utc_offset` should be within the range of possible offsets given by
     /// the constand fields `MIN_UTC_OFFSET` and `MAX_UTC_OFFSET`.
     ///
     /// Based on functions from _Calendrical Calculations_ by Reingold & Dershowitz.
@@ -181,7 +182,7 @@ impl Location {
     }
     /// Given a Moment in standard time and UTC-offset in hours,
     /// return the Moment in standard time from the time zone with the given offset.
-    /// The field utc_offset should be within the range of possible offsets given by
+    /// The field `utc_offset` should be within the range of possible offsets given by
     /// the constand fields `MIN_UTC_OFFSET` and `MAX_UTC_OFFSET`.
     ///
     /// Based on functions from _Calendrical Calculations_ by Reingold & Dershowitz.
@@ -1178,7 +1179,7 @@ impl Astronomical {
     }
 
     /// Closest fixed date on or before `date` when crescent moon first became visible at `location`.
-    /// Lunar phase is the result of calling `lunar_phase(moment, julian_centuries) in an earlier function.
+    /// Lunar phase is the result of calling `lunar_phase(moment, julian_centuries)` in an earlier function.
     ///
     /// Based on functions from _Calendrical Calculations_ by Reingold & Dershowitz.
     /// Reference lisp code: <https://github.com/EdReingold/calendar-code2/blob/9afc1f3/calendar.l#L6868-L6881>
@@ -1412,7 +1413,7 @@ impl Astronomical {
     }
 
     /// Average anomaly of the sun (in degrees) at a given Moment in Julian centuries.
-    /// See: https://en.wikipedia.org/wiki/Mean_anomaly
+    /// See: <https://en.wikipedia.org/wiki/Mean_anomaly>
     ///
     /// Based on functions from _Calendrical Calculations_ by Reingold & Dershowitz,
     /// originally from _Astronomical Algorithms_ by Jean Meeus, 2nd edn., 1998, p. 338.
@@ -1424,7 +1425,7 @@ impl Astronomical {
     }
 
     /// Average anomaly of the moon (in degrees) at a given Moment in Julian centuries
-    /// See: https://en.wikipedia.org/wiki/Mean_anomaly
+    /// See: <https://en.wikipedia.org/wiki/Mean_anomaly>
     ///
     /// Based on functions from _Calendrical Calculations_ by Reingold & Dershowitz,
     /// originally from _Astronomical Algorithms_ by Jean Meeus, 2nd edn., 1998, p. 338.
@@ -1846,7 +1847,7 @@ impl Astronomical {
     }
 
     /// Aberration at the time given in Julian centuries.
-    /// See: https://sceweb.sce.uhcl.edu/helm/WEB-Positional%20Astronomy/Tutorial/Aberration/Aberration.html
+    /// See: <https://sceweb.sce.uhcl.edu/helm/WEB-Positional%20Astronomy/Tutorial/Aberration/Aberration.html>
     ///
     /// Based on functions from _Calendrical Calculations_ by Reingold & Dershowitz.
     /// Lisp code reference: <https://github.com/EdReingold/calendar-code2/blob/9afc1f3/calendar.l#L4049-L4057>

@@ -150,6 +150,9 @@ namespace capi {
     typedef struct temporal_rs_PlainDateTime_to_zoned_date_time_with_provider_result {union {temporal_rs::capi::ZonedDateTime* ok; temporal_rs::capi::TemporalError err;}; bool is_ok;} temporal_rs_PlainDateTime_to_zoned_date_time_with_provider_result;
     temporal_rs_PlainDateTime_to_zoned_date_time_with_provider_result temporal_rs_PlainDateTime_to_zoned_date_time_with_provider(const temporal_rs::capi::PlainDateTime* self, temporal_rs::capi::TimeZone time_zone, temporal_rs::capi::Disambiguation disambiguation, const temporal_rs::capi::Provider* p);
 
+    typedef struct temporal_rs_PlainDateTime_epoch_ms_for_utc_result {union {int64_t ok; temporal_rs::capi::TemporalError err;}; bool is_ok;} temporal_rs_PlainDateTime_epoch_ms_for_utc_result;
+    temporal_rs_PlainDateTime_epoch_ms_for_utc_result temporal_rs_PlainDateTime_epoch_ms_for_utc(const temporal_rs::capi::PlainDateTime* self);
+
     typedef struct temporal_rs_PlainDateTime_to_ixdtf_string_result {union { temporal_rs::capi::TemporalError err;}; bool is_ok;} temporal_rs_PlainDateTime_to_ixdtf_string_result;
     temporal_rs_PlainDateTime_to_ixdtf_string_result temporal_rs_PlainDateTime_to_ixdtf_string(const temporal_rs::capi::PlainDateTime* self, temporal_rs::capi::ToStringRoundingOptions options, temporal_rs::capi::DisplayCalendar display_calendar, temporal_rs::diplomat::capi::DiplomatWrite* write);
 
@@ -452,6 +455,11 @@ inline temporal_rs::diplomat::result<std::unique_ptr<temporal_rs::ZonedDateTime>
         disambiguation.AsFFI(),
         p.AsFFI());
     return result.is_ok ? temporal_rs::diplomat::result<std::unique_ptr<temporal_rs::ZonedDateTime>, temporal_rs::TemporalError>(temporal_rs::diplomat::Ok<std::unique_ptr<temporal_rs::ZonedDateTime>>(std::unique_ptr<temporal_rs::ZonedDateTime>(temporal_rs::ZonedDateTime::FromFFI(result.ok)))) : temporal_rs::diplomat::result<std::unique_ptr<temporal_rs::ZonedDateTime>, temporal_rs::TemporalError>(temporal_rs::diplomat::Err<temporal_rs::TemporalError>(temporal_rs::TemporalError::FromFFI(result.err)));
+}
+
+inline temporal_rs::diplomat::result<int64_t, temporal_rs::TemporalError> temporal_rs::PlainDateTime::epoch_ms_for_utc() const {
+    auto result = temporal_rs::capi::temporal_rs_PlainDateTime_epoch_ms_for_utc(this->AsFFI());
+    return result.is_ok ? temporal_rs::diplomat::result<int64_t, temporal_rs::TemporalError>(temporal_rs::diplomat::Ok<int64_t>(result.ok)) : temporal_rs::diplomat::result<int64_t, temporal_rs::TemporalError>(temporal_rs::diplomat::Err<temporal_rs::TemporalError>(temporal_rs::TemporalError::FromFFI(result.err)));
 }
 
 inline temporal_rs::diplomat::result<std::string, temporal_rs::TemporalError> temporal_rs::PlainDateTime::to_ixdtf_string(temporal_rs::ToStringRoundingOptions options, temporal_rs::DisplayCalendar display_calendar) const {

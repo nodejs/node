@@ -91,7 +91,7 @@ impl_tinystr_subtag!(
     ["f", "toolooong"],
 );
 
-#[allow(clippy::len_without_is_empty)]
+#[expect(clippy::len_without_is_empty)]
 impl Subtag {
     #[allow(dead_code)]
     pub(crate) const fn valid_key(v: &[u8]) -> bool {
@@ -112,7 +112,7 @@ impl Subtag {
     }
 
     #[doc(hidden)]
-    pub fn from_tinystr_unvalidated(input: tinystr::TinyAsciiStr<8>) -> Self {
+    pub const fn from_tinystr_unvalidated(input: tinystr::TinyAsciiStr<8>) -> Self {
         Self(input)
     }
 

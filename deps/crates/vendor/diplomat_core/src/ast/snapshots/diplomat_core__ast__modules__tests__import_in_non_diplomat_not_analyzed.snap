@@ -11,7 +11,8 @@ modules:
         Struct:
           name: Foo
           docs:
-            - ""
+            - - cfg: Star
+                lines: ""
             - []
           lifetimes: {}
           fields: []

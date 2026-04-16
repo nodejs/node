@@ -18,7 +18,7 @@ use core_maths::*;
 ///
 /// See: <https://en.wikipedia.org/wiki/Rata_Die>
 ///
-/// Typically, one should obtain RataDies from other calendrical code, rather than constructing them from integers.
+/// Typically, one should obtain [`RataDie`]s from other calendrical code, rather than constructing them from integers.
 /// The valid range for direct construction is deliberately not documented as it may change.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RataDie(i64);
@@ -122,7 +122,7 @@ impl fmt::Debug for RataDie {
     }
 }
 
-/// Shift a RataDie N days into the future
+/// Shift a [`RataDie`] N days into the future
 impl Add<i64> for RataDie {
     type Output = Self;
     fn add(self, rhs: i64) -> Self::Output {
@@ -136,7 +136,7 @@ impl AddAssign<i64> for RataDie {
     }
 }
 
-/// Shift a RataDie N days into the past
+/// Shift a [`RataDie`] N days into the past
 impl Sub<i64> for RataDie {
     type Output = Self;
     fn sub(self, rhs: i64) -> Self::Output {
@@ -153,7 +153,7 @@ impl SubAssign<i64> for RataDie {
     }
 }
 
-/// Calculate the number of days between two RataDie
+/// Calculate the number of days between two [`RataDie`]
 impl Sub for RataDie {
     type Output = i64;
     fn sub(self, rhs: Self) -> Self::Output {
@@ -161,7 +161,7 @@ impl Sub for RataDie {
     }
 }
 
-/// A moment is a RataDie with a fractional part giving the time of day.
+/// A moment is a [`RataDie`] with a fractional part giving the time of day.
 ///
 /// NOTE: This should not cause overflow errors for most cases, but consider
 /// alternative implementations if necessary.
@@ -215,7 +215,7 @@ impl Moment {
         self.0
     }
 
-    /// Get the RataDie of a Moment
+    /// Get the [`RataDie`] of a Moment
     pub fn as_rata_die(self) -> RataDie {
         RataDie::new(self.0.floor() as i64)
     }

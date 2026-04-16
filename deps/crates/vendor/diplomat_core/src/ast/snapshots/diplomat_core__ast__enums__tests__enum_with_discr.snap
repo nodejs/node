@@ -1,10 +1,11 @@
 ---
 source: core/src/ast/enums.rs
-expression: "Enum::new(&syn::parse_quote! {\n                /// Some docs.\n                #[diplomat :: rust_link(foo :: Bar, Enum)] enum\n                DiscriminantedEnum { Abc = - 1, Def = 0, Ghi = 1, Jkl = 2, }\n            }, &Default::default())"
+expression: "Enum::new(&syn::parse_quote!\n{\n    #[doc = r\" Some docs.\"] #[diplomat::rust_link(foo::Bar, Enum)] enum\n    DiscriminantedEnum { Abc = -1, Def = 0, Ghi = 1, Jkl = 2, }\n}, &Default::default())"
 ---
 name: DiscriminantedEnum
 docs:
-  - Some docs.
+  - - cfg: Star
+      lines: Some docs.
   - - path:
         elements:
           - foo
@@ -14,24 +15,27 @@ docs:
 variants:
   - - Abc
     - -1
-    - - ""
+    - - - cfg: Star
+          lines: ""
       - []
     - {}
   - - Def
     - 0
-    - - ""
+    - - - cfg: Star
+          lines: ""
       - []
     - {}
   - - Ghi
     - 1
-    - - ""
+    - - - cfg: Star
+          lines: ""
       - []
     - {}
   - - Jkl
     - 2
-    - - ""
+    - - - cfg: Star
+          lines: ""
       - []
     - {}
 methods: []
 attrs: {}
-
