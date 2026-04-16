@@ -12,6 +12,7 @@ const { fixtureSymbols, libraryPath } = require('./ffi-test-common');
 const { lib, functions: symbols } = ffi.dlopen(libraryPath, {
   allocate_memory: fixtureSymbols.allocate_memory,
   deallocate_memory: fixtureSymbols.deallocate_memory,
+  pointer_to_usize: fixtureSymbols.pointer_to_usize,
 });
 
 after(() => lib.close());
@@ -120,6 +121,24 @@ test('ffi toArrayBuffer supports copy and zero-copy views', () => {
   }));
 });
 
+test('ffi getRawPointer returns raw addresses for byte sources', () => {
+  const buffer = Buffer.from([1, 2, 3]);
+  const arrayBuffer = new Uint8Array([4, 5, 6, 7]).buffer;
+  const view = new Uint8Array(arrayBuffer, 2);
+
+  const bufferPointer = ffi.getRawPointer(buffer);
+  const arrayBufferPointer = ffi.getRawPointer(arrayBuffer);
+  const viewPointer = ffi.getRawPointer(view);
+
+  assert.strictEqual(typeof bufferPointer, 'bigint');
+  assert.strictEqual(typeof arrayBufferPointer, 'bigint');
+  assert.strictEqual(typeof viewPointer, 'bigint');
+
+  assert.strictEqual(bufferPointer, symbols.pointer_to_usize(buffer));
+  assert.strictEqual(arrayBufferPointer, symbols.pointer_to_usize(arrayBuffer));
+  assert.strictEqual(viewPointer, arrayBufferPointer + 2n);
+});
+
 test('ffi exportString and exportBuffer copy data into native memory', () => {
   withAllocations(common.mustCall((alloc) => {
     const stringPtr = alloc(16);
@@ -148,6 +167,22 @@ test('ffi exportString and exportBuffer copy data into native memory', () => {
     assert.throws(() => ffi.exportBuffer(Buffer.from([1, 2, 3, 4, 5, 6, 7]), bufferPtr, 6), {
       code: 'ERR_OUT_OF_RANGE',
     });
+
+    const arrayBufferPtr = alloc(8);
+    const arrayBuffer = new Uint8Array([8, 9, 10, 11]).buffer;
+    ffi.exportArrayBuffer(arrayBuffer, arrayBufferPtr, 4);
+    assert.deepStrictEqual([...ffi.toBuffer(arrayBufferPtr, 4)], [8, 9, 10, 11]);
+
+    const viewPtr = alloc(8);
+    const viewSource = new Uint16Array([0x0102, 0x0304, 0x0506]);
+    const middleBytes = new Uint8Array(viewSource.buffer, 2, 2);
+    ffi.exportArrayBufferView(middleBytes, viewPtr, 2);
+    assert.deepStrictEqual([...ffi.toBuffer(viewPtr, 2)], [0x04, 0x03]);
+
+    const bufferViewPtr = alloc(8);
+    const bufferView = Buffer.from([1, 7, 2, 8, 3]);
+    ffi.exportArrayBufferView(bufferView.subarray(1, 4), bufferViewPtr, 3);
+    assert.deepStrictEqual([...ffi.toBuffer(bufferViewPtr, 3)], [7, 2, 8]);
   }));
 });
 
@@ -169,6 +204,8 @@ test('ffi validates memory access arguments', () => {
     assert.throws(() => ffi.toArrayBuffer(ptr, 'bad'), /The length must be a number/);
     assert.throws(() => ffi.toArrayBuffer(-1n, 4), /The first argument must be a non-negative bigint/);
     assert.throws(() => ffi.toArrayBuffer(0n, 1), /Cannot create an ArrayBuffer from a null pointer/);
+    assert.throws(() => ffi.getRawPointer('bad'), { code: 'ERR_INVALID_ARG_TYPE' });
+    assert.throws(() => ffi.getRawPointer(1), { code: 'ERR_INVALID_ARG_TYPE' });
     assert.throws(() => ffi.getInt32(0n), /Cannot dereference a null pointer/);
     assert.throws(() => ffi.getInt32(-1n), /The pointer must be a non-negative bigint/);
     assert.throws(() => ffi.getInt8(maxPointer, 8), /pointer and offset exceed the platform address range/);
@@ -201,6 +238,12 @@ test('ffi validates memory access arguments', () => {
     assert.throws(() => ffi.exportBuffer('bad', ptr, 4), { code: 'ERR_INVALID_ARG_TYPE' });
     assert.throws(() => ffi.exportBuffer(Buffer.from([1]), ptr, -1), { code: 'ERR_OUT_OF_RANGE' });
     assert.throws(() => ffi.exportBuffer(Buffer.from([1, 2]), ptr, 1), { code: 'ERR_OUT_OF_RANGE' });
+    assert.throws(() => ffi.exportArrayBuffer('bad', ptr, 4), { code: 'ERR_INVALID_ARG_TYPE' });
+    assert.throws(() => ffi.exportArrayBuffer(new ArrayBuffer(1), ptr, -1), { code: 'ERR_OUT_OF_RANGE' });
+    assert.throws(() => ffi.exportArrayBuffer(new ArrayBuffer(2), ptr, 1), { code: 'ERR_OUT_OF_RANGE' });
+    assert.throws(() => ffi.exportArrayBufferView('bad', ptr, 4), { code: 'ERR_INVALID_ARG_TYPE' });
+    assert.throws(() => ffi.exportArrayBufferView(new Uint8Array([1]), ptr, -1), { code: 'ERR_OUT_OF_RANGE' });
+    assert.throws(() => ffi.exportArrayBufferView(new Uint8Array([1, 2]), ptr, 1), { code: 'ERR_OUT_OF_RANGE' });
     assert.throws(() => ffi.toBuffer(maxPointer, 8), /pointer and length exceed the platform address range/);
     assert.throws(() => ffi.toArrayBuffer(maxPointer, 8), /pointer and length exceed the platform address range/);
     assert.throws(() => ffi.toBuffer(1n, bufferConstants.MAX_LENGTH + 1), { code: 'ERR_BUFFER_TOO_LARGE' });

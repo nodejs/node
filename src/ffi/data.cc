@@ -13,6 +13,7 @@
 #include <type_traits>
 
 using v8::ArrayBuffer;
+using v8::ArrayBufferView;
 using v8::BackingStore;
 using v8::BigInt;
 using v8::Context;
@@ -51,8 +52,8 @@ bool GetValidatedSize(Environment* env,
   }
 
   if (length > static_cast<double>(std::numeric_limits<size_t>::max())) {
-    env->ThrowRangeError(
-        (std::string("The ") + label + " is too large").c_str());
+    THROW_ERR_OUT_OF_RANGE(
+        env, (std::string("The ") + label + " is too large").c_str());
     return false;
   }
 
@@ -81,7 +82,8 @@ bool GetValidatedPointerAddress(Environment* env,
   }
 
   if (address > static_cast<uint64_t>(std::numeric_limits<uintptr_t>::max())) {
-    env->ThrowRangeError(
+    THROW_ERR_INVALID_ARG_VALUE(
+        env,
         (std::string("The ") + label + " exceeds the platform pointer range")
             .c_str());
     return false;
@@ -145,14 +147,14 @@ bool ValidatePointerSpan(Environment* env,
                          size_t length,
                          const char* error_message) {
   if (offset > std::numeric_limits<uintptr_t>::max() - raw_ptr) {
-    env->ThrowRangeError(error_message);
+    THROW_ERR_INVALID_ARG_VALUE(env, error_message);
     return false;
   }
 
   uintptr_t start = raw_ptr + offset;
   if (length > 0 &&
       length - 1 > std::numeric_limits<uintptr_t>::max() - start) {
-    env->ThrowRangeError(error_message);
+    THROW_ERR_INVALID_ARG_VALUE(env, error_message);
     return false;
   }
 
@@ -188,7 +190,7 @@ bool GetValidatedPointerAndOffset(Environment* env,
   }
 
   if (raw_ptr == 0) {
-    env->ThrowError("Cannot dereference a null pointer");
+    THROW_ERR_FFI_INVALID_POINTER(env, "Cannot dereference a null pointer");
     return false;
   }
 
@@ -224,7 +226,7 @@ bool GetValidatedPointerValueAndOffset(Environment* env,
   }
 
   if (raw_ptr == 0) {
-    env->ThrowError("Cannot dereference a null pointer");
+    THROW_ERR_FFI_INVALID_POINTER(env, "Cannot dereference a null pointer");
     return false;
   }
 
@@ -570,7 +572,8 @@ void ToBuffer(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (ptr == 0 && len > 0) {
-    env->ThrowError("Cannot create a buffer from a null pointer");
+    THROW_ERR_FFI_INVALID_POINTER(env,
+                                  "Cannot create a buffer from a null pointer");
     return;
   }
 
@@ -630,7 +633,8 @@ void ToArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (ptr == 0 && len > 0) {
-    env->ThrowError("Cannot create an ArrayBuffer from a null pointer");
+    THROW_ERR_FFI_INVALID_POINTER(
+        env, "Cannot create an ArrayBuffer from a null pointer");
     return;
   }
 
@@ -666,6 +670,130 @@ void ToArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   }
 
   args.GetReturnValue().Set(ab);
+}
+
+void ExportBytes(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kFFI, "");
+
+  if (args.Length() < 1) {
+    THROW_ERR_INVALID_ARG_TYPE(
+        env,
+        "The first argument must be a Buffer, ArrayBuffer, or ArrayBufferView");
+    return;
+  }
+
+  uint8_t* source_data = nullptr;
+  size_t source_len = 0;
+
+  if (Buffer::HasInstance(args[0])) {
+    source_data = reinterpret_cast<uint8_t*>(Buffer::Data(args[0]));
+    source_len = Buffer::Length(args[0]);
+  } else if (args[0]->IsArrayBuffer()) {
+    Local<ArrayBuffer> array_buffer = args[0].As<ArrayBuffer>();
+    std::shared_ptr<BackingStore> store = array_buffer->GetBackingStore();
+    if (!store) {
+      THROW_ERR_INVALID_ARG_VALUE(env, "Invalid ArrayBuffer backing store");
+      return;
+    }
+    source_data = static_cast<uint8_t*>(store->Data());
+    source_len = array_buffer->ByteLength();
+  } else if (args[0]->IsArrayBufferView()) {
+    Local<ArrayBufferView> view = args[0].As<ArrayBufferView>();
+    std::shared_ptr<BackingStore> store = view->Buffer()->GetBackingStore();
+    if (!store) {
+      THROW_ERR_INVALID_ARG_VALUE(env, "Invalid ArrayBufferView backing store");
+      return;
+    }
+    source_data = static_cast<uint8_t*>(store->Data()) + view->ByteOffset();
+    source_len = view->ByteLength();
+  } else {
+    THROW_ERR_INVALID_ARG_TYPE(
+        env,
+        "The first argument must be a Buffer, ArrayBuffer, or ArrayBufferView");
+    return;
+  }
+
+  uintptr_t ptr;
+  if (args.Length() < 2 ||
+      !GetValidatedPointerAddress(env, args[1], "pointer", &ptr)) {
+    return;
+  }
+
+  size_t len;
+  if (args.Length() < 3 || !GetValidatedSize(env, args[2], "length", &len)) {
+    return;
+  }
+
+  if (len < source_len) {
+    THROW_ERR_OUT_OF_RANGE(env, "The length must be >= source byte length");
+    return;
+  }
+
+  if (ptr == 0 && source_len > 0) {
+    THROW_ERR_FFI_INVALID_POINTER(env,
+                                  "Cannot create a buffer from a null pointer");
+    return;
+  }
+
+  if (!ValidatePointerSpan(
+          env,
+          ptr,
+          0,
+          len,
+          "The pointer and length exceed the platform address range")) {
+    return;
+  }
+
+  if (source_len > 0) {
+    std::memcpy(reinterpret_cast<void*>(ptr), source_data, source_len);
+  }
+}
+
+void GetRawPointer(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kFFI, "");
+
+  if (args.Length() < 1) {
+    THROW_ERR_INVALID_ARG_TYPE(
+        env,
+        "The first argument must be a Buffer, ArrayBuffer, or ArrayBufferView");
+    return;
+  }
+
+  uintptr_t ptr = 0;
+
+  if (Buffer::HasInstance(args[0])) {
+    ptr = reinterpret_cast<uintptr_t>(Buffer::Data(args[0]));
+  } else if (args[0]->IsArrayBuffer()) {
+    Local<ArrayBuffer> array_buffer = args[0].As<ArrayBuffer>();
+    std::shared_ptr<BackingStore> store = array_buffer->GetBackingStore();
+    if (!store) {
+      THROW_ERR_INVALID_ARG_VALUE(env, "Invalid ArrayBuffer backing store");
+      return;
+    }
+    ptr = reinterpret_cast<uintptr_t>(store->Data());
+  } else if (args[0]->IsArrayBufferView()) {
+    Local<ArrayBufferView> view = args[0].As<ArrayBufferView>();
+    std::shared_ptr<BackingStore> store = view->Buffer()->GetBackingStore();
+    if (!store) {
+      THROW_ERR_INVALID_ARG_VALUE(env, "Invalid ArrayBufferView backing store");
+      return;
+    }
+    ptr = reinterpret_cast<uintptr_t>(static_cast<uint8_t*>(store->Data()) +
+                                      view->ByteOffset());
+  } else {
+    THROW_ERR_INVALID_ARG_TYPE(
+        env,
+        "The first argument must be a Buffer, ArrayBuffer, or ArrayBufferView");
+    return;
+  }
+
+  args.GetReturnValue().Set(
+      BigInt::NewFromUnsigned(isolate, static_cast<uint64_t>(ptr)));
 }
 
 }  // namespace ffi

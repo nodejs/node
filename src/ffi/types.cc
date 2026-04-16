@@ -4,6 +4,7 @@
 #include "base_object-inl.h"
 #include "data.h"
 #include "ffi.h"
+#include "node_errors.h"
 #include "node_ffi.h"
 #include "v8.h"
 
@@ -37,7 +38,8 @@ bool ThrowIfContainsNullBytes(Environment* env,
                               const std::string& label) {
   if (value.length() != 0 &&
       std::memchr(*value, '\0', value.length()) != nullptr) {
-    env->ThrowTypeError((label + " must not contain null bytes").c_str());
+    THROW_ERR_INVALID_ARG_VALUE(
+        env, (label + " must not contain null bytes").c_str());
     return true;
   }
 
@@ -120,7 +122,7 @@ bool ParseFunctionSignature(Environment* env,
     std::string msg = "Function signature of " + name +
                       " must have either 'returns', 'return' or 'result' "
                       "property";
-    env->ThrowTypeError(msg.c_str());
+    THROW_ERR_INVALID_ARG_VALUE(env, msg.c_str());
     return false;
   }
 
@@ -128,7 +130,7 @@ bool ParseFunctionSignature(Environment* env,
     std::string msg = "Function signature of " + name +
                       " must have either 'parameters' or 'arguments' "
                       "property";
-    env->ThrowTypeError(msg.c_str());
+    THROW_ERR_INVALID_ARG_VALUE(env, msg.c_str());
     return false;
   }
 
@@ -154,7 +156,7 @@ bool ParseFunctionSignature(Environment* env,
     if (!return_type_val->IsString()) {
       std::string msg =
           "Return value type of function " + name + " must be a string";
-      env->ThrowTypeError(msg.c_str());
+      THROW_ERR_INVALID_ARG_VALUE(env, msg.c_str());
       return false;
     }
 
@@ -178,7 +180,7 @@ bool ParseFunctionSignature(Environment* env,
     if (!arguments_val->IsArray()) {
       std::string msg =
           "Arguments list of function " + name + " must be an array";
-      env->ThrowTypeError(msg.c_str());
+      THROW_ERR_INVALID_ARG_VALUE(env, msg.c_str());
       return false;
     }
 
@@ -195,7 +197,7 @@ bool ParseFunctionSignature(Environment* env,
       if (!arg->IsString()) {
         std::string msg = "Argument " + std::to_string(i) + " of function " +
                           name + " must be a string";
-        env->ThrowTypeError(msg.c_str());
+        THROW_ERR_INVALID_ARG_VALUE(env, msg.c_str());
         return false;
       }
 
@@ -236,7 +238,7 @@ bool SignaturesMatch(const FFIFunction& fn,
 
 bool ToFFIType(Environment* env, const std::string& type_str, ffi_type** ret) {
   if (ret == nullptr) {
-    env->ThrowTypeError("ret must not be null");
+    THROW_ERR_INVALID_ARG_VALUE(env, "ret must not be null");
     return false;
   }
 
@@ -271,7 +273,7 @@ bool ToFFIType(Environment* env, const std::string& type_str, ffi_type** ret) {
     *ret = &ffi_type_pointer;
   } else {
     std::string msg = std::string("Unsupported FFI type: ") + type_str;
-    env->ThrowTypeError(msg.c_str());
+    THROW_ERR_INVALID_ARG_VALUE(env, msg.c_str());
     return false;
   }
 
@@ -291,7 +293,8 @@ uint8_t ToFFIArgument(Environment* env,
     int64_t value;
     if (!GetValidatedSignedInt(env, arg, INT8_MIN, INT8_MAX, "int8", &value)) {
       if (env->isolate()->IsExecutionTerminating()) return 0;
-      env->ThrowTypeError(
+      THROW_ERR_INVALID_ARG_VALUE(
+          env,
           ("Argument " + std::to_string(index) + " must be an int8").c_str());
       return 0;
     }
@@ -301,7 +304,8 @@ uint8_t ToFFIArgument(Environment* env,
     uint64_t value;
     if (!GetValidatedUnsignedInt(env, arg, UINT8_MAX, "uint8", &value)) {
       if (env->isolate()->IsExecutionTerminating()) return 0;
-      env->ThrowTypeError(
+      THROW_ERR_INVALID_ARG_VALUE(
+          env,
           ("Argument " + std::to_string(index) + " must be a uint8").c_str());
       return 0;
     }
@@ -312,7 +316,8 @@ uint8_t ToFFIArgument(Environment* env,
     if (!GetValidatedSignedInt(
             env, arg, INT16_MIN, INT16_MAX, "int16", &value)) {
       if (env->isolate()->IsExecutionTerminating()) return 0;
-      env->ThrowTypeError(
+      THROW_ERR_INVALID_ARG_VALUE(
+          env,
           ("Argument " + std::to_string(index) + " must be an int16").c_str());
       return 0;
     }
@@ -322,7 +327,8 @@ uint8_t ToFFIArgument(Environment* env,
     uint64_t value;
     if (!GetValidatedUnsignedInt(env, arg, UINT16_MAX, "uint16", &value)) {
       if (env->isolate()->IsExecutionTerminating()) return 0;
-      env->ThrowTypeError(
+      THROW_ERR_INVALID_ARG_VALUE(
+          env,
           ("Argument " + std::to_string(index) + " must be a uint16").c_str());
       return 0;
     }
@@ -330,7 +336,8 @@ uint8_t ToFFIArgument(Environment* env,
     *static_cast<uint16_t*>(ret) = static_cast<uint16_t>(value);
   } else if (type == &ffi_type_sint32) {
     if (!arg->IsInt32()) {
-      env->ThrowTypeError(
+      THROW_ERR_INVALID_ARG_VALUE(
+          env,
           ("Argument " + std::to_string(index) + " must be an int32").c_str());
       return 0;
     }
@@ -338,7 +345,8 @@ uint8_t ToFFIArgument(Environment* env,
     *static_cast<int32_t*>(ret) = arg->Int32Value(context).FromJust();
   } else if (type == &ffi_type_uint32) {
     if (!arg->IsUint32()) {
-      env->ThrowTypeError(
+      THROW_ERR_INVALID_ARG_VALUE(
+          env,
           ("Argument " + std::to_string(index) + " must be a uint32").c_str());
       return 0;
     }
@@ -346,7 +354,8 @@ uint8_t ToFFIArgument(Environment* env,
     *static_cast<uint32_t*>(ret) = arg->Uint32Value(context).FromJust();
   } else if (type == &ffi_type_sint64) {
     if (!arg->IsBigInt()) {
-      env->ThrowTypeError(
+      THROW_ERR_INVALID_ARG_VALUE(
+          env,
           ("Argument " + std::to_string(index) + " must be an int64").c_str());
       return 0;
     }
@@ -354,13 +363,15 @@ uint8_t ToFFIArgument(Environment* env,
     bool lossless;
     *static_cast<int64_t*>(ret) = arg.As<BigInt>()->Int64Value(&lossless);
     if (!lossless) {
-      env->ThrowTypeError(
+      THROW_ERR_INVALID_ARG_VALUE(
+          env,
           ("Argument " + std::to_string(index) + " must be an int64").c_str());
       return 0;
     }
   } else if (type == &ffi_type_uint64) {
     if (!arg->IsBigInt()) {
-      env->ThrowTypeError(
+      THROW_ERR_INVALID_ARG_VALUE(
+          env,
           ("Argument " + std::to_string(index) + " must be a uint64").c_str());
       return 0;
     }
@@ -368,13 +379,15 @@ uint8_t ToFFIArgument(Environment* env,
     bool lossless;
     *static_cast<uint64_t*>(ret) = arg.As<BigInt>()->Uint64Value(&lossless);
     if (!lossless) {
-      env->ThrowTypeError(
+      THROW_ERR_INVALID_ARG_VALUE(
+          env,
           ("Argument " + std::to_string(index) + " must be a uint64").c_str());
       return 0;
     }
   } else if (type == &ffi_type_float) {
     if (!arg->IsNumber()) {
-      env->ThrowTypeError(
+      THROW_ERR_INVALID_ARG_VALUE(
+          env,
           ("Argument " + std::to_string(index) + " must be a float").c_str());
       return 0;
     }
@@ -383,7 +396,8 @@ uint8_t ToFFIArgument(Environment* env,
         static_cast<float>(arg->NumberValue(context).FromJust());
   } else if (type == &ffi_type_double) {
     if (!arg->IsNumber()) {
-      env->ThrowTypeError(
+      THROW_ERR_INVALID_ARG_VALUE(
+          env,
           ("Argument " + std::to_string(index) + " must be a double").c_str());
       return 0;
     }
@@ -405,7 +419,8 @@ uint8_t ToFFIArgument(Environment* env,
       std::shared_ptr<BackingStore> store = view->Buffer()->GetBackingStore();
 
       if (!store) {
-        env->ThrowTypeError(
+        THROW_ERR_INVALID_ARG_VALUE(
+            env,
             ("Invalid ArrayBufferView backing store for argument " +
              std::to_string(index))
                 .c_str());
@@ -426,9 +441,11 @@ uint8_t ToFFIArgument(Environment* env,
       std::shared_ptr<BackingStore> store = buffer->GetBackingStore();
 
       if (!store) {
-        env->ThrowTypeError(("Invalid ArrayBuffer backing store for argument " +
-                             std::to_string(index))
-                                .c_str());
+        THROW_ERR_INVALID_ARG_VALUE(
+            env,
+            ("Invalid ArrayBuffer backing store for argument " +
+             std::to_string(index))
+                .c_str());
         return 0;
       }
 
@@ -438,22 +455,25 @@ uint8_t ToFFIArgument(Environment* env,
       uint64_t pointer = arg.As<BigInt>()->Uint64Value(&lossless);
       if (!lossless || pointer > static_cast<uint64_t>(
                                      std::numeric_limits<uintptr_t>::max())) {
-        env->ThrowTypeError(("Argument " + std::to_string(index) +
-                             " must be a non-negative pointer bigint")
-                                .c_str());
+        THROW_ERR_INVALID_ARG_VALUE(env,
+                                    ("Argument " + std::to_string(index) +
+                                     " must be a non-negative pointer bigint")
+                                        .c_str());
         return 0;
       }
 
       *static_cast<uint64_t*>(ret) = pointer;
     } else {
-      env->ThrowTypeError(
+      THROW_ERR_INVALID_ARG_VALUE(
+          env,
           ("Argument " + std::to_string(index) +
            " must be a buffer, an ArrayBuffer, a string, or a bigint")
               .c_str());
       return 0;
     }
   } else {
-    env->ThrowTypeError(
+    THROW_ERR_INVALID_ARG_VALUE(
+        env,
         ("Unsupported FFI type for argument " + std::to_string(index)).c_str());
     return 0;
   }
