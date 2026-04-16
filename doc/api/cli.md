@@ -1045,7 +1045,7 @@ added:
 
 Enable experimental import support for `.node` addons.
 
-### `--experimental-config-file=config`
+### `--experimental-config-file=path`, `--experimental-config-file`
 
 <!-- YAML
 added:
@@ -1056,6 +1056,12 @@ added:
 > Stability: 1.0 - Early development
 
 If present, Node.js will look for a configuration file at the specified path.
+If the path is not specified, Node.js will look for a `node.config.json` file
+in the current working directory.
+To specify a custom path, use the `--experimental-config-file=path` form.
+The space-separated `--experimental-config-file path` form is not supported.
+The alias `--experimental-default-config-file` is equivalent to
+`--experimental-config-file` without an argument.
 Node.js will read the configuration file and apply the settings. The
 configuration file should be a JSON file with the following structure. `vX.Y.Z`
 in the `$schema` must be replaced with the version of Node.js you are using.
@@ -1162,9 +1168,10 @@ added:
 
 > Stability: 1.0 - Early development
 
-If the `--experimental-default-config-file` flag is present, Node.js will look for a
+This flag is an alias for `--experimental-config-file` without an argument.
+If present, Node.js will look for a
 `node.config.json` file in the current working directory and load it as a
-as configuration file.
+configuration file.
 
 ### `--experimental-eventsource`
 
