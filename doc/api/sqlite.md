@@ -5,7 +5,9 @@
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: v25.7.0
+  - version:
+     - v25.7.0
+     - v24.15.0
     pr-url: https://github.com/nodejs/node/pull/61262
     description: SQLite is now a release candidate.
   - version:
@@ -81,6 +83,29 @@ const query = database.prepare('SELECT * FROM data ORDER BY key');
 console.log(query.all());
 // Prints: [ { key: 1, value: 'hello' }, { key: 2, value: 'world' } ]
 ```
+
+## Type conversion between JavaScript and SQLite
+
+When Node.js writes to or reads from SQLite, it is necessary to convert between
+JavaScript data types and SQLite's [data types][]. Because JavaScript supports
+more data types than SQLite, only a subset of JavaScript types are supported.
+Attempting to write an unsupported data type to SQLite will result in an
+exception.
+
+| Storage class | JavaScript to SQLite       | SQLite to JavaScript                  |
+| ------------- | -------------------------- | ------------------------------------- |
+| `NULL`        | {null}                     | {null}                                |
+| `INTEGER`     | {number} or {bigint}       | {number} or {bigint} _(configurable)_ |
+| `REAL`        | {number}                   | {number}                              |
+| `TEXT`        | {string}                   | {string}                              |
+| `BLOB`        | {TypedArray} or {DataView} | {Uint8Array}                          |
+
+APIs that read values from SQLite have a configuration option that determines
+whether `INTEGER` values are converted to `number` or `bigint` in JavaScript,
+such as the `readBigInts` option for statements and the `useBigIntArguments`
+option for user-defined functions. If Node.js reads an `INTEGER` value from
+SQLite that is outside the JavaScript [safe integer][] range, and the option to
+read BigInts is not enabled, then an `ERR_OUT_OF_RANGE` error will be thrown.
 
 ## Class: `DatabaseSync`
 
@@ -471,7 +496,9 @@ added:
 ### `database.limits`
 
 <!-- YAML
-added: v25.8.0
+added:
+ - v25.8.0
+ - v24.15.0
 -->
 
 * Type: {Object}
@@ -507,6 +534,89 @@ added: v22.5.0
 Opens the database specified in the `path` argument of the `DatabaseSync`
 constructor. This method should only be used when the database is not opened via
 the constructor. An exception is thrown if the database is already open.
+
+### `database.serialize([dbName])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `dbName` {string} Name of the database to serialize. This can be `'main'`
+  (the default primary database) or any other database that has been added with
+  [`ATTACH DATABASE`][]. **Default:** `'main'`.
+* Returns: {Uint8Array} A binary representation of the database.
+
+Serializes the database into a binary representation, returned as a
+`Uint8Array`. This is useful for saving, cloning, or transferring an in-memory
+database. This method is a wrapper around [`sqlite3_serialize()`][].
+
+```mjs
+import { DatabaseSync } from 'node:sqlite';
+
+const db = new DatabaseSync(':memory:');
+db.exec('CREATE TABLE t(key INTEGER PRIMARY KEY, value TEXT)');
+db.exec("INSERT INTO t VALUES (1, 'hello')");
+const buffer = db.serialize();
+console.log(buffer.length); // Prints the byte length of the database
+```
+
+```cjs
+const { DatabaseSync } = require('node:sqlite');
+
+const db = new DatabaseSync(':memory:');
+db.exec('CREATE TABLE t(key INTEGER PRIMARY KEY, value TEXT)');
+db.exec("INSERT INTO t VALUES (1, 'hello')");
+const buffer = db.serialize();
+console.log(buffer.length); // Prints the byte length of the database
+```
+
+### `database.deserialize(buffer[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `buffer` {Uint8Array} A binary representation of a database, such as the
+  output of [`database.serialize()`][].
+* `options` {Object} Optional configuration for the deserialization.
+  * `dbName` {string} Name of the database to deserialize into.
+    **Default:** `'main'`.
+
+Loads a serialized database into this connection, replacing the current
+database. The deserialized database is writable. Existing prepared statements
+are finalized before deserialization is attempted, even if the operation
+subsequently fails. This method is a wrapper around
+[`sqlite3_deserialize()`][].
+
+```mjs
+import { DatabaseSync } from 'node:sqlite';
+
+const original = new DatabaseSync(':memory:');
+original.exec('CREATE TABLE t(key INTEGER PRIMARY KEY, value TEXT)');
+original.exec("INSERT INTO t VALUES (1, 'hello')");
+const buffer = original.serialize();
+original.close();
+
+const clone = new DatabaseSync(':memory:');
+clone.deserialize(buffer);
+console.log(clone.prepare('SELECT value FROM t').get());
+// Prints: { value: 'hello' }
+```
+
+```cjs
+const { DatabaseSync } = require('node:sqlite');
+
+const original = new DatabaseSync(':memory:');
+original.exec('CREATE TABLE t(key INTEGER PRIMARY KEY, value TEXT)');
+original.exec("INSERT INTO t VALUES (1, 'hello')");
+const buffer = original.serialize();
+original.close();
+
+const clone = new DatabaseSync(':memory:');
+clone.deserialize(buffer);
+console.log(clone.prepare('SELECT value FROM t').get());
+// Prints: { value: 'hello' }
+```
 
 ### `database.prepare(sql[, options])`
 
@@ -1193,29 +1303,6 @@ added: v24.9.0
 
 Resets the LRU cache, clearing all stored prepared statements.
 
-### Type conversion between JavaScript and SQLite
-
-When Node.js writes to or reads from SQLite, it is necessary to convert between
-JavaScript data types and SQLite's [data types][]. Because JavaScript supports
-more data types than SQLite, only a subset of JavaScript types are supported.
-Attempting to write an unsupported data type to SQLite will result in an
-exception.
-
-| Storage class | JavaScript to SQLite       | SQLite to JavaScript                  |
-| ------------- | -------------------------- | ------------------------------------- |
-| `NULL`        | {null}                     | {null}                                |
-| `INTEGER`     | {number} or {bigint}       | {number} or {bigint} _(configurable)_ |
-| `REAL`        | {number}                   | {number}                              |
-| `TEXT`        | {string}                   | {string}                              |
-| `BLOB`        | {TypedArray} or {DataView} | {Uint8Array}                          |
-
-APIs that read values from SQLite have a configuration option that determines
-whether `INTEGER` values are converted to `number` or `bigint` in JavaScript,
-such as the `readBigInts` option for statements and the `useBigIntArguments`
-option for user-defined functions. If Node.js reads an `INTEGER` value from
-SQLite that is outside the JavaScript [safe integer][] range, and the option to
-read BigInts is not enabled, then an `ERR_OUT_OF_RANGE` error will be thrown.
-
 ## `sqlite.backup(sourceDb, path[, options])`
 
 <!-- YAML
@@ -1545,6 +1632,7 @@ callback function to indicate what type of operation is being authorized.
 [`SQLTagStore`]: #class-sqltagstore
 [`database.applyChangeset()`]: #databaseapplychangesetchangeset-options
 [`database.createTagStore()`]: #databasecreatetagstoremaxsize
+[`database.serialize()`]: #databaseserializedbname
 [`database.setAuthorizer()`]: #databasesetauthorizercallback
 [`sqlite3_backup_finish()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupfinish
 [`sqlite3_backup_init()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupinit
@@ -1559,12 +1647,14 @@ callback function to indicate what type of operation is being authorized.
 [`sqlite3_create_function_v2()`]: https://www.sqlite.org/c3ref/create_function.html
 [`sqlite3_create_window_function()`]: https://www.sqlite.org/c3ref/create_function.html
 [`sqlite3_db_filename()`]: https://sqlite.org/c3ref/db_filename.html
+[`sqlite3_deserialize()`]: https://sqlite.org/c3ref/deserialize.html
 [`sqlite3_exec()`]: https://www.sqlite.org/c3ref/exec.html
 [`sqlite3_expanded_sql()`]: https://www.sqlite.org/c3ref/expanded_sql.html
 [`sqlite3_get_autocommit()`]: https://sqlite.org/c3ref/get_autocommit.html
 [`sqlite3_last_insert_rowid()`]: https://www.sqlite.org/c3ref/last_insert_rowid.html
 [`sqlite3_load_extension()`]: https://www.sqlite.org/c3ref/load_extension.html
 [`sqlite3_prepare_v2()`]: https://www.sqlite.org/c3ref/prepare.html
+[`sqlite3_serialize()`]: https://sqlite.org/c3ref/serialize.html
 [`sqlite3_set_authorizer()`]: https://sqlite.org/c3ref/set_authorizer.html
 [`sqlite3_sql()`]: https://www.sqlite.org/c3ref/expanded_sql.html
 [`sqlite3changeset_apply()`]: https://www.sqlite.org/session/sqlite3changeset_apply.html

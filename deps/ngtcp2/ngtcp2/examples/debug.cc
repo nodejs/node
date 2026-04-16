@@ -48,12 +48,12 @@ auto *outfile = stderr;
 } // namespace
 
 int handshake_completed(ngtcp2_conn *conn, void *user_data) {
-  fprintf(outfile, "QUIC handshake has completed\n");
+  std::println(outfile, "QUIC handshake has completed");
   return 0;
 }
 
 int handshake_confirmed(ngtcp2_conn *conn, void *user_data) {
-  fprintf(outfile, "QUIC handshake has been confirmed\n");
+  std::println(outfile, "QUIC handshake has been confirmed");
   return 0;
 }
 
@@ -79,96 +79,100 @@ void print_crypto_data(ngtcp2_encryption_level encryption_level,
     assert(0);
     abort();
   }
-  fprintf(outfile, "Ordered CRYPTO data in %s crypto level\n",
-          encryption_level_str);
-  util::hexdump(outfile, data.data(), data.size());
+  std::println(outfile, "Ordered CRYPTO data in {} crypto level",
+               encryption_level_str);
+  util::hexdump(outfile, data);
 }
 
 void print_stream_data(int64_t stream_id, std::span<const uint8_t> data) {
-  fprintf(outfile, "Ordered STREAM data stream_id=0x%" PRIx64 "\n", stream_id);
-  util::hexdump(outfile, data.data(), data.size());
+  std::println(outfile, "Ordered STREAM data stream_id={:#x}", stream_id);
+  util::hexdump(outfile, data);
 }
 
 void print_initial_secret(std::span<const uint8_t> data) {
-  fprintf(outfile, "initial_secret=%s\n", util::format_hex(data).c_str());
+  std::println(outfile, "initial_secret={}", util::format_hex(data));
 }
 
 void print_client_in_secret(std::span<const uint8_t> data) {
-  fprintf(outfile, "client_in_secret=%s\n", util::format_hex(data).c_str());
+  std::println(outfile, "client_in_secret={}", util::format_hex(data));
 }
 
 void print_server_in_secret(std::span<const uint8_t> data) {
-  fprintf(outfile, "server_in_secret=%s\n", util::format_hex(data).c_str());
+  std::println(outfile, "server_in_secret={}", util::format_hex(data));
 }
 
 void print_handshake_secret(std::span<const uint8_t> data) {
-  fprintf(outfile, "handshake_secret=%s\n", util::format_hex(data).c_str());
+  std::println(outfile, "handshake_secret={}", util::format_hex(data));
 }
 
 void print_client_hs_secret(std::span<const uint8_t> data) {
-  fprintf(outfile, "client_hs_secret=%s\n", util::format_hex(data).c_str());
+  std::println(outfile, "client_hs_secret={}", util::format_hex(data));
 }
 
 void print_server_hs_secret(std::span<const uint8_t> data) {
-  fprintf(outfile, "server_hs_secret=%s\n", util::format_hex(data).c_str());
+  std::println(outfile, "server_hs_secret={}", util::format_hex(data));
 }
 
 void print_client_0rtt_secret(std::span<const uint8_t> data) {
-  fprintf(outfile, "client_0rtt_secret=%s\n", util::format_hex(data).c_str());
+  std::println(outfile, "client_0rtt_secret={}", util::format_hex(data));
 }
 
 void print_client_1rtt_secret(std::span<const uint8_t> data) {
-  fprintf(outfile, "client_1rtt_secret=%s\n", util::format_hex(data).c_str());
+  std::println(outfile, "client_1rtt_secret={}", util::format_hex(data));
 }
 
 void print_server_1rtt_secret(std::span<const uint8_t> data) {
-  fprintf(outfile, "server_1rtt_secret=%s\n", util::format_hex(data).c_str());
+  std::println(outfile, "server_1rtt_secret={}", util::format_hex(data));
 }
 
 void print_client_pp_key(std::span<const uint8_t> data) {
-  fprintf(outfile, "+ client_pp_key=%s\n", util::format_hex(data).c_str());
+  std::println(outfile, "+ client_pp_key={}", util::format_hex(data));
 }
 
 void print_server_pp_key(std::span<const uint8_t> data) {
-  fprintf(outfile, "+ server_pp_key=%s\n", util::format_hex(data).c_str());
+  std::println(outfile, "+ server_pp_key={}", util::format_hex(data));
 }
 
 void print_client_pp_iv(std::span<const uint8_t> data) {
-  fprintf(outfile, "+ client_pp_iv=%s\n", util::format_hex(data).c_str());
+  std::println(outfile, "+ client_pp_iv={}", util::format_hex(data));
 }
 
 void print_server_pp_iv(std::span<const uint8_t> data) {
-  fprintf(outfile, "+ server_pp_iv=%s\n", util::format_hex(data).c_str());
+  std::println(outfile, "+ server_pp_iv={}", util::format_hex(data));
 }
 
 void print_client_pp_hp(std::span<const uint8_t> data) {
-  fprintf(outfile, "+ client_pp_hp=%s\n", util::format_hex(data).c_str());
+  std::println(outfile, "+ client_pp_hp={}", util::format_hex(data));
 }
 
 void print_server_pp_hp(std::span<const uint8_t> data) {
-  fprintf(outfile, "+ server_pp_hp=%s\n", util::format_hex(data).c_str());
+  std::println(outfile, "+ server_pp_hp={}", util::format_hex(data));
 }
 
 void print_secrets(std::span<const uint8_t> secret,
                    std::span<const uint8_t> key, std::span<const uint8_t> iv,
                    std::span<const uint8_t> hp) {
-  std::cerr << "+ secret=" << util::format_hex(secret) << "\n"
-            << "+ key=" << util::format_hex(key) << "\n"
-            << "+ iv=" << util::format_hex(iv) << "\n"
-            << "+ hp=" << util::format_hex(hp) << std::endl;
+  std::println(stderr, R"(+ secret={}
++ key={}
++ iv={}
++ hp={})",
+               util::format_hex(secret), util::format_hex(key),
+               util::format_hex(iv), util::format_hex(hp));
 }
 
 void print_secrets(std::span<const uint8_t> secret,
                    std::span<const uint8_t> key, std::span<const uint8_t> iv) {
-  std::cerr << "+ secret=" << util::format_hex(secret) << "\n"
-            << "+ key=" << util::format_hex(key) << "\n"
-            << "+ iv=" << util::format_hex(iv) << std::endl;
+  std::println(stderr, R"(+ secret={}
++ key={}
++ iv={})",
+               util::format_hex(secret), util::format_hex(key),
+               util::format_hex(iv));
 }
 
 void print_hp_mask(std::span<const uint8_t> mask,
                    std::span<const uint8_t> sample) {
-  fprintf(outfile, "mask=%s sample=%s\n", util::format_hex(mask).c_str(),
-          util::format_hex(sample).c_str());
+  std::println(outfile, "mask={} sample={}", util::format_hex(mask),
+               util::format_hex(sample));
 }
 
 void log_printf(void *user_data, const char *fmt, ...) {
@@ -197,29 +201,28 @@ void path_validation(const ngtcp2_path *path,
   auto remote_addr = util::straddr(
     reinterpret_cast<sockaddr *>(path->remote.addr), path->remote.addrlen);
 
-  std::cerr << "Path validation against path {local:" << local_addr
-            << ", remote:" << remote_addr << "} "
-            << (res == NGTCP2_PATH_VALIDATION_RESULT_SUCCESS ? "succeeded"
-                                                             : "failed")
-            << std::endl;
+  std::println(
+    stderr, "Path validation against path {{local:{}, remote:{}}} {}",
+    local_addr, remote_addr,
+    res == NGTCP2_PATH_VALIDATION_RESULT_SUCCESS ? "succeeded" : "failed");
 }
 
 void print_http_begin_request_headers(int64_t stream_id) {
-  fprintf(outfile, "http: stream 0x%" PRIx64 " request headers started\n",
-          stream_id);
+  std::println(outfile, "http: stream {:#x} request headers started",
+               stream_id);
 }
 
 void print_http_begin_response_headers(int64_t stream_id) {
-  fprintf(outfile, "http: stream 0x%" PRIx64 " response headers started\n",
-          stream_id);
+  std::println(outfile, "http: stream {:#x} response headers started",
+               stream_id);
 }
 
 namespace {
 void print_header(std::span<const uint8_t> name, std::span<const uint8_t> value,
                   uint8_t flags) {
-  fprintf(outfile, "[%.*s: %.*s]%s\n", static_cast<int>(name.size()),
-          name.data(), static_cast<int>(value.size()), value.data(),
-          (flags & NGHTTP3_NV_FLAG_NEVER_INDEX) ? "(sensitive)" : "");
+  std::println(outfile, "[{}: {}]{}", as_string_view(name),
+               as_string_view(value),
+               (flags & NGHTTP3_NV_FLAG_NEVER_INDEX) ? "(sensitive)" : "");
 }
 } // namespace
 
@@ -241,32 +244,31 @@ void print_header(const nghttp3_nv &nv) {
 
 void print_http_header(int64_t stream_id, const nghttp3_rcbuf *name,
                        const nghttp3_rcbuf *value, uint8_t flags) {
-  fprintf(outfile, "http: stream 0x%" PRIx64 " ", stream_id);
+  std::print(outfile, "http: stream {:#x} ", stream_id);
   print_header(name, value, flags);
 }
 
 void print_http_end_headers(int64_t stream_id) {
-  fprintf(outfile, "http: stream 0x%" PRIx64 " headers ended\n", stream_id);
+  std::println(outfile, "http: stream {:#x} headers ended", stream_id);
 }
 
 void print_http_data(int64_t stream_id, std::span<const uint8_t> data) {
-  fprintf(outfile, "http: stream 0x%" PRIx64 " body %zu bytes\n", stream_id,
-          data.size());
-  util::hexdump(outfile, data.data(), data.size());
+  std::println(outfile, "http: stream {:#x} body {} bytes", stream_id,
+               data.size());
+  util::hexdump(outfile, data);
 }
 
 void print_http_begin_trailers(int64_t stream_id) {
-  fprintf(outfile, "http: stream 0x%" PRIx64 " trailers started\n", stream_id);
+  std::println(outfile, "http: stream {:#x} trailers started", stream_id);
 }
 
 void print_http_end_trailers(int64_t stream_id) {
-  fprintf(outfile, "http: stream 0x%" PRIx64 " trailers ended\n", stream_id);
+  std::println(outfile, "http: stream {:#x} trailers ended", stream_id);
 }
 
 void print_http_request_headers(int64_t stream_id, const nghttp3_nv *nva,
                                 size_t nvlen) {
-  fprintf(outfile, "http: stream 0x%" PRIx64 " submit request headers\n",
-          stream_id);
+  std::println(outfile, "http: stream {:#x} submit request headers", stream_id);
   for (size_t i = 0; i < nvlen; ++i) {
     auto &nv = nva[i];
     print_header(nv);
@@ -275,8 +277,8 @@ void print_http_request_headers(int64_t stream_id, const nghttp3_nv *nva,
 
 void print_http_response_headers(int64_t stream_id, const nghttp3_nv *nva,
                                  size_t nvlen) {
-  fprintf(outfile, "http: stream 0x%" PRIx64 " submit response headers\n",
-          stream_id);
+  std::println(outfile, "http: stream {:#x} submit response headers",
+               stream_id);
   for (size_t i = 0; i < nvlen; ++i) {
     auto &nv = nva[i];
     print_header(nv);
@@ -284,24 +286,24 @@ void print_http_response_headers(int64_t stream_id, const nghttp3_nv *nva,
 }
 
 void print_http_settings(const nghttp3_proto_settings *settings) {
-  fprintf(outfile,
-          "http: remote settings\n"
-          "http: SETTINGS_MAX_FIELD_SECTION_SIZE=%" PRIu64 "\n"
-          "http: SETTINGS_QPACK_MAX_TABLE_CAPACITY=%zu\n"
-          "http: SETTINGS_QPACK_BLOCKED_STREAMS=%zu\n"
-          "http: SETTINGS_ENABLE_CONNECT_PROTOCOL=%d\n"
-          "http: SETTINGS_H3_DATAGRAM=%d\n",
-          settings->max_field_section_size, settings->qpack_max_dtable_capacity,
-          settings->qpack_blocked_streams, settings->enable_connect_protocol,
-          settings->h3_datagram);
+  std::println(outfile, R"(http: remote settings
+http: SETTINGS_MAX_FIELD_SECTION_SIZE={}
+http: SETTINGS_QPACK_MAX_TABLE_CAPACITY={}
+http: SETTINGS_QPACK_BLOCKED_STREAMS={}
+http: SETTINGS_ENABLE_CONNECT_PROTOCOL={}
+http: SETTINGS_H3_DATAGRAM={})",
+               settings->max_field_section_size,
+               settings->qpack_max_dtable_capacity,
+               settings->qpack_blocked_streams,
+               settings->enable_connect_protocol, settings->h3_datagram);
 }
 
 void print_http_origin(const uint8_t *origin, size_t originlen) {
-  fprintf(outfile, "http: origin [%.*s]\n", static_cast<int>(originlen),
-          origin);
+  std::println(outfile, "http: origin [{}]",
+               as_string_view(std::span{origin, originlen}));
 }
 
-void print_http_end_origin() { fprintf(outfile, "http: origin ended\n"); }
+void print_http_end_origin() { std::println(outfile, "http: origin ended"); }
 
 std::string_view secret_title(ngtcp2_encryption_level level) {
   switch (level) {
@@ -322,22 +324,26 @@ void print_conn_info(ngtcp2_conn *conn) {
 
   ngtcp2_conn_get_conn_info(conn, &cinfo);
 
-  std::cout << "# Connection Statistics (see ngtcp2_conn_info for details)\n"
-               "min_rtt="
-            << util::format_durationf(cinfo.min_rtt) << '\n'
-            << "smoothed_rtt=" << util::format_durationf(cinfo.smoothed_rtt)
-            << '\n'
-            << "rttvar=" << util::format_durationf(cinfo.rttvar) << '\n'
-            << "cwnd=" << cinfo.cwnd << '\n'
-            << "ssthresh=" << cinfo.ssthresh << '\n'
-            << "pkt_sent=" << cinfo.pkt_sent << '\n'
-            << "bytes_sent=" << cinfo.bytes_sent << '\n'
-            << "pkt_recv=" << cinfo.pkt_recv << '\n'
-            << "bytes_recv=" << cinfo.bytes_recv << '\n'
-            << "pkt_lost=" << cinfo.pkt_lost << '\n'
-            << "bytes_lost=" << cinfo.bytes_lost << '\n'
-            << "ping_recv=" << cinfo.ping_recv << '\n'
-            << "pkt_discarded=" << cinfo.pkt_discarded << std::endl;
+  std::println(
+    R"(# Connection Statistics (see ngtcp2_conn_info for details)
+min_rtt={}
+smoothed_rtt={}
+rttvar={}
+cwnd={}
+ssthresh={}
+pkt_sent={}
+bytes_sent={}
+pkt_recv={}
+bytes_recv={}
+pkt_lost={}
+bytes_lost={}
+ping_recv={}
+pkt_discarded={})",
+    util::format_durationf(cinfo.min_rtt),
+    util::format_durationf(cinfo.smoothed_rtt),
+    util::format_durationf(cinfo.rttvar), cinfo.cwnd, cinfo.ssthresh,
+    cinfo.pkt_sent, cinfo.bytes_sent, cinfo.pkt_recv, cinfo.bytes_recv,
+    cinfo.pkt_lost, cinfo.bytes_lost, cinfo.ping_recv, cinfo.pkt_discarded);
 }
 
 } // namespace debug

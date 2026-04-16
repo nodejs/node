@@ -2,7 +2,7 @@
 
 A class that handles redirection logic for HTTP requests.
 
-## `new RedirectHandler(dispatch, maxRedirections, opts, handler, redirectionLimitReached)`
+## `new RedirectHandler(dispatch, maxRedirections, opts, handler)`
 
 Arguments:
 
@@ -10,7 +10,6 @@ Arguments:
 - **maxRedirections** `number` - Maximum number of redirections allowed.
 - **opts** `object` - Options for handling redirection.
 - **handler** `object` - An object containing handlers for different stages of the request lifecycle.
-- **redirectionLimitReached** `boolean` (default: `false`) - A flag that the implementer can provide to enable or disable the feature. If set to `false`, it indicates that the caller doesn't want to use the feature and prefers the old behavior.
 
 Returns: `RedirectHandler`
 
@@ -20,7 +19,6 @@ Returns: `RedirectHandler`
 - **maxRedirections** `number` (required) - Maximum number of redirections allowed.
 - **opts** `object` (required) - Options for handling redirection.
 - **handler** `object` (required) - Handlers for different stages of the request lifecycle.
-- **redirectionLimitReached** `boolean` (default: `false`) - A flag that the implementer can provide to enable or disable the feature. If set to `false`, it indicates that the caller doesn't want to use the feature and prefers the old behavior.
 
 ### Properties
 
@@ -30,61 +28,65 @@ Returns: `RedirectHandler`
 - **maxRedirections** `number` - Maximum number of redirections allowed.
 - **handler** `object` - Handlers for different stages of the request lifecycle.
 - **history** `Array` - An array representing the history of URLs during redirection.
-- **redirectionLimitReached** `boolean` - Indicates whether the redirection limit has been reached.
 
 ### Methods
 
-#### `onConnect(abort)`
+#### `onRequestStart(controller, context)`
 
-Called when the connection is established.
+Called when the request starts.
 
 Parameters:
 
-- **abort** `function` - The abort function.
+- **controller** `DispatchController` - The request controller.
+- **context** `object` - The dispatch context.
 
-#### `onUpgrade(statusCode, headers, socket)`
+#### `onRequestUpgrade(controller, statusCode, headers, socket)`
 
 Called when an upgrade is requested.
 
 Parameters:
 
+- **controller** `DispatchController` - The request controller.
 - **statusCode** `number` - The HTTP status code.
 - **headers** `object` - The headers received in the response.
 - **socket** `object` - The socket object.
 
-#### `onError(error)`
+#### `onResponseError(controller, error)`
 
 Called when an error occurs.
 
 Parameters:
 
+- **controller** `DispatchController` - The request controller.
 - **error** `Error` - The error that occurred.
 
-#### `onHeaders(statusCode, headers, resume, statusText)`
+#### `onResponseStart(controller, statusCode, headers, statusText)`
 
 Called when headers are received.
 
 Parameters:
 
+- **controller** `DispatchController` - The request controller.
 - **statusCode** `number` - The HTTP status code.
 - **headers** `object` - The headers received in the response.
-- **resume** `function` - The resume function.
 - **statusText** `string` - The status text.
 
-#### `onData(chunk)`
+#### `onResponseData(controller, chunk)`
 
 Called when data is received.
 
 Parameters:
 
+- **controller** `DispatchController` - The request controller.
 - **chunk** `Buffer` - The data chunk received.
 
-#### `onComplete(trailers)`
+#### `onResponseEnd(controller, trailers)`
 
 Called when the request is complete.
 
 Parameters:
 
+- **controller** `DispatchController` - The request controller.
 - **trailers** `object` - The trailers received.
 
 #### `onBodySent(chunk)`

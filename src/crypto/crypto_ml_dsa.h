@@ -13,6 +13,8 @@ namespace crypto {
 bool ExportJwkMlDsaKey(Environment* env,
                        const KeyObjectData& key,
                        v8::Local<v8::Object> target);
+
+KeyObjectData ImportJWKAkpKey(Environment* env, v8::Local<v8::Object> jwk);
 #endif
 }  // namespace crypto
 }  // namespace node

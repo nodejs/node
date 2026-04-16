@@ -143,7 +143,7 @@ class PoolBase extends DispatcherBase {
       if (!item) {
         break
       }
-      item.handler.onError(err)
+      item.handler.onResponseError(null, err)
     }
 
     const destroyAll = new Array(this[kClients].length)

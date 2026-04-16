@@ -31,19 +31,17 @@ std::optional<const PreferredAddress::AddressInfo> get_address_info(
     if (!paddr.ipv4_present) return std::nullopt;
     address.port = paddr.ipv4.sin_port;
     if (uv_inet_ntop(
-            FAMILY, &paddr.ipv4.sin_addr, address.host, sizeof(address.host)) ==
-        0) {
-      address.address = address.host;
-    }
+            FAMILY, &paddr.ipv4.sin_addr, address.host, sizeof(address.host)) !=
+        0)
+      return std::nullopt;
   } else {
     if (!paddr.ipv6_present) return std::nullopt;
     address.port = paddr.ipv6.sin6_port;
     if (uv_inet_ntop(FAMILY,
                      &paddr.ipv6.sin6_addr,
                      address.host,
-                     sizeof(address.host)) == 0) {
-      address.address = address.host;
-    }
+                     sizeof(address.host)) != 0)
+      return std::nullopt;
   }
   return address;
 }

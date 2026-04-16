@@ -5,6 +5,28 @@
  * Make sure to inspect the output below.  Do not ignore changes!
  */
 'use strict'
+exports[`test/lib/utils/explain-dep.js TAP basic > circular dependency does not recurse infinitely 1`] = `
+cycle-a@1.0.0
+node_modules/cycle-a
+  cycle-a@"1.x" from cycle-b@2.0.0
+  node_modules/cycle-b
+    cycle-b@"2.x" from cycle-a@1.0.0
+    node_modules/cycle-a
+      cycle-a@"1.x" from cycle-b@2.0.0
+      node_modules/cycle-b
+`
+
+exports[`test/lib/utils/explain-dep.js TAP basic > circular dependency from other side 1`] = `
+cycle-b@2.0.0
+node_modules/cycle-b
+  cycle-b@"2.x" from cycle-a@1.0.0
+  node_modules/cycle-a
+    cycle-a@"1.x" from cycle-b@2.0.0
+    node_modules/cycle-b
+      cycle-b@"2.x" from cycle-a@1.0.0
+      node_modules/cycle-a
+`
+
 exports[`test/lib/utils/explain-dep.js TAP basic > ellipses test one 1`] = `
 manydep@1.0.0
   manydep@"1.0.0" from prod-dep@1.2.3
@@ -19,6 +41,11 @@ manydep@1.0.0
   node_modules/prod-dep
     prod-dep@"1.x" from the root project
   6 more (optdep, extra-neos, deep-dev, peer, the root project, a package with a pretty long name)
+`
+
+exports[`test/lib/utils/explain-dep.js TAP basic > explainEdge without seen parameter 1`] = `
+some-dep@"1.x" from parent-pkg@2.0.0
+node_modules/parent-pkg
 `
 
 exports[`test/lib/utils/explain-dep.js TAP basic bundled > explain color deep 1`] = `

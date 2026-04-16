@@ -120,23 +120,19 @@ however, `.bat` and `.cmd` files are not executable on their own without a
 terminal, and therefore cannot be launched using [`child_process.execFile()`][].
 When running on Windows, `.bat` and `.cmd` files can be invoked by:
 
-* using [`child_process.spawn()`][] with the `shell` option set, or
+* using [`child_process.spawn()`][] with the `shell` option set (not recommended, see [DEP0190][]), or
 * using [`child_process.exec()`][], or
 * spawning `cmd.exe` and passing the `.bat` or `.cmd` file as an argument
-  (which is what the `shell` option and [`child_process.exec()`][] do).
+  (which is what [`child_process.exec()`][] does internally).
 
 In any case, if the script filename contains spaces, it needs to be quoted.
 
 ```cjs
 const { exec, spawn } = require('node:child_process');
 
-// 1. child_process.spawn() with the shell option set
-const myBat = spawn('my.bat', { shell: true });
-
-// 2. child_process.exec()
 exec('my.bat', (err, stdout, stderr) => { /* ... */ });
 
-// 3. spawning cmd.exe and passing the .bat or .cmd file as an argument
+// Or, spawning cmd.exe directly:
 const bat = spawn('cmd.exe', ['/c', 'my.bat']);
 
 // If the script filename contains spaces, it needs to be quoted
@@ -146,13 +142,9 @@ exec('"my script.cmd" a b', (err, stdout, stderr) => { /* ... */ });
 ```mjs
 import { exec, spawn } from 'node:child_process';
 
-// 1. child_process.spawn() with the shell option set
-const myBat = spawn('my.bat', { shell: true });
-
-// 2. child_process.exec()
 exec('my.bat', (err, stdout, stderr) => { /* ... */ });
 
-// 3. spawning cmd.exe and passing the .bat or .cmd file as an argument
+// Or, spawning cmd.exe directly:
 const bat = spawn('cmd.exe', ['/c', 'my.bat']);
 
 // If the script filename contains spaces, it needs to be quoted
@@ -2364,6 +2356,7 @@ Therefore, this feature requires opting in by setting the
 or [`child_process.fork()`][].
 
 [Advanced serialization]: #advanced-serialization
+[DEP0190]: deprecations.md#DEP0190
 [Default Windows shell]: #default-windows-shell
 [HTML structured clone algorithm]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm
 [Shell requirements]: #shell-requirements

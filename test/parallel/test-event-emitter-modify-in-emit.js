@@ -78,3 +78,21 @@ assert.strictEqual(e.listeners('foo').length, 2);
 e.emit('foo');
 assert.deepStrictEqual(['callback2', 'callback3'], callbacks_called);
 assert.strictEqual(e.listeners('foo').length, 0);
+
+// Verify that removing all callbacks while in emit allows the current emit to
+// propagate to all listeners.
+callbacks_called = [];
+
+function callback4() {
+  callbacks_called.push('callback4');
+  e.removeAllListeners('foo');
+}
+
+e.on('foo', callback4);
+e.on('foo', callback2);
+e.on('foo', callback3);
+assert.strictEqual(e.listeners('foo').length, 3);
+e.emit('foo');
+assert.deepStrictEqual(['callback4', 'callback2', 'callback3'],
+                       callbacks_called);
+assert.strictEqual(e.listeners('foo').length, 0);

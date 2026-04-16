@@ -24,15 +24,23 @@ using v8::Value;
 
 constexpr size_t kDefaultMaxTotalBufferSize = 100 * 1024 * 1024;  // 100MB
 
+static void ThrowEventError(v8::Isolate* isolate, const std::string& message) {
+  isolate->ThrowException(v8::Exception::TypeError(
+      v8::String::NewFromUtf8(isolate, message.c_str()).ToLocalChecked()));
+}
+
 // Create a protocol::Network::Headers from the v8 object.
-std::unique_ptr<protocol::Network::Headers> createHeadersFromObject(
-    v8::Local<v8::Context> context, Local<Object> headers_obj) {
+std::unique_ptr<protocol::Network::Headers>
+NetworkAgent::createHeadersFromObject(v8::Local<v8::Context> context,
+                                      Local<Object> headers_obj) {
   HandleScope handle_scope(Isolate::GetCurrent());
+  Isolate* isolate = env_->isolate();
 
   std::unique_ptr<protocol::DictionaryValue> dict =
       protocol::DictionaryValue::create();
   Local<v8::Array> property_names;
   if (!headers_obj->GetOwnPropertyNames(context).ToLocal(&property_names)) {
+    ThrowEventError(isolate, "Missing response headers in event");
     return {};
   }
 
@@ -40,12 +48,14 @@ std::unique_ptr<protocol::Network::Headers> createHeadersFromObject(
     Local<v8::Value> property_name_val;
     if (!property_names->Get(context, idx).ToLocal(&property_name_val) ||
         !property_name_val->IsString()) {
+      ThrowEventError(isolate, "Invalid header name in event");
       return {};
     }
     Local<v8::String> property_name = property_name_val.As<v8::String>();
     protocol::String property_value;
     if (!ObjectGetProtocolString(context, headers_obj, property_name)
              .To(&property_value)) {
+      ThrowEventError(isolate, "Invalid header value in event");
       return {};
     }
     dict->setString(ToProtocolString(Isolate::GetCurrent(), property_name),
@@ -56,19 +66,24 @@ std::unique_ptr<protocol::Network::Headers> createHeadersFromObject(
 }
 
 // Create a protocol::Network::Request from the v8 object.
-std::unique_ptr<protocol::Network::Request> createRequestFromObject(
-    v8::Local<v8::Context> context, Local<Object> request) {
+std::unique_ptr<protocol::Network::Request>
+NetworkAgent::createRequestFromObject(v8::Local<v8::Context> context,
+                                      Local<Object> request) {
   HandleScope handle_scope(Isolate::GetCurrent());
+  Isolate* isolate = env_->isolate();
   protocol::String url;
   if (!ObjectGetProtocolString(context, request, "url").To(&url)) {
+    ThrowEventError(isolate, "Missing request.url in event");
     return {};
   }
   protocol::String method;
   if (!ObjectGetProtocolString(context, request, "method").To(&method)) {
+    ThrowEventError(isolate, "Missing request.method in event");
     return {};
   }
   Local<Object> headers_obj;
   if (!ObjectGetObject(context, request, "headers").ToLocal(&headers_obj)) {
+    ThrowEventError(isolate, "Missing request.headers in event");
     return {};
   }
   std::unique_ptr<protocol::Network::Headers> headers =
@@ -88,24 +103,30 @@ std::unique_ptr<protocol::Network::Request> createRequestFromObject(
 }
 
 // Create a protocol::Network::Response from the v8 object.
-std::unique_ptr<protocol::Network::Response> createResponseFromObject(
-    v8::Local<v8::Context> context, Local<Object> response) {
+std::unique_ptr<protocol::Network::Response>
+NetworkAgent::createResponseFromObject(v8::Local<v8::Context> context,
+                                       Local<Object> response) {
   HandleScope handle_scope(Isolate::GetCurrent());
+  Isolate* isolate = env_->isolate();
   protocol::String url;
   if (!ObjectGetProtocolString(context, response, "url").To(&url)) {
+    ThrowEventError(isolate, "Missing response.url in event");
     return {};
   }
   int status;
   if (!ObjectGetInt(context, response, "status").To(&status)) {
+    ThrowEventError(isolate, "Missing response.status in event");
     return {};
   }
   protocol::String statusText;
   if (!ObjectGetProtocolString(context, response, "statusText")
            .To(&statusText)) {
+    ThrowEventError(isolate, "Missing response.statusText in event");
     return {};
   }
   Local<Object> headers_obj;
   if (!ObjectGetObject(context, response, "headers").ToLocal(&headers_obj)) {
+    ThrowEventError(isolate, "Missing response.headers in event");
     return {};
   }
   std::unique_ptr<protocol::Network::Headers> headers =
@@ -129,20 +150,25 @@ std::unique_ptr<protocol::Network::Response> createResponseFromObject(
       .build();
 }
 
-std::unique_ptr<protocol::Network::WebSocketResponse> createWebSocketResponse(
-    v8::Local<v8::Context> context, Local<Object> response) {
+std::unique_ptr<protocol::Network::WebSocketResponse>
+NetworkAgent::createWebSocketResponse(v8::Local<v8::Context> context,
+                                      Local<Object> response) {
   HandleScope handle_scope(Isolate::GetCurrent());
+  Isolate* isolate = env_->isolate();
   int status;
   if (!ObjectGetInt(context, response, "status").To(&status)) {
+    ThrowEventError(isolate, "Missing response.status in event");
     return {};
   }
   protocol::String statusText;
   if (!ObjectGetProtocolString(context, response, "statusText")
            .To(&statusText)) {
+    ThrowEventError(isolate, "Missing response.statusText in event");
     return {};
   }
   Local<Object> headers_obj;
   if (!ObjectGetObject(context, response, "headers").ToLocal(&headers_obj)) {
+    ThrowEventError(isolate, "Missing response.headers in event");
     return {};
   }
   std::unique_ptr<protocol::Network::Headers> headers =
@@ -182,12 +208,15 @@ NetworkAgent::NetworkAgent(
 
 void NetworkAgent::webSocketCreated(v8::Local<v8::Context> context,
                                     v8::Local<v8::Object> params) {
+  Isolate* isolate = env_->isolate();
   protocol::String request_id;
   if (!ObjectGetProtocolString(context, params, "requestId").To(&request_id)) {
+    ThrowEventError(isolate, "Missing requestId in event");
     return;
   }
   protocol::String url;
   if (!ObjectGetProtocolString(context, params, "url").To(&url)) {
+    ThrowEventError(isolate, "Missing url in event");
     return;
   }
   std::unique_ptr<protocol::Network::Initiator> initiator =
@@ -201,12 +230,15 @@ void NetworkAgent::webSocketCreated(v8::Local<v8::Context> context,
 
 void NetworkAgent::webSocketClosed(v8::Local<v8::Context> context,
                                    v8::Local<v8::Object> params) {
+  Isolate* isolate = env_->isolate();
   protocol::String request_id;
   if (!ObjectGetProtocolString(context, params, "requestId").To(&request_id)) {
+    ThrowEventError(isolate, "Missing requestId in event");
     return;
   }
   double timestamp;
   if (!ObjectGetDouble(context, params, "timestamp").To(&timestamp)) {
+    ThrowEventError(isolate, "Missing timestamp in event");
     return;
   }
   frontend_->webSocketClosed(request_id, timestamp);
@@ -214,16 +246,20 @@ void NetworkAgent::webSocketClosed(v8::Local<v8::Context> context,
 
 void NetworkAgent::webSocketHandshakeResponseReceived(
     v8::Local<v8::Context> context, v8::Local<v8::Object> params) {
+  Isolate* isolate = env_->isolate();
   protocol::String request_id;
   if (!ObjectGetProtocolString(context, params, "requestId").To(&request_id)) {
+    ThrowEventError(isolate, "Missing requestId in event");
     return;
   }
   double timestamp;
   if (!ObjectGetDouble(context, params, "timestamp").To(&timestamp)) {
+    ThrowEventError(isolate, "Missing timestamp in event");
     return;
   }
   Local<Object> response_obj;
   if (!ObjectGetObject(context, params, "response").ToLocal(&response_obj)) {
+    ThrowEventError(isolate, "Missing response in event");
     return;
   }
   auto response = createWebSocketResponse(context, response_obj);
@@ -395,22 +431,27 @@ protocol::DispatchResponse NetworkAgent::loadNetworkResource(
 
 void NetworkAgent::requestWillBeSent(v8::Local<v8::Context> context,
                                      v8::Local<v8::Object> params) {
+  Isolate* isolate = env_->isolate();
   protocol::String request_id;
   if (!ObjectGetProtocolString(context, params, "requestId").To(&request_id)) {
+    ThrowEventError(isolate, "Missing requestId in event");
     return;
   }
   double timestamp;
   if (!ObjectGetDouble(context, params, "timestamp").To(&timestamp)) {
+    ThrowEventError(isolate, "Missing timestamp in event");
     return;
   }
   double wall_time;
   if (!ObjectGetDouble(context, params, "wallTime").To(&wall_time)) {
+    ThrowEventError(isolate, "Missing wallTime in event");
     return;
   }
   protocol::String charset =
       ObjectGetProtocolString(context, params, "charset").FromMaybe("");
   Local<v8::Object> request_obj;
   if (!ObjectGetObject(context, params, "request").ToLocal(&request_obj)) {
+    ThrowEventError(isolate, "Missing request in event");
     return;
   }
   std::unique_ptr<protocol::Network::Request> request =
@@ -446,20 +487,25 @@ void NetworkAgent::requestWillBeSent(v8::Local<v8::Context> context,
 
 void NetworkAgent::responseReceived(v8::Local<v8::Context> context,
                                     v8::Local<v8::Object> params) {
+  Isolate* isolate = env_->isolate();
   protocol::String request_id;
   if (!ObjectGetProtocolString(context, params, "requestId").To(&request_id)) {
+    ThrowEventError(isolate, "Missing requestId in event");
     return;
   }
   double timestamp;
   if (!ObjectGetDouble(context, params, "timestamp").To(&timestamp)) {
+    ThrowEventError(isolate, "Missing timestamp in event");
     return;
   }
   protocol::String type;
   if (!ObjectGetProtocolString(context, params, "type").To(&type)) {
+    ThrowEventError(isolate, "Missing type in event");
     return;
   }
   Local<Object> response_obj;
   if (!ObjectGetObject(context, params, "response").ToLocal(&response_obj)) {
+    ThrowEventError(isolate, "Missing response in event");
     return;
   }
   auto response = createResponseFromObject(context, response_obj);
@@ -479,20 +525,25 @@ void NetworkAgent::responseReceived(v8::Local<v8::Context> context,
 
 void NetworkAgent::loadingFailed(v8::Local<v8::Context> context,
                                  v8::Local<v8::Object> params) {
+  Isolate* isolate = env_->isolate();
   protocol::String request_id;
   if (!ObjectGetProtocolString(context, params, "requestId").To(&request_id)) {
+    ThrowEventError(isolate, "Missing requestId in event");
     return;
   }
   double timestamp;
   if (!ObjectGetDouble(context, params, "timestamp").To(&timestamp)) {
+    ThrowEventError(isolate, "Missing timestamp in event");
     return;
   }
   protocol::String type;
   if (!ObjectGetProtocolString(context, params, "type").To(&type)) {
+    ThrowEventError(isolate, "Missing type in event");
     return;
   }
   protocol::String error_text;
   if (!ObjectGetProtocolString(context, params, "errorText").To(&error_text)) {
+    ThrowEventError(isolate, "Missing errorText in event");
     return;
   }
 
@@ -503,12 +554,15 @@ void NetworkAgent::loadingFailed(v8::Local<v8::Context> context,
 
 void NetworkAgent::loadingFinished(v8::Local<v8::Context> context,
                                    Local<v8::Object> params) {
+  Isolate* isolate = env_->isolate();
   protocol::String request_id;
   if (!ObjectGetProtocolString(context, params, "requestId").To(&request_id)) {
+    ThrowEventError(isolate, "Missing requestId in event");
     return;
   }
   double timestamp;
   if (!ObjectGetDouble(context, params, "timestamp").To(&timestamp)) {
+    ThrowEventError(isolate, "Missing timestamp in event");
     return;
   }
 
@@ -530,8 +584,10 @@ void NetworkAgent::loadingFinished(v8::Local<v8::Context> context,
 
 void NetworkAgent::dataSent(v8::Local<v8::Context> context,
                             v8::Local<v8::Object> params) {
+  Isolate* isolate = env_->isolate();
   protocol::String request_id;
   if (!ObjectGetProtocolString(context, params, "requestId").To(&request_id)) {
+    ThrowEventError(isolate, "Missing requestId in event");
     return;
   }
 
@@ -550,17 +606,21 @@ void NetworkAgent::dataSent(v8::Local<v8::Context> context,
 
   double timestamp;
   if (!ObjectGetDouble(context, params, "timestamp").To(&timestamp)) {
+    ThrowEventError(isolate, "Missing timestamp in event");
     return;
   }
   int data_length;
   if (!ObjectGetInt(context, params, "dataLength").To(&data_length)) {
+    ThrowEventError(isolate, "Missing dataLength in event");
     return;
   }
   Local<Object> data_obj;
   if (!ObjectGetObject(context, params, "data").ToLocal(&data_obj)) {
+    ThrowEventError(isolate, "Missing data in event");
     return;
   }
   if (!data_obj->IsUint8Array()) {
+    ThrowEventError(isolate, "Expected data to be Uint8Array in event");
     return;
   }
   Local<Uint8Array> data = data_obj.As<Uint8Array>();
@@ -570,28 +630,35 @@ void NetworkAgent::dataSent(v8::Local<v8::Context> context,
 
 void NetworkAgent::dataReceived(v8::Local<v8::Context> context,
                                 v8::Local<v8::Object> params) {
+  Isolate* isolate = env_->isolate();
   protocol::String request_id;
   if (!ObjectGetProtocolString(context, params, "requestId").To(&request_id)) {
+    ThrowEventError(isolate, "Missing requestId in event");
     return;
   }
   double timestamp;
   if (!ObjectGetDouble(context, params, "timestamp").To(&timestamp)) {
+    ThrowEventError(isolate, "Missing timestamp in event");
     return;
   }
   int data_length;
   if (!ObjectGetInt(context, params, "dataLength").To(&data_length)) {
+    ThrowEventError(isolate, "Missing dataLength in event");
     return;
   }
   int encoded_data_length;
   if (!ObjectGetInt(context, params, "encodedDataLength")
            .To(&encoded_data_length)) {
+    ThrowEventError(isolate, "Missing encodedDataLength in event");
     return;
   }
   Local<Object> data_obj;
   if (!ObjectGetObject(context, params, "data").ToLocal(&data_obj)) {
+    ThrowEventError(isolate, "Missing data in event");
     return;
   }
   if (!data_obj->IsUint8Array()) {
+    ThrowEventError(isolate, "Expected data to be Uint8Array in event");
     return;
   }
   Local<Uint8Array> data = data_obj.As<Uint8Array>();

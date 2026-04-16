@@ -55,6 +55,7 @@
 #include "crypto/crypto_spkac.h"
 #include "crypto/crypto_timing.h"
 #include "crypto/crypto_tls.h"
+#include "crypto/crypto_turboshake.h"
 #include "crypto/crypto_util.h"
 #include "crypto/crypto_x509.h"
 

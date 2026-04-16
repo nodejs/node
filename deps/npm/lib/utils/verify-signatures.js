@@ -17,6 +17,7 @@ class VerifySignatures {
     this.invalid = []
     this.missing = []
     this.checkedPackages = new Set()
+    this.verified = []
     this.auditedWithKeysCount = 0
     this.verifiedSignatureCount = 0
     this.verifiedAttestationCount = 0
@@ -59,7 +60,11 @@ class VerifySignatures {
     }
 
     if (this.npm.config.get('json')) {
-      output.buffer({ invalid, missing })
+      const result = { invalid, missing }
+      if (this.npm.config.get('include-attestations')) {
+        result.verified = this.verified
+      }
+      output.buffer(result)
       return
     }
     const end = process.hrtime.bigint()
@@ -86,6 +91,9 @@ class VerifySignatures {
         output.standard(`${this.verifiedAttestationCount} package has a ${verifiedBold} attestation`)
       } else {
         output.standard(`${this.verifiedAttestationCount} packages have ${verifiedBold} attestations`)
+      }
+      if (!this.npm.config.get('include-attestations')) {
+        output.standard('(use --json --include-attestations to view attestation details)')
       }
       output.standard()
     }
@@ -288,6 +296,7 @@ class VerifySignatures {
       _integrity: integrity,
       _signatures,
       _attestations,
+      _attestationBundles,
       _resolved: resolved,
     } = await pacote.manifest(`${name}@${version}`, {
       verifySignatures: true,
@@ -300,6 +309,7 @@ class VerifySignatures {
       integrity,
       signatures,
       attestations: _attestations,
+      attestationBundles: _attestationBundles,
       resolved,
     }
     return result
@@ -324,9 +334,8 @@ class VerifySignatures {
     }
 
     try {
-      const { integrity, signatures, attestations, resolved } = await this.verifySignatures(
-        name, version, registry
-      )
+      const { integrity, signatures, attestations, attestationBundles, resolved } =
+        await this.verifySignatures(name, version, registry)
 
       // Currently we only care about missing signatures on registries that provide a public key
       // We could make this configurable in the future with a strict/paranoid mode
@@ -346,6 +355,16 @@ class VerifySignatures {
       // Track verified attestations separately to registry signatures, as all packages on registries with signing keys are expected to have registry signatures, but not all packages have provenance and publish attestations.
       if (attestations) {
         this.verifiedAttestationCount += 1
+        if (this.npm.config.get('include-attestations')) {
+          this.verified.push({
+            name,
+            version,
+            location,
+            registry,
+            attestations,
+            attestationBundles,
+          })
+        }
       }
     } catch (e) {
       if (e.code === 'EINTEGRITYSIGNATURE' || e.code === 'EATTESTATIONVERIFY') {

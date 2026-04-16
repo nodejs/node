@@ -32,6 +32,8 @@
       'src/inspector/network_inspector.h',
       'src/inspector/network_agent.cc',
       'src/inspector/network_agent.h',
+      'src/inspector/target_manager.cc',
+      'src/inspector/target_manager.h',
       'src/inspector/target_agent.cc',
       'src/inspector/target_agent.h',
       'src/inspector/worker_inspector.cc',

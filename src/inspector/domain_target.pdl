@@ -20,6 +20,9 @@ experimental domain Target
       SessionID sessionId
       TargetInfo targetInfo
       boolean waitingForDebugger
+  command getTargets
+    returns
+      array of TargetInfo targetInfos
   command setAutoAttach
     parameters
       boolean autoAttach

@@ -52,10 +52,12 @@ static int uv__tcp_nodelay(uv_tcp_t* handle, SOCKET socket, int enable) {
 /*
  * Check if Windows version is 10.0.16299 (Windows 10, version 1709) or later.
  */
-static int uv__windows10_version1709(void) {
+static int minimal_windows10_version1709(void) {
   OSVERSIONINFOW os_info;
   if (!pRtlGetVersion)
     return 0;
+  os_info.dwOSVersionInfoSize = sizeof(os_info);
+  os_info.szCSDVersion[0] = L'\0';
   pRtlGetVersion(&os_info);
   if (os_info.dwMajorVersion < 10)
     return 0;
@@ -89,7 +91,7 @@ static int uv__tcp_keepalive(uv_tcp_t* handle,
 
   /* Windows 10, version 1709 (build 10.0.16299) and later require second units
    * for TCP keepalive options. */
-  if (uv__windows10_version1709()) {
+  if (minimal_windows10_version1709()) {
     if (setsockopt(socket,
                    IPPROTO_TCP,
                    TCP_KEEPIDLE,
@@ -865,7 +867,7 @@ static int uv__tcp_try_connect(uv_connect_t* req,
    * is not reachable, instead of waiting for 2s. We do not care if this fails.
    * This only works on Windows version 10.0.16299 and later.
    */
-  if (uv__windows10_version1709() && uv__is_loopback(&converted)) {
+  if (minimal_windows10_version1709() && uv__is_loopback(&converted)) {
     memset(&retransmit_ioctl, 0, sizeof(retransmit_ioctl));
     retransmit_ioctl.Rtt = TCP_INITIAL_RTO_NO_SYN_RETRANSMISSIONS;
     retransmit_ioctl.MaxSynRetransmissions = TCP_INITIAL_RTO_NO_SYN_RETRANSMISSIONS;

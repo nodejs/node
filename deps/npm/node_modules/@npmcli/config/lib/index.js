@@ -582,7 +582,7 @@ class Config {
       }
     } else {
       conf.raw = obj
-      for (const [key, value] of Object.entries(obj)) {
+      outer: for (const [key, value] of Object.entries(obj)) {
         const k = envReplace(key, this.env)
         const v = this.parseField(value, k)
         if (where !== 'default') {
@@ -590,6 +590,13 @@ class Config {
           if (this.definitions[key]?.exclusive) {
             for (const exclusive of this.definitions[key].exclusive) {
               if (!this.isDefault(exclusive)) {
+                // when loading from env, skip only if sibling was explicitly set via CLI
+                if (where === 'env') {
+                  const cliData = this.data.get('cli').data
+                  if (Object.hasOwn(cliData, exclusive)) {
+                    continue outer
+                  }
+                }
                 throw new TypeError(`--${key} cannot be provided when using --${exclusive}`)
               }
             }

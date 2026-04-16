@@ -739,7 +739,7 @@ This feature is not available in [`Worker`][] threads.
 ## `process.addUncaughtExceptionCaptureCallback(fn)`
 
 <!-- YAML
-added: REPLACEME
+added: v25.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -3189,6 +3189,7 @@ The available scopes are:
 * `fs.write` - File System write operations
 * `child` - Child process spawning operations
 * `worker` - Worker thread spawning operation
+* `ffi` - Foreign function interface operations
 
 ```js
 // Check if the process has permission to read the README file
@@ -4060,7 +4061,7 @@ This implies calling `module.setSourceMapsSupport()` with an option
 <!-- YAML
 added: v9.3.0
 changes:
-  - version: REPLACEME
+  - version: v25.9.0
     pr-url: https://github.com/nodejs/node/pull/61227
     description: Use `process.addUncaughtExceptionCaptureCallback()` to
       register multiple callbacks.

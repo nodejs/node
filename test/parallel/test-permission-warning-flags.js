@@ -12,6 +12,10 @@ const warnFlags = [
   '--allow-worker',
 ];
 
+if (process.config.variables.node_use_ffi) {
+  warnFlags.push('--allow-ffi');
+}
+
 for (const flag of warnFlags) {
   const { status, stderr } = spawnSync(
     process.execPath,

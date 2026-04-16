@@ -1236,9 +1236,6 @@ class GTEST_API_ [[nodiscard]] AutoHandle {
 // Nothing to do here.
 
 #else
-GTEST_DISABLE_MSC_WARNINGS_PUSH_(4251 \
-/* class A needs to have dll-interface to be used by clients of class B */)
-
 // Allows a controller thread to pause execution of newly created
 // threads until notified.  Instances of this class must be created
 // and destroyed in the controller thread.
@@ -1246,6 +1243,39 @@ GTEST_DISABLE_MSC_WARNINGS_PUSH_(4251 \
 // This class is only for testing Google Test's own constructs. Do not
 // use it in user tests, either directly or indirectly.
 // TODO(b/203539622): Replace unconditionally with absl::Notification.
+#ifdef GTEST_OS_WINDOWS_MINGW
+// GCC version < 13 with the win32 thread model does not provide std::mutex and
+// std::condition_variable in the <mutex> and <condition_variable> headers. So
+// we implement the Notification class using a Windows manual-reset event. See
+// https://gcc.gnu.org/gcc-13/changes.html#windows.
+class GTEST_API_ [[nodiscard]] Notification {
+ public:
+  Notification();
+  Notification(const Notification&) = delete;
+  Notification& operator=(const Notification&) = delete;
+  ~Notification();
+
+  // Notifies all threads created with this notification to start. Must
+  // be called from the controller thread.
+  void Notify();
+
+  // Blocks until the controller thread notifies. Must be called from a test
+  // thread.
+  void WaitForNotification();
+
+ private:
+  // Assume that Win32 HANDLE type is equivalent to void*. Doing so allows us to
+  // avoid including <windows.h> in this header file. Including <windows.h> is
+  // undesirable because it defines a lot of symbols and macros that tend to
+  // conflict with client code. This assumption is verified by
+  // WindowsTypesTest.HANDLEIsVoidStar.
+  typedef void* Handle;
+  Handle event_;
+};
+#else
+GTEST_DISABLE_MSC_WARNINGS_PUSH_(4251 \
+/* class A needs to have dll-interface to be used by clients of class B */)
+
 class GTEST_API_ [[nodiscard]] Notification {
  public:
   Notification() : notified_(false) {}
@@ -1273,6 +1303,7 @@ class GTEST_API_ [[nodiscard]] Notification {
   bool notified_;
 };
 GTEST_DISABLE_MSC_WARNINGS_POP_()  // 4251
+#endif  // GTEST_OS_WINDOWS_MINGW
 #endif  // GTEST_HAS_NOTIFICATION_
 
 // On MinGW, we can have both GTEST_OS_WINDOWS and GTEST_HAS_PTHREAD

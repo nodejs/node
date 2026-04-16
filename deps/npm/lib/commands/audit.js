@@ -19,6 +19,7 @@ class Audit extends ArboristWorkspaceCmd {
     'include',
     'foreground-scripts',
     'ignore-scripts',
+    'include-attestations',
     ...super.params,
   ]
 

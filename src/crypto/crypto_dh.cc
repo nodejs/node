@@ -472,53 +472,21 @@ EVPKeyCtxPointer DhKeyGenTraits::Setup(DhKeyPairGenConfig* params) {
   return ctx;
 }
 
-Maybe<void> DHKeyExportTraits::AdditionalConfig(
-    const FunctionCallbackInfo<Value>& args,
-    unsigned int offset,
-    DHKeyExportConfig* params) {
-  return JustVoid();
-}
-
-WebCryptoKeyExportStatus DHKeyExportTraits::DoExport(
-    const KeyObjectData& key_data,
-    WebCryptoKeyFormat format,
-    const DHKeyExportConfig& params,
-    ByteSource* out) {
-  CHECK_NE(key_data.GetKeyType(), kKeyTypeSecret);
-
-  switch (format) {
-    case kWebCryptoKeyFormatPKCS8:
-      if (key_data.GetKeyType() != kKeyTypePrivate)
-        return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
-      return PKEY_PKCS8_Export(key_data, out);
-    case kWebCryptoKeyFormatSPKI:
-      if (key_data.GetKeyType() != kKeyTypePublic)
-        return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
-      return PKEY_SPKI_Export(key_data, out);
-    default:
-      UNREACHABLE();
-  }
-}
-
 Maybe<void> DHBitsTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
     DHBitsConfig* params) {
-  CHECK(args[offset]->IsObject());  // public key
-  CHECK(args[offset + 1]->IsObject());  // private key
+  auto public_key = KeyObjectData::GetPublicOrPrivateKeyFromJs(args, &offset);
+  if (!public_key) [[unlikely]]
+    return Nothing<void>();
 
-  KeyObjectHandle* private_key;
-  KeyObjectHandle* public_key;
+  auto private_key = KeyObjectData::GetPrivateKeyFromJs(args, &offset, true);
+  if (!private_key) [[unlikely]]
+    return Nothing<void>();
 
-  ASSIGN_OR_RETURN_UNWRAP(&public_key, args[offset], Nothing<void>());
-  ASSIGN_OR_RETURN_UNWRAP(&private_key, args[offset + 1], Nothing<void>());
-
-  CHECK(private_key->Data().GetKeyType() == kKeyTypePrivate);
-  CHECK(public_key->Data().GetKeyType() != kKeyTypeSecret);
-
-  params->public_key = public_key->Data().addRef();
-  params->private_key = private_key->Data().addRef();
+  params->public_key = std::move(public_key);
+  params->private_key = std::move(private_key);
 
   return JustVoid();
 }
@@ -532,16 +500,11 @@ MaybeLocal<Value> DHBitsTraits::EncodeOutput(Environment* env,
 bool DHBitsTraits::DeriveBits(Environment* env,
                               const DHBitsConfig& params,
                               ByteSource* out,
-                              CryptoJobMode mode) {
+                              CryptoJobMode mode,
+                              CryptoErrorStore* errors) {
   auto dp = DHPointer::stateless(params.private_key.GetAsymmetricKey(),
                                  params.public_key.GetAsymmetricKey());
   if (!dp) {
-    bool can_throw = mode == CryptoJobMode::kCryptoJobSync;
-
-    if (can_throw) {
-      unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
-      if (err) ThrowCryptoError(env, err, "diffieHellman failed");
-    }
     return false;
   }
 
@@ -600,7 +563,6 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
        DiffieHellmanGroup);
 
   DHKeyPairGenJob::Initialize(env, target);
-  DHKeyExportJob::Initialize(env, target);
   DHBitsJob::Initialize(env, target);
 }
 
@@ -621,7 +583,6 @@ void DiffieHellman::RegisterExternalReferences(
   registry->Register(Check);
 
   DHKeyPairGenJob::RegisterExternalReferences(registry);
-  DHKeyExportJob::RegisterExternalReferences(registry);
   DHBitsJob::RegisterExternalReferences(registry);
 }
 

@@ -31,7 +31,6 @@
 
 #include "ngtcp2_macro.h"
 #include "ngtcp2_mem.h"
-#include "ngtcp2_range.h"
 
 static ngtcp2_ksl_blk null_blk;
 
@@ -56,12 +55,12 @@ void ngtcp2_ksl_init(ngtcp2_ksl *ksl, ngtcp2_ksl_compar compar,
 
   assert(keylen >= sizeof(uint64_t));
 
-  aligned_keylen = (keylen + 0x7u) & ~0x7u;
+  aligned_keylen = (keylen + 0x7U) & ~0x7U;
 
   assert(aligned_keylen <= UINT16_MAX);
 
   ngtcp2_objalloc_init(&ksl->blkalloc,
-                       (ksl_blklen(aligned_keylen) + 0xfu) & ~(uintptr_t)0xfu,
+                       (ksl_blklen(aligned_keylen) + 0xFU) & ~(uintptr_t)0xFU,
                        mem);
 
   ksl->root = NULL;
@@ -815,24 +814,11 @@ int ngtcp2_ksl_it_begin(const ngtcp2_ksl_it *it) {
   return it->i == 0 && it->blk->prev == NULL;
 }
 
-int ngtcp2_ksl_range_compar(const ngtcp2_ksl_key *lhs,
-                            const ngtcp2_ksl_key *rhs) {
-  const ngtcp2_range *a = lhs, *b = rhs;
-  return a->begin < b->begin;
-}
-
 ngtcp2_ksl_search_def(range, ngtcp2_ksl_range_compar)
 
 size_t ngtcp2_ksl_range_search(const ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk,
                                const ngtcp2_ksl_key *key) {
   return ksl_range_search(ksl, blk, key);
-}
-
-int ngtcp2_ksl_range_exclusive_compar(const ngtcp2_ksl_key *lhs,
-                                      const ngtcp2_ksl_key *rhs) {
-  const ngtcp2_range *a = lhs, *b = rhs;
-  return a->begin < b->begin && !(ngtcp2_max_uint64(a->begin, b->begin) <
-                                  ngtcp2_min_uint64(a->end, b->end));
 }
 
 ngtcp2_ksl_search_def(range_exclusive, ngtcp2_ksl_range_exclusive_compar)
@@ -843,21 +829,11 @@ size_t ngtcp2_ksl_range_exclusive_search(const ngtcp2_ksl *ksl,
   return ksl_range_exclusive_search(ksl, blk, key);
 }
 
-int ngtcp2_ksl_uint64_less(const ngtcp2_ksl_key *lhs,
-                           const ngtcp2_ksl_key *rhs) {
-  return *(uint64_t *)lhs < *(uint64_t *)rhs;
-}
-
 ngtcp2_ksl_search_def(uint64_less, ngtcp2_ksl_uint64_less)
 
 size_t ngtcp2_ksl_uint64_less_search(const ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk,
                                      const ngtcp2_ksl_key *key) {
   return ksl_uint64_less_search(ksl, blk, key);
-}
-
-int ngtcp2_ksl_int64_greater(const ngtcp2_ksl_key *lhs,
-                             const ngtcp2_ksl_key *rhs) {
-  return *(int64_t *)lhs > *(int64_t *)rhs;
 }
 
 ngtcp2_ksl_search_def(int64_greater, ngtcp2_ksl_int64_greater)

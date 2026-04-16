@@ -7,6 +7,7 @@ import { spawnSyncAndAssert } from '../common/child_process.js';
 spawnSyncAndAssert(
   execPath,
   [
+    '--no-deprecation',
     '--no-experimental-require-module',
     '--import',
     fixtures.fileURL('es-module-loaders/builtin-named-exports.mjs'),

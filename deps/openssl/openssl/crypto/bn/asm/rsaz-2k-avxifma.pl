@@ -1,4 +1,4 @@
-# Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
 # Copyright (c) 2024, Intel Corporation. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -362,6 +362,23 @@ ossl_rsaz_amm52x20_x1_avxifma256:
 .cfi_push   %r14
     push    %r15
 .cfi_push   %r15
+___
+$code.=<<___ if ($win64);
+    push      %rsi                          # save non-volatile registers
+    push      %rdi
+    lea       -168(%rsp), %rsp              # 16*10 + (8 bytes to get correct 16-byte SIMD alignment)
+    vmovapd   %xmm6, `16*0`(%rsp)
+    vmovapd   %xmm7, `16*1`(%rsp)
+    vmovapd   %xmm8, `16*2`(%rsp)
+    vmovapd   %xmm9, `16*3`(%rsp)
+    vmovapd   %xmm10, `16*4`(%rsp)
+    vmovapd   %xmm11, `16*5`(%rsp)
+    vmovapd   %xmm12, `16*6`(%rsp)
+    vmovapd   %xmm13, `16*7`(%rsp)
+    vmovapd   %xmm14, `16*8`(%rsp)
+    vmovapd   %xmm15, `16*9`(%rsp)
+___
+$code.=<<___;
 .Lossl_rsaz_amm52x20_x1_avxifma256_body:
 
     # Zeroing accumulators
@@ -401,6 +418,23 @@ $code.=<<___;
     vmovdqu   $R2_0,  `4*32`($res)
 
     vzeroupper
+___
+$code.=<<___ if ($win64);
+    vmovapd `16*0`(%rsp), %xmm6
+    vmovapd `16*1`(%rsp), %xmm7
+    vmovapd `16*2`(%rsp), %xmm8
+    vmovapd `16*3`(%rsp), %xmm9
+    vmovapd `16*4`(%rsp), %xmm10
+    vmovapd `16*5`(%rsp), %xmm11
+    vmovapd `16*6`(%rsp), %xmm12
+    vmovapd `16*7`(%rsp), %xmm13
+    vmovapd `16*8`(%rsp), %xmm14
+    vmovapd `16*9`(%rsp), %xmm15
+    lea     168(%rsp), %rsp
+    pop     %rdi
+    pop     %rsi
+___
+$code.=<<___;
     mov  0(%rsp),%r15
 .cfi_restore    %r15
     mov  8(%rsp),%r14
@@ -553,6 +587,23 @@ ossl_rsaz_amm52x20_x2_avxifma256:
 .cfi_push   %r14
     push    %r15
 .cfi_push   %r15
+___
+$code.=<<___ if ($win64);
+    push    %rsi                            # save non-volatile registers
+    push    %rdi
+    lea     -168(%rsp), %rsp                # 16*10 + (8 bytes to get correct 16-byte SIMD alignment)
+    vmovapd %xmm6, `16*0`(%rsp)
+    vmovapd %xmm7, `16*1`(%rsp)
+    vmovapd %xmm8, `16*2`(%rsp)
+    vmovapd %xmm9, `16*3`(%rsp)
+    vmovapd %xmm10, `16*4`(%rsp)
+    vmovapd %xmm11, `16*5`(%rsp)
+    vmovapd %xmm12, `16*6`(%rsp)
+    vmovapd %xmm13, `16*7`(%rsp)
+    vmovapd %xmm14, `16*8`(%rsp)
+    vmovapd %xmm15, `16*9`(%rsp)
+___
+$code.=<<___;
 .Lossl_rsaz_amm52x20_x2_avxifma256_body:
 
     # Zeroing accumulators
@@ -604,6 +655,23 @@ $code.=<<___;
     vmovdqu   $R2_1,  `9*32`($res)
 
     vzeroupper
+___
+$code.=<<___ if ($win64);
+    vmovapd `16*0`(%rsp), %xmm6
+    vmovapd `16*1`(%rsp), %xmm7
+    vmovapd `16*2`(%rsp), %xmm8
+    vmovapd `16*3`(%rsp), %xmm9
+    vmovapd `16*4`(%rsp), %xmm10
+    vmovapd `16*5`(%rsp), %xmm11
+    vmovapd `16*6`(%rsp), %xmm12
+    vmovapd `16*7`(%rsp), %xmm13
+    vmovapd `16*8`(%rsp), %xmm14
+    vmovapd `16*9`(%rsp), %xmm15
+    lea     168(%rsp), %rsp
+    pop     %rdi
+    pop     %rsi
+___
+$code.=<<___;
     mov  0(%rsp),%r15
 .cfi_restore    %r15
     mov  8(%rsp),%r14
@@ -663,6 +731,23 @@ $code.=<<___;
 ossl_extract_multiplier_2x20_win5_avx:
 .cfi_startproc
     endbranch
+___
+$code.=<<___ if ($win64);
+    push      %rsi                          # save non-volatile registers
+    push      %rdi
+    lea       -168(%rsp), %rsp              # 16*10 + (8 bytes to get correct 16-byte SIMD alignment)
+    vmovapd   %xmm6, `16*0`(%rsp)
+    vmovapd   %xmm7, `16*1`(%rsp)
+    vmovapd   %xmm8, `16*2`(%rsp)
+    vmovapd   %xmm9, `16*3`(%rsp)
+    vmovapd   %xmm10, `16*4`(%rsp)
+    vmovapd   %xmm11, `16*5`(%rsp)
+    vmovapd   %xmm12, `16*6`(%rsp)
+    vmovapd   %xmm13, `16*7`(%rsp)
+    vmovapd   %xmm14, `16*8`(%rsp)
+    vmovapd   %xmm15, `16*9`(%rsp)
+___
+$code.=<<___;
     vmovapd   .Lones(%rip), $ones         # broadcast ones
     vmovq $red_tbl_idx1, $tmp_xmm
     vpbroadcastq    $tmp_xmm, $idx1
@@ -708,6 +793,24 @@ ___
 foreach (0..9) {
     $code.="vmovdqu   $t[$_], `${_}*32`($out) \n";
 }
+$code.=<<___;
+    vzeroupper
+___
+$code.=<<___ if ($win64);
+    vmovapd `16*0`(%rsp), %xmm6
+    vmovapd `16*1`(%rsp), %xmm7
+    vmovapd `16*2`(%rsp), %xmm8
+    vmovapd `16*3`(%rsp), %xmm9
+    vmovapd `16*4`(%rsp), %xmm10
+    vmovapd `16*5`(%rsp), %xmm11
+    vmovapd `16*6`(%rsp), %xmm12
+    vmovapd `16*7`(%rsp), %xmm13
+    vmovapd `16*8`(%rsp), %xmm14
+    vmovapd `16*9`(%rsp), %xmm15
+    lea     168(%rsp), %rsp
+    pop     %rdi
+    pop     %rsi
+___
 $code.=<<___;
     ret
 .cfi_endproc

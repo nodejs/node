@@ -29,3 +29,21 @@ const tls = require('tls');
 
   client.on('connect', common.mustNotCall('TCP connection should be blocked'));
 }
+
+{
+  assert.throws(() => {
+    net.createServer().listen('/tmp/perm-server.sock');
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'Net',
+  });
+}
+
+{
+  assert.throws(() => {
+    tls.createServer().listen('/tmp/perm-tls-server.sock');
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'Net',
+  });
+}

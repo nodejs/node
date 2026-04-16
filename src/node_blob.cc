@@ -320,6 +320,7 @@ Local<FunctionTemplate> Blob::Reader::GetConstructorTemplate(Environment* env) {
         Blob::Reader::kInternalFieldCount);
     tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "BlobReader"));
     SetProtoMethod(env->isolate(), tmpl, "pull", Pull);
+    SetProtoMethod(env->isolate(), tmpl, "setWakeup", SetWakeup);
     env->set_blob_reader_constructor_template(tmpl);
   }
   return tmpl;
@@ -408,6 +409,20 @@ void Blob::Reader::Pull(const FunctionCallbackInfo<Value>& args) {
 
   args.GetReturnValue().Set(reader->inner_->Pull(
       std::move(next), node::bob::OPTIONS_END, nullptr, 0));
+}
+
+void Blob::Reader::SetWakeup(const FunctionCallbackInfo<Value>& args) {
+  Blob::Reader* reader;
+  ASSIGN_OR_RETURN_UNWRAP(&reader, args.This());
+  CHECK(args[0]->IsFunction());
+  reader->wakeup_.Reset(args.GetIsolate(), args[0].As<Function>());
+}
+
+void Blob::Reader::NotifyPull() {
+  if (wakeup_.IsEmpty() || !env()->can_call_into_js()) return;
+  HandleScope handle_scope(env()->isolate());
+  Local<Function> fn = wakeup_.Get(env()->isolate());
+  MakeCallback(fn, 0, nullptr);
 }
 
 BaseObjectPtr<BaseObject>
@@ -590,6 +605,7 @@ void Blob::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Blob::GetDataObject);
   registry->Register(Blob::RevokeObjectURL);
   registry->Register(Blob::Reader::Pull);
+  registry->Register(Blob::Reader::SetWakeup);
   registry->Register(Concat);
   registry->Register(BlobFromFilePath);
 }

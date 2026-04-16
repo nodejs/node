@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -181,7 +181,7 @@ static int evp_kem_init(EVP_PKEY_CTX *ctx, int operation,
         if (provauthkey != NULL && kem->auth_decapsulate_init != NULL) {
             ret = kem->auth_decapsulate_init(ctx->op.encap.algctx, provkey,
                 provauthkey, params);
-        } else if (provauthkey == NULL && kem->encapsulate_init != NULL) {
+        } else if (provauthkey == NULL && kem->decapsulate_init != NULL) {
             ret = kem->decapsulate_init(ctx->op.encap.algctx, provkey, params);
         } else {
             ERR_raise(ERR_LIB_EVP, EVP_R_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE);

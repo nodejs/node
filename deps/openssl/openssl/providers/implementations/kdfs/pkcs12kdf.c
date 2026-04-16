@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -266,6 +266,15 @@ static int kdf_pkcs12_set_ctx_params(void *vctx, const OSSL_PARAM params[])
     if ((p = OSSL_PARAM_locate_const(params, OSSL_KDF_PARAM_ITER)) != NULL)
         if (!OSSL_PARAM_get_uint64(p, &ctx->iter))
             return 0;
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+    /*
+     * If we're running the fuzzer, limit iteration count to
+     * 100 so we don't time out running the derivation for
+     * a really long time
+     */
+    if (getenv("OPENSSL_RUNNING_UNIT_TESTS") == NULL && p != NULL && ctx->iter > 100)
+        ctx->iter = 100;
+#endif
     return 1;
 }
 

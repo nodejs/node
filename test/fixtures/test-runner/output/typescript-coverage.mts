@@ -10,8 +10,10 @@ describe('foo', { concurrency: true }, () => {
             .then(({ default: _, ...rest }) => rest);
 
         mock.module('../coverage/bar.mts', {
-            defaultExport: barMock,
-            namedExports: barNamedExports,
+            exports: {
+                ...barNamedExports,
+                default: barMock,
+            },
         });
 
         ({ foo } = await import('../coverage/foo.mts'));

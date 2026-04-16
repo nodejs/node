@@ -3,6 +3,19 @@
 // (https://github.com/w3c/webref)
 // Source: Web IDL Standard (https://webidl.spec.whatwg.org/)
 
+[Exposed=*, Serializable]
+interface QuotaExceededError : DOMException {
+  constructor(optional DOMString message = "", optional QuotaExceededErrorOptions options = {});
+
+  readonly attribute double? quota;
+  readonly attribute double? requested;
+};
+
+dictionary QuotaExceededErrorOptions {
+  double quota;
+  double requested;
+};
+
 typedef (Int8Array or Int16Array or Int32Array or
          Uint8Array or Uint16Array or Uint32Array or Uint8ClampedArray or
          BigInt64Array or BigUint64Array or

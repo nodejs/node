@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2017 Ribose Inc. All Rights Reserved.
  * Ported from Ribose contributions from Botan.
  *
@@ -49,12 +49,12 @@ typedef struct {
         return &sm4_##mode;                                                   \
     }
 
-#define DEFINE_BLOCK_CIPHERS(nid, flags)                                                               \
-    BLOCK_CIPHER_generic(nid, 16, 16, cbc, cbc, CBC, flags | EVP_CIPH_FLAG_DEFAULT_ASN1)               \
-        BLOCK_CIPHER_generic(nid, 16, 0, ecb, ecb, ECB, flags | EVP_CIPH_FLAG_DEFAULT_ASN1)            \
-            BLOCK_CIPHER_generic(nid, 1, 16, ofb128, ofb, OFB, flags | EVP_CIPH_FLAG_DEFAULT_ASN1)     \
-                BLOCK_CIPHER_generic(nid, 1, 16, cfb128, cfb, CFB, flags | EVP_CIPH_FLAG_DEFAULT_ASN1) \
-                    BLOCK_CIPHER_generic(nid, 1, 16, ctr, ctr, CTR, flags)
+#define DEFINE_BLOCK_CIPHERS(nid, flags)                                                   \
+    BLOCK_CIPHER_generic(nid, 16, 16, cbc, cbc, CBC, flags | EVP_CIPH_FLAG_DEFAULT_ASN1)   \
+    BLOCK_CIPHER_generic(nid, 16, 0, ecb, ecb, ECB, flags | EVP_CIPH_FLAG_DEFAULT_ASN1)    \
+    BLOCK_CIPHER_generic(nid, 1, 16, ofb128, ofb, OFB, flags | EVP_CIPH_FLAG_DEFAULT_ASN1) \
+    BLOCK_CIPHER_generic(nid, 1, 16, cfb128, cfb, CFB, flags | EVP_CIPH_FLAG_DEFAULT_ASN1) \
+    BLOCK_CIPHER_generic(nid, 1, 16, ctr, ctr, CTR, flags)
 
 static int sm4_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
     const unsigned char *iv, int enc)

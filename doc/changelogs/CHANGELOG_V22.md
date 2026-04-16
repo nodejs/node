@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#22.22.2">22.22.2</a><br/>
 <a href="#22.22.1">22.22.1</a><br/>
 <a href="#22.22.0">22.22.0</a><br/>
 <a href="#22.21.1">22.21.1</a><br/>
@@ -71,6 +72,41 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="22.22.2"></a>
+
+## 2026-03-24, Version 22.22.2 'Jod' (LTS), @RafaelGSS prepared by @aduh95
+
+This is a security release.
+
+### Notable Changes
+
+* (CVE-2026-21637) wrap `SNICallback` invocation in `try`/`catch` (Matteo Collina) - High
+* (CVE-2026-21710) use null prototype for `headersDistinct`/`trailersDistinct` (Matteo Collina) - High
+* (CVE-2026-21713) use timing-safe comparison in Web Cryptography HMAC (Filip Skokan) - Medium
+* (CVE-2026-21714) handle `NGHTTP2_ERR_FLOW_CONTROL` error code (RafaelGSS) - Medium
+* (CVE-2026-21717) test array index hash collision (Joyee Cheung) - Medium
+* (CVE-2026-21715) add permission check to `realpath.native` (RafaelGSS) - Low
+* (CVE-2026-21716) include permission check on `lib/fs/promises` (RafaelGSS) - Low
+
+### Commits
+
+* \[[`6f14ee5101`](https://github.com/nodejs/node/commit/6f14ee5101)] - **(CVE-2026-21717)** **build,test**: test array index hash collision (Joyee Cheung) [nodejs-private/node-private#809](https://github.com/nodejs-private/node-private/pull/809)
+* \[[`52a52ef619`](https://github.com/nodejs/node/commit/52a52ef619)] - **(CVE-2026-21713)** **crypto**: use timing-safe comparison in Web Cryptography HMAC (Filip Skokan) [nodejs-private/node-private#822](https://github.com/nodejs-private/node-private/pull/822)
+* \[[`30a3ab11e2`](https://github.com/nodejs/node/commit/30a3ab11e2)] - **(CVE-2026-21717)** **deps**: V8: cherry-pick aac14dd95e5b (Joyee Cheung) [nodejs-private/node-private#809](https://github.com/nodejs-private/node-private/pull/809)
+* \[[`e3f4d6a42e`](https://github.com/nodejs/node/commit/e3f4d6a42e)] - **(CVE-2026-21717)** **deps**: V8: backport 1361b2a49d02 (Joyee Cheung) [nodejs-private/node-private#809](https://github.com/nodejs-private/node-private/pull/809)
+* \[[`7dc00fa5f4`](https://github.com/nodejs/node/commit/7dc00fa5f4)] - **(CVE-2026-21717)** **deps**: V8: backport 185f0fe09b72 (Joyee Cheung) [nodejs-private/node-private#809](https://github.com/nodejs-private/node-private/pull/809)
+* \[[`076acd052d`](https://github.com/nodejs/node/commit/076acd052d)] - **(CVE-2026-21717)** **deps**: V8: backport 0a8b1cdcc8b2 (snek) [nodejs-private/node-private#809](https://github.com/nodejs-private/node-private/pull/809)
+* \[[`963c60a951`](https://github.com/nodejs/node/commit/963c60a951)] - **deps**: V8: override `depot_tools` version (Richard Lau) [#62344](https://github.com/nodejs/node/pull/62344)
+* \[[`a688117d5d`](https://github.com/nodejs/node/commit/a688117d5d)] - **deps**: upgrade npm to 10.9.7 (npm team) [#62330](https://github.com/nodejs/node/pull/62330)
+* \[[`859c8c761b`](https://github.com/nodejs/node/commit/859c8c761b)] - **deps**: update undici to v6.24.1 (Matteo Collina) [#62285](https://github.com/nodejs/node/pull/62285)
+* \[[`d5ed384a2f`](https://github.com/nodejs/node/commit/d5ed384a2f)] - **deps**: upgrade npm to 10.9.6 (npm team) [#62215](https://github.com/nodejs/node/pull/62215)
+* \[[`a2fe9fd81a`](https://github.com/nodejs/node/commit/a2fe9fd81a)] - **(CVE-2026-21710)** **http**: use null prototype for headersDistinct/trailersDistinct (Matteo Collina) [nodejs-private/node-private#821](https://github.com/nodejs-private/node-private/pull/821)
+* \[[`73deff77c1`](https://github.com/nodejs/node/commit/73deff77c1)] - **lib**: backport `_tls_common` and `_tls_wrap` refactors (Dario Piotrowicz) [#57643](https://github.com/nodejs/node/pull/57643)
+* \[[`06fc3436f6`](https://github.com/nodejs/node/commit/06fc3436f6)] - **(CVE-2026-21716)** **permission**: include permission check on lib/fs/promises (RafaelGSS) [nodejs-private/node-private#795](https://github.com/nodejs-private/node-private/pull/795)
+* \[[`db48d9c675`](https://github.com/nodejs/node/commit/db48d9c675)] - **(CVE-2026-21715)** **permission**: add permission check to realpath.native (RafaelGSS) [nodejs-private/node-private#794](https://github.com/nodejs-private/node-private/pull/794)
+* \[[`2a6105a63b`](https://github.com/nodejs/node/commit/2a6105a63b)] - **(CVE-2026-21714)** **src**: handle NGHTTP2\_ERR\_FLOW\_CONTROL error code (RafaelGSS) [nodejs-private/node-private#832](https://github.com/nodejs-private/node-private/pull/832)
+* \[[`91b970886f`](https://github.com/nodejs/node/commit/91b970886f)] - **(CVE-2026-21637)** **tls**: wrap SNICallback invocation in try/catch (Matteo Collina) [nodejs-private/node-private#819](https://github.com/nodejs-private/node-private/pull/819)
 
 <a id="22.22.1"></a>
 

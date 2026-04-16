@@ -40,6 +40,14 @@ for (const asymmetricKeyType of ['ml-kem-512', 'ml-kem-768', 'ml-kem-1024']) {
     key.export({ format: 'der', type: 'spki' });
     assert.throws(() => key.export({ format: 'jwk' }),
                   { code: 'ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE', message: 'Unsupported JWK Key Type.' });
+
+    // Raw format round-trip
+    const rawPub = key.export({ format: 'raw-public' });
+    assert(Buffer.isBuffer(rawPub));
+    const importedPub = createPublicKey({
+      key: rawPub, format: 'raw-public', asymmetricKeyType,
+    });
+    assert.strictEqual(importedPub.equals(key), true);
   }
 
   function assertPrivateKey(key, hasSeed) {
@@ -49,6 +57,14 @@ for (const asymmetricKeyType of ['ml-kem-512', 'ml-kem-768', 'ml-kem-1024']) {
     key.export({ format: 'der', type: 'pkcs8' });
     if (hasSeed) {
       assert.strictEqual(key.export({ format: 'pem', type: 'pkcs8' }), keys.private_seed_only);
+
+      // Raw seed round-trip
+      const rawSeed = key.export({ format: 'raw-seed' });
+      assert(Buffer.isBuffer(rawSeed));
+      const importedPriv = createPrivateKey({
+        key: rawSeed, format: 'raw-seed', asymmetricKeyType,
+      });
+      assert.strictEqual(importedPriv.equals(key), true);
     } else {
       assert.strictEqual(key.export({ format: 'pem', type: 'pkcs8' }), keys.private_priv_only);
     }

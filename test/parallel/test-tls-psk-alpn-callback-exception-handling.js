@@ -332,4 +332,94 @@ describe('TLS callback exception handling', () => {
 
     await promise;
   });
+
+  // Test 7: SNI callback throwing should emit tlsClientError
+  it('SNICallback throwing emits tlsClientError', async (t) => {
+    const server = tls.createServer({
+      key: fixtures.readKey('agent2-key.pem'),
+      cert: fixtures.readKey('agent2-cert.pem'),
+      SNICallback: (servername, cb) => {
+        throw new Error('Intentional SNI callback error');
+      },
+    });
+
+    t.after(() => server.close());
+
+    const { promise, resolve, reject } = createTestPromise();
+
+    server.on('tlsClientError', common.mustCall((err, socket) => {
+      try {
+        assert.ok(err instanceof Error);
+        assert.strictEqual(err.message, 'Intentional SNI callback error');
+        socket.destroy();
+        resolve();
+      } catch (e) {
+        reject(e);
+      }
+    }));
+
+    server.on('secureConnection', () => {
+      reject(new Error('secureConnection should not fire'));
+    });
+
+    await new Promise((res) => server.listen(0, res));
+
+    const client = tls.connect({
+      port: server.address().port,
+      host: '127.0.0.1',
+      servername: 'evil.attacker.com',
+      rejectUnauthorized: false,
+    });
+
+    client.on('error', () => {});
+
+    await promise;
+  });
+
+  // Test 8: SNI callback with validation error should emit tlsClientError
+  it('SNICallback validation error emits tlsClientError', async (t) => {
+    const server = tls.createServer({
+      key: fixtures.readKey('agent2-key.pem'),
+      cert: fixtures.readKey('agent2-cert.pem'),
+      SNICallback: (servername, cb) => {
+        // Simulate common developer pattern: throw on unknown servername
+        if (servername !== 'expected.example.com') {
+          throw new Error(`Unknown servername: ${servername}`);
+        }
+        cb(null, null);
+      },
+    });
+
+    t.after(() => server.close());
+
+    const { promise, resolve, reject } = createTestPromise();
+
+    server.on('tlsClientError', common.mustCall((err, socket) => {
+      try {
+        assert.ok(err instanceof Error);
+        assert.ok(err.message.includes('Unknown servername'));
+        socket.destroy();
+        resolve();
+      } catch (e) {
+        reject(e);
+      }
+    }));
+
+    server.on('secureConnection', () => {
+      reject(new Error('secureConnection should not fire'));
+    });
+
+    await new Promise((res) => server.listen(0, res));
+
+    const client = tls.connect({
+      port: server.address().port,
+      host: '127.0.0.1',
+      servername: 'unexpected.domain.com',
+      rejectUnauthorized: false,
+    });
+
+    client.on('error', () => {});
+
+    await promise;
+  });
 });

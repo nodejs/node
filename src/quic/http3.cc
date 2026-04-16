@@ -1,7 +1,6 @@
 #if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
-#include "http3.h"
 #include <async_wrap-inl.h>
 #include <base_object-inl.h>
 #include <debug_utils-inl.h>
@@ -15,79 +14,16 @@
 #include "application.h"
 #include "bindingdata.h"
 #include "defs.h"
+#include "http3.h"
 #include "session.h"
 #include "sessionticket.h"
 
 namespace node {
 
+using v8::Array;
 using v8::Local;
-using v8::Object;
-using v8::ObjectTemplate;
 
 namespace quic {
-
-// ============================================================================
-
-JS_CONSTRUCTOR_IMPL(Http3Application, http3application_constructor_template, {
-  JS_NEW_CONSTRUCTOR();
-  JS_CLASS(http3application);
-})
-
-void Http3Application::InitPerIsolate(IsolateData* isolate_data,
-                                      Local<ObjectTemplate> target) {
-  // TODO(@jasnell): Implement the per-isolate state
-}
-
-void Http3Application::InitPerContext(Realm* realm, Local<Object> target) {
-  SetConstructorFunction(realm->context(),
-                         target,
-                         "Http3Application",
-                         GetConstructorTemplate(realm->env()));
-}
-
-void Http3Application::RegisterExternalReferences(
-    ExternalReferenceRegistry* registry) {
-  registry->Register(New);
-}
-
-Http3Application::Http3Application(Environment* env,
-                                   Local<Object> object,
-                                   const Session::Application::Options& options)
-    : ApplicationProvider(env, object), options_(options) {
-  MakeWeak();
-}
-
-JS_METHOD_IMPL(Http3Application::New) {
-  Environment* env = Environment::GetCurrent(args);
-  CHECK(args.IsConstructCall());
-
-  JS_NEW_INSTANCE(env, obj);
-
-  Session::Application::Options options;
-  if (!args[0]->IsUndefined() &&
-      !Session::Application::Options::From(env, args[0]).To(&options)) {
-    return;
-  }
-
-  if (auto app = MakeBaseObject<Http3Application>(env, obj, options)) {
-    args.GetReturnValue().Set(app->object());
-  }
-}
-
-void Http3Application::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackField("options", options_);
-}
-
-std::string Http3Application::ToString() const {
-  DebugIndentScope indent;
-  auto prefix = indent.Prefix();
-  std::string res("{");
-  res += prefix + "options: " + options_.ToString();
-  res += indent.Close();
-  return res;
-}
-
-// ============================================================================
 
 struct Http3HeadersTraits {
   using nv_t = nghttp3_nv;
@@ -153,6 +89,10 @@ class Http3ApplicationImpl final : public Session::Application {
         options_(options),
         conn_(InitializeConnection()) {
     session->set_priority_supported();
+  }
+
+  Session::Application::Type type() const override {
+    return Session::Application::Type::HTTP3;
   }
 
   error_code GetNoErrorCode() const override { return NGHTTP3_H3_NO_ERROR; }
@@ -319,14 +259,20 @@ class Http3ApplicationImpl final : public Session::Application {
 
   void CollectSessionTicketAppData(
       SessionTicket::AppData* app_data) const override {
-    // TODO(@jasnell): There's currently nothing to store but there may be
-    // later.
+    // TODO(@jasnell): When HTTP/3 settings become dynamic or
+    // configurable per-connection, store them here so they can be
+    // validated on 0-RTT resumption. Candidates include:
+    // max_field_section_size, qpack_max_dtable_capacity,
+    // qpack_encoder_max_dtable_capacity, qpack_blocked_streams,
+    // enable_connect_protocol, and enable_datagrams. On extraction,
+    // compare stored values against current settings and return
+    // TICKET_IGNORE_RENEW if incompatible.
   }
 
   SessionTicket::AppData::Status ExtractSessionTicketAppData(
       const SessionTicket::AppData& app_data,
       SessionTicket::AppData::Source::Flag flag) override {
-    // There's currently nothing stored here but we might do so later.
+    // See CollectSessionTicketAppData above.
     return flag == SessionTicket::AppData::Source::Flag::STATUS_RENEW
                ? SessionTicket::AppData::Status::TICKET_USE_RENEW
                : SessionTicket::AppData::Status::TICKET_USE;
@@ -382,7 +328,7 @@ class Http3ApplicationImpl final : public Session::Application {
 
   bool SendHeaders(const Stream& stream,
                    HeadersKind kind,
-                   const Local<v8::Array>& headers,
+                   const Local<Array>& headers,
                    HeadersFlags flags = HeadersFlags::NONE) override {
     Session::SendPendingDataScope send_scope(&session());
     Http3Headers nva(env(), headers);
@@ -448,10 +394,41 @@ class Http3ApplicationImpl final : public Session::Application {
     return false;
   }
 
+  void SetStreamPriority(const Stream& stream,
+                         StreamPriority priority,
+                         StreamPriorityFlags flags) override {
+    nghttp3_pri pri;
+    pri.inc = (flags == StreamPriorityFlags::NON_INCREMENTAL) ? 0 : 1;
+    switch (priority) {
+      case StreamPriority::HIGH:
+        pri.urgency = NGHTTP3_URGENCY_HIGH;
+        break;
+      case StreamPriority::LOW:
+        pri.urgency = NGHTTP3_URGENCY_LOW;
+        break;
+      default:
+        pri.urgency = NGHTTP3_DEFAULT_URGENCY;
+        break;
+    }
+    if (session().is_server()) {
+      nghttp3_conn_set_server_stream_priority(*this, stream.id(), &pri);
+    }
+    // Client-side priority is set at request submission time via
+    // nghttp3_conn_submit_request and is not typically changed
+    // after the fact. The client API takes a serialized RFC 9218
+    // field value rather than an nghttp3_pri struct.
+  }
+
   StreamPriority GetStreamPriority(const Stream& stream) override {
     nghttp3_pri pri;
     if (nghttp3_conn_get_stream_priority(*this, &pri, stream.id()) == 0) {
-      // TODO(@jasnell): Support the incremental flag
+      // TODO(@jasnell): The nghttp3_pri.inc (incremental) flag is
+      // not yet exposed. When priority-based stream scheduling is
+      // implemented, GetStreamPriority should return both urgency
+      // and the incremental flag (making get/set symmetrical).
+      // The inc flag determines whether the server should interleave
+      // data from this stream with others of the same urgency
+      // (inc=1) or complete it first (inc=0).
       switch (pri.urgency) {
         case NGHTTP3_URGENCY_HIGH:
           return StreamPriority::HIGH;
@@ -498,11 +475,8 @@ class Http3ApplicationImpl final : public Session::Application {
           nghttp3_err_infer_quic_app_error_code(err)));
       return false;
     }
+    if (data->stream) data->stream->Commit(datalen, data->fin);
     return true;
-  }
-
-  bool ShouldSetFin(const StreamData& data) override {
-    return data.id > -1 && !is_control_stream(data.id) && data.fin == 1;
   }
 
   SET_NO_MEMORY_INFO()
@@ -674,22 +648,21 @@ class Http3ApplicationImpl final : public Session::Application {
     stream->ReceiveStreamReset(0, QuicError::ForApplication(app_error_code));
   }
 
-  void OnShutdown() {
-    // This callback is invoked when we receive a request to gracefully shutdown
-    // the http3 connection. For client, the id is the stream id of a client
-    // initiated stream. For server, the id is the stream id of a server
-    // initiated stream. Once received, the other side is guaranteed not to
-    // process any more data.
-
-    // On the client side, if id is equal to NGHTTP3_SHUTDOWN_NOTICE_STREAM_ID,
-    // or on the server if the id is equal to NGHTTP3_SHUTDOWN_NOTICE_PUSH_ID,
-    // then this is a request to begin a graceful shutdown.
-
-    // This can be called multiple times but the id can only stay the same or
-    // *decrease*.
-
-    // TODO(@jasnell): Need to determine exactly how to handle.
-    Debug(&session(), "HTTP/3 application received shutdown notice");
+  void OnShutdown(int64_t id) {
+    // The peer has sent a GOAWAY frame initiating a graceful shutdown.
+    // For a client, id is the stream ID beyond which the server will
+    // not process requests. For a server, id is a push ID (server
+    // push is not implemented). Streams/pushes with IDs >= id will
+    // not be processed by the peer.
+    //
+    // When id equals NGHTTP3_SHUTDOWN_NOTICE_STREAM_ID (client) or
+    // NGHTTP3_SHUTDOWN_NOTICE_PUSH_ID (server), this is a notice of
+    // intent to shut down rather than an immediate refusal.
+    //
+    // This can be called multiple times with a decreasing id as the
+    // peer progressively reduces the set of streams it will process.
+    Debug(&session(), "HTTP/3 received GOAWAY (id=%" PRIi64 ")", id);
+    session().Close(Session::CloseMethod::GRACEFUL);
   }
 
   void OnReceiveSettings(const nghttp3_settings* settings) {
@@ -748,7 +721,49 @@ class Http3ApplicationImpl final : public Session::Application {
                                              uint32_t* pflags,
                                              void* conn_user_data,
                                              void* stream_user_data) {
-    return NGTCP2_SUCCESS;
+    auto ptr = From(conn, conn_user_data);
+    CHECK_NOT_NULL(ptr);
+    auto& app = *ptr;
+    NgHttp3CallbackScope scope(app.env());
+
+    auto stream = app.session().FindStream(stream_id);
+    if (!stream) return NGHTTP3_ERR_CALLBACK_FAILURE;
+
+    if (stream->is_eos()) {
+      *pflags |= NGHTTP3_DATA_FLAG_EOF;
+      return 0;
+    }
+
+    size_t max_count = std::min(veccnt, static_cast<size_t>(kMaxVectorCount));
+    nghttp3_ssize result = 0;
+
+    auto next =
+        [&](int status, const ngtcp2_vec* data, size_t count, bob::Done done) {
+          switch (status) {
+            case bob::Status::STATUS_BLOCK:
+            case bob::Status::STATUS_WAIT:
+              result = NGHTTP3_ERR_WOULDBLOCK;
+              return;
+            case bob::Status::STATUS_EOS:
+              *pflags |= NGHTTP3_DATA_FLAG_EOF;
+              break;
+          }
+          count = std::min(count, max_count);
+          for (size_t n = 0; n < count; n++) {
+            vec[n].base = data[n].base;
+            vec[n].len = data[n].len;
+          }
+          result = static_cast<nghttp3_ssize>(count);
+        };
+
+    ngtcp2_vec data[kMaxVectorCount];
+    stream->Pull(std::move(next),
+                 bob::Options::OPTIONS_SYNC,
+                 data,
+                 max_count,
+                 max_count);
+
+    return result;
   }
 
   static int on_acked_stream_data(nghttp3_conn* conn,
@@ -935,7 +950,7 @@ class Http3ApplicationImpl final : public Session::Application {
 
   static int on_shutdown(nghttp3_conn* conn, int64_t id, void* conn_user_data) {
     NGHTTP3_CALLBACK_SCOPE(app);
-    app.OnShutdown();
+    app.OnShutdown(id);
     return NGTCP2_SUCCESS;
   }
 
@@ -951,14 +966,14 @@ class Http3ApplicationImpl final : public Session::Application {
                                const uint8_t* origin,
                                size_t originlen,
                                void* conn_user_data) {
-    // TODO(@jasnell): Handle the origin callback. This is called
-    // when a single origin in an ORIGIN frame is received.
+    // ORIGIN frames (RFC 8336) are used for connection coalescing
+    // across multiple origins. Not yet implemented u2014 requires
+    // connection pooling and multi-origin reuse support.
     return NGTCP2_SUCCESS;
   }
 
   static int on_end_origin(nghttp3_conn* conn, void* conn_user_data) {
-    // TODO(@jasnell): Handle the end of origin callback. This is called
-    // when the end of an ORIGIN frame is received.
+    // See on_receive_origin above.
     return NGTCP2_SUCCESS;
   }
 
@@ -987,10 +1002,10 @@ class Http3ApplicationImpl final : public Session::Application {
                                                    nullptr};
 };
 
-std::unique_ptr<Session::Application> Http3Application::Create(
-    Session* session) {
+std::unique_ptr<Session::Application> CreateHttp3Application(
+    Session* session, const Session::Application_Options& options) {
   Debug(session, "Selecting HTTP/3 application");
-  return std::make_unique<Http3ApplicationImpl>(session, options_);
+  return std::make_unique<Http3ApplicationImpl>(session, options);
 }
 
 }  // namespace quic

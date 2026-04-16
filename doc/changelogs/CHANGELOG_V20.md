@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#20.20.2">20.20.2</a><br/>
 <a href="#20.20.1">20.20.1</a><br/>
 <a href="#20.20.0">20.20.0</a><br/>
 <a href="#20.19.6">20.19.6</a><br/>
@@ -81,6 +82,34 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="20.20.2"></a>
+
+## 2026-03-24, Version 20.20.2 'Iron' (LTS), @marco-ippolito
+
+This is a security release.
+
+### Notable Changes
+
+* (CVE-2026-21717) fix array index hash collision (Joyee Cheung) <https://github.com/nodejs-private/node-private/pull/834>
+* (CVE-2026-21713) use timing-safe comparison in Web Cryptography HMAC and KMAC (Filip Skokan) <https://github.com/nodejs-private/node-private/pull/822>
+* (CVE-2026-21710) use null prototype for headersDistinct/trailersDistinct (Matteo Collina) <https://github.com/nodejs-private/node-private/pull/821>
+* (CVE-2026-21716) include permission check on lib/fs/promises (RafaelGSS) <https://github.com/nodejs-private/node-private/pull/795>
+* (CVE-2026-21715) add permission check to realpath.native (RafaelGSS) <https://github.com/nodejs-private/node-private/pull/794>
+* (CVE-2026-21714) handle NGHTTP2\_ERR\_FLOW\_CONTROL error code (RafaelGSS) <https://github.com/nodejs-private/node-private/pull/832>
+* (CVE-2026-21637) wrap SNICallback invocation in try/catch (Matteo Collina) <https://github.com/nodejs-private/node-private/pull/819>
+
+### Commits
+
+* \[[`cfb51fa9ce`](https://github.com/nodejs/node/commit/cfb51fa9ce)] - **(CVE-2026-21713)** **crypto**: use timing-safe comparison in Web Cryptography HMAC (Filip Skokan) [nodejs-private/node-private#831](https://github.com/nodejs-private/node-private/pull/831)
+* \[[`f333d0be5f`](https://github.com/nodejs/node/commit/f333d0be5f)] - **deps**: V8: override `depot_tools` version (Richard Lau) [#62344](https://github.com/nodejs/node/pull/62344)
+* \[[`2acd5d1226`](https://github.com/nodejs/node/commit/2acd5d1226)] - **deps**: update undici to v6.24.1 (Matteo Collina) [#62285](https://github.com/nodejs/node/pull/62285)
+* \[[`af5c144ebc`](https://github.com/nodejs/node/commit/af5c144ebc)] - **(CVE-2026-21717)** **deps,build,test**: fix array index hash collision (Joyee Cheung) [nodejs-private/node-private#834](https://github.com/nodejs-private/node-private/pull/834)
+* \[[`00ad47a28e`](https://github.com/nodejs/node/commit/00ad47a28e)] - **(CVE-2026-21710)** **http**: use null prototype for headersDistinct/trailersDistinct (Matteo Collina) [nodejs-private/node-private#821](https://github.com/nodejs-private/node-private/pull/821)
+* \[[`0123309566`](https://github.com/nodejs/node/commit/0123309566)] - **(CVE-2026-21716)** **permission**: include permission check on lib/fs/promises (RafaelGSS) [nodejs-private/node-private#840](https://github.com/nodejs-private/node-private/pull/840)
+* \[[`00830712bc`](https://github.com/nodejs/node/commit/00830712bc)] - **(CVE-2026-21715)** **permission**: add permission check to realpath.native (RafaelGSS) [nodejs-private/node-private#838](https://github.com/nodejs-private/node-private/pull/838)
+* \[[`a0c73425da`](https://github.com/nodejs/node/commit/a0c73425da)] - **(CVE-2026-21714)** **src**: handle NGHTTP2\_ERR\_FLOW\_CONTROL error code (RafaelGSS) [nodejs-private/node-private#832](https://github.com/nodejs-private/node-private/pull/832)
+* \[[`cc3f294507`](https://github.com/nodejs/node/commit/cc3f294507)] - **(CVE-2026-21637)** **tls**: wrap SNICallback invocation in try/catch (Matteo Collina) [nodejs-private/node-private#839](https://github.com/nodejs-private/node-private/pull/839)
 
 <a id="20.20.1"></a>
 

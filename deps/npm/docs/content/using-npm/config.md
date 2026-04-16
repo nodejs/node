@@ -770,6 +770,18 @@ the order in which omit/include are specified on the command-line.
 
 
 
+#### `include-attestations`
+
+* Default: false
+* Type: Boolean
+
+When used with `npm audit signatures --json`, includes the full sigstore
+attestation bundles in the JSON output for each verified package. The
+bundles contain DSSE envelopes, verification material, and transparency log
+entries.
+
+
+
 #### `include-staged`
 
 * Default: false
@@ -1085,6 +1097,8 @@ This flag is a complement to `before`, which accepts an exact date instead
 of a relative number of days.
 
 This config cannot be used with: `before`
+
+This value is not exported to the environment for child processes.
 
 #### `name`
 

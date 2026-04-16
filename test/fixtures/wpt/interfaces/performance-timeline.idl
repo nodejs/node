@@ -22,8 +22,8 @@ interface PerformanceEntry {
 };
 
 callback PerformanceObserverCallback = undefined (PerformanceObserverEntryList entries,
-                                             PerformanceObserver observer,
-                                             optional PerformanceObserverCallbackOptions options = {});
+                                                 PerformanceObserver observer,
+                                                 optional PerformanceObserverCallbackOptions options = {});
 [Exposed=(Window,Worker)]
 interface PerformanceObserver {
   constructor(PerformanceObserverCallback callback);

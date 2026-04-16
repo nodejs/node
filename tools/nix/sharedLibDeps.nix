@@ -4,6 +4,7 @@
   withQuic ? false,
   withSQLite ? true,
   withSSL ? true,
+  withFFI ? true,
   withTemporal ? false,
 }:
 {
@@ -45,6 +46,9 @@
 })
 // (pkgs.lib.optionalAttrs withSQLite {
   inherit (pkgs) sqlite;
+})
+// (pkgs.lib.optionalAttrs withFFI {
+  ffi = pkgs.libffiReal;
 })
 // (pkgs.lib.optionalAttrs withSSL (
   let

@@ -186,9 +186,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-publish----11111">
+<h1 id="----npm-publish----11121">
     <span>npm-publish</span>
-    <span class="version">@11.11.1</span>
+    <span class="version">@11.12.1</span>
 </h1>
 <span class="description">Publish a package</span>
 </header>
@@ -228,6 +228,7 @@ This can be overridden by specifying a different default registry or using a <a 
 <li>f) a <code>&lt;name&gt;</code> that has a "latest" tag satisfying (e)</li>
 <li>g) a <code>&lt;git remote url&gt;</code> that resolves to (a)</li>
 </ul>
+<p>If either (a) or (b) is specified as a relative path, it should begin with an explicit <code>./</code> prefix.</p>
 <p>The publish will fail if the package name and version combination already exists in the specified registry.</p>
 <p>Once a package is published with a given name and version, that specific name and version combination can never be used again, even if it is removed with <a href="../commands/npm-unpublish.html"><code>npm unpublish</code></a>.</p>
 <p>As of <code>npm@5</code>, both a sha1sum and an integrity field with a sha512sum of the tarball will be submitted to the registry during publication.

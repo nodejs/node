@@ -6,6 +6,7 @@ function assert_function_name(fn, name, description) {
   assert_true(propdesc.configurable, "configurable", `${description} name should be configurable`);
   assert_equals(propdesc.value, name, `${description} name should be ${name}`);
 }
+globalThis.assert_function_name = assert_function_name;
 
 function assert_function_length(fn, length, description) {
   const propdesc = Object.getOwnPropertyDescriptor(fn, "length");
@@ -15,6 +16,7 @@ function assert_function_length(fn, length, description) {
   assert_true(propdesc.configurable, "configurable", `${description} length should be configurable`);
   assert_equals(propdesc.value, length, `${description} length should be ${length}`);
 }
+globalThis.assert_function_length = assert_function_length;
 
 function assert_exported_function(fn, { name, length }, description) {
   if (WebAssembly.Function === undefined) {
@@ -28,6 +30,7 @@ function assert_exported_function(fn, { name, length }, description) {
   assert_function_name(fn, name, description);
   assert_function_length(fn, length, description);
 }
+globalThis.assert_exported_function = assert_exported_function;
 
 function assert_Instance(instance, expected_exports) {
   assert_equals(Object.getPrototypeOf(instance), WebAssembly.Instance.prototype,
@@ -77,6 +80,7 @@ function assert_Instance(instance, expected_exports) {
     }
   }
 }
+globalThis.assert_Instance = assert_Instance;
 
 function assert_WebAssemblyInstantiatedSource(actual, expected_exports={}) {
   assert_equals(Object.getPrototypeOf(actual), Object.prototype,
@@ -98,3 +102,4 @@ function assert_WebAssemblyInstantiatedSource(actual, expected_exports={}) {
   assert_true(instance.configurable, "instance: configurable");
   assert_Instance(instance.value, expected_exports);
 }
+globalThis.assert_WebAssemblyInstantiatedSource = assert_WebAssemblyInstantiatedSource;

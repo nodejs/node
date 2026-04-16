@@ -138,7 +138,6 @@ assert.strictEqual(streamState.finSent, false);
 assert.strictEqual(streamState.finReceived, false);
 assert.strictEqual(streamState.readEnded, false);
 assert.strictEqual(streamState.writeEnded, false);
-assert.strictEqual(streamState.paused, false);
 assert.strictEqual(streamState.reset, false);
 assert.strictEqual(streamState.hasReader, false);
 assert.strictEqual(streamState.wantsBlock, false);

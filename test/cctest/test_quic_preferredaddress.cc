@@ -48,7 +48,7 @@ TEST(PreferredAddress, Basic) {
   const auto ipv4 = preferred_address.ipv4().value();
   CHECK_EQ(ipv4.family, AF_INET);
   CHECK_EQ(htons(ipv4.port), 443);
-  CHECK_EQ(ipv4.address, "123.123.123.123");
+  CHECK_EQ(std::string(ipv4.host), "123.123.123.123");
 
   memcpy(&paddr.ipv6, &storage6, sizeof(sockaddr_in6));
   paddr.ipv6_present = 1;
@@ -57,7 +57,7 @@ TEST(PreferredAddress, Basic) {
   const auto ipv6 = preferred_address.ipv6().value();
   CHECK_EQ(ipv6.family, AF_INET6);
   CHECK_EQ(htons(ipv6.port), 123);
-  CHECK_EQ(ipv6.address, "2001:db8::1");
+  CHECK_EQ(std::string(ipv6.host), "2001:db8::1");
 
   CHECK_EQ(preferred_address.cid(), cid);
 }
@@ -78,7 +78,7 @@ TEST(PreferredAddress, SetTransportParams) {
   const auto ipv4_2 = paddr2.ipv4().value();
   CHECK_EQ(ipv4_2.family, AF_INET);
   CHECK_EQ(htons(ipv4_2.port), 443);
-  CHECK_EQ(ipv4_2.address, "123.123.123.123");
+  CHECK_EQ(std::string(ipv4_2.host), "123.123.123.123");
 }
 #endif  // OPENSSL_NO_QUIC
 #endif  // HAVE_OPENSSL && HAVE_QUIC

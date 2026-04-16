@@ -72,6 +72,7 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "include": [],
   "include-staged": false,
   "include-workspace-root": false,
+  "include-attestations": false,
   "init-author-email": "",
   "init-author-name": "",
   "init-author-url": "",
@@ -248,6 +249,7 @@ https-proxy = null
 if-present = false
 ignore-scripts = false
 include = []
+include-attestations = false
 include-staged = false
 include-workspace-root = false
 init-author-email = ""

@@ -195,8 +195,29 @@ class OverrideSet {
       }
     }
 
-    // The override sets are incomparable. Neither one contains the other.
-    log.silly('Conflicting override sets', first, second)
+    // The override sets are incomparable (e.g. siblings like the "react" and "react-dom" children of the root override set). Check if they have semantically conflicting rules before treating this as an error.
+    if (this.haveConflictingRules(first, second)) {
+      log.silly('Conflicting override sets', first, second)
+      return undefined
+    }
+
+    // The override sets are structurally incomparable but have compatible rules. Fall back to their nearest common ancestor so the node still has a valid override set.
+    return this.findCommonAncestor(first, second)
+  }
+
+  static findCommonAncestor (first, second) {
+    const firstAncestors = []
+    for (const ancestor of first.ancestry()) {
+      firstAncestors.push(ancestor)
+    }
+    for (const secondAnc of second.ancestry()) {
+      for (const firstAnc of firstAncestors) {
+        if (firstAnc.isEqual(secondAnc)) {
+          return firstAnc
+        }
+      }
+    }
+    return null
   }
 
   static doOverrideSetsConflict (first, second) {

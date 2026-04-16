@@ -178,7 +178,13 @@ isBuiltin('wss'); // false
 added:
   - v20.6.0
   - v18.19.0
+deprecated:
+ - v25.9.0
+ - v24.15.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62401
+    description: Runtime deprecation (DEP0205).
   - version:
     - v23.6.1
     - v22.13.1
@@ -193,7 +199,7 @@ changes:
     description: Add support for WHATWG URL instances.
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 0 - Deprecated: Use [`module.registerHooks()`][] instead.
 
 * `specifier` {string|URL} Customization hooks to be registered; this should be
   the same string that would be passed to `import()`, except that if it is
@@ -430,7 +436,9 @@ separately if the same base directory is used to persist the cache, so they can 
 <!-- YAML
 added: v22.8.0
 changes:
-  - version: v25.4.0
+  - version:
+     - v25.4.0
+     - v24.15.0
     pr-url: https://github.com/nodejs/node/pull/60971
     description: This feature is no longer experimental.
 -->
@@ -485,7 +493,9 @@ The following constants are returned as the `status` field in the object returne
 <!-- YAML
 added: v22.8.0
 changes:
-  - version: v25.4.0
+  - version:
+     - v25.4.0
+     - v24.15.0
     pr-url: https://github.com/nodejs/node/pull/60971
     description: This feature is no longer experimental.
   - version:
@@ -545,7 +555,9 @@ added:
  - v23.0.0
  - v22.10.0
 changes:
-  - version: v25.4.0
+  - version:
+     - v25.4.0
+     - v24.15.0
     pr-url: https://github.com/nodejs/node/pull/60971
     description: This feature is no longer experimental.
 -->
@@ -561,7 +573,9 @@ interfere with the actual operation of the application.
 <!-- YAML
 added: v22.8.0
 changes:
-  - version: v25.4.0
+  - version:
+     - v25.4.0
+     - v24.15.0
     pr-url: https://github.com/nodejs/node/pull/60971
     description: This feature is no longer experimental.
 -->

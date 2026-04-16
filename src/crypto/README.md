@@ -180,14 +180,12 @@ The `CryptoJob` class itself is a C++ template that takes a single
 `CryptoJobTraits` struct as a parameter. The `CryptoJobTraits`
 provides the implementation detail of the job.
 
-There are (currently) four basic `CryptoJob` specializations:
+There are (currently) three basic `CryptoJob` specializations:
 
 * `CipherJob` (defined in `src/crypto_cipher.h`) -- Used for
   encrypt and decrypt operations.
 * `KeyGenJob` (defined in `src/crypto_keygen.h`) -- Used for
   secret and key pair generation operations.
-* `KeyExportJob` (defined in `src/crypto_keys.h`) -- Used for
-  key export operations.
 * `DeriveBitsJob` (defined in `src/crypto_util.h`) -- Used for
   key and byte derivation operations.
 
@@ -235,9 +233,6 @@ or `undefined`, and the second is the result of the operation
 if successful.
 
 For `CipherJob` types, the output is always an `ArrayBuffer`.
-
-For `KeyExportJob` types, the output is either an `ArrayBuffer` or
-a JavaScript object (for JWK output format);
 
 For `KeyGenJob` types, the output is either a single KeyObject,
 or an array containing a Public/Private key pair represented

@@ -2903,6 +2903,10 @@ DEPEND[html/man3/UI_new.html]=man3/UI_new.pod
 GENERATE[html/man3/UI_new.html]=man3/UI_new.pod
 DEPEND[man/man3/UI_new.3]=man3/UI_new.pod
 GENERATE[man/man3/UI_new.3]=man3/UI_new.pod
+DEPEND[html/man3/X509V3_EXT_print.html]=man3/X509V3_EXT_print.pod
+GENERATE[html/man3/X509V3_EXT_print.html]=man3/X509V3_EXT_print.pod
+DEPEND[man/man3/X509V3_EXT_print.3]=man3/X509V3_EXT_print.pod
+GENERATE[man/man3/X509V3_EXT_print.3]=man3/X509V3_EXT_print.pod
 DEPEND[html/man3/X509V3_get_d2i.html]=man3/X509V3_get_d2i.pod
 GENERATE[html/man3/X509V3_get_d2i.html]=man3/X509V3_get_d2i.pod
 DEPEND[man/man3/X509V3_get_d2i.3]=man3/X509V3_get_d2i.pod
@@ -3787,6 +3791,7 @@ html/man3/UI_STRING.html \
 html/man3/UI_UTIL_read_pw.html \
 html/man3/UI_create_method.html \
 html/man3/UI_new.html \
+html/man3/X509V3_EXT_print.html \
 html/man3/X509V3_get_d2i.html \
 html/man3/X509V3_set_ctx.html \
 html/man3/X509_ACERT_add1_attr.html \
@@ -4463,6 +4468,7 @@ man/man3/UI_STRING.3 \
 man/man3/UI_UTIL_read_pw.3 \
 man/man3/UI_create_method.3 \
 man/man3/UI_new.3 \
+man/man3/X509V3_EXT_print.3 \
 man/man3/X509V3_get_d2i.3 \
 man/man3/X509V3_set_ctx.3 \
 man/man3/X509_ACERT_add1_attr.3 \

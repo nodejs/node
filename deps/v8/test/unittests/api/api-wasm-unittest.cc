@@ -122,6 +122,22 @@ void WasmStreamingMoreFunctionsCanBeSerializedCallback(
   streaming->SetMoreFunctionsCanBeSerializedCallback([](CompiledWasmModule) {});
 }
 
+TEST_F(ApiWasmTest, GetWasmMemoryReservationSizeInBytes) {
+  constexpr size_t kCapacity = 64 * 1024;  // 64 KiB
+  size_t reservation = V8::GetWasmMemoryReservationSizeInBytes(
+      V8::WasmMemoryType::kMemory32, kCapacity);
+  size_t reservation64 = V8::GetWasmMemoryReservationSizeInBytes(
+      V8::WasmMemoryType::kMemory64, kCapacity);
+
+#if V8_TRAP_HANDLER_SUPPORTED
+  EXPECT_GE(reservation, kCapacity);
+  EXPECT_GE(reservation64, kCapacity);
+#else
+  EXPECT_EQ(reservation, kCapacity);
+  EXPECT_EQ(reservation64, kCapacity);
+#endif  // V8_TRAP_HANDLER_SUPPORTED
+}
+
 TEST_F(ApiWasmTest, WasmStreamingCallback) {
   TestWasmStreaming(WasmStreamingCallbackTestCallbackIsCalled,
                     Promise::kPending);

@@ -82,6 +82,8 @@ class Blob : public BaseObject {
     static BaseObjectPtr<Reader> Create(Environment* env,
                                         BaseObjectPtr<Blob> blob);
     static void Pull(const v8::FunctionCallbackInfo<v8::Value>& args);
+    static void SetWakeup(const v8::FunctionCallbackInfo<v8::Value>& args);
+    void NotifyPull();
 
     explicit Reader(Environment* env,
                     v8::Local<v8::Object> obj,
@@ -95,6 +97,7 @@ class Blob : public BaseObject {
     std::shared_ptr<DataQueue::Reader> inner_;
     BaseObjectPtr<Blob> strong_ptr_;
     bool eos_ = false;
+    v8::Global<v8::Function> wakeup_;
   };
 
   BaseObject::TransferMode GetTransferMode() const override;

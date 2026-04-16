@@ -39,6 +39,42 @@ test('input validation', async (t) => {
       });
     }, { code: 'ERR_INVALID_ARG_TYPE' });
   });
+
+  await t.test('throws if exports is not an object', async (t) => {
+    assert.throws(() => {
+      t.mock.module(__filename, {
+        exports: null,
+      });
+    }, { code: 'ERR_INVALID_ARG_TYPE' });
+  });
+
+  await t.test('throws if exports is used with namedExports', async (t) => {
+    assert.throws(() => {
+      t.mock.module(__filename, {
+        exports: {},
+        namedExports: {},
+      });
+    }, { code: 'ERR_INVALID_ARG_VALUE' });
+  });
+
+  await t.test('throws if exports is used with defaultExport', async (t) => {
+    assert.throws(() => {
+      t.mock.module(__filename, {
+        exports: {},
+        defaultExport: {},
+      });
+    }, { code: 'ERR_INVALID_ARG_VALUE' });
+  });
+
+  await t.test('throws if exports is used with both legacy options', async (t) => {
+    assert.throws(() => {
+      t.mock.module(__filename, {
+        exports: {},
+        namedExports: {},
+        defaultExport: {},
+      });
+    }, { code: 'ERR_INVALID_ARG_VALUE' });
+  });
 });
 
 test('core module mocking with namedExports option', async (t) => {
@@ -517,42 +553,33 @@ test('mocks can be restored independently', async (t) => {
   assert.strictEqual(esmImpl.fn, undefined);
 });
 
-test('core module mocks can be used by both module systems', async (t) => {
-  const coreMock = t.mock.module('readline', {
-    namedExports: { fn() { return 42; } },
-  });
+async function assertCoreModuleMockWorksInBothModuleSystems(t, specifier, options) {
+  const coreMock = t.mock.module(specifier, options);
 
-  let esmImpl = await import('readline');
-  let cjsImpl = require('readline');
+  let esmImpl = await import(specifier);
+  let cjsImpl = require(specifier);
 
   assert.strictEqual(esmImpl.fn(), 42);
   assert.strictEqual(cjsImpl.fn(), 42);
 
   coreMock.restore();
-  esmImpl = await import('readline');
-  cjsImpl = require('readline');
+  esmImpl = await import(specifier);
+  cjsImpl = require(specifier);
 
   assert.strictEqual(typeof esmImpl.cursorTo, 'function');
   assert.strictEqual(typeof cjsImpl.cursorTo, 'function');
+}
+
+test('core module mocks can be used by both module systems', async (t) => {
+  await assertCoreModuleMockWorksInBothModuleSystems(t, 'readline', {
+    namedExports: { fn() { return 42; } },
+  });
 });
 
 test('node:- core module mocks can be used by both module systems', async (t) => {
-  const coreMock = t.mock.module('node:readline', {
+  await assertCoreModuleMockWorksInBothModuleSystems(t, 'node:readline', {
     namedExports: { fn() { return 42; } },
   });
-
-  let esmImpl = await import('node:readline');
-  let cjsImpl = require('node:readline');
-
-  assert.strictEqual(esmImpl.fn(), 42);
-  assert.strictEqual(cjsImpl.fn(), 42);
-
-  coreMock.restore();
-  esmImpl = await import('node:readline');
-  cjsImpl = require('node:readline');
-
-  assert.strictEqual(typeof esmImpl.cursorTo, 'function');
-  assert.strictEqual(typeof cjsImpl.cursorTo, 'function');
 });
 
 test('CJS mocks can be used by both module systems', async (t) => {
@@ -664,6 +691,92 @@ test('defaultExports work with ESM mocks in both module systems', async (t) => {
   t.mock.module(`${fixture}`, { defaultExport });
   assert.strictEqual((await import(fixture)).default, defaultExport);
   assert.strictEqual(require(fixturePath), defaultExport);
+});
+
+test('exports option works with core module mocks in both module systems', async (t) => {
+  await assertCoreModuleMockWorksInBothModuleSystems(t, 'readline', {
+    exports: { fn() { return 42; } },
+  });
+});
+
+async function assertGetterMockWorksInBothSystems(t, mockOptionsFactory) {
+  const fixturePath = fixtures.path('module-mocking', 'basic-esm.mjs');
+  const fixture = pathToFileURL(fixturePath);
+  const original = await import(fixture);
+  let getterCalls = 0;
+
+  assert.strictEqual(original.string, 'original esm string');
+
+  const options = mockOptionsFactory(() => {
+    getterCalls++;
+    return { mocked: true };
+  });
+
+  t.mock.module(`${fixture}`, options);
+
+  assert.deepStrictEqual((await import(fixture)).default, { mocked: true });
+  assert.deepStrictEqual(require(fixturePath), { mocked: true });
+  assert.strictEqual(getterCalls, 2);
+}
+
+test('defaultExports getter works in both module systems', async (t) => {
+  await assertGetterMockWorksInBothSystems(t, (getter) => ({
+    get defaultExport() {
+      return getter();
+    },
+  }));
+});
+
+test('exports.default getter works in both module systems', async (t) => {
+  await assertGetterMockWorksInBothSystems(t, (getter) => ({
+    exports: {
+      get default() {
+        return getter();
+      },
+    },
+  }));
+});
+test('exports option supports default for CJS mocks in both module systems', async (t) => {
+  const fixturePath = fixtures.path('module-mocking', 'basic-cjs.js');
+  const fixture = pathToFileURL(fixturePath);
+  const defaultExport = { val1: 5, val2: 3 };
+
+  t.mock.module(fixture, {
+    exports: {
+      default: defaultExport,
+      val1: 'mock value',
+    },
+  });
+
+  const cjsMock = require(fixturePath);
+  const esmMock = await import(fixture);
+
+  assert.strictEqual(cjsMock, defaultExport);
+  assert.strictEqual(esmMock.default, defaultExport);
+  assert.strictEqual(cjsMock.val1, 'mock value');
+  assert.strictEqual(esmMock.val1, 'mock value');
+  assert.strictEqual(cjsMock.val2, 3);
+});
+
+test('exports option supports default for ESM mocks in both module systems', async (t) => {
+  const fixturePath = fixtures.path('module-mocking', 'basic-esm.mjs');
+  const fixture = pathToFileURL(fixturePath);
+  const defaultExport = { mocked: true };
+
+  t.mock.module(fixture, {
+    exports: {
+      default: defaultExport,
+      val1: 'mock value',
+    },
+  });
+
+  const esmMock = await import(fixture);
+  const cjsMock = require(fixturePath);
+
+  assert.strictEqual(esmMock.default, defaultExport);
+  assert.strictEqual(esmMock.val1, 'mock value');
+  assert.strictEqual(cjsMock, defaultExport);
+  assert.strictEqual(cjsMock.val1, 'mock value');
 });
 
 test('wrong import syntax should throw error after module mocking', async () => {

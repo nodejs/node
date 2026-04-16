@@ -90,7 +90,9 @@ function test(cciphers, sciphers, cipher, cerr, serr, options) {
 const U = undefined;
 
 let expectedTLSAlertError = 'ERR_SSL_SSLV3_ALERT_HANDSHAKE_FAILURE';
-if (hasOpenSSL(3, 2)) {
+if (hasOpenSSL(4, 0)) {
+  expectedTLSAlertError = 'ERR_SSL_TLS_ALERT_HANDSHAKE_FAILURE';
+} else if (hasOpenSSL(3, 2)) {
   expectedTLSAlertError = 'ERR_SSL_SSL/TLS_ALERT_HANDSHAKE_FAILURE';
 }
 

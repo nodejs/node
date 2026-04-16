@@ -37,6 +37,22 @@
 #include "ngtcp2_macro.h"
 #include "ngtcp2_net.h"
 
+/*
+ * NGTCP2_INITIAL_SALT_V1 is a salt value which is used to derive
+ * initial secret.  It is used for QUIC v1.
+ */
+static const uint8_t NGTCP2_INITIAL_SALT_V1[] = {
+  0x38, 0x76, 0x2C, 0xF7, 0xF5, 0x59, 0x34, 0xB3, 0x4D, 0x17,
+  0x9A, 0xE6, 0xA4, 0xC8, 0x0C, 0xAD, 0xCC, 0xBB, 0x7F, 0x0A};
+
+/*
+ * NGTCP2_INITIAL_SALT_V2 is a salt value which is used to derive
+ * initial secret.  It is used for QUIC v2.
+ */
+static const uint8_t NGTCP2_INITIAL_SALT_V2[] = {
+  0x0D, 0xED, 0xE3, 0xDE, 0xF7, 0x00, 0xA6, 0xDB, 0x81, 0x93,
+  0x81, 0xBE, 0x6E, 0x26, 0x9D, 0xCB, 0xF9, 0xBD, 0x2E, 0xD9};
+
 ngtcp2_crypto_md *ngtcp2_crypto_md_init(ngtcp2_crypto_md *md,
                                         void *md_native_handle) {
   md->native_handle = md_native_handle;
@@ -87,12 +103,12 @@ int ngtcp2_crypto_derive_initial_secrets(uint8_t *rx_secret, uint8_t *tx_secret,
   switch (version) {
   case NGTCP2_PROTO_VER_V1:
   default:
-    salt = (const uint8_t *)NGTCP2_INITIAL_SALT_V1;
-    saltlen = ngtcp2_strlen_lit(NGTCP2_INITIAL_SALT_V1);
+    salt = NGTCP2_INITIAL_SALT_V1;
+    saltlen = sizeof(NGTCP2_INITIAL_SALT_V1);
     break;
   case NGTCP2_PROTO_VER_V2:
-    salt = (const uint8_t *)NGTCP2_INITIAL_SALT_V2;
-    saltlen = ngtcp2_strlen_lit(NGTCP2_INITIAL_SALT_V2);
+    salt = NGTCP2_INITIAL_SALT_V2;
+    saltlen = sizeof(NGTCP2_INITIAL_SALT_V2);
     break;
   }
 
@@ -922,8 +938,8 @@ ngtcp2_ssize ngtcp2_crypto_generate_retry_token(
   uint8_t *token, const uint8_t *secret, size_t secretlen, uint32_t version,
   const ngtcp2_sockaddr *remote_addr, ngtcp2_socklen remote_addrlen,
   const ngtcp2_cid *retry_scid, const ngtcp2_cid *odcid, ngtcp2_tstamp ts) {
-  uint8_t
-    plaintext[/* cid len = */ 1 + NGTCP2_MAX_CIDLEN + sizeof(ngtcp2_tstamp)];
+  uint8_t plaintext[/* cid len = */ 1 + NGTCP2_MAX_CIDLEN +
+                    sizeof(ngtcp2_tstamp)] = {0};
   uint8_t rand_data[NGTCP2_CRYPTO_TOKEN_RAND_DATALEN];
   uint8_t key[16];
   uint8_t iv[12];
@@ -941,8 +957,6 @@ ngtcp2_ssize ngtcp2_crypto_generate_retry_token(
   int rv;
 
   assert((size_t)remote_addrlen <= sizeof(ngtcp2_sockaddr_union));
-
-  memset(plaintext, 0, sizeof(plaintext));
 
   *p++ = (uint8_t)odcid->datalen;
   memcpy(p, odcid->data, odcid->datalen);
@@ -1104,7 +1118,7 @@ ngtcp2_ssize ngtcp2_crypto_generate_retry_token2(
   const ngtcp2_sockaddr *remote_addr, ngtcp2_socklen remote_addrlen,
   const ngtcp2_cid *retry_scid, const ngtcp2_cid *odcid, ngtcp2_tstamp ts) {
   uint8_t plaintext[sizeof(ngtcp2_sockaddr_union) + /* cid len = */ 1 +
-                    NGTCP2_MAX_CIDLEN + sizeof(ngtcp2_tstamp)];
+                    NGTCP2_MAX_CIDLEN + sizeof(ngtcp2_tstamp)] = {0};
   uint8_t rand_data[NGTCP2_CRYPTO_TOKEN_RAND_DATALEN];
   uint8_t key[16];
   uint8_t iv[12];
@@ -1120,8 +1134,6 @@ ngtcp2_ssize ngtcp2_crypto_generate_retry_token2(
   int rv;
 
   assert((size_t)remote_addrlen <= sizeof(ngtcp2_sockaddr_union));
-
-  memset(plaintext, 0, sizeof(plaintext));
 
   memcpy(p, remote_addr, (size_t)remote_addrlen);
   p += sizeof(ngtcp2_sockaddr_union);
@@ -1717,8 +1729,21 @@ int ngtcp2_crypto_recv_crypto_data_cb(ngtcp2_conn *conn,
   (void)offset;
   (void)user_data;
 
-  if (ngtcp2_crypto_read_write_crypto_data(conn, encryption_level, data,
-                                           datalen) != 0) {
+  rv =
+    ngtcp2_crypto_read_write_crypto_data(conn, encryption_level, data, datalen);
+  if (rv != 0) {
+    switch (rv) {
+    case /* NGTCP2_CRYPTO_QUICTLS_ERR_TLS_WANT_CLIENT_HELLO_CB */ -10001:
+    case /* NGTCP2_CRYPTO_QUICTLS_ERR_TLS_WANT_X509_LOOKUP */ -10002:
+      /* These errors are not unrecoverable error, and they just
+         indicate that handshake has been interrupted.  ngtcp2 does
+         not mind whether handshake is interrupted or not.  Just
+         return 0 in this case.  There are OSSL version and they have
+         the same enum value, therefore we cannot enumerate them
+         here. */
+      return 0;
+    }
+
     rv = ngtcp2_conn_get_tls_error(conn);
     if (rv) {
       return rv;

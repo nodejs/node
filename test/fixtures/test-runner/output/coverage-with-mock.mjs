@@ -2,7 +2,7 @@ import { describe, it, mock } from 'node:test';
 
 describe('module test with mock', async () => {
   mock.module('../coverage-with-mock/sum.js', {
-    namedExports: {
+    exports: {
       sum: (a, b) => 1,
       getData: () => ({}),
     },

@@ -46,22 +46,22 @@ void LogStream::Emit(const uint8_t* data, size_t len, EmitOption option) {
   // If the len is greater than the size of the buffer returned by
   // EmitAlloc then EmitRead will be called multiple times.
   while (remaining != 0) {
-    uv_buf_t buf = EmitAlloc(len);
-    size_t len = std::min<size_t>(remaining, buf.len);
-    memcpy(buf.base, data, len);
-    remaining -= len;
-    data += len;
+    uv_buf_t buf = EmitAlloc(remaining);
+    size_t chunk_len = std::min<size_t>(remaining, buf.len);
+    memcpy(buf.base, data, chunk_len);
+    remaining -= chunk_len;
+    data += chunk_len;
     // If we are actively reading from the stream, we'll call emit
     // read immediately. Otherwise we buffer the chunk and will push
     // the chunks out the next time ReadStart() is called.
     if (reading_) {
-      EmitRead(len, buf);
+      EmitRead(chunk_len, buf);
     } else {
       // The total measures the total memory used so we always
       // increment but buf.len and not chunk len.
       ensure_space(buf.len);
       total_ += buf.len;
-      buffer_.push_back(Chunk{len, buf});
+      buffer_.push_back(Chunk{chunk_len, buf});
     }
   }
 

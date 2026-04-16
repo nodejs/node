@@ -43,6 +43,14 @@ declare_args() {
   # Build node with SQLite support.
   node_use_sqlite = true
 
+  # Build node with FFI support.
+  # Disabled in GN builds. The unofficial GN build does not support node:ffi.
+  node_use_ffi = false
+
+  # Link against a shared libffi when FFI support is enabled.
+  # Unsupported in GN builds.
+  node_shared_ffi = false
+
   # Use the specified path to system CA (PEM format) in addition to
   # the BoringSSL supplied CA store or compiled-in Mozilla CA copy.
   node_openssl_system_ca_path = ""

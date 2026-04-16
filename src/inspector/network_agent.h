@@ -79,6 +79,15 @@ class NetworkAgent : public protocol::Network::Backend {
                                           v8::Local<v8::Object> params);
 
  private:
+  std::unique_ptr<protocol::Network::Headers> createHeadersFromObject(
+      v8::Local<v8::Context> context, v8::Local<v8::Object> headers_obj);
+  std::unique_ptr<protocol::Network::Request> createRequestFromObject(
+      v8::Local<v8::Context> context, v8::Local<v8::Object> request);
+  std::unique_ptr<protocol::Network::Response> createResponseFromObject(
+      v8::Local<v8::Context> context, v8::Local<v8::Object> response);
+  std::unique_ptr<protocol::Network::WebSocketResponse> createWebSocketResponse(
+      v8::Local<v8::Context> context, v8::Local<v8::Object> response);
+
   NetworkInspector* inspector_;
   v8_inspector::V8Inspector* v8_inspector_;
   std::shared_ptr<protocol::Network::Frontend> frontend_;

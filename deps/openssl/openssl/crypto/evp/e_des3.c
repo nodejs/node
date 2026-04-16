@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -210,20 +210,20 @@ BLOCK_CIPHER_defs(des_ede, DES_EDE_KEY, NID_des_ede, 8, 16, 8, 64,
 #define des_ede3_ofb_cipher des_ede_ofb_cipher
 #define des_ede3_cbc_cipher des_ede_cbc_cipher
 #define des_ede3_ecb_cipher des_ede_ecb_cipher
-    BLOCK_CIPHER_defs(des_ede3, DES_EDE_KEY, NID_des_ede3, 8, 24, 8, 64,
-        EVP_CIPH_RAND_KEY | EVP_CIPH_FLAG_DEFAULT_ASN1,
-        des_ede3_init_key, NULL, NULL, NULL, des3_ctrl)
+BLOCK_CIPHER_defs(des_ede3, DES_EDE_KEY, NID_des_ede3, 8, 24, 8, 64,
+    EVP_CIPH_RAND_KEY | EVP_CIPH_FLAG_DEFAULT_ASN1,
+    des_ede3_init_key, NULL, NULL, NULL, des3_ctrl)
 
-        BLOCK_CIPHER_def_cfb(des_ede3, DES_EDE_KEY, NID_des_ede3, 24, 8, 1,
-            EVP_CIPH_RAND_KEY | EVP_CIPH_FLAG_DEFAULT_ASN1,
-            des_ede3_init_key, NULL, NULL, NULL, des3_ctrl)
+BLOCK_CIPHER_def_cfb(des_ede3, DES_EDE_KEY, NID_des_ede3, 24, 8, 1,
+    EVP_CIPH_RAND_KEY | EVP_CIPH_FLAG_DEFAULT_ASN1,
+    des_ede3_init_key, NULL, NULL, NULL, des3_ctrl)
 
-            BLOCK_CIPHER_def_cfb(des_ede3, DES_EDE_KEY, NID_des_ede3, 24, 8, 8,
-                EVP_CIPH_RAND_KEY | EVP_CIPH_FLAG_DEFAULT_ASN1,
-                des_ede3_init_key, NULL, NULL, NULL, des3_ctrl)
+BLOCK_CIPHER_def_cfb(des_ede3, DES_EDE_KEY, NID_des_ede3, 24, 8, 8,
+    EVP_CIPH_RAND_KEY | EVP_CIPH_FLAG_DEFAULT_ASN1,
+    des_ede3_init_key, NULL, NULL, NULL, des3_ctrl)
 
-                static int des_ede_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
-                    const unsigned char *iv, int enc)
+static int des_ede_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
+    const unsigned char *iv, int enc)
 {
     DES_cblock *deskey = (DES_cblock *)key;
     DES_EDE_KEY *dat = data(ctx);

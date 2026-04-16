@@ -519,6 +519,8 @@ int PKCS12_set_pbmac1_pbkdf2(PKCS12 *p12, const char *pass, int passlen,
     X509_ALGOR_free(param->messageAuthScheme);
     param->keyDerivationFunc = alg;
     param->messageAuthScheme = hmac_alg;
+    alg = NULL;
+    hmac_alg = NULL;
 
     X509_SIG_getm(p12->mac->dinfo, &macalg, &macoct);
     if (!ASN1_TYPE_pack_sequence(ASN1_ITEM_rptr(PBMAC1PARAM), param, &macalg->parameter))
@@ -540,6 +542,8 @@ int PKCS12_set_pbmac1_pbkdf2(PKCS12 *p12, const char *pass, int passlen,
     ret = 1;
 
 err:
+    X509_ALGOR_free(alg);
+    X509_ALGOR_free(hmac_alg);
     PBMAC1PARAM_free(param);
     OPENSSL_free(known_salt);
     return ret;

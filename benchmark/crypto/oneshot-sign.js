@@ -29,14 +29,21 @@ let keyObjects;
 const bench = common.createBenchmark(main, {
   keyType: Object.keys(keyFixtures),
   mode: ['sync', 'async', 'async-parallel'],
-  keyFormat: ['pem', 'der', 'jwk', 'keyObject', 'keyObject.unique'],
+  keyFormat: ['pem', 'der', 'jwk', 'keyObject', 'keyObject.unique', 'raw-private', 'raw-seed'],
   n: [1e3],
 }, {
   combinationFilter(p) {
     // "keyObject.unique" allows to compare the result with "keyObject" to
     // assess whether mutexes over the key material impact the operation
-    return p.keyFormat !== 'keyObject.unique' ||
-      (p.keyFormat === 'keyObject.unique' && p.mode === 'async-parallel');
+    if (p.keyFormat === 'keyObject.unique')
+      return p.mode === 'async-parallel';
+    // raw-private is not supported for rsa and ml-dsa
+    if (p.keyFormat === 'raw-private')
+      return p.keyType !== 'rsa' && !p.keyType.startsWith('ml-');
+    // raw-seed is only supported for ml-dsa
+    if (p.keyFormat === 'raw-seed')
+      return p.keyType.startsWith('ml-');
+    return true;
   },
 });
 
@@ -91,6 +98,12 @@ function main({ n, mode, keyFormat, keyType }) {
   pems ||= [...Buffer.alloc(n)].map(() => keyFixtures[keyType]);
   keyObjects ||= pems.map(crypto.createPrivateKey);
 
+  // Warm up OpenSSL's provider operation cache for each key object
+  for (const keyObject of keyObjects) {
+    crypto.sign(keyType === 'rsa' || keyType === 'ec' ? 'sha256' : null,
+                data, keyObject);
+  }
+
   let privateKey, keys, digest;
 
   switch (keyType) {
@@ -118,6 +131,21 @@ function main({ n, mode, keyFormat, keyType }) {
     }
     case 'der': {
       privateKey = { key: keyObjects[0].export({ format: 'der', type: 'pkcs8' }), format: 'der', type: 'pkcs8' };
+      break;
+    }
+    case 'raw-private': {
+      const exportedKey = keyObjects[0].export({ format: 'raw-private' });
+      const keyOpts = { key: exportedKey, format: 'raw-private', asymmetricKeyType: keyType };
+      if (keyType === 'ec') keyOpts.namedCurve = keyObjects[0].asymmetricKeyDetails.namedCurve;
+      privateKey = keyOpts;
+      break;
+    }
+    case 'raw-seed': {
+      privateKey = {
+        key: keyObjects[0].export({ format: 'raw-seed' }),
+        format: 'raw-seed',
+        asymmetricKeyType: keyType,
+      };
       break;
     }
     case 'keyObject.unique':

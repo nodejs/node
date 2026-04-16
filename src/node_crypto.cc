@@ -75,6 +75,8 @@ namespace crypto {
 #define KMAC_NAMESPACE_LIST(V)
 #endif
 
+#define TURBOSHAKE_NAMESPACE_LIST(V) V(TurboShake)
+
 #ifdef OPENSSL_NO_SCRYPT
 #define SCRYPT_NAMESPACE_LIST(V)
 #else
@@ -86,7 +88,8 @@ namespace crypto {
   ARGON2_NAMESPACE_LIST(V)                                                     \
   KEM_NAMESPACE_LIST(V)                                                        \
   KMAC_NAMESPACE_LIST(V)                                                       \
-  SCRYPT_NAMESPACE_LIST(V)
+  SCRYPT_NAMESPACE_LIST(V)                                                     \
+  TURBOSHAKE_NAMESPACE_LIST(V)
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,

@@ -79,6 +79,30 @@ async function testInvalid(code, position) {
   for (const badTypeValue of [
     false, true, '1', Symbol(1), {}, [], () => {}, Promise.resolve(1),
   ]) {
-    testInvalid('ERR_INVALID_ARG_TYPE', badTypeValue);
+    await testInvalid('ERR_INVALID_ARG_TYPE', badTypeValue);
+  }
+}
+
+{
+  const emptyBuffer = Buffer.alloc(0);
+  let fh;
+  try {
+    fh = await fs.promises.open(filepath, 'r');
+    await assert.rejects(
+      fh.read(emptyBuffer, 0, 0, { not: 'a number' }),
+      { code: 'ERR_INVALID_ARG_TYPE' }
+    );
+  } finally {
+    await fh?.close();
+  }
+
+  try {
+    fh = await fs.promises.open(filepath, 'r');
+    await assert.rejects(
+      fh.read({ buffer: emptyBuffer, offset: 0, length: 0, position: 'string' }),
+      { code: 'ERR_INVALID_ARG_TYPE' }
+    );
+  } finally {
+    await fh?.close();
   }
 }

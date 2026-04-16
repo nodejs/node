@@ -22,6 +22,10 @@
           "type": "boolean",
           "description": "allow use of child process when any permissions are set"
         },
+        "allow-ffi": {
+          "type": "boolean",
+          "description": "allow use of FFI when any permissions are set (only in builds with FFI support)"
+        },
         "allow-fs-read": {
           "oneOf": [
             {
@@ -169,6 +173,10 @@
         "experimental-eventsource": {
           "type": "boolean",
           "description": "experimental EventSource API"
+        },
+        "experimental-ffi": {
+          "type": "boolean",
+          "description": "experimental node:ffi module (only in builds with FFI support)"
         },
         "experimental-global-navigator": {
           "type": "boolean",
@@ -524,6 +532,14 @@
           "type": "boolean",
           "description": "run tests with 'only' option set"
         },
+        "test-random-seed": {
+          "type": "number",
+          "description": "seed used to randomize test execution order"
+        },
+        "test-randomize": {
+          "type": "boolean",
+          "description": "run tests in a random order"
+        },
         "test-reporter": {
           "oneOf": [
             {
@@ -756,6 +772,10 @@
           "type": "boolean",
           "description": "allow use of addons when any permissions are set"
         },
+        "allow-ffi": {
+          "type": "boolean",
+          "description": "allow use of FFI when any permissions are set (only in builds with FFI support)"
+        },
         "allow-child-process": {
           "type": "boolean",
           "description": "allow use of child process when any permissions are set"
@@ -905,6 +925,14 @@
         "test-only": {
           "type": "boolean",
           "description": "run tests with 'only' option set"
+        },
+        "test-random-seed": {
+          "type": "number",
+          "description": "seed used to randomize test execution order"
+        },
+        "test-randomize": {
+          "type": "boolean",
+          "description": "run tests in a random order"
         },
         "test-reporter": {
           "oneOf": [

@@ -54,6 +54,8 @@ A `package` is interpreted the same way as other commands (like `npm install`) a
 * f) a `<name>` that has a "latest" tag satisfying (e)
 * g) a `<git remote url>` that resolves to (a)
 
+If either (a) or (b) is specified as a relative path, it should begin with an explicit `./` prefix.
+
 The publish will fail if the package name and version combination already exists in the specified registry.
 
 Once a package is published with a given name and version, that specific name and version combination can never be used again, even if it is removed with [`npm unpublish`](/commands/npm-unpublish).

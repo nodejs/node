@@ -75,8 +75,8 @@ line.
 5. Resolve conflicts using `git add` and `git cherry-pick --continue`.
 
 6. Leave the commit message as is. If you think it should be modified, comment
-   in the pull request. The `Backport-PR-URL` metadata does need to be added to
-   the commit, but this will be done later.
+   in the pull request. Do not manually add a `Backport-PR-URL` metadata entry.
+   This is automatically added later.
 
 7. Verify that `make -j4 test` passes.
 

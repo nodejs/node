@@ -1,4 +1,4 @@
-.TH "CONFIG" "7" "March 2026" "NPM@11.11.1" ""
+.TH "CONFIG" "7" "March 2026" "NPM@11.12.1" ""
 .SH "NAME"
 \fBConfig\fR - About npm configuration
 .SS "Description"
@@ -801,6 +801,16 @@ Option that allows for defining which types of dependencies to install.
 This is the inverse of \fB--omit=<type>\fR.
 .P
 Dependency types specified in \fB--include\fR will not be omitted, regardless of the order in which omit/include are specified on the command-line.
+.SS "\fBinclude-attestations\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+When used with \fBnpm audit signatures --json\fR, includes the full sigstore attestation bundles in the JSON output for each verified package. The bundles contain DSSE envelopes, verification material, and transparency log entries.
 .SS "\fBinclude-staged\fR"
 .RS 0
 .IP \(bu 4
@@ -1109,6 +1119,8 @@ If set, npm will build the npm tree such that only versions that were available 
 This flag is a complement to \fBbefore\fR, which accepts an exact date instead of a relative number of days.
 .P
 This config cannot be used with: \fBbefore\fR
+.P
+This value is not exported to the environment for child processes.
 .SS "\fBname\fR"
 .RS 0
 .IP \(bu 4

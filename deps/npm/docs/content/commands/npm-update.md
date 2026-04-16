@@ -347,6 +347,8 @@ of a relative number of days.
 
 This config cannot be used with: `before`
 
+This value is not exported to the environment for child processes.
+
 #### `bin-links`
 
 * Default: true

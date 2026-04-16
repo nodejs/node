@@ -2005,7 +2005,7 @@ w.on('online', async () => {
 });
 ```
 
-### `worker.startHeapProfile()`
+### `worker.startHeapProfile([options])`
 
 <!-- YAML
 added:
@@ -2013,6 +2013,17 @@ added:
   - v22.20.0
 -->
 
+* `options` {Object}
+  * `sampleInterval` {number} The average sampling interval in bytes.
+    **Default:** `524288` (512 KiB).
+  * `stackDepth` {integer} The maximum stack depth for samples.
+    **Default:** `16`.
+  * `forceGC` {boolean} Force garbage collection before taking the profile.
+    **Default:** `false`.
+  * `includeObjectsCollectedByMajorGC` {boolean} Include objects collected
+    by major GC. **Default:** `false`.
+  * `includeObjectsCollectedByMinorGC` {boolean} Include objects collected
+    by minor GC. **Default:** `false`.
 * Returns: {Promise}
 
 Starting a Heap profile then return a Promise that fulfills with an error
@@ -2034,10 +2045,40 @@ worker.on('online', async () => {
 });
 ```
 
+```mjs
+import { Worker } from 'node:worker_threads';
+
+const worker = new Worker(`
+  const { parentPort } = require('node:worker_threads');
+  parentPort.on('message', () => {});
+  `, { eval: true });
+
+worker.on('online', async () => {
+  const handle = await worker.startHeapProfile();
+  const profile = await handle.stop();
+  console.log(profile);
+  worker.terminate();
+});
+```
+
 `await using` example.
 
 ```cjs
 const { Worker } = require('node:worker_threads');
+
+const w = new Worker(`
+  const { parentPort } = require('node:worker_threads');
+  parentPort.on('message', () => {});
+  `, { eval: true });
+
+w.on('online', async () => {
+  // Stop profile automatically when return and profile will be discarded
+  await using handle = await w.startHeapProfile();
+});
+```
+
+```mjs
+import { Worker } from 'node:worker_threads';
 
 const w = new Worker(`
   const { parentPort } = require('node:worker_threads');

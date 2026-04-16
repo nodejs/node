@@ -24,7 +24,11 @@ namespace v8 {
 namespace internal {
 namespace trap_handler {
 
+#if defined(V8_OS_AIX)
+__thread bool TrapHandlerGuard::is_active_ = 0;
+#else
 thread_local bool TrapHandlerGuard::is_active_ = 0;
+#endif
 
 size_t gNumCodeObjects = 0;
 CodeProtectionInfoListEntry* gCodeObjects = nullptr;

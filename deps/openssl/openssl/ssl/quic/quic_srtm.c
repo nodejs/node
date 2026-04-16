@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2023-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -168,6 +168,11 @@ void ossl_quic_srtm_free(QUIC_SRTM *srtm)
 
     lh_SRTM_ITEM_free(srtm->items_rev);
     if (srtm->items_fwd != NULL) {
+        /*
+         * We don't need to call lh_SRTM_ITEM_set_down_load(..., 0)
+         * here because srtm_free_each() callback for _doall() does
+         * not call to lh_SRTIM_ITEM_delete().
+         */
         lh_SRTM_ITEM_doall(srtm->items_fwd, srtm_free_each);
         lh_SRTM_ITEM_free(srtm->items_fwd);
     }

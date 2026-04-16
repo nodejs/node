@@ -1,8 +1,5 @@
 'use strict'
 const EventEmitter = require('node:events')
-const WrapHandler = require('../handler/wrap-handler')
-
-const wrapInterceptor = (dispatch) => (opts, handler) => dispatch(opts, WrapHandler.wrap(handler))
 
 class Dispatcher extends EventEmitter {
   dispatch () {
@@ -32,7 +29,6 @@ class Dispatcher extends EventEmitter {
       }
 
       dispatch = interceptor(dispatch)
-      dispatch = wrapInterceptor(dispatch)
 
       if (dispatch == null || typeof dispatch !== 'function' || dispatch.length !== 2) {
         throw new TypeError('invalid interceptor')

@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -108,10 +108,13 @@ int RAND_query_egd_bytes(const char *path, unsigned char *buf, int bytes)
 {
     FILE *fp = NULL;
     struct sockaddr_un addr;
-    int mybuffer, ret = -1, i, numbytes, fd;
+    int mybuffer, ret = -1, i, numbytes, fd = -1;
     unsigned char tempbuf[255];
+#if defined(OPENSSL_SYS_TANDEM)
+    int hpns_connect_attempt = 0;
+#endif
 
-    if (bytes > (int)sizeof(tempbuf))
+    if (bytes <= 0 || bytes > (int)sizeof(tempbuf))
         return -1;
 
     /* Make socket. */
@@ -126,9 +129,8 @@ int RAND_query_egd_bytes(const char *path, unsigned char *buf, int bytes)
 #else
     fd = socket(AF_UNIX, SOCK_STREAM, 0);
 #endif
-    if (fd == -1 || (fp = fdopen(fd, "r+")) == NULL)
+    if (fd == -1)
         return -1;
-    setbuf(fp, NULL);
 
     /* Try to connect */
     for (;;) {
@@ -171,6 +173,14 @@ int RAND_query_egd_bytes(const char *path, unsigned char *buf, int bytes)
         }
     }
 
+    /* Create stream only after a successful connect to avoid stale FILE* on fd swap. */
+    fp = fdopen(fd, "r+");
+    if (fp == NULL) {
+        close(fd);
+        return -1;
+    }
+    setbuf(fp, NULL);
+
     /* Make request, see how many bytes we can get back. */
     tempbuf[0] = 1;
     tempbuf[1] = bytes;
@@ -179,6 +189,9 @@ int RAND_query_egd_bytes(const char *path, unsigned char *buf, int bytes)
     if (fread(tempbuf, sizeof(char), 1, fp) != 1 || tempbuf[0] == 0)
         goto err;
     numbytes = tempbuf[0];
+
+    if (numbytes <= 0 || numbytes > bytes || numbytes > (int)sizeof(tempbuf))
+        goto err;
 
     /* Which buffer are we using? */
     mybuffer = buf == NULL;
@@ -196,6 +209,8 @@ int RAND_query_egd_bytes(const char *path, unsigned char *buf, int bytes)
 err:
     if (fp != NULL)
         fclose(fp);
+    else if (fd != -1)
+        close(fd);
     return ret;
 }
 

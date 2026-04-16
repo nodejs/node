@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -8,10 +8,9 @@
  */
 
 /*
- * Details about Montgomery multiplication algorithms can be found at
- * http://security.ece.orst.edu/publications.html, e.g.
- * http://security.ece.orst.edu/koc/papers/j37acmon.pdf and
- * sections 3.8 and 4.2 in http://security.ece.orst.edu/koc/papers/r01rsasw.pdf
+ * Details about Montgomery multiplication algorithms can be found in
+ * https://www.microsoft.com/en-us/research/wp-content/uploads/1996/01/j37acmon.pdf
+ * and https://cetinkayakoc.net/docs/r01.pdf
  */
 
 #include "internal/cryptlib.h"

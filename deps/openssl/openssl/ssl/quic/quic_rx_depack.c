@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -1316,6 +1316,7 @@ static int depack_process_frames(QUIC_CHANNEL *ch, PACKET *pkt,
                     OSSL_QUIC_ERR_PROTOCOL_VIOLATION,
                     frame_type,
                     "NEW_CONN_ID valid only in 0/1-RTT");
+                return 0;
             }
             if (!depack_do_frame_new_conn_id(pkt, ch, ackm_data))
                 return 0;

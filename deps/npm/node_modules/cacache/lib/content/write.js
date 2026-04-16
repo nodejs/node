@@ -10,7 +10,7 @@ const Pipeline = require('minipass-pipeline')
 const Flush = require('minipass-flush')
 const path = require('path')
 const ssri = require('ssri')
-const uniqueFilename = require('unique-filename')
+const { tmpName } = require('../util/tmp')
 const fsm = require('fs-minipass')
 
 module.exports = write
@@ -152,7 +152,7 @@ async function pipeToTmp (inputStream, cache, tmpTarget, opts) {
 }
 
 async function makeTmp (cache, opts) {
-  const tmpTarget = uniqueFilename(path.join(cache, 'tmp'), opts.tmpPrefix)
+  const tmpTarget = tmpName(cache, opts.tmpPrefix)
   await fs.mkdir(path.dirname(tmpTarget), { recursive: true })
   return {
     target: tmpTarget,

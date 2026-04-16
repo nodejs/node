@@ -1,4 +1,4 @@
-/* auto-generated on 2026-02-23 21:29:24 -0500. Do not edit! */
+/* auto-generated on 2026-03-23 17:52:13 -0400. Do not edit! */
 /* begin file src/ada.cpp */
 #include "ada.h"
 /* begin file src/checkers.cpp */
@@ -10725,7 +10725,7 @@ constexpr static std::array<uint8_t, 256> is_forbidden_domain_code_point_table =
       for (uint8_t c = 0; c <= 32; c++) {
         result[c] = true;
       }
-      for (size_t c = 127; c < 255; c++) {
+      for (size_t c = 127; c < 256; c++) {
         result[c] = true;
       }
       return result;
@@ -10767,7 +10767,7 @@ constexpr static std::array<uint8_t, 256>
       for (uint8_t c = 0; c <= 32; c++) {
         result[c] = 1;
       }
-      for (size_t c = 127; c < 255; c++) {
+      for (size_t c = 127; c < 256; c++) {
         result[c] = 1;
       }
       return result;
@@ -13404,7 +13404,13 @@ result_type parse_url_impl(std::string_view user_input,
             url.query = base_url->query;
           } else {
             url.update_base_pathname(base_url->get_pathname());
-            url.update_base_search(base_url->get_search());
+            if (base_url->has_search()) {
+              // get_search() returns "" for an empty query string (URL ends
+              // with '?'). update_base_search("") would incorrectly clear the
+              // query, so pass "?" to preserve the empty query distinction.
+              auto s = base_url->get_search();
+              url.update_base_search(s.empty() ? std::string_view("?") : s);
+            }
           }
           url.update_unencoded_base_hash(*fragment);
           return url;
@@ -13628,7 +13634,13 @@ result_type parse_url_impl(std::string_view user_input,
             // cloning the base path includes cloning the has_opaque_path flag
             url.has_opaque_path = base_url->has_opaque_path;
             url.update_base_pathname(base_url->get_pathname());
-            url.update_base_search(base_url->get_search());
+            if (base_url->has_search()) {
+              // get_search() returns "" for an empty query string (URL ends
+              // with '?'). update_base_search("") would incorrectly clear the
+              // query, so pass "?" to preserve the empty query distinction.
+              auto s = base_url->get_search();
+              url.update_base_search(s.empty() ? std::string_view("?") : s);
+            }
           }
 
           url.has_opaque_path = base_url->has_opaque_path;
@@ -14046,7 +14058,13 @@ result_type parse_url_impl(std::string_view user_input,
           } else {
             url.update_host_to_base_host(base_url->get_hostname());
             url.update_base_pathname(base_url->get_pathname());
-            url.update_base_search(base_url->get_search());
+            if (base_url->has_search()) {
+              // get_search() returns "" for an empty query string (URL ends
+              // with '?'). update_base_search("") would incorrectly clear the
+              // query, so pass "?" to preserve the empty query distinction.
+              auto s = base_url->get_search();
+              url.update_base_search(s.empty() ? std::string_view("?") : s);
+            }
           }
           url.has_opaque_path = base_url->has_opaque_path;
 
@@ -16657,8 +16675,15 @@ tl::expected<std::string, errors> canonicalize_pathname(
     const auto pathname = url->get_pathname();
     // If leading slash is false, then set result to the code point substring
     // from 2 to the end of the string within result.
-    return leading_slash ? std::string(pathname)
-                         : std::string(pathname.substr(2));
+    if (!leading_slash) {
+      // pathname should start with "/-" but path traversal (e.g. "../../")
+      // can reduce it to just "/" which is shorter than 2 characters.
+      if (pathname.size() < 2) {
+        return tl::unexpected(errors::type_error);
+      }
+      return std::string(pathname.substr(2));
+    }
+    return std::string(pathname);
   }
   // If parseResult is failure, then throw a TypeError.
   return tl::unexpected(errors::type_error);
@@ -17195,7 +17220,8 @@ std::string generate_pattern_string(
     // point.
     bool needs_grouping =
         !part.suffix.empty() ||
-        (!part.prefix.empty() && part.prefix[0] != options.get_prefix()[0]);
+        (!part.prefix.empty() && !options.get_prefix().empty() &&
+         part.prefix[0] != options.get_prefix()[0]);
 
     // If all of the following are true:
     // - needs grouping is false; and
@@ -17233,9 +17259,8 @@ std::string generate_pattern_string(
     // then set needs grouping to true.
     if (!needs_grouping && part.prefix.empty() && previous_part &&
         previous_part->type == url_pattern_part_type::FIXED_TEXT &&
-        !options.get_prefix().empty() &&
-        previous_part->value.at(previous_part->value.size() - 1) ==
-            options.get_prefix()[0]) {
+        !previous_part->value.empty() && !options.get_prefix().empty() &&
+        previous_part->value.back() == options.get_prefix()[0]) {
       needs_grouping = true;
     }
 
@@ -17358,8 +17383,14 @@ std_regex_provider::regex_search(std::string_view input,
                                  const std::regex& pattern) {
   // Use iterator-based regex_search to avoid string allocation
   std::match_results<std::string_view::const_iterator> match_result;
-  if (!std::regex_search(input.begin(), input.end(), match_result, pattern,
-                         std::regex_constants::match_any)) {
+  try {
+    if (!std::regex_search(input.begin(), input.end(), match_result, pattern,
+                           std::regex_constants::match_any)) {
+      return std::nullopt;
+    }
+  } catch (const std::regex_error& e) {
+    (void)e;
+    ada_log("std_regex_provider::regex_search failed:", e.what());
     return std::nullopt;
   }
   std::vector<std::optional<std::string>> matches;
@@ -17378,7 +17409,13 @@ std_regex_provider::regex_search(std::string_view input,
 
 bool std_regex_provider::regex_match(std::string_view input,
                                      const std::regex& pattern) {
-  return std::regex_match(input.begin(), input.end(), pattern);
+  try {
+    return std::regex_match(input.begin(), input.end(), pattern);
+  } catch (const std::regex_error& e) {
+    (void)e;
+    ada_log("std_regex_provider::regex_match failed:", e.what());
+    return false;
+  }
 }
 
 #endif  // ADA_USE_UNSAFE_STD_REGEX_PROVIDER

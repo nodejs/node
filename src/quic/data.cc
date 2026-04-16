@@ -28,7 +28,7 @@ using v8::Undefined;
 using v8::Value;
 
 namespace quic {
-int DebugIndentScope::indent_ = 0;
+thread_local int DebugIndentScope::indent_ = 0;
 
 Path::Path(const SocketAddress& local, const SocketAddress& remote) {
   ngtcp2_addr_init(&this->local, local.data(), local.length());

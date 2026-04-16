@@ -230,7 +230,9 @@ void GetOpenSSLSecLevelCrypto(const FunctionCallbackInfo<Value>& args) {
 
 void CryptoErrorStore::Capture() {
   errors_.clear();
+  primary_openssl_error_ = 0;
   while (const uint32_t err = ERR_get_error()) {
+    if (primary_openssl_error_ == 0) primary_openssl_error_ = err;
     char buf[256];
     ERR_error_string_n(err, buf, sizeof(buf));
     errors_.emplace_back(buf);
@@ -297,6 +299,12 @@ MaybeLocal<Value> cryptoErrorListToException(Environment* env,
   return exception;
 }
 
+namespace error {
+v8::Maybe<void> Decorate(Environment* env,
+                         v8::Local<v8::Object> obj,
+                         unsigned long err);  // NOLINT(runtime/int)
+}  // namespace error
+
 MaybeLocal<Value> CryptoErrorStore::ToException(
     Environment* env,
     Local<String> exception_string) const {
@@ -321,13 +329,27 @@ MaybeLocal<Value> CryptoErrorStore::ToException(
 
   Local<Value> exception_v = Exception::Error(exception_string);
   CHECK(!exception_v.IsEmpty());
+  CHECK(exception_v->IsObject());
+  Local<Object> exception = exception_v.As<Object>();
 
   if (!Empty()) {
-    CHECK(exception_v->IsObject());
-    Local<Object> exception = exception_v.As<Object>();
     Local<Value> stack;
     if (!ToV8Value(env->context(), errors_).ToLocal(&stack) ||
         exception->Set(env->context(), env->openssl_error_stack(), stack)
+            .IsNothing()) {
+      return MaybeLocal<Value>();
+    }
+  }
+
+  if (primary_openssl_error_ != 0) {
+    if (error::Decorate(env, exception, primary_openssl_error_).IsNothing()) {
+      return MaybeLocal<Value>();
+    }
+  } else if (node_error_code_ != nullptr) {
+    if (exception
+            ->Set(env->context(),
+                  env->code_string(),
+                  OneByteString(env->isolate(), node_error_code_))
             .IsNothing()) {
       return MaybeLocal<Value>();
     }

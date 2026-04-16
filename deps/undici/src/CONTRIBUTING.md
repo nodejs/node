@@ -96,6 +96,10 @@ Create a commit which includes all of the updated files in lib/llhttp.
 
 ### Steps:
 
+`npm run test:wpt` and `node test/web-platform-tests/wpt-runner.mjs setup` will initialize the WPT submodule automatically when it is missing.
+
+If you want to prepare the checkout explicitly, run:
+
 ```bash
 git submodule update --init --recursive
 ```

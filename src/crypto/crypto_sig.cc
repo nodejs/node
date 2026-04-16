@@ -241,6 +241,7 @@ bool SupportsContextString(const EVPKeyPointer& key) {
   return false;
 #else
   switch (key.id()) {
+    case EVP_PKEY_ED25519:
     case EVP_PKEY_ED448:
 #if OPENSSL_WITH_PQC
     case EVP_PKEY_ML_DSA_44:
@@ -614,7 +615,7 @@ Maybe<void> SignTraits::AdditionalConfig(
     params->key = std::move(data);
   }
 
-  ArrayBufferOrViewContents<char> data(args[offset + 5]);
+  ArrayBufferOrViewContents<char> data(args[offset + 6]);
   if (!data.CheckSizeInt32()) [[unlikely]] {
     THROW_ERR_OUT_OF_RANGE(env, "data is too big");
     return Nothing<void>();
@@ -623,8 +624,8 @@ Maybe<void> SignTraits::AdditionalConfig(
       ? data.ToCopy()
       : data.ToByteSource();
 
-  if (args[offset + 6]->IsString()) {
-    Utf8Value digest(env->isolate(), args[offset + 6]);
+  if (args[offset + 7]->IsString()) {
+    Utf8Value digest(env->isolate(), args[offset + 7]);
     params->digest = Digest::FromName(*digest);
     if (!params->digest) [[unlikely]] {
       THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", digest);
@@ -632,27 +633,27 @@ Maybe<void> SignTraits::AdditionalConfig(
     }
   }
 
-  if (args[offset + 7]->IsInt32()) {  // Salt length
+  if (args[offset + 8]->IsInt32()) {  // Salt length
     params->flags |= SignConfiguration::kHasSaltLength;
     params->salt_length =
-        GetSaltLenFromJS(args[offset + 7]).value_or(params->salt_length);
+        GetSaltLenFromJS(args[offset + 8]).value_or(params->salt_length);
   }
-  if (args[offset + 8]->IsUint32()) {  // Padding
+  if (args[offset + 9]->IsUint32()) {  // Padding
     params->flags |= SignConfiguration::kHasPadding;
     params->padding =
-        GetPaddingFromJS(params->key.GetAsymmetricKey(), args[offset + 8]);
+        GetPaddingFromJS(params->key.GetAsymmetricKey(), args[offset + 9]);
   }
 
-  if (args[offset + 9]->IsUint32()) {  // DSA Encoding
-    params->dsa_encoding = GetDSASigEncFromJS(args[offset + 9]);
+  if (args[offset + 10]->IsUint32()) {  // DSA Encoding
+    params->dsa_encoding = GetDSASigEncFromJS(args[offset + 10]);
     if (params->dsa_encoding == DSASigEnc::Invalid) [[unlikely]] {
       THROW_ERR_OUT_OF_RANGE(env, "invalid signature encoding");
       return Nothing<void>();
     }
   }
 
-  if (!args[offset + 10]->IsUndefined()) {  // Context string
-    ArrayBufferOrViewContents<char> context_string(args[offset + 10]);
+  if (!args[offset + 11]->IsUndefined()) {  // Context string
+    ArrayBufferOrViewContents<char> context_string(args[offset + 11]);
     if (context_string.size() > 255) [[unlikely]] {
       THROW_ERR_OUT_OF_RANGE(env, "context string must be at most 255 bytes");
       return Nothing<void>();
@@ -664,7 +665,7 @@ Maybe<void> SignTraits::AdditionalConfig(
   }
 
   if (params->mode == SignConfiguration::Mode::Verify) {
-    ArrayBufferOrViewContents<char> signature(args[offset + 11]);
+    ArrayBufferOrViewContents<char> signature(args[offset + 12]);
     if (!signature.CheckSizeInt32()) [[unlikely]] {
       THROW_ERR_OUT_OF_RANGE(env, "signature is too big");
       return Nothing<void>();
@@ -688,8 +689,8 @@ Maybe<void> SignTraits::AdditionalConfig(
 bool SignTraits::DeriveBits(Environment* env,
                             const SignConfiguration& params,
                             ByteSource* out,
-                            CryptoJobMode mode) {
-  bool can_throw = mode == CryptoJobMode::kCryptoJobSync;
+                            CryptoJobMode mode,
+                            CryptoErrorStore* errors) {
   auto context = EVPMDCtxPointer::New();
   if (!context) [[unlikely]]
     return false;
@@ -699,7 +700,8 @@ bool SignTraits::DeriveBits(Environment* env,
                       params.context_string.size() > 0);
 
   if (has_context && !SupportsContextString(key)) {
-    if (can_throw) crypto::CheckThrow(env, SignBase::Error::ContextUnsupported);
+    errors->Insert(NodeCryptoError::CONTEXT_UNSUPPORTED);
+    errors->SetNodeErrorCode("ERR_CRYPTO_OPERATION_FAILED");
     return false;
   }
 
@@ -728,7 +730,6 @@ bool SignTraits::DeriveBits(Environment* env,
   })();
 
   if (!ctx.has_value()) [[unlikely]] {
-    if (can_throw) crypto::CheckThrow(env, SignBase::Error::Init);
     return false;
   }
 
@@ -742,7 +743,6 @@ bool SignTraits::DeriveBits(Environment* env,
           : std::nullopt;
 
   if (!ApplyRSAOptions(key, *ctx, padding, salt_length)) {
-    if (can_throw) crypto::CheckThrow(env, SignBase::Error::PrivateKey);
     return false;
   }
 
@@ -751,7 +751,6 @@ bool SignTraits::DeriveBits(Environment* env,
       if (key.isOneShotVariant()) {
         auto data = context.signOneShot(params.data);
         if (!data) [[unlikely]] {
-          if (can_throw) crypto::CheckThrow(env, SignBase::Error::PrivateKey);
           return false;
         }
         DCHECK(!data.isSecure());
@@ -759,7 +758,6 @@ bool SignTraits::DeriveBits(Environment* env,
       } else {
         auto data = context.sign(params.data);
         if (!data) [[unlikely]] {
-          if (can_throw) crypto::CheckThrow(env, SignBase::Error::PrivateKey);
           return false;
         }
         DCHECK(!data.isSecure());

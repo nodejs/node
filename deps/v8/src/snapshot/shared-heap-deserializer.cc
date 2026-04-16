@@ -29,7 +29,7 @@ void SharedHeapDeserializer::DeserializeIntoIsolate() {
 
   if (should_rehash()) {
     // The hash seed has already been initialized in ReadOnlyDeserializer, thus
-    // there is no need to call `isolate()->heap()->InitializeHashSeed();`.
+    // there is no need to call `HashSeed::InitializeRoots(isolate());`.
     Rehash();
   }
 }

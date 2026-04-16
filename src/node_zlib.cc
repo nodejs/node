@@ -644,6 +644,12 @@ class CompressionStream : public AsyncWrap,
     CompressionStream* wrap;
     ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
 
+    if (wrap->write_in_progress_) {
+      wrap->env()->ThrowError(
+          "Cannot reset zlib stream while a write is in progress");
+      return;
+    }
+
     AllocScope alloc_scope(wrap);
     const CompressionError err = wrap->context()->ResetStream();
     if (err.IsError())

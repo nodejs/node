@@ -104,25 +104,32 @@ const replaceUsage = (src, { path, commandLoader }) => {
   const replacer = assertPlaceholder(src, path, TAGS.USAGE)
   const { usage, name, workspaces } = getCommandByDoc(path, DOC_EXT, commandLoader)
 
-  const synopsis = ['```bash', usage]
+  const synopsis = []
 
-  const cmdAliases = Object.keys(aliases).reduce((p, c) => {
-    if (aliases[c] === name) {
-      p.push(c)
+  if (usage) {
+    synopsis.push('```bash', usage)
+
+    const cmdAliases = Object.keys(aliases).reduce((p, c) => {
+      if (aliases[c] === name) {
+        p.push(c)
+      }
+      return p
+    }, [])
+
+    if (cmdAliases.length === 1) {
+      synopsis.push('', `alias: ${cmdAliases[0]}`)
+    } else if (cmdAliases.length > 1) {
+      synopsis.push('', `aliases: ${cmdAliases.join(', ')}`)
     }
-    return p
-  }, [])
 
-  if (cmdAliases.length === 1) {
-    synopsis.push('', `alias: ${cmdAliases[0]}`)
-  } else if (cmdAliases.length > 1) {
-    synopsis.push('', `aliases: ${cmdAliases.join(', ')}`)
+    synopsis.push('```')
   }
 
-  synopsis.push('```')
-
   if (!workspaces) {
-    synopsis.push('', 'Note: This command is unaware of workspaces.')
+    if (synopsis.length) {
+      synopsis.push('')
+    }
+    synopsis.push('Note: This command is unaware of workspaces.')
   }
 
   return src.replace(replacer, synopsis.join('\n'))

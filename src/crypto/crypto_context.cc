@@ -2438,9 +2438,40 @@ void SecureContext::GetCertificate(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(buff);
 }
 
+void SecureContext::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackFieldWithSize("ctx", ctx_ ? kSizeOf_SSL_CTX : 0);
+  tracker->TrackFieldWithSize("cert", cert_ ? kSizeOf_X509 : 0);
+  tracker->TrackFieldWithSize("issuer", issuer_ ? kSizeOf_X509 : 0);
+}
+
 // UseExtraCaCerts is called only once at the start of the Node.js process.
 void UseExtraCaCerts(std::string_view file) {
   extra_root_certs_file = file;
+}
+
+NODE_EXTERN SSL_CTX* GetSSLCtx(Local<Context> context, Local<Value> value) {
+  Environment* env = Environment::GetCurrent(context);
+  if (env == nullptr) return nullptr;
+
+  // TryCatchto swallow any exceptions from Get() (e.g. failing getters)
+  v8::TryCatch try_catch(env->isolate());
+
+  // Unwrap the .context property from the JS SecureContext wrapper
+  // (as returned by tls.createSecureContext()).
+  if (value->IsObject()) {
+    Local<Value> inner;
+    if (!value.As<v8::Object>()
+             ->Get(context, FIXED_ONE_BYTE_STRING(env->isolate(), "context"))
+             .ToLocal(&inner)) {
+      return nullptr;
+    }
+    value = inner;
+  }
+
+  if (!SecureContext::HasInstance(env, value)) return nullptr;
+  SecureContext* sc = BaseObject::FromJSObject<SecureContext>(value);
+  if (sc == nullptr) return nullptr;
+  return sc->ctx().get();
 }
 
 }  // namespace crypto

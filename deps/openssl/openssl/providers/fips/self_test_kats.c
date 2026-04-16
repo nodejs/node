@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -1025,6 +1025,8 @@ static int set_kat_drbg(OSSL_LIB_CTX *ctx,
     EVP_RAND *rand;
     unsigned int strength = 256;
     EVP_RAND_CTX *parent_rand = NULL;
+    int reseed_time_interval = 0;
+    unsigned int reseed_requests = 0;
     OSSL_PARAM drbg_params[3] = {
         OSSL_PARAM_END, OSSL_PARAM_END, OSSL_PARAM_END
     };
@@ -1071,7 +1073,12 @@ static int set_kat_drbg(OSSL_LIB_CTX *ctx,
     EVP_RAND_CTX_free(parent_rand);
     parent_rand = NULL;
 
-    if (!EVP_RAND_instantiate(kat_rand, strength, 0, persstr, persstr_len, NULL))
+    /* Disable time/request based reseeding to make selftests deterministic */
+    drbg_params[0] = OSSL_PARAM_construct_int(OSSL_DRBG_PARAM_RESEED_TIME_INTERVAL,
+        &reseed_time_interval);
+    drbg_params[1] = OSSL_PARAM_construct_uint(OSSL_DRBG_PARAM_RESEED_REQUESTS,
+        &reseed_requests);
+    if (!EVP_RAND_instantiate(kat_rand, strength, 0, persstr, persstr_len, drbg_params))
         goto err;
 
     /* When we set the new private generator this one is freed, so upref it */

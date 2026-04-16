@@ -320,7 +320,7 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
       { name },
       extractable,
       privateUsages),
-    { message: 'Invalid JWK' });
+    { message: 'Invalid keyData' });
 
   await assert.rejects(
     subtle.importKey(
@@ -515,8 +515,6 @@ async function testImportRawSeed({ name, privateUsages }, extractable) {
     const key = keyObject.toCryptoKey({ name }, true, privateUsages);
     await assert.rejects(subtle.exportKey('pkcs8', key), (err) => {
       assert.strictEqual(err.name, 'OperationError');
-      assert.strictEqual(err.cause.code, 'ERR_CRYPTO_OPERATION_FAILED');
-      assert.strictEqual(err.cause.message, 'Failed to get raw seed');
       return true;
     });
   }

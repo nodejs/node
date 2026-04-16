@@ -1583,8 +1583,8 @@ builtin WasmStringToDouble(s: String): float64 {
   const hash: NameHash = s.raw_hash_field;
   if (IsIntegerIndex(hash) &&
       hash.array_index_length < kMaxCachedArrayIndexLength) {
-    const arrayIndex: int32 = Signed(hash.array_index_value);
-    return Convert<float64>(arrayIndex);
+    const arrayIndex: uint32 = DecodeArrayIndexFromHashField(hash);
+    return Convert<float64>(Signed(arrayIndex));
   }
   return StringToFloat64(Flatten(s));
 }

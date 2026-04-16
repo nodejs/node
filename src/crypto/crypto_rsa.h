@@ -52,30 +52,6 @@ struct RsaKeyGenTraits final {
 
 using RSAKeyPairGenJob = KeyGenJob<KeyPairGenTraits<RsaKeyGenTraits>>;
 
-struct RSAKeyExportConfig final : public MemoryRetainer {
-  RSAKeyVariant variant = kKeyVariantRSA_SSA_PKCS1_v1_5;
-  SET_NO_MEMORY_INFO()
-  SET_MEMORY_INFO_NAME(RSAKeyExportConfig)
-  SET_SELF_SIZE(RSAKeyExportConfig)
-};
-
-struct RSAKeyExportTraits final {
-  static constexpr const char* JobName = "RSAKeyExportJob";
-  using AdditionalParameters = RSAKeyExportConfig;
-
-  static v8::Maybe<void> AdditionalConfig(
-      const v8::FunctionCallbackInfo<v8::Value>& args,
-      unsigned int offset,
-      RSAKeyExportConfig* config);
-
-  static WebCryptoKeyExportStatus DoExport(const KeyObjectData& key_data,
-                                           WebCryptoKeyFormat format,
-                                           const RSAKeyExportConfig& params,
-                                           ByteSource* out);
-};
-
-using RSAKeyExportJob = KeyExportJob<RSAKeyExportTraits>;
-
 struct RSACipherConfig final : public MemoryRetainer {
   CryptoJobMode mode = kCryptoJobAsync;
   ByteSource label;
@@ -116,10 +92,7 @@ bool ExportJWKRsaKey(Environment* env,
                      const KeyObjectData& key,
                      v8::Local<v8::Object> target);
 
-KeyObjectData ImportJWKRsaKey(Environment* env,
-                              v8::Local<v8::Object> jwk,
-                              const v8::FunctionCallbackInfo<v8::Value>& args,
-                              unsigned int offset);
+KeyObjectData ImportJWKRsaKey(Environment* env, v8::Local<v8::Object> jwk);
 
 bool GetRsaKeyDetail(Environment* env,
                      const KeyObjectData& key,

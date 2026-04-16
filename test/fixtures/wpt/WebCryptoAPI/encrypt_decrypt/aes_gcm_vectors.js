@@ -59,7 +59,6 @@ function getTestVectors() {
     // Scenarios that should fail because of a bad tag length, causing an OperationError
     var failing = [];
     keyLengths.forEach(function(keyLength) {
-        // First, make some tests for bad tag lengths
         [24, 48, 72, 95, 129].forEach(function(badTagLength) {
             failing.push({
                 name: "AES-GCM " + keyLength.toString() + "-bit key, " + (iv.byteLength << 3).toString() + "-bit iv, " + "illegal tag length " + badTagLength.toString() + "-bits",
