@@ -81,9 +81,9 @@
 //! So to calculate the [`Keviyah`] of a year, we can calculate its molad, pick the right partitioning based on the
 //! year type, and see where the molad falls in that table.
 
-use crate::helpers::i64_to_i32;
+use crate::hebrew::HEBREW_EPOCH;
+use crate::helpers::i64_to_saturated_i32;
 use crate::rata_die::RataDie;
-use core::cmp::Ordering;
 
 // A note on time notation
 //
@@ -162,19 +162,10 @@ const MOLAD_BEHERAD_OFFSET: i32 = ḥal!(2 - 5 - 204);
 /// From Adjler Appendix A
 const HEBREW_LUNATION_TIME: i32 = ḥal!(0-indexed 29-12-793);
 
-/// From Reingold (ch 8.2, in implementation for fixed-from-hebrew)
-const HEBREW_APPROX_YEAR_LENGTH: f64 = 35975351.0 / 98496.0;
-
 /// The number of ḥalakim in a week
 ///
 /// (This is 181440)
 const ḤALAKIM_IN_WEEK: i64 = 1080 * 24 * 7;
-
-/// The Hebrew calendar epoch. It did not need to be postponed, so it occurs on Hebrew Monday, Oct 7, 3761 BCE (Julian),
-/// the same as the Molad Beherad.
-///
-/// (note that the molad Beherad occurs on standard Sunday, but because it happens after 6PM it is still Hebrew Monday)
-const HEBREW_CALENDAR_EPOCH: RataDie = crate::julian::fixed_from_julian_book_version(-3761, 10, 7);
 
 /// The minumum hebrew year supported by this code (this is the minimum value for i32)
 pub const HEBREW_MIN_YEAR: i32 = i32::MIN;
@@ -221,7 +212,7 @@ pub struct YearInfo {
 }
 
 impl YearInfo {
-    /// Compute the YearInfo for a given year
+    /// Compute the [`YearInfo`] for a given year
     #[inline]
     pub fn compute_for(h_year: i32) -> Self {
         let (mut weeks_since_beharad, ḥalakim) = molad_details(h_year);
@@ -243,63 +234,32 @@ impl YearInfo {
         }
     }
 
-    /// Returns the YearInfo and h_year for the year containing `date`
+    /// Returns the [`YearInfo`] and `h_year` for the year containing `date`
     ///
     /// This will clamp the R.D. such that the hebrew year is within range for i32
     #[inline]
     pub fn year_containing_rd(date: RataDie) -> (Self, i32) {
-        #[allow(unused_imports)]
-        use core_maths::*;
+        // 35975351/98496 is the mean year length for a Hebrew year
+        // (from Reingold, ch 8.2, in implementation for fixed-from-hebrew)
+        //
+        // +1 because the epoch is new year of year 1
+        // Before the epoch the division will round up (towards 0), so we need to
+        // subtract 1, which is the same as not adding the 1.
+        let mut h_year = i64_to_saturated_i32(
+            (date - HEBREW_EPOCH) * 98496 / 35975351 + (date >= HEBREW_EPOCH) as i64,
+        );
 
-        let date = date.clamp(HEBREW_MIN_RD, HEBREW_MAX_RD);
+        let mut year = Self::compute_for(h_year);
 
-        let days_since_epoch = (date - HEBREW_CALENDAR_EPOCH) as f64;
-        let maybe_approx =
-            i64_to_i32(1 + days_since_epoch.div_euclid(HEBREW_APPROX_YEAR_LENGTH) as i64);
-        let approx = maybe_approx.unwrap_or_else(|e| e.saturate());
-
-        let yi = Self::compute_for(approx);
-
-        // compute if yi ⩼ rd
-        let cmp = yi.compare(date);
-
-        let (yi, h_year) = match cmp {
-            // The approx year is a year greater. Go one year down
-            Ordering::Greater => {
-                let prev = approx.saturating_sub(1);
-                (Self::compute_for(prev), prev)
-            }
-            // Bullseye
-            Ordering::Equal => (yi, approx),
-            // The approx year is a year lower. Go one year up.
-            Ordering::Less => {
-                let next = approx.saturating_add(1);
-                (Self::compute_for(next), next)
-            }
-        };
-
-        debug_assert!(yi.compare(date).is_eq(),
-                      "Date {date:?} calculated approximately to Hebrew Year {approx} (comparison: {cmp:?}), \
-                       should be contained in adjacent year {h_year} but that year is still {:?} it", yi.compare(date));
-
-        (yi, h_year)
-    }
-
-    /// Compare this year against a date. Returns Ordering::Greater
-    /// when this year is after the given date
-    ///
-    /// i.e. this is computing self ⩼ rd
-    fn compare(self, rd: RataDie) -> Ordering {
-        let ny = self.new_year();
-        let len = self.keviyah.year_length();
-
-        if rd < ny {
-            Ordering::Greater
-        } else if rd >= ny + len.into() {
-            Ordering::Less
-        } else {
-            Ordering::Equal
+        if date < year.new_year() && h_year > i32::MIN {
+            h_year -= 1;
+            year = Self::compute_for(h_year)
+        } else if date >= year.new_year() + year.keviyah.year_length() as i64 && h_year < i32::MAX {
+            h_year += 1;
+            year = Self::compute_for(h_year)
         }
+
+        (year, h_year)
     }
 
     /// Compute the date of New Year's Day
@@ -310,7 +270,7 @@ impl YearInfo {
         let days_since_beharad = (self.weeks_since_beharad * 7)
             + self.keviyah.start_of_year() as i64
             - BEHARAD_START_OF_YEAR as i64;
-        HEBREW_CALENDAR_EPOCH + days_since_beharad
+        HEBREW_EPOCH + days_since_beharad
     }
 }
 
@@ -318,7 +278,7 @@ impl YearInfo {
 ///
 /// A year may be one of fourteen types, categorized by the day of
 /// week of the new year (the first number, 1 = Sunday), the type of year (Deficient, Regular,
-/// Complete), and the day of week of the first day of Passover. The last segment disambiguates
+/// Complete), and the weekday of the first day of Passover. The last segment disambiguates
 /// between cases that have the same first two but differ on whether they are leap years (since
 /// Passover happens in Nisan, after the leap month Adar).
 ///
@@ -327,7 +287,7 @@ impl YearInfo {
 /// with the leap year ones being offset by 7. We don't directly rely on this
 /// property but it is useful for potential bitpacking, and we use it as a way
 /// to double-check that the four gates code is set up correctly. We do directly
-/// rely on the leap-keviyot being after the regular ones (and starting with בחה) in is_leap.
+/// rely on the leap-keviyot being after the regular ones (and starting with בחה) in `is_leap`.
 ///
 /// For people unsure if their editor supports bidirectional text,
 /// the first Keviyah (2D3) is Bet (ב), Ḥet (ח), Gimel (ג).
@@ -388,24 +348,6 @@ impl YearType {
     fn length_correction(self) -> i8 {
         self as i8
     }
-
-    /// The length of Ḥeshvan
-    fn ḥeshvan_length(self) -> u8 {
-        if self == Self::Complete {
-            ḤESHVAN_DEFAULT_LEN + 1
-        } else {
-            ḤESHVAN_DEFAULT_LEN
-        }
-    }
-
-    /// The length correction of Kislev
-    fn kislev_length(self) -> u8 {
-        if self == Self::Deficient {
-            KISLEV_DEFAULT_LEN - 1
-        } else {
-            KISLEV_DEFAULT_LEN
-        }
-    }
 }
 /// The day of the new year. Only these four days are permitted.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
@@ -421,39 +363,6 @@ pub enum StartOfYear {
     /// Saturday (everyone knows what Saturday is)
     Saturday = 7,
 }
-
-// Given a constant expression of the type FOO + BAR + BAZ convert
-// every element into a u16 and return
-macro_rules! u16_cvt(
-    // the $first / $rest pattern is needed since
-    // macros cannot use `+` as a separator in repetition
-    ($first:ident $(+ $rest:ident)*) => {
-        {
-            // make sure it is constant
-            // we use as here because it works in consts and in this context
-            // overflow will panic anyway
-            const COMPUTED: u16 = $first as u16 $(+ $rest as u16)*;
-            COMPUTED
-        }
-    };
-);
-
-// Month lengths (ref: https://en.wikipedia.org/wiki/Hebrew_calendar#Months)
-const TISHREI_LEN: u8 = 30;
-// except in Complete years
-const ḤESHVAN_DEFAULT_LEN: u8 = 29;
-// Except in Deficient years
-const KISLEV_DEFAULT_LEN: u8 = 30;
-const TEVET_LEN: u8 = 29;
-const SHEVAT_LEN: u8 = 30;
-const ADARI_LEN: u8 = 30;
-const ADAR_LEN: u8 = 29;
-const NISAN_LEN: u8 = 30;
-const IYYAR_LEN: u8 = 29;
-const SIVAN_LEN: u8 = 30;
-const TAMMUZ_LEN: u8 = 29;
-const AV_LEN: u8 = 30;
-const ELUL_LEN: u8 = 29;
 
 /// Normalized month constant for Tishrei
 ///
@@ -531,133 +440,71 @@ impl Keviyah {
         }
     }
 
-    /// Normalize the ordinal month to the "month number" in the year (ignoring
-    /// leap months), i.e. Adar and Adar II are both represented by 6.
-    ///
-    /// Returns None if given the index of Adar I (6 in a leap year)
-    #[inline]
-    fn normalized_ordinal_month(self, ordinal_month: u8) -> Option<u8> {
-        if self.is_leap() {
-            match ordinal_month.cmp(&6) {
-                // Adar I
-                Ordering::Equal => None,
-                Ordering::Less => Some(ordinal_month),
-                Ordering::Greater => Some(ordinal_month - 1),
-            }
-        } else {
-            Some(ordinal_month)
-        }
-    }
-
     /// Given an ordinal, civil month (1-indexed month starting at Tishrei)
     /// return its length
+    // this function is branch-free
     #[inline]
     pub fn month_len(self, ordinal_month: u8) -> u8 {
-        // Normalize it to the month number
-        let Some(normalized_ordinal_month) = self.normalized_ordinal_month(ordinal_month) else {
-            return ADARI_LEN;
-        };
-        debug_assert!(normalized_ordinal_month <= 12 && normalized_ordinal_month > 0);
-        match normalized_ordinal_month {
-            TISHREI => TISHREI_LEN,
-            ḤESHVAN => self.year_type().ḥeshvan_length(),
-            KISLEV => self.year_type().kislev_length(),
-            TEVET => TEVET_LEN,
-            SHEVAT => SHEVAT_LEN,
-            ADAR => ADAR_LEN,
-            NISAN => NISAN_LEN,
-            IYYAR => IYYAR_LEN,
-            SIVAN => SIVAN_LEN,
-            TAMMUZ => TAMMUZ_LEN,
-            AV => AV_LEN,
-            ELUL => ELUL_LEN,
-            _ => {
-                debug_assert!(false, "Got unknown month index {ordinal_month}");
-                30
-            }
-        }
+        let year_type = self.year_type();
+        let is_leap = self.is_leap();
+
+        // In a leap year, ordinals after Adar correspond to the previous month number.
+        let month_number = ordinal_month - (is_leap && ordinal_month >= 6) as u8;
+
+        29 + (
+            // Months with odd month numbers are long.
+            month_number % 2
+            // Ḥeshvan is long in complete years
+            + (ordinal_month == 2 && year_type == YearType::Complete) as u8
+            // Kislev is short in deficient years
+            - (ordinal_month == 3 && year_type == YearType::Deficient) as u8
+        )
     }
 
     /// Get the number of days preceding this month
+    // this function is branch-free
     #[inline]
     pub fn days_preceding(self, ordinal_month: u8) -> u16 {
-        // convenience constant to keep the additions smallish
-        // Number of days before (any) Adar in a regular year
-        const BEFORE_ADAR_DEFAULT_LEN: u16 = u16_cvt!(
-            TISHREI_LEN + ḤESHVAN_DEFAULT_LEN + KISLEV_DEFAULT_LEN + TEVET_LEN + SHEVAT_LEN
-        );
-
-        let Some(normalized_ordinal_month) = self.normalized_ordinal_month(ordinal_month) else {
-            // Get Adar I out of the way
-            let corrected =
-                BEFORE_ADAR_DEFAULT_LEN as i16 + i16::from(self.year_type().length_correction());
-            return corrected as u16;
-        };
-        debug_assert!(normalized_ordinal_month <= ELUL && normalized_ordinal_month > 0);
-
         let year_type = self.year_type();
+        let is_leap = self.is_leap();
 
-        let mut days = match normalized_ordinal_month {
-            TISHREI => 0,
-            ḤESHVAN => u16_cvt!(TISHREI_LEN),
-            KISLEV => u16_cvt!(TISHREI_LEN) + u16::from(year_type.ḥeshvan_length()),
-            // Use default lengths after this, we'll apply the correction later
-            // (This helps optimize this into a simple jump table)
-            TEVET => u16_cvt!(TISHREI_LEN + ḤESHVAN_DEFAULT_LEN + KISLEV_DEFAULT_LEN),
-            SHEVAT => u16_cvt!(TISHREI_LEN + ḤESHVAN_DEFAULT_LEN + KISLEV_DEFAULT_LEN + TEVET_LEN),
-            ADAR => BEFORE_ADAR_DEFAULT_LEN,
-            NISAN => u16_cvt!(BEFORE_ADAR_DEFAULT_LEN + ADAR_LEN),
-            IYYAR => u16_cvt!(BEFORE_ADAR_DEFAULT_LEN + ADAR_LEN + NISAN_LEN),
-            SIVAN => u16_cvt!(BEFORE_ADAR_DEFAULT_LEN + ADAR_LEN + NISAN_LEN + IYYAR_LEN),
-            TAMMUZ => {
-                u16_cvt!(BEFORE_ADAR_DEFAULT_LEN + ADAR_LEN + NISAN_LEN + IYYAR_LEN + SIVAN_LEN)
-            }
-            #[rustfmt::skip]
-            AV => u16_cvt!(BEFORE_ADAR_DEFAULT_LEN + ADAR_LEN + NISAN_LEN + IYYAR_LEN + SIVAN_LEN + TAMMUZ_LEN),
-            #[rustfmt::skip]
-            _ => u16_cvt!(BEFORE_ADAR_DEFAULT_LEN + ADAR_LEN + NISAN_LEN + IYYAR_LEN + SIVAN_LEN + TAMMUZ_LEN + AV_LEN),
-        };
+        // In a leap year, ordinals after Adar correspond to the previous month number.
+        let month_number = ordinal_month - (is_leap && ordinal_month > 6) as u8;
 
-        // If it is after Kislev and Ḥeshvan, we should add the year correction
-        if normalized_ordinal_month > KISLEV {
-            // Ensure the casts are fine
-            debug_assert!(days > 1 && year_type.length_correction().abs() <= 1);
-            days = (days as i16 + year_type.length_correction() as i16) as u16;
-        }
-
-        // In a leap year, after Adar (and including Adar II), we should add
-        // the length of Adar 1
-        if normalized_ordinal_month >= ADAR && self.is_leap() {
-            days += u16::from(ADARI_LEN);
-        }
-
-        days
+        29 * (ordinal_month as u16 - 1)
+            + (
+                // Months with odd month numbers are long.
+                month_number / 2
+                // Adar I is long
+                + (is_leap && ordinal_month > 6) as u8
+                // Ḥeshvan is long in complete years
+                + (ordinal_month > 2 && year_type == YearType::Complete) as u8
+                // Kislev is short in deficient years
+                - (ordinal_month > 3 && year_type == YearType::Deficient) as u8
+            ) as u16
     }
 
-    /// Given a day of the year, return the ordinal month and day as (month, day).
-    pub fn month_day_for(self, mut day: u16) -> (u8, u8) {
-        for month in 1..14 {
-            let month_len = self.month_len(month);
-            if let Ok(day) = u8::try_from(day) {
-                if day <= month_len {
-                    return (month, day);
-                }
-            }
-            day -= u16::from(month_len);
+    /// Given a 1-indexed day of the year, return the ordinal month and day as (month, day).
+    pub fn month_day_for(self, day_of_year: u16) -> (u8, u8) {
+        // We divide by 30, not 29, to account for the case where all months before this
+        // were length 30 (possible near the beginning of the year)
+        let mut month = ((day_of_year - 1) / 30) as u8 + 1;
+        let mut days_before_month = self.days_preceding(month);
+        let mut last_day_of_month = self.days_preceding(month + 1);
+
+        while day_of_year > last_day_of_month {
+            month += 1;
+            days_before_month = last_day_of_month;
+            last_day_of_month = self.days_preceding(month + 1);
         }
-        debug_assert!(false, "Attempted to get Hebrew date for {day:?}, in keviyah {self:?}, didn't have enough days in the year");
-        self.last_month_day_in_year()
+
+        (month, (day_of_year - days_before_month) as u8)
     }
 
     /// Return the last ordinal month and day in this year as (month, day)
     #[inline]
     pub fn last_month_day_in_year(self) -> (u8, u8) {
-        // Elul is always the last month of the year
-        if self.is_leap() {
-            (13, ELUL_LEN)
-        } else {
-            (12, ELUL_LEN)
-        }
+        (12 + self.is_leap() as u8, 29)
     }
 
     /// Whether this year is a leap year
@@ -669,7 +516,7 @@ impl Keviyah {
         self >= Self::בחה
     }
 
-    /// Given the hebrew year for this Keviyah, calculate the YearInfo
+    /// Given the hebrew year for this Keviyah, calculate the [`YearInfo`]
     #[inline]
     pub fn year_info(self, h_year: i32) -> YearInfo {
         let (mut weeks_since_beharad, ḥalakim) = molad_details(h_year);
@@ -880,7 +727,7 @@ fn keviyah_for(year_type: MetonicCycleType, ḥalakim: i32) -> Keviyah {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::hebrew::{self, BookHebrew};
+    use crate::hebrew::BookHebrew;
 
     #[test]
     fn test_consts() {
@@ -892,9 +739,6 @@ mod test {
         //
         // The correct constant is seen in <https://en.wikibooks.org/wiki/Computer_Programming/Hebrew_calendar>
         assert_eq!(HEBREW_LUNATION_TIME, 765433);
-
-        // Nicer to have the code be self-contained, but always worth asserting
-        assert_eq!(HEBREW_CALENDAR_EPOCH, hebrew::FIXED_HEBREW_EPOCH);
     }
 
     #[test]

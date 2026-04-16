@@ -12,8 +12,8 @@ use zerovec::ZeroVec;
 
 /// Returns whether the vector is sorted ascending non inclusive, of even length,
 /// and within the bounds of `0x0 -> 0x10FFFF + 1` inclusive.
-#[allow(clippy::indexing_slicing)] // windows
-#[allow(clippy::unwrap_used)] // by is_empty check
+#[expect(clippy::indexing_slicing)] // windows
+#[expect(clippy::unwrap_used)] // by is_empty check
 pub fn is_valid_zv(inv_list_zv: &ZeroVec<'_, PotentialCodePoint>) -> bool {
     inv_list_zv.is_empty()
         || (inv_list_zv.len() % 2 == 0
@@ -48,7 +48,7 @@ mod tests {
     use core::char;
     use zerovec::ZeroVec;
 
-    fn make_zv(slice: &[u32]) -> ZeroVec<PotentialCodePoint> {
+    fn make_zv(slice: &[u32]) -> ZeroVec<'_, PotentialCodePoint> {
         slice
             .iter()
             .copied()

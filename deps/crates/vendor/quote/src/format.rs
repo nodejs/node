@@ -4,19 +4,19 @@
 ///
 /// # Syntax
 ///
-/// Syntax is copied from the [`format!`] macro, supporting both positional and
-/// named arguments.
+/// Syntax is copied from the [`format!`][alloc::format!] macro, supporting both
+/// positional and named arguments.
 ///
 /// Only a limited set of formatting traits are supported. The current mapping
 /// of format types to traits is:
 ///
 /// * `{}` ⇒ [`IdentFragment`]
-/// * `{:o}` ⇒ [`Octal`](std::fmt::Octal)
-/// * `{:x}` ⇒ [`LowerHex`](std::fmt::LowerHex)
-/// * `{:X}` ⇒ [`UpperHex`](std::fmt::UpperHex)
-/// * `{:b}` ⇒ [`Binary`](std::fmt::Binary)
+/// * `{:o}` ⇒ [`Octal`](core::fmt::Octal)
+/// * `{:x}` ⇒ [`LowerHex`](core::fmt::LowerHex)
+/// * `{:X}` ⇒ [`UpperHex`](core::fmt::UpperHex)
+/// * `{:b}` ⇒ [`Binary`](core::fmt::Binary)
 ///
-/// See [`std::fmt`] for more information.
+/// See [`core::fmt`] for more information.
 ///
 /// <br>
 ///

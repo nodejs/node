@@ -3,23 +3,29 @@
 use core::{cmp, num::NonZeroU128, ops::Add};
 
 use num_traits::AsPrimitive;
+use timezone_provider::epoch_nanoseconds::EpochNanoseconds;
 
 use crate::{
-    builtins::core::{time_zone::TimeZone, PlainDate, PlainDateTime},
+    builtins::{
+        core::{time_zone::TimeZone, PlainDate, PlainDateTime},
+        duration::TWO_POWER_FIFTY_THREE,
+    },
     iso::{IsoDate, IsoDateTime},
     options::{
         Disambiguation, Overflow, ResolvedRoundingOptions, RoundingIncrement, RoundingMode, Unit,
         UNIT_VALUE_TABLE,
     },
-    primitive::FiniteF64,
+    primitive::{DoubleDouble, FiniteF64},
     provider::TimeZoneProvider,
     rounding::IncrementRounder,
-    Calendar, TemporalError, TemporalResult, TemporalUnwrap, NS_PER_DAY, NS_PER_DAY_NONZERO,
+    temporal_assert, Calendar, NonZeroSign, TemporalError, TemporalResult, TemporalUnwrap,
+    NS_PER_DAY, NS_PER_DAY_NONZERO,
 };
 
 use super::{DateDuration, Duration, Sign};
 
 const MAX_TIME_DURATION: i128 = 9_007_199_254_740_991_999_999_999;
+const MAX_SAFE_INTEGER: i128 = TWO_POWER_FIFTY_THREE - 1;
 
 // Nanoseconds constants
 
@@ -170,7 +176,7 @@ impl TimeDuration {
         // 2. NOTE: The following step cannot be implemented directly using floating-point arithmetic when 𝔽(timeDuration) is not a safe integer.
         // The division can be implemented in C++ with the __float128 type if the compiler supports it, or with software emulation such as in the SoftFP library.
         // 3. Return timeDuration / divisor.
-        DurationTotal::new(time_duration, unit_nanoseconds.get() as u64).to_fractional_total()
+        Ok(Fraction::new(time_duration, unit_nanoseconds.get() as f64).to_finite_f64())
     }
 
     pub(crate) fn round_to_fractional_days(
@@ -228,29 +234,55 @@ impl Add<Self> for TimeDuration {
     }
 }
 
-// Struct to handle division steps in `TotalTimeDuration`
-struct DurationTotal {
-    quotient: i128,
-    remainder: i128,
-    unit_nanoseconds: u64,
+// Struct to fractional division steps in `TotalTimeDuration`
+struct Fraction {
+    numerator: i128,
+    denominator: f64,
 }
 
-impl DurationTotal {
-    pub fn new(time_duration: i128, unit_nanoseconds: u64) -> Self {
-        let quotient = time_duration.div_euclid(unit_nanoseconds as i128);
-        let remainder = time_duration.rem_euclid(unit_nanoseconds as i128);
-
+impl Fraction {
+    pub fn new(numerator: i128, denominator: f64) -> Self {
         Self {
-            quotient,
-            remainder,
-            unit_nanoseconds,
+            numerator,
+            denominator,
         }
     }
 
-    pub(crate) fn to_fractional_total(&self) -> TemporalResult<FiniteF64> {
-        let fractional = FiniteF64::try_from(self.remainder)?
-            .checked_div(&FiniteF64::try_from(self.unit_nanoseconds)?)?;
-        FiniteF64::try_from(self.quotient)?.checked_add(&fractional)
+    // NOTE: Functionally similar to SM and JSC's `fractionToDouble`
+    //
+    // For more information on this implementation, see the
+    // JavaScriptCore's [fractionToDouble.cpp](https://github.com/WebKit/WebKit/blob/main/Source/JavaScriptCore/runtime/FractionToDouble.cpp)
+    // or SpiderMonkey's [FractionToDouble](https://github.com/mozilla-firefox/firefox/blob/main/js/src/builtin/temporal/Temporal.cpp#L683)
+    //
+    // The JavaScriptCore implementation is recommended as it has fairly robust documentation
+    // on the underlying papers that have informed this approach.
+    /// Calculate an `f64` from a numerator and denominator that may
+    /// be beyond the max safe integer range.
+    pub(crate) fn to_finite_f64(&self) -> FiniteF64 {
+        if self.denominator == 1. {
+            return FiniteF64(self.numerator as f64); // This operation is lossy.
+        }
+        if self.numerator.abs() < MAX_SAFE_INTEGER {
+            return FiniteF64(self.numerator as f64 / self.denominator);
+        }
+        self.to_finite_f64_slow()
+    }
+
+    /// The slow path for calculating a `f64` beyond the max safe integer range.
+    #[cold]
+    pub(crate) fn to_finite_f64_slow(&self) -> FiniteF64 {
+        let dd_numerator = DoubleDouble::from(self.numerator);
+        // First approx quotient
+        let q0 = dd_numerator.hi / self.denominator;
+        // Find remainder
+        let product = DoubleDouble::mul(q0, self.denominator);
+        let remainder = DoubleDouble::sum(dd_numerator.hi, -product.hi);
+
+        // Find second approx. quotient
+        let error = remainder.lo + dd_numerator.lo - product.lo;
+        let q1 = (remainder.hi + error) / self.denominator;
+
+        FiniteF64(q0 + q1)
     }
 }
 
@@ -359,22 +391,106 @@ impl InternalDurationRecord {
 #[derive(Debug)]
 struct NudgeRecord {
     normalized: InternalDurationRecord,
-    total: Option<FiniteF64>,
     nudge_epoch_ns: i128,
     expanded: bool,
 }
 
+#[derive(Debug)]
+struct NudgeWindow {
+    r1: i128,
+    r2: i128,
+    start_epoch_ns: EpochNanoseconds,
+    end_epoch_ns: EpochNanoseconds,
+    start_duration: DateDuration,
+    end_duration: DateDuration,
+}
+
 impl InternalDurationRecord {
-    // TODO: Add assertion into impl.
-    // TODO: Add unit tests specifically for nudge_calendar_unit if possible.
-    fn nudge_calendar_unit(
+    /// `compute_and_adjust_nudge_window` in `temporal_rs` refers to step 1-12 of `NudgeToCalendarUnit`.
+    fn compute_and_adjust_nudge_window(
         &self,
-        sign: Sign,
+        sign: NonZeroSign,
+        origin_epoch_ns: EpochNanoseconds,
         dest_epoch_ns: i128,
         dt: &PlainDateTime,
-        time_zone: Option<(&TimeZone, &impl TimeZoneProvider)>, // ???
+        time_zone: Option<(&TimeZone, &(impl TimeZoneProvider + ?Sized))>, // ???
         options: ResolvedRoundingOptions,
-    ) -> TemporalResult<NudgeRecord> {
+    ) -> TemporalResult<(NudgeWindow, bool)> {
+        let dest_epoch_ns = EpochNanoseconds(dest_epoch_ns);
+
+        // 1. Let didExpandCalendarUnit be false.
+        let mut did_expand_calendar_unit = false;
+
+        // 2. Let nudgeWindow be ? ComputeNudgeWindow(sign, duration, originEpochNs, isoDateTime, timeZone, calendar, increment, unit, false).
+        let mut nudge_window =
+            self.compute_nudge_window(sign, origin_epoch_ns, dt, time_zone, options, false)?;
+
+        // 3. Let startEpochNs be nudgeWindow.[[StartEpochNs]].
+        // 4. Let endEpochNs be nudgeWindow.[[EndEpochNs]].
+        // (implicitly used)
+
+        // 5. If sign is 1, then
+        match sign {
+            NonZeroSign::Positive => {
+                // a. If startEpochNs ≤ destEpochNs ≤ endEpochNs is false, then
+                if !(nudge_window.start_epoch_ns <= dest_epoch_ns
+                    && dest_epoch_ns <= nudge_window.end_epoch_ns)
+                {
+                    // i. Set nudgeWindow to ? ComputeNudgeWindow(sign, duration, originEpochNs, isoDateTime, timeZone, calendar, increment, unit, true).
+                    nudge_window = self.compute_nudge_window(
+                        sign,
+                        origin_epoch_ns,
+                        dt,
+                        time_zone,
+                        options,
+                        true,
+                    )?;
+                    // ii. Assert: nudgeWindow.[[StartEpochNs]] ≤ destEpochNs ≤ nudgeWindow.[[EndEpochNs]].
+                    temporal_assert!(
+                        nudge_window.start_epoch_ns <= dest_epoch_ns
+                            && dest_epoch_ns <= nudge_window.end_epoch_ns
+                    );
+                    // iii. Set didExpandCalendarUnit to true.
+                    did_expand_calendar_unit = true;
+                }
+            }
+            NonZeroSign::Negative => {
+                // a. If endEpochNs ≤ destEpochNs ≤ startEpochNs is false, then
+                if !(nudge_window.end_epoch_ns <= dest_epoch_ns
+                    && dest_epoch_ns <= nudge_window.start_epoch_ns)
+                {
+                    // i. Set nudgeWindow to ? ComputeNudgeWindow(sign, duration, originEpochNs, isoDateTime, timeZone, calendar, increment, unit, true).
+                    nudge_window = self.compute_nudge_window(
+                        sign,
+                        origin_epoch_ns,
+                        dt,
+                        time_zone,
+                        options,
+                        true,
+                    )?;
+                    // ii. Assert: nudgeWindow.[[EndEpochNs]] ≤ destEpochNs ≤ nudgeWindow.[[StartEpochNs]].
+                    temporal_assert!(
+                        nudge_window.end_epoch_ns <= dest_epoch_ns
+                            && dest_epoch_ns <= nudge_window.start_epoch_ns
+                    );
+                    // iii. Set didExpandCalendarUnit to true.
+                    did_expand_calendar_unit = true;
+                }
+            }
+        }
+        Ok((nudge_window, did_expand_calendar_unit))
+    }
+
+    /// <https://tc39.es/proposal-temporal/#sec-temporal-computenudgewindow>
+    fn compute_nudge_window(
+        &self,
+        sign: NonZeroSign,
+        origin_epoch_ns: EpochNanoseconds,
+        dt: &PlainDateTime,
+        time_zone: Option<(&TimeZone, &(impl TimeZoneProvider + ?Sized))>, // ???
+        options: ResolvedRoundingOptions,
+        additional_shift: bool,
+    ) -> TemporalResult<NudgeWindow> {
         // NOTE: r2 may never be used...need to test.
         let (r1, r2, start_duration, end_duration) = match options.smallest_unit {
             // 1. If unit is "year", then
@@ -385,11 +501,18 @@ impl InternalDurationRecord {
                     options.increment.as_extended_increment(),
                 )?
                 .round(RoundingMode::Trunc);
-                // b. Let r1 be years.
-                let r1 = years;
-                // c. Let r2 be years + increment × sign.
-                let r2 = years
-                    + i128::from(options.increment.get()) * i128::from(sign.as_sign_multiplier());
+                let increment_x_sign =
+                    i128::from(options.increment.get()) * i128::from(sign.as_sign_multiplier());
+                // b. If additionalShift is false, then
+                let r1 = if !additional_shift {
+                    // i. Let r1 be years.
+                    years
+                } else {
+                    // i. Let r1 be years + increment × sign.
+                    years + increment_x_sign
+                };
+                // c. Let r2 be r1 + increment × sign.
+                let r2 = r1 + increment_x_sign;
                 // d. Let startDuration be ? CreateNormalizedDurationRecord(r1, 0, 0, 0, ZeroTimeDuration()).
                 // e. Let endDuration be ? CreateNormalizedDurationRecord(r2, 0, 0, 0, ZeroTimeDuration()).
                 (
@@ -417,27 +540,33 @@ impl InternalDurationRecord {
                     options.increment.as_extended_increment(),
                 )?
                 .round(RoundingMode::Trunc);
-                // b. Let r1 be months.
-                let r1 = months;
-                // c. Let r2 be months + increment × sign.
-                let r2 = months
-                    + i128::from(options.increment.get()) * i128::from(sign.as_sign_multiplier());
-                // d. Let startDuration be ? CreateNormalizedDurationRecord(duration.[[Years]], r1, 0, 0, ZeroTimeDuration()).
-                // e. Let endDuration be ? CreateNormalizedDurationRecord(duration.[[Years]], r2, 0, 0, ZeroTimeDuration()).
+                let increment_x_sign =
+                    i128::from(options.increment.get()) * i128::from(sign.as_sign_multiplier());
+                // b. If additionalShift is false, then
+                let r1 = if !additional_shift {
+                    // i. Let r1 be months.
+                    months
+                // c. Else
+                } else {
+                    // i. Let r1 be months + increment × sign.
+                    months + increment_x_sign
+                };
+                // d. Let r2 be r1 + increment × sign.
+                let r2 = r1 + increment_x_sign;
+                // e. Let startDuration be ? AdjustDateDurationRecord(duration.[[Date]], 0, 0, r1).
+                // f. Let endDuration be ? AdjustDateDurationRecord(duration.[[Date]], 0, 0, r2).
                 (
                     r1,
                     r2,
-                    DateDuration::new(
-                        self.date().years,
-                        i64::try_from(r1).map_err(|_| TemporalError::range())?,
+                    self.date().adjust(
                         0,
-                        0,
+                        None,
+                        Some(i64::try_from(r1).map_err(|_| TemporalError::range())?),
                     )?,
-                    DateDuration::new(
-                        self.date().years,
-                        i64::try_from(r2).map_err(|_| TemporalError::range())?,
+                    self.date().adjust(
                         0,
-                        0,
+                        None,
+                        Some(i64::try_from(r2).map_err(|_| TemporalError::range())?),
                     )?,
                 )
             }
@@ -570,97 +699,290 @@ impl InternalDurationRecord {
             }
         };
 
-        // 7. Let start be ? CalendarDateAdd(calendar, isoDateTime.[[ISODate]], startDuration, constrain).
-        let start = dt
-            .calendar()
-            .date_add(&dt.iso.date, &start_duration, Overflow::Constrain)?;
+        // 5. Assert: If sign is 1, r1 ≥ 0 and r1 < r2.
+        // 6. Assert: If sign is -1, r1 ≤ 0 and r1 > r2.
+        // n.b. sign == 1 means nonnegative
+        crate::temporal_assert!(
+            (sign != NonZeroSign::Negative && r1 >= 0 && r1 < r2)
+                || (sign == NonZeroSign::Negative && r1 <= 0 && r1 > r2)
+        );
+
+        let start_epoch_ns = if r1 == 0 {
+            origin_epoch_ns
+        } else {
+            // 7. Let start be ? CalendarDateAdd(calendar, isoDateTime.[[ISODate]], startDuration, constrain).
+            let start =
+                dt.calendar()
+                    .date_add(&dt.iso.date, &start_duration, Overflow::Constrain)?;
+            // 9. Let startDateTime be CombineISODateAndTimeRecord(start, isoDateTime.[[Time]]).
+            let start_date_time = IsoDateTime::new_unchecked(start.iso, dt.iso.time);
+            if let Some((time_zone, provider)) = time_zone {
+                time_zone
+                    .get_epoch_nanoseconds_for(
+                        start_date_time,
+                        Disambiguation::Compatible,
+                        provider,
+                    )?
+                    .ns
+            } else {
+                start_date_time.as_nanoseconds()
+            }
+        };
+
         // 8. Let end be ? CalendarDateAdd(calendar, isoDateTime.[[ISODate]], endDuration, constrain).
         let end = dt
             .calendar()
             .date_add(&dt.iso.date, &end_duration, Overflow::Constrain)?;
-        // 9. Let startDateTime be CombineISODateAndTimeRecord(start, isoDateTime.[[Time]]).
-        let start = IsoDateTime::new_unchecked(start.iso, dt.iso.time);
+
         // 10. Let endDateTime be CombineISODateAndTimeRecord(end, isoDateTime.[[Time]]).
         let end = IsoDateTime::new_unchecked(end.iso, dt.iso.time);
 
         // 12. Else,
-        let (start_epoch_ns, end_epoch_ns) = if let Some((time_zone, provider)) = time_zone {
+        let end_epoch_ns = if let Some((time_zone, provider)) = time_zone {
             // a. Let startEpochNs be ? GetEpochNanosecondsFor(timeZone, startDateTime, compatible).
             // b. Let endEpochNs be ? GetEpochNanosecondsFor(timeZone, endDateTime, compatible).
-            let start_epoch_ns =
-                time_zone.get_epoch_nanoseconds_for(start, Disambiguation::Compatible, provider)?;
-            let end_epoch_ns =
-                time_zone.get_epoch_nanoseconds_for(end, Disambiguation::Compatible, provider)?;
-            (start_epoch_ns.ns, end_epoch_ns.ns)
+            time_zone
+                .get_epoch_nanoseconds_for(end, Disambiguation::Compatible, provider)?
+                .ns
         // 11. If timeZoneRec is unset, then
         } else {
             // a. Let startEpochNs be GetUTCEpochNanoseconds(start.[[Year]], start.[[Month]], start.[[Day]], start.[[Hour]], start.[[Minute]], start.[[Second]], start.[[Millisecond]], start.[[Microsecond]], start.[[Nanosecond]]).
             // b. Let endEpochNs be GetUTCEpochNanoseconds(end.[[Year]], end.[[Month]], end.[[Day]], end.[[Hour]], end.[[Minute]], end.[[Second]], end.[[Millisecond]], end.[[Microsecond]], end.[[Nanosecond]]).
-            (start.as_nanoseconds(), end.as_nanoseconds())
+            end.as_nanoseconds()
         };
 
-        // TODO: look into handling asserts
-        // 13. If sign is 1, then
-        // a. Assert: startEpochNs ≤ destEpochNs ≤ endEpochNs.
-        // 14. Else,
-        // a. Assert: endEpochNs ≤ destEpochNs ≤ startEpochNs.
-        // 15. Assert: startEpochNs ≠ endEpochNs.
+        Ok(NudgeWindow {
+            r1,
+            r2,
+            start_epoch_ns,
+            end_epoch_ns,
+            start_duration,
+            end_duration,
+        })
+    }
 
-        // TODO: Don't use f64 below ...
-        // NOTE(nekevss): Step 12..13 could be problematic...need tests
-        // and verify, or completely change the approach involved.
-        // TODO(nekevss): Validate that the `f64` casts here are valid in all scenarios
-        // 16. Let progress be (destEpochNs - startEpochNs) / (endEpochNs - startEpochNs).
-        // 17. Let total be r1 + progress × increment × sign.
-        let progress =
-            (dest_epoch_ns - start_epoch_ns.0) as f64 / (end_epoch_ns.0 - start_epoch_ns.0) as f64;
-        let total = r1 as f64
-            + progress * options.increment.get() as f64 * f64::from(sign.as_sign_multiplier());
+    fn nudge_calendar_unit_total(
+        &self,
+        sign: NonZeroSign,
+        origin_epoch_ns: EpochNanoseconds,
+        dest_epoch_ns: i128,
+        dt: &PlainDateTime,
+        time_zone: Option<(&TimeZone, &(impl TimeZoneProvider + ?Sized))>, // ???
+        options: ResolvedRoundingOptions,
+    ) -> TemporalResult<FiniteF64> {
+        let (nudge_window, _) = self.compute_and_adjust_nudge_window(
+            sign,
+            origin_epoch_ns,
+            dest_epoch_ns,
+            dt,
+            time_zone,
+            options,
+        )?;
+        // 7. Let r1 be nudgeWindow.[[R1]].
+        // 8. Let r2 be nudgeWindow.[[R2]].
+        // 9. Set startEpochNs to nudgeWindow.[[StartEpochNs]].
+        // 10. Set endEpochNs to nudgeWindow.[[EndEpochNs]].
+        // 11. Let startDuration be nudgeWindow.[[StartDuration]].
+        // 12. Let endDuration be nudgeWindow.[[EndDuration]].
 
-        // 14. NOTE: The above two steps cannot be implemented directly using floating-point arithmetic.
+        let NudgeWindow {
+            r1,
+            start_epoch_ns,
+            end_epoch_ns,
+            ..
+        } = nudge_window;
+
+        // 13. Assert: startEpochNs ≠ endEpochNs.
+        temporal_assert!(start_epoch_ns != end_epoch_ns);
+
+        // NOTE (nekevss): re: nudge_calendar_unit
+        //
+        // We change our calculations here to limit f64 usage, but also to preserve
+        // precision on the calculation.
+        //
+        // So let's go over what we do to handle this ... well, basically,
+        // just math.
+        //
+        // We take `r1 + progress * increment * sign` and plug in the progress calculation
+        //
+        // So, in other words, stepping through the calculations
+        //
+        // NOTE: For shorthand,
+        //
+        // dividend = (destEpochNS - startEpochNS)
+        // divisor = (endEpochNS - startEpochNS)
+        //
+        // progress = dividend / divisor
+        //
+        // 1. r1 + progress * increment * sign
+        // 2. r1 + (dividend / divisor) * increment * sign
+        //
+        // Bring in increment and sign
+        //
+        // 3. r1 + (dividend * increment * sign) / divisor
+        //
+        // Now also move the r1 into the progress fraction.
+        //
+        // 4. ((r1 * divisor) + dividend * increment * sign) / divisor
+        //
+        // 14. Let progress be (destEpochNs - startEpochNs) / (endEpochNs - startEpochNs).
+        // 15. Let total be r1 + progress × increment × sign.
+        let progress_numerator = dest_epoch_ns - start_epoch_ns.0;
+        let denominator = end_epoch_ns.0 - start_epoch_ns.0;
+        let total_numerator = (r1 * denominator)
+            + progress_numerator
+                * options.increment.get() as i128
+                * i128::from(sign.as_sign_multiplier());
+
+        Ok(Fraction::new(total_numerator, denominator as f64).to_finite_f64())
+    }
+
+    // TODO: Add assertion into impl.
+    // TODO: Add unit tests specifically for nudge_calendar_unit if possible.
+    fn nudge_calendar_unit(
+        &self,
+        sign: NonZeroSign,
+        origin_epoch_ns: EpochNanoseconds,
+        dest_epoch_ns: i128,
+        dt: &PlainDateTime,
+        time_zone: Option<(&TimeZone, &(impl TimeZoneProvider + ?Sized))>, // ???
+        options: ResolvedRoundingOptions,
+    ) -> TemporalResult<NudgeRecord> {
+        let (nudge_window, did_expand_calendar_unit) = self.compute_and_adjust_nudge_window(
+            sign,
+            origin_epoch_ns,
+            dest_epoch_ns,
+            dt,
+            time_zone,
+            options,
+        )?;
+        // 7. Let r1 be nudgeWindow.[[R1]].
+        // 8. Let r2 be nudgeWindow.[[R2]].
+        // 9. Set startEpochNs to nudgeWindow.[[StartEpochNs]].
+        // 10. Set endEpochNs to nudgeWindow.[[EndEpochNs]].
+        // 11. Let startDuration be nudgeWindow.[[StartDuration]].
+        // 12. Let endDuration be nudgeWindow.[[EndDuration]].
+
+        let NudgeWindow {
+            r1,
+            r2,
+            start_epoch_ns,
+            end_epoch_ns,
+            start_duration,
+            end_duration,
+        } = nudge_window;
+
+        // 13. Assert: startEpochNs ≠ endEpochNs.
+        temporal_assert!(start_epoch_ns != end_epoch_ns);
+
+        // NOTE (nekevss):
+        //
+        // We change our calculations to remove any f64 usage.
+        //
+        // So let's go over what we do to handle this ... well, basically,
+        // just math.
+        //
+        // We take `r1 + progress * increment * sign` and plug in the progress calculation
+        //
+        // So, in other words, stepping through the calculations
+        //
+        // NOTE: For shorthand,
+        //
+        // dividend = (destEpochNS - startEpochNS)
+        // divisor = (endEpochNS - startEpochNS)
+        //
+        // progress = dividend / divisor
+        //
+        // 1. total = r1 + progress * increment * sign
+        // 2. total = r1 + (dividend / divisor) * increment * sign
+        //
+        // Bring in increment and sign
+        //
+        // 3. total = r1 + (dividend * increment * sign) / divisor
+        //
+        // Now also move the r1 into the progress fraction.
+        //
+        // 4. total = ((r1 * divisor) + dividend * increment * sign) / divisor
+        //
+        // 14. Let progress be (destEpochNs - startEpochNs) / (endEpochNs - startEpochNs).
+        // 15. Let total be r1 + progress × increment × sign.
+        let dividend = dest_epoch_ns - start_epoch_ns.0;
+        let divisor = end_epoch_ns.0 - start_epoch_ns.0;
+
+        // We add r1 to the dividend
+        let total_times_divisor = (r1 * divisor)
+            + dividend * options.increment.get() as i128 * i128::from(sign.as_sign_multiplier());
+
+        // 16. NOTE: The above two steps cannot be implemented directly using floating-point arithmetic.
         // This division can be implemented as if constructing Normalized Time Duration Records for the denominator
         // and numerator of total and performing one division operation with a floating-point result.
-        // 15. Let roundedUnit be ApplyUnsignedRoundingMode(total, r1, r2, unsignedRoundingMode).
-        let rounded_unit =
-            IncrementRounder::from_signed_num(total, options.increment.as_extended_increment())?
-                .round(options.rounding_mode);
+        // 17. Assert: 0 ≤ progress ≤ 1.
+        // 18. If sign < 0, let isNegative be negative; else let isNegative be positive.
+        // (used implicitly)
 
-        // 16. If roundedUnit - total < 0, let roundedSign be -1; else let roundedSign be 1.
-        // 19. Return Duration Nudge Result Record { [[Duration]]: resultDuration, [[Total]]: total, [[NudgedEpochNs]]: nudgedEpochNs, [[DidExpandCalendarUnit]]: didExpandCalendarUnit }.
-        // 17. If roundedSign = sign, then
-        if rounded_unit == r2 {
+        // 19. Let unsignedRoundingMode be GetUnsignedRoundingMode(roundingMode, isNegative).
+        // n.b. get_unsigned_round_mode takes is_positive, but it actually cares about nonnegative
+        let unsigned_rounding_mode = options
+            .rounding_mode
+            .get_unsigned_round_mode(sign != NonZeroSign::Negative);
+
+        // NOTE (nekevss):
+        //
+        // Now we need to eliminate whether our "total" would be the value of r2
+        // exactly, AKA `progress = 1`.
+        //
+        // To do this, we check if the quotient of dividend and divisor is r2 and
+        // that there is no remainder caused by the calculation.
+        //
+        // 20. If progress = 1, then
+        let total_is_r2 = total_times_divisor.div_euclid(divisor) == r2
+            && total_times_divisor.rem_euclid(divisor) == 0;
+        let rounded_unit = if total_is_r2 {
+            // a. Let roundedUnit be abs(r2).
+            r2.abs()
+        } else {
+            // a. Assert: abs(r1) ≤ abs(total) < abs(r2).
+            // b. Let roundedUnit be ApplyUnsignedRoundingMode(abs(total), abs(r1), abs(r2), unsignedRoundingMode).
+            // TODO: what happens to r2 here?
+            unsigned_rounding_mode.apply(
+                total_times_divisor.unsigned_abs(),
+                divisor.unsigned_abs(),
+                r1.abs(),
+                r2.abs(),
+            )
+        };
+
+        // 22. If roundedUnit is abs(r2), then
+        if rounded_unit == r2.abs() {
             // a. Let didExpandCalendarUnit be true.
             // b. Let resultDuration be endDuration.
             // c. Let nudgedEpochNs be endEpochNs.
             Ok(NudgeRecord {
                 normalized: InternalDurationRecord::new(end_duration, TimeDuration::default())?,
-                total: Some(FiniteF64::try_from(total)?),
                 nudge_epoch_ns: end_epoch_ns.0,
                 expanded: true,
             })
         // 18. Else,
         } else {
-            // a. Let didExpandCalendarUnit be false.
             // b. Let resultDuration be startDuration.
             // c. Let nudgedEpochNs be startEpochNs.
             Ok(NudgeRecord {
                 normalized: InternalDurationRecord::new(start_duration, TimeDuration::default())?,
-                total: Some(FiniteF64::try_from(total)?),
                 nudge_epoch_ns: start_epoch_ns.0,
-                expanded: false,
+                expanded: did_expand_calendar_unit,
             })
         }
     }
 
-    // TODO: Clean up
+    // Round a duration to a time unit based on a relative `ZonedDateTime`
     #[inline]
     fn nudge_to_zoned_time(
         &self,
-        sign: Sign,
+        sign: NonZeroSign,
         dt: &PlainDateTime,
         time_zone: &TimeZone,
         options: ResolvedRoundingOptions,
-        provider: &impl TimeZoneProvider,
+        provider: &(impl TimeZoneProvider + ?Sized),
     ) -> TemporalResult<NudgeRecord> {
         let d = self.date();
         // 1.Let start be ? CalendarDateAdd(calendar, isoDateTime.[[ISODate]], duration.[[Date]], constrain).
@@ -739,7 +1061,6 @@ impl InternalDurationRecord {
         Ok(NudgeRecord {
             normalized,
             nudge_epoch_ns: nudge_ns.0,
-            total: None,
             expanded,
         })
     }
@@ -804,7 +1125,6 @@ impl InternalDurationRecord {
         // 16. Return Duration Nudge Result Record { [[Duration]]: resultDuration, [[NudgedEpochNs]]: nudgedEpochNs, [[DidExpandCalendarUnit]]: didExpandDays }.
         Ok(NudgeRecord {
             normalized: result_duration,
-            total: None,
             nudge_epoch_ns: nudged_ns,
             expanded: did_expand_days,
         })
@@ -819,10 +1139,10 @@ impl InternalDurationRecord {
     #[allow(clippy::too_many_arguments)]
     fn bubble_relative_duration(
         &self,
-        sign: Sign,
+        sign: NonZeroSign,
         nudged_epoch_ns: i128,
         iso_date_time: &IsoDateTime,
-        time_zone: Option<(&TimeZone, &impl TimeZoneProvider)>,
+        time_zone: Option<(&TimeZone, &(impl TimeZoneProvider + ?Sized))>,
         calendar: &Calendar,
         largest_unit: Unit,
         smallest_unit: Unit,
@@ -954,9 +1274,10 @@ impl InternalDurationRecord {
     #[inline]
     pub(crate) fn round_relative_duration(
         &self,
+        origin_epoch_ns: EpochNanoseconds,
         dest_epoch_ns: i128,
         dt: &PlainDateTime,
-        time_zone: Option<(&TimeZone, &impl TimeZoneProvider)>,
+        time_zone: Option<(&TimeZone, &(impl TimeZoneProvider + ?Sized))>,
         options: ResolvedRoundingOptions,
     ) -> TemporalResult<InternalDurationRecord> {
         let duration = *self;
@@ -968,13 +1289,20 @@ impl InternalDurationRecord {
             || (time_zone.is_some() && options.smallest_unit == Unit::Day);
 
         // 4. If InternalDurationSign(duration) < 0, let sign be -1; else let sign be 1.
-        let sign = duration.sign();
+        let sign = duration.sign().to_nonzero_sign();
 
         // 5. If irregularLengthUnit is true, then
         let nudge_result = if irregular_length_unit {
             // a. Let record be ? NudgeToCalendarUnit(sign, duration, destEpochNs, isoDateTime, timeZone, calendar, increment, smallestUnit, roundingMode).
             // b. Let nudgeResult be record.[[NudgeResult]].
-            duration.nudge_calendar_unit(sign, dest_epoch_ns, dt, time_zone, options)?
+            duration.nudge_calendar_unit(
+                sign,
+                origin_epoch_ns,
+                dest_epoch_ns,
+                dt,
+                time_zone,
+                options,
+            )?
         } else if let Some((time_zone, time_zone_provider)) = time_zone {
             // 6. Else if timeZone is not unset, then
             //      a. Let nudgeResult be ? NudgeToZonedTime(sign, duration, isoDateTime, timeZone, calendar, increment, smallestUnit, roundingMode).
@@ -1012,18 +1340,21 @@ impl InternalDurationRecord {
     // 7.5.38 TotalRelativeDuration ( duration, destEpochNs, isoDateTime, timeZone, calendar, unit )
     pub(crate) fn total_relative_duration(
         &self,
+        origin_epoch_ns: EpochNanoseconds,
         dest_epoch_ns: i128,
         dt: &PlainDateTime,
-        time_zone: Option<(&TimeZone, &impl TimeZoneProvider)>,
+        time_zone: Option<(&TimeZone, &(impl TimeZoneProvider + ?Sized))>,
         unit: Unit,
     ) -> TemporalResult<FiniteF64> {
         // 1. If IsCalendarUnit(unit) is true, or timeZone is not unset and unit is day, then
         if unit.is_calendar_unit() || (time_zone.is_some() && unit == Unit::Day) {
-            // a. Let sign be InternalDurationSign(duration).
-            let sign = self.sign();
+            // a. If InternalDurationSign(duration) < 0, let sign be -1; else let sign be 1
+            let sign = self.sign().to_nonzero_sign();
             // b. Let record be ? NudgeToCalendarUnit(sign, duration, destEpochNs, isoDateTime, timeZone, calendar, 1, unit, trunc).
-            let record = self.nudge_calendar_unit(
+            // c. Return record.[[Total]].
+            return self.nudge_calendar_unit_total(
                 sign,
+                origin_epoch_ns,
                 dest_epoch_ns,
                 dt,
                 time_zone,
@@ -1033,10 +1364,7 @@ impl InternalDurationRecord {
                     increment: RoundingIncrement::default(),
                     rounding_mode: RoundingMode::Trunc,
                 },
-            )?;
-
-            // c. Return record.[[Total]].
-            return record.total.temporal_unwrap();
+            );
         }
         // 2. Let timeDuration be ! Add24HourDaysToTimeDuration(duration.[[Time]], duration.[[Date]].[[Days]]).
         let time_duration = self

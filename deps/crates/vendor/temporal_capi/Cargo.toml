@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.82.0"
+rust-version = "1.86.0"
 name = "temporal_capi"
-version = "0.1.0"
+version = "0.2.3"
 authors = ["boa-dev"]
 build = false
 include = [
@@ -50,34 +50,35 @@ name = "temporal_capi"
 path = "src/lib.rs"
 
 [dependencies.diplomat]
-version = "0.13.0"
+version = "0.15.0"
 default-features = false
 
 [dependencies.diplomat-runtime]
-version = "0.13.0"
+version = "0.15.0"
 default-features = false
 
 [dependencies.icu_calendar]
-version = "2.0.2"
+version = "2.2.1"
 default-features = false
 
-[dependencies.icu_locale]
-version = "2.0.0"
+[dependencies.icu_locale_core]
+version = "2.1.0"
 
 [dependencies.num-traits]
 version = "0.2.19"
 default-features = false
 
 [dependencies.temporal_rs]
-version = "~0.1.0"
+version = "0.2.3"
 default-features = false
 
 [dependencies.timezone_provider]
-version = "~0.1.0"
+version = "0.2.3"
+default-features = false
 
 [dependencies.writeable]
-version = "0.6.1"
+version = "0.6.0"
 
 [dependencies.zoneinfo64]
-version = "0.2.0"
+version = "0.3.0"
 optional = true

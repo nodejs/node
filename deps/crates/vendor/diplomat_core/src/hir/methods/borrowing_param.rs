@@ -196,6 +196,12 @@ impl<'tcx> BorrowingParamVisitor<'tcx> {
         }
     }
 
+    /// Given a used method lifetime, return all borrowed lifetimes. None if the
+    /// lifetime isn't actually used in the method.
+    pub fn all_longer_lifetimes(&self, lt: Lifetime) -> Option<&BTreeSet<Lifetime>> {
+        self.borrow_map.get(&lt).map(|x| &x.all_longer_lifetimes)
+    }
+
     /// Given a specific [hir::Type] `ty`, find the lifetimes of slices associated with `ty` and add them to `set`.
     ///
     /// We're only interested in non-static, bounded lifetimes (since those are ones we can explicitly de-allocate).
@@ -221,11 +227,6 @@ impl<'tcx> BorrowingParamVisitor<'tcx> {
             }
             _ => {}
         }
-    }
-
-    /// Get the cached list of used method lifetimes. Same as calling `.used_method_lifetimes()` on `method.output`
-    pub fn used_method_lifetimes(&self) -> &BTreeSet<Lifetime> {
-        &self.used_method_lifetimes
     }
 
     /// Get the final borrow map, listing lifetime edges for each output lfietime

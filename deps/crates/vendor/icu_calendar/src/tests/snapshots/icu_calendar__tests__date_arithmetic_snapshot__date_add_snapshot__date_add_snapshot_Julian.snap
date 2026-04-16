@@ -1,0 +1,24 @@
+---
+source: components/calendar/src/tests/date_arithmetic_snapshot.rs
+expression: output
+---
+2023-1-1
+  (start: Date(2022-12-19, ce era, for calendar Julian))
+    +10d → Date(2022-12-29, ce era, for calendar Julian)
+    +2m → Date(2023-2-19, ce era, for calendar Julian)
+    +1y → Date(2023-12-19, ce era, for calendar Julian)
+    +1y 3m 15d → Date(2024-4-3, ce era, for calendar Julian)
+
+2024-6-15
+  (start: Date(2024-6-2, ce era, for calendar Julian))
+    +10d → Date(2024-6-12, ce era, for calendar Julian)
+    +2m → Date(2024-8-2, ce era, for calendar Julian)
+    +1y → Date(2025-6-2, ce era, for calendar Julian)
+    +1y 3m 15d → Date(2025-9-17, ce era, for calendar Julian)
+
+2025-12-31
+  (start: Date(2025-12-18, ce era, for calendar Julian))
+    +10d → Date(2025-12-28, ce era, for calendar Julian)
+    +2m → Date(2026-2-18, ce era, for calendar Julian)
+    +1y → Date(2026-12-18, ce era, for calendar Julian)
+    +1y 3m 15d → Date(2027-4-2, ce era, for calendar Julian)

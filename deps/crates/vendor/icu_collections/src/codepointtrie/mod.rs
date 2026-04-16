@@ -29,8 +29,6 @@
 //!
 //! [`ICU4X`]: ../icu/index.html
 
-extern crate alloc;
-
 mod cptrie;
 mod error;
 mod impl_const;
@@ -46,6 +44,10 @@ pub use cptrie::CodePointMapRange;
 pub use cptrie::CodePointMapRangeIterator;
 pub use cptrie::CodePointTrie;
 pub use cptrie::CodePointTrieHeader;
+pub use cptrie::FastCodePointTrie;
+pub use cptrie::SmallCodePointTrie;
 pub use cptrie::TrieType;
 pub use cptrie::TrieValue;
+pub use cptrie::Typed;
+pub use cptrie::TypedCodePointTrie;
 pub use error::Error as CodePointTrieError;

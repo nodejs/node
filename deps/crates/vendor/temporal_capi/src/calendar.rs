@@ -8,6 +8,7 @@ pub mod ffi {
 
     #[diplomat::enum_convert(icu_calendar::AnyCalendarKind, needs_wildcard)]
     pub enum AnyCalendarKind {
+        Iso,
         Buddhist,
         Chinese,
         Coptic,
@@ -18,10 +19,8 @@ pub mod ffi {
         Hebrew,
         Indian,
         HijriTabularTypeIIFriday,
-        HijriSimulatedMecca,
         HijriTabularTypeIIThursday,
         HijriUmmAlQura,
-        Iso,
         Japanese,
         JapaneseExtended,
         Persian,
@@ -30,13 +29,12 @@ pub mod ffi {
 
     impl AnyCalendarKind {
         pub fn get_for_str(s: &DiplomatStr) -> Option<Self> {
-            let value = icu_locale::extensions::unicode::Value::try_from_utf8(s).ok()?;
+            let value = icu_locale_core::extensions::unicode::Value::try_from_utf8(s).ok()?;
             let algorithm = CalendarAlgorithm::try_from(&value).ok()?;
             match icu_calendar::AnyCalendarKind::try_from(algorithm) {
+                // islamic-rgsa / simulated-mecca is supported by ICU4X but not Temporal
+                Ok(icu_calendar::AnyCalendarKind::HijriSimulatedMecca) => None,
                 Ok(c) => Some(c.into()),
-                Err(()) if algorithm == CalendarAlgorithm::Hijri(None) => {
-                    Some(Self::HijriTabularTypeIIFriday)
-                }
                 Err(()) => None,
             }
         }

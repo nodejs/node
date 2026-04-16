@@ -78,6 +78,8 @@ public:
 
   inline std::optional<int32_t> era_year() const;
 
+  inline uint8_t reference_day() const;
+
   inline const temporal_rs::Calendar& calendar() const;
 
   inline temporal_rs::diplomat::result<std::unique_ptr<temporal_rs::PlainYearMonth>, temporal_rs::TemporalError> add(const temporal_rs::Duration& duration, temporal_rs::ArithmeticOverflow overflow) const;
@@ -93,6 +95,8 @@ public:
   inline static int8_t compare(const temporal_rs::PlainYearMonth& one, const temporal_rs::PlainYearMonth& two);
 
   inline temporal_rs::diplomat::result<std::unique_ptr<temporal_rs::PlainDate>, temporal_rs::TemporalError> to_plain_date(std::optional<temporal_rs::PartialDate> day) const;
+
+  inline temporal_rs::diplomat::result<int64_t, temporal_rs::TemporalError> epoch_ms_for_utc() const;
 
   inline temporal_rs::diplomat::result<int64_t, temporal_rs::TemporalError> epoch_ms_for(temporal_rs::TimeZone time_zone) const;
 

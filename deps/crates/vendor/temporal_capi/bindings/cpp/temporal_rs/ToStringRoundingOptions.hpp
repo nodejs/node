@@ -19,9 +19,7 @@
 
 namespace temporal_rs {
 namespace capi {
-    extern "C" {
 
-    } // extern "C"
 } // namespace capi
 } // namespace
 

@@ -6,7 +6,8 @@ impl_tinystr_subtag!(
     /// A language subtag (examples: `"en"`, `"csb"`, `"zh"`, `"und"`, etc.)
     ///
     /// [`Language`] represents a Unicode base language code conformant to the
-    /// [`unicode_language_id`] field of the Language and Locale Identifier.
+    /// [`unicode_language_subtag`] field of the Language and Locale Identifier,
+    /// i.e. an [ISO 639] value.
     ///
     /// # Examples
     ///
@@ -32,7 +33,8 @@ impl_tinystr_subtag!(
     /// The specification allows language subtag to optionally also be 5-8 characters
     /// but that form has not been used and ICU4X does not support it right now.
     ///
-    /// [`unicode_language_id`]: https://unicode.org/reports/tr35/#unicode_language_id
+    /// [`unicode_language_subtag`]: https://unicode.org/reports/tr35/#unicode_language_subtag_validity
+    /// [ISO 639]: https://en.wikipedia.org/wiki/ISO_639
     Language,
     subtags,
     language,

@@ -1,5 +1,7 @@
 //! #[diplomat::attr] and other attributes
 
+use std::collections::{HashMap, HashSet};
+
 use crate::ast;
 use crate::ast::attrs::{AttrInheritContext, DiplomatBackendAttrCfg, StandardAttribute};
 use crate::hir::lowering::ErrorStore;
@@ -7,6 +9,8 @@ use crate::hir::{
     EnumVariant, LoweringError, Method, Mutability, OpaqueId, ReturnType, SelfType, SuccessType,
     TraitDef, Type, TypeDef, TypeId,
 };
+use quote::ToTokens;
+use syn::spanned::Spanned;
 use syn::Meta;
 
 pub use crate::ast::attrs::RenameAttr;
@@ -59,6 +63,133 @@ pub struct Attrs {
     pub generate_mocking_interface: bool,
     /// From #[diplomat::attr()]. If true, Diplomat will check that this struct has the same memory layout in backends which support it. Allows this struct to be used in slices ([`super::Slice::Struct`]) and to be borrowed in function parameters.
     pub abi_compatible: bool,
+
+    /// Information on if a type declaration/impl block has custom bindings, and if so, what kind.
+    pub custom_extra_code: HashMap<IncludeLocation, IncludeSource>,
+
+    /// Default value for a given [`super::methods::Param`].
+    pub default_value: Option<DefaultArgValue>,
+}
+
+/// Whether the custom binding is included as a whole file or a block of code. These are mutually exclusive.
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub enum IncludeSource {
+    /// Include as code written in the string.
+    Source(String),
+    /// A path to a file that contains the full code.
+    File(String),
+}
+
+#[non_exhaustive]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum IncludeLocation {
+    /// An extension to the definition of the class (i.e., in C++, the .d.hpp file)
+    DefBlock,
+    /// An extension to the definition of the class BEFORE the class is defined.
+    PreDefBlock,
+    /// An extension to the definition of the class AFTER the class is defined.
+    PostDefBlock,
+    /// An extension to the implementation of the class (i.e., in C++, the .hpp file)
+    ImplBlock,
+    /// Before the impl block. Used for free functions and classes
+    /// (i.e., if you want to type alias and include no function definitions)
+    PreImplBlock,
+    /// A block for adding to an initialization function. Intended for backends that build off of C/C++.
+    /// Used by the Nanobind backend to override functionality for Nanobind bindings.
+    InitializationBlock,
+    /// The block at the start of an initialization function.
+    /// There is no post initialization block since the InitializationBlock is already after all initializations before.
+    PreInitializationBlock,
+}
+impl IncludeLocation {
+    fn pair_from_meta(
+        meta: &Meta,
+        errors: &mut ErrorStore,
+    ) -> (Option<IncludeLocation>, Option<IncludeSource>) {
+        let mut source: Option<IncludeSource> = None;
+        let mut location: Option<IncludeLocation> = None;
+        let list = meta.require_list()
+        .and_then(|l| {
+            let parser = syn::punctuated::Punctuated::<syn::ExprAssign, syn::Token![,]>::parse_separated_nonempty;
+            l.parse_args_with(parser).map_err(|e| {
+                syn::Error::new(l.span(), format!("Could not parse comma separated list: {e}"))
+            })
+        });
+        let res = list.and_then(|punc| {
+            for expr in punc {
+                let assigned: String = match expr.right.as_ref() {
+                    syn::Expr::Lit(syn::ExprLit { lit, .. })
+                        if matches!(lit, syn::Lit::Str(..)) =>
+                    {
+                        if let syn::Lit::Str(s) = lit {
+                            s.value()
+                        } else {
+                            unreachable!()
+                        }
+                    }
+                    _ => {
+                        return Err(syn::Error::new(
+                            expr.right.span(),
+                            "Expected equivalence to a file path string.",
+                        ))
+                    }
+                };
+
+                let ident = match expr.left.as_ref() {
+                    syn::Expr::Path(p) => {
+                        let ident = p.path.get_ident();
+                        if let Some(i) = ident {
+                            i
+                        } else {
+                            return Err(syn::Error::new(p.path.span(), "Expected ident."));
+                        }
+                    }
+                    _ => return Err(syn::Error::new(expr.left.span(), "Expected a path.")),
+                };
+
+                let ident_str = ident.to_string();
+
+                match ident_str.as_str() {
+                    "location" => location = IncludeLocation::from_assign(&assigned, errors),
+                    "source" => source = Some(IncludeSource::Source(assigned)),
+                    "file" => source = Some(IncludeSource::File(assigned)),
+                    _ => {
+                        return Err(syn::Error::new(
+                            ident.span(),
+                            format!("Unrecognized include ident `{ident_str}`"),
+                        ))
+                    }
+                }
+            }
+            Ok(())
+        });
+        if let Err(e) = res {
+            errors.push(LoweringError::Other(format!(
+                "Error parsing `{}`: {e}",
+                meta.to_token_stream()
+            )));
+        }
+        (location, source)
+    }
+
+    fn from_assign(assigned: &str, errors: &mut ErrorStore) -> Option<Self> {
+        match assigned {
+            "pre_def_block" => Some(IncludeLocation::PreDefBlock),
+            "def_block" => Some(IncludeLocation::DefBlock),
+            "post_def_block" => Some(IncludeLocation::PostDefBlock),
+            "impl_block" => Some(IncludeLocation::ImplBlock),
+            "pre_impl_block" => Some(IncludeLocation::PreImplBlock),
+            "pre_init_block" => Some(IncludeLocation::PreInitializationBlock),
+            "init_block" => Some(IncludeLocation::InitializationBlock),
+            _ => {
+                errors.push(LoweringError::Other(format!(
+                    "Include location `{assigned}` unsupported."
+                )));
+                None
+            }
+        }
+    }
 }
 
 // #region: Demo specific attributes.
@@ -220,6 +351,57 @@ pub struct SpecialMethodPresence {
     pub iterable: Option<OpaqueId>,
 }
 
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub enum DefaultArgValue {
+    Bool(bool),
+    Char(char),
+    Integer(i128),
+    Float(f64),
+}
+
+impl DefaultArgValue {
+    fn from_value(m: &syn::MetaNameValue) -> Result<Self, LoweringError> {
+        let value_repr = match &m.value {
+            syn::Expr::Lit(l) => match &l.lit {
+                syn::Lit::Bool(b) => DefaultArgValue::Bool(b.value),
+                syn::Lit::Byte(b) => DefaultArgValue::Char(b.value() as char),
+                syn::Lit::Char(c) => DefaultArgValue::Char(c.value()),
+                syn::Lit::Float(f) => {
+                    let float_64 = f.base10_parse::<f64>();
+                    if let Ok(f) = float_64 {
+                        DefaultArgValue::Float(f)
+                    } else {
+                        return Err(LoweringError::Other(
+                            format!(
+                                "Could not convert float to f64: {}",
+                                float_64.unwrap_err()
+                            ),
+                        ));
+                    }
+                }
+                syn::Lit::Int(i) => {
+                    let int_128 = i.base10_parse::<i128>();
+                    if let Ok(i) = int_128 {
+                        DefaultArgValue::Integer(i)
+                    } else {
+                        return Err(LoweringError::Other(
+                            format!(
+                                "Could not convert int to i128: {}",
+                                int_128.unwrap_err()
+                            ),
+                        ));
+                    }
+                }
+                _ => return Err(LoweringError::Other(format!("Default arguments does not support value {}. Try a bool, char, integer, or float.", l.lit.to_token_stream()))),
+            },
+            _ => return Err(LoweringError::Other("Expected literal.".into())),
+        };
+
+        Ok(value_repr)
+    }
+}
+
 /// Where the attribute was found. Some attributes are only allowed in some contexts
 /// (e.g. namespaces cannot be specified on methods)
 #[non_exhaustive] // might add module attrs in the future
@@ -228,7 +410,7 @@ pub enum AttributeContext<'a, 'b> {
     Type(TypeDef<'a>),
     Trait(&'a TraitDef),
     EnumVariant(&'a EnumVariant),
-    Method(&'a Method, TypeId, &'b mut SpecialMethodPresence),
+    Method(&'a Method, Option<TypeId>, &'b mut SpecialMethodPresence),
     Function(&'a Method),
     Module,
     Param,
@@ -389,9 +571,53 @@ impl Attrs {
                             }
                             this.abi_compatible = true;
                         }
+                        "custom_extra_code" => {
+                            let (location, source) =
+                                IncludeLocation::pair_from_meta(&attr.meta, errors);
+
+                            match (&location, &source) {
+                                (Some(l), Some(s)) => {
+                                    if let Some(s) = this.custom_extra_code.get(l) {
+                                        errors.push(LoweringError::Other(format!("Found existing location-source pair: {l:?} = {s:?}. Duplicates not allowed.")));
+                                    } else {
+                                        this.custom_extra_code.insert(l.clone(), s.clone());
+                                    }
+                                }
+                                _ => {
+                                    errors.push(LoweringError::Other(format!("Expected `source=`, `file=`, `location=`. Got: Source: {source:?} Location: {location:?}")));
+                                }
+                            }
+                        }
+                        "default_value" => {
+                            if !support.default_args {
+                                maybe_error_unsupported(
+                                    auto_found,
+                                    "default_value",
+                                    backend,
+                                    errors,
+                                );
+                                continue;
+                            }
+                            // Note that we do not validate that the args match here.
+
+                            let val = attr.meta.require_name_value();
+                            let res = val
+                                .map_err(|e| {
+                                    LoweringError::Other(format!(
+                                        "default_value must be name value: {e}"
+                                    ))
+                                })
+                                .and_then(DefaultArgValue::from_value);
+
+                            if let Ok(l) = res {
+                                this.default_value = Some(l);
+                            } else {
+                                errors.push(res.unwrap_err());
+                            }
+                        }
                         _ => {
                             errors.push(LoweringError::Other(format!(
-                                "Unknown diplomat attribute {path}: expected one of: `disable, rename, namespace, constructor, stringifier, comparison, named_constructor, getter, setter, indexer, error`"
+                                "Unknown diplomat attribute {path}: expected one of: `disable, rename, namespace, constructor, stringifier, comparison, named_constructor, getter, setter, custom_extra_code, indexer, error, default_value`"
                             )));
                         }
                     },
@@ -496,6 +722,8 @@ impl Attrs {
             demo_attrs: _,
             generate_mocking_interface,
             abi_compatible,
+            custom_extra_code,
+            default_value,
         } = &self;
 
         if *disable && matches!(context, AttributeContext::EnumVariant(..)) {
@@ -547,7 +775,7 @@ impl Attrs {
                         }
 
                         if let SuccessType::OutType(t) = &output {
-                            if t.id() != Some(self_id) {
+                            if t.id() != self_id || self_id.is_none() {
                                 errors.push(LoweringError::Other(
                                     "Constructors must return Self!".to_string(),
                                 ));
@@ -878,6 +1106,47 @@ impl Attrs {
                 "`abi_compatible` can only be used on non-output-only struct types.".into(),
             ));
         }
+
+        if !custom_extra_code.is_empty() {
+            if !validator.attrs_supported().custom_bindings {
+                // We only validate that the language supports the bindings. We don't validate
+                // anything else, since this is an advanced feature (you have to know what you are doing).
+                errors.push(LoweringError::Other(
+                    "Custom bindings not supported by this language.".into(),
+                ));
+            }
+
+            // Cannot verify that a given function is free or not, so we just leave it up to the backend to only add
+            // extra code to free functions specifically.
+            if !(matches!(context, AttributeContext::Type(..))
+                || matches!(context, AttributeContext::Function(..)))
+            {
+                errors.push(LoweringError::Other(
+                    "`custom_extra_code` only supported on type declarations or free functions."
+                        .into(),
+                ));
+            }
+        }
+
+        if default_value.is_some() && !matches!(context, AttributeContext::Param) {
+            errors.push(LoweringError::Other(
+                "default_value can only be placed above parameters.".into(),
+            ));
+        }
+
+        if let AttributeContext::Method(m, ..) = context {
+            let mut in_defaults = false;
+            for p in &m.params {
+                if p.attrs.default_value.is_some() {
+                    in_defaults = true;
+                } else if in_defaults {
+                    errors.push(LoweringError::Other(format!(
+                        "Found required arg {} after default arguments.",
+                        p.name
+                    )))
+                }
+            }
+        }
     }
 
     pub(crate) fn for_inheritance(&self, context: AttrInheritContext) -> Attrs {
@@ -915,6 +1184,10 @@ impl Attrs {
             // Not inherited
             generate_mocking_interface: false,
             abi_compatible: false,
+            // Not inherited
+            custom_extra_code: Default::default(),
+            // Not inherited
+            default_value: None,
         }
     }
 }
@@ -1011,6 +1284,12 @@ pub struct BackendAttrSupport {
     pub struct_refs: bool,
     /// Whether the language supports generating functions not associated with any type.
     pub free_functions: bool,
+    /// Whether the language supports being able to include custom bindings.
+    pub custom_bindings: bool,
+    /// Whether the language supports taking in Rust-allocated slices from the given backend.
+    pub owned_slices: bool,
+    /// Whether the language supports default arguments.
+    pub default_args: bool,
 }
 
 impl BackendAttrSupport {
@@ -1047,10 +1326,13 @@ impl BackendAttrSupport {
             abi_compatibles: true,
             struct_refs: true,
             free_functions: true,
+            custom_bindings: true,
+            owned_slices: true,
+            default_args: true,
         }
     }
 
-    fn check_string(&self, v: &str) -> Option<bool> {
+    pub fn check_string(&self, v: &str) -> Option<bool> {
         match v {
             "namespacing" => Some(self.namespacing),
             "memory_sharing" => Some(self.memory_sharing),
@@ -1079,6 +1361,8 @@ impl BackendAttrSupport {
             "abi_compatibles" => Some(self.abi_compatibles),
             "struct_refs" => Some(self.struct_refs),
             "free_functions" => Some(self.free_functions),
+            "custom_bindings" => Some(self.custom_bindings),
+            "owned_slices" => Some(self.owned_slices),
             _ => None,
         }
     }
@@ -1169,6 +1453,8 @@ pub struct BasicAttributeValidator {
     /// override is_name_value()
     #[allow(clippy::type_complexity)] // dyn fn is not that complex
     pub is_name_value: Option<Box<dyn Fn(&str, &str) -> bool>>,
+    /// The features enabled.
+    pub features_enabled: HashSet<String>,
 }
 
 impl BasicAttributeValidator {
@@ -1222,6 +1508,9 @@ impl AttributeValidator for BasicAttributeValidator {
                 abi_compatibles,
                 struct_refs,
                 free_functions,
+                custom_bindings,
+                owned_slices,
+                default_args,
             } = self.support;
             match value {
                 "namespacing" => namespacing,
@@ -1254,12 +1543,17 @@ impl AttributeValidator for BasicAttributeValidator {
                 "abi_compatibles" => abi_compatibles,
                 "struct_refs" => struct_refs,
                 "free_functions" => free_functions,
+                "custom_bindings" => custom_bindings,
+                "owned_slices" => owned_slices,
+                "default_args" => default_args,
                 _ => {
                     return Err(LoweringError::Other(format!(
                         "Unknown supports = value found: {value}"
                     )))
                 }
             }
+        } else if name == "feature" {
+            self.features_enabled.contains(value)
         } else if let Some(ref nv) = self.is_name_value {
             nv(name, value)
         } else {
@@ -1305,7 +1599,7 @@ mod tests {
             mod ffi {
                 use std::cmp;
 
-                #[diplomat::opaque]
+                #[diplomat::opaque_mut]
                 #[diplomat::attr(auto, namespace = "should_not_show_up")]
                 struct Opaque;
 
@@ -1338,7 +1632,7 @@ mod tests {
             mod ffi {
                 use std::cmp;
 
-                #[diplomat::opaque]
+                #[diplomat::opaque_mut]
                 struct Opaque;
 
                 struct Struct {
@@ -1415,7 +1709,7 @@ mod tests {
 
                 #[diplomat::opaque]
                 struct Opaque(Vec<u8>);
-                #[diplomat::opaque]
+                #[diplomat::opaque_mut]
                 struct OpaqueIterator<'a>(std::slice::Iter<'a>);
 
 
@@ -1643,6 +1937,102 @@ mod tests {
                     pub fn takes_mut(&mut self) {
                         todo!()
                     }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_custom_extra_code() {
+        uitest_lowering_attr! { hir::BackendAttrSupport::all_true(),
+            #[diplomat::bridge]
+            mod ffi {
+                #[diplomat::attr(tests, custom_extra_code(source="std::string test;", location="impl_block"))]
+                #[diplomat::attr(tests, custom_extra_code(file="test_file.hpp", location="def_block"))]
+                pub struct IncludeDef {}
+
+                impl IncludeDef {}
+
+                #[diplomat::attr(tests, custom_extra_code(file="testing.d.hpp", location="def_block"))]
+                #[diplomat::attr(tests, custom_extra_code(source="void test() {}", location="impl_block"))]
+                #[diplomat::opaque]
+                pub struct IncludeBlock();
+
+                impl IncludeBlock {}
+            }
+
+        }
+    }
+
+    #[test]
+    fn test_custom_extra_code_fail() {
+        uitest_lowering_attr! { hir::BackendAttrSupport::all_true(),
+            #[diplomat::bridge]
+            mod ffi {
+                pub struct IncludeDef {
+                    a : i32
+                }
+
+                impl IncludeDef {
+                    #[diplomat::attr(tests, custom_extra_code(a="", location="unknown"))]
+                    #[diplomat::attr(tests, custom_extra_code(location="unknown", source="test"))]
+                    pub fn test() {
+
+                    }
+                }
+            }
+
+        }
+    }
+
+    #[test]
+    fn test_custom_extra_code_fail_unsupported() {
+        uitest_lowering_attr! { hir::BackendAttrSupport::default(),
+            #[diplomat::bridge]
+            mod ffi {
+                pub struct IncludeDef {
+                    a : i32
+                }
+
+                impl IncludeDef {
+                    #[diplomat::attr(tests, custom_extra_code(source="", location="def_block"))]
+                    pub fn test() {
+
+                    }
+                }
+            }
+
+        }
+    }
+
+    #[test]
+    fn test_default_args() {
+        uitest_lowering_attr! { hir::BackendAttrSupport::all_true(),
+            #[diplomat::bridge]
+            mod ffi {
+                #[diplomat::opaque]
+                pub struct Test;
+
+                impl Test {
+                    pub fn test(a : i32, b : i64,
+                    #[diplomat::attr(*, default_value=100)]
+                    c : i128) {}
+                }
+            }
+        }
+    }
+    #[test]
+    fn test_default_args_unsupport() {
+        uitest_lowering_attr! { hir::BackendAttrSupport::default(),
+            #[diplomat::bridge]
+            mod ffi {
+                #[diplomat::opaque]
+                pub struct Test;
+
+                impl Test {
+                    pub fn test(a : i32, b : i64,
+                    #[diplomat::attr(*, default_value=100)]
+                    c : i128) {}
                 }
             }
         }

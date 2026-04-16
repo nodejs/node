@@ -1,0 +1,24 @@
+---
+source: components/calendar/src/tests/date_arithmetic_snapshot.rs
+expression: output
+---
+2023-1-1
+  (start: Date(2015-4-23, am era, for calendar Ethiopian))
+    +10d → Date(2015-5-3, am era, for calendar Ethiopian)
+    +2m → Date(2015-6-23, am era, for calendar Ethiopian)
+    +1y → Date(2016-4-23, am era, for calendar Ethiopian)
+    +1y 3m 15d → Date(2016-8-8, am era, for calendar Ethiopian)
+
+2024-6-15
+  (start: Date(2016-10-8, am era, for calendar Ethiopian))
+    +10d → Date(2016-10-18, am era, for calendar Ethiopian)
+    +2m → Date(2016-12-8, am era, for calendar Ethiopian)
+    +1y → Date(2017-10-8, am era, for calendar Ethiopian)
+    +1y 3m 15d → Date(2018-1-15, am era, for calendar Ethiopian)
+
+2025-12-31
+  (start: Date(2018-4-22, am era, for calendar Ethiopian))
+    +10d → Date(2018-5-2, am era, for calendar Ethiopian)
+    +2m → Date(2018-6-22, am era, for calendar Ethiopian)
+    +1y → Date(2019-4-22, am era, for calendar Ethiopian)
+    +1y 3m 15d → Date(2019-8-7, am era, for calendar Ethiopian)

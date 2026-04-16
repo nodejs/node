@@ -96,11 +96,11 @@ pub const fn day_before_year(year: i32) -> RataDie {
     fixed += (prev_year + YEAR_SHIFT) / 4 - (prev_year + YEAR_SHIFT) / 100
         + (prev_year + YEAR_SHIFT) / 400
         - const { YEAR_SHIFT / 4 - YEAR_SHIFT / 100 + YEAR_SHIFT / 400 };
-    RataDie::new(fixed)
+    EPOCH.add(fixed - 1)
 }
 
 /// Calculates the month/day from the 1-based day of the year
-pub fn year_day(year: i32, day_of_year: u16) -> (u8, u8) {
+pub const fn year_day(year: i32, day_of_year: u16) -> (u8, u8) {
     // Calculates the prior days of the year, then applies a correction based on leap year conditions for the correct ISO date conversion.
     let correction = if day_of_year < 31 + 28 + is_leap_year(year) as u16 {
         -1
@@ -113,21 +113,26 @@ pub fn year_day(year: i32, day_of_year: u16) -> (u8, u8) {
 }
 
 /// Lisp code reference: <https://github.com/EdReingold/calendar-code2/blob/1ee51ecfaae6f856b0d7de3e36e9042100b4f424/calendar.l#L1525-L1540>
-pub fn gregorian_from_fixed(date: RataDie) -> Result<(i32, u8, u8), I32CastError> {
-    let year = year_from_fixed(date)?;
-    let day_of_year = date - day_before_year(year);
+pub const fn gregorian_from_fixed(date: RataDie) -> Result<(i32, u8, u8), I32CastError> {
+    let year = match year_from_fixed(date) {
+        Ok(y) => y,
+        Err(e) => return Err(e),
+    };
+
+    let day_of_year = date.to_i64_date() - day_before_year(year).to_i64_date();
     let (month, day) = year_day(year, day_of_year as u16);
     Ok((year, month, day))
 }
 
 /// Calculates the date of Easter in the given year
-pub fn easter(year: i32) -> RataDie {
+pub const fn easter(year: i32) -> RataDie {
     let century = (year / 100) + 1;
     let shifted_epact =
         (14 + 11 * year.rem_euclid(19) - century * 3 / 4 + (5 + 8 * century) / 25).rem_euclid(30);
     let adjusted_epact = shifted_epact
         + (shifted_epact == 0 || (shifted_epact == 1 && 10 < year.rem_euclid(19))) as i32;
-    let paschal_moon = fixed_from_gregorian(year, 4, 19) - adjusted_epact as i64;
+    let paschal_moon =
+        RataDie::new(fixed_from_gregorian(year, 4, 19).to_i64_date() - adjusted_epact as i64);
 
     k_day_after(0, paschal_moon)
 }
