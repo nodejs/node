@@ -65,8 +65,8 @@ let
       else
         "--with-intl=${if useSharedICU then "system" else icu}-icu"
     )
+    "--v8-${if withTemporal then "enable" else "disable"}-temporal-support"
   ]
-  ++ pkgs.lib.optional withTemporal "--v8-enable-temporal-support"
   ++ pkgs.lib.optional (withTemporal && useSharedTemporal) "--shared-temporal_capi";
 in
 pkgs.mkShell {
