@@ -72,3 +72,24 @@ skipIfBuildSEAIsNotSupported();
       stderr: /"useCodeCache" field of .*invalid-useCodeCache\.json is not a Boolean/,
     });
 }
+
+// Test: Invalid "allowDynamicImportFromFileSystem" type (should be Boolean)
+{
+  tmpdir.refresh();
+  const config = tmpdir.resolve('invalid-allowDynamicImportFromFileSystem.json');
+  writeFileSync(config, `
+{
+  "main": "bundle.js",
+  "output": "sea",
+  "allowDynamicImportFromFileSystem": "true"
+}
+  `, 'utf8');
+  spawnSyncAndAssert(
+    process.execPath,
+    ['--build-sea', config], {
+      cwd: tmpdir.path,
+    }, {
+      status: 1,
+      stderr: /"allowDynamicImportFromFileSystem" field of .*invalid-allowDynamicImportFromFileSystem\.json is not a Boolean/,
+    });
+}
