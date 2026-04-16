@@ -15,8 +15,10 @@ const runner = path.join(fixtureDir, 'runner.mjs');
 describe('test runner flag propagation', () => {
   describe('via command line', () => {
     const flagPropagationTests = [
-      ['--experimental-config-file', 'node.config.json', ''],
-      ['--experimental-default-config-file', '', false],
+      ['--experimental-config-file=node.config.json', '', '', '--experimental-config-file',
+       'should not propagate --experimental-config-file to child tests'],
+      ['--experimental-default-config-file', '', '', '--experimental-config-file',
+       'should not propagate --experimental-default-config-file to child tests'],
       ['--env-file', '.env', '.env'],
       ['--env-file-if-exists', '.env', '.env'],
       ['--test-concurrency', '2', '2'],
@@ -32,8 +34,11 @@ describe('test runner flag propagation', () => {
       ['--require', './index.js', './index.js'],
     ];
 
-    for (const [flagName, testValue, expectedValue] of flagPropagationTests) {
-      const testDescription = `should propagate ${flagName} to child tests as expected`;
+    for (const [flagName,
+                testValue,
+                expectedValue,
+                propagatedFlag = flagName,
+                testDescription = `should propagate ${flagName} to child tests as expected`] of flagPropagationTests) {
 
       it(testDescription, () => {
         const args = [
@@ -45,7 +50,7 @@ describe('test runner flag propagation', () => {
           // Use the runner fixture
           runner,
           // Pass parameters to the fixture
-          `--flag=${flagName}`,
+          `--flag=${propagatedFlag}`,
           `--expected=${expectedValue}`,
           `--description="${testDescription}"`,
         ].filter(Boolean);

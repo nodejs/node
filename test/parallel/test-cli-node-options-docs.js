@@ -122,5 +122,6 @@ for (const [, envVar, config] of nodeOptionsCC.matchAll(addOptionRE)) {
 
 // add alias handling
 manPagesOptions.delete('-trace-events-enabled');
+manPagesOptions.delete('-experimental-default-config-file');
 
 assert.strictEqual(manPagesOptions.size, 0, `Man page options not documented: ${[...manPagesOptions]}`);
