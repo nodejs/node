@@ -65,6 +65,7 @@
 * [URL](url.md)
 * [Utilities](util.md)
 * [V8](v8.md)
+* [Validator](validator.md)
 * [VM](vm.md)
 * [WASI](wasi.md)
 * [Web Crypto API](webcrypto.md)

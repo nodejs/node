@@ -3308,6 +3308,19 @@ transformation with [type-stripping][].
 
 An attempt was made to use something that was already closed.
 
+<a id="ERR_VALIDATOR_INVALID_SCHEMA"></a>
+
+### `ERR_VALIDATOR_INVALID_SCHEMA`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Thrown by the [`node:validator`][] [`Schema`][] constructor when the schema
+definition is malformed — for example, an unknown `type`, a constraint that
+does not apply to the declared type, an invalid regular expression in
+`pattern`, or a `required` entry not listed in `properties`.
+
 <a id="ERR_VALID_PERFORMANCE_ENTRY_TYPE"></a>
 
 ### `ERR_VALID_PERFORMANCE_ENTRY_TYPE`
@@ -4471,6 +4484,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`new URL(input)`]: url.md#new-urlinput-base
 [`new URLPattern(input)`]: url.md#new-urlpatternstring-baseurl-options
 [`new URLSearchParams(iterable)`]: url.md#new-urlsearchparamsiterable
+[`node:validator`]: validator.md
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`postMessage()`]: worker_threads.md#portpostmessagevalue-transferlist
 [`postMessageToThread()`]: worker_threads.md#worker_threadspostmessagetothreadthreadid-value-transferlist-timeout
@@ -4480,6 +4494,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`readable._read()`]: stream.md#readable_readsize
 [`require('node:crypto').setEngine()`]: crypto.md#cryptosetengineengine-flags
 [`require()`]: modules.md#requireid
+[`Schema`]: validator.md#class-schema
 [`server.close()`]: net.md#serverclosecallback
 [`server.listen()`]: net.md#serverlisten
 [`sign.sign()`]: crypto.md#signsignprivatekey-outputencoding
