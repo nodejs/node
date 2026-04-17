@@ -12,6 +12,10 @@ if (!process.config.variables.v8_enable_temporal_support) {
 if (!common.hasFullICU) {
   common.skip('Time zone support unavailable when not built with full ICU');
 }
+// TODO(aduh95): fix zoneinfo support with system-icu.
+if (process.config.variables.icu_system) {
+  common.skip('Time zone support unavailable on --with-intl=system-icu builds');
+}
 
 // Use globalThis.Temporal to workaround linter complaints.
 assert.strictEqual(typeof globalThis.Temporal, 'object');
