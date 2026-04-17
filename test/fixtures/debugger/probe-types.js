@@ -15,3 +15,12 @@ errorValue.stack = 'Error: boom';
 
 function consume() {}
 consume();
+
+// TODO(joyeecheung): add a test for evaluation errors. This can be
+// somewhat flaky on slow CI machines.
+// const holder = new class Foo {
+//   get throwingGetter() {
+//     throw new Error('foo');
+//   }
+// }
+// probe holder.throwingGetter
