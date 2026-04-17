@@ -610,6 +610,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental iterable streams API (node:stream/iter)",
             &EnvironmentOptions::experimental_stream_iter,
             kAllowedInEnvvar);
+  AddOption("--experimental-validator",
+            "experimental node:validator module",
+            &EnvironmentOptions::experimental_validator,
+            kAllowedInEnvvar,
+            true);
   AddOption("--experimental-quic",
 #ifndef OPENSSL_NO_QUIC
             "experimental QUIC support",
