@@ -402,7 +402,7 @@ class UserDefinedFunction {
  public:
   UserDefinedFunction(Environment* env,
                       v8::Local<v8::Function> fn,
-                      DatabaseSync* db,
+                      BaseObjectWeakPtr<DatabaseSync> db,
                       bool use_bigint_args);
   ~UserDefinedFunction();
   static void xFunc(sqlite3_context* ctx, int argc, sqlite3_value** argv);
@@ -411,7 +411,7 @@ class UserDefinedFunction {
  private:
   Environment* env_;
   v8::Global<v8::Function> fn_;
-  DatabaseSync* db_;
+  BaseObjectWeakPtr<DatabaseSync> db_;
   bool use_bigint_args_;
 };
 
