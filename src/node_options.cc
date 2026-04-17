@@ -605,7 +605,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental node:sqlite module",
             &EnvironmentOptions::experimental_sqlite,
             kAllowedInEnvvar,
-            true);
+            HAVE_SQLITE);
   AddOption("--experimental-stream-iter",
             "experimental iterable streams API (node:stream/iter)",
             &EnvironmentOptions::experimental_stream_iter,
