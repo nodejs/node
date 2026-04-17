@@ -82,12 +82,12 @@ async function testVerify({
   // Test failure when using the wrong algorithms
   await assert.rejects(
     subtle.verify(algorithm, hmacKey, signature, plaintext), {
-      message: /Unable to use this key to verify/
+      message: /Key algorithm mismatch/
     });
 
   await assert.rejects(
     subtle.verify(algorithm, ecdsaKeys.publicKey, signature, plaintext), {
-      message: /Unable to use this key to verify/
+      message: /Key algorithm mismatch/
     });
 
   // Test failure when signature is altered
@@ -185,12 +185,12 @@ async function testSign({
   // Test failure when using the wrong algorithms
   await assert.rejects(
     subtle.sign(algorithm, hmacKey, plaintext), {
-      message: /Unable to use this key to sign/
+      message: /Key algorithm mismatch/
     });
 
   await assert.rejects(
     subtle.sign(algorithm, ecdsaKeys.privateKey, plaintext), {
-      message: /Unable to use this key to sign/
+      message: /Key algorithm mismatch/
     });
 }
 
