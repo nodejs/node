@@ -582,7 +582,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental node:sqlite module",
             &EnvironmentOptions::experimental_sqlite,
             kAllowedInEnvvar,
-            true);
+            HAVE_SQLITE);
   AddOption("--experimental-quic",
 #ifndef OPENSSL_NO_QUIC
             "experimental QUIC support",
