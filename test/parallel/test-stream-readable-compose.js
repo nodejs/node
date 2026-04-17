@@ -117,6 +117,24 @@ const assert = require('assert');
 }
 
 {
+  // Errors from nested `.compose()` calls should propagate instead of hanging.
+  const stream = Readable.from(['hello'])
+    .compose(async function *(source) { // eslint-disable-line require-yield
+      for await (const chunk of source) {
+        throw new Error(`boom: ${chunk}`);
+      }
+    })
+    .compose(async function *(source) {
+      yield* source;
+    });
+
+  assert.rejects(
+    stream.toArray(),
+    /boom: hello/,
+  ).then(common.mustCall());
+}
+
+{
   // AbortSignal
   const ac = new AbortController();
   const stream = Readable.from([1, 2, 3, 4, 5])
