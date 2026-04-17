@@ -7938,6 +7938,16 @@ added:
 
 Free blocks available to unprivileged users.
 
+Example using `bsize` and `bavail` to calculate available space in bytes:
+
+```js
+import { statfs } from "fs/promises";
+
+const stats = await statfs("/tmp");
+const availableBytes = stats.bsize * stats.bavail;
+console.log(`Available space: ${availableBytes} bytes`);
+```
+
 #### `statfs.bfree`
 
 <!-- YAML
@@ -7949,6 +7959,16 @@ added:
 * Type: {number|bigint}
 
 Free blocks in file system.
+
+Example using `bsize` and `bfree` to calculate total free space in bytes:
+
+```js
+import { statfs } from "fs/promises";
+
+const stats = await statfs("/tmp");
+const freeBytes = stats.bsize * stats.bfree;
+console.log(`Free space: ${freeBytes} bytes`);
+```
 
 #### `statfs.blocks`
 
@@ -7962,6 +7982,16 @@ added:
 
 Total data blocks in file system.
 
+Example using `bsize` and `blocks` to calculate total file system size in bytes:
+
+```js
+import { statfs } from "fs/promises";
+
+const stats = await statfs("/tmp");
+const totalBytes = stats.bsize * stats.blocks;
+console.log(`Total size: ${totalBytes} bytes`);
+```
+
 #### `statfs.bsize`
 
 <!-- YAML
@@ -7972,7 +8002,7 @@ added:
 
 * Type: {number|bigint}
 
-Optimal transfer block size.
+Optimal transfer block size, in **bytes**.
 
 #### `statfs.frsize`
 
@@ -8006,7 +8036,7 @@ added:
 
 * Type: {number|bigint}
 
-Total file nodes in file system.
+Total file nodes (inodes) in file system.
 
 #### `statfs.type`
 
@@ -8018,7 +8048,10 @@ added:
 
 * Type: {number|bigint}
 
-Type of file system.
+File system type identifier. The value corresponds to the `f_type` field
+from the underlying `statfs` system call (e.g., `0x1021994` for `ext2`,
+`0x4d44` for `vfat`). Platform-specific constants like `FStype.EXT2`
+may be used for comparison when available.
 
 ### Class: `fs.Utf8Stream`
 
