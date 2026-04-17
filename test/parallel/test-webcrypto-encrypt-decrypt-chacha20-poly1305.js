@@ -48,7 +48,7 @@ async function testEncryptNoEncrypt({ keyBuffer, algorithm, plaintext }) {
     ['decrypt']);
 
   return assert.rejects(subtle.encrypt(algorithm, key, plaintext), {
-    message: /The requested operation is not valid for the provided key/
+    message: /Unable to use this key to encrypt/
   });
 }
 
@@ -63,7 +63,7 @@ async function testEncryptNoDecrypt({ keyBuffer, algorithm, plaintext }) {
   const output = await subtle.encrypt(algorithm, key, plaintext);
 
   return assert.rejects(subtle.decrypt(algorithm, key, output), {
-    message: /The requested operation is not valid for the provided key/
+    message: /Unable to use this key to decrypt/
   });
 }
 
@@ -77,7 +77,22 @@ async function testEncryptWrongAlg({ keyBuffer, algorithm, plaintext }, alg) {
     ['encrypt']);
 
   return assert.rejects(subtle.encrypt(algorithm, key, plaintext), {
-    message: /The requested operation is not valid for the provided key/
+    message: /Key algorithm mismatch/
+  });
+}
+
+async function testDecryptWrongAlg({ keyBuffer, algorithm, result }, alg) {
+  if (result === undefined) return;
+  assert.notStrictEqual(algorithm.name, alg);
+  const key = await subtle.importKey(
+    'raw-secret',
+    keyBuffer,
+    { name: alg },
+    false,
+    ['decrypt']);
+
+  return assert.rejects(subtle.decrypt(algorithm, key, result), {
+    message: /Key algorithm mismatch/
   });
 }
 
@@ -107,6 +122,7 @@ async function testDecrypt({ keyBuffer, algorithm, result }) {
       variations.push(testEncryptNoEncrypt(vector));
       variations.push(testEncryptNoDecrypt(vector));
       variations.push(testEncryptWrongAlg(vector, 'AES-GCM'));
+      variations.push(testDecryptWrongAlg(vector, 'AES-GCM'));
     });
 
     failing.forEach((vector) => {

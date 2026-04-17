@@ -147,7 +147,7 @@ async function testEncryptionWrongKey({ algorithm,
     ['decrypt']);
   return assert.rejects(
     subtle.encrypt(algorithm, privateKey, plaintext), {
-      message: /The requested operation is not valid/
+      message: /Unable to use this key to encrypt/
     });
 }
 
@@ -167,7 +167,7 @@ async function testEncryptionBadUsage({ algorithm,
     ['decrypt']);
   return assert.rejects(
     subtle.encrypt(algorithm, publicKey, plaintext), {
-      message: /The requested operation is not valid/
+      message: /Unable to use this key to encrypt/
     });
 }
 
@@ -191,7 +191,7 @@ async function testDecryptionWrongKey({ ciphertext,
 
   return assert.rejects(
     subtle.decrypt(algorithm, publicKey, ciphertext), {
-      message: /The requested operation is not valid/
+      message: /Unable to use this key to decrypt/
     });
 }
 
@@ -215,7 +215,7 @@ async function testDecryptionBadUsage({ ciphertext,
 
   return assert.rejects(
     subtle.decrypt(algorithm, publicKey, ciphertext), {
-      message: /The requested operation is not valid/
+      message: /Unable to use this key to decrypt/
     });
 }
 
