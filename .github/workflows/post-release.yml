@@ -20,9 +20,10 @@ jobs:
     steps:
       - name: Trigger update-links workflow on nodejs/release-cloudflare-worker
         run: |
-          gh workflow run update-links.yml --repo nodejs/release-cloudflare-worker
+          gh workflow run update-links.yml --repo nodejs/release-cloudflare-worker -f version=$VERSION
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+          VERSION: ${{ inputs.version || github.event.release.tag_name }}
 
       - name: Trigger create-release-post workflow on nodejs/nodejs.org
         run: |
