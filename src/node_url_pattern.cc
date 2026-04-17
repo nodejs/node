@@ -202,7 +202,11 @@ void URLPattern::New(const FunctionCallbackInfo<Value>& args) {
   // - new URLPattern(input, baseURL)
   // - new URLPattern(input, options)
   // - new URLPattern(input, baseURL, options)
-  if (args[0]->IsString()) {
+  // Per WebIDL, null/undefined for a union type including a dictionary
+  // uses the default value (empty init).
+  if (args[0]->IsNullOrUndefined()) {
+    init = ada::url_pattern_init{};
+  } else if (args[0]->IsString()) {
     BufferValue input_buffer(env->isolate(), args[0]);
     CHECK_NOT_NULL(*input_buffer);
     input = input_buffer.ToString();
@@ -217,41 +221,55 @@ void URLPattern::New(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  // The next argument can be baseURL or options.
-  if (args.Length() > 1) {
+  // Per WebIDL overload resolution:
+  // With 3+ args, it's always overload 1: (input, baseURL, options)
+  // With 2 args, if arg1 is string, it is overload 1 (baseURL),
+  //   otherwise overload 2 (options)
+  if (args.Length() >= 3) {
+    // arg1 is baseURL. Per WebIDL, null/undefined are stringified for
+    // USVString ("null"/"undefined"), which will be rejected as invalid
+    // URLs by ada downstream.
     if (args[1]->IsString()) {
       BufferValue base_url_buffer(env->isolate(), args[1]);
       CHECK_NOT_NULL(*base_url_buffer);
       base_url = base_url_buffer.ToString();
-    } else if (args[1]->IsObject()) {
-      CHECK(!options.has_value());
-      options = URLPatternOptions::FromJsObject(env, args[1].As<Object>());
-      if (!options) {
-        // If options does not have a value, we assume an error was
-        // thrown and scheduled on the isolate. Return early to
-        // propagate it.
-        return;
-      }
+    } else if (args[1]->IsNull()) {
+      base_url = std::string("null");
+    } else if (args[1]->IsUndefined()) {
+      base_url = std::string("undefined");
     } else {
-      THROW_ERR_INVALID_ARG_TYPE(env,
-                                 "second argument must be a string or object");
+      THROW_ERR_INVALID_ARG_TYPE(env, "second argument must be a string");
       return;
     }
 
-    // Only remaining argument can be options.
-    if (args.Length() > 2) {
+    // arg2 is options. Per WebIDL, null/undefined for a dictionary
+    // uses the default value (empty dict).
+    if (!args[2]->IsNullOrUndefined()) {
       if (!args[2]->IsObject()) {
         THROW_ERR_INVALID_ARG_TYPE(env, "options must be an object");
         return;
       }
       CHECK(!options.has_value());
       options = URLPatternOptions::FromJsObject(env, args[2].As<Object>());
-      if (!options) {
-        // If options does not have a value, we assume an error was
-        // thrown and scheduled on the isolate. Return early to
-        // propagate it.
-        return;
-      }
+      if (!options) return;
+    }
+  } else if (args.Length() == 2) {
+    // Overload resolution: string is overload 1 (baseURL),
+    // otherwise overload 2 (options).
+    if (args[1]->IsString()) {
+      BufferValue base_url_buffer(env->isolate(), args[1]);
+      CHECK_NOT_NULL(*base_url_buffer);
+      base_url = base_url_buffer.ToString();
+    } else if (args[1]->IsNullOrUndefined()) {
+      // Overload 2, options uses default.
+    } else if (args[1]->IsObject()) {
+      CHECK(!options.has_value());
+      options = URLPatternOptions::FromJsObject(env, args[1].As<Object>());
+      if (!options) return;
+    } else {
+      THROW_ERR_INVALID_ARG_TYPE(env,
+                                 "second argument must be a string or object");
+      return;
     }
   }
 
@@ -493,11 +511,8 @@ URLPattern::URLPatternOptions::FromJsObject(Environment* env,
   Local<Value> ignore_case;
   if (obj->Get(env->context(), env->ignore_case_string())
           .ToLocal(&ignore_case)) {
-    if (!ignore_case->IsBoolean()) {
-      THROW_ERR_INVALID_ARG_TYPE(env, "options.ignoreCase must be a boolean");
-      return std::nullopt;
-    }
-    options.ignore_case = ignore_case->IsTrue();
+    // Per WebIDL, boolean dictionary members are coerced (not type-checked).
+    options.ignore_case = ignore_case->BooleanValue(env->isolate());
   } else {
     // If ToLocal returns false, the assumption is that getting the
     // ignore_case_string threw an error, let's propagate that now
@@ -564,7 +579,7 @@ void URLPattern::Exec(const FunctionCallbackInfo<Value>& args) {
   ada::url_pattern_input input;
   std::optional<std::string> baseURL{};
   std::string input_base;
-  if (args.Length() == 0) {
+  if (args.Length() == 0 || args[0]->IsNullOrUndefined()) {
     input = ada::url_pattern_init{};
   } else if (args[0]->IsString()) {
     Utf8Value input_value(env->isolate(), args[0].As<String>());
@@ -580,13 +595,16 @@ void URLPattern::Exec(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  if (args.Length() > 1) {
-    if (!args[1]->IsString()) {
+  if (args.Length() > 1 && !args[1]->IsUndefined()) {
+    if (args[1]->IsNull()) {
+      baseURL = std::string("null");
+    } else if (args[1]->IsString()) {
+      Utf8Value base_url_value(env->isolate(), args[1].As<String>());
+      baseURL = base_url_value.ToStringView();
+    } else {
       THROW_ERR_INVALID_ARG_TYPE(env, "baseURL must be a string");
       return;
     }
-    Utf8Value base_url_value(env->isolate(), args[1].As<String>());
-    baseURL = base_url_value.ToStringView();
   }
 
   Local<Value> result;
@@ -607,7 +625,7 @@ void URLPattern::Test(const FunctionCallbackInfo<Value>& args) {
   ada::url_pattern_input input;
   std::optional<std::string> baseURL{};
   std::string input_base;
-  if (args.Length() == 0) {
+  if (args.Length() == 0 || args[0]->IsNullOrUndefined()) {
     input = ada::url_pattern_init{};
   } else if (args[0]->IsString()) {
     Utf8Value input_value(env->isolate(), args[0].As<String>());
@@ -623,13 +641,16 @@ void URLPattern::Test(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  if (args.Length() > 1) {
-    if (!args[1]->IsString()) {
+  if (args.Length() > 1 && !args[1]->IsUndefined()) {
+    if (args[1]->IsNull()) {
+      baseURL = std::string("null");
+    } else if (args[1]->IsString()) {
+      Utf8Value base_url_value(env->isolate(), args[1].As<String>());
+      baseURL = base_url_value.ToStringView();
+    } else {
       THROW_ERR_INVALID_ARG_TYPE(env, "baseURL must be a string");
       return;
     }
-    Utf8Value base_url_value(env->isolate(), args[1].As<String>());
-    baseURL = base_url_value.ToStringView();
   }
 
   std::optional<std::string_view> baseURL_opt =

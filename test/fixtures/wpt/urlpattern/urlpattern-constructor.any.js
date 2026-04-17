@@ -1,7 +1,4 @@
-<!DOCTYPE html>
-<script src="/resources/testharness.js"></script>
-<script src="/resources/testharnessreport.js"></script>
-<script>
+// META: global=window,worker
 test(() => {
   assert_throws_js(TypeError, () => { new URLPattern(new URL('https://example.org/%(')); } );
   assert_throws_js(TypeError, () => { new URLPattern(new URL('https://example.org/%((')); } );
@@ -11,4 +8,3 @@ test(() => {
 test(() => {
   new URLPattern(undefined, undefined);
 }, `Test constructor with undefined`);
-</script>
