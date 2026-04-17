@@ -124,10 +124,9 @@ class EnvironmentOptions : public Options {
   bool enable_source_maps = false;
   bool experimental_addon_modules = false;
   bool experimental_eventsource = false;
-  bool experimental_fetch = true;
   bool experimental_ffi = false;
   bool experimental_websocket = true;
-  bool experimental_sqlite = true;
+  bool experimental_sqlite = HAVE_SQLITE;
   bool experimental_stream_iter = false;
   bool webstorage = HAVE_SQLITE;
   bool experimental_quic = false;
