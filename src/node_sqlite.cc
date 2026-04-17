@@ -451,7 +451,7 @@ class BackupJob : public ThreadPoolWork {
                      std::string dest_db,
                      int pages,
                      Local<Function> progressFunc)
-      : ThreadPoolWork(env, "node_sqlite3.BackupJob"),
+      : ThreadPoolWork(env, "node.sqlite.BackupJob"),
         env_(env),
         source_(source),
         pages_(pages),
@@ -498,7 +498,7 @@ class BackupJob : public ThreadPoolWork {
 
     if (!(backup_status_ == SQLITE_OK || backup_status_ == SQLITE_DONE ||
           backup_status_ == SQLITE_BUSY || backup_status_ == SQLITE_LOCKED)) {
-      HandleBackupError(resolver, backup_status_);
+      HandleBackupError(resolver);
       return;
     }
 
@@ -569,24 +569,13 @@ class BackupJob : public ThreadPoolWork {
  private:
   void HandleBackupError(Local<Promise::Resolver> resolver) {
     Local<Object> e;
-    if (!CreateSQLiteError(env()->isolate(), dest_).ToLocal(&e)) {
-      Finalize();
-      return;
-    }
-
+    auto error = sqlite3_errcode(dest_) == SQLITE_OK
+                     ? CreateSQLiteError(env()->isolate(), backup_status_)
+                     : CreateSQLiteError(env()->isolate(), dest_);
     Finalize();
-    resolver->Reject(env()->context(), e).ToChecked();
-  }
-
-  void HandleBackupError(Local<Promise::Resolver> resolver, int errcode) {
-    Local<Object> e;
-    if (!CreateSQLiteError(env()->isolate(), errcode).ToLocal(&e)) {
-      Finalize();
-      return;
+    if (error.ToLocal(&e)) {
+      resolver->Reject(env()->context(), e).ToChecked();
     }
-
-    Finalize();
-    resolver->Reject(env()->context(), e).ToChecked();
   }
 
   Environment* env() const { return env_; }
