@@ -1833,7 +1833,15 @@ static void RmSync(const FunctionCallbackInfo<Value>& args) {
   } else if (error == std::errc::not_a_directory) {
     std::string message = "Not a directory: " + file_path_str;
     return env->ThrowErrnoException(ENOTDIR, "rm", message.c_str(), path_c_str);
+#ifdef _AIX
+  } else if (error == std::errc::permission_denied ||
+             error == std::errc::file_exists) {
+    // Workaround for clang libc++ bug on AIX: std::filesystem::remove_all()
+    // incorrectly returns EEXIST (17) instead of EACCES (13) for permission
+    // errors when trying to remove directories without proper permissions.
+#else
   } else if (error == std::errc::permission_denied) {
+#endif
     std::string message = "Permission denied: " + file_path_str;
     return env->ThrowErrnoException(
         permission_denied_error, "rm", message.c_str(), path_c_str);
