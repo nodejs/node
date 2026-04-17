@@ -308,7 +308,7 @@ class ThreadSafeFunction {
     return napi_ok;
   }
 
-  void EmptyQueueAndMaybeDelete() {
+  void EmptyQueue() {
     std::queue<void*> drain_queue;
     {
       node::Mutex::ScopedLock lock(this->mutex);
@@ -317,6 +317,9 @@ class ThreadSafeFunction {
     for (; !drain_queue.empty(); drain_queue.pop()) {
       call_js_cb(nullptr, nullptr, context, drain_queue.front());
     }
+  }
+
+  void MaybeDelete() {
     {
       node::Mutex::ScopedLock lock(this->mutex);
       if (thread_count > 0) {
@@ -464,11 +467,12 @@ class ThreadSafeFunction {
 
   void Finalize() {
     v8::HandleScope scope(env->isolate);
+    EmptyQueue();
     if (finalize_cb) {
       AsyncResource::CallbackScope cb_scope(&*async_resource);
       env->CallFinalizer<false>(finalize_cb, finalize_data, context);
     }
-    EmptyQueueAndMaybeDelete();
+    MaybeDelete();
   }
 
   void CloseHandlesAndMaybeDelete(bool set_closing = false) {
