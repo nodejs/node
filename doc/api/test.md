@@ -3431,6 +3431,9 @@ Emitted when code coverage is enabled and all tests have completed.
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
+  * `testId` {number} A numeric identifier for this test instance, unique
+    within the test file's process. Consistent across all events for the same
+    test instance, enabling reliable correlation in custom reporters.
   * `testNumber` {number} The ordinal number of the test.
   * `todo` {string|boolean|undefined} Present if [`context.todo`][] is called
   * `skip` {string|boolean|undefined} Present if [`context.skip`][] is called
@@ -3451,6 +3454,9 @@ The corresponding declaration ordered events are `'test:pass'` and `'test:fail'`
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
+  * `testId` {number} A numeric identifier for this test instance, unique
+    within the test file's process. Consistent across all events for the same
+    test instance, enabling reliable correlation in custom reporters.
   * `type` {string} The test type. Either `'suite'` or `'test'`.
 
 Emitted when a test is dequeued, right before it is executed.
@@ -3489,6 +3495,9 @@ defined.
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
+  * `testId` {number} A numeric identifier for this test instance, unique
+    within the test file's process. Consistent across all events for the same
+    test instance, enabling reliable correlation in custom reporters.
   * `type` {string} The test type. Either `'suite'` or `'test'`.
 
 Emitted when a test is enqueued for execution.
@@ -3512,6 +3521,9 @@ Emitted when a test is enqueued for execution.
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
+  * `testId` {number} A numeric identifier for this test instance, unique
+    within the test file's process. Consistent across all events for the same
+    test instance, enabling reliable correlation in custom reporters.
   * `testNumber` {number} The ordinal number of the test.
   * `todo` {string|boolean|undefined} Present if [`context.todo`][] is called
   * `skip` {string|boolean|undefined} Present if [`context.skip`][] is called
@@ -3568,6 +3580,9 @@ since the parent runner only knows about file-level tests. When using
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
+  * `testId` {number} A numeric identifier for this test instance, unique
+    within the test file's process. Consistent across all events for the same
+    test instance, enabling reliable correlation in custom reporters.
   * `testNumber` {number} The ordinal number of the test.
   * `todo` {string|boolean|undefined} Present if [`context.todo`][] is called
   * `skip` {string|boolean|undefined} Present if [`context.skip`][] is called
@@ -3604,6 +3619,9 @@ defined.
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
+  * `testId` {number} A numeric identifier for this test instance, unique
+    within the test file's process. Consistent across all events for the same
+    test instance, enabling reliable correlation in custom reporters.
 
 Emitted when a test starts reporting its own and its subtests status.
 This event is guaranteed to be emitted in the same order as the tests are
