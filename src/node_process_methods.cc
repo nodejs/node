@@ -100,16 +100,6 @@ static void Chdir(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-static void SetTitle(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  CHECK(env->owns_process_state());
-
-  CHECK_EQ(args.Length(), 1);
-  CHECK(args[0]->IsString());
-  Utf8Value title(env->isolate(), args[0]);
-  uv_set_process_title(*title);
-}
-
 inline Local<ArrayBuffer> get_fields_array_buffer(
     const FunctionCallbackInfo<Value>& args,
     size_t index,
@@ -781,7 +771,6 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "abort", Abort);
   SetMethod(isolate, target, "causeSegfault", CauseSegfault);
   SetMethod(isolate, target, "chdir", Chdir);
-  SetMethod(isolate, target, "setTitle", SetTitle);
 
   SetMethod(isolate, target, "umask", Umask);
   SetMethod(isolate, target, "memoryUsage", MemoryUsage);
@@ -830,7 +819,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Abort);
   registry->Register(CauseSegfault);
   registry->Register(Chdir);
-  registry->Register(SetTitle);
 
   registry->Register(Umask);
   registry->Register(RawDebug);
