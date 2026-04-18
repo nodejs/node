@@ -1,0 +1,56 @@
+name: Run undici WPT (current)
+description: Runs undici WPT tests for undici >= 7 and merges results into the Node.js WPT report
+
+inputs:
+  undici-version:
+    required: true
+    description: undici version tag to checkout
+  wpt-report:
+    required: true
+    description: Path to the Node.js WPT report to merge into
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout undici
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      with:
+        repository: nodejs/undici
+        persist-credentials: false
+        path: undici
+        clean: false
+        ref: ${{ inputs.undici-version }}
+    - name: Prepare WPT checkout
+      shell: bash
+      run: |
+        rm -rf undici/test/web-platform-tests/wpt
+        mv test/fixtures/wpt undici/test/web-platform-tests/wpt
+    - name: Configure hosts
+      shell: bash
+      working-directory: undici/test/web-platform-tests/wpt
+      run: python3 wpt make-hosts-file | sudo tee -a /etc/hosts
+    - name: Install dependencies
+      shell: bash
+      working-directory: undici
+      run: npm install
+    - name: Run WPT
+      shell: bash
+      working-directory: undici
+      env:
+        CI: 'true'
+        WPT_REPORT: ${{ github.workspace }}/undici/wptreport.json
+      run: npm run test:wpt || true
+    - name: Merge report
+      shell: bash
+      env:
+        NODE_WPT_REPORT: ${{ inputs.wpt-report }}
+        UNDICI_WPT_REPORT: ${{ github.workspace }}/undici/wptreport.json
+      run: |
+        if [ -f "$UNDICI_WPT_REPORT" ]; then
+          jq -sc '
+            .[0].results += .[1].results |
+            .[0].time_end = .[1].time_end |
+            .[0]
+          ' "$NODE_WPT_REPORT" "$UNDICI_WPT_REPORT" > "${NODE_WPT_REPORT}.tmp"
+          mv "${NODE_WPT_REPORT}.tmp" "$NODE_WPT_REPORT"
+        fi
