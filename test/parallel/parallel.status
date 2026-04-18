@@ -20,7 +20,7 @@ test-fs-read-stream-concurrent-reads: PASS, FLAKY
 test-snapshot-incompatible: SKIP
 
 # https://github.com/nodejs/node/issues/53579
-test-snapshot-reproducible: PASS, FLAKY
+test-snapshot-reproducible: SKIP
 
 [$system==win32]
 # https://github.com/nodejs/node/issues/59090
