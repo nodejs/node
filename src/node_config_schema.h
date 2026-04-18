@@ -4,14 +4,12 @@
 static constexpr const char kNodeConfigSchema[] = R"JSON(
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "additionalProperties": false,
   "required": [],
   "properties": {
     "$schema": {
       "type": "string"
     },
     "nodeOptions": {
-      "additionalProperties": false,
       "required": [],
       "properties": {
         "addons": {
@@ -761,7 +759,6 @@ static constexpr const char kNodeConfigSchema[] = R"JSON(
     },
     "permission": {
       "type": "object",
-      "additionalProperties": false,
       "required": [],
       "properties": {
         "allow-addons": {
@@ -826,7 +823,6 @@ static constexpr const char kNodeConfigSchema[] = R"JSON(
     },
     "test": {
       "type": "object",
-      "additionalProperties": false,
       "required": [],
       "properties": {
         "experimental-test-coverage": {
@@ -991,7 +987,6 @@ static constexpr const char kNodeConfigSchema[] = R"JSON(
     },
     "watch": {
       "type": "object",
-      "additionalProperties": false,
       "required": [],
       "properties": {
         "watch": {
