@@ -13,6 +13,7 @@ const secLevel = require('internal/crypto/util').getOpenSSLSecLevel();
 const assert = require('assert');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
+const { hasOpenSSL } = require('../common/crypto');
 
 const key = fixtures.readKey('agent2-key.pem');
 const cert = fixtures.readKey('agent2-cert.pem');
@@ -24,7 +25,7 @@ function loadDHParam(n) {
   return fixtures.readKey(`dh${n}.pem`);
 }
 
-function test(size, err, next) {
+function test(size, err, next, minDHSizeOverride) {
   const options = {
     key: key,
     cert: cert,
@@ -46,7 +47,7 @@ function test(size, err, next) {
     // so that it fails when it makes a connection to the tls
     // server where is too small. This depends on the openssl
     // security level
-    const minDHSize = (secLevel > 1) ? 3072 : 2048;
+    const minDHSize = minDHSizeOverride ?? ((secLevel > 1) ? 3072 : 2048);
     const client = tls.connect({
       minDHSize: minDHSize,
       port: this.address().port,
@@ -84,7 +85,12 @@ function testDHE3072() {
   test(3072, false, null);
 }
 
-if (secLevel > 1) {
+if (hasOpenSSL(4, 0)) {
+  // OpenSSL 4.0 implements RFC 7919 FFDHE negotiation for TLS 1.2 and
+  // ignores the server-supplied dhparam in favor of FFDHE-2048. The 3072
+  // success case is therefore replaced by a 2048 success case.
+  testDHE2048(true, () => test(2048, false, null, 2048));
+} else if (secLevel > 1) {
   // Minimum size for OpenSSL security level 2 and above is 2048 by default
   testDHE2048(true, testDHE3072);
 } else {

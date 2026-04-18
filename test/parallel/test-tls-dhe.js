@@ -28,6 +28,7 @@ if (!common.hasCrypto) {
 
 const {
   opensslCli,
+  hasOpenSSL,
 } = require('../common/crypto');
 
 // OpenSSL has a set of security levels which affect what algorithms
@@ -104,9 +105,15 @@ function testCustomParam(keylen, expectedCipher) {
 }
 
 (async () => {
-  // By default, DHE is disabled while ECDHE is enabled.
+  // By default, DHE is disabled while ECDHE is enabled. OpenSSL 4.0
+  // implements RFC 7919 FFDHE negotiation for TLS 1.2 which enables DHE
+  // (with FFDHE-2048) even without a server-supplied dhparam.
   for (const dhparam of [undefined, null]) {
-    await test(dhparam, null, ecdheCipher);
+    if (hasOpenSSL(4, 0)) {
+      await test(dhparam, 2048, dheCipher);
+    } else {
+      await test(dhparam, null, ecdheCipher);
+    }
   }
 
   // The DHE parameters selected by OpenSSL depend on the strength of the
@@ -124,14 +131,24 @@ function testCustomParam(keylen, expectedCipher) {
 
   // Custom DHE parameters are supported (but discouraged).
   // 1024 is disallowed at security level 2 and above so use 3072 instead
-  // for higher security levels
+  // for higher security levels.
+  // OpenSSL 4.0 implements RFC 7919 FFDHE negotiation for TLS 1.2 and
+  // ignores the server-supplied dhparam in favor of FFDHE-2048, so the
+  // negotiated key length is always 2048.
   if (secLevel < 2) {
     await testCustomParam(1024, dheCipher);
+  } else if (hasOpenSSL(4, 0)) {
+    await test(loadDHParam(3072), 2048, dheCipher);
   } else {
     await testCustomParam(3072, dheCipher);
   }
   await testCustomParam(2048, dheCipher);
 
-  // Invalid DHE parameters are discarded. ECDHE remains enabled.
-  await testCustomParam('error', ecdheCipher);
+  // Invalid DHE parameters are discarded. Prior to OpenSSL 4.0 this
+  // disabled DHE and ECDHE was negotiated; since 4.0, FFDHE-2048 is used.
+  if (hasOpenSSL(4, 0)) {
+    await test(loadDHParam('error'), 2048, dheCipher);
+  } else {
+    await testCustomParam('error', ecdheCipher);
+  }
 })().then(common.mustCall());
