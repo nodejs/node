@@ -25,14 +25,6 @@ module.exports = {
   },
   'Blob-constructor.any.js': {
     fail: {
-      expected: [
-        'blobParts not an object: boolean with Boolean.prototype[Symbol.iterator]',
-        'blobParts not an object: number with Number.prototype[Symbol.iterator]',
-        'blobParts not an object: BigInt with BigInt.prototype[Symbol.iterator]',
-        'blobParts not an object: Symbol with Symbol.prototype[Symbol.iterator]',
-        'Getters and value conversions should happen in order until an exception is thrown.',
-        'Arguments should be evaluated from left to right.',
-      ],
       flaky: [
         'Passing typed arrays as elements of the blobParts array should work.',
         'Passing a Float16Array as element of the blobParts array should work.',
