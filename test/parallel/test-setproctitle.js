@@ -15,6 +15,7 @@ if (!isMainThread) {
 const assert = require('assert');
 const { exec, execSync } = require('child_process');
 const path = require('path');
+const { setTitle } = require('node:process');
 
 // The title shouldn't be too long; libuv's uv_set_process_title() out of
 // security considerations no longer overwrites envp, only argv, so the
@@ -22,8 +23,17 @@ const path = require('path');
 let title = String(process.pid);
 
 assert.notStrictEqual(process.title, title);
-process.title = title;
+setTitle(title);
 assert.strictEqual(process.title, title);
+
+assert.throws(() => setTitle(1), {
+  code: 'ERR_INVALID_ARG_TYPE',
+});
+
+const legacyTitle = `${title}-legacy`;
+process.title = legacyTitle;
+assert.strictEqual(process.title, legacyTitle);
+title = legacyTitle;
 
 try {
   execSync('command -v ps');
