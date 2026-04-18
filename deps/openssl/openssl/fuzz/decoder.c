@@ -20,18 +20,13 @@ int FuzzerInitialize(int *argc, char ***argv)
     FuzzerSetRand();
 
     OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CRYPTO_STRINGS
-                        | OPENSSL_INIT_ADD_ALL_CIPHERS
-                        | OPENSSL_INIT_ADD_ALL_DIGESTS, NULL);
+            | OPENSSL_INIT_ADD_ALL_CIPHERS
+            | OPENSSL_INIT_ADD_ALL_DIGESTS,
+        NULL);
 
     pctx = ASN1_PCTX_new();
-    ASN1_PCTX_set_flags(pctx, ASN1_PCTX_FLAGS_SHOW_ABSENT
-                              | ASN1_PCTX_FLAGS_SHOW_SEQUENCE
-                              | ASN1_PCTX_FLAGS_SHOW_SSOF
-                              | ASN1_PCTX_FLAGS_SHOW_TYPE
-                              | ASN1_PCTX_FLAGS_SHOW_FIELD_STRUCT_NAME);
-    ASN1_PCTX_set_str_flags(pctx, ASN1_STRFLGS_UTF8_CONVERT
-                                  | ASN1_STRFLGS_SHOW_TYPE
-                                  | ASN1_STRFLGS_DUMP_ALL);
+    ASN1_PCTX_set_flags(pctx, ASN1_PCTX_FLAGS_SHOW_ABSENT | ASN1_PCTX_FLAGS_SHOW_SEQUENCE | ASN1_PCTX_FLAGS_SHOW_SSOF | ASN1_PCTX_FLAGS_SHOW_TYPE | ASN1_PCTX_FLAGS_SHOW_FIELD_STRUCT_NAME);
+    ASN1_PCTX_set_str_flags(pctx, ASN1_STRFLGS_UTF8_CONVERT | ASN1_STRFLGS_SHOW_TYPE | ASN1_STRFLGS_DUMP_ALL);
 
     ERR_clear_error();
     CRYPTO_free_ex_index(0, -1);
@@ -47,7 +42,7 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
 
     bio = BIO_new(BIO_s_null());
     dctx = OSSL_DECODER_CTX_new_for_pkey(&pkey, NULL, NULL, NULL, 0, NULL,
-                                                NULL);
+        NULL);
     if (dctx == NULL) {
         return 0;
     }

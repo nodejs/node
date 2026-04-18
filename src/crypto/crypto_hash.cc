@@ -540,7 +540,8 @@ Maybe<void> HashTraits::AdditionalConfig(
 bool HashTraits::DeriveBits(Environment* env,
                             const HashConfig& params,
                             ByteSource* out,
-                            CryptoJobMode mode) {
+                            CryptoJobMode mode,
+                            CryptoErrorStore* errors) {
   auto ctx = EVPMDCtxPointer::New();
 
   if (!ctx.digestInit(params.digest) || !ctx.digestUpdate(params.in))

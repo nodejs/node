@@ -8,13 +8,13 @@
  */
 
 #ifndef OSSL_QUIC_TRACE_H
-# define OSSL_QUIC_TRACE_H
+#define OSSL_QUIC_TRACE_H
 
-# ifndef OPENSSL_NO_QUIC
+#ifndef OPENSSL_NO_QUIC
 
 int ossl_quic_trace(int write_p, int version, int content_type,
-                    const void *buf, size_t msglen, SSL *ssl, void *arg);
+    const void *buf, size_t msglen, SSL *ssl, void *arg);
 
-# endif
+#endif
 
 #endif

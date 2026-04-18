@@ -9,22 +9,22 @@
  */
 
 #ifndef OSSL_CRYPTO_ECERR_H
-# define OSSL_CRYPTO_ECERR_H
-# pragma once
+#define OSSL_CRYPTO_ECERR_H
+#pragma once
 
-# include <openssl/opensslconf.h>
-# include <openssl/symhacks.h>
+#include <openssl/opensslconf.h>
+#include <openssl/symhacks.h>
 
-# ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
-# endif
+#endif
 
-# ifndef OPENSSL_NO_EC
+#ifndef OPENSSL_NO_EC
 
 int ossl_err_load_EC_strings(void);
-# endif
+#endif
 
-# ifdef  __cplusplus
+#ifdef __cplusplus
 }
-# endif
+#endif
 #endif

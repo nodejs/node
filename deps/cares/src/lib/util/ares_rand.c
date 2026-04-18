@@ -56,7 +56,7 @@ static unsigned int ares_u32_from_ptr(void *addr)
 {
   /* LCOV_EXCL_START: FallbackCode */
   if (ares_is_64bit()) {
-    return (unsigned int)((((ares_uint64_t)addr >> 32) & 0xFFFFFFFF) |
+    return (unsigned int)((((ares_uint64_t)addr >> 32) & 0xFFFFFFFF) ^
                           ((ares_uint64_t)addr & 0xFFFFFFFF));
   }
   return (unsigned int)((size_t)addr & 0xFFFFFFFF);
@@ -94,12 +94,12 @@ static void ares_rc4_generate_key(ares_rand_rc4 *rc4_state, unsigned char *key,
   len += sizeof(data);
 
   ares_tvnow(&tv);
-  data = (unsigned int)((tv.sec | tv.usec) & 0xFFFFFFFF);
+  data = (unsigned int)((tv.sec ^ tv.usec) & 0xFFFFFFFF);
   memcpy(key + len, &data, sizeof(data));
   len += sizeof(data);
 
-  srand(ares_u32_from_ptr(rc4_state) | ares_u32_from_ptr(&i) |
-        (unsigned int)((tv.sec | tv.usec) & 0xFFFFFFFF));
+  srand(ares_u32_from_ptr(rc4_state) ^ ares_u32_from_ptr(&i) ^
+        (unsigned int)((tv.sec ^ tv.usec) & 0xFFFFFFFF));
 #endif
 
   for (i = len; i < key_len; i++) {

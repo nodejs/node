@@ -14,13 +14,13 @@ permissions:
 jobs:
   v8-update:
     if: github.repository == 'nodejs/node'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
       - name: Cache node modules and update-v8
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4.3.0
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5.0.4
         id: cache-v8-npm
         env:
           cache-name: cache-v8-npm
@@ -30,7 +30,7 @@ jobs:
             ~/.npm
           key: ${{ runner.os }}-build-${{ env.cache-name }}
       - name: Install Node.js
-        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903  # v6.0.0
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f  # v6.3.0
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Install @node-core/utils
@@ -45,7 +45,7 @@ jobs:
             cat temp-output
             tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
             rm temp-output
-      - uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e  # v7.0.8
+      - uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0  # v8.1.0
         # Creates a PR or update the Action's existing PR, or
         # no-op if the base branch is already up-to-date.
         with:

@@ -14,14 +14,14 @@ const assert = require('assert');
 {
   const readable = new Readable();
 
-  readable._read = () => {
+  readable._read = common.mustCall(() => {
     // The state ended should start in false.
     assert.strictEqual(readable.readableEnded, false);
     readable.push('asd');
     assert.strictEqual(readable.readableEnded, false);
     readable.push(null);
     assert.strictEqual(readable.readableEnded, false);
-  };
+  });
 
   readable.on('end', common.mustCall(() => {
     assert.strictEqual(readable.readableEnded, true);

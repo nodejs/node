@@ -17,7 +17,7 @@
 #include <openssl/err.h>
 
 long BIO_debug_callback_ex(BIO *bio, int cmd, const char *argp, size_t len,
-                           int argi, long argl, int ret, size_t *processed)
+    int argi, long argl, int ret, size_t *processed)
 {
     BIO *b;
     char buf[256];
@@ -45,41 +45,41 @@ long BIO_debug_callback_ex(BIO *bio, int cmd, const char *argp, size_t len,
     case BIO_CB_READ:
         if (bio->method->type & BIO_TYPE_DESCRIPTOR)
             BIO_snprintf(p, left, "read(%d,%zu) - %s fd=%d\n",
-                         bio->num, len,
-                         bio->method->name, bio->num);
+                bio->num, len,
+                bio->method->name, bio->num);
         else
             BIO_snprintf(p, left, "read(%d,%zu) - %s\n",
-                    bio->num, len, bio->method->name);
+                bio->num, len, bio->method->name);
         break;
     case BIO_CB_WRITE:
         if (bio->method->type & BIO_TYPE_DESCRIPTOR)
             BIO_snprintf(p, left, "write(%d,%zu) - %s fd=%d\n",
-                         bio->num, len,
-                         bio->method->name, bio->num);
+                bio->num, len,
+                bio->method->name, bio->num);
         else
             BIO_snprintf(p, left, "write(%d,%zu) - %s\n",
-                         bio->num, len, bio->method->name);
+                bio->num, len, bio->method->name);
         break;
     case BIO_CB_PUTS:
         BIO_snprintf(p, left, "puts() - %s\n", bio->method->name);
         break;
     case BIO_CB_GETS:
         BIO_snprintf(p, left, "gets(%zu) - %s\n", len,
-                     bio->method->name);
+            bio->method->name);
         break;
     case BIO_CB_CTRL:
         BIO_snprintf(p, left, "ctrl(%d) - %s\n", argi,
-                     bio->method->name);
+            bio->method->name);
         break;
     case BIO_CB_RECVMMSG:
         args = (BIO_MMSG_CB_ARGS *)argp;
         BIO_snprintf(p, left, "recvmmsg(%zu) - %s",
-                     args->num_msg, bio->method->name);
+            args->num_msg, bio->method->name);
         break;
     case BIO_CB_SENDMMSG:
         args = (BIO_MMSG_CB_ARGS *)argp;
         BIO_snprintf(p, left, "sendmmsg(%zu) - %s",
-                     args->num_msg, bio->method->name);
+            args->num_msg, bio->method->name);
         break;
     case BIO_CB_RETURN | BIO_CB_READ:
         BIO_snprintf(p, left, "read return %d processed: %zu\n", ret, l);
@@ -121,14 +121,14 @@ long BIO_debug_callback_ex(BIO *bio, int cmd, const char *argp, size_t len,
 
 #ifndef OPENSSL_NO_DEPRECATED_3_0
 long BIO_debug_callback(BIO *bio, int cmd, const char *argp,
-                        int argi, long argl, long ret)
+    int argi, long argl, long ret)
 {
     size_t processed = 0;
 
     if (ret > 0)
         processed = (size_t)ret;
     BIO_debug_callback_ex(bio, cmd, argp, (size_t)argi,
-                          argi, argl, ret > 0 ? 1 : (int)ret, &processed);
+        argi, argl, ret > 0 ? 1 : (int)ret, &processed);
     return ret;
 }
 #endif

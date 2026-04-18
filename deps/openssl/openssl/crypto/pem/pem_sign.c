@@ -20,13 +20,13 @@ int PEM_SignInit(EVP_MD_CTX *ctx, EVP_MD *type)
 }
 
 int PEM_SignUpdate(EVP_MD_CTX *ctx,
-                   const unsigned char *data, unsigned int count)
+    const unsigned char *data, unsigned int count)
 {
     return EVP_DigestUpdate(ctx, data, count);
 }
 
 int PEM_SignFinal(EVP_MD_CTX *ctx, unsigned char *sigret,
-                  unsigned int *siglen, EVP_PKEY *pkey)
+    unsigned int *siglen, EVP_PKEY *pkey)
 {
     unsigned char *m;
     int i, ret = 0;
@@ -42,7 +42,7 @@ int PEM_SignFinal(EVP_MD_CTX *ctx, unsigned char *sigret,
     i = EVP_EncodeBlock(sigret, m, m_len);
     *siglen = i;
     ret = 1;
- err:
+err:
     /* ctx has been zeroed by EVP_SignFinal() */
     OPENSSL_free(m);
     return ret;

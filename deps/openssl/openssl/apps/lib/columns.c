@@ -24,4 +24,3 @@ void calculate_columns(FUNCTION *functions, DISPLAY_COLUMNS *dc)
     dc->width = maxlen + 2;
     dc->columns = (80 - 1) / dc->width;
 }
-

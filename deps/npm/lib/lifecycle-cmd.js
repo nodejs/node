@@ -1,7 +1,7 @@
 const BaseCommand = require('./base-cmd.js')
 
 // The implementation of commands that are just "run a script"
-// restart, start, stop, test
+// e.g. restart, start, stop, test
 class LifecycleCmd extends BaseCommand {
   static usage = ['[-- <args>]']
   static isShellout = true

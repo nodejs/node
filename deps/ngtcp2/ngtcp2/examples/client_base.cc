@@ -43,150 +43,22 @@ static ngtcp2_conn *get_conn(ngtcp2_crypto_conn_ref *conn_ref) {
   return c->conn();
 }
 
-ClientBase::ClientBase()
-  : conn_ref_{get_conn, this},
-    qlog_(nullptr),
-    conn_(nullptr),
-    ticket_received_(false) {
+ClientBase::ClientBase() : conn_ref_{get_conn, this} {
   ngtcp2_ccerr_default(&last_error_);
 }
 
 ClientBase::~ClientBase() {
   if (conn_) {
+    if (config.show_stat) {
+      debug::print_conn_info(conn_);
+    }
+
     ngtcp2_conn_del(conn_);
   }
 
   if (qlog_) {
     fclose(qlog_);
   }
-}
-
-int ClientBase::write_transport_params(const char *path,
-                                       const ngtcp2_transport_params *params) {
-  auto f = std::ofstream(path);
-  if (!f) {
-    return -1;
-  }
-
-  f << "initial_max_streams_bidi=" << params->initial_max_streams_bidi << '\n'
-    << "initial_max_streams_uni=" << params->initial_max_streams_uni << '\n'
-    << "initial_max_stream_data_bidi_local="
-    << params->initial_max_stream_data_bidi_local << '\n'
-    << "initial_max_stream_data_bidi_remote="
-    << params->initial_max_stream_data_bidi_remote << '\n'
-    << "initial_max_stream_data_uni=" << params->initial_max_stream_data_uni
-    << '\n'
-    << "initial_max_data=" << params->initial_max_data << '\n'
-    << "active_connection_id_limit=" << params->active_connection_id_limit
-    << '\n'
-    << "max_datagram_frame_size=" << params->max_datagram_frame_size << '\n';
-
-  f.close();
-  if (!f) {
-    return -1;
-  }
-
-  return 0;
-}
-
-int ClientBase::read_transport_params(const char *path,
-                                      ngtcp2_transport_params *params) {
-  auto f = std::ifstream(path);
-  if (!f) {
-    return -1;
-  }
-
-  for (std::string line; std::getline(f, line);) {
-    if (util::istarts_with(line, "initial_max_streams_bidi="sv)) {
-      if (auto n = util::parse_uint(line.c_str() +
-                                    "initial_max_streams_bidi="sv.size());
-          !n) {
-        return -1;
-      } else {
-        params->initial_max_streams_bidi = *n;
-      }
-      continue;
-    }
-
-    if (util::istarts_with(line, "initial_max_streams_uni="sv)) {
-      if (auto n = util::parse_uint(line.c_str() +
-                                    "initial_max_streams_uni="sv.size());
-          !n) {
-        return -1;
-      } else {
-        params->initial_max_streams_uni = *n;
-      }
-      continue;
-    }
-
-    if (util::istarts_with(line, "initial_max_stream_data_bidi_local="sv)) {
-      if (auto n = util::parse_uint(
-            line.c_str() + "initial_max_stream_data_bidi_local="sv.size());
-          !n) {
-        return -1;
-      } else {
-        params->initial_max_stream_data_bidi_local = *n;
-      }
-      continue;
-    }
-
-    if (util::istarts_with(line, "initial_max_stream_data_bidi_remote="sv)) {
-      if (auto n = util::parse_uint(
-            line.c_str() + "initial_max_stream_data_bidi_remote="sv.size());
-          !n) {
-        return -1;
-      } else {
-        params->initial_max_stream_data_bidi_remote = *n;
-      }
-      continue;
-    }
-
-    if (util::istarts_with(line, "initial_max_stream_data_uni="sv)) {
-      if (auto n = util::parse_uint(line.c_str() +
-                                    "initial_max_stream_data_uni="sv.size());
-          !n) {
-        return -1;
-      } else {
-        params->initial_max_stream_data_uni = *n;
-      }
-      continue;
-    }
-
-    if (util::istarts_with(line, "initial_max_data="sv)) {
-      if (auto n =
-            util::parse_uint(line.c_str() + "initial_max_data="sv.size());
-          !n) {
-        return -1;
-      } else {
-        params->initial_max_data = *n;
-      }
-      continue;
-    }
-
-    if (util::istarts_with(line, "active_connection_id_limit="sv)) {
-      if (auto n = util::parse_uint(line.c_str() +
-                                    "active_connection_id_limit="sv.size());
-          !n) {
-        return -1;
-      } else {
-        params->active_connection_id_limit = *n;
-      }
-      continue;
-    }
-
-    if (util::istarts_with(line, "max_datagram_frame_size="sv)) {
-      if (auto n = util::parse_uint(line.c_str() +
-                                    "max_datagram_frame_size="sv.size());
-          !n) {
-        return -1;
-      } else {
-        params->max_datagram_frame_size = *n;
-      }
-      continue;
-    }
-  }
-
-  return 0;
 }
 
 ngtcp2_conn *ClientBase::conn() const { return conn_; }

@@ -18,7 +18,6 @@
 #include <openssl/err.h>
 #include "fuzzer.h"
 
-
 int FuzzerInitialize(int *argc, char ***argv)
 {
     OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
@@ -92,7 +91,7 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
         putchar('\n');
     }
 
- done:
+done:
     OPENSSL_assert(success);
     BN_free(b1);
     BN_free(b2);

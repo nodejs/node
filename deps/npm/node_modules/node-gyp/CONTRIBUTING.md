@@ -1,5 +1,13 @@
 # Contributing to node-gyp
 
+## Making changes to gyp-next
+
+Changes in the subfolder `gyp/` should be submitted to the
+[`gyp-next`][] repository first. The `gyp/` folder is regularly
+synced from [`gyp-next`][] with GitHub Actions workflow
+[`update-gyp-next.yml`](.github/workflows/update-gyp-next.yml),
+and any changes in this folder would be overridden by the workflow.
+
 ## Code of Conduct
 
 Please read the
@@ -32,3 +40,5 @@ By making a contribution to this project, I certify that:
   personal information I submit with it, including my sign-off) is
   maintained indefinitely and may be redistributed consistent with
   this project or the open source license(s) involved.
+
+[`gyp-next`]: https://github.com/nodejs/gyp-next

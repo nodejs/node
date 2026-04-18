@@ -41,20 +41,28 @@ template <std::unsigned_integral T>
   return static_cast<std::make_signed_t<T>>(n);
 }
 
-// inspired by <http://blog.korfuri.fr/post/go-defer-in-cpp/>, but our
-// template can take functions returning other than void.
-template <typename F, typename... T> struct Defer {
-  Defer(F &&f, T &&...t)
-    : f(std::bind(std::forward<F>(f), std::forward<T>(t)...)) {}
-  Defer(Defer &&o) noexcept : f(std::move(o.f)) {}
+template <typename T, std::size_t N>
+[[nodiscard]] auto as_uint8_span(std::span<T, N> s) noexcept {
+  return std::span<const uint8_t, N == std::dynamic_extent ? std::dynamic_extent
+                                                           : N * sizeof(T)>{
+    reinterpret_cast<const uint8_t *>(s.data()), s.size_bytes()};
+}
+
+template <typename F> struct Defer {
+  explicit Defer(F &&f) noexcept(std::is_nothrow_constructible_v<F, F &&>)
+    : f(std::forward<F>(f)) {}
   ~Defer() { f(); }
 
-  using ResultType = std::invoke_result_t<F, T...>;
-  std::function<ResultType()> f;
+  Defer(Defer &&o) = delete;
+  Defer(const Defer &) = delete;
+  Defer &operator=(const Defer &) = delete;
+  Defer &operator=(Defer &&) = delete;
+
+  F f;
 };
 
-template <typename F, typename... T> Defer<F, T...> defer(F &&f, T &&...t) {
-  return Defer<F, T...>(std::forward<F>(f), std::forward<T>(t)...);
+template <typename F> [[nodiscard]] Defer<std::decay_t<F>> defer(F &&f) {
+  return Defer<std::decay_t<F>>(std::forward<F>(f));
 }
 
 template <typename T, size_t N> constexpr size_t array_size(T (&)[N]) {
@@ -86,6 +94,18 @@ as_writable_uint8_span(std::span<T, N> s) noexcept {
   return std::span<uint8_t, N == std::dynamic_extent ? std::dynamic_extent
                                                      : N * sizeof(T)>{
     reinterpret_cast<uint8_t *>(s.data()), s.size_bytes()};
+}
+
+template <typename R>
+requires(std::ranges::contiguous_range<R> && std::ranges::sized_range<R> &&
+         std::ranges::borrowed_range<R> &&
+         !std::is_array_v<std::remove_cvref_t<R>> &&
+         sizeof(std::ranges::range_value_t<R>) ==
+           sizeof(std::string_view::value_type))
+[[nodiscard]] std::string_view as_string_view(R &&r) {
+  return std::string_view{
+    reinterpret_cast<std::string_view::const_pointer>(std::ranges::data(r)),
+    std::ranges::size(r)};
 }
 
 #endif // !defined(TEMPLATE_H)

@@ -11,6 +11,9 @@ if (!common.isLinux)
   common.skip('linux only');
 if (common.isASan)
   common.skip('strace does not work well with address sanitizer builds');
+if (process.config.variables.node_shared_openssl) {
+  common.skip('external shared openssl may open other files');
+}
 if (spawnSync('strace').error !== undefined) {
   common.skip('missing strace');
 }
@@ -32,7 +35,7 @@ if (spawnSync('strace').error !== undefined) {
 
   // stderr is the default for strace
   const rl = createInterface({ input: strace.stderr });
-  rl.on('line', (line) => {
+  rl.on('line', common.mustCallAtLeast((line) => {
     if (!line.startsWith('open')) {
       return;
     }
@@ -48,7 +51,7 @@ if (spawnSync('strace').error !== undefined) {
     }
 
     assert(allowedOpenCalls.delete(file), `${file} is not in the list of allowed openat calls`);
-  });
+  }));
   const debugOutput = [];
   strace.stderr.setEncoding('utf8');
   strace.stderr.on('data', (chunk) => {

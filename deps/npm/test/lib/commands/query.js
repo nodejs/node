@@ -236,6 +236,98 @@ t.test('package-lock-only', t => {
     await npm.exec('query', ['*'])
     t.matchSnapshot(joinedOutput(), 'should return valid response with only lock info')
   })
+
+  t.test('with package lock and workspace', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      config: {
+        'package-lock-only': true,
+        workspace: ['a'],
+      },
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: 'root',
+          workspaces: ['packages/*'],
+        }),
+        'package-lock.json': JSON.stringify({
+          name: 'root',
+          lockfileVersion: 3,
+          requires: true,
+          packages: {
+            '': {
+              name: 'root',
+              workspaces: ['packages/*'],
+            },
+            'node_modules/a': {
+              resolved: 'packages/a',
+              link: true,
+            },
+            'packages/a': {
+              name: 'a',
+              version: '1.0.0',
+            },
+          },
+        }),
+        packages: {
+          a: {
+            'package.json': JSON.stringify({
+              name: 'a',
+              version: '1.0.0',
+            }),
+          },
+        },
+      },
+    })
+    await npm.exec('query', ['*'])
+    t.matchSnapshot(joinedOutput(), 'should return workspace object with package-lock-only')
+  })
+
+  t.test('no package lock and workspace', async t => {
+    const { npm } = await loadMockNpm(t, {
+      config: {
+        'package-lock-only': true,
+        workspace: ['a'],
+      },
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: 'root',
+          workspaces: ['packages/*'],
+        }),
+        packages: {
+          a: {
+            'package.json': JSON.stringify({
+              name: 'a',
+              version: '1.0.0',
+            }),
+          },
+        },
+      },
+    })
+    await t.rejects(npm.exec('query', ['*']), { code: 'EUSAGE' })
+  })
+
+  t.test('missing workspace in tree', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      config: {
+        workspace: ['a'],
+      },
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: 'root',
+          workspaces: ['packages/*'],
+        }),
+        packages: {
+          a: {
+            'package.json': JSON.stringify({
+              name: 'a',
+              version: '1.0.0',
+            }),
+          },
+        },
+      },
+    })
+    await npm.exec('query', ['*'])
+    t.matchSnapshot(joinedOutput(), 'should return empty array for missing workspace')
+  })
   t.end()
 })
 

@@ -393,20 +393,20 @@ class U_I18N_API FormattedRelativeDateTime : public UMemory, public FormattedVal
  *
  * @stable ICU 53
  */
-class U_I18N_API RelativeDateTimeFormatter : public UObject {
+class U_I18N_API_CLASS RelativeDateTimeFormatter : public UObject {
 public:
 
     /**
      * Create RelativeDateTimeFormatter with default locale.
      * @stable ICU 53
      */
-    RelativeDateTimeFormatter(UErrorCode& status);
+    U_I18N_API RelativeDateTimeFormatter(UErrorCode& status);
 
     /**
      * Create RelativeDateTimeFormatter with given locale.
      * @stable ICU 53
      */
-    RelativeDateTimeFormatter(const Locale& locale, UErrorCode& status);
+    U_I18N_API RelativeDateTimeFormatter(const Locale& locale, UErrorCode& status);
 
     /**
      * Create RelativeDateTimeFormatter with given locale and NumberFormat.
@@ -418,7 +418,7 @@ public:
      * @param status Any error is returned here.
      * @stable ICU 53
      */
-    RelativeDateTimeFormatter(
+    U_I18N_API RelativeDateTimeFormatter(
         const Locale& locale, NumberFormat *nfToAdopt, UErrorCode& status);
 
     /**
@@ -436,7 +436,7 @@ public:
      * @param status Any error is returned here.
      * @stable ICU 54
      */
-    RelativeDateTimeFormatter(
+    U_I18N_API RelativeDateTimeFormatter(
             const Locale& locale,
             NumberFormat *nfToAdopt,
             UDateRelativeDateTimeFormatterStyle style,
@@ -447,20 +447,20 @@ public:
      * Copy constructor.
      * @stable ICU 53
      */
-    RelativeDateTimeFormatter(const RelativeDateTimeFormatter& other);
+    U_I18N_API RelativeDateTimeFormatter(const RelativeDateTimeFormatter& other);
 
     /**
      * Assignment operator.
      * @stable ICU 53
      */
-    RelativeDateTimeFormatter& operator=(
+    U_I18N_API RelativeDateTimeFormatter& operator=(
             const RelativeDateTimeFormatter& other);
 
     /**
      * Destructor.
      * @stable ICU 53
      */
-    virtual ~RelativeDateTimeFormatter();
+    U_I18N_API virtual ~RelativeDateTimeFormatter();
 
     /**
      * Formats a relative date with a quantity such as "in 5 days" or
@@ -481,7 +481,7 @@ public:
      * @return appendTo
      * @stable ICU 53
      */
-    UnicodeString& format(
+    U_I18N_API UnicodeString& format(
             double quantity,
             UDateDirection direction,
             UDateRelativeUnit unit,
@@ -505,7 +505,7 @@ public:
      * @return The formatted relative datetime
      * @stable ICU 64
      */
-    FormattedRelativeDateTime formatToValue(
+    U_I18N_API FormattedRelativeDateTime formatToValue(
             double quantity,
             UDateDirection direction,
             UDateRelativeUnit unit,
@@ -527,7 +527,7 @@ public:
      * @return appendTo
      * @stable ICU 53
      */
-    UnicodeString& format(
+    U_I18N_API UnicodeString& format(
             UDateDirection direction,
             UDateAbsoluteUnit unit,
             UnicodeString& appendTo,
@@ -548,7 +548,7 @@ public:
      * @return The formatted relative datetime
      * @stable ICU 64
      */
-    FormattedRelativeDateTime formatToValue(
+    U_I18N_API FormattedRelativeDateTime formatToValue(
             UDateDirection direction,
             UDateAbsoluteUnit unit,
             UErrorCode& status) const;
@@ -573,7 +573,7 @@ public:
      * @return          appendTo
      * @stable ICU 57
      */
-    UnicodeString& formatNumeric(
+    U_I18N_API UnicodeString& formatNumeric(
             double offset,
             URelativeDateTimeUnit unit,
             UnicodeString& appendTo,
@@ -597,7 +597,7 @@ public:
      * @return          The formatted relative datetime
      * @stable ICU 64
      */
-    FormattedRelativeDateTime formatNumericToValue(
+    U_I18N_API FormattedRelativeDateTime formatNumericToValue(
             double offset,
             URelativeDateTimeUnit unit,
             UErrorCode& status) const;
@@ -622,7 +622,7 @@ public:
      * @return          appendTo
      * @stable ICU 57
      */
-    UnicodeString& format(
+    U_I18N_API UnicodeString& format(
             double offset,
             URelativeDateTimeUnit unit,
             UnicodeString& appendTo,
@@ -646,7 +646,7 @@ public:
      * @return          The formatted relative datetime
      * @stable ICU 64
      */
-    FormattedRelativeDateTime formatToValue(
+    U_I18N_API FormattedRelativeDateTime formatToValue(
             double offset,
             URelativeDateTimeUnit unit,
             UErrorCode& status) const;
@@ -663,7 +663,7 @@ public:
      * @return appendTo
      * @stable ICU 53
      */
-    UnicodeString& combineDateAndTime(
+    U_I18N_API UnicodeString& combineDateAndTime(
             const UnicodeString& relativeDateString,
             const UnicodeString& timeString,
             UnicodeString& appendTo,
@@ -674,21 +674,21 @@ public:
      *
      * @stable ICU 53
      */
-    const NumberFormat& getNumberFormat() const;
+    U_I18N_API const NumberFormat& getNumberFormat() const;
 
     /**
      * Returns the capitalization context.
      *
      * @stable ICU 54
      */
-    UDisplayContext getCapitalizationContext() const;
+    U_I18N_API UDisplayContext getCapitalizationContext() const;
 
     /**
      * Returns the format style.
      *
      * @stable ICU 54
      */
-    UDateRelativeDateTimeFormatterStyle getFormatStyle() const;
+    U_I18N_API UDateRelativeDateTimeFormatterStyle getFormatStyle() const;
 
 private:
     const RelativeDateTimeCacheData* fCache;

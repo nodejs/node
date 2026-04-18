@@ -11,7 +11,7 @@
 #include "internal/refcount.h"
 #include "internal/ffc.h"
 
-#define DH_MIN_MODULUS_BITS     512
+#define DH_MIN_MODULUS_BITS 512
 
 struct dh_st {
     /*
@@ -23,8 +23,8 @@ struct dh_st {
     FFC_PARAMS params;
     /* max generated private key length (can be less than len(q)) */
     int32_t length;
-    BIGNUM *pub_key;            /* g^x % p */
-    BIGNUM *priv_key;           /* x */
+    BIGNUM *pub_key; /* g^x % p */
+    BIGNUM *priv_key; /* x */
     int flags;
     BN_MONT_CTX *method_mont_p;
     CRYPTO_REF_COUNT references;
@@ -43,18 +43,18 @@ struct dh_st {
 struct dh_method {
     char *name;
     /* Methods here */
-    int (*generate_key) (DH *dh);
-    int (*compute_key) (unsigned char *key, const BIGNUM *pub_key, DH *dh);
+    int (*generate_key)(DH *dh);
+    int (*compute_key)(unsigned char *key, const BIGNUM *pub_key, DH *dh);
 
     /* Can be null */
-    int (*bn_mod_exp) (const DH *dh, BIGNUM *r, const BIGNUM *a,
-                       const BIGNUM *p, const BIGNUM *m, BN_CTX *ctx,
-                       BN_MONT_CTX *m_ctx);
-    int (*init) (DH *dh);
-    int (*finish) (DH *dh);
+    int (*bn_mod_exp)(const DH *dh, BIGNUM *r, const BIGNUM *a,
+        const BIGNUM *p, const BIGNUM *m, BN_CTX *ctx,
+        BN_MONT_CTX *m_ctx);
+    int (*init)(DH *dh);
+    int (*finish)(DH *dh);
     int flags;
     char *app_data;
     /* If this is non-NULL, it will be used to generate parameters */
-    int (*generate_params) (DH *dh, int prime_len, int generator,
-                            BN_GENCB *cb);
+    int (*generate_params)(DH *dh, int prime_len, int generator,
+        BN_GENCB *cb);
 };

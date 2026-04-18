@@ -52,7 +52,10 @@ const {
   kOnError,
   kHTTPContext,
   kMaxConcurrentStreams,
-  kResume
+  kHTTP2InitialWindowSize,
+  kHTTP2ConnectionWindowSize,
+  kResume,
+  kPingInterval
 } = require('../core/symbols.js')
 const connectH1 = require('./client-h1.js')
 const connectH2 = require('./client-h2.js')
@@ -66,7 +69,7 @@ const getDefaultNodeMaxHeaderSize = http &&
   ? () => http.maxHeaderSize
   : () => { throw new InvalidArgumentError('http module not available or http.maxHeaderSize invalid') }
 
-const noop = () => {}
+const noop = () => { }
 
 function getPipelining (client) {
   return client[kPipelining] ?? client[kHTTPContext]?.defaultPipelining ?? 1
@@ -107,7 +110,12 @@ class Client extends DispatcherBase {
     autoSelectFamilyAttemptTimeout,
     // h2
     maxConcurrentStreams,
-    allowH2
+    allowH2,
+    useH2c,
+    initialWindowSize,
+    connectionWindowSize,
+    pingInterval,
+    webSocket
   } = {}) {
     if (keepAlive !== undefined) {
       throw new InvalidArgumentError('unsupported keepAlive, use pipelining=0 instead')
@@ -199,18 +207,42 @@ class Client extends DispatcherBase {
       throw new InvalidArgumentError('maxConcurrentStreams must be a positive integer, greater than 0')
     }
 
-    super()
+    if (useH2c != null && typeof useH2c !== 'boolean') {
+      throw new InvalidArgumentError('useH2c must be a valid boolean value')
+    }
+
+    if (initialWindowSize != null && (!Number.isInteger(initialWindowSize) || initialWindowSize < 1)) {
+      throw new InvalidArgumentError('initialWindowSize must be a positive integer, greater than 0')
+    }
+
+    if (connectionWindowSize != null && (!Number.isInteger(connectionWindowSize) || connectionWindowSize < 1)) {
+      throw new InvalidArgumentError('connectionWindowSize must be a positive integer, greater than 0')
+    }
+
+    if (pingInterval != null && (typeof pingInterval !== 'number' || !Number.isInteger(pingInterval) || pingInterval < 0)) {
+      throw new InvalidArgumentError('pingInterval must be a positive integer, greater or equal to 0')
+    }
+
+    super({ webSocket })
 
     if (typeof connect !== 'function') {
       connect = buildConnector({
         ...tls,
         maxCachedSessions,
         allowH2,
+        useH2c,
         socketPath,
         timeout: connectTimeout,
         ...(typeof autoSelectFamily === 'boolean' ? { autoSelectFamily, autoSelectFamilyAttemptTimeout } : undefined),
         ...connect
       })
+    } else {
+      const customConnect = connect
+      connect = (opts, callback) => customConnect({
+        ...opts,
+        ...(socketPath != null ? { socketPath } : null),
+        ...(allowH2 != null ? { allowH2 } : null)
+      }, callback)
     }
 
     this[kUrl] = util.parseOrigin(url)
@@ -232,8 +264,18 @@ class Client extends DispatcherBase {
     this[kMaxRequests] = maxRequestsPerClient
     this[kClosedResolve] = null
     this[kMaxResponseSize] = maxResponseSize > -1 ? maxResponseSize : -1
-    this[kMaxConcurrentStreams] = maxConcurrentStreams != null ? maxConcurrentStreams : 100 // Max peerConcurrentStreams for a Node h2 server
     this[kHTTPContext] = null
+    // h2
+    this[kMaxConcurrentStreams] = maxConcurrentStreams != null ? maxConcurrentStreams : 100 // Max peerConcurrentStreams for a Node h2 server
+    // HTTP/2 window sizes are set to higher defaults than Node.js core for better performance:
+    // - initialWindowSize: 262144 (256KB) vs Node.js default 65535 (64KB - 1)
+    //   Allows more data to be sent before requiring acknowledgment, improving throughput
+    //   especially on high-latency networks. This matches common production HTTP/2 servers.
+    // - connectionWindowSize: 524288 (512KB) vs Node.js default (none set)
+    //   Provides better flow control for the entire connection across multiple streams.
+    this[kHTTP2InitialWindowSize] = initialWindowSize != null ? initialWindowSize : 262144
+    this[kHTTP2ConnectionWindowSize] = connectionWindowSize != null ? connectionWindowSize : 524288
+    this[kPingInterval] = pingInterval != null ? pingInterval : 60e3 // Default ping interval for h2 - 1 minute
 
     // kQueue is built up of 3 sections separated by
     // the kRunningIdx and kPendingIdx indices.
@@ -289,7 +331,6 @@ class Client extends DispatcherBase {
     )
   }
 
-  /* istanbul ignore: only used for test */
   [kConnect] (cb) {
     connect(this)
     this.once('connect', cb)
@@ -416,65 +457,70 @@ function connect (client) {
     })
   }
 
-  client[kConnector]({
-    host,
-    hostname,
-    protocol,
-    port,
-    servername: client[kServerName],
-    localAddress: client[kLocalAddress]
-  }, (err, socket) => {
-    if (err) {
-      handleConnectError(client, err, { host, hostname, protocol, port })
+  try {
+    client[kConnector]({
+      host,
+      hostname,
+      protocol,
+      port,
+      servername: client[kServerName],
+      localAddress: client[kLocalAddress]
+    }, (err, socket) => {
+      if (err) {
+        handleConnectError(client, err, { host, hostname, protocol, port })
+        client[kResume]()
+        return
+      }
+
+      if (client.destroyed) {
+        util.destroy(socket.on('error', noop), new ClientDestroyedError())
+        client[kResume]()
+        return
+      }
+
+      assert(socket)
+
+      try {
+        client[kHTTPContext] = socket.alpnProtocol === 'h2'
+          ? connectH2(client, socket)
+          : connectH1(client, socket)
+      } catch (err) {
+        socket.destroy().on('error', noop)
+        handleConnectError(client, err, { host, hostname, protocol, port })
+        client[kResume]()
+        return
+      }
+
+      client[kConnecting] = false
+
+      socket[kCounter] = 0
+      socket[kMaxRequests] = client[kMaxRequests]
+      socket[kClient] = client
+      socket[kError] = null
+
+      if (channels.connected.hasSubscribers) {
+        channels.connected.publish({
+          connectParams: {
+            host,
+            hostname,
+            protocol,
+            port,
+            version: client[kHTTPContext]?.version,
+            servername: client[kServerName],
+            localAddress: client[kLocalAddress]
+          },
+          connector: client[kConnector],
+          socket
+        })
+      }
+
+      client.emit('connect', client[kUrl], [client])
       client[kResume]()
-      return
-    }
-
-    if (client.destroyed) {
-      util.destroy(socket.on('error', noop), new ClientDestroyedError())
-      client[kResume]()
-      return
-    }
-
-    assert(socket)
-
-    try {
-      client[kHTTPContext] = socket.alpnProtocol === 'h2'
-        ? connectH2(client, socket)
-        : connectH1(client, socket)
-    } catch (err) {
-      socket.destroy().on('error', noop)
-      handleConnectError(client, err, { host, hostname, protocol, port })
-      client[kResume]()
-      return
-    }
-
-    client[kConnecting] = false
-
-    socket[kCounter] = 0
-    socket[kMaxRequests] = client[kMaxRequests]
-    socket[kClient] = client
-    socket[kError] = null
-
-    if (channels.connected.hasSubscribers) {
-      channels.connected.publish({
-        connectParams: {
-          host,
-          hostname,
-          protocol,
-          port,
-          version: client[kHTTPContext]?.version,
-          servername: client[kServerName],
-          localAddress: client[kLocalAddress]
-        },
-        connector: client[kConnector],
-        socket
-      })
-    }
-
-    client.emit('connect', client[kUrl], [client])
+    })
+  } catch (err) {
+    handleConnectError(client, err, { host, hostname, protocol, port })
     client[kResume]()
-  })
+  }
 }
 
 function handleConnectError (client, err, { host, hostname, protocol, port }) {
@@ -573,6 +619,10 @@ function _resume (client, sync) {
     }
 
     const request = client[kQueue][client[kPendingIdx]]
+
+    if (request === null) {
+      return
+    }
 
     if (client[kUrl].protocol === 'https:' && client[kServerName] !== request.servername) {
       if (client[kRunning] > 0) {

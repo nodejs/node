@@ -55,6 +55,19 @@
 #include "ares_inet_net_pton.h"
 
 #if defined(USE_WINSOCK)
+
+#  define WIN_NS_9X     "System\\CurrentControlSet\\Services\\VxD\\MSTCP"
+#  define WIN_DNSCLIENT "Software\\Policies\\Microsoft\\System\\DNSClient"
+#  define WIN_NT_DNSCLIENT \
+    "Software\\Policies\\Microsoft\\Windows NT\\DNSClient"
+#  define NAMESERVER           "NameServer"
+#  define DHCPNAMESERVER       "DhcpNameServer"
+#  define SEARCHLIST_KEY       L"SearchList"
+#  define PRIMARYDNSSUFFIX_KEY L"PrimaryDNSSuffix"
+#  define INTERFACES_KEY       "Interfaces"
+#  define DOMAIN_KEY           L"Domain"
+#  define DHCPDOMAIN_KEY       L"DhcpDomain"
+
 /*
  * get_REG_SZ()
  *
@@ -69,37 +82,47 @@
  *
  * Supported on Windows NT 3.5 and newer.
  */
-static ares_bool_t get_REG_SZ(HKEY hKey, const char *leafKeyName, char **outptr)
+static ares_bool_t get_REG_SZ(HKEY hKey, const WCHAR *leafKeyName, char **outptr)
 {
-  DWORD size = 0;
-  int   res;
+  DWORD  size = 0;
+  int    res;
+  int    len;
+  WCHAR *val = NULL;
 
   *outptr = NULL;
 
   /* Find out size of string stored in registry */
-  res = RegQueryValueExA(hKey, leafKeyName, 0, NULL, NULL, &size);
+  res = RegQueryValueExW(hKey, leafKeyName, 0, NULL, NULL, &size);
   if ((res != ERROR_SUCCESS && res != ERROR_MORE_DATA) || !size) {
     return ARES_FALSE;
   }
 
   /* Allocate buffer of indicated size plus one given that string
      might have been stored without null termination */
-  *outptr = ares_malloc(size + 1);
-  if (!*outptr) {
+  val = ares_malloc_zero(size + sizeof(WCHAR));
+  if (val == NULL) {
     return ARES_FALSE;
   }
 
   /* Get the value for real */
-  res = RegQueryValueExA(hKey, leafKeyName, 0, NULL, (unsigned char *)*outptr,
-                         &size);
-  if ((res != ERROR_SUCCESS) || (size == 1)) {
+  res = RegQueryValueExW(hKey, leafKeyName, 0, NULL, (BYTE *)val, &size);
+  if (res != ERROR_SUCCESS || size == 1) {
+    ares_free(val);
+    return ARES_FALSE;
+  }
+
+  /* Convert to UTF8 */
+  len = WideCharToMultiByte(CP_UTF8, 0, val, -1, NULL, 0, NULL, NULL);
+  if (len == 0) {
+    return ARES_FALSE;
+  }
+  *outptr = ares_malloc_zero((size_t)len + 1);
+  if (WideCharToMultiByte(CP_UTF8, 0, val, -1, *outptr, len, NULL, NULL)
+    == 0) {
     ares_free(*outptr);
     *outptr = NULL;
     return ARES_FALSE;
   }
-
-  /* Null terminate buffer always */
-  *(*outptr + size) = '\0';
 
   return ARES_TRUE;
 }
@@ -132,6 +155,14 @@ static void commanjoin(char **dst, const char * const src, const size_t len)
  */
 static void commajoin(char **dst, const char *src)
 {
+  commanjoin(dst, src, ares_strlen(src));
+}
+
+static void commajoin_asciionly(char **dst, const char *src)
+{
+  if (!ares_str_isprint(src, ares_strlen(src))) {
+    return;
+  }
   commanjoin(dst, src, ares_strlen(src));
 }
 
@@ -523,7 +554,7 @@ static ares_bool_t get_SuffixList_Windows(char **outptr)
       ERROR_SUCCESS) {
     get_REG_SZ(hKey, SEARCHLIST_KEY, outptr);
     if (get_REG_SZ(hKey, DOMAIN_KEY, &p)) {
-      commajoin(outptr, p);
+      commajoin_asciionly(outptr, p);
       ares_free(p);
       p = NULL;
     }
@@ -533,7 +564,7 @@ static ares_bool_t get_SuffixList_Windows(char **outptr)
   if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, WIN_NT_DNSCLIENT, 0, KEY_READ, &hKey) ==
       ERROR_SUCCESS) {
     if (get_REG_SZ(hKey, SEARCHLIST_KEY, &p)) {
-      commajoin(outptr, p);
+      commajoin_asciionly(outptr, p);
       ares_free(p);
       p = NULL;
     }
@@ -545,7 +576,7 @@ static ares_bool_t get_SuffixList_Windows(char **outptr)
   if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, WIN_DNSCLIENT, 0, KEY_READ, &hKey) ==
       ERROR_SUCCESS) {
     if (get_REG_SZ(hKey, PRIMARYDNSSUFFIX_KEY, &p)) {
-      commajoin(outptr, p);
+      commajoin_asciionly(outptr, p);
       ares_free(p);
       p = NULL;
     }
@@ -567,17 +598,17 @@ static ares_bool_t get_SuffixList_Windows(char **outptr)
       }
       /* p can be comma separated (SearchList) */
       if (get_REG_SZ(hKeyEnum, SEARCHLIST_KEY, &p)) {
-        commajoin(outptr, p);
+        commajoin_asciionly(outptr, p);
         ares_free(p);
         p = NULL;
       }
       if (get_REG_SZ(hKeyEnum, DOMAIN_KEY, &p)) {
-        commajoin(outptr, p);
+        commajoin_asciionly(outptr, p);
         ares_free(p);
         p = NULL;
       }
       if (get_REG_SZ(hKeyEnum, DHCPDOMAIN_KEY, &p)) {
-        commajoin(outptr, p);
+        commajoin_asciionly(outptr, p);
         ares_free(p);
         p = NULL;
       }

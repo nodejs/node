@@ -11,12 +11,12 @@ const childType = ['child-encoding', 'child-non-encoding'];
 if (process.argv[2] === childType[0]) {
   fs.readFile('/dev/stdin', 'utf8').then((data) => {
     process.stdout.write(data);
-  });
+  }).then(common.mustCall());
   return;
 } else if (process.argv[2] === childType[1]) {
   fs.readFile('/dev/stdin').then((data) => {
     process.stdout.write(data);
-  });
+  }).then(common.mustCall());
   return;
 }
 

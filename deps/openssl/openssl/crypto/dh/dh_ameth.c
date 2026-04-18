@@ -32,7 +32,7 @@
  */
 
 static DH *d2i_dhp(const EVP_PKEY *pkey, const unsigned char **pp,
-                   long length)
+    long length)
 {
     DH *dh = NULL;
     int is_dhx = (pkey->ameth == &ossl_dhx_asn1_meth);
@@ -102,7 +102,7 @@ static int dh_pub_decode(EVP_PKEY *pkey, const X509_PUBKEY *pubkey)
     EVP_PKEY_assign(pkey, pkey->ameth->pkey_id, dh);
     return 1;
 
- err:
+err:
     ASN1_INTEGER_free(public_key);
     DH_free(dh);
     return 0;
@@ -145,10 +145,10 @@ static int dh_pub_encode(X509_PUBKEY *pk, const EVP_PKEY *pkey)
     }
 
     if (X509_PUBKEY_set0_param(pk, OBJ_nid2obj(pkey->ameth->pkey_id),
-                               ptype, str, penc, penclen))
+            ptype, str, penc, penclen))
         return 1;
 
- err:
+err:
     OPENSSL_free(penc);
     ASN1_STRING_free(str);
 
@@ -213,19 +213,19 @@ static int dh_priv_encode(PKCS8_PRIV_KEY_INFO *p8, const EVP_PKEY *pkey)
     }
 
     if (!PKCS8_pkey_set0(p8, OBJ_nid2obj(pkey->ameth->pkey_id), 0,
-                         V_ASN1_SEQUENCE, params, dp, dplen)) {
+            V_ASN1_SEQUENCE, params, dp, dplen)) {
         OPENSSL_clear_free(dp, dplen);
         goto err;
     }
     return 1;
 
- err:
+err:
     ASN1_STRING_free(params);
     return 0;
 }
 
 static int dh_param_decode(EVP_PKEY *pkey,
-                           const unsigned char **pder, int derlen)
+    const unsigned char **pder, int derlen)
 {
     DH *dh;
 
@@ -258,7 +258,7 @@ static int do_dh_print(BIO *bp, const DH *x, int indent, int ptype)
         pub_key = NULL;
 
     if (x->params.p == NULL || (ptype == 2 && priv_key == NULL)
-            || (ptype > 0 && pub_key == NULL)) {
+        || (ptype > 0 && pub_key == NULL)) {
         reason = ERR_R_PASSED_NULL_PARAMETER;
         goto err;
     }
@@ -271,7 +271,7 @@ static int do_dh_print(BIO *bp, const DH *x, int indent, int ptype)
         ktype = "DH Parameters";
 
     if (!BIO_indent(bp, indent, 128)
-            || BIO_printf(bp, "%s: (%d bit)\n", ktype, DH_bits(x)) <= 0)
+        || BIO_printf(bp, "%s: (%d bit)\n", ktype, DH_bits(x)) <= 0)
         goto err;
     indent += 4;
 
@@ -285,14 +285,15 @@ static int do_dh_print(BIO *bp, const DH *x, int indent, int ptype)
 
     if (x->length != 0) {
         if (!BIO_indent(bp, indent, 128)
-                || BIO_printf(bp, "recommended-private-length: %d bits\n",
-                              (int)x->length) <= 0)
+            || BIO_printf(bp, "recommended-private-length: %d bits\n",
+                   (int)x->length)
+                <= 0)
             goto err;
     }
 
     return 1;
 
- err:
+err:
     ERR_raise(ERR_LIB_DH, reason);
     return 0;
 }
@@ -315,7 +316,7 @@ static int dh_security_bits(const EVP_PKEY *pkey)
 static int dh_cmp_parameters(const EVP_PKEY *a, const EVP_PKEY *b)
 {
     return ossl_ffc_params_cmp(&a->pkey.dh->params, &b->pkey.dh->params,
-                               a->ameth != &ossl_dhx_asn1_meth);
+        a->ameth != &ossl_dhx_asn1_meth);
 }
 
 static int int_dh_param_copy(DH *to, const DH *from, int is_x942)
@@ -351,7 +352,7 @@ static int dh_copy_parameters(EVP_PKEY *to, const EVP_PKEY *from)
             return 0;
     }
     return int_dh_param_copy(to->pkey.dh, from->pkey.dh,
-                             from->ameth == &ossl_dhx_asn1_meth);
+        from->ameth == &ossl_dhx_asn1_meth);
 }
 
 static int dh_missing_parameters(const EVP_PKEY *a)
@@ -372,19 +373,19 @@ static int dh_pub_cmp(const EVP_PKEY *a, const EVP_PKEY *b)
 }
 
 static int dh_param_print(BIO *bp, const EVP_PKEY *pkey, int indent,
-                          ASN1_PCTX *ctx)
+    ASN1_PCTX *ctx)
 {
     return do_dh_print(bp, pkey->pkey.dh, indent, 0);
 }
 
 static int dh_public_print(BIO *bp, const EVP_PKEY *pkey, int indent,
-                           ASN1_PCTX *ctx)
+    ASN1_PCTX *ctx)
 {
     return do_dh_print(bp, pkey->pkey.dh, indent, 1);
 }
 
 static int dh_private_print(BIO *bp, const EVP_PKEY *pkey, int indent,
-                            ASN1_PCTX *ctx)
+    ASN1_PCTX *ctx)
 {
     return do_dh_print(bp, pkey->pkey.dh, indent, 2);
 }
@@ -402,12 +403,12 @@ static int dh_pkey_ctrl(EVP_PKEY *pkey, int op, long arg1, void *arg2)
         /* We should only be here if we have a legacy key */
         if (!ossl_assert(evp_pkey_is_legacy(pkey)))
             return 0;
-        dh = (DH *) evp_pkey_get0_DH_int(pkey);
+        dh = (DH *)evp_pkey_get0_DH_int(pkey);
         if (dh == NULL)
             return 0;
         return ossl_dh_buf2key(dh, arg2, arg1);
     case ASN1_PKEY_CTRL_GET1_TLS_ENCPT:
-        dh = (DH *) EVP_PKEY_get0_DH(pkey);
+        dh = (DH *)EVP_PKEY_get0_DH(pkey);
         if (dh == NULL)
             return 0;
         return ossl_dh_key2buf(dh, arg2, 0, 1);
@@ -422,7 +423,6 @@ static int dhx_pkey_ctrl(EVP_PKEY *pkey, int op, long arg1, void *arg2)
     default:
         return -2;
     }
-
 }
 
 static int dh_pkey_public_check(const EVP_PKEY *pkey)
@@ -450,8 +450,8 @@ static size_t dh_pkey_dirty_cnt(const EVP_PKEY *pkey)
 }
 
 static int dh_pkey_export_to(const EVP_PKEY *from, void *to_keydata,
-                             OSSL_FUNC_keymgmt_import_fn *importer,
-                             OSSL_LIB_CTX *libctx, const char *propq)
+    OSSL_FUNC_keymgmt_import_fn *importer,
+    OSSL_LIB_CTX *libctx, const char *propq)
 {
     DH *dh = from->pkey.dh;
     OSSL_PARAM_BLD *tmpl;
@@ -489,7 +489,7 @@ static int dh_pkey_export_to(const EVP_PKEY *from, void *to_keydata,
     }
     if (priv_key != NULL) {
         if (!OSSL_PARAM_BLD_push_BN(tmpl, OSSL_PKEY_PARAM_PRIV_KEY,
-                                    priv_key))
+                priv_key))
             goto err;
         selection |= OSSL_KEYMGMT_SELECT_PRIVATE_KEY;
     }
@@ -507,7 +507,7 @@ err:
 }
 
 static int dh_pkey_import_from_type(const OSSL_PARAM params[], void *vpctx,
-                                    int type)
+    int type)
 {
     EVP_PKEY_CTX *pctx = vpctx;
     EVP_PKEY *pkey = EVP_PKEY_CTX_get0_pkey(pctx);

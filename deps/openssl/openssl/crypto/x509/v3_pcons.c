@@ -16,11 +16,11 @@
 #include "ext_dat.h"
 
 static STACK_OF(CONF_VALUE) *i2v_POLICY_CONSTRAINTS(const X509V3_EXT_METHOD
-                                                    *method, void *bcons, STACK_OF(CONF_VALUE)
-                                                    *extlist);
+                                                        *method,
+    void *bcons, STACK_OF(CONF_VALUE) *extlist);
 static void *v2i_POLICY_CONSTRAINTS(const X509V3_EXT_METHOD *method,
-                                    X509V3_CTX *ctx,
-                                    STACK_OF(CONF_VALUE) *values);
+    X509V3_CTX *ctx,
+    STACK_OF(CONF_VALUE) *values);
 
 const X509V3_EXT_METHOD ossl_v3_policy_constraints = {
     NID_policy_constraints, 0,
@@ -34,27 +34,27 @@ const X509V3_EXT_METHOD ossl_v3_policy_constraints = {
 };
 
 ASN1_SEQUENCE(POLICY_CONSTRAINTS) = {
-        ASN1_IMP_OPT(POLICY_CONSTRAINTS, requireExplicitPolicy, ASN1_INTEGER,0),
-        ASN1_IMP_OPT(POLICY_CONSTRAINTS, inhibitPolicyMapping, ASN1_INTEGER,1)
+    ASN1_IMP_OPT(POLICY_CONSTRAINTS, requireExplicitPolicy, ASN1_INTEGER, 0),
+    ASN1_IMP_OPT(POLICY_CONSTRAINTS, inhibitPolicyMapping, ASN1_INTEGER, 1)
 } ASN1_SEQUENCE_END(POLICY_CONSTRAINTS)
 
 IMPLEMENT_ASN1_ALLOC_FUNCTIONS(POLICY_CONSTRAINTS)
 
 static STACK_OF(CONF_VALUE) *i2v_POLICY_CONSTRAINTS(const X509V3_EXT_METHOD
-                                                    *method, void *a, STACK_OF(CONF_VALUE)
-                                                    *extlist)
+                                                        *method,
+    void *a, STACK_OF(CONF_VALUE) *extlist)
 {
     POLICY_CONSTRAINTS *pcons = a;
     X509V3_add_value_int("Require Explicit Policy",
-                         pcons->requireExplicitPolicy, &extlist);
+        pcons->requireExplicitPolicy, &extlist);
     X509V3_add_value_int("Inhibit Policy Mapping",
-                         pcons->inhibitPolicyMapping, &extlist);
+        pcons->inhibitPolicyMapping, &extlist);
     return extlist;
 }
 
 static void *v2i_POLICY_CONSTRAINTS(const X509V3_EXT_METHOD *method,
-                                    X509V3_CTX *ctx,
-                                    STACK_OF(CONF_VALUE) *values)
+    X509V3_CTX *ctx,
+    STACK_OF(CONF_VALUE) *values)
 {
     POLICY_CONSTRAINTS *pcons = NULL;
     CONF_VALUE *val;
@@ -74,18 +74,18 @@ static void *v2i_POLICY_CONSTRAINTS(const X509V3_EXT_METHOD *method,
                 goto err;
         } else {
             ERR_raise_data(ERR_LIB_X509V3, X509V3_R_INVALID_NAME,
-                           "%s", val->name);
+                "%s", val->name);
             goto err;
         }
     }
     if (pcons->inhibitPolicyMapping == NULL
-            && pcons->requireExplicitPolicy == NULL) {
+        && pcons->requireExplicitPolicy == NULL) {
         ERR_raise(ERR_LIB_X509V3, X509V3_R_ILLEGAL_EMPTY_EXTENSION);
         goto err;
     }
 
     return pcons;
- err:
+err:
     POLICY_CONSTRAINTS_free(pcons);
     return NULL;
 }

@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const childProcess = require('child_process');
 const os = require('os');
@@ -28,8 +28,7 @@ function child(type, valueType) {
   new Promise((resolve) => resolve())
   // Trigger `after`/`destroy`.
     .then(() => fs.promises.readFile(__filename, 'utf8'))
-  // Make process exit with code 0 if no error caught.
-    .then(() => process.exit(0));
+    .then(common.mustCall());
 }
 
 function main() {

@@ -133,6 +133,8 @@ server.listen(
         ['headerTableSize', -1],
         ['headerTableSize', 2 ** 32],
         ['initialWindowSize', -1],
+        ['initialWindowSize', 2 ** 31],  // Max per HTTP/2 spec is 2^31-1
+        ['initialWindowSize', 2 ** 32 - 1],  // Regression test for nghttp2 crash
         ['initialWindowSize', 2 ** 32],
         ['maxFrameSize', 16383],
         ['maxFrameSize', 2 ** 24],

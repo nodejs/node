@@ -17,7 +17,7 @@ const { isModuleNamespaceObject } = require('util/types');
 assert.throws(() => {
   require('../fixtures/es-modules/exports-import-only/load.cjs');
 }, {
-  code: 'ERR_PACKAGE_PATH_NOT_EXPORTED'
+  code: 'ERR_PACKAGE_PATH_NOT_EXPORTED',
 });
 
 // If both are defined, "require" is used.

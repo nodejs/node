@@ -12,8 +12,7 @@ const { Minipass } = require('minipass')
 //   date: Date // can be null,
 // }
 //
-// The returned stream will format this package data
-// into a byte stream of formatted, displayable output.
+// The returned stream will format this package data into a byte stream of formatted, displayable output.
 
 function filter (data, exclude) {
   const words = [data.name]
@@ -81,7 +80,10 @@ class TextOutputStream extends Minipass {
 
   constructor (opts) {
     super()
-    // Consider a search for "cowboys" and "boy".  If we highlight "boys" first the "cowboys" string will no longer string match because of the ansi highlighting added to "boys".  If we highlight "boy" second then the ansi reset at the end will make the highlighting only on "cowboy" with a normal "s".  Neither is perfect but at least the first option doesn't do partial highlighting. So, we sort strings smaller to larger
+    // Consider a search for "cowboys" and "boy".
+    // If we highlight "boys" first the "cowboys" string will no longer string match because of the ansi highlighting added to "boys".
+    // If we highlight "boy" second then the ansi reset at the end will make the highlighting only on "cowboy" with a normal "s".
+    // Neither is perfect but at least the first option doesn't do partial highlighting. So, we sort strings smaller to larger
     this.#args = opts.args
       .map(s => s.toLowerCase())
       .filter(Boolean)

@@ -59,8 +59,8 @@ static uint8_t *consume_uint8t(const uint8_t *buf, size_t *len, uint8_t *val)
  * @return 1 if a key type is successfully selected, 0 on failure.
  */
 static int select_keytype_and_size(uint8_t **buf, size_t *len,
-                                   char **keytype, size_t *keylen,
-                                   int only_valid)
+    char **keytype, size_t *keylen,
+    int only_valid)
 {
     uint16_t keysize;
     uint16_t modulus = 6;
@@ -138,7 +138,7 @@ static int select_keytype_and_size(uint8_t **buf, size_t *len,
  *       and should be freed appropriately using `EVP_PKEY_free()`.
  */
 static void create_mlkem_raw_key(uint8_t **buf, size_t *len,
-                                 void **key1, void **key2)
+    void **key1, void **key2)
 {
     EVP_PKEY *pubkey;
     char *keytype = NULL;
@@ -200,7 +200,7 @@ static void create_mlkem_raw_key(uint8_t **buf, size_t *len,
  *       and should be freed using `EVP_PKEY_free()`.
  */
 static void keygen_mlkem_real_key(uint8_t **buf, size_t *len,
-                                  void **key1, void **key2)
+    void **key1, void **key2)
 {
     char *keytype = NULL;
     size_t keylen = 0;
@@ -267,7 +267,7 @@ err:
  * @param[out] out2  Unused output parameter (reserved for future use).
  */
 static void mlkem_encap_decap(uint8_t **buf, size_t *len, void *key1, void *in2,
-                              void **out1, void **out2)
+    void **out1, void **out2)
 {
     EVP_PKEY *key = (EVP_PKEY *)key1;
     EVP_PKEY_CTX *ctx;
@@ -310,7 +310,8 @@ static void mlkem_encap_decap(uint8_t **buf, size_t *len, void *key1, void *in2,
     }
 
     if (EVP_PKEY_decapsulate(ctx, unwrappedkey, &unwrappedkey_len,
-                             wrapkey, wrapkey_len) <= 0) {
+            wrapkey, wrapkey_len)
+        <= 0) {
         fprintf(stderr, "Failed to decap key\n");
         goto err;
     }
@@ -403,7 +404,7 @@ err:
  *       supports this.
  */
 static void mlkem_kex(uint8_t **buf, size_t *len, void *key1, void *key2,
-                      void **out1, void **out2)
+    void **out1, void **out2)
 {
     EVP_PKEY *alice = (EVP_PKEY *)key1;
     EVP_PKEY *bob = (EVP_PKEY *)key2;
@@ -440,7 +441,7 @@ static void mlkem_kex(uint8_t **buf, size_t *len, void *key1, void *key2,
  *       logs an error and cleans up allocated resources.
  */
 static void mlkem_export_import(uint8_t **buf, size_t *len, void *key1,
-                                void *key2, void **out1, void **out2)
+    void *key2, void **out1, void **out2)
 {
     EVP_PKEY *alice = (EVP_PKEY *)key1;
     EVP_PKEY *new = NULL;
@@ -485,7 +486,7 @@ err:
  * @param out2  Unused parameter (purpose unclear).
  */
 static void mlkem_compare(uint8_t **buf, size_t *len, void *key1,
-                          void *key2, void **out1, void **out2)
+    void *key2, void **out1, void **out2)
 {
     EVP_PKEY *alice = (EVP_PKEY *)key1;
     EVP_PKEY *bob = (EVP_PKEY *)key2;
@@ -509,7 +510,7 @@ static void mlkem_compare(uint8_t **buf, size_t *len, void *key1,
  *       object or NULL. Passing NULL is safe and has no effect.
  */
 static void cleanup_mlkem_keys(void *key1, void *key2,
-                               void *key3, void *key4)
+    void *key3, void *key4)
 {
     EVP_PKEY_free((EVP_PKEY *)key1);
     EVP_PKEY_free((EVP_PKEY *)key2);
@@ -555,7 +556,7 @@ struct op_table_entry {
      * @param out2  Pointer to store the second output of the operation.
      */
     void (*doit)(uint8_t **buf, size_t *len, void *in1, void *in2,
-                 void **out1, void **out2);
+        void **out1, void **out2);
 
     /**
      * @brief Function pointer for cleaning up after the operation.
@@ -569,43 +570,36 @@ struct op_table_entry {
 };
 
 static struct op_table_entry ops[] = {
-    {
-        "Generate ML-KEM raw key",
+    { "Generate ML-KEM raw key",
         "Try generate a raw keypair using random data. Usually fails",
         create_mlkem_raw_key,
         NULL,
-        cleanup_mlkem_keys
-    }, {
-        "Generate ML-KEM keypair, using EVP_PKEY_keygen",
+        cleanup_mlkem_keys },
+    { "Generate ML-KEM keypair, using EVP_PKEY_keygen",
         "Generates a real ML-KEM keypair, should always work",
         keygen_mlkem_real_key,
         NULL,
-        cleanup_mlkem_keys
-    }, {
-        "Do a key encap/decap operation on a key",
+        cleanup_mlkem_keys },
+    { "Do a key encap/decap operation on a key",
         "Generate key, encap it, decap it and compare, should work",
         keygen_mlkem_real_key,
         mlkem_encap_decap,
-        cleanup_mlkem_keys
-    }, {
-        "Do a key exchange operation on two keys",
+        cleanup_mlkem_keys },
+    { "Do a key exchange operation on two keys",
         "Gen keys, do a key exchange both ways and compare",
         keygen_mlkem_real_key,
         mlkem_kex,
-        cleanup_mlkem_keys
-    }, {
-        "Do an export/import of key data",
+        cleanup_mlkem_keys },
+    { "Do an export/import of key data",
         "Exercise EVP_PKEY_todata/fromdata",
         keygen_mlkem_real_key,
         mlkem_export_import,
-        cleanup_mlkem_keys
-    }, {
-        "Compare keys for equality",
+        cleanup_mlkem_keys },
+    { "Compare keys for equality",
         "Compare key1/key1 and key1/key2 for equality",
         keygen_mlkem_real_key,
         mlkem_compare,
-        cleanup_mlkem_keys
-    }
+        cleanup_mlkem_keys }
 };
 
 int FuzzerInitialize(int *argc, char ***argv)
@@ -640,7 +634,7 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
         return -1;
     /*
      * Get the first byte of the buffer to tell us what operation
-     * to preform
+     * to perform
      */
     buffer_cursor = consume_uint8t(buf, &len, &operation);
     if (buffer_cursor == NULL)

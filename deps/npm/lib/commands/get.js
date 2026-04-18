@@ -8,8 +8,6 @@ class Get extends BaseCommand {
   static params = ['long']
   static ignoreImplicitWorkspace = false
 
-  // TODO
-  /* istanbul ignore next */
   static async completion (opts) {
     const Config = Npm.cmd('config')
     return Config.completion(opts)

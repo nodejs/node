@@ -14,24 +14,24 @@
 #ifndef OPENSSL_NO_ERR
 
 static const ERR_STRING_DATA PROP_str_reasons[] = {
-    {ERR_PACK(ERR_LIB_PROP, 0, PROP_R_NAME_TOO_LONG), "name too long"},
-    {ERR_PACK(ERR_LIB_PROP, 0, PROP_R_NOT_AN_ASCII_CHARACTER),
-    "not an ascii character"},
-    {ERR_PACK(ERR_LIB_PROP, 0, PROP_R_NOT_AN_HEXADECIMAL_DIGIT),
-    "not an hexadecimal digit"},
-    {ERR_PACK(ERR_LIB_PROP, 0, PROP_R_NOT_AN_IDENTIFIER), "not an identifier"},
-    {ERR_PACK(ERR_LIB_PROP, 0, PROP_R_NOT_AN_OCTAL_DIGIT),
-    "not an octal digit"},
-    {ERR_PACK(ERR_LIB_PROP, 0, PROP_R_NOT_A_DECIMAL_DIGIT),
-    "not a decimal digit"},
-    {ERR_PACK(ERR_LIB_PROP, 0, PROP_R_NO_MATCHING_STRING_DELIMITER),
-    "no matching string delimiter"},
-    {ERR_PACK(ERR_LIB_PROP, 0, PROP_R_NO_VALUE), "no value"},
-    {ERR_PACK(ERR_LIB_PROP, 0, PROP_R_PARSE_FAILED), "parse failed"},
-    {ERR_PACK(ERR_LIB_PROP, 0, PROP_R_STRING_TOO_LONG), "string too long"},
-    {ERR_PACK(ERR_LIB_PROP, 0, PROP_R_TRAILING_CHARACTERS),
-    "trailing characters"},
-    {0, NULL}
+    { ERR_PACK(ERR_LIB_PROP, 0, PROP_R_NAME_TOO_LONG), "name too long" },
+    { ERR_PACK(ERR_LIB_PROP, 0, PROP_R_NOT_AN_ASCII_CHARACTER),
+        "not an ascii character" },
+    { ERR_PACK(ERR_LIB_PROP, 0, PROP_R_NOT_AN_HEXADECIMAL_DIGIT),
+        "not an hexadecimal digit" },
+    { ERR_PACK(ERR_LIB_PROP, 0, PROP_R_NOT_AN_IDENTIFIER), "not an identifier" },
+    { ERR_PACK(ERR_LIB_PROP, 0, PROP_R_NOT_AN_OCTAL_DIGIT),
+        "not an octal digit" },
+    { ERR_PACK(ERR_LIB_PROP, 0, PROP_R_NOT_A_DECIMAL_DIGIT),
+        "not a decimal digit" },
+    { ERR_PACK(ERR_LIB_PROP, 0, PROP_R_NO_MATCHING_STRING_DELIMITER),
+        "no matching string delimiter" },
+    { ERR_PACK(ERR_LIB_PROP, 0, PROP_R_NO_VALUE), "no value" },
+    { ERR_PACK(ERR_LIB_PROP, 0, PROP_R_PARSE_FAILED), "parse failed" },
+    { ERR_PACK(ERR_LIB_PROP, 0, PROP_R_STRING_TOO_LONG), "string too long" },
+    { ERR_PACK(ERR_LIB_PROP, 0, PROP_R_TRAILING_CHARACTERS),
+        "trailing characters" },
+    { 0, NULL }
 };
 
 #endif

@@ -17,7 +17,7 @@
  *                                                                           *
  *****************************************************************************/
 
-#define SEQ_NUM_SIZE                            8
+#define SEQ_NUM_SIZE 8
 
 typedef struct tls_record_st {
     void *rechandle;
@@ -131,8 +131,8 @@ typedef struct record_layer_st {
  *                                                                           *
  *****************************************************************************/
 
-#define RECORD_LAYER_set_read_ahead(rl, ra)     ((rl)->read_ahead = (ra))
-#define RECORD_LAYER_get_read_ahead(rl)         ((rl)->read_ahead)
+#define RECORD_LAYER_set_read_ahead(rl, ra) ((rl)->read_ahead = (ra))
+#define RECORD_LAYER_get_read_ahead(rl) ((rl)->read_ahead)
 
 void RECORD_LAYER_init(RECORD_LAYER *rl, SSL_CONNECTION *s);
 int RECORD_LAYER_clear(RECORD_LAYER *rl);
@@ -143,54 +143,50 @@ int RECORD_LAYER_write_pending(const RECORD_LAYER *rl);
 int RECORD_LAYER_is_sslv2_record(RECORD_LAYER *rl);
 __owur size_t ssl3_pending(const SSL *s);
 __owur int ssl3_write_bytes(SSL *s, uint8_t type, const void *buf, size_t len,
-                            size_t *written);
+    size_t *written);
 __owur int ssl3_read_bytes(SSL *s, uint8_t type, uint8_t *recvd_type,
-                           unsigned char *buf, size_t len, int peek,
-                           size_t *readbytes);
+    unsigned char *buf, size_t len, int peek,
+    size_t *readbytes);
 
 int DTLS_RECORD_LAYER_new(RECORD_LAYER *rl);
 void DTLS_RECORD_LAYER_free(RECORD_LAYER *rl);
 void DTLS_RECORD_LAYER_clear(RECORD_LAYER *rl);
 __owur int dtls1_read_bytes(SSL *s, uint8_t type, uint8_t *recvd_type,
-                            unsigned char *buf, size_t len, int peek,
-                            size_t *readbytes);
+    unsigned char *buf, size_t len, int peek,
+    size_t *readbytes);
 __owur int dtls1_write_bytes(SSL_CONNECTION *s, uint8_t type, const void *buf,
-                             size_t len, size_t *written);
+    size_t len, size_t *written);
 int do_dtls1_write(SSL_CONNECTION *s, uint8_t type, const unsigned char *buf,
-                   size_t len, size_t *written);
+    size_t len, size_t *written);
 void dtls1_increment_epoch(SSL_CONNECTION *s, int rw);
 uint16_t dtls1_get_epoch(SSL_CONNECTION *s, int rw);
 int ssl_release_record(SSL_CONNECTION *s, TLS_RECORD *rr, size_t length);
 
-# define HANDLE_RLAYER_READ_RETURN(s, ret) \
+#define HANDLE_RLAYER_READ_RETURN(s, ret) \
     ossl_tls_handle_rlayer_return(s, 0, ret, OPENSSL_FILE, OPENSSL_LINE)
 
-# define HANDLE_RLAYER_WRITE_RETURN(s, ret) \
+#define HANDLE_RLAYER_WRITE_RETURN(s, ret) \
     ossl_tls_handle_rlayer_return(s, 1, ret, OPENSSL_FILE, OPENSSL_LINE)
 
 int ossl_tls_handle_rlayer_return(SSL_CONNECTION *s, int writing, int ret,
-                                  char *file, int line);
+    char *file, int line);
 
 int ssl_set_new_record_layer(SSL_CONNECTION *s, int version,
-                             int direction, int level,
-                             unsigned char *secret, size_t secretlen,
-                             unsigned char *key, size_t keylen,
-                             unsigned char *iv,  size_t ivlen,
-                             unsigned char *mackey, size_t mackeylen,
-                             const EVP_CIPHER *ciph, size_t taglen,
-                             int mactype, const EVP_MD *md,
-                             const SSL_COMP *comp, const EVP_MD *kdfdigest);
+    int direction, int level,
+    unsigned char *secret, size_t secretlen,
+    unsigned char *key, size_t keylen,
+    unsigned char *iv, size_t ivlen,
+    unsigned char *mackey, size_t mackeylen,
+    const EVP_CIPHER *ciph, size_t taglen,
+    int mactype, const EVP_MD *md,
+    const SSL_COMP *comp, const EVP_MD *kdfdigest);
 int ssl_set_record_protocol_version(SSL_CONNECTION *s, int vers);
 
-# define OSSL_FUNC_RLAYER_SKIP_EARLY_DATA        1
+#define OSSL_FUNC_RLAYER_SKIP_EARLY_DATA 1
 OSSL_CORE_MAKE_FUNC(int, rlayer_skip_early_data, (void *cbarg))
-# define OSSL_FUNC_RLAYER_MSG_CALLBACK           2
-OSSL_CORE_MAKE_FUNC(void, rlayer_msg_callback, (int write_p, int version,
-                                                int content_type,
-                                                const void *buf, size_t len,
-                                                void *cbarg))
-# define OSSL_FUNC_RLAYER_SECURITY               3
-OSSL_CORE_MAKE_FUNC(int, rlayer_security, (void *cbarg, int op, int bits,
-                                           int nid, void *other))
-# define OSSL_FUNC_RLAYER_PADDING                4
+#define OSSL_FUNC_RLAYER_MSG_CALLBACK 2
+OSSL_CORE_MAKE_FUNC(void, rlayer_msg_callback, (int write_p, int version, int content_type, const void *buf, size_t len, void *cbarg))
+#define OSSL_FUNC_RLAYER_SECURITY 3
+OSSL_CORE_MAKE_FUNC(int, rlayer_security, (void *cbarg, int op, int bits, int nid, void *other))
+#define OSSL_FUNC_RLAYER_PADDING 4
 OSSL_CORE_MAKE_FUNC(size_t, rlayer_padding, (void *cbarg, int type, size_t len))

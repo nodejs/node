@@ -3,6 +3,8 @@
 const common = require('../common');
 const fixtures = require('../common/fixtures');
 
+const assert = require('assert');
+
 common.skipIfInspectorDisabled();
 
 const { NodeInstance } = require('../common/inspector-helper.js');
@@ -19,6 +21,15 @@ async function setupInspector(session, sessionId = undefined) {
             notification.params.url === 'node:internal/bootstrap/realm' &&
             notification.sessionId === sessionId;
   });
+}
+
+async function assertTargetAttachedState(session, targetId, attached) {
+  const { targetInfos } = await session.send({ method: 'Target.getTargets' });
+  const targetInfo = targetInfos.find((target) => {
+    return target.targetId === targetId;
+  });
+  assert.notStrictEqual(targetInfo, undefined);
+  assert.strictEqual(targetInfo.attached, attached);
 }
 
 async function test(isSetAutoAttachBeforeExecution) {
@@ -38,7 +49,10 @@ async function test(isSetAutoAttachBeforeExecution) {
   await session.send({ method: 'Debugger.resume' });
 
   const sessionId = '1';
-  await session.waitForNotification('Target.targetCreated');
+  const targetCreated = await session.waitForNotification('Target.targetCreated');
+  const targetId = targetCreated.params.targetInfo.targetId;
+
+  await assertTargetAttachedState(session, targetId, isSetAutoAttachBeforeExecution);
 
   if (!isSetAutoAttachBeforeExecution) {
     await session.send({ method: 'Target.setAutoAttach', params: { autoAttach: true, waitForDebuggerOnStart: true } });
@@ -47,6 +61,7 @@ async function test(isSetAutoAttachBeforeExecution) {
     return notification.method === 'Target.attachedToTarget' &&
            notification.params.sessionId === sessionId;
   });
+  await assertTargetAttachedState(session, targetId, true);
   await setupInspector(session, sessionId);
   await session.waitForNotification('Debugger.paused');
   await session.send({ method: 'Debugger.resume', sessionId });

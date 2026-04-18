@@ -16,12 +16,11 @@
 #include "crypto/evp.h"
 
 ASN1_SEQUENCE(X509_ALGOR) = {
-        ASN1_SIMPLE(X509_ALGOR, algorithm, ASN1_OBJECT),
-        ASN1_OPT(X509_ALGOR, parameter, ASN1_ANY)
+    ASN1_SIMPLE(X509_ALGOR, algorithm, ASN1_OBJECT),
+    ASN1_OPT(X509_ALGOR, parameter, ASN1_ANY)
 } ASN1_SEQUENCE_END(X509_ALGOR)
 
-ASN1_ITEM_TEMPLATE(X509_ALGORS) =
-        ASN1_EX_TEMPLATE_TYPE(ASN1_TFLG_SEQUENCE_OF, 0, algorithms, X509_ALGOR)
+ASN1_ITEM_TEMPLATE(X509_ALGORS) = ASN1_EX_TEMPLATE_TYPE(ASN1_TFLG_SEQUENCE_OF, 0, algorithms, X509_ALGOR)
 ASN1_ITEM_TEMPLATE_END(X509_ALGORS)
 
 IMPLEMENT_ASN1_FUNCTIONS(X509_ALGOR)
@@ -34,7 +33,7 @@ int X509_ALGOR_set0(X509_ALGOR *alg, ASN1_OBJECT *aobj, int ptype, void *pval)
         return 0;
 
     if (ptype != V_ASN1_UNDEF && alg->parameter == NULL
-            && (alg->parameter = ASN1_TYPE_new()) == NULL)
+        && (alg->parameter = ASN1_TYPE_new()) == NULL)
         return 0;
 
     ASN1_OBJECT_free(alg->algorithm);
@@ -63,14 +62,14 @@ X509_ALGOR *ossl_X509_ALGOR_from_nid(int nid, int ptype, void *pval)
         return alg;
     alg->algorithm = NULL; /* precaution to prevent double free */
 
- err:
+err:
     X509_ALGOR_free(alg);
     /* ASN1_OBJECT_free(algo) is not needed due to OBJ_nid2obj() */
     return NULL;
 }
 
 void X509_ALGOR_get0(const ASN1_OBJECT **paobj, int *pptype,
-                     const void **ppval, const X509_ALGOR *algor)
+    const void **ppval, const X509_ALGOR *algor)
 {
     if (paobj)
         *paobj = algor->algorithm;
@@ -111,7 +110,7 @@ int X509_ALGOR_copy(X509_ALGOR *dest, const X509_ALGOR *src)
         return 0;
 
     if (dest->algorithm)
-         ASN1_OBJECT_free(dest->algorithm);
+        ASN1_OBJECT_free(dest->algorithm);
     dest->algorithm = NULL;
 
     if (dest->parameter)
@@ -131,7 +130,8 @@ int X509_ALGOR_copy(X509_ALGOR *dest, const X509_ALGOR *src)
          * set does copy as a side effect.
          */
         if (ASN1_TYPE_set1(dest->parameter, src->parameter->type,
-                           src->parameter->value.ptr) == 0)
+                src->parameter->value.ptr)
+            == 0)
             return 0;
     }
 
@@ -171,7 +171,7 @@ X509_ALGOR *ossl_x509_algor_mgf1_decode(X509_ALGOR *alg)
     if (OBJ_obj2nid(alg->algorithm) != NID_mgf1)
         return NULL;
     return ASN1_TYPE_unpack_sequence(ASN1_ITEM_rptr(X509_ALGOR),
-                                     alg->parameter);
+        alg->parameter);
 }
 
 /* Allocate and set MGF1 algorithm ID from EVP_MD */
@@ -187,12 +187,12 @@ int ossl_x509_algor_md_to_mgf1(X509_ALGOR **palg, const EVP_MD *mgf1md)
     if (!ossl_x509_algor_new_from_md(&algtmp, mgf1md))
         goto err;
     if (ASN1_item_pack(algtmp, ASN1_ITEM_rptr(X509_ALGOR), &stmp) == NULL)
-         goto err;
+        goto err;
     *palg = ossl_X509_ALGOR_from_nid(NID_mgf1, V_ASN1_SEQUENCE, stmp);
     if (*palg == NULL)
         goto err;
     stmp = NULL;
- err:
+err:
     ASN1_STRING_free(stmp);
     X509_ALGOR_free(algtmp);
     return *palg != NULL;

@@ -16,6 +16,7 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "access": null,
   "all": false,
   "allow-same-version": false,
+  "allow-git": "all",
   "also": null,
   "audit": true,
   "audit-level": null,
@@ -71,6 +72,7 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "include": [],
   "include-staged": false,
   "include-workspace-root": false,
+  "include-attestations": false,
   "init-author-email": "",
   "init-author-name": "",
   "init-author-url": "",
@@ -102,6 +104,7 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "name": null,
   "maxsockets": 15,
   "message": "%s",
+  "min-release-age": null,
   "node-gyp": "{CWD}/node_modules/node-gyp/bin/node-gyp.js",
   "node-options": null,
   "noproxy": [
@@ -189,6 +192,7 @@ exports[`test/lib/commands/config.js TAP config list --long > output matches sna
 _auth = (protected)
 access = null
 all = false
+allow-git = "all"
 allow-same-version = false
 also = null
 audit = true
@@ -245,6 +249,7 @@ https-proxy = null
 if-present = false
 ignore-scripts = false
 include = []
+include-attestations = false
 include-staged = false
 include-workspace-root = false
 init-author-email = ""
@@ -278,6 +283,7 @@ logs-max = 10
 ; long = false ; overridden by cli
 maxsockets = 15
 message = "%s"
+min-release-age = null
 name = null
 node-gyp = "{CWD}/node_modules/node-gyp/bin/node-gyp.js"
 node-options = null
@@ -447,6 +453,6 @@ registry = "https://some.registry"
 
 exports[`test/lib/commands/config.js TAP config list with publishConfig local > warns about unknown config 1`] = `
 Array [
-  "Unknown publishConfig config /"other/". This will stop working in the next major version of npm.",
+  "Unknown publishConfig config /"other/". This will stop working in the next major version of npm. See \`npm help npmrc\` for supported config options.",
 ]
 `

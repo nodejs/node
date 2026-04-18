@@ -213,7 +213,7 @@ function createDependentPromises(n) {
     await stream.toArray();
 
     assert.deepStrictEqual(finishOrder, [0, 1, 2, 3]);
-  })().then(common.mustCall(), common.mustNotCall());
+  })().then(common.mustCall());
 }
 
 {
@@ -261,7 +261,7 @@ function createDependentPromises(n) {
 
     assert.deepStrictEqual(outputOrder, input);
     assert.deepStrictEqual(finishOrder, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
-  })().then(common.mustCall(), common.mustNotCall());
+  })().then(common.mustCall());
 }
 
 {
@@ -309,7 +309,7 @@ function createDependentPromises(n) {
 
     assert.deepStrictEqual(outputOrder, input);
     assert.deepStrictEqual(finishOrder, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
-  })().then(common.mustCall(), common.mustNotCall());
+  })().then(common.mustCall());
 }
 
 {
@@ -338,7 +338,7 @@ function createDependentPromises(n) {
 
   (async () => {
     await stream.toArray();
-  })().then(common.mustCall(), common.mustNotCall());
+  })().then(common.mustCall());
 }
 
 {

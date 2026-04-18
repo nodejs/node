@@ -51,8 +51,7 @@ BN_ULONG BN_mod_word(const BIGNUM *a, BN_ULONG w)
         ret = ((ret << BN_BITS4) | ((a->d[i] >> BN_BITS4) & BN_MASK2l)) % w;
         ret = ((ret << BN_BITS4) | (a->d[i] & BN_MASK2l)) % w;
 #else
-        ret = (BN_ULLONG) (((ret << (BN_ULLONG) BN_BITS2) | a->d[i]) %
-                           (BN_ULLONG) w);
+        ret = (BN_ULLONG)(((ret << (BN_ULLONG)BN_BITS2) | a->d[i]) % (BN_ULLONG)w);
 #endif
     }
     return (BN_ULONG)ret;

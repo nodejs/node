@@ -1,5 +1,5 @@
-import { URL, UrlObject } from 'url'
-import { Duplex } from 'stream'
+import { URL, UrlObject } from 'node:url'
+import { Duplex } from 'node:stream'
 import Dispatcher from './dispatcher'
 
 /** Performs an HTTP request. */

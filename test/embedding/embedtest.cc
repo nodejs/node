@@ -210,23 +210,23 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
       return 1;
 
     exit_code = node::SpinEventLoop(env).FromMaybe(1);
-  }
 
-  if (!snapshot_blob_path.empty() && is_building_snapshot) {
-    snapshot = setup->CreateSnapshot();
-    assert(snapshot);
+    if (!snapshot_blob_path.empty() && is_building_snapshot) {
+      snapshot = setup->CreateSnapshot();
+      assert(snapshot);
 
-    FILE* fp = fopen(snapshot_blob_path.c_str(), "wb");
-    assert(fp != nullptr);
-    if (snapshot_as_file) {
-      snapshot->ToFile(fp);
-    } else {
-      const std::vector<char> vec = snapshot->ToBlob();
-      size_t written = fwrite(vec.data(), vec.size(), 1, fp);
-      assert(written == 1);
+      FILE* fp = fopen(snapshot_blob_path.c_str(), "wb");
+      assert(fp != nullptr);
+      if (snapshot_as_file) {
+        snapshot->ToFile(fp);
+      } else {
+        const std::vector<char> vec = snapshot->ToBlob();
+        size_t written = fwrite(vec.data(), vec.size(), 1, fp);
+        assert(written == 1);
+      }
+      int ret = fclose(fp);
+      assert(ret == 0);
     }
-    int ret = fclose(fp);
-    assert(ret == 0);
   }
 
   node::Stop(env);

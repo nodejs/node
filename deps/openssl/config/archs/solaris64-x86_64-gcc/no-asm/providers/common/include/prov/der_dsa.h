@@ -13,6 +13,7 @@
 #include "internal/der.h"
 
 /* Well known OIDs precompiled */
+/* clang-format off */
 
 /*
  * id-dsa OBJECT IDENTIFIER ::= {
@@ -86,9 +87,10 @@ extern const unsigned char ossl_der_oid_id_dsa_with_sha3_384[DER_OID_SZ_id_dsa_w
 #define DER_OID_SZ_id_dsa_with_sha3_512 11
 extern const unsigned char ossl_der_oid_id_dsa_with_sha3_512[DER_OID_SZ_id_dsa_with_sha3_512];
 
+/* clang-format on */
 
 /* Subject Public Key Info */
 int ossl_DER_w_algorithmIdentifier_DSA(WPACKET *pkt, int tag, DSA *dsa);
 /* Signature */
 int ossl_DER_w_algorithmIdentifier_DSA_with_MD(WPACKET *pkt, int tag,
-                                               DSA *dsa, int mdnid);
+    DSA *dsa, int mdnid);

@@ -1,5 +1,5 @@
-import { Readable } from 'stream'
-import { Blob } from 'buffer'
+import { Readable } from 'node:stream'
+import { Blob } from 'node:buffer'
 
 export default BodyReadable
 

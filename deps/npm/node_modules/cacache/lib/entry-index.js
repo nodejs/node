@@ -12,7 +12,7 @@ const {
 const { Minipass } = require('minipass')
 const path = require('path')
 const ssri = require('ssri')
-const uniqueFilename = require('unique-filename')
+const { tmpName } = require('./util/tmp')
 
 const contentPath = require('./content/path')
 const hashToSegments = require('./util/hash-to-segments')
@@ -69,7 +69,7 @@ async function compact (cache, key, matchFn, opts = {}) {
   }).join('\n')
 
   const setup = async () => {
-    const target = uniqueFilename(path.join(cache, 'tmp'), opts.tmpPrefix)
+    const target = tmpName(cache, opts.tmpPrefix)
     await mkdir(path.dirname(target), { recursive: true })
     return {
       target,

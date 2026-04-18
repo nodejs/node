@@ -37,7 +37,7 @@
  */
 
 #ifndef LPDIR_H
-# include "LPdir.h"
+#include "LPdir.h"
 #endif
 
 struct LP_dir_context_st {

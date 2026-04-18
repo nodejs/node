@@ -48,13 +48,15 @@ open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\""
 *STDOUT=*OUT;
 
 if (`$ENV{CC} -Wa,-v -c -o /dev/null -x assembler /dev/null 2>&1`
-		=~ /GNU assembler version ([2-9]\.[0-9]+)/) {
-	$addx = ($1>=2.23);
+		=~ /GNU assembler version ([0-9]+)\.([0-9]+)/) {
+	my $ver = $1 + $2/100.0;	# 3.1->3.01, 3.10->3.10
+	$addx = ($ver >= 2.23);
 }
 
 if (!$addx && $win64 && ($flavour =~ /nasm/ || $ENV{ASM} =~ /nasm/) &&
-	    `nasm -v 2>&1` =~ /NASM version ([2-9]\.[0-9]+)/) {
-	$addx = ($1>=2.10);
+	    `nasm -v 2>&1` =~ /NASM version ([0-9]+)\.([0-9]+)/) {
+	my $ver = $1 + $2/100.0;	# 3.1->3.01, 3.10->3.10
+	$addx = ($ver >= 2.10);
 }
 
 if (!$addx && $win64 && ($flavour =~ /masm/ || $ENV{ASM} =~ /ml64/) &&

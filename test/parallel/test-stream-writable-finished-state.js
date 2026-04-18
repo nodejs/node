@@ -7,11 +7,11 @@ const stream = require('stream');
 
 const writable = new stream.Writable();
 
-writable._write = (chunk, encoding, cb) => {
+writable._write = common.mustCall((chunk, encoding, cb) => {
   // The state finished should start in false.
   assert.strictEqual(writable._writableState.finished, false);
   cb();
-};
+});
 
 writable.on('finish', common.mustCall(() => {
   assert.strictEqual(writable._writableState.finished, true);

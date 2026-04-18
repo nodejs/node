@@ -67,5 +67,5 @@ await once(child, 'exit');
 // The second grandchild, if there is one, could receive SIGTERM if it's killed as a
 // consequence of the parent being killed in this process instead of being killed by the
 // parent for file changes. Here we only care about the first grandchild.
-assert.match(stdout, new RegExp(`__SIGINT received__ ${firstGrandchildPid}`));
-assert.doesNotMatch(stdout, new RegExp(`__SIGTERM received__ ${firstGrandchildPid}`));
+assert.match(stdout, new RegExp(`__SIGINT received__ ${RegExp.escape(firstGrandchildPid)}`));
+assert.doesNotMatch(stdout, new RegExp(`__SIGTERM received__ ${RegExp.escape(firstGrandchildPid)}`));

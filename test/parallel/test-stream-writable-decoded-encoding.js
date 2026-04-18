@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const stream = require('stream');
@@ -38,21 +38,21 @@ class MyWritable extends stream.Writable {
 }
 
 {
-  const m = new MyWritable(function(isBuffer, type, enc) {
+  const m = new MyWritable(common.mustCall((isBuffer, type, enc) => {
     assert(isBuffer);
     assert.strictEqual(type, 'object');
     assert.strictEqual(enc, 'buffer');
-  }, { decodeStrings: true });
+  }), { decodeStrings: true });
   m.write('some-text', 'utf8');
   m.end();
 }
 
 {
-  const m = new MyWritable(function(isBuffer, type, enc) {
+  const m = new MyWritable(common.mustCall((isBuffer, type, enc) => {
     assert(!isBuffer);
     assert.strictEqual(type, 'string');
     assert.strictEqual(enc, 'utf8');
-  }, { decodeStrings: false });
+  }), { decodeStrings: false });
   m.write('some-text', 'utf8');
   m.end();
 }
@@ -69,11 +69,11 @@ class MyWritable extends stream.Writable {
 }
 
 {
-  const w = new MyWritable(function(isBuffer, type, enc) {
+  const w = new MyWritable(common.mustCall((isBuffer, type, enc) => {
     assert(!isBuffer);
     assert.strictEqual(type, 'string');
     assert.strictEqual(enc, 'hex');
-  }, {
+  }), {
     defaultEncoding: 'hex',
     decodeStrings: false
   });
@@ -82,11 +82,11 @@ class MyWritable extends stream.Writable {
 }
 
 {
-  const w = new MyWritable(function(isBuffer, type, enc) {
+  const w = new MyWritable(common.mustCall((isBuffer, type, enc) => {
     assert(!isBuffer);
     assert.strictEqual(type, 'string');
     assert.strictEqual(enc, 'utf8');
-  }, {
+  }), {
     defaultEncoding: null,
     decodeStrings: false
   });
@@ -95,11 +95,11 @@ class MyWritable extends stream.Writable {
 }
 
 {
-  const m = new MyWritable(function(isBuffer, type, enc) {
+  const m = new MyWritable(common.mustCall((isBuffer, type, enc) => {
     assert.strictEqual(type, 'object');
     assert.strictEqual(enc, 'utf8');
-  }, { defaultEncoding: 'hex',
-       objectMode: true });
+  }), { defaultEncoding: 'hex',
+        objectMode: true });
   m.write({ foo: 'bar' }, 'utf8');
   m.end();
 }

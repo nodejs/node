@@ -15,7 +15,7 @@
 static STACK_OF(ASN1_STRING_TABLE) *stable = NULL;
 static void st_free(ASN1_STRING_TABLE *tbl);
 static int sk_table_cmp(const ASN1_STRING_TABLE *const *a,
-                        const ASN1_STRING_TABLE *const *b);
+    const ASN1_STRING_TABLE *const *b);
 
 /*
  * This is the global mask for the mbstring functions: this is use to mask
@@ -77,8 +77,8 @@ int ASN1_STRING_set_default_mask_asc(const char *p)
  */
 
 ASN1_STRING *ASN1_STRING_set_by_NID(ASN1_STRING **out,
-                                    const unsigned char *in, int inlen,
-                                    int inform, int nid)
+    const unsigned char *in, int inlen,
+    int inform, int nid)
 {
     ASN1_STRING_TABLE *tbl;
     ASN1_STRING *str = NULL;
@@ -93,10 +93,10 @@ ASN1_STRING *ASN1_STRING_set_by_NID(ASN1_STRING **out,
         if (!(tbl->flags & STABLE_NO_MASK))
             mask &= global_mask;
         ret = ASN1_mbstring_ncopy(out, in, inlen, inform, mask,
-                                  tbl->minsize, tbl->maxsize);
+            tbl->minsize, tbl->maxsize);
     } else {
         ret = ASN1_mbstring_copy(out, in, inlen, inform,
-                                 DIRSTRING_TYPE & global_mask);
+            DIRSTRING_TYPE & global_mask);
     }
     if (ret <= 0)
         return NULL;
@@ -110,7 +110,7 @@ ASN1_STRING *ASN1_STRING_set_by_NID(ASN1_STRING **out,
 #include "tbl_standard.h"
 
 static int sk_table_cmp(const ASN1_STRING_TABLE *const *a,
-                        const ASN1_STRING_TABLE *const *b)
+    const ASN1_STRING_TABLE *const *b)
 {
     return (*a)->nid - (*b)->nid;
 }
@@ -185,8 +185,8 @@ static ASN1_STRING_TABLE *stable_get(int nid)
 }
 
 int ASN1_STRING_TABLE_add(int nid,
-                          long minsize, long maxsize, unsigned long mask,
-                          unsigned long flags)
+    long minsize, long maxsize, unsigned long mask,
+    unsigned long flags)
 {
     ASN1_STRING_TABLE *tmp;
 

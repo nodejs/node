@@ -5,7 +5,15 @@ import testpy
 def GetConfiguration(context, root):
   # We don't use arch-specific out folder in Node.js; use none/none to auto
   # detect release mode from GetVm and get the path to the executable.
-  vm = context.GetVm('none', 'none')
+  try:
+    vm = context.GetVm('none', 'none')
+  except ValueError:
+    # In debug only builds, we are getting an exception because none/none
+    # results in taking the release flavor that is missing in that case. Try to
+    # recover by using the first mode passed explicitly to the test.py.
+    preferred_mode = getattr(context, 'default_mode', 'none') or 'none'
+    vm = context.GetVm('none', preferred_mode)
+
   if not os.path.isfile(vm):
     return testpy.SimpleTestConfiguration(context, root, 'sea')
 

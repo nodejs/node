@@ -16,23 +16,25 @@
 
 typedef enum OPTION_choice {
     OPT_COMMON,
-    OPT_TOSEQ, OPT_IN, OPT_OUT,
+    OPT_TOSEQ,
+    OPT_IN,
+    OPT_OUT,
     OPT_PROV_ENUM
 } OPTION_CHOICE;
 
 const OPTIONS nseq_options[] = {
     OPT_SECTION("General"),
-    {"help", OPT_HELP, '-', "Display this summary"},
+    { "help", OPT_HELP, '-', "Display this summary" },
 
     OPT_SECTION("Input"),
-    {"in", OPT_IN, '<', "Input file"},
+    { "in", OPT_IN, '<', "Input file" },
 
     OPT_SECTION("Output"),
-    {"toseq", OPT_TOSEQ, '-', "Output NS Sequence file"},
-    {"out", OPT_OUT, '>', "Output file"},
+    { "toseq", OPT_TOSEQ, '-', "Output NS Sequence file" },
+    { "out", OPT_OUT, '>', "Output file" },
 
     OPT_PROV_OPTIONS,
-    {NULL}
+    { NULL }
 };
 
 int nseq_main(int argc, char **argv)
@@ -49,7 +51,7 @@ int nseq_main(int argc, char **argv)
         switch (o) {
         case OPT_EOF:
         case OPT_ERR:
- opthelp:
+        opthelp:
             BIO_printf(bio_err, "%s: Use -help for summary.\n", prog);
             goto end;
         case OPT_HELP:
@@ -97,7 +99,7 @@ int nseq_main(int argc, char **argv)
 
         if (!sk_X509_num(seq->certs)) {
             BIO_printf(bio_err, "%s: Error reading certs file %s\n",
-                       prog, infile);
+                prog, infile);
             ERR_print_errors(bio_err);
             goto end;
         }
@@ -109,7 +111,7 @@ int nseq_main(int argc, char **argv)
     seq = PEM_read_bio_NETSCAPE_CERT_SEQUENCE(in, NULL, NULL, NULL);
     if (seq == NULL) {
         BIO_printf(bio_err, "%s: Error reading sequence file %s\n",
-                   prog, infile);
+            prog, infile);
         ERR_print_errors(bio_err);
         goto end;
     }
@@ -120,7 +122,7 @@ int nseq_main(int argc, char **argv)
         PEM_write_bio_X509(out, x509);
     }
     ret = 0;
- end:
+end:
     BIO_free(in);
     BIO_free_all(out);
     NETSCAPE_CERT_SEQUENCE_free(seq);

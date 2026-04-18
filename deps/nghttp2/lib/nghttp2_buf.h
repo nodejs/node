@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp2/nghttp2.h>
 
@@ -409,4 +409,4 @@ int nghttp2_bufs_next_present(nghttp2_bufs *bufs);
  */
 size_t nghttp2_bufs_len(nghttp2_bufs *bufs);
 
-#endif /* NGHTTP2_BUF_H */
+#endif /* !defined(NGHTTP2_BUF_H) */

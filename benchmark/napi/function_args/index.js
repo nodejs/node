@@ -1,5 +1,5 @@
 // Show the difference between calling a V8 binding C++ function
-// relative to a comparable N-API C++ function,
+// relative to a comparable Node-API C++ function,
 // in various types/numbers of arguments.
 // Reports n of calls per second.
 'use strict';
@@ -19,7 +19,7 @@ try {
 try {
   napi = require(`./build/${common.buildType}/napi_binding`);
 } catch {
-  console.error(`${__filename}: NAPI-Binding failed to load`);
+  console.error(`${__filename}: Node-API binding failed to load`);
   process.exit(0);
 }
 

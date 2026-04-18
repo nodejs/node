@@ -61,7 +61,7 @@ function client() {
   const net = require('net');
   const client = net.connect({
     host: common.localhostIPv4,
-    port: common.PORT
+    port: common.PORT,
   }, function() {
     client.destroy();
   });
@@ -73,8 +73,8 @@ function parent() {
 
   const s = spawn(node, [__filename, 'server'], {
     env: Object.assign(process.env, {
-      NODE_DEBUG: 'net'
-    })
+      NODE_DEBUG: 'net',
+    }),
   });
 
   wrap(s.stderr, process.stderr, 'SERVER 2>');

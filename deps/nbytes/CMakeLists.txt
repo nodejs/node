@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.28)
-project(nbytes)
+project(nbytes VERSION 0.1.4) # x-release-please-version
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
@@ -12,18 +12,26 @@ option(NBYTES_DEVELOPMENT_CHECKS "Enable development checks" OFF)
 
 include(GNUInstallDirs)
 include(FetchContent)
+include(CTest)
 
-FetchContent_Declare(
-  googletest
-  URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
-)
-# For Windows: Prevent overriding the parent project's compiler/linker settings
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(googletest)
+option(NBYTES_ENABLE_TESTING "Enable testing" ${BUILD_TESTING})
+
 
 add_subdirectory(src)
-enable_testing()
-add_subdirectory(tests)
+
+if (NBYTES_ENABLE_TESTING)
+  FetchContent_Declare(
+    googletest
+    URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
+    URL_HASH SHA256=edd885a1ab32b6999515a880f669efadb80b3f880215f315985fa3f6eca7c4d3
+    FIND_PACKAGE_ARGS NAMES GTest
+  )
+  # For Windows: Prevent overriding the parent project's compiler/linker settings
+  set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+  FetchContent_MakeAvailable(googletest)
+
+  add_subdirectory(tests)
+endif()
 
 install(
   FILES include/nbytes.h
@@ -39,4 +47,17 @@ install(
   NAMELINK_COMPONENT nbytes_development
   ARCHIVE COMPONENT nbytes_development
   INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+)
+
+# Configure and install pkg-config file
+configure_file(
+  "${PROJECT_SOURCE_DIR}/nbytes.pc.in"
+  "${PROJECT_BINARY_DIR}/nbytes.pc"
+  @ONLY
+)
+
+install(
+  FILES "${PROJECT_BINARY_DIR}/nbytes.pc"
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig"
+  COMPONENT nbytes_development
 )

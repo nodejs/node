@@ -1,8 +1,9 @@
-#if HAVE_OPENSSL
+#if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
 #include <crypto/crypto_util.h>
 #include <memory_tracker-inl.h>
+#include <node_hash.h>
 #include <node_mutex.h>
 #include <string_bytes.h>
 #include "cid.h"
@@ -85,12 +86,7 @@ const CID CID::kInvalid{};
 // CID::Hash
 
 size_t CID::Hash::operator()(const CID& cid) const {
-  size_t hash = 0;
-  for (size_t n = 0; n < cid.length(); n++) {
-    hash ^= std::hash<uint8_t>{}(cid.ptr_->data[n] + 0x9e3779b9 + (hash << 6) +
-                                 (hash >> 2));
-  }
-  return hash;
+  return HashBytes(cid.ptr_->data, cid.length());
 }
 
 // ============================================================================
@@ -151,4 +147,4 @@ const CID::Factory& CID::Factory::random() {
 
 }  // namespace node::quic
 #endif  // OPENSSL_NO_QUIC
-#endif  // HAVE_OPENSS
+#endif  // HAVE_OPENSSL && HAVE_QUIC

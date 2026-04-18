@@ -20,7 +20,7 @@
  * priv_key is the returned private key,
  */
 int ossl_ffc_generate_private_key(BN_CTX *ctx, const FFC_PARAMS *params,
-                                  int N, int s, BIGNUM *priv)
+    int N, int s, BIGNUM *priv)
 {
     int ret = 0, qbits = BN_num_bits(params->q);
     BIGNUM *m, *two_powN = NULL;

@@ -8,8 +8,6 @@ class Set extends BaseCommand {
   static params = ['global', 'location']
   static ignoreImplicitWorkspace = false
 
-  // TODO
-  /* istanbul ignore next */
   static async completion (opts) {
     const Config = Npm.cmd('config')
     return Config.completion(opts)

@@ -31,9 +31,7 @@ ASN1_OBJECT *OBJ_dup(const ASN1_OBJECT *o)
 
     /* Set dynamic flags so everything gets freed up on error */
 
-    r->flags = o->flags | (ASN1_OBJECT_FLAG_DYNAMIC |
-                           ASN1_OBJECT_FLAG_DYNAMIC_STRINGS |
-                           ASN1_OBJECT_FLAG_DYNAMIC_DATA);
+    r->flags = o->flags | (ASN1_OBJECT_FLAG_DYNAMIC | ASN1_OBJECT_FLAG_DYNAMIC_STRINGS | ASN1_OBJECT_FLAG_DYNAMIC_DATA);
 
     if (o->length > 0 && (r->data = OPENSSL_memdup(o->data, o->length)) == NULL)
         goto err;
@@ -48,7 +46,7 @@ ASN1_OBJECT *OBJ_dup(const ASN1_OBJECT *o)
         goto err;
 
     return r;
- err:
+err:
     ASN1_OBJECT_free(r);
     return NULL;
 }

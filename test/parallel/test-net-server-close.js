@@ -26,7 +26,7 @@ const net = require('net');
 
 const sockets = [];
 
-const server = net.createServer(function(c) {
+const server = net.createServer(common.mustCallAtLeast((c) => {
   c.on('close', common.mustCall());
 
   sockets.push(c);
@@ -35,7 +35,7 @@ const server = net.createServer(function(c) {
     assert.strictEqual(server.close(), server);
     sockets.forEach((c) => c.destroy());
   }
-});
+}));
 
 server.on('close', common.mustCall());
 

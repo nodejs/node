@@ -1,7 +1,7 @@
 ---
-title: folders
+title: Folders
 section: 5
-description: Folder Structures Used by npm
+description: Folder structures used by npm
 ---
 
 ### Description

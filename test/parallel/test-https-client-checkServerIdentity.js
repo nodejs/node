@@ -63,10 +63,10 @@ function override() {
     }
   };
   options.agent = new https.Agent(options);
-  const req = https.request(options, function(res) {
+  const req = https.request(options, common.mustCall((res) => {
     assert(req.socket.authorized);
     server.close();
-  });
+  }));
   req.on('error', function(err) {
     throw err;
   });

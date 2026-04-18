@@ -68,7 +68,7 @@ if (common.hasCrypto) {
   if (!hasOpenSSL3)
     expectNoWorker('--openssl-config=_ossl_cfg', 'B\n');
   if (common.isMacOS) {
-    expectNoWorker('--use-system-ca', 'B\n');
+    expect('--use-system-ca', 'B\n');
   }
 }
 
@@ -157,6 +157,6 @@ function workerTest(opts, command, wantsError, test) {
     assert.strictEqual(code, wantsError ? 1 : 0);
     collectStream(worker.stdout).then((stdout) => {
       test(workerError, stdout);
-    });
+    }).then(common.mustCall());
   }));
 }

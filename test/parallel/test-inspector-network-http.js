@@ -47,7 +47,7 @@ const handleRequest = (req, res) => {
       }, kTimeout);
       break;
     default:
-      assert(false, `Unexpected path: ${path}`);
+      assert.fail(`Unexpected path: ${path}`);
   }
 };
 
@@ -138,12 +138,12 @@ function verifyHttpResponse(response) {
   assert.strictEqual(response.readableFlowing, null);
   // Verifies that the data listener may be added at a later time, and it can
   // still observe the data in full.
-  queueMicrotask(() => {
+  queueMicrotask(common.mustCall(() => {
     response.on('data', (chunk) => {
       chunks.push(chunk);
     });
     assert.strictEqual(response.readableFlowing, true);
-  });
+  }));
 
   response.on('end', common.mustCall(() => {
     const body = Buffer.concat(chunks).toString();

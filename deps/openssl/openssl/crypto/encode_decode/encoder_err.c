@@ -15,13 +15,13 @@
 #ifndef OPENSSL_NO_ERR
 
 static const ERR_STRING_DATA OSSL_ENCODER_str_reasons[] = {
-    {ERR_PACK(ERR_LIB_OSSL_ENCODER, 0, OSSL_ENCODER_R_ENCODER_NOT_FOUND),
-    "encoder not found"},
-    {ERR_PACK(ERR_LIB_OSSL_ENCODER, 0, OSSL_ENCODER_R_INCORRECT_PROPERTY_QUERY),
-    "incorrect property query"},
-    {ERR_PACK(ERR_LIB_OSSL_ENCODER, 0, OSSL_ENCODER_R_MISSING_GET_PARAMS),
-    "missing get params"},
-    {0, NULL}
+    { ERR_PACK(ERR_LIB_OSSL_ENCODER, 0, OSSL_ENCODER_R_ENCODER_NOT_FOUND),
+        "encoder not found" },
+    { ERR_PACK(ERR_LIB_OSSL_ENCODER, 0, OSSL_ENCODER_R_INCORRECT_PROPERTY_QUERY),
+        "incorrect property query" },
+    { ERR_PACK(ERR_LIB_OSSL_ENCODER, 0, OSSL_ENCODER_R_MISSING_GET_PARAMS),
+        "missing get params" },
+    { 0, NULL }
 };
 
 #endif

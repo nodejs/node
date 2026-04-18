@@ -26,10 +26,10 @@
 #define MOD5(n) ((n) - 5 * (0x3335 * (n) >> 16))
 
 #if SHAKE128_BLOCKSIZE % 3 != 0
-# error "rej_ntt_poly() requires SHAKE128_BLOCKSIZE to be a multiple of 3"
+#error "rej_ntt_poly() requires SHAKE128_BLOCKSIZE to be a multiple of 3"
 #endif
 
-typedef int (COEFF_FROM_NIBBLE_FUNC)(uint32_t nibble, uint32_t *out);
+typedef int(COEFF_FROM_NIBBLE_FUNC)(uint32_t nibble, uint32_t *out);
 
 static COEFF_FROM_NIBBLE_FUNC coeff_from_nibble_4;
 static COEFF_FROM_NIBBLE_FUNC coeff_from_nibble_2;
@@ -114,7 +114,7 @@ static ossl_inline int coeff_from_nibble_2(uint32_t nibble, uint32_t *out)
  *            digest operations failed.
  */
 static int rej_ntt_poly(EVP_MD_CTX *g_ctx, const EVP_MD *md,
-                        const uint8_t *seed, size_t seed_len, POLY *out)
+    const uint8_t *seed, size_t seed_len, POLY *out)
 {
     int j = 0;
     uint8_t blocks[SHAKE128_BLOCKSIZE], *b, *end = blocks + sizeof(blocks);
@@ -130,7 +130,7 @@ static int rej_ntt_poly(EVP_MD_CTX *g_ctx, const EVP_MD *md,
         for (b = blocks; b < end; b += 3) {
             if (coeff_from_three_bytes(b, &(out->coeff[j]))) {
                 if (++j >= ML_DSA_NUM_POLY_COEFFICIENTS)
-                    return 1;   /* finished */
+                    return 1; /* finished */
             }
         }
         if (!EVP_DigestSqueeze(g_ctx, blocks, sizeof(blocks)))
@@ -156,8 +156,8 @@ static int rej_ntt_poly(EVP_MD_CTX *g_ctx, const EVP_MD *md,
  *            digest operations failed.
  */
 static int rej_bounded_poly(EVP_MD_CTX *h_ctx, const EVP_MD *md,
-                            COEFF_FROM_NIBBLE_FUNC *coef_from_nibble,
-                            const uint8_t *seed, size_t seed_len, POLY *out)
+    COEFF_FROM_NIBBLE_FUNC *coef_from_nibble,
+    const uint8_t *seed, size_t seed_len, POLY *out)
 {
     int j = 0;
     uint32_t z0, z1;
@@ -170,13 +170,13 @@ static int rej_bounded_poly(EVP_MD_CTX *h_ctx, const EVP_MD *md,
     while (1) {
         for (b = blocks; b < end; b++) {
             z0 = *b & 0x0F; /* lower nibble of byte */
-            z1 = *b >> 4;   /* high nibble of byte */
+            z1 = *b >> 4; /* high nibble of byte */
 
             if (coef_from_nibble(z0, &out->coeff[j])
-                    && ++j >= ML_DSA_NUM_POLY_COEFFICIENTS)
+                && ++j >= ML_DSA_NUM_POLY_COEFFICIENTS)
                 return 1;
             if (coef_from_nibble(z1, &out->coeff[j])
-                    && ++j >= ML_DSA_NUM_POLY_COEFFICIENTS)
+                && ++j >= ML_DSA_NUM_POLY_COEFFICIENTS)
                 return 1;
         }
         if (!EVP_DigestSqueeze(h_ctx, blocks, sizeof(blocks)))
@@ -198,7 +198,7 @@ static int rej_bounded_poly(EVP_MD_CTX *h_ctx, const EVP_MD *md,
  * @returns 1 if the matrix was generated, or 0 on error.
  */
 int ossl_ml_dsa_matrix_expand_A(EVP_MD_CTX *g_ctx, const EVP_MD *md,
-                                const uint8_t *rho, MATRIX *out)
+    const uint8_t *rho, MATRIX *out)
 {
     int ret = 0;
     size_t i, j;
@@ -241,7 +241,7 @@ err:
  * @returns 1 if s1 and s2 were successfully generated, or 0 otherwise.
  */
 int ossl_ml_dsa_vector_expand_S(EVP_MD_CTX *h_ctx, const EVP_MD *md, int eta,
-                                const uint8_t *seed, VECTOR *s1, VECTOR *s2)
+    const uint8_t *seed, VECTOR *s1, VECTOR *s2)
 {
     int ret = 0;
     size_t i;
@@ -262,13 +262,13 @@ int ossl_ml_dsa_vector_expand_S(EVP_MD_CTX *h_ctx, const EVP_MD *md, int eta,
 
     for (i = 0; i < l; i++) {
         if (!rej_bounded_poly(h_ctx, md, coef_from_nibble_fn,
-                              derived_seed, sizeof(derived_seed), &s1->poly[i]))
+                derived_seed, sizeof(derived_seed), &s1->poly[i]))
             goto err;
         ++derived_seed[ML_DSA_PRIV_SEED_BYTES];
     }
     for (i = 0; i < k; i++) {
         if (!rej_bounded_poly(h_ctx, md, coef_from_nibble_fn,
-                              derived_seed, sizeof(derived_seed), &s2->poly[i]))
+                derived_seed, sizeof(derived_seed), &s2->poly[i]))
             goto err;
         ++derived_seed[ML_DSA_PRIV_SEED_BYTES];
     }
@@ -279,8 +279,8 @@ err:
 
 /* See FIPS 204, Algorithm 34, ExpandMask(), Step 4 & 5 */
 int ossl_ml_dsa_poly_expand_mask(POLY *out, const uint8_t *seed, size_t seed_len,
-                                 uint32_t gamma1,
-                                 EVP_MD_CTX *h_ctx, const EVP_MD *md)
+    uint32_t gamma1,
+    EVP_MD_CTX *h_ctx, const EVP_MD *md)
 {
     uint8_t buf[32 * 20];
     size_t buf_len = 32 * (gamma1 == ML_DSA_GAMMA1_TWO_POWER_19 ? 20 : 18);
@@ -304,8 +304,8 @@ int ossl_ml_dsa_poly_expand_mask(POLY *out, const uint8_t *seed, size_t seed_len
  *            that is less than or equal to 64
  */
 int ossl_ml_dsa_poly_sample_in_ball(POLY *out_c, const uint8_t *seed, int seed_len,
-                                    EVP_MD_CTX *h_ctx, const EVP_MD *md,
-                                    uint32_t tau)
+    EVP_MD_CTX *h_ctx, const EVP_MD *md,
+    uint32_t tau)
 {
     uint8_t block[SHAKE256_BLOCKSIZE];
     uint64_t signs;

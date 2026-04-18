@@ -36,8 +36,8 @@
 
 #define munit_assert_stdstring_equal(a, b)                                     \
   do {                                                                         \
-    const std::string munit_tmp_a_ = a;                                        \
-    const std::string munit_tmp_b_ = b;                                        \
+    const std::string munit_tmp_a_ = (a);                                      \
+    const std::string munit_tmp_b_ = (b);                                      \
     if (MUNIT_UNLIKELY(munit_tmp_a_ != munit_tmp_b_)) {                        \
       munit_hexdump_diff(stderr, munit_tmp_a_.c_str(), munit_tmp_a_.size(),    \
                          munit_tmp_b_.c_str(), munit_tmp_b_.size());           \
@@ -50,8 +50,8 @@
 #if __cplusplus >= 201703L
 #  define munit_assert_stdsv_equal(a, b)                                       \
     do {                                                                       \
-      const std::string_view munit_tmp_a_ = a;                                 \
-      const std::string_view munit_tmp_b_ = b;                                 \
+      const std::string_view munit_tmp_a_ = (a);                               \
+      const std::string_view munit_tmp_b_ = (b);                               \
       if (MUNIT_UNLIKELY(munit_tmp_a_ != munit_tmp_b_)) {                      \
         munit_hexdump_diff(stderr, munit_tmp_a_.data(), munit_tmp_a_.size(),   \
                            munit_tmp_b_.data(), munit_tmp_b_.size());          \

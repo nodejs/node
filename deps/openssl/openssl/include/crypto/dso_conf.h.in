@@ -1,4 +1,6 @@
+/* clang-format off */
 {- join("\n",map { "/* $_ */" } @autowarntext) -}
+/* clang-format on */
 /*
  * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
@@ -9,9 +11,10 @@
  */
 
 #ifndef OSSL_CRYPTO_DSO_CONF_H
-# define OSSL_CRYPTO_DSO_CONF_H
-# pragma once
+#define OSSL_CRYPTO_DSO_CONF_H
+#pragma once
 
+/* clang-format off */
 {-  # The DSO code currently always implements all functions so that no
     # applications will have to worry about that from a compilation point
     # of view. However, the "method"s may return zero unless that platform
@@ -29,5 +32,8 @@
         @macros = ( "DSO_DLFCN" );
     }
     join("\n", map { "# define $_" } @macros); -}
+/* clang-format on */
+/* clang-format off */
 # define DSO_EXTENSION "{- platform->dsoext() -}"
+/* clang-format on */
 #endif

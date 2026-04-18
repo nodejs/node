@@ -19,7 +19,7 @@
 #include <openssl/crypto.h>
 
 #ifdef CHARSET_EBCDIC
-# include <openssl/ebcdic.h>
+#include <openssl/ebcdic.h>
 #endif
 
 unsigned char *MD5(const unsigned char *d, size_t n, unsigned char *md)

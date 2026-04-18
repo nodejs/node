@@ -58,12 +58,12 @@ function test() {
       server: 'localhost',
       port: child.port,
       path: '/',
-    }).on('response', function(res) {
+    }).on('response', common.mustCall((res) => {
       let s = '';
       res.on('data', function(c) {
         s += c.toString();
       });
-      res.on('end', function() {
+      res.on('end', common.mustCall(() => {
         // Kill the subprocess before we start doing asserts.
         // it's really annoying when tests leave orphans!
         process.kill(child.pid, 'SIGKILL');
@@ -75,8 +75,8 @@ function test() {
 
         assert.strictEqual(s, 'hello from child\n');
         assert.strictEqual(res.statusCode, 200);
-      });
-    });
+      }));
+    }));
   }
 }
 

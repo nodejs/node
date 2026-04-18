@@ -4,14 +4,14 @@
 // TODO(joyeecheung): This probably should be deprecated.
 
 require('../common');
-const { path } = require('../common/fixtures');
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const { spawnSync } = require('child_process');
 
 const child = spawnSync(process.execPath, [
   '--require',
-  path('monkey-patch-run-main.js'),
-  path('semicolon.js'),
+  fixtures.path('monkey-patch-run-main.js'),
+  fixtures.path('semicolon.js'),
 ]);
 
 assert.strictEqual(child.status, 0);

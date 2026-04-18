@@ -1,7 +1,6 @@
-#if HAVE_OPENSSL
+#if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
-#include "application.h"
 #include <async_wrap-inl.h>
 #include <debug_utils-inl.h>
 #include <nghttp3/nghttp3.h>
@@ -10,6 +9,7 @@
 #include <node_sockaddr-inl.h>
 #include <uv.h>
 #include <v8.h>
+#include "application.h"
 #include "defs.h"
 #include "endpoint.h"
 #include "http3.h"
@@ -45,6 +45,9 @@ Session::Application_Options::operator const nghttp3_settings() const {
       .h3_datagram = enable_datagrams,
       // TODO(@jasnell): Support origin frames?
       .origin_list = nullptr,
+      .glitch_ratelim_burst = 1000,
+      .glitch_ratelim_rate = 33,
+      .qpack_indexing_strat = NGHTTP3_QPACK_INDEXING_STRAT_NONE,
   };
 }
 
@@ -204,12 +207,9 @@ StreamPriority Session::Application::GetStreamPriority(const Stream& stream) {
   return StreamPriority::DEFAULT;
 }
 
-BaseObjectPtr<Packet> Session::Application::CreateStreamDataPacket() {
-  return Packet::Create(env(),
-                        session_->endpoint(),
-                        session_->remote_address(),
-                        session_->max_packet_size(),
-                        "stream data");
+Packet::Ptr Session::Application::CreateStreamDataPacket() {
+  return session_->endpoint().CreatePacket(
+      session_->remote_address(), session_->max_packet_size(), "stream data");
 }
 
 void Session::Application::StreamClose(Stream* stream, QuicError&& error) {
@@ -261,7 +261,7 @@ void Session::Application::SendPendingData() {
   // The number of packets that have been sent in this call to SendPendingData.
   size_t packet_send_count = 0;
 
-  BaseObjectPtr<Packet> packet;
+  Packet::Ptr packet;
   uint8_t* pos = nullptr;
   uint8_t* begin = nullptr;
 
@@ -270,7 +270,7 @@ void Session::Application::SendPendingData() {
       packet = CreateStreamDataPacket();
       if (!packet) [[unlikely]]
         return false;
-      pos = begin = ngtcp2_vec(*packet).base;
+      pos = begin = packet->data();
     }
     DCHECK(packet);
     DCHECK_NOT_NULL(pos);
@@ -296,7 +296,6 @@ void Session::Application::SendPendingData() {
     // The stream_data is the next block of data from the application stream.
     if (GetStreamData(&stream_data) < 0) {
       Debug(session_, "Application failed to get stream data");
-      packet->CancelPacket();
       session_->SetLastError(QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL));
       closed = true;
       return session_->Close(CloseMethod::SILENT);
@@ -364,7 +363,6 @@ void Session::Application::SendPendingData() {
           if (ndatalen >= 0 && !StreamCommit(&stream_data, ndatalen)) {
             Debug(session_,
                   "Failed to commit stream data while writing packets");
-            packet->CancelPacket();
             session_->SetLastError(
                 QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL));
             closed = true;
@@ -377,7 +375,6 @@ void Session::Application::SendPendingData() {
           // ngtcp2 callback failed for some reason. This would be a
           // bug in our code.
           Debug(session_, "Internal failure with ngtcp2 callback");
-          packet->CancelPacket();
           session_->SetLastError(
               QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL));
           closed = true;
@@ -390,12 +387,10 @@ void Session::Application::SendPendingData() {
       Debug(session_,
             "Application encountered error while writing packet: %s",
             ngtcp2_strerror(nwrite));
-      packet->CancelPacket();
       session_->SetLastError(QuicError::ForNgtcp2Error(nwrite));
       closed = true;
       return session_->Close(CloseMethod::SILENT);
     } else if (ndatalen >= 0 && !StreamCommit(&stream_data, ndatalen)) {
-      packet->CancelPacket();
       session_->SetLastError(QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL));
       closed = true;
       return session_->Close(CloseMethod::SILENT);
@@ -413,10 +408,9 @@ void Session::Application::SendPendingData() {
       if (datalen) {
         Debug(session_, "Sending packet with %zu bytes", datalen);
         packet->Truncate(datalen);
-        session_->Send(packet, path);
-      } else {
-        packet->CancelPacket();
+        session_->Send(std::move(packet), path);
       }
+      // If no data, Ptr destructor releases the packet.
 
       return;
     }
@@ -426,7 +420,7 @@ void Session::Application::SendPendingData() {
     size_t datalen = pos - begin;
     Debug(session_, "Sending packet with %zu bytes", datalen);
     packet->Truncate(datalen);
-    session_->Send(packet, path);
+    session_->Send(std::move(packet), path);
 
     // If we have sent the maximum number of packets, we're done.
     if (++packet_send_count == max_packet_count) {
@@ -434,7 +428,7 @@ void Session::Application::SendPendingData() {
     }
 
     // Prepare to loop back around to prepare a new packet.
-    packet.reset();
+    // packet is already empty from the std::move above.
     pos = begin = nullptr;
   }
 }
@@ -449,6 +443,7 @@ ssize_t Session::Application::WriteVStream(PathStorage* path,
   if (stream_data.fin) flags |= NGTCP2_WRITE_STREAM_FLAG_FIN;
   return ngtcp2_conn_writev_stream(*session_,
                                    &path->path,
+                                   // TODO(@jasnell): ECN blocked on libuv
                                    nullptr,
                                    dest,
                                    max_packet_size,
@@ -468,6 +463,10 @@ class DefaultApplication final : public Session::Application {
   // statement not being sorted with the using v8 statements at the top
   // of the namespace.
   using Application::Application;  // NOLINT
+
+  Session::Application::Type type() const override {
+    return Session::Application::Type::DEFAULT;
+  }
 
   error_code GetNoErrorCode() const override { return 0; }
 
@@ -508,18 +507,14 @@ class DefaultApplication final : public Session::Application {
     stream_data->count = 0;
     stream_data->fin = 0;
     stream_data->stream.reset();
-    stream_data->remaining = 0;
     Debug(&session(), "Default application getting stream data");
     DCHECK_NOT_NULL(stream_data);
     // If the queue is empty, there aren't any streams with data yet
-    if (stream_queue_.IsEmpty()) return 0;
 
-    const auto get_length = [](auto vec, size_t count) {
-      CHECK_NOT_NULL(vec);
-      size_t len = 0;
-      for (size_t n = 0; n < count; n++) len += vec[n].len;
-      return len;
-    };
+    // If the connection-level flow control window is exhausted,
+    // there is no point in pulling stream data.
+    if (!session().max_data_left()) return 0;
+    if (stream_queue_.IsEmpty()) return 0;
 
     Stream* stream = stream_queue_.PopFront();
     CHECK_NOT_NULL(stream);
@@ -551,9 +546,7 @@ class DefaultApplication final : public Session::Application {
 
           if (count > 0) {
             stream->Schedule(&stream_queue_);
-            stream_data->remaining = get_length(data, count);
           } else {
-            stream_data->remaining = 0;
           }
 
           // Not calling done here because we defer committing
@@ -578,16 +571,6 @@ class DefaultApplication final : public Session::Application {
 
   void ResumeStream(int64_t id) override { ScheduleStream(id); }
 
-  bool ShouldSetFin(const StreamData& stream_data) override {
-    auto const is_empty = [](const ngtcp2_vec* vec, size_t cnt) {
-      size_t i = 0;
-      for (size_t n = 0; n < cnt; n++) i += vec[n].len;
-      return i > 0;
-    };
-
-    return stream_data.stream && is_empty(stream_data, stream_data.count);
-  }
-
   void BlockStream(int64_t id) override {
     if (auto stream = session().FindStream(id)) [[likely]] {
       stream->EmitBlocked();
@@ -595,10 +578,9 @@ class DefaultApplication final : public Session::Application {
   }
 
   bool StreamCommit(StreamData* stream_data, size_t datalen) override {
-    if (datalen == 0) return true;
     DCHECK_NOT_NULL(stream_data);
     CHECK(stream_data->stream);
-    stream_data->stream->Commit(datalen);
+    stream_data->stream->Commit(datalen, stream_data->fin);
     return true;
   }
 
@@ -613,27 +595,16 @@ class DefaultApplication final : public Session::Application {
     }
   }
 
-  void UnscheduleStream(int64_t id) {
-    if (auto stream = session().FindStream(id)) [[likely]] {
-      stream->Unschedule();
-    }
-  }
-
   Stream::Queue stream_queue_;
 };
 
-std::unique_ptr<Session::Application> Session::SelectApplication(
-    Session* session, const Config& config) {
-  if (config.options.application_provider) {
-    return config.options.application_provider->Create(session);
-  }
-
-  return std::make_unique<DefaultApplication>(session,
-                                              Application_Options::kDefault);
+std::unique_ptr<Session::Application> CreateDefaultApplication(
+    Session* session, const Session::Application_Options& options) {
+  return std::make_unique<DefaultApplication>(session, options);
 }
 
 }  // namespace quic
 }  // namespace node
 
 #endif  // OPENSSL_NO_QUIC
-#endif  // HAVE_OPENSSL
+#endif  // HAVE_OPENSSL && HAVE_QUIC

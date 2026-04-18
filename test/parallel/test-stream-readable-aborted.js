@@ -49,9 +49,9 @@ const { Readable, Duplex } = require('stream');
     assert.strictEqual(readable.readableAborted, false);
     readable.destroy();
     assert.strictEqual(readable.readableAborted, false);
-    queueMicrotask(() => {
+    queueMicrotask(common.mustCall(() => {
       assert.strictEqual(readable.readableAborted, false);
-    });
+    }));
   }));
   readable.resume();
 }

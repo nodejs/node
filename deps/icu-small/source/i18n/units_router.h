@@ -73,22 +73,6 @@ struct ConverterPreference : UMemory {
           precision(std::move(precision)), targetUnit(complexTarget.copy(status)) {}
 };
 
-} // namespace units
-
-// Export explicit template instantiations of MaybeStackArray, MemoryPool and
-// MaybeStackVector. This is required when building DLLs for Windows. (See
-// datefmt.h, collationiterator.h, erarules.h and others for similar examples.)
-//
-// Note: These need to be outside of the units namespace, or Clang will generate
-// a compile error.
-#if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
-template class U_I18N_API MaybeStackArray<units::ConverterPreference*, 8>;
-template class U_I18N_API MemoryPool<units::ConverterPreference, 8>;
-template class U_I18N_API MaybeStackVector<units::ConverterPreference, 8>;
-#endif
-
-namespace units {
-
 /**
  * `UnitsRouter` responsible for converting from a single unit (such as `meter` or `meter-per-second`) to
  * one of the complex units based on the limits.
@@ -117,12 +101,12 @@ namespace units {
  *    `UnitRouter` uses internally `ComplexUnitConverter` in order to convert the input units to the
  *    desired complex units and to check the limit too.
  */
-class U_I18N_API UnitsRouter {
+class U_I18N_API_CLASS UnitsRouter {
   public:
-    UnitsRouter(StringPiece inputUnitIdentifier, const Locale &locale, StringPiece usage,
-                UErrorCode &status);
-    UnitsRouter(const MeasureUnit &inputUnit, const Locale &locale, StringPiece usage,
-                UErrorCode &status);
+    U_I18N_API UnitsRouter(StringPiece inputUnitIdentifier, const Locale &locale, StringPiece usage,
+                           UErrorCode &status);
+    U_I18N_API UnitsRouter(const MeasureUnit &inputUnit, const Locale &locale, StringPiece usage,
+                           UErrorCode &status);
 
     /**
      * Performs locale and usage sensitive unit conversion.
@@ -133,7 +117,8 @@ class U_I18N_API UnitsRouter {
      *     and locale preference, alternatively with the default precision.
      * @param status Receives status.
      */
-    RouteResult route(double quantity, icu::number::impl::RoundingImpl *rounder, UErrorCode &status) const;
+    U_I18N_API RouteResult route(double quantity, icu::number::impl::RoundingImpl *rounder,
+                                 UErrorCode &status) const;
 
     /**
      * Returns the list of possible output units, i.e. the full set of

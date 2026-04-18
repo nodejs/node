@@ -64,23 +64,23 @@ static unsigned int assist_thread_main(void *arg)
 }
 
 int ossl_quic_thread_assist_init_start(QUIC_THREAD_ASSIST *qta,
-                                       QUIC_CHANNEL *ch)
+    QUIC_CHANNEL *ch)
 {
     CRYPTO_MUTEX *mutex = ossl_quic_channel_get_mutex(ch);
 
     if (mutex == NULL)
         return 0;
 
-    qta->ch         = ch;
-    qta->teardown   = 0;
-    qta->joined     = 0;
+    qta->ch = ch;
+    qta->teardown = 0;
+    qta->joined = 0;
 
     qta->cv = ossl_crypto_condvar_new();
     if (qta->cv == NULL)
         return 0;
 
     qta->t = ossl_crypto_thread_native_start(assist_thread_main,
-                                             qta, /*joinable=*/1);
+        qta, /*joinable=*/1);
     if (qta->t == NULL) {
         ossl_crypto_condvar_free(&qta->cv);
         return 0;
@@ -131,8 +131,8 @@ int ossl_quic_thread_assist_cleanup(QUIC_THREAD_ASSIST *qta)
     ossl_crypto_condvar_free(&qta->cv);
     ossl_crypto_thread_native_clean(qta->t);
 
-    qta->ch     = NULL;
-    qta->t      = NULL;
+    qta->ch = NULL;
+    qta->t = NULL;
     return 1;
 }
 

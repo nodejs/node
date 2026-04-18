@@ -273,7 +273,7 @@ in Node.js 6.0 because the method defaulted to using the non-recommended
 Node.js 8.0.0, calling `crypto.pbkdf2()` or `crypto.pbkdf2Sync()` with
 `digest` set to `undefined` will throw a `TypeError`.
 
-Beginning in Node.js v11.0.0, calling these functions with `digest` set to
+Beginning in Node.js 11.0.0, calling these functions with `digest` set to
 `null` would print a deprecation warning to align with the behavior when `digest`
 is `undefined`.
 
@@ -509,7 +509,7 @@ changes:
 
 Type: End-of-Life
 
-The `Server.connections` property was deprecated in Node.js v0.9.7 and has
+The `Server.connections` property was deprecated in Node.js 0.9.7 and has
 been removed. Please use the [`Server.getConnections()`][] method instead.
 
 ### DEP0021: `Server.listenFD`
@@ -744,6 +744,12 @@ Type: End-of-Life
 The `SlowBuffer` class has been removed. Please use
 [`Buffer.allocUnsafeSlow(size)`][] instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/slow-buffer-to-buffer-alloc-unsafe-slow)).
+
+```bash
+npx codemod@latest @nodejs/slow-buffer-to-buffer-alloc-unsafe-slow
+```
+
 ### DEP0031: `ecdh.setPublicKey()`
 
 <!-- YAML
@@ -787,6 +793,11 @@ The [`domain`][] module is deprecated and should not be used.
 <!-- YAML
 changes:
   - version:
+     - v25.4.0
+     - v24.14.0
+    pr-url: https://github.com/nodejs/node/pull/60214
+    description: Deprecation revoked.
+  - version:
     - v6.12.0
     - v4.8.6
     pr-url: https://github.com/nodejs/node/pull/10116
@@ -796,10 +807,12 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Revoked
 
-The [`events.listenerCount(emitter, eventName)`][] API is
-deprecated. Please use [`emitter.listenerCount(eventName)`][] instead.
+The [`events.listenerCount(emitter, eventName)`][] API was deprecated, as it
+provided identical fuctionality to [`emitter.listenerCount(eventName)`][]. The
+deprecation was revoked because this function has been repurposed to also
+accept {EventTarget} arguments.
 
 ### DEP0034: `fs.exists(path, callback)`
 
@@ -919,6 +932,11 @@ The [`require.extensions`][] property is deprecated.
 
 <!-- YAML
 changes:
+  - version:
+    - v23.7.0
+    - v22.14.0
+    pr-url: https://github.com/nodejs/node/pull/56632
+    description: Application deprecation.
   - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/47202
     description: Runtime deprecation.
@@ -930,7 +948,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: Application (non-`node_modules` code only)
 
 The [`punycode`][] module is deprecated. Please use a userland alternative
 instead.
@@ -1033,6 +1051,12 @@ Type: Runtime
 
 The [`util.isArray()`][] API is deprecated. Please use `Array.isArray()`
 instead.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
 
 ### DEP0045: `util.isBoolean()`
 
@@ -1557,6 +1581,12 @@ The [`util._extend()`][] API is deprecated because it's an unmaintained
 legacy API that was exposed to user land by accident.
 Please use `target = Object.assign(target, source)` instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-extend-to-object-assign)):
+
+```bash
+npx codemod@latest @nodejs/util-extend-to-object-assign
+```
+
 ### DEP0061: `fs.SyncWriteStream`
 
 <!-- YAML
@@ -1703,6 +1733,12 @@ the public methods (e.g. `OutgoingMessage.prototype.getHeader()`,
 The `OutgoingMessage.prototype._headers` and
 `OutgoingMessage.prototype._headerNames` properties were never documented as
 officially supported properties.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/http-outgoingmessage-headers)):
+
+```bash
+npx codemod@latest @nodejs/http-outgoingmessage-headers
+```
 
 ### DEP0067: `OutgoingMessage.prototype._renderHeaders`
 
@@ -2199,6 +2235,12 @@ Type: Runtime
 The [`crypto.fips`][] property is deprecated. Please use `crypto.setFips()`
 and `crypto.getFips()` instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/crypto-fips-to-getFips)).
+
+```bash
+npx codemod@latest @nodejs/crypto-fips-to-getFips
+```
+
 ### DEP0094: Using `assert.fail()` with more than one argument
 
 <!-- YAML
@@ -2325,6 +2367,12 @@ Type: End-of-Life
 `process.assert()` is deprecated. Please use the [`assert`][] module instead.
 
 This was never a documented feature.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/process-assert-to-node-assert)).
+
+```bash
+npx codemod@latest @nodejs/process-assert-to-node-assert
+```
 
 ### DEP0101: `--with-lttng`
 
@@ -2618,10 +2666,14 @@ future release.
 <!-- YAML
 changes:
   - version:
+      - v24.0.0
+    pr-url: https://github.com/nodejs/node/pull/55017
+    description: DEP0169 covers also `url.format()` and `url.resolve()`.
+  - version:
       - v19.0.0
       - v18.13.0
     pr-url: https://github.com/nodejs/node/pull/44919
-    description: \`url.parse()` is deprecated again in DEP0169.
+    description: DEP0169 deprecates `url.parse()` again.
   - version:
       - v15.13.0
       - v14.17.0
@@ -2789,12 +2841,15 @@ This property is a reference to the instance itself.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60657
+    description: End-of-Life.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26245
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 The `node:_stream_wrap` module is deprecated.
 
@@ -3732,6 +3787,9 @@ Type: Application (non-`node_modules` code only)
 have security implications. Use the [WHATWG URL API][] instead. CVEs are not
 issued for `url.parse()` vulnerabilities.
 
+Calling [`url.format(urlString)`][] or [`url.resolve()`][] invokes `url.parse()`
+internally, and is therefore also covered by this deprecation.
+
 ### DEP0170: Invalid port when using `url.parse()`
 
 <!-- YAML
@@ -3910,6 +3968,12 @@ Type: End-of-Life
 The `dirent.path` property has been removed due to its lack of consistency across
 release lines. Please use [`dirent.parentPath`][] instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/dirent-path-to-parent-path)):
+
+```bash
+npx codemod@latest @nodejs/dirent-path-to-parent-path
+```
+
 ### DEP0179: `Hash` constructor
 
 <!-- YAML
@@ -3969,6 +4033,9 @@ Please use the [`crypto.createHmac()`][] method to create Hmac instances.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61084
+    description: End-of-Life.
   - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/52552
     description: Runtime deprecation.
@@ -3977,15 +4044,15 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-Applications that intend to use authentication tags that are shorter than the
-default authentication tag length must set the `authTagLength` option of the
+For ciphers in GCM mode, the [`decipher.setAuthTag()`][] function used to accept
+authentication tags of any valid length (see also [DEP0090](#DEP0090)). This
+exception has been removed to better align with recommendations per
+[NIST SP 800-38D][], and applications that intend to use authentication tags
+that are shorter than the default authentication tag length (i.e., shorter than
+16 bytes for AES-GCM) must explicitly set the `authTagLength` option of the
 [`crypto.createDecipheriv()`][] function to the appropriate length.
-
-For ciphers in GCM mode, the [`decipher.setAuthTag()`][] function accepts
-authentication tags of any valid length (see [DEP0090](#DEP0090)). This behavior
-is deprecated to better align with recommendations per [NIST SP 800-38D][].
 
 ### DEP0183: OpenSSL engine-based APIs
 
@@ -4049,6 +4116,12 @@ Instantiating classes without the `new` qualifier exported by the `node:repl` mo
 The `new` qualifier must be used instead. This applies to all REPL classes, including
 `REPLServer` and `Recoverable`.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/repl-classes-with-new)):
+
+```bash
+npx codemod@latest @nodejs/repl-classes-with-new
+```
+
 <!-- md-lint skip-deprecation DEP0186 -->
 
 ### DEP0187: Passing invalid argument types to `fs.existsSync`
@@ -4102,7 +4175,7 @@ Type: Documentation-only
 `process.features.tls_alpn`, `process.features.tls_ocsp`, and `process.features.tls_sni` are
 deprecated, as their values are guaranteed to be identical to that of `process.features.tls`.
 
-### DEP0190: Passing `args` to `node:child_process` `execFile`/`spawn` with `shell` option `true`
+### DEP0190: Passing `args` to `node:child_process` `execFile`/`spawn` with `shell` option
 
 <!-- YAML
 changes:
@@ -4119,7 +4192,8 @@ changes:
 Type: Runtime
 
 When an `args` array is passed to [`child_process.execFile`][] or [`child_process.spawn`][] with the option
-`{ shell: true }`, the values are not escaped, only space-separated, which can lead to shell injection.
+`{ shell: true }` or `{ shell: '/path/to/shell' }`, the values are not escaped, only space-separated,
+which can lead to shell injection.
 
 ### DEP0191: `repl.builtinModules`
 
@@ -4153,6 +4227,7 @@ changes:
   - version:
       - v24.2.0
       - v22.17.0
+      - v20.19.6
     pr-url: https://github.com/nodejs/node/pull/57643
     description: Runtime deprecation.
 -->
@@ -4166,14 +4241,18 @@ an internal nodejs implementation rather than a public facing API, use `node:tls
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60657
+    description: End-of-Life.
   - version:
       - v24.2.0
       - v22.17.0
+      - v20.19.6
     pr-url: https://github.com/nodejs/node/pull/58337
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 The `node:_stream_duplex`, `node:_stream_passthrough`, `node:_stream_readable`, `node:_stream_transform`,
 `node:_stream_wrap` and `node:_stream_writable` modules are deprecated as they should be considered
@@ -4189,6 +4268,7 @@ changes:
   - version:
       - v24.2.0
       - v22.17.0
+      - v20.19.6
     pr-url: https://github.com/nodejs/node/pull/58313
     description: Documentation-only deprecation.
 -->
@@ -4347,6 +4427,137 @@ import { opendir } from 'node:fs/promises';
 }
 ```
 
+### DEP0201: Passing `options.type` to `Duplex.toWeb()`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62173
+    description: Runtime deprecation.
+  - version:
+     - v25.7.0
+     - v24.15.0
+    pr-url: https://github.com/nodejs/node/pull/61632
+    description: Documentation-only deprecation.
+-->
+
+Type: Runtime
+
+Passing the `type` option to [`Duplex.toWeb()`][] is deprecated. To specify the
+type of the readable half of the constructed readable-writable pair, use the
+`readableType` option instead.
+
+### DEP0202: `Http1IncomingMessage` and `Http1ServerResponse` options of HTTP/2 servers
+
+<!-- YAML
+changes:
+  - version:
+     - v25.7.0
+     - v24.15.0
+    pr-url: https://github.com/nodejs/node/pull/61713
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+The `Http1IncomingMessage` and `Http1ServerResponse` options of
+[`http2.createServer()`][] and [`http2.createSecureServer()`][] are
+deprecated. Use `http1Options.IncomingMessage` and
+`http1Options.ServerResponse` instead.
+
+```cjs
+// Deprecated
+const server = http2.createSecureServer({
+  allowHTTP1: true,
+  Http1IncomingMessage: MyIncomingMessage,
+  Http1ServerResponse: MyServerResponse,
+});
+```
+
+```cjs
+// Use this instead
+const server = http2.createSecureServer({
+  allowHTTP1: true,
+  http1Options: {
+    IncomingMessage: MyIncomingMessage,
+    ServerResponse: MyServerResponse,
+  },
+});
+```
+
+### DEP0203: Passing `CryptoKey` to `node:crypto` APIs
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62453
+    description: Runtime deprecation.
+  - version:
+     - v25.9.0
+     - v24.15.0
+    pr-url: https://github.com/nodejs/node/pull/62321
+    description: Documentation-only deprecation.
+-->
+
+Type: Runtime
+
+Passing a [`CryptoKey`][] to `node:crypto` functions is deprecated and
+will throw an error in a future version. This includes
+[`crypto.createPublicKey()`][], [`crypto.createPrivateKey()`][],
+[`crypto.sign()`][], [`crypto.verify()`][],
+[`crypto.publicEncrypt()`][], [`crypto.publicDecrypt()`][],
+[`crypto.privateEncrypt()`][], [`crypto.privateDecrypt()`][],
+[`Sign.prototype.sign()`][], [`Verify.prototype.verify()`][],
+[`crypto.createHmac()`][], [`crypto.createCipheriv()`][],
+[`crypto.createDecipheriv()`][], [`crypto.encapsulate()`][], and
+[`crypto.decapsulate()`][].
+
+### DEP0204: `KeyObject.from()` with non-extractable `CryptoKey`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62453
+    description: Runtime deprecation.
+  - version:
+     - v25.9.0
+     - v24.15.0
+    pr-url: https://github.com/nodejs/node/pull/62321
+    description: Documentation-only deprecation.
+-->
+
+Type: Runtime
+
+Passing a non-extractable [`CryptoKey`][] to [`KeyObject.from()`][] is
+deprecated and will throw an error in a future version.
+
+### DEP0205: `module.register()`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62401
+    description: Runtime deprecation.
+  - version:
+     - v25.9.0
+     - v24.15.0
+    pr-url: https://github.com/nodejs/node/pull/62395
+    description: Documentation-only deprecation.
+-->
+
+Type: Runtime
+
+[`module.register()`][] is deprecated. Use [`module.registerHooks()`][]
+instead.
+
+The `module.register()` API provides off-thread async hooks for customizing ES modules;
+the `module.registerHooks()` API provides similar hooks that are synchronous, in-thread, and
+work for all types of modules.
+Supporting async hooks has proven to be complex, involving worker threads orchestration, and there are issues
+that have proven unresolveable. See [caveats of asynchronous customization hooks][]. Please migrate to
+`module.registerHooks()` as soon as possible as `module.register()` will be
+removed in a future version of Node.js.
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
@@ -4364,13 +4575,18 @@ import { opendir } from 'node:fs/promises';
 [`Buffer.from(buffer)`]: buffer.md#static-method-bufferfrombuffer
 [`Buffer.isBuffer()`]: buffer.md#static-method-bufferisbufferobj
 [`Cipheriv`]: crypto.md#class-cipheriv
+[`CryptoKey`]: webcrypto.md#class-cryptokey
 [`Decipheriv`]: crypto.md#class-decipheriv
+[`Duplex.toWeb()`]: stream.md#streamduplextowebstreamduplex-options
 [`Error.isError`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/isError
+[`KeyObject.from()`]: crypto.md#static-method-keyobjectfromkey
 [`REPLServer.clearBufferedCommand()`]: repl.md#replserverclearbufferedcommand
 [`ReadStream.open()`]: fs.md#class-fsreadstream
 [`Server.getConnections()`]: net.md#servergetconnectionscallback
 [`Server.listen({fd: <number>})`]: net.md#serverlistenhandle-backlog-callback
+[`Sign.prototype.sign()`]: crypto.md#signsignprivatekey-outputencoding
 [`String.prototype.toWellFormed`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/toWellFormed
+[`Verify.prototype.verify()`]: crypto.md#verifyverifyobject-signature-signatureencoding
 [`WriteStream.open()`]: fs.md#class-fswritestream
 [`assert`]: assert.md
 [`asyncResource.runInAsyncScope()`]: async_context.md#asyncresourceruninasyncscopefn-thisarg-args
@@ -4388,11 +4604,21 @@ import { opendir } from 'node:fs/promises';
 [`crypto.createDecipheriv()`]: crypto.md#cryptocreatedecipherivalgorithm-key-iv-options
 [`crypto.createHash()`]: crypto.md#cryptocreatehashalgorithm-options
 [`crypto.createHmac()`]: crypto.md#cryptocreatehmacalgorithm-key-options
+[`crypto.createPrivateKey()`]: crypto.md#cryptocreateprivatekeykey
+[`crypto.createPublicKey()`]: crypto.md#cryptocreatepublickeykey
+[`crypto.decapsulate()`]: crypto.md#cryptodecapsulatekey-ciphertext-callback
+[`crypto.encapsulate()`]: crypto.md#cryptoencapsulatekey-callback
 [`crypto.fips`]: crypto.md#cryptofips
 [`crypto.pbkdf2()`]: crypto.md#cryptopbkdf2password-salt-iterations-keylen-digest-callback
+[`crypto.privateDecrypt()`]: crypto.md#cryptoprivatedecryptprivatekey-buffer
+[`crypto.privateEncrypt()`]: crypto.md#cryptoprivateencryptprivatekey-buffer
+[`crypto.publicDecrypt()`]: crypto.md#cryptopublicdecryptkey-buffer
+[`crypto.publicEncrypt()`]: crypto.md#cryptopublicencryptkey-buffer
 [`crypto.randomBytes()`]: crypto.md#cryptorandombytessize-callback
 [`crypto.scrypt()`]: crypto.md#cryptoscryptpassword-salt-keylen-options-callback
 [`crypto.setEngine()`]: crypto.md#cryptosetengineengine-flags
+[`crypto.sign()`]: crypto.md#cryptosignalgorithm-data-key-callback
+[`crypto.verify()`]: crypto.md#cryptoverifyalgorithm-data-key-signature-callback
 [`decipher.final()`]: crypto.md#decipherfinaloutputencoding
 [`decipher.setAuthTag()`]: crypto.md#deciphersetauthtagbuffer-encoding
 [`dirent.parentPath`]: fs.md#direntparentpath
@@ -4401,7 +4627,7 @@ import { opendir } from 'node:fs/promises';
 [`domain`]: domain.md
 [`ecdh.setPublicKey()`]: crypto.md#ecdhsetpublickeypublickey-encoding
 [`emitter.listenerCount(eventName)`]: events.md#emitterlistenercounteventname-listener
-[`events.listenerCount(emitter, eventName)`]: events.md#eventslistenercountemitter-eventname
+[`events.listenerCount(emitter, eventName)`]: events.md#eventslistenercountemitterortarget-eventname
 [`fs.Dir`]: fs.md#class-fsdir
 [`fs.FileHandle`]: fs.md#class-filehandle
 [`fs.access()`]: fs.md#fsaccesspath-mode-callback
@@ -4425,6 +4651,8 @@ import { opendir } from 'node:fs/promises';
 [`http.ServerResponse`]: http.md#class-httpserverresponse
 [`http.get()`]: http.md#httpgetoptions-callback
 [`http.request()`]: http.md#httprequestoptions-callback
+[`http2.createSecureServer()`]: http2.md#http2createsecureserveroptions-onrequesthandler
+[`http2.createServer()`]: http2.md#http2createserveroptions-onrequesthandler
 [`https.get()`]: https.md#httpsgetoptions-callback
 [`https.request()`]: https.md#httpsrequestoptions-callback
 [`message.connection`]: http.md#messageconnection
@@ -4434,6 +4662,8 @@ import { opendir } from 'node:fs/promises';
 [`message.trailersDistinct`]: http.md#messagetrailersdistinct
 [`message.trailers`]: http.md#messagetrailers
 [`module.createRequire()`]: module.md#modulecreaterequirefilename
+[`module.register()`]: module.md#moduleregisterspecifier-parenturl-options
+[`module.registerHooks()`]: module.md#moduleregisterhooksoptions
 [`os.networkInterfaces()`]: os.md#osnetworkinterfaces
 [`os.tmpdir()`]: os.md#ostmpdir
 [`process.env`]: process.md#processenv
@@ -4468,6 +4698,7 @@ import { opendir } from 'node:fs/promises';
 [`tls.createSecureContext()`]: tls.md#tlscreatesecurecontextoptions
 [`tls.createServer()`]: tls.md#tlscreateserveroptions-secureconnectionlistener
 [`url.format()`]: url.md#urlformaturlobject
+[`url.format(urlString)`]: url.md#urlformaturlstring
 [`url.parse()`]: url.md#urlparseurlstring-parsequerystring-slashesdenotehost
 [`url.resolve()`]: url.md#urlresolvefrom-to
 [`util._extend()`]: util.md#util_extendtarget-source
@@ -4486,6 +4717,7 @@ import { opendir } from 'node:fs/promises';
 [`zlib.bytesWritten`]: zlib.md#zlibbyteswritten
 [alloc]: buffer.md#static-method-bufferallocsize-fill-encoding
 [alloc_unsafe_size]: buffer.md#static-method-bufferallocunsafesize
+[caveats of asynchronous customization hooks]: module.md#caveats-of-asynchronous-customization-hooks
 [from_arraybuffer]: buffer.md#static-method-bufferfromarraybuffer-byteoffset-length
 [from_string_encoding]: buffer.md#static-method-bufferfromstring-encoding
 [legacy URL API]: url.md#legacy-url-api

@@ -2,16 +2,16 @@
 
 const { isSunOS } = require('../common');
 
-const { ok, throws, notStrictEqual } = require('assert');
+const assert = require('assert');
 
 function validateResult(result) {
-  notStrictEqual(result, null);
+  assert.notStrictEqual(result, null);
 
-  ok(Number.isFinite(result.user));
-  ok(Number.isFinite(result.system));
+  assert.ok(Number.isFinite(result.user));
+  assert.ok(Number.isFinite(result.system));
 
-  ok(result.user >= 0);
-  ok(result.system >= 0);
+  assert.ok(result.user >= 0);
+  assert.ok(result.system >= 0);
 }
 
 // Test that process.threadCpuUsage() works on the main thread
@@ -32,12 +32,12 @@ if (!isSunOS) {
   for (let i = 0; i < 10; i++) {
     thisUsage = process.threadCpuUsage();
     validateResult(thisUsage);
-    ok(thisUsage.user >= lastUsage.user);
-    ok(thisUsage.system >= lastUsage.system);
+    assert.ok(thisUsage.user >= lastUsage.user);
+    assert.ok(thisUsage.system >= lastUsage.system);
     lastUsage = thisUsage;
   }
 } else {
-  throws(
+  assert.throws(
     () => process.threadCpuUsage(),
     {
       code: 'ERR_OPERATION_FAILED',
@@ -49,7 +49,7 @@ if (!isSunOS) {
 
 // Test argument validaton
 {
-  throws(
+  assert.throws(
     () => process.threadCpuUsage(123),
     {
       code: 'ERR_INVALID_ARG_TYPE',
@@ -58,7 +58,7 @@ if (!isSunOS) {
     }
   );
 
-  throws(
+  assert.throws(
     () => process.threadCpuUsage([]),
     {
       code: 'ERR_INVALID_ARG_TYPE',
@@ -67,7 +67,7 @@ if (!isSunOS) {
     }
   );
 
-  throws(
+  assert.throws(
     () => process.threadCpuUsage({ user: -123 }),
     {
       code: 'ERR_INVALID_ARG_VALUE',
@@ -76,7 +76,7 @@ if (!isSunOS) {
     }
   );
 
-  throws(
+  assert.throws(
     () => process.threadCpuUsage({ user: 0, system: 'bar' }),
     {
       code: 'ERR_INVALID_ARG_TYPE',

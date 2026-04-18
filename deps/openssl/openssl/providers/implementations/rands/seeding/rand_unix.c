@@ -8,7 +8,7 @@
  */
 
 #ifndef _GNU_SOURCE
-# define _GNU_SOURCE
+#define _GNU_SOURCE
 #endif
 #include "internal/e_os.h"
 #include <stdio.h>
@@ -22,42 +22,42 @@
 #include "prov/seeding.h"
 
 #ifndef OPENSSL_SYS_UEFI
-# ifdef __linux
-#  include <sys/syscall.h>
-#  ifdef DEVRANDOM_WAIT
-#   include <sys/shm.h>
-#   include <sys/utsname.h>
-#  endif
-# endif
-# if defined(__FreeBSD__) || defined(__NetBSD__)
-#  include <sys/types.h>
-#  include <sys/sysctl.h>
-#  include <sys/param.h>
-# endif
-# if defined(__FreeBSD__) && __FreeBSD_version >= 1200061
-#  include <sys/random.h>
-# endif
-# if defined(__OpenBSD__)
-#  include <sys/param.h>
-# endif
-# if defined(__DragonFly__)
-#  include <sys/param.h>
-#  include <sys/random.h>
-# endif
+#ifdef __linux
+#include <sys/syscall.h>
+#ifdef DEVRANDOM_WAIT
+#include <sys/shm.h>
+#include <sys/utsname.h>
+#endif
+#endif
+#if defined(__FreeBSD__) || defined(__NetBSD__)
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#include <sys/param.h>
+#endif
+#if defined(__FreeBSD__) && __FreeBSD_version >= 1200061
+#include <sys/random.h>
+#endif
+#if defined(__OpenBSD__)
+#include <sys/param.h>
+#endif
+#if defined(__DragonFly__)
+#include <sys/param.h>
+#include <sys/random.h>
+#endif
 #endif
 
 #if (defined(OPENSSL_SYS_UNIX) && !defined(OPENSSL_SYS_VXWORKS)) \
-     || defined(__DJGPP__)
-# include <sys/types.h>
-# include <sys/stat.h>
-# include <fcntl.h>
-# include <unistd.h>
-# include <sys/time.h>
+    || defined(__DJGPP__)
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/time.h>
 
 static uint64_t get_time_stamp(void);
 
 /* Macro to convert two thirty two bit values into a sixty four bit one */
-# define TWO32TO64(a, b) ((((uint64_t)(a)) << 32) + (b))
+#define TWO32TO64(a, b) ((((uint64_t)(a)) << 32) + (b))
 
 /*
  * Check for the existence and support of POSIX timers.  The standard
@@ -79,53 +79,53 @@ static uint64_t get_time_stamp(void);
  * The nested #if sequences are required to avoid using a parameterised
  * macro that might be undefined.
  */
-# undef OSSL_POSIX_TIMER_OKAY
+#undef OSSL_POSIX_TIMER_OKAY
 /* On some systems, _POSIX_TIMERS is defined but empty.
  * Subtracting by 0 when comparing avoids an error in this case. */
-# if defined(_POSIX_TIMERS) && _POSIX_TIMERS -0 > 0
-#  if defined(__GLIBC__)
-#   if defined(__GLIBC_PREREQ)
-#    if __GLIBC_PREREQ(2, 17)
-#     define OSSL_POSIX_TIMER_OKAY
-#    endif
-#   endif
-#  else
-#   define OSSL_POSIX_TIMER_OKAY
-#  endif
-# endif
-#endif /* (defined(OPENSSL_SYS_UNIX) && !defined(OPENSSL_SYS_VXWORKS))
+#if defined(_POSIX_TIMERS) && _POSIX_TIMERS - 0 > 0
+#if defined(__GLIBC__)
+#if defined(__GLIBC_PREREQ)
+#if __GLIBC_PREREQ(2, 17)
+#define OSSL_POSIX_TIMER_OKAY
+#endif
+#endif
+#else
+#define OSSL_POSIX_TIMER_OKAY
+#endif
+#endif
+#endif /* (defined(OPENSSL_SYS_UNIX) && !defined(OPENSSL_SYS_VXWORKS)) \
           || defined(__DJGPP__) */
 
 #if defined(OPENSSL_RAND_SEED_NONE)
 /* none means none. this simplifies the following logic */
-# undef OPENSSL_RAND_SEED_OS
-# undef OPENSSL_RAND_SEED_GETRANDOM
-# undef OPENSSL_RAND_SEED_DEVRANDOM
-# undef OPENSSL_RAND_SEED_RDTSC
-# undef OPENSSL_RAND_SEED_RDCPU
-# undef OPENSSL_RAND_SEED_EGD
+#undef OPENSSL_RAND_SEED_OS
+#undef OPENSSL_RAND_SEED_GETRANDOM
+#undef OPENSSL_RAND_SEED_DEVRANDOM
+#undef OPENSSL_RAND_SEED_RDTSC
+#undef OPENSSL_RAND_SEED_RDCPU
+#undef OPENSSL_RAND_SEED_EGD
 #endif
 
 #if defined(OPENSSL_SYS_UEFI) && !defined(OPENSSL_RAND_SEED_NONE)
-# error "UEFI only supports seeding NONE"
+#error "UEFI only supports seeding NONE"
 #endif
 
 #if !(defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_SYS_WIN32) \
-    || defined(OPENSSL_SYS_VMS) || defined(OPENSSL_SYS_VXWORKS) \
+    || defined(OPENSSL_SYS_VMS) || defined(OPENSSL_SYS_VXWORKS)  \
     || defined(OPENSSL_SYS_UEFI))
 
-# if defined(OPENSSL_SYS_VOS)
+#if defined(OPENSSL_SYS_VOS)
 
-#  ifndef OPENSSL_RAND_SEED_OS
-#   error "Unsupported seeding method configured; must be os"
-#  endif
+#ifndef OPENSSL_RAND_SEED_OS
+#error "Unsupported seeding method configured; must be os"
+#endif
 
-#  if defined(OPENSSL_SYS_VOS_HPPA) && defined(OPENSSL_SYS_VOS_IA32)
-#   error "Unsupported HP-PA and IA32 at the same time."
-#  endif
-#  if !defined(OPENSSL_SYS_VOS_HPPA) && !defined(OPENSSL_SYS_VOS_IA32)
-#   error "Must have one of HP-PA or IA32"
-#  endif
+#if defined(OPENSSL_SYS_VOS_HPPA) && defined(OPENSSL_SYS_VOS_IA32)
+#error "Unsupported HP-PA and IA32 at the same time."
+#endif
+#if !defined(OPENSSL_SYS_VOS_HPPA) && !defined(OPENSSL_SYS_VOS_IA32)
+#error "Must have one of HP-PA or IA32"
+#endif
 
 /*
  * The following algorithm repeatedly samples the real-time clock (RTC) to
@@ -148,13 +148,13 @@ size_t ossl_pool_acquire_entropy(RAND_POOL *pool)
     size_t bytes_needed;
     struct timespec ts;
     unsigned char v;
-#  ifdef OPENSSL_SYS_VOS_HPPA
+#ifdef OPENSSL_SYS_VOS_HPPA
     long duration;
     extern void s$sleep(long *_duration, short int *_code);
-#  else
+#else
     long long duration;
     extern void s$sleep2(long long *_duration, short int *_code);
-#  endif
+#endif
 
     bytes_needed = ossl_rand_pool_bytes_needed(pool, 4 /*entropy_factor*/);
 
@@ -166,15 +166,15 @@ size_t ossl_pool_acquire_entropy(RAND_POOL *pool)
         for (k = 0; k < 99; k++)
             ts.tv_nsec = random();
 
-#  ifdef OPENSSL_SYS_VOS_HPPA
+#ifdef OPENSSL_SYS_VOS_HPPA
         /* sleep for 1/1024 of a second (976 us).  */
         duration = 1;
         s$sleep(&duration, &code);
-#  else
+#else
         /* sleep for 1/65536 of a second (15 us).  */
         duration = 1;
         s$sleep2(&duration, &code);
-#  endif
+#endif
 
         /* Get wall clock time, take 8 bits. */
         clock_gettime(CLOCK_REALTIME, &ts);
@@ -192,26 +192,25 @@ void ossl_rand_pool_keep_random_devices_open(int keep)
 {
 }
 
-# else
+#else
 
-#  if defined(OPENSSL_RAND_SEED_EGD) && \
-        (defined(OPENSSL_NO_EGD) || !defined(DEVRANDOM_EGD))
-#   error "Seeding uses EGD but EGD is turned off or no device given"
-#  endif
+#if defined(OPENSSL_RAND_SEED_EGD) && (defined(OPENSSL_NO_EGD) || !defined(DEVRANDOM_EGD))
+#error "Seeding uses EGD but EGD is turned off or no device given"
+#endif
 
-#  if defined(OPENSSL_RAND_SEED_DEVRANDOM) && !defined(DEVRANDOM)
-#   error "Seeding uses urandom but DEVRANDOM is not configured"
-#  endif
+#if defined(OPENSSL_RAND_SEED_DEVRANDOM) && !defined(DEVRANDOM)
+#error "Seeding uses urandom but DEVRANDOM is not configured"
+#endif
 
-#  if defined(OPENSSL_RAND_SEED_OS)
-#   if !defined(DEVRANDOM)
-#    error "OS seeding requires DEVRANDOM to be configured"
-#   endif
-#   define OPENSSL_RAND_SEED_GETRANDOM
-#   define OPENSSL_RAND_SEED_DEVRANDOM
-#  endif
+#if defined(OPENSSL_RAND_SEED_OS)
+#if !defined(DEVRANDOM)
+#error "OS seeding requires DEVRANDOM to be configured"
+#endif
+#define OPENSSL_RAND_SEED_GETRANDOM
+#define OPENSSL_RAND_SEED_DEVRANDOM
+#endif
 
-#  if (defined(__FreeBSD__) || defined(__NetBSD__)) && defined(KERN_ARND)
+#if (defined(__FreeBSD__) || defined(__NetBSD__)) && defined(KERN_ARND)
 /*
  * sysctl_random(): Use sysctl() to read a random number from the kernel
  * Returns the number of bytes returned in buf on success, -1 on failure.
@@ -233,7 +232,7 @@ static ssize_t sysctl_random(char *buf, size_t buflen)
      * when the sysctl returns long and we want to request something not a
      * multiple of longs, which should never be the case.
      */
-#if   defined(__FreeBSD__)
+#if defined(__FreeBSD__)
     if (!ossl_assert(buflen % sizeof(long) == 0)) {
         errno = EINVAL;
         return -1;
@@ -247,7 +246,7 @@ static ssize_t sysctl_random(char *buf, size_t buflen)
      * up to 256 bytes.
      * Just return an error on older NetBSD versions.
      */
-#if   defined(__NetBSD__) && __NetBSD_Version__ < 400000000
+#if defined(__NetBSD__) && __NetBSD_Version__ < 400000000
     errno = ENOSYS;
     return -1;
 #endif
@@ -266,63 +265,63 @@ static ssize_t sysctl_random(char *buf, size_t buflen)
 
     return done;
 }
-#  endif
+#endif
 
-#  if defined(OPENSSL_RAND_SEED_GETRANDOM)
+#if defined(OPENSSL_RAND_SEED_GETRANDOM)
 
-#   if defined(__linux) && !defined(__NR_getrandom)
-#    if defined(__arm__)
-#     define __NR_getrandom    (__NR_SYSCALL_BASE+384)
-#    elif defined(__i386__)
-#     define __NR_getrandom    355
-#    elif defined(__x86_64__)
-#     if defined(__ILP32__)
-#      define __NR_getrandom   (__X32_SYSCALL_BIT + 318)
-#     else
-#      define __NR_getrandom   318
-#     endif
-#    elif defined(__xtensa__)
-#     define __NR_getrandom    338
-#    elif defined(__s390__) || defined(__s390x__)
-#     define __NR_getrandom    349
-#    elif defined(__bfin__)
-#     define __NR_getrandom    389
-#    elif defined(__powerpc__)
-#     define __NR_getrandom    359
-#    elif defined(__mips__) || defined(__mips64)
-#     if _MIPS_SIM == _MIPS_SIM_ABI32
-#      define __NR_getrandom   (__NR_Linux + 353)
-#     elif _MIPS_SIM == _MIPS_SIM_ABI64
-#      define __NR_getrandom   (__NR_Linux + 313)
-#     elif _MIPS_SIM == _MIPS_SIM_NABI32
-#      define __NR_getrandom   (__NR_Linux + 317)
-#     endif
-#    elif defined(__hppa__)
-#     define __NR_getrandom    (__NR_Linux + 339)
-#    elif defined(__sparc__)
-#     define __NR_getrandom    347
-#    elif defined(__ia64__)
-#     define __NR_getrandom    1339
-#    elif defined(__alpha__)
-#     define __NR_getrandom    511
-#    elif defined(__sh__)
-#     if defined(__SH5__)
-#      define __NR_getrandom   373
-#     else
-#      define __NR_getrandom   384
-#     endif
-#    elif defined(__avr32__)
-#     define __NR_getrandom    317
-#    elif defined(__microblaze__)
-#     define __NR_getrandom    385
-#    elif defined(__m68k__)
-#     define __NR_getrandom    352
-#    elif defined(__cris__)
-#     define __NR_getrandom    356
-#    else /* generic (f.e. aarch64, loongarch, loongarch64) */
-#     define __NR_getrandom    278
-#    endif
-#   endif
+#if defined(__linux) && !defined(__NR_getrandom)
+#if defined(__arm__)
+#define __NR_getrandom (__NR_SYSCALL_BASE + 384)
+#elif defined(__i386__)
+#define __NR_getrandom 355
+#elif defined(__x86_64__)
+#if defined(__ILP32__)
+#define __NR_getrandom (__X32_SYSCALL_BIT + 318)
+#else
+#define __NR_getrandom 318
+#endif
+#elif defined(__xtensa__)
+#define __NR_getrandom 338
+#elif defined(__s390__) || defined(__s390x__)
+#define __NR_getrandom 349
+#elif defined(__bfin__)
+#define __NR_getrandom 389
+#elif defined(__powerpc__)
+#define __NR_getrandom 359
+#elif defined(__mips__) || defined(__mips64)
+#if _MIPS_SIM == _MIPS_SIM_ABI32
+#define __NR_getrandom (__NR_Linux + 353)
+#elif _MIPS_SIM == _MIPS_SIM_ABI64
+#define __NR_getrandom (__NR_Linux + 313)
+#elif _MIPS_SIM == _MIPS_SIM_NABI32
+#define __NR_getrandom (__NR_Linux + 317)
+#endif
+#elif defined(__hppa__)
+#define __NR_getrandom (__NR_Linux + 339)
+#elif defined(__sparc__)
+#define __NR_getrandom 347
+#elif defined(__ia64__)
+#define __NR_getrandom 1339
+#elif defined(__alpha__)
+#define __NR_getrandom 511
+#elif defined(__sh__)
+#if defined(__SH5__)
+#define __NR_getrandom 373
+#else
+#define __NR_getrandom 384
+#endif
+#elif defined(__avr32__)
+#define __NR_getrandom 317
+#elif defined(__microblaze__)
+#define __NR_getrandom 385
+#elif defined(__m68k__)
+#define __NR_getrandom 352
+#elif defined(__cris__)
+#define __NR_getrandom 356
+#else /* generic (f.e. aarch64, loongarch, loongarch64) */
+#define __NR_getrandom 278
+#endif
+#endif
 
 /*
  * syscall_random(): Try to get random data using a system call
@@ -352,8 +351,8 @@ static ssize_t syscall_random(void *buf, size_t buflen)
      * Note: Sometimes getentropy() can be provided but not implemented
      * internally. So we need to check errno for ENOSYS
      */
-#  if !defined(__DragonFly__) && !defined(__NetBSD__) && !defined(__FreeBSD__)
-#    if defined(__GNUC__) && __GNUC__>=2 && defined(__ELF__) && !defined(__hpux)
+#if !defined(__DragonFly__) && !defined(__NetBSD__) && !defined(__FreeBSD__)
+#if defined(__GNUC__) && __GNUC__ >= 2 && defined(__ELF__) && !defined(__hpux)
     extern int getentropy(void *buffer, size_t length) __attribute__((weak));
 
     if (getentropy != NULL) {
@@ -362,13 +361,13 @@ static ssize_t syscall_random(void *buf, size_t buflen)
         if (errno != ENOSYS)
             return -1;
     }
-#    elif defined(OPENSSL_APPLE_CRYPTO_RANDOM)
+#elif defined(OPENSSL_APPLE_CRYPTO_RANDOM)
 
     if (CCRandomGenerateBytes(buf, buflen) == kCCSuccess)
-	    return (ssize_t)buflen;
+        return (ssize_t)buflen;
 
     return -1;
-#    else
+#else
     union {
         void *p;
         int (*f)(void *buffer, size_t length);
@@ -383,30 +382,30 @@ static ssize_t syscall_random(void *buf, size_t buflen)
     ERR_pop_to_mark();
     if (p_getentropy.p != NULL)
         return p_getentropy.f(buf, buflen) == 0 ? (ssize_t)buflen : -1;
-#    endif
-#  endif /* !__DragonFly__ && !__NetBSD__ && !__FreeBSD__ */
+#endif
+#endif /* !__DragonFly__ && !__NetBSD__ && !__FreeBSD__ */
 
     /* Linux supports this since version 3.17 */
-#  if defined(__linux) && defined(__NR_getrandom)
+#if defined(__linux) && defined(__NR_getrandom)
     return syscall(__NR_getrandom, buf, buflen, 0);
-#  elif (defined(__DragonFly__)  && __DragonFly_version >= 500700) \
-     || (defined(__NetBSD__) && __NetBSD_Version >= 1000000000) \
-     || (defined(__FreeBSD__) && __FreeBSD_version >= 1200061)
+#elif (defined(__DragonFly__) && __DragonFly_version >= 500700) \
+    || (defined(__NetBSD__) && __NetBSD_Version >= 1000000000)  \
+    || (defined(__FreeBSD__) && __FreeBSD_version >= 1200061)
     return getrandom(buf, buflen, 0);
-#  elif (defined(__FreeBSD__) || defined(__NetBSD__)) && defined(KERN_ARND)
+#elif (defined(__FreeBSD__) || defined(__NetBSD__)) && defined(KERN_ARND)
     return sysctl_random(buf, buflen);
-#  elif defined(__wasi__)
+#elif defined(__wasi__)
     if (getentropy(buf, buflen) == 0)
-      return (ssize_t)buflen;
+        return (ssize_t)buflen;
     return -1;
-#  else
+#else
     errno = ENOSYS;
     return -1;
-#  endif
+#endif
 }
-#  endif    /* defined(OPENSSL_RAND_SEED_GETRANDOM) */
+#endif /* defined(OPENSSL_RAND_SEED_GETRANDOM) */
 
-#  if defined(OPENSSL_RAND_SEED_DEVRANDOM)
+#if defined(OPENSSL_RAND_SEED_DEVRANDOM)
 static const char *random_device_paths[] = { DEVRANDOM };
 static struct random_device {
     int fd;
@@ -417,8 +416,8 @@ static struct random_device {
 } random_devices[OSSL_NELEM(random_device_paths)];
 static int keep_random_devices_open = 1;
 
-#   if defined(__linux) && defined(DEVRANDOM_WAIT) \
-       && defined(OPENSSL_RAND_SEED_GETRANDOM)
+#if defined(__linux) && defined(DEVRANDOM_WAIT) \
+    && defined(OPENSSL_RAND_SEED_GETRANDOM)
 static void *shm_addr;
 
 static void cleanup_shm(void)
@@ -470,16 +469,18 @@ static int wait_random_seeded(void)
                     FD_ZERO(&fds);
                     FD_SET(fd, &fds);
                     while ((r = select(fd + 1, &fds, NULL, NULL, NULL)) < 0
-                           && errno == EINTR);
+                        && errno == EINTR)
+                        ;
                 } else {
-                    while ((r = read(fd, &c, 1)) < 0 && errno == EINTR);
+                    while ((r = read(fd, &c, 1)) < 0 && errno == EINTR)
+                        ;
                 }
                 close(fd);
                 if (r == 1) {
                     seeded = 1;
                     /* Create the shared memory indicator */
                     shm_id = shmget(OPENSSL_RAND_SEED_DEVRANDOM_SHM_ID, 1,
-                                    IPC_CREAT | S_IRUSR | S_IRGRP | S_IROTH);
+                        IPC_CREAT | S_IRUSR | S_IRGRP | S_IROTH);
                 }
             }
         }
@@ -496,12 +497,12 @@ static int wait_random_seeded(void)
     }
     return seeded;
 }
-#   else /* defined __linux && DEVRANDOM_WAIT && OPENSSL_RAND_SEED_GETRANDOM */
+#else /* defined __linux && DEVRANDOM_WAIT && OPENSSL_RAND_SEED_GETRANDOM */
 static int wait_random_seeded(void)
 {
     return 1;
 }
-#   endif
+#endif
 
 /*
  * Verify that the file descriptor associated with the random source is
@@ -515,11 +516,11 @@ static int check_random_device(struct random_device *rd)
     struct stat st;
 
     return rd->fd != -1
-           && fstat(rd->fd, &st) != -1
-           && rd->dev == st.st_dev
-           && rd->ino == st.st_ino
-           && ((rd->mode ^ st.st_mode) & ~(S_IRWXU | S_IRWXG | S_IRWXO)) == 0
-           && rd->rdev == st.st_rdev;
+        && fstat(rd->fd, &st) != -1
+        && rd->dev == st.st_dev
+        && rd->ino == st.st_ino
+        && ((rd->mode ^ st.st_mode) & ~(S_IRWXU | S_IRWXG | S_IRWXO)) == 0
+        && rd->rdev == st.st_rdev;
 }
 
 /*
@@ -590,7 +591,7 @@ void ossl_rand_pool_keep_random_devices_open(int keep)
     keep_random_devices_open = keep;
 }
 
-#  else     /* !defined(OPENSSL_RAND_SEED_DEVRANDOM) */
+#else /* !defined(OPENSSL_RAND_SEED_DEVRANDOM) */
 
 int ossl_rand_pool_init(void)
 {
@@ -605,7 +606,7 @@ void ossl_rand_pool_keep_random_devices_open(int keep)
 {
 }
 
-#  endif    /* defined(OPENSSL_RAND_SEED_DEVRANDOM) */
+#endif /* defined(OPENSSL_RAND_SEED_DEVRANDOM) */
 
 /*
  * Try the various seeding methods in turn, exit when successful.
@@ -626,14 +627,14 @@ void ossl_rand_pool_keep_random_devices_open(int keep)
  */
 size_t ossl_pool_acquire_entropy(RAND_POOL *pool)
 {
-#  if defined(OPENSSL_RAND_SEED_NONE)
+#if defined(OPENSSL_RAND_SEED_NONE)
     return ossl_rand_pool_entropy_available(pool);
-#  else
+#else
     size_t entropy_available = 0;
 
-    (void)entropy_available;    /* avoid compiler warning */
+    (void)entropy_available; /* avoid compiler warning */
 
-#   if defined(OPENSSL_RAND_SEED_GETRANDOM)
+#if defined(OPENSSL_RAND_SEED_GETRANDOM)
     {
         size_t bytes_needed;
         unsigned char *buffer;
@@ -657,9 +658,9 @@ size_t ossl_pool_acquire_entropy(RAND_POOL *pool)
     entropy_available = ossl_rand_pool_entropy_available(pool);
     if (entropy_available > 0)
         return entropy_available;
-#   endif
+#endif
 
-#   if defined(OPENSSL_RAND_SEED_DEVRANDOM)
+#if defined(OPENSSL_RAND_SEED_DEVRANDOM)
     if (wait_random_seeded()) {
         size_t bytes_needed;
         unsigned char *buffer;
@@ -667,7 +668,7 @@ size_t ossl_pool_acquire_entropy(RAND_POOL *pool)
 
         bytes_needed = ossl_rand_pool_bytes_needed(pool, 1 /*entropy_factor*/);
         for (i = 0; bytes_needed > 0 && i < OSSL_NELEM(random_device_paths);
-             i++) {
+            i++) {
             ssize_t bytes = 0;
             /* Maximum number of consecutive unsuccessful attempts */
             int attempts = 3;
@@ -697,21 +698,21 @@ size_t ossl_pool_acquire_entropy(RAND_POOL *pool)
         if (entropy_available > 0)
             return entropy_available;
     }
-#   endif
+#endif
 
-#   if defined(OPENSSL_RAND_SEED_RDTSC)
+#if defined(OPENSSL_RAND_SEED_RDTSC)
     entropy_available = ossl_prov_acquire_entropy_from_tsc(pool);
     if (entropy_available > 0)
         return entropy_available;
-#   endif
+#endif
 
-#   if defined(OPENSSL_RAND_SEED_RDCPU)
+#if defined(OPENSSL_RAND_SEED_RDCPU)
     entropy_available = ossl_prov_acquire_entropy_from_cpu(pool);
     if (entropy_available > 0)
         return entropy_available;
-#   endif
+#endif
 
-#   if defined(OPENSSL_RAND_SEED_EGD)
+#if defined(OPENSSL_RAND_SEED_EGD)
     {
         static const char *paths[] = { DEVRANDOM_EGD, NULL };
         size_t bytes_needed;
@@ -725,7 +726,7 @@ size_t ossl_pool_acquire_entropy(RAND_POOL *pool)
 
             buffer = ossl_rand_pool_add_begin(pool, bytes_needed);
             num = RAND_query_egd_bytes(paths[i],
-                                       buffer, (int)bytes_needed);
+                buffer, (int)bytes_needed);
             if (num == (int)bytes_needed)
                 bytes = bytes_needed;
 
@@ -736,16 +737,16 @@ size_t ossl_pool_acquire_entropy(RAND_POOL *pool)
         if (entropy_available > 0)
             return entropy_available;
     }
-#   endif
+#endif
 
     return ossl_rand_pool_entropy_available(pool);
-#  endif
+#endif
 }
-# endif
+#endif
 #endif
 
 #if (defined(OPENSSL_SYS_UNIX) && !defined(OPENSSL_SYS_VXWORKS)) \
-     || defined(__DJGPP__)
+    || defined(__DJGPP__)
 int ossl_pool_add_nonce_data(RAND_POOL *pool)
 {
     struct {
@@ -778,25 +779,25 @@ int ossl_pool_add_nonce_data(RAND_POOL *pool)
  */
 static uint64_t get_time_stamp(void)
 {
-# if defined(OSSL_POSIX_TIMER_OKAY)
+#if defined(OSSL_POSIX_TIMER_OKAY)
     {
         struct timespec ts;
 
         if (clock_gettime(CLOCK_REALTIME, &ts) == 0)
             return TWO32TO64(ts.tv_sec, ts.tv_nsec);
     }
-# endif
-# if defined(__unix__) \
-     || (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L)
+#endif
+#if defined(__unix__) \
+    || (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L)
     {
         struct timeval tv;
 
         if (gettimeofday(&tv, NULL) == 0)
             return TWO32TO64(tv.tv_sec, tv.tv_usec);
     }
-# endif
+#endif
     return time(NULL);
 }
 
-#endif /* (defined(OPENSSL_SYS_UNIX) && !defined(OPENSSL_SYS_VXWORKS))
+#endif /* (defined(OPENSSL_SYS_UNIX) && !defined(OPENSSL_SYS_VXWORKS)) \
           || defined(__DJGPP__) */

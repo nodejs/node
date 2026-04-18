@@ -27,10 +27,9 @@ const maskLabel = mask => {
   return label.join(', ')
 }
 
-const subcommands = [
+const checks = [
   {
-    // Ping is left in as a legacy command but is listed as "connection" to
-    // make more sense to more people
+    // Ping is left in as a legacy command but is listed as "connection" to make more sense to more people
     groups: ['connection', 'ping', 'registry'],
     title: 'Connecting to the registry',
     cmd: 'checkPing',
@@ -100,11 +99,9 @@ class Doctor extends BaseCommand {
   static name = 'doctor'
   static params = ['registry']
   static ignoreImplicitWorkspace = false
-  static usage = [`[${subcommands.flatMap(s => s.groups)
+  static usage = [`[${checks.flatMap(s => s.groups)
     .filter((value, index, self) => self.indexOf(value) === index && value !== 'ping')
     .join('] [')}]`]
-
-  static subcommands = subcommands
 
   async exec (args) {
     log.info('doctor', 'Running checkup')
@@ -331,7 +328,7 @@ class Doctor extends BaseCommand {
   }
 
   actions (params) {
-    return this.constructor.subcommands.filter(subcmd => {
+    return checks.filter(subcmd => {
       if (process.platform === 'win32' && subcmd.windows === false) {
         return false
       }

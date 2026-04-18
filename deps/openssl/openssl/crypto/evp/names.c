@@ -24,11 +24,11 @@ int EVP_add_cipher(const EVP_CIPHER *c)
         return 0;
 
     r = OBJ_NAME_add(OBJ_nid2sn(c->nid), OBJ_NAME_TYPE_CIPHER_METH,
-                     (const char *)c);
+        (const char *)c);
     if (r == 0)
         return 0;
     r = OBJ_NAME_add(OBJ_nid2ln(c->nid), OBJ_NAME_TYPE_CIPHER_METH,
-                     (const char *)c);
+        (const char *)c);
     return r;
 }
 
@@ -42,17 +42,17 @@ int EVP_add_digest(const EVP_MD *md)
     if (r == 0)
         return 0;
     r = OBJ_NAME_add(OBJ_nid2ln(md->type), OBJ_NAME_TYPE_MD_METH,
-                     (const char *)md);
+        (const char *)md);
     if (r == 0)
         return 0;
 
     if (md->pkey_type && md->type != md->pkey_type) {
         r = OBJ_NAME_add(OBJ_nid2sn(md->pkey_type),
-                         OBJ_NAME_TYPE_MD_METH | OBJ_NAME_ALIAS, name);
+            OBJ_NAME_TYPE_MD_METH | OBJ_NAME_ALIAS, name);
         if (r == 0)
             return 0;
         r = OBJ_NAME_add(OBJ_nid2ln(md->pkey_type),
-                         OBJ_NAME_TYPE_MD_METH | OBJ_NAME_ALIAS, name);
+            OBJ_NAME_TYPE_MD_METH | OBJ_NAME_ALIAS, name);
     }
     return r;
 }
@@ -73,7 +73,7 @@ const EVP_CIPHER *EVP_get_cipherbyname(const char *name)
 }
 
 const EVP_CIPHER *evp_get_cipherbyname_ex(OSSL_LIB_CTX *libctx,
-                                          const char *name)
+    const char *name)
 {
     const EVP_CIPHER *cp;
     OSSL_NAMEMAP *namemap;
@@ -95,7 +95,7 @@ const EVP_CIPHER *evp_get_cipherbyname_ex(OSSL_LIB_CTX *libctx,
      */
 
     namemap = ossl_namemap_stored(libctx);
- retry:
+retry:
     id = ossl_namemap_name2num(namemap, name);
     if (id == 0) {
         EVP_CIPHER *fetched_cipher;
@@ -154,7 +154,7 @@ const EVP_MD *evp_get_digestbyname_ex(OSSL_LIB_CTX *libctx, const char *name)
      */
 
     namemap = ossl_namemap_stored(libctx);
- retry:
+retry:
     id = ossl_namemap_name2num(namemap, name);
     if (id == 0) {
         EVP_MD *fetched_md;
@@ -196,8 +196,8 @@ void evp_cleanup_int(void)
 
 struct doall_cipher {
     void *arg;
-    void (*fn) (const EVP_CIPHER *ciph,
-                const char *from, const char *to, void *arg);
+    void (*fn)(const EVP_CIPHER *ciph,
+        const char *from, const char *to, void *arg);
 };
 
 static void do_all_cipher_fn(const OBJ_NAME *nm, void *arg)
@@ -209,9 +209,9 @@ static void do_all_cipher_fn(const OBJ_NAME *nm, void *arg)
         dc->fn((const EVP_CIPHER *)nm->data, nm->name, NULL, dc->arg);
 }
 
-void EVP_CIPHER_do_all(void (*fn) (const EVP_CIPHER *ciph,
-                                   const char *from, const char *to, void *x),
-                       void *arg)
+void EVP_CIPHER_do_all(void (*fn)(const EVP_CIPHER *ciph,
+                           const char *from, const char *to, void *x),
+    void *arg)
 {
     struct doall_cipher dc;
 
@@ -223,9 +223,10 @@ void EVP_CIPHER_do_all(void (*fn) (const EVP_CIPHER *ciph,
     OBJ_NAME_do_all(OBJ_NAME_TYPE_CIPHER_METH, do_all_cipher_fn, &dc);
 }
 
-void EVP_CIPHER_do_all_sorted(void (*fn) (const EVP_CIPHER *ciph,
-                                          const char *from, const char *to,
-                                          void *x), void *arg)
+void EVP_CIPHER_do_all_sorted(void (*fn)(const EVP_CIPHER *ciph,
+                                  const char *from, const char *to,
+                                  void *x),
+    void *arg)
 {
     struct doall_cipher dc;
 
@@ -239,8 +240,8 @@ void EVP_CIPHER_do_all_sorted(void (*fn) (const EVP_CIPHER *ciph,
 
 struct doall_md {
     void *arg;
-    void (*fn) (const EVP_MD *ciph,
-                const char *from, const char *to, void *arg);
+    void (*fn)(const EVP_MD *ciph,
+        const char *from, const char *to, void *arg);
 };
 
 static void do_all_md_fn(const OBJ_NAME *nm, void *arg)
@@ -252,9 +253,9 @@ static void do_all_md_fn(const OBJ_NAME *nm, void *arg)
         dc->fn((const EVP_MD *)nm->data, nm->name, NULL, dc->arg);
 }
 
-void EVP_MD_do_all(void (*fn) (const EVP_MD *md,
-                               const char *from, const char *to, void *x),
-                   void *arg)
+void EVP_MD_do_all(void (*fn)(const EVP_MD *md,
+                       const char *from, const char *to, void *x),
+    void *arg)
 {
     struct doall_md dc;
 
@@ -266,9 +267,10 @@ void EVP_MD_do_all(void (*fn) (const EVP_MD *md,
     OBJ_NAME_do_all(OBJ_NAME_TYPE_MD_METH, do_all_md_fn, &dc);
 }
 
-void EVP_MD_do_all_sorted(void (*fn) (const EVP_MD *md,
-                                      const char *from, const char *to,
-                                      void *x), void *arg)
+void EVP_MD_do_all_sorted(void (*fn)(const EVP_MD *md,
+                              const char *from, const char *to,
+                              void *x),
+    void *arg)
 {
     struct doall_md dc;
 

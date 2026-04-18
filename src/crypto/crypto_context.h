@@ -19,9 +19,9 @@ constexpr int kMaxSupportedVersion = TLS1_3_VERSION;
 void GetRootCertificates(
     const v8::FunctionCallbackInfo<v8::Value>& args);
 
-X509_STORE* NewRootCertStore();
+X509_STORE* NewRootCertStore(Environment* env);
 
-X509_STORE* GetOrCreateRootCertStore();
+X509_STORE* GetOrCreateRootCertStore(Environment* env);
 
 ncrypto::BIOPointer LoadBIO(Environment* env, v8::Local<v8::Value> v);
 
@@ -67,8 +67,7 @@ class SecureContext final : public BaseObject {
   void SetX509StoreFlag(unsigned long flags);  // NOLINT(runtime/int)
   X509_STORE* GetCertStoreOwnedByThisSecureContext();
 
-  // TODO(joyeecheung): track the memory used by OpenSSL types
-  SET_NO_MEMORY_INFO()
+  void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(SecureContext)
   SET_SELF_SIZE(SecureContext)
 

@@ -8,12 +8,12 @@
  */
 
 #ifndef OSSL_CRYPTO_STORE_H
-# define OSSL_CRYPTO_STORE_H
-# pragma once
+#define OSSL_CRYPTO_STORE_H
+#pragma once
 
-# include <openssl/bio.h>
-# include <openssl/store.h>
-# include <openssl/ui.h>
+#include <openssl/bio.h>
+#include <openssl/store.h>
+#include <openssl/ui.h>
 
 void ossl_store_cleanup_int(void);
 int ossl_store_loader_get_number(const OSSL_STORE_LOADER *loader);

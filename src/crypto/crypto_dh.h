@@ -60,29 +60,6 @@ struct DhKeyGenTraits final {
 
 using DHKeyPairGenJob = KeyGenJob<KeyPairGenTraits<DhKeyGenTraits>>;
 
-struct DHKeyExportConfig final : public MemoryRetainer {
-  SET_NO_MEMORY_INFO()
-  SET_MEMORY_INFO_NAME(DHKeyExportConfig)
-  SET_SELF_SIZE(DHKeyExportConfig)
-};
-
-struct DHKeyExportTraits final {
-  static constexpr const char* JobName = "DHKeyExportJob";
-  using AdditionalParameters = DHKeyExportConfig;
-
-  static v8::Maybe<void> AdditionalConfig(
-      const v8::FunctionCallbackInfo<v8::Value>& args,
-      unsigned int offset,
-      DHKeyExportConfig* config);
-
-  static WebCryptoKeyExportStatus DoExport(const KeyObjectData& key_data,
-                                           WebCryptoKeyFormat format,
-                                           const DHKeyExportConfig& params,
-                                           ByteSource* out);
-};
-
-using DHKeyExportJob = KeyExportJob<DHKeyExportTraits>;
-
 struct DHBitsConfig final : public MemoryRetainer {
   KeyObjectData private_key;
   KeyObjectData public_key;
@@ -106,7 +83,8 @@ struct DHBitsTraits final {
   static bool DeriveBits(Environment* env,
                          const DHBitsConfig& params,
                          ByteSource* out_,
-                         CryptoJobMode mode);
+                         CryptoJobMode mode,
+                         CryptoErrorStore* errors);
 
   static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
                                                 const DHBitsConfig& params,

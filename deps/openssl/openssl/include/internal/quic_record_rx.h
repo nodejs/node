@@ -8,16 +8,16 @@
  */
 
 #ifndef OSSL_QUIC_RECORD_RX_H
-# define OSSL_QUIC_RECORD_RX_H
+#define OSSL_QUIC_RECORD_RX_H
 
-# include <openssl/ssl.h>
-# include "internal/quic_wire_pkt.h"
-# include "internal/quic_types.h"
-# include "internal/quic_predef.h"
-# include "internal/quic_record_util.h"
-# include "internal/quic_demux.h"
+#include <openssl/ssl.h>
+#include "internal/quic_wire_pkt.h"
+#include "internal/quic_types.h"
+#include "internal/quic_predef.h"
+#include "internal/quic_record_util.h"
+#include "internal/quic_demux.h"
 
-# ifndef OPENSSL_NO_QUIC
+#ifndef OPENSSL_NO_QUIC
 
 /*
  * QUIC Record Layer - RX
@@ -25,26 +25,26 @@
  */
 
 typedef struct ossl_qrx_args_st {
-    OSSL_LIB_CTX   *libctx;
-    const char     *propq;
+    OSSL_LIB_CTX *libctx;
+    const char *propq;
 
     /* Demux which owns the URXEs passed to us. */
-    QUIC_DEMUX     *demux;
+    QUIC_DEMUX *demux;
 
     /* Length of connection IDs used in short-header packets in bytes. */
-    size_t          short_conn_id_len;
+    size_t short_conn_id_len;
 
     /*
      * Maximum number of deferred datagrams buffered at any one time.
      * Suggested value: 32.
      */
-    size_t          max_deferred;
+    size_t max_deferred;
 
     /* Initial reference PN used for RX. */
-    QUIC_PN         init_largest_pn[QUIC_PN_SPACE_NUM];
+    QUIC_PN init_largest_pn[QUIC_PN_SPACE_NUM];
 
     /* Initial key phase. For debugging use only; always 0 in real use. */
-    unsigned char   init_key_phase_bit;
+    unsigned char init_key_phase_bit;
 } OSSL_QRX_ARGS;
 
 /* Instantiates a new QRX. */
@@ -62,9 +62,9 @@ void ossl_qrx_free(OSSL_QRX *qrx);
 
 /* Setters for the msg_callback and msg_callback_arg */
 void ossl_qrx_set_msg_callback(OSSL_QRX *qrx, ossl_msg_cb msg_callback,
-                               SSL *msg_callback_ssl);
+    SSL *msg_callback_ssl);
 void ossl_qrx_set_msg_callback_arg(OSSL_QRX *qrx,
-                                   void *msg_callback_arg);
+    void *msg_callback_arg);
 
 /*
  * Get the short header connection id len from this qrx
@@ -160,12 +160,12 @@ size_t ossl_qrx_get_short_hdr_conn_id_len(OSSL_QRX *qrx);
  *
  * Returns 1 on success or 0 on failure.
  */
-int ossl_qrx_provide_secret(OSSL_QRX              *qrx,
-                            uint32_t               enc_level,
-                            uint32_t               suite_id,
-                            EVP_MD                *md,
-                            const unsigned char   *secret,
-                            size_t                 secret_len);
+int ossl_qrx_provide_secret(OSSL_QRX *qrx,
+    uint32_t enc_level,
+    uint32_t suite_id,
+    EVP_MD *md,
+    const unsigned char *secret,
+    size_t secret_len);
 
 /*
  * Utility function to update the pn space from a src to a dst qrx.
@@ -200,20 +200,20 @@ struct ossl_qrx_pkt_st {
      * data and len fields point to the decrypted QUIC payload (i.e., to a
      * sequence of zero or more (potentially malformed) frames to be decoded).
      */
-    QUIC_PKT_HDR       *hdr;
+    QUIC_PKT_HDR *hdr;
 
     /*
      * Address the packet was received from. If this is not available for this
      * packet, this field is NULL (but this can only occur for manually injected
      * packets).
      */
-    const BIO_ADDR     *peer;
+    const BIO_ADDR *peer;
 
     /*
      * Local address the packet was sent to. If this is not available for this
      * packet, this field is NULL.
      */
-    const BIO_ADDR     *local;
+    const BIO_ADDR *local;
 
     /*
      * This is the length of the datagram which contained this packet. Note that
@@ -221,31 +221,31 @@ struct ossl_qrx_pkt_st {
      * for this is so that the user can enforce minimum datagram sizes (e.g. for
      * datagrams containing INITIAL packets), as required by RFC 9000.
      */
-    size_t              datagram_len;
+    size_t datagram_len;
 
     /* The PN which was decoded for the packet, if the packet has a PN field. */
-    QUIC_PN             pn;
+    QUIC_PN pn;
 
     /*
      * Time the packet was received, or ossl_time_zero() if the demuxer is not
      * using a now() function.
      */
-    OSSL_TIME           time;
+    OSSL_TIME time;
 
     /* The QRX which was used to receive the packet. */
-    OSSL_QRX            *qrx;
+    OSSL_QRX *qrx;
 
     /*
      * The key epoch the packet was received with. Always 0 for non-1-RTT
      * packets.
      */
-    uint64_t            key_epoch;
+    uint64_t key_epoch;
 
     /*
      * This monotonically increases with each datagram received.
      * It is for diagnostic use only.
      */
-    uint64_t            datagram_id;
+    uint64_t datagram_id;
 };
 
 /*
@@ -322,12 +322,12 @@ uint64_t ossl_qrx_get_bytes_received(OSSL_QRX *qrx, int clear);
  * The callback is optional and can be unset by passing NULL for cb.
  * cb_arg is an opaque value passed to cb.
  */
-typedef int (ossl_qrx_late_validation_cb)(QUIC_PN pn, int pn_space,
-                                          void *arg);
+typedef int(ossl_qrx_late_validation_cb)(QUIC_PN pn, int pn_space,
+    void *arg);
 
 int ossl_qrx_set_late_validation_cb(OSSL_QRX *qrx,
-                                    ossl_qrx_late_validation_cb *cb,
-                                    void *cb_arg);
+    ossl_qrx_late_validation_cb *cb,
+    void *cb_arg);
 
 /*
  * Forcibly injects a URXE which has been issued by the DEMUX into the QRX for
@@ -339,7 +339,7 @@ int ossl_qrx_set_late_validation_cb(OSSL_QRX *qrx,
 void ossl_qrx_inject_urxe(OSSL_QRX *qrx, QUIC_URXE *e);
 void ossl_qrx_inject_pkt(OSSL_QRX *qrx, OSSL_QRX_PKT *pkt);
 int ossl_qrx_validate_initial_packet(OSSL_QRX *qrx, QUIC_URXE *urxe,
-                                     const QUIC_CONN_ID *dcid);
+    const QUIC_CONN_ID *dcid);
 
 /*
  * Decryption of 1-RTT packets must be explicitly enabled by calling this
@@ -514,11 +514,11 @@ uint64_t ossl_qrx_get_key_epoch(OSSL_QRX *qrx);
  * cb_arg is an opaque value passed to cb. pn is the PN of the packet.
  * Since key update is only supported for 1-RTT packets, the PN is always
  * in the Application Data PN space.
-*/
-typedef void (ossl_qrx_key_update_cb)(QUIC_PN pn, void *arg);
+ */
+typedef void(ossl_qrx_key_update_cb)(QUIC_PN pn, void *arg);
 
 int ossl_qrx_set_key_update_cb(OSSL_QRX *qrx,
-                               ossl_qrx_key_update_cb *cb, void *cb_arg);
+    ossl_qrx_key_update_cb *cb, void *cb_arg);
 
 /*
  * Relates to the 1-RTT encryption level. The caller should call this after the
@@ -539,7 +539,6 @@ int ossl_qrx_set_key_update_cb(OSSL_QRX *qrx,
  * perform a Key Update ever again.
  */
 int ossl_qrx_key_update_timeout(OSSL_QRX *qrx, int normal);
-
 
 /*
  * Key Expiration
@@ -565,8 +564,8 @@ uint64_t ossl_qrx_get_cur_forged_pkt_count(OSSL_QRX *qrx);
  * permit to be verified using this QRX instance.
  */
 uint64_t ossl_qrx_get_max_forged_pkt_count(OSSL_QRX *qrx,
-                                           uint32_t enc_level);
+    uint32_t enc_level);
 
-# endif
+#endif
 
 #endif

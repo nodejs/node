@@ -2,8 +2,8 @@
 const { skipIfSQLiteMissing } = require('../common/index.mjs');
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { DatabaseSync } = require('node:sqlite');
 skipIfSQLiteMissing();
+const { DatabaseSync } = require('node:sqlite');
 
 function checkDefensiveMode(db) {
   function journalMode() {
@@ -20,9 +20,9 @@ function checkDefensiveMode(db) {
   }
 }
 
-test('by default, defensive mode is off', (t) => {
+test('by default, defensive mode is on', (t) => {
   const db = new DatabaseSync(':memory:');
-  t.assert.strictEqual(checkDefensiveMode(db), false);
+  t.assert.strictEqual(checkDefensiveMode(db), true);
 });
 
 test('when passing { defensive: true } as config, defensive mode is on', (t) => {
@@ -32,13 +32,20 @@ test('when passing { defensive: true } as config, defensive mode is on', (t) => 
   t.assert.strictEqual(checkDefensiveMode(db), true);
 });
 
+test('when passing { defensive: false } as config, defensive mode is off', (t) => {
+  const db = new DatabaseSync(':memory:', {
+    defensive: false
+  });
+  t.assert.strictEqual(checkDefensiveMode(db), false);
+});
+
 test('defensive mode on after calling db.enableDefensive(true)', (t) => {
   const db = new DatabaseSync(':memory:');
   db.enableDefensive(true);
   t.assert.strictEqual(checkDefensiveMode(db), true);
 });
 
-test('defensive mode should be off after calling db.enableDefensive(false)', (t) => {
+test('defensive mode off after calling db.enableDefensive(false)', (t) => {
   const db = new DatabaseSync(':memory:', {
     defensive: true
   });

@@ -140,5 +140,44 @@ assert.throws(() => {
   })
 );
 
+// copyBytesFrom: length exceeds view (should clamp, not throw)
+{
+  const u8 = new Uint8Array([1, 2, 3, 4, 5]);
+  const b = Buffer.copyBytesFrom(u8, 2, 100);
+  assert.strictEqual(b.length, 3);
+  assert.deepStrictEqual([...b], [3, 4, 5]);
+}
+
+// copyBytesFrom: length 0 returns empty buffer
+{
+  const u8 = new Uint8Array([1, 2, 3]);
+  const b = Buffer.copyBytesFrom(u8, 1, 0);
+  assert.strictEqual(b.length, 0);
+}
+
+// copyBytesFrom: offset past end returns empty buffer
+{
+  const u8 = new Uint8Array([1, 2, 3]);
+  const b = Buffer.copyBytesFrom(u8, 10);
+  assert.strictEqual(b.length, 0);
+}
+
+// copyBytesFrom: Float64Array with offset and length
+{
+  const f64 = new Float64Array([1.0, 2.0, 3.0, 4.0]);
+  const b = Buffer.copyBytesFrom(f64, 1, 2);
+  assert.strictEqual(b.length, 16);
+  const view = new Float64Array(b.buffer, b.byteOffset, 2);
+  assert.strictEqual(view[0], 2.0);
+  assert.strictEqual(view[1], 3.0);
+}
+
+// copyBytesFrom: empty typed array returns empty buffer
+{
+  const empty = new Uint8Array(0);
+  const b = Buffer.copyBytesFrom(empty);
+  assert.strictEqual(b.length, 0);
+}
+
 // Invalid encoding is allowed
 Buffer.from('asd', 1);

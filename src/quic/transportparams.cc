@@ -1,7 +1,6 @@
-#if HAVE_OPENSSL
+#if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
-#include "transportparams.h"
 #include <env-inl.h>
 #include <memory_tracker-inl.h>
 #include <node_sockaddr-inl.h>
@@ -12,6 +11,7 @@
 #include "endpoint.h"
 #include "session.h"
 #include "tokens.h"
+#include "transportparams.h"
 
 namespace node {
 
@@ -219,6 +219,20 @@ Store TransportParams::Encode(Environment* env, Version version) const {
   return Store(std::move(result), static_cast<size_t>(size));
 }
 
+ssize_t TransportParams::EncodedSize(Version version) const {
+  if (ptr_ == nullptr) return 0;
+  return ngtcp2_transport_params_encode_versioned(
+      nullptr, 0, static_cast<int>(version), &params_);
+}
+
+ssize_t TransportParams::EncodeInto(uint8_t* buf,
+                                    size_t len,
+                                    Version version) const {
+  if (ptr_ == nullptr) return -1;
+  return ngtcp2_transport_params_encode_versioned(
+      buf, len, static_cast<int>(version), &params_);
+}
+
 void TransportParams::SetPreferredAddress(const SocketAddress& address) {
   DCHECK(ptr_ == &params_);
   params_.preferred_addr_present = 1;
@@ -304,4 +318,4 @@ void TransportParams::Initialize(Environment* env, Local<Object> target) {
 }  // namespace node
 
 #endif  // OPENSSL_NO_QUIC
-#endif  // HAVE_OPENSSL
+#endif  // HAVE_OPENSSL && HAVE_QUIC

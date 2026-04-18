@@ -8,6 +8,9 @@ const { isMainThread } = require('worker_threads');
 if (!isMainThread) {
   common.skip('This test only works on a main thread');
 }
+if (process.config.variables.node_without_node_options) {
+  common.skip('missing NODE_OPTIONS support');
+}
 
 const assert = require('assert');
 const childProcess = require('child_process');
@@ -21,7 +24,7 @@ if (process.argv[2] === 'child') {
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemWrite',
   }));
-  process.exit(0);
+  return;
 }
 
 // Guarantee the initial state

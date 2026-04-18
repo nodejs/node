@@ -49,7 +49,7 @@ int BN_print(BIO *bp, const BIGNUM *a)
         }
     }
     ret = 1;
- end:
+end:
     return ret;
 }
 
@@ -62,10 +62,10 @@ char *BN_options(void)
         init++;
 #ifdef BN_LLONG
         BIO_snprintf(data, sizeof(data), "bn(%zu,%zu)",
-                     sizeof(BN_ULLONG) * 8, sizeof(BN_ULONG) * 8);
+            sizeof(BN_ULLONG) * 8, sizeof(BN_ULONG) * 8);
 #else
         BIO_snprintf(data, sizeof(data), "bn(%zu,%zu)",
-                     sizeof(BN_ULONG) * 8, sizeof(BN_ULONG) * 8);
+            sizeof(BN_ULONG) * 8, sizeof(BN_ULONG) * 8);
 #endif
     }
     return data;

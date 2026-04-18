@@ -29,8 +29,6 @@ class Update extends ArboristWorkspaceCmd {
 
   static usage = ['[<pkg>...]']
 
-  // TODO
-  /* istanbul ignore next */
   static async completion (opts, npm) {
     const completion = require('../utils/installed-deep.js')
     return completion(npm, opts)
@@ -41,8 +39,7 @@ class Update extends ArboristWorkspaceCmd {
     const global = path.resolve(this.npm.globalDir, '..')
     const where = this.npm.global ? global : this.npm.prefix
 
-    // In the context of `npm update` the save
-    // config value should default to `false`
+    // In the context of `npm update` the save config value should default to `false`
     const save = this.npm.config.isDefault('save')
       ? false
       : this.npm.config.get('save')

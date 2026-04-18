@@ -112,7 +112,7 @@ for (const [algorithm, overrides, expected] of good) {
 for (const [algorithm, overrides, param] of bad) {
   const expected = {
     code: 'ERR_OUT_OF_RANGE',
-    message: new RegExp(`The value of "${param}" is out of range`),
+    message: new RegExp(`The value of "${RegExp.escape(param)}" is out of range`),
   };
   const parameters = { ...defaults, ...overrides };
   assert.throws(() => crypto.argon2(algorithm, parameters, () => {}), expected);
@@ -122,7 +122,7 @@ for (const [algorithm, overrides, param] of bad) {
 for (const key of Object.keys(defaults)) {
   const expected = {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: new RegExp(`"parameters\\.${key}"`),
+    message: new RegExp(`"parameters\\.${RegExp.escape(key)}"`),
   };
   const parameters = { ...defaults };
   delete parameters[key];

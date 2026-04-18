@@ -12,7 +12,7 @@
 #include "crypto/aes_platform.h"
 
 typedef struct prov_aes_ctx_st {
-    PROV_CIPHER_CTX base;      /* Must be first */
+    PROV_CIPHER_CTX base; /* Must be first */
     union {
         OSSL_UNION_ALIGN;
         AES_KEY ks;

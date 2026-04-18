@@ -341,7 +341,7 @@ void FromNamespacedPath(std::string* path) {
 
 // Check if a path looks like an absolute path or file URL.
 bool IsAbsoluteFilePath(std::string_view path) {
-  if (path.rfind("file://", 0) == 0) {
+  if (path.starts_with("file://")) {
     return true;
   }
 #ifdef _WIN32
@@ -357,7 +357,7 @@ bool IsAbsoluteFilePath(std::string_view path) {
 std::string NormalizeFileURLOrPath(Environment* env, std::string_view path) {
   std::string normalized_string(path);
   constexpr std::string_view file_scheme = "file://";
-  if (normalized_string.rfind(file_scheme, 0) == 0) {
+  if (normalized_string.starts_with(file_scheme)) {
     auto out = ada::parse<ada::url_aggregator>(normalized_string);
     auto file_path = url::FileURLToPath(env, *out);
     if (!file_path.has_value()) {

@@ -7,7 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 #ifndef OSSL_UINT_SET_H
-# define OSSL_UINT_SET_H
+#define OSSL_UINT_SET_H
 
 #include "openssl/params.h"
 #include "internal/list.h"
@@ -25,13 +25,13 @@
  * Discussion of implementation details can be found in uint_set.c.
  */
 typedef struct uint_range_st {
-    uint64_t    start, end;
+    uint64_t start, end;
 } UINT_RANGE;
 
 typedef struct uint_set_item_st UINT_SET_ITEM;
 struct uint_set_item_st {
     OSSL_LIST_MEMBER(uint_set, UINT_SET_ITEM);
-    UINT_RANGE                  range;
+    UINT_RANGE range;
 };
 
 DEFINE_LIST_OF(uint_set, UINT_SET_ITEM);

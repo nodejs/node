@@ -16,6 +16,8 @@
 #include "unicode/ucnv.h"
 #include "unicode/unistr.h"
 #include "cstr.h"
+#include "mutex.h"
+#include "umutex.h"
 
 /*
 To add a new enum type
@@ -608,6 +610,8 @@ U_CAPI void udbg_writeIcuInfo(FILE *out) {
 #include <ostream>
 #include <iostream>
 
+static icu::UMutex gKnownIssuesLock;
+
 class KnownIssues {
 public:
   KnownIssues();
@@ -650,6 +654,7 @@ static std::string mapTicketId(const char *ticketStr) {
 void KnownIssues::add(const char *ticketStr, const char *where, const char16_t *msg, UBool *firstForTicket, UBool *firstForWhere)
 {
   const std::string ticket = mapTicketId(ticketStr);
+  icu::Mutex mutex(&gKnownIssuesLock);
   if(fTable.find(ticket) == fTable.end()) {
     if(firstForTicket!=nullptr) *firstForTicket = true;
     fTable[ticket] = std::map < std::string, std::set < std::string > >();
@@ -674,6 +679,7 @@ void KnownIssues::add(const char *ticketStr, const char *where, const char16_t *
 void KnownIssues::add(const char *ticketStr, const char *where, const char *msg, UBool *firstForTicket, UBool *firstForWhere)
 {
   const std::string ticket = mapTicketId(ticketStr);
+  icu::Mutex mutex(&gKnownIssuesLock);
   if(fTable.find(ticket) == fTable.end()) {
     if(firstForTicket!=nullptr) *firstForTicket = true;
     fTable[ticket] = std::map < std::string, std::set < std::string > >();
@@ -696,6 +702,7 @@ void KnownIssues::add(const char *ticketStr, const char *where, const char *msg,
 
 UBool KnownIssues::print()
 {
+  icu::Mutex mutex(&gKnownIssuesLock);
   if(fTable.empty()) {
     return false;
   }

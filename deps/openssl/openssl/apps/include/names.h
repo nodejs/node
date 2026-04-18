@@ -10,7 +10,7 @@
 #include <openssl/safestack.h>
 
 /* Standard comparing function for names */
-int name_cmp(const char * const *a, const char * const *b);
+int name_cmp(const char *const *a, const char *const *b);
 /* collect_names is meant to be used with EVP_{type}_doall_names */
 void collect_names(const char *name, void *vdata);
 /* Sorts and prints a stack of names to |out| */

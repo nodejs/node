@@ -2,7 +2,7 @@
 const common = require('../../common');
 const assert = require('assert');
 
-// Test passing NULL to object-related N-APIs.
+// Test passing NULL to object-related Node-APIs.
 const { testNull } = require(`./build/${common.buildType}/test_object`);
 
 const expectedForProperty = {

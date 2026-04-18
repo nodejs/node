@@ -90,8 +90,6 @@ ptls_on_client_hello_t on_client_hello_hq = {on_client_hello_hq_cb};
 } // namespace
 
 namespace {
-auto ticket_hmac = EVP_sha256();
-
 std::span<const uint8_t> get_ticket_key_name() {
   static std::array<uint8_t, 16> key_name;
   ptls_openssl_random_bytes(key_name.data(), key_name.size());
@@ -123,14 +121,21 @@ int ticket_key_cb(unsigned char *key_name, unsigned char *iv,
   static const auto static_key_name = get_ticket_key_name();
   static const auto static_key = get_ticket_key();
   static const auto static_hmac_key = get_ticket_hmac_key();
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  static const auto ticket_hmac = EVP_MD_fetch(nullptr, "sha256", nullptr);
+  static const auto aes_256_cbc =
+    EVP_CIPHER_fetch(nullptr, "AES-256-CBC", nullptr);
+#else  // OPENSSL_VERSION_NUMBER < 0x30000000L
+  static const auto ticket_hmac = EVP_sha256();
+  static const auto aes_256_cbc = EVP_aes_256_cbc();
+#endif // OPENSSL_VERSION_NUMBER < 0x30000000L
 
   if (enc) {
     ptls_openssl_random_bytes(iv, EVP_MAX_IV_LENGTH);
 
     std::ranges::copy(static_key_name, key_name);
 
-    if (!EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), nullptr, static_key.data(),
-                            iv)) {
+    if (!EVP_EncryptInit_ex(ctx, aes_256_cbc, nullptr, static_key.data(), iv)) {
       return 0;
     }
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
@@ -163,8 +168,7 @@ int ticket_key_cb(unsigned char *key_name, unsigned char *iv,
     return 0;
   }
 
-  if (!EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), nullptr, static_key.data(),
-                          iv)) {
+  if (!EVP_DecryptInit_ex(ctx, aes_256_cbc, nullptr, static_key.data(), iv)) {
     return 0;
   }
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
@@ -280,18 +284,16 @@ ptls_cipher_suite_t *cipher_suites[] = {
 } // namespace
 
 TLSServerContext::TLSServerContext()
-    : ctx_{
-          .random_bytes = ptls_openssl_random_bytes,
-          .get_time = &ptls_get_time,
-          .key_exchanges = key_exchanges,
-          .cipher_suites = cipher_suites,
-          .ticket_lifetime = 86400,
-          .require_dhe_on_psk = 1,
-          .server_cipher_preference = 1,
-          .encrypt_ticket = &encrypt_ticket,
-      },
-      sign_cert_{}
-{}
+  : ctx_{
+      .random_bytes = ptls_openssl_random_bytes,
+      .get_time = &ptls_get_time,
+      .key_exchanges = key_exchanges,
+      .cipher_suites = cipher_suites,
+      .ticket_lifetime = 86400,
+      .require_dhe_on_psk = 1,
+      .server_cipher_preference = 1,
+      .encrypt_ticket = &encrypt_ticket,
+    } {}
 
 TLSServerContext::~TLSServerContext() {
   if (sign_cert_.key) {
@@ -306,8 +308,9 @@ TLSServerContext::~TLSServerContext() {
 
 ptls_context_t *TLSServerContext::get_native_handle() { return &ctx_; }
 
-int TLSServerContext::init(const char *private_key_file, const char *cert_file,
-                           AppProtocol app_proto) {
+std::expected<void, Error> TLSServerContext::init(const char *private_key_file,
+                                                  const char *cert_file,
+                                                  AppProtocol app_proto) {
   switch (app_proto) {
   case AppProtocol::H3:
     ctx_.on_client_hello = &on_client_hello_h3;
@@ -317,57 +320,58 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
     ctx_.on_client_hello = &on_client_hello_hq;
 
     break;
-  };
+  }
 
   if (ngtcp2_crypto_picotls_configure_server_context(&ctx_) != 0) {
-    std::cerr << "ngtcp2_crypto_picotls_configure_server_context failed"
-              << std::endl;
-    return -1;
+    std::println(stderr,
+                 "ngtcp2_crypto_picotls_configure_server_context failed");
+    return std::unexpected{Error::CRYPTO};
   }
 
   if (ptls_load_certificates(&ctx_, cert_file) != 0) {
-    std::cerr << "ptls_load_certificates failed" << std::endl;
-    return -1;
+    std::println(stderr, "ptls_load_certificates failed");
+    return std::unexpected{Error::CRYPTO};
   }
 
-  if (load_private_key(private_key_file) != 0) {
-    return -1;
+  if (auto rv = load_private_key(private_key_file); !rv) {
+    return rv;
   }
 
   if (config.verify_client) {
     ctx_.require_client_authentication = 1;
   }
 
-  return 0;
+  return {};
 }
 
-int TLSServerContext::load_private_key(const char *private_key_file) {
+std::expected<void, Error>
+TLSServerContext::load_private_key(const char *private_key_file) {
   auto fp = fopen(private_key_file, "rb");
   if (fp == nullptr) {
-    std::cerr << "Could not open private key file " << private_key_file << ": "
-              << strerror(errno) << std::endl;
-    return -1;
+    std::println(stderr, "Could not open private key file {}: {}",
+                 private_key_file, strerror(errno));
+    return std::unexpected{Error::IO};
   }
 
-  auto fp_d = defer(fclose, fp);
+  auto fp_d = defer([fp] { fclose(fp); });
 
   auto pkey = PEM_read_PrivateKey(fp, nullptr, nullptr, nullptr);
   if (pkey == nullptr) {
-    std::cerr << "Could not read private key file " << private_key_file
-              << std::endl;
-    return -1;
+    std::println(stderr, "Could not read private key file {}",
+                 private_key_file);
+    return std::unexpected{Error::IO};
   }
 
-  auto pkey_d = defer(EVP_PKEY_free, pkey);
+  auto pkey_d = defer([pkey] { EVP_PKEY_free(pkey); });
 
   if (ptls_openssl_init_sign_certificate(&sign_cert_, pkey) != 0) {
-    std::cerr << "ptls_openssl_init_sign_certificate failed" << std::endl;
-    return -1;
+    std::println(stderr, "ptls_openssl_init_sign_certificate failed");
+    return std::unexpected{Error::CRYPTO};
   }
 
   ctx_.sign_certificate = &sign_cert_.super;
 
-  return 0;
+  return {};
 }
 
 void TLSServerContext::enable_keylog() { ctx_.log_event = &log_event; }

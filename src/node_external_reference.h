@@ -67,9 +67,11 @@ class ExternalReferenceRegistry {
   V(buffer)                                                                    \
   V(builtins)                                                                  \
   V(cares_wrap)                                                                \
+  V(cjs_lexer)                                                                 \
   V(config)                                                                    \
   V(contextify)                                                                \
   V(credentials)                                                               \
+  V(diagnostics_channel)                                                       \
   V(encoding_binding)                                                          \
   V(env_var)                                                                   \
   V(errors)                                                                    \

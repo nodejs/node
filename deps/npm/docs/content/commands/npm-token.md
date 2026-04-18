@@ -9,7 +9,7 @@ description: Manage your authentication tokens
 ```bash
 npm token list
 npm token revoke <id|token>
-npm token create --name=<name> [--token-description=<desc>] [--packages=<pkg1,pkg2>] [--packages-all] [--scopes=<scope1,scope2>] [--orgs=<org1,org2>] [--packages-and-scopes-permission=<read-only|read-write|no-access>] [--orgs-permission=<read-only|read-write|no-access>] [--expires=<days>] [--cidr=<ip-range>] [--bypass-2fa] [--password=<pass>]
+npm token create
 ```
 
 Note: This command is unaware of workspaces.
@@ -18,37 +18,21 @@ Note: This command is unaware of workspaces.
 
 This lets you list, create and revoke authentication tokens.
 
-* `npm token list`:
-  Shows a table of all active authentication tokens.
-  You can request this as JSON with `--json` or tab-separated values with `--parseable`.
+#### Listing tokens
 
-```
-Read only token npm_1f… with id 7f3134 created 2017-10-21
+When listing tokens, an abbreviated token will be displayed.  For security purposes the full token is not displayed.
 
-Publish token npm_af…  with id c03241 created 2017-10-02
-with IP Whitelist: 192.168.0.1/24
+#### Generating tokens
 
-Publish token npm_… with id e0cf92 created 2017-10-02
+When generating tokens, you will be prompted you for your password and, if you have two-factor authentication enabled, an otp.
 
-```
+Please refer to the [docs website](https://docs.npmjs.com/creating-and-viewing-access-tokens) for more information on generating tokens for CI/CD.
 
-* `npm token create [--read-only] [--cidr=<cidr-ranges>]`:
-  Create a new authentication token.
-  It can be `--read-only`, or accept a list of [CIDR](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing) ranges with which to limit use of this token.
-  This will prompt you for your password, and, if you have two-factor authentication enabled, an otp.
+#### Revoking tokens
 
-  Currently, the cli cannot generate automation tokens.
-  Please refer to the [docs website](https://docs.npmjs.com/creating-and-viewing-access-tokens) for more information on generating automation tokens.
+When revoking a token, you can use the full token (e.g. what you get back from `npm token create`, or as can be found in an `.npmrc` file), or a truncated id.  If the given truncated id is not distinct enough to differentiate between multiple existing tokens, you will need to use enough of the id to allow npm to distinguish between them.  Full token ids can be found on the [npm website](https://www.npmjs.com), or in the `--parseable` or `--json` output of `npm token list`.  This command will NOT accept the truncated token found in the normal `npm token list` output.
 
-```
-Created publish token a73c9572-f1b9-8983-983d-ba3ac3cc913d
-```
-
-* `npm token revoke <token|id>`:
-  Immediately removes an authentication token from the registry.
-  You will no longer be able to use it.
-  This can accept both complete tokens (such as those you get back from `npm token create`, and those found in your `.npmrc`), and ids as seen in the parseable or json output of `npm token list`.
-  This will NOT accept the truncated token found in the normal `npm token list` output.
+A revoked token will immediately be removed from the registry and you will no longer be able to use it.
 
 ### Configuration
 
@@ -88,8 +72,7 @@ expiration.
 * Type: null or String (can be set multiple times)
 
 When creating a Granular Access Token with `npm token create`, this limits
-the token access to specific packages. Provide a comma-separated list of
-package names.
+the token access to specific packages.
 
 
 
@@ -109,8 +92,8 @@ token access to all packages instead of limiting to specific packages.
 * Type: null or String (can be set multiple times)
 
 When creating a Granular Access Token with `npm token create`, this limits
-the token access to specific scopes. Provide a comma-separated list of scope
-names (with or without @ prefix).
+the token access to specific scopes. Provide a scope name (with or without @
+prefix).
 
 
 
@@ -120,8 +103,7 @@ names (with or without @ prefix).
 * Type: null or String (can be set multiple times)
 
 When creating a Granular Access Token with `npm token create`, this limits
-the token access to specific organizations. Provide a comma-separated list
-of organization names.
+the token access to specific organizations.
 
 
 

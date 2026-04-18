@@ -90,13 +90,13 @@ OSSL_CORE_BIO *ossl_core_bio_new_mem_buf(const void *buf, int len)
 }
 
 int ossl_core_bio_read_ex(OSSL_CORE_BIO *cb, void *data, size_t dlen,
-                          size_t *readbytes)
+    size_t *readbytes)
 {
     return BIO_read_ex(cb->bio, data, dlen, readbytes);
 }
 
 int ossl_core_bio_write_ex(OSSL_CORE_BIO *cb, const void *data, size_t dlen,
-                           size_t *written)
+    size_t *written)
 {
     return BIO_write_ex(cb->bio, data, dlen, written);
 }

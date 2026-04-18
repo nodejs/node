@@ -31,6 +31,13 @@
 
 #include <nghttp3/nghttp3.h>
 
+/* NGHTTP3_DEFAULT_GLITCH_RATELIM_BURST is the maximum number of
+   tokens in glitch rate limiter.  It is also the initial value. */
+#define NGHTTP3_DEFAULT_GLITCH_RATELIM_BURST 1000
+/* NGHTTP3_DEFAULT_GLITCH_RATELIM_RATE is the rate of tokens generated
+   per second for glitch rate limiter. */
+#define NGHTTP3_DEFAULT_GLITCH_RATELIM_RATE 33
+
 /*
  * nghttp3_settings_convert_to_latest converts |src| of version
  * |settings_version| to the latest version NGHTTP3_SETTINGS_VERSION.

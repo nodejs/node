@@ -38,7 +38,7 @@ const compare = require('../functions/compare.js')
 // - If LT
 //   - If LT.semver is greater than any < or <= comp in C, return false
 //   - If LT is <=, and LT.semver does not satisfy every C, return false
-//   - If GT.semver has a prerelease, and not in prerelease mode
+//   - If LT.semver has a prerelease, and not in prerelease mode
 //     - If no C has a prerelease and the LT.semver tuple, return false
 // - Else return true
 

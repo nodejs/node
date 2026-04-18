@@ -19,7 +19,7 @@ function expectOkNamespace(result) {
     .then(common.mustCall((ns) => {
       const expected = { default: true };
       Object.defineProperty(expected, Symbol.toStringTag, {
-        value: 'Module'
+        value: 'Module',
       });
       Object.setPrototypeOf(expected, Object.getPrototypeOf(ns));
       assert.deepStrictEqual(ns, expected);

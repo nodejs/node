@@ -55,8 +55,8 @@ static void *evp_mac_new(void)
 }
 
 static void *evp_mac_from_algorithm(int name_id,
-                                    const OSSL_ALGORITHM *algodef,
-                                    OSSL_PROVIDER *prov)
+    const OSSL_ALGORITHM *algodef,
+    OSSL_PROVIDER *prov)
 {
     const OSSL_DISPATCH *fns = algodef->implementation;
     EVP_MAC *mac = NULL;
@@ -113,20 +113,17 @@ static void *evp_mac_from_algorithm(int name_id,
         case OSSL_FUNC_MAC_GETTABLE_PARAMS:
             if (mac->gettable_params != NULL)
                 break;
-            mac->gettable_params =
-                OSSL_FUNC_mac_gettable_params(fns);
+            mac->gettable_params = OSSL_FUNC_mac_gettable_params(fns);
             break;
         case OSSL_FUNC_MAC_GETTABLE_CTX_PARAMS:
             if (mac->gettable_ctx_params != NULL)
                 break;
-            mac->gettable_ctx_params =
-                OSSL_FUNC_mac_gettable_ctx_params(fns);
+            mac->gettable_ctx_params = OSSL_FUNC_mac_gettable_ctx_params(fns);
             break;
         case OSSL_FUNC_MAC_SETTABLE_CTX_PARAMS:
             if (mac->settable_ctx_params != NULL)
                 break;
-            mac->settable_ctx_params =
-                OSSL_FUNC_mac_settable_ctx_params(fns);
+            mac->settable_ctx_params = OSSL_FUNC_mac_settable_ctx_params(fns);
             break;
         case OSSL_FUNC_MAC_GET_PARAMS:
             if (mac->get_params != NULL)
@@ -176,11 +173,11 @@ err:
 }
 
 EVP_MAC *EVP_MAC_fetch(OSSL_LIB_CTX *libctx, const char *algorithm,
-                       const char *properties)
+    const char *properties)
 {
     return evp_generic_fetch(libctx, OSSL_OP_MAC, algorithm, properties,
-                             evp_mac_from_algorithm, evp_mac_up_ref,
-                             evp_mac_free);
+        evp_mac_from_algorithm, evp_mac_up_ref,
+        evp_mac_free);
 }
 
 int EVP_MAC_up_ref(EVP_MAC *mac)
@@ -246,21 +243,21 @@ const OSSL_PARAM *EVP_MAC_CTX_settable_params(EVP_MAC_CTX *ctx)
 }
 
 void EVP_MAC_do_all_provided(OSSL_LIB_CTX *libctx,
-                             void (*fn)(EVP_MAC *mac, void *arg),
-                             void *arg)
+    void (*fn)(EVP_MAC *mac, void *arg),
+    void *arg)
 {
     evp_generic_do_all(libctx, OSSL_OP_MAC,
-                       (void (*)(void *, void *))fn, arg,
-                       evp_mac_from_algorithm, evp_mac_up_ref, evp_mac_free);
+        (void (*)(void *, void *))fn, arg,
+        evp_mac_from_algorithm, evp_mac_up_ref, evp_mac_free);
 }
 
 EVP_MAC *evp_mac_fetch_from_prov(OSSL_PROVIDER *prov,
-                                 const char *algorithm,
-                                 const char *properties)
+    const char *algorithm,
+    const char *properties)
 {
     return evp_generic_fetch_from_prov(prov, OSSL_OP_MAC,
-                                       algorithm, properties,
-                                       evp_mac_from_algorithm,
-                                       evp_mac_up_ref,
-                                       evp_mac_free);
+        algorithm, properties,
+        evp_mac_from_algorithm,
+        evp_mac_up_ref,
+        evp_mac_free);
 }

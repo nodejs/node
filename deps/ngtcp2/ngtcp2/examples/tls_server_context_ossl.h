@@ -37,18 +37,18 @@ using namespace ngtcp2;
 
 class TLSServerContext {
 public:
-  TLSServerContext();
+  TLSServerContext() = default;
   ~TLSServerContext();
 
-  int init(const char *private_key_file, const char *cert_file,
-           AppProtocol app_proto);
+  std::expected<void, Error> init(const char *private_key_file,
+                                  const char *cert_file, AppProtocol app_proto);
 
   SSL_CTX *get_native_handle() const;
 
   void enable_keylog();
 
 private:
-  SSL_CTX *ssl_ctx_;
+  SSL_CTX *ssl_ctx_{};
 };
 
 #endif // !defined(TLS_SERVER_CONTEXT_OSSL_H)

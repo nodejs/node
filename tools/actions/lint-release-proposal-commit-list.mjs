@@ -6,6 +6,7 @@
 // Example:
 // $ git log upstream/vXX.x...upstream/vX.X.X-proposal \
 //     --reverse --format='{"prURL":"%(trailers:key=PR-URL,valueonly,separator=)","title":"%s","smallSha":"%h"}' \
+//     --abbrev=10 \
 //   | sed 's/,"title":"Revert "\([^"]\+\)""/,"title":"Revert \\"\1\\""/g' \
 //   | ./lint-release-proposal-commit-list.mjs "path/to/CHANGELOG.md" "$(git rev-parse upstream/vX.X.X-proposal)"
 

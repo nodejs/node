@@ -43,6 +43,54 @@ The `install()` function adds the following classes to `globalThis`:
 | `MessageEvent` | WebSocket message event |
 | `EventSource` | Server-sent events client |
 
+## Using `FormData` with `fetch`
+
+If you send a `FormData` body, use matching implementations for `fetch` and
+`FormData`.
+
+These two patterns are safe:
+
+```js
+// Built-in globals from Node.js
+const body = new FormData()
+await fetch('https://example.com', {
+  method: 'POST',
+  body
+})
+```
+
+```js
+// Globals installed from the undici package
+import { install } from 'undici'
+
+install()
+
+const body = new FormData()
+await fetch('https://example.com', {
+  method: 'POST',
+  body
+})
+```
+
+After `install()`, `fetch`, `Headers`, `Response`, `Request`, and `FormData`
+all come from the installed `undici` package, so they work as a matching set.
+
+If you do not want to install globals, import both from `undici` instead:
+
+```js
+import { fetch, FormData } from 'undici'
+
+const body = new FormData()
+await fetch('https://example.com', {
+  method: 'POST',
+  body
+})
+```
+
+Avoid mixing a global `FormData` with `undici.fetch()`, or `undici.FormData`
+with the built-in global `fetch()`. Keeping them paired avoids surprising
+multipart behavior across Node.js and undici versions.
+
 ## Use Cases
 
 Global installation is useful for:

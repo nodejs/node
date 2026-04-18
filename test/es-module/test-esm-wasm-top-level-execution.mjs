@@ -1,7 +1,7 @@
 // Test that WASM modules support top-level execution
 import '../common/index.mjs';
 import { spawnSyncAndAssert } from '../common/child_process.js';
-import * as fixtures from '../common/fixtures.js';
+import * as fixtures from '../common/fixtures.mjs';
 
 spawnSyncAndAssert(
   process.execPath,
@@ -9,6 +9,6 @@ spawnSyncAndAssert(
   {
     stdout: '[Object: null prototype] { prop: \'hello world\' }',
     stderr: '',
-    trim: true
+    trim: true,
   }
 );

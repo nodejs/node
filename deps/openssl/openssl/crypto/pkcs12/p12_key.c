@@ -17,9 +17,9 @@
 #include "internal/provider.h"
 
 int PKCS12_key_gen_asc_ex(const char *pass, int passlen, unsigned char *salt,
-                          int saltlen, int id, int iter, int n,
-                          unsigned char *out, const EVP_MD *md_type,
-                          OSSL_LIB_CTX *ctx, const char *propq)
+    int saltlen, int id, int iter, int n,
+    unsigned char *out, const EVP_MD *md_type,
+    OSSL_LIB_CTX *ctx, const char *propq)
 {
     int ret;
     unsigned char *unipass;
@@ -33,23 +33,23 @@ int PKCS12_key_gen_asc_ex(const char *pass, int passlen, unsigned char *salt,
         return 0;
     }
     ret = PKCS12_key_gen_uni_ex(unipass, uniplen, salt, saltlen, id, iter,
-                                n, out, md_type, ctx, propq);
+        n, out, md_type, ctx, propq);
     OPENSSL_clear_free(unipass, uniplen);
     return ret > 0;
 }
 
 int PKCS12_key_gen_asc(const char *pass, int passlen, unsigned char *salt,
-                       int saltlen, int id, int iter, int n,
-                       unsigned char *out, const EVP_MD *md_type)
+    int saltlen, int id, int iter, int n,
+    unsigned char *out, const EVP_MD *md_type)
 {
     return PKCS12_key_gen_asc_ex(pass, passlen, salt, saltlen, id, iter, n,
-                                  out, md_type, NULL, NULL);
+        out, md_type, NULL, NULL);
 }
 
 int PKCS12_key_gen_utf8_ex(const char *pass, int passlen, unsigned char *salt,
-                           int saltlen, int id, int iter, int n,
-                           unsigned char *out, const EVP_MD *md_type,
-                           OSSL_LIB_CTX *ctx, const char *propq)
+    int saltlen, int id, int iter, int n,
+    unsigned char *out, const EVP_MD *md_type,
+    OSSL_LIB_CTX *ctx, const char *propq)
 {
     int ret;
     unsigned char *unipass;
@@ -63,23 +63,23 @@ int PKCS12_key_gen_utf8_ex(const char *pass, int passlen, unsigned char *salt,
         return 0;
     }
     ret = PKCS12_key_gen_uni_ex(unipass, uniplen, salt, saltlen, id, iter,
-                                n, out, md_type, ctx, propq);
+        n, out, md_type, ctx, propq);
     OPENSSL_clear_free(unipass, uniplen);
     return ret > 0;
 }
 
 int PKCS12_key_gen_utf8(const char *pass, int passlen, unsigned char *salt,
-                        int saltlen, int id, int iter, int n,
-                        unsigned char *out, const EVP_MD *md_type)
+    int saltlen, int id, int iter, int n,
+    unsigned char *out, const EVP_MD *md_type)
 {
     return PKCS12_key_gen_utf8_ex(pass, passlen, salt, saltlen, id, iter, n,
-                                  out, md_type, NULL, NULL);
+        out, md_type, NULL, NULL);
 }
 
 int PKCS12_key_gen_uni_ex(unsigned char *pass, int passlen, unsigned char *salt,
-                          int saltlen, int id, int iter, int n,
-                          unsigned char *out, const EVP_MD *md_type,
-                          OSSL_LIB_CTX *libctx, const char *propq)
+    int saltlen, int id, int iter, int n,
+    unsigned char *out, const EVP_MD *md_type,
+    OSSL_LIB_CTX *libctx, const char *propq)
 {
     int res = 0;
     EVP_KDF *kdf;
@@ -98,17 +98,18 @@ int PKCS12_key_gen_uni_ex(unsigned char *pass, int passlen, unsigned char *salt,
         return 0;
 
     *p++ = OSSL_PARAM_construct_utf8_string(OSSL_KDF_PARAM_DIGEST,
-                                            (char *)EVP_MD_get0_name(md_type),
-                                            0);
+        (char *)EVP_MD_get0_name(md_type),
+        0);
     *p++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_PASSWORD,
-                                             pass, passlen);
+        pass, passlen);
     *p++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_SALT,
-                                             salt, saltlen);
+        salt, saltlen);
     *p++ = OSSL_PARAM_construct_int(OSSL_KDF_PARAM_PKCS12_ID, &id);
     *p++ = OSSL_PARAM_construct_int(OSSL_KDF_PARAM_ITER, &iter);
     *p = OSSL_PARAM_construct_end();
 
-    OSSL_TRACE_BEGIN(PKCS12_KEYGEN) {
+    OSSL_TRACE_BEGIN(PKCS12_KEYGEN)
+    {
         BIO_printf(trc_out, "PKCS12_key_gen_uni_ex(): ID %d, ITER %d\n", id, iter);
         BIO_printf(trc_out, "Password (length %d):\n", passlen);
         BIO_hex_string(trc_out, 0, passlen, pass, passlen);
@@ -116,23 +117,26 @@ int PKCS12_key_gen_uni_ex(unsigned char *pass, int passlen, unsigned char *salt,
         BIO_printf(trc_out, "Salt (length %d):\n", saltlen);
         BIO_hex_string(trc_out, 0, saltlen, salt, saltlen);
         BIO_printf(trc_out, "\n");
-    } OSSL_TRACE_END(PKCS12_KEYGEN);
+    }
+    OSSL_TRACE_END(PKCS12_KEYGEN);
 
     if (EVP_KDF_derive(ctx, out, (size_t)n, params)) {
         res = 1;
-        OSSL_TRACE_BEGIN(PKCS12_KEYGEN) {
+        OSSL_TRACE_BEGIN(PKCS12_KEYGEN)
+        {
             BIO_printf(trc_out, "Output KEY (length %d)\n", n);
             BIO_hex_string(trc_out, 0, n, out, n);
             BIO_printf(trc_out, "\n");
-        } OSSL_TRACE_END(PKCS12_KEYGEN);
+        }
+        OSSL_TRACE_END(PKCS12_KEYGEN);
     }
     EVP_KDF_CTX_free(ctx);
     return res;
 }
 
 int PKCS12_key_gen_uni(unsigned char *pass, int passlen, unsigned char *salt,
-                       int saltlen, int id, int iter, int n,
-                       unsigned char *out, const EVP_MD *md_type)
+    int saltlen, int id, int iter, int n,
+    unsigned char *out, const EVP_MD *md_type)
 {
     return PKCS12_key_gen_uni_ex(pass, passlen, salt, saltlen, id, iter, n, out, md_type, NULL, NULL);
 }

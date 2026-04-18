@@ -2172,11 +2172,11 @@ void TLSWrap::Initialize(
 
   NODE_DEFINE_CONSTANT(target, HAVE_SSL_TRACE);
 
-  Local<FunctionTemplate> t = BaseObject::MakeLazilyInitializedJSTemplate(env);
+  Local<FunctionTemplate> t = AsyncWrap::MakeLazilyInitializedJSTemplate(env);
   Local<String> tlsWrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "TLSWrap");
   t->SetClassName(tlsWrapString);
-  t->InstanceTemplate()->SetInternalFieldCount(StreamBase::kInternalFieldCount);
+  t->InstanceTemplate()->SetInternalFieldCount(TLSWrap::kInternalFieldCount);
 
   Local<FunctionTemplate> get_write_queue_size =
       FunctionTemplate::New(env->isolate(),

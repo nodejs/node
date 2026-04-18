@@ -35,7 +35,7 @@ static const BIO_METHOD mem_method = {
     mem_ctrl,
     mem_new,
     mem_free,
-    NULL,                      /* mem_callback_ctrl */
+    NULL, /* mem_callback_ctrl */
 };
 
 static const BIO_METHOD secmem_method = {
@@ -50,7 +50,7 @@ static const BIO_METHOD secmem_method = {
     mem_ctrl,
     secmem_new,
     mem_free,
-    NULL,                      /* mem_callback_ctrl */
+    NULL, /* mem_callback_ctrl */
 };
 
 /*
@@ -60,7 +60,7 @@ static const BIO_METHOD secmem_method = {
  * to be used for reset.
  */
 typedef struct bio_buf_mem_st {
-    struct buf_mem_st *buf;   /* allocated buffer */
+    struct buf_mem_st *buf; /* allocated buffer */
     struct buf_mem_st *readp; /* read pointer */
 } BIO_BUF_MEM;
 
@@ -235,7 +235,7 @@ static int mem_write(BIO *b, const char *in, int inl)
     memcpy(bbm->buf->data + blen, in, inl);
     *bbm->readp = *bbm->buf;
     ret = inl;
- end:
+end:
     return ret;
 }
 
@@ -244,7 +244,7 @@ static long mem_ctrl(BIO *b, int cmd, long num, void *ptr)
     long ret = 1;
     char **pptr;
     BIO_BUF_MEM *bbm = (BIO_BUF_MEM *)b->ptr;
-    BUF_MEM *bm, *bo;            /* bio_mem, bio_other */
+    BUF_MEM *bm, *bo; /* bio_mem, bio_other */
     long off, remain;
 
     if (b->flags & BIO_FLAGS_MEM_RDONLY) {
@@ -275,7 +275,7 @@ static long mem_ctrl(BIO *b, int cmd, long num, void *ptr)
         break;
     case BIO_C_FILE_SEEK:
         if (num < 0 || num > off + remain)
-            return -1;   /* Can't see outside of the current buffer */
+            return -1; /* Can't see outside of the current buffer */
 
         bm->data = (num != 0) ? bo->data + num : bo->data;
         bm->length = bo->length - num;

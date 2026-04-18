@@ -71,7 +71,7 @@ class HistogramImpl {
  public:
   enum InternalFields {
     kSlot = BaseObject::kSlot,
-    kImplField = BaseObject::kInternalFieldCount,
+    kImplField = HandleWrap::kInternalFieldCount,
     kInternalFieldCount
   };
 
@@ -133,6 +133,11 @@ class HistogramImpl {
 
 class HistogramBase final : public BaseObject, public HistogramImpl {
  public:
+  enum InternalFields {
+    kInternalFieldCount = std::max<uint32_t>(
+        BaseObject::kInternalFieldCount, HistogramImpl::kInternalFieldCount),
+  };
+
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       IsolateData* isolate_data);
   static void Initialize(IsolateData* isolate_data,
@@ -203,6 +208,11 @@ class HistogramBase final : public BaseObject, public HistogramImpl {
 
 class IntervalHistogram final : public HandleWrap, public HistogramImpl {
  public:
+  enum InternalFields {
+    kInternalFieldCount = std::max<uint32_t>(
+        HandleWrap::kInternalFieldCount, HistogramImpl::kInternalFieldCount),
+  };
+
   enum class StartFlags {
     NONE,
     RESET

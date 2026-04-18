@@ -14,8 +14,8 @@
 #include <openssl/asn1.h>
 
 static int traverse_string(const unsigned char *p, int len, int inform,
-                           int (*rfunc) (unsigned long value, void *in),
-                           void *arg);
+    int (*rfunc)(unsigned long value, void *in),
+    void *arg);
 static int in_utf8(unsigned long value, void *arg);
 static int out_utf8(unsigned long value, void *arg);
 static int type_str(unsigned long value, void *arg);
@@ -34,14 +34,14 @@ static int cpy_utf8(unsigned long value, void *arg);
  */
 
 int ASN1_mbstring_copy(ASN1_STRING **out, const unsigned char *in, int len,
-                       int inform, unsigned long mask)
+    int inform, unsigned long mask)
 {
     return ASN1_mbstring_ncopy(out, in, len, inform, mask, 0, 0);
 }
 
 int ASN1_mbstring_ncopy(ASN1_STRING **out, const unsigned char *in, int len,
-                        int inform, unsigned long mask,
-                        long minsize, long maxsize)
+    int inform, unsigned long mask,
+    long minsize, long maxsize)
 {
     int str_type;
     int ret;
@@ -50,7 +50,7 @@ int ASN1_mbstring_ncopy(ASN1_STRING **out, const unsigned char *in, int len,
     ASN1_STRING *dest;
     unsigned char *p;
     int nchar;
-    int (*cpyfunc) (unsigned long, void *) = NULL;
+    int (*cpyfunc)(unsigned long, void *) = NULL;
     if (len == -1)
         len = strlen((const char *)in);
     if (!mask)
@@ -98,13 +98,13 @@ int ASN1_mbstring_ncopy(ASN1_STRING **out, const unsigned char *in, int len,
 
     if ((minsize > 0) && (nchar < minsize)) {
         ERR_raise_data(ERR_LIB_ASN1, ASN1_R_STRING_TOO_SHORT,
-                       "minsize=%ld", minsize);
+            "minsize=%ld", minsize);
         return -1;
     }
 
     if ((maxsize > 0) && (nchar > maxsize)) {
         ERR_raise_data(ERR_LIB_ASN1, ASN1_R_STRING_TOO_LONG,
-                       "maxsize=%ld", maxsize);
+            "maxsize=%ld", maxsize);
         return -1;
     }
 
@@ -114,7 +114,10 @@ int ASN1_mbstring_ncopy(ASN1_STRING **out, const unsigned char *in, int len,
         return -1;
     }
 
-    /* Now work out output format and string type */
+    /*
+     * Now work out output format and string type.
+     * These checks should be in sync with the checks in type_str.
+     */
     outform = MBSTRING_ASC;
     if (mask & B_ASN1_NUMERICSTRING)
         str_type = V_ASN1_NUMERICSTRING;
@@ -182,7 +185,11 @@ int ASN1_mbstring_ncopy(ASN1_STRING **out, const unsigned char *in, int len,
 
     case MBSTRING_UTF8:
         outlen = 0;
-        traverse_string(in, len, inform, out_utf8, &outlen);
+        ret = traverse_string(in, len, inform, out_utf8, &outlen);
+        if (ret < 0) {
+            ERR_raise(ERR_LIB_ASN1, ASN1_R_INVALID_UTF8STRING);
+            return -1;
+        }
         cpyfunc = cpy_utf8;
         break;
     }
@@ -206,8 +213,8 @@ int ASN1_mbstring_ncopy(ASN1_STRING **out, const unsigned char *in, int len,
  */
 
 static int traverse_string(const unsigned char *p, int len, int inform,
-                           int (*rfunc) (unsigned long value, void *in),
-                           void *arg)
+    int (*rfunc)(unsigned long value, void *in),
+    void *arg)
 {
     unsigned long value;
     int ret;
@@ -277,11 +284,30 @@ static int out_utf8(unsigned long value, void *arg)
 
 static int type_str(unsigned long value, void *arg)
 {
-    unsigned long types = *((unsigned long *)arg);
+    unsigned long usable_types = *((unsigned long *)arg);
+    unsigned long types = usable_types;
     const int native = value > INT_MAX ? INT_MAX : ossl_fromascii(value);
 
-    if ((types & B_ASN1_NUMERICSTRING) && !(ossl_isdigit(native)
-                                            || native == ' '))
+    /*
+     * Clear out all the types which are not checked later. If any of those
+     * is present in the mask, then the UTF8 type will be added and checked
+     * below.
+     */
+    types &= B_ASN1_NUMERICSTRING | B_ASN1_PRINTABLESTRING
+        | B_ASN1_IA5STRING | B_ASN1_T61STRING | B_ASN1_BMPSTRING
+        | B_ASN1_UNIVERSALSTRING | B_ASN1_UTF8STRING;
+
+    /*
+     * If any other types were in the input mask, they're effectively treated
+     * as UTF8
+     */
+    if (types != usable_types)
+        types |= B_ASN1_UTF8STRING;
+
+    /*
+     * These checks should be in sync with ASN1_mbstring_ncopy.
+     */
+    if ((types & B_ASN1_NUMERICSTRING) && !(ossl_isdigit(native) || native == ' '))
         types &= ~B_ASN1_NUMERICSTRING;
     if ((types & B_ASN1_PRINTABLESTRING) && !ossl_isasn1print(native))
         types &= ~B_ASN1_PRINTABLESTRING;
@@ -348,6 +374,8 @@ static int cpy_utf8(unsigned long value, void *arg)
     p = arg;
     /* We already know there is enough room so pass 0xff as the length */
     ret = UTF8_putc(*p, 0xff, value);
+    if (ret < 0)
+        return ret;
     *p += ret;
     return 1;
 }

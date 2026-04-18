@@ -181,6 +181,53 @@ t.test('single node - with single license', t => {
   t.end()
 })
 
+t.test('single node - with legacy licenses array (single)', t => {
+  const pkg = {
+    ...rootPkg,
+    licenses: [
+      {
+        type: 'MIT',
+        url: 'http://opensource.org/licenses/mit-license.php',
+      },
+    ],
+  }
+  const node = { ...root, package: pkg }
+  const res = cyclonedxOutput({ npm, nodes: [node] })
+  t.matchSnapshot(JSON.stringify(res))
+  t.end()
+})
+
+t.test('single node - with legacy licenses array (multiple)', t => {
+  const pkg = {
+    ...rootPkg,
+    licenses: [
+      {
+        type: 'MIT',
+        url: 'http://opensource.org/licenses/mit-license.php',
+      },
+      {
+        type: 'Apache-2.0',
+        url: 'http://opensource.org/licenses/apache2.0.php',
+      },
+    ],
+  }
+  const node = { ...root, package: pkg }
+  const res = cyclonedxOutput({ npm, nodes: [node] })
+  t.matchSnapshot(JSON.stringify(res))
+  t.end()
+})
+
+t.test('single node - with legacy licenses array (string entries)', t => {
+  const pkg = {
+    ...rootPkg,
+    licenses: ['MIT'],
+  }
+  const node = { ...root, package: pkg }
+  const res = cyclonedxOutput({ npm, nodes: [node] })
+  t.matchSnapshot(JSON.stringify(res))
+  t.end()
+})
+
 t.test('single node - with license expression', t => {
   const pkg = { ...rootPkg, license: '(MIT OR Apache-2.0)' }
   const node = { ...root, package: pkg }

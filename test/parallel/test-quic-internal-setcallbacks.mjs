@@ -1,6 +1,6 @@
 // Flags: --expose-internals --experimental-quic --no-warnings
 import { hasQuic, skip } from '../common/index.mjs';
-import { throws } from 'node:assert';
+import assert from 'node:assert';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -18,6 +18,7 @@ const callbacks = {
   onSessionHandshake() {},
   onSessionPathValidation() {},
   onSessionTicket() {},
+  onSessionNewToken() {},
   onSessionVersionNegotiation() {},
   onStreamCreated() {},
   onStreamBlocked() {},
@@ -30,7 +31,7 @@ const callbacks = {
 for (const fn of Object.keys(callbacks)) {
   // eslint-disable-next-line no-unused-vars
   const { [fn]: _, ...rest } = callbacks;
-  throws(() => quic.setCallbacks(rest), {
+  assert.throws(() => quic.setCallbacks(rest), {
     code: 'ERR_MISSING_ARGS',
   });
 }

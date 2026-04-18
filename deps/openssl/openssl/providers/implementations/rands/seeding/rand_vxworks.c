@@ -19,19 +19,19 @@
 
 #if defined(OPENSSL_RAND_SEED_NONE)
 /* none means none */
-# undef OPENSSL_RAND_SEED_OS
+#undef OPENSSL_RAND_SEED_OS
 #endif
 
 #if defined(OPENSSL_RAND_SEED_OS)
-# if _WRS_VXWORKS_MAJOR >= 7
-#   define RAND_SEED_VXRANDLIB
-# else
-#   error "VxWorks <7 only support RAND_SEED_NONE"
-# endif
+#if _WRS_VXWORKS_MAJOR >= 7
+#define RAND_SEED_VXRANDLIB
+#else
+#error "VxWorks <7 only support RAND_SEED_NONE"
+#endif
 #endif
 
 #if defined(RAND_SEED_VXRANDLIB)
-# include <randomNumGen.h>
+#include <randomNumGen.h>
 #endif
 
 /* Macro to convert two thirty two bit values into a sixty four bit one */
@@ -115,7 +115,7 @@ size_t ossl_pool_acquire_entropy(RAND_POOL *pool)
             RANDOM_NUM_GEN_STATUS status = randStatus();
 
             if ((status == RANDOM_NUM_GEN_ENOUGH_ENTROPY)
-                    || (status == RANDOM_NUM_GEN_MAX_ENTROPY)) {
+                || (status == RANDOM_NUM_GEN_MAX_ENTROPY)) {
                 result = randBytes(buffer, bytes_needed);
                 if (result == OK)
                     ossl_rand_pool_add_end(pool, bytes_needed, 8 * bytes_needed);

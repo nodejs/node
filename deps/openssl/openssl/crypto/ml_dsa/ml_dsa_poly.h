@@ -72,7 +72,7 @@ poly_ntt(POLY *p)
 
 static ossl_inline ossl_unused int
 poly_sample_in_ball_ntt(POLY *out, const uint8_t *seed, int seed_len,
-                        EVP_MD_CTX *h_ctx, const EVP_MD *md, uint32_t tau)
+    EVP_MD_CTX *h_ctx, const EVP_MD *md, uint32_t tau)
 {
     if (!ossl_ml_dsa_poly_sample_in_ball(out, seed, seed_len, h_ctx, md, tau))
         return 0;
@@ -82,7 +82,7 @@ poly_sample_in_ball_ntt(POLY *out, const uint8_t *seed, int seed_len,
 
 static ossl_inline ossl_unused int
 poly_expand_mask(POLY *out, const uint8_t *seed, size_t seed_len,
-                 uint32_t gamma1, EVP_MD_CTX *h_ctx, const EVP_MD *md)
+    uint32_t gamma1, EVP_MD_CTX *h_ctx, const EVP_MD *md)
 {
     return ossl_ml_dsa_poly_expand_mask(out, seed, seed_len, gamma1, h_ctx, md);
 }
@@ -105,7 +105,7 @@ poly_power2_round(const POLY *t, POLY *t1, POLY *t0)
 
     for (i = 0; i < ML_DSA_NUM_POLY_COEFFICIENTS; i++)
         ossl_ml_dsa_key_compress_power2_round(t->coeff[i],
-                                              t1->coeff + i, t0->coeff + i);
+            t1->coeff + i, t0->coeff + i);
 }
 
 static ossl_inline ossl_unused void
@@ -137,14 +137,14 @@ poly_low_bits(const POLY *in, uint32_t gamma2, POLY *out)
 
 static ossl_inline ossl_unused void
 poly_make_hint(const POLY *ct0, const POLY *cs2, const POLY *w, uint32_t gamma2,
-               POLY *out)
+    POLY *out)
 {
     int i;
 
     for (i = 0; i < ML_DSA_NUM_POLY_COEFFICIENTS; i++)
         out->coeff[i] = ossl_ml_dsa_key_compress_make_hint(ct0->coeff[i],
-                                                           cs2->coeff[i],
-                                                           gamma2, w->coeff[i]);
+            cs2->coeff[i],
+            gamma2, w->coeff[i]);
 }
 
 static ossl_inline ossl_unused void
@@ -154,7 +154,7 @@ poly_use_hint(const POLY *h, const POLY *r, uint32_t gamma2, POLY *out)
 
     for (i = 0; i < ML_DSA_NUM_POLY_COEFFICIENTS; i++)
         out->coeff[i] = ossl_ml_dsa_key_compress_use_hint(h->coeff[i],
-                                                          r->coeff[i], gamma2);
+            r->coeff[i], gamma2);
 }
 
 static ossl_inline ossl_unused void

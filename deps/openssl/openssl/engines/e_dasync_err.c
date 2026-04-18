@@ -14,8 +14,8 @@
 #ifndef OPENSSL_NO_ERR
 
 static ERR_STRING_DATA DASYNC_str_reasons[] = {
-    {ERR_PACK(0, 0, DASYNC_R_INIT_FAILED), "init failed"},
-    {0, NULL}
+    { ERR_PACK(0, 0, DASYNC_R_INIT_FAILED), "init failed" },
+    { 0, NULL }
 };
 
 #endif

@@ -18,12 +18,12 @@ const escape = (s, { windowsPathsNoEscape = false, magicalBraces = false, } = {}
     // that make those magic, and escaping ! as [!] isn't valid,
     // because [!]] is a valid glob class meaning not ']'.
     if (magicalBraces) {
-        return windowsPathsNoEscape
-            ? s.replace(/[?*()[\]{}]/g, '[$&]')
+        return windowsPathsNoEscape ?
+            s.replace(/[?*()[\]{}]/g, '[$&]')
             : s.replace(/[?*()[\]\\{}]/g, '\\$&');
     }
-    return windowsPathsNoEscape
-        ? s.replace(/[?*()[\]]/g, '[$&]')
+    return windowsPathsNoEscape ?
+        s.replace(/[?*()[\]]/g, '[$&]')
         : s.replace(/[?*()[\]\\]/g, '\\$&');
 };
 exports.escape = escape;

@@ -3,7 +3,7 @@ import '../common/index.mjs';
 import assert from 'node:assert';
 
 import { spawnSyncAndAssert } from '../common/child_process.js';
-import * as fixtures from '../common/fixtures.js';
+import * as fixtures from '../common/fixtures.mjs';
 
 const fileUrl = fixtures.fileURL('es-modules/wasm-source-phase.js').href;
 spawnSyncAndAssert(
@@ -14,6 +14,6 @@ spawnSyncAndAssert(
     stderr(output) {
       assert.match(output, /Source phase import object is not defined for module/);
       assert(output.includes(fileUrl));
-    }
+    },
   }
 );

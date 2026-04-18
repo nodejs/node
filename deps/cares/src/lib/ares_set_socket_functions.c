@@ -61,7 +61,7 @@
 #  define TFO_USE_SENDTO     0
 #  define TFO_USE_CONNECTX   0
 #  define TFO_CLIENT_SOCKOPT TCP_FASTOPEN_CONNECT
-#elif defined(__FreeBSD__) && defined(TCP_FASTOPEN)
+#elif (defined(__MidnightBSD__) || defined(__FreeBSD__)) && defined(TCP_FASTOPEN)
 #  define TFO_SUPPORTED      1
 #  define TFO_SKIP_CONNECT   1
 #  define TFO_USE_SENDTO     1
@@ -127,6 +127,8 @@ ares_status_t
     channel->sock_funcs.asendto      = funcs->asendto;
     channel->sock_funcs.agetsockname = funcs->agetsockname;
     channel->sock_funcs.abind        = funcs->abind;
+    channel->sock_funcs.aif_nametoindex = funcs->aif_nametoindex;
+    channel->sock_funcs.aif_indextoname = funcs->aif_indextoname;
   }
 
   /* Implement newer versions here ...*/

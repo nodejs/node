@@ -340,8 +340,8 @@ assert.throws(() => {
   const read1 = reader.read();
   const read2 = reader.read();
 
-  read1.then(common.mustNotCall(), common.mustCall());
-  read2.then(common.mustNotCall(), common.mustCall());
+  assert.rejects(read1, () => true).then(common.mustCall());
+  assert.rejects(read2, () => true).then(common.mustCall());
 
   assert.notStrictEqual(read1, read2);
 
@@ -668,7 +668,7 @@ assert.throws(() => {
     reader.read().then(common.mustCall(({ value, done }) => {
       assert.deepStrictEqual(value, buf2);
       assert(!done);
-      reader.read().then(common.mustNotCall());
+      reader.read().then(common.mustNotCall('never settling promise expected'));
       delay().then(common.mustCall());
     }));
   }));
@@ -1536,9 +1536,9 @@ class Source {
   });
   const [r1, r2] = readableStreamTee(readable, true);
   r1.getReader().read().then(
-    common.mustCall(({ value }) => assert.strictEqual(value, 'hello')));
+    common.mustCall(({ value }) => { assert.strictEqual(value, 'hello'); }));
   r2.getReader().read().then(
-    common.mustCall(({ value }) => assert.strictEqual(value, 'hello')));
+    common.mustCall(({ value }) => { assert.strictEqual(value, 'hello'); }));
 }
 
 {
@@ -1711,7 +1711,7 @@ class Source {
   const iterator = stream.values();
 
   let microtaskCompleted = false;
-  Promise.resolve().then(() => { microtaskCompleted = true; });
+  Promise.resolve().then(() => { microtaskCompleted = true; }).then(common.mustCall());
 
   iterator.next().then(common.mustCall(({ done, value }) => {
     assert.strictEqual(done, false);

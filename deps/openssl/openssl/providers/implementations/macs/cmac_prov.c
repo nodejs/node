@@ -128,7 +128,7 @@ static size_t cmac_size(void *vmacctx)
  * key name used by the Triple-DES.
  */
 static int tdes_check_param(struct cmac_data_st *macctx, OSSL_PARAM *p,
-                            int *state)
+    int *state)
 {
     OSSL_LIB_CTX *libctx = PROV_LIBCTX_OF(macctx->provctx);
     const EVP_CIPHER *cipher = ossl_prov_cipher_cipher(&macctx->cipher);
@@ -136,18 +136,18 @@ static int tdes_check_param(struct cmac_data_st *macctx, OSSL_PARAM *p,
     *state = OSSL_FIPS_IND_STATE_UNKNOWN;
     if (EVP_CIPHER_is_a(cipher, "DES-EDE3-CBC")) {
         if (!OSSL_FIPS_IND_ON_UNAPPROVED(macctx, OSSL_FIPS_IND_SETTABLE0,
-                                         libctx, "CMAC", "Triple-DES",
-                                         ossl_fips_config_tdes_encrypt_disallowed))
+                libctx, "CMAC", "Triple-DES",
+                ossl_fips_config_tdes_encrypt_disallowed))
             return 0;
         OSSL_FIPS_IND_GET_PARAM(macctx, p, state, OSSL_FIPS_IND_SETTABLE0,
-                                OSSL_CIPHER_PARAM_FIPS_ENCRYPT_CHECK)
+            OSSL_CIPHER_PARAM_FIPS_ENCRYPT_CHECK)
     }
     return 1;
 }
 #endif
 
 static int cmac_setkey(struct cmac_data_st *macctx,
-                       const unsigned char *key, size_t keylen)
+    const unsigned char *key, size_t keylen)
 {
     int rv;
     OSSL_PARAM *p = NULL;
@@ -161,14 +161,14 @@ static int cmac_setkey(struct cmac_data_st *macctx,
         p = prms;
 #endif
     rv = ossl_cmac_init(macctx->ctx, key, keylen,
-                        ossl_prov_cipher_cipher(&macctx->cipher),
-                        ossl_prov_cipher_engine(&macctx->cipher), p);
+        ossl_prov_cipher_cipher(&macctx->cipher),
+        ossl_prov_cipher_engine(&macctx->cipher), p);
     ossl_prov_cipher_reset(&macctx->cipher);
     return rv;
 }
 
 static int cmac_init(void *vmacctx, const unsigned char *key,
-                     size_t keylen, const OSSL_PARAM params[])
+    size_t keylen, const OSSL_PARAM params[])
 {
     struct cmac_data_st *macctx = vmacctx;
 
@@ -181,7 +181,7 @@ static int cmac_init(void *vmacctx, const unsigned char *key,
 }
 
 static int cmac_update(void *vmacctx, const unsigned char *data,
-                       size_t datalen)
+    size_t datalen)
 {
     struct cmac_data_st *macctx = vmacctx;
 
@@ -189,7 +189,7 @@ static int cmac_update(void *vmacctx, const unsigned char *data,
 }
 
 static int cmac_final(void *vmacctx, unsigned char *out, size_t *outl,
-                      size_t outsize)
+    size_t outsize)
 {
     struct cmac_data_st *macctx = vmacctx;
 
@@ -203,10 +203,10 @@ static const OSSL_PARAM known_gettable_ctx_params[] = {
     OSSL_PARAM_size_t(OSSL_MAC_PARAM_SIZE, NULL),
     OSSL_PARAM_size_t(OSSL_MAC_PARAM_BLOCK_SIZE, NULL),
     OSSL_FIPS_IND_GETTABLE_CTX_PARAM()
-    OSSL_PARAM_END
+        OSSL_PARAM_END
 };
 static const OSSL_PARAM *cmac_gettable_ctx_params(ossl_unused void *ctx,
-                                                  ossl_unused void *provctx)
+    ossl_unused void *provctx)
 {
     return known_gettable_ctx_params;
 }
@@ -216,11 +216,11 @@ static int cmac_get_ctx_params(void *vmacctx, OSSL_PARAM params[])
     OSSL_PARAM *p;
 
     if ((p = OSSL_PARAM_locate(params, OSSL_MAC_PARAM_SIZE)) != NULL
-            && !OSSL_PARAM_set_size_t(p, cmac_size(vmacctx)))
+        && !OSSL_PARAM_set_size_t(p, cmac_size(vmacctx)))
         return 0;
 
     if ((p = OSSL_PARAM_locate(params, OSSL_MAC_PARAM_BLOCK_SIZE)) != NULL
-            && !OSSL_PARAM_set_size_t(p, cmac_size(vmacctx)))
+        && !OSSL_PARAM_set_size_t(p, cmac_size(vmacctx)))
         return 0;
 
     if (!OSSL_FIPS_IND_GET_CTX_PARAM((struct cmac_data_st *)vmacctx, params))
@@ -233,10 +233,10 @@ static const OSSL_PARAM known_settable_ctx_params[] = {
     OSSL_PARAM_utf8_string(OSSL_MAC_PARAM_PROPERTIES, NULL, 0),
     OSSL_PARAM_octet_string(OSSL_MAC_PARAM_KEY, NULL, 0),
     OSSL_FIPS_IND_SETTABLE_CTX_PARAM(OSSL_CIPHER_PARAM_FIPS_ENCRYPT_CHECK)
-    OSSL_PARAM_END
+        OSSL_PARAM_END
 };
 static const OSSL_PARAM *cmac_settable_ctx_params(ossl_unused void *ctx,
-                                                  ossl_unused void *provctx)
+    ossl_unused void *provctx)
 {
     return known_settable_ctx_params;
 }
@@ -254,8 +254,8 @@ static int cmac_set_ctx_params(void *vmacctx, const OSSL_PARAM params[])
         return 1;
 
     if (!OSSL_FIPS_IND_SET_CTX_PARAM(macctx,
-                                     OSSL_FIPS_IND_SETTABLE0, params,
-                                     OSSL_CIPHER_PARAM_FIPS_ENCRYPT_CHECK))
+            OSSL_FIPS_IND_SETTABLE0, params,
+            OSSL_CIPHER_PARAM_FIPS_ENCRYPT_CHECK))
         return 0;
 
     if ((p = OSSL_PARAM_locate_const(params, OSSL_MAC_PARAM_CIPHER)) != NULL) {
@@ -272,9 +272,9 @@ static int cmac_set_ctx_params(void *vmacctx, const OSSL_PARAM params[])
             const EVP_CIPHER *cipher = ossl_prov_cipher_cipher(&macctx->cipher);
 
             if (!EVP_CIPHER_is_a(cipher, "AES-256-CBC")
-                    && !EVP_CIPHER_is_a(cipher, "AES-192-CBC")
-                    && !EVP_CIPHER_is_a(cipher, "AES-128-CBC")
-                    && !EVP_CIPHER_is_a(cipher, "DES-EDE3-CBC")) {
+                && !EVP_CIPHER_is_a(cipher, "AES-192-CBC")
+                && !EVP_CIPHER_is_a(cipher, "AES-128-CBC")
+                && !EVP_CIPHER_is_a(cipher, "DES-EDE3-CBC")) {
                 ERR_raise(ERR_LIB_PROV, EVP_R_UNSUPPORTED_CIPHER);
                 return 0;
             }
@@ -298,10 +298,10 @@ const OSSL_DISPATCH ossl_cmac_functions[] = {
     { OSSL_FUNC_MAC_UPDATE, (void (*)(void))cmac_update },
     { OSSL_FUNC_MAC_FINAL, (void (*)(void))cmac_final },
     { OSSL_FUNC_MAC_GETTABLE_CTX_PARAMS,
-      (void (*)(void))cmac_gettable_ctx_params },
+        (void (*)(void))cmac_gettable_ctx_params },
     { OSSL_FUNC_MAC_GET_CTX_PARAMS, (void (*)(void))cmac_get_ctx_params },
     { OSSL_FUNC_MAC_SETTABLE_CTX_PARAMS,
-      (void (*)(void))cmac_settable_ctx_params },
+        (void (*)(void))cmac_settable_ctx_params },
     { OSSL_FUNC_MAC_SET_CTX_PARAMS, (void (*)(void))cmac_set_ctx_params },
     OSSL_DISPATCH_END
 };

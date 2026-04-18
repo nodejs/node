@@ -18,7 +18,7 @@
  */
 
 U_NAMESPACE_BEGIN
-class CharString;
+class FixedString;
 
 /**
  * <code>LocaleBuilder</code> is used to build instances of <code>Locale</code>
@@ -297,7 +297,7 @@ private:
     char language_[9];
     char script_[5];
     char region_[4];
-    CharString *variant_;  // Pointer not object so we need not #include internal charstr.h.
+    FixedString *variant_;  // Pointer not object so we need not #include internal fixedstring.h.
     icu::Locale *extensions_;  // Pointer not object. Storage for all other fields.
 
 };

@@ -1218,12 +1218,15 @@ UnicodeString RegexMatcher::group(int32_t groupNum, UErrorCode &status) const {
 
     // Get the group length using a utext_extract preflight.
     //    UText is actually pretty efficient at this when underlying encoding is UTF-16.
-    int32_t length = utext_extract(fInputText, groupStart, groupEnd, nullptr, 0, &status);
-    if (status != U_BUFFER_OVERFLOW_ERROR) {
+    UErrorCode bufferStatus = U_ZERO_ERROR;
+    int32_t length = utext_extract(fInputText, groupStart, groupEnd, nullptr, 0, &bufferStatus);
+    if (bufferStatus != U_BUFFER_OVERFLOW_ERROR) {
+        if (U_FAILURE(bufferStatus)) {
+            status = bufferStatus;
+        }
         return result;
     }
 
-    status = U_ZERO_ERROR;
     char16_t *buf = result.getBuffer(length);
     if (buf == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
@@ -1995,11 +1998,12 @@ static UText *utext_extract_replace(UText *src, UText *dest, int64_t start, int6
             return utext_openUChars(nullptr, nullptr, 0, status);
         }
     }
-    int32_t length = utext_extract(src, start, limit, nullptr, 0, status);
-    if (*status != U_BUFFER_OVERFLOW_ERROR && U_FAILURE(*status)) {
+    UErrorCode bufferStatus = U_ZERO_ERROR;
+    int32_t length = utext_extract(src, start, limit, nullptr, 0, &bufferStatus);
+    if (bufferStatus != U_BUFFER_OVERFLOW_ERROR && U_FAILURE(bufferStatus)) {
+        *status = bufferStatus;
         return dest;
     }
-    *status = U_ZERO_ERROR;
     MaybeStackArray<char16_t, 40> buffer;
     if (length >= buffer.getCapacity()) {
         char16_t *newBuf = buffer.resize(length+1);   // Leave space for terminating Nul.
@@ -4414,6 +4418,14 @@ void RegexMatcher::MatchChunkAt(int32_t startIdx, UBool toEnd, UErrorCode &statu
                         success = false;
                         break;
                     }
+                }
+
+                // If the pattern string ends with an unpaired lead surrogate that
+                // matched the lead surrogate of a valid pair in the input text,
+                // this does not count as a match.
+                if (success && U16_IS_LEAD(*(pInp-1)) &&
+                        pInp < pInpLimit && U16_IS_TRAIL(*(pInp))) {
+                    success = false;
                 }
 
                 if (success) {

@@ -165,10 +165,13 @@ function removeAsync(dir) {
   // Should delete an invalid symlink
   const invalidLink = tmpdir.resolve('invalid-link-async');
   fs.symlinkSync('definitely-does-not-exist-async', invalidLink);
+  assert.ok(fs.lstatSync(invalidLink).isSymbolicLink());
+  // `existsSync()` follows symlinks, so this confirms the target does not exist.
+  assert.strictEqual(fs.existsSync(invalidLink), false);
   fs.rm(invalidLink, common.mustNotMutateObjectDeep({ recursive: true }), common.mustCall((err) => {
     try {
       assert.strictEqual(err, null);
-      assert.strictEqual(fs.existsSync(invalidLink), false);
+      assert.throws(() => fs.lstatSync(invalidLink), { code: 'ENOENT' });
     } finally {
       fs.rmSync(invalidLink, common.mustNotMutateObjectDeep({ force: true }));
     }
@@ -247,11 +250,14 @@ if (isGitPresent) {
   }
 
   // Should delete an invalid symlink
+  // Refs: https://github.com/nodejs/node/issues/61020
   const invalidLink = tmpdir.resolve('invalid-link');
   fs.symlinkSync('definitely-does-not-exist', invalidLink);
+  assert.ok(fs.lstatSync(invalidLink).isSymbolicLink());
+  assert.strictEqual(fs.existsSync(invalidLink), false);
   try {
     fs.rmSync(invalidLink);
-    assert.strictEqual(fs.existsSync(invalidLink), false);
+    assert.throws(() => fs.lstatSync(invalidLink), { code: 'ENOENT' });
   } finally {
     fs.rmSync(invalidLink, common.mustNotMutateObjectDeep({ force: true }));
   }
@@ -355,9 +361,11 @@ if (isGitPresent) {
   // Should delete an invalid symlink
   const invalidLink = tmpdir.resolve('invalid-link-prom');
   fs.symlinkSync('definitely-does-not-exist-prom', invalidLink);
+  assert.ok(fs.lstatSync(invalidLink).isSymbolicLink());
+  assert.strictEqual(fs.existsSync(invalidLink), false);
   try {
     await fs.promises.rm(invalidLink);
-    assert.strictEqual(fs.existsSync(invalidLink), false);
+    assert.throws(() => fs.lstatSync(invalidLink), { code: 'ENOENT' });
   } finally {
     fs.rmSync(invalidLink, common.mustNotMutateObjectDeep({ force: true }));
   }

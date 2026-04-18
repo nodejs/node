@@ -58,8 +58,8 @@ def rebuild_addons(args):
 
       # We buffer the output and print it out once the process is done in order
       # to avoid interleaved output from multiple builds running at once.
-      return_code = process.wait()
       stdout, stderr = process.communicate()
+      return_code = process.returncode
       if return_code != 0:
         print(f'Failed to build addon in {test_dir}:')
         if stdout:

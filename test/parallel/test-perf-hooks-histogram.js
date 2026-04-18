@@ -2,12 +2,7 @@
 
 const common = require('../common');
 
-const {
-  deepStrictEqual,
-  ok,
-  strictEqual,
-  throws,
-} = require('assert');
+const assert = require('assert');
 
 const {
   createHistogram,
@@ -19,64 +14,64 @@ const { inspect } = require('util');
 {
   const h = createHistogram();
 
-  strictEqual(h.min, 9223372036854776000);
-  strictEqual(h.minBigInt, 9223372036854775807n);
-  strictEqual(h.max, 0);
-  strictEqual(h.maxBigInt, 0n);
-  strictEqual(h.exceeds, 0);
-  strictEqual(h.exceedsBigInt, 0n);
-  ok(Number.isNaN(h.mean));
-  ok(Number.isNaN(h.stddev));
+  assert.strictEqual(h.min, 9223372036854776000);
+  assert.strictEqual(h.minBigInt, 9223372036854775807n);
+  assert.strictEqual(h.max, 0);
+  assert.strictEqual(h.maxBigInt, 0n);
+  assert.strictEqual(h.exceeds, 0);
+  assert.strictEqual(h.exceedsBigInt, 0n);
+  assert.ok(Number.isNaN(h.mean));
+  assert.ok(Number.isNaN(h.stddev));
 
-  strictEqual(h.count, 0);
-  strictEqual(h.countBigInt, 0n);
+  assert.strictEqual(h.count, 0);
+  assert.strictEqual(h.countBigInt, 0n);
 
   h.record(1);
 
-  strictEqual(h.count, 1);
-  strictEqual(h.countBigInt, 1n);
+  assert.strictEqual(h.count, 1);
+  assert.strictEqual(h.countBigInt, 1n);
 
   [false, '', {}, undefined, null].forEach((i) => {
-    throws(() => h.record(i), {
+    assert.throws(() => h.record(i), {
       code: 'ERR_INVALID_ARG_TYPE'
     });
   });
   [0, Number.MAX_SAFE_INTEGER + 1].forEach((i) => {
-    throws(() => h.record(i), {
+    assert.throws(() => h.record(i), {
       code: 'ERR_OUT_OF_RANGE'
     });
   });
 
-  strictEqual(h.min, 1);
-  strictEqual(h.minBigInt, 1n);
-  strictEqual(h.max, 1);
-  strictEqual(h.maxBigInt, 1n);
-  strictEqual(h.exceeds, 0);
-  strictEqual(h.mean, 1);
-  strictEqual(h.stddev, 0);
+  assert.strictEqual(h.min, 1);
+  assert.strictEqual(h.minBigInt, 1n);
+  assert.strictEqual(h.max, 1);
+  assert.strictEqual(h.maxBigInt, 1n);
+  assert.strictEqual(h.exceeds, 0);
+  assert.strictEqual(h.mean, 1);
+  assert.strictEqual(h.stddev, 0);
 
-  strictEqual(h.percentile(1), 1);
-  strictEqual(h.percentile(100), 1);
+  assert.strictEqual(h.percentile(1), 1);
+  assert.strictEqual(h.percentile(100), 1);
 
-  strictEqual(h.percentileBigInt(1), 1n);
-  strictEqual(h.percentileBigInt(100), 1n);
+  assert.strictEqual(h.percentileBigInt(1), 1n);
+  assert.strictEqual(h.percentileBigInt(100), 1n);
 
-  deepStrictEqual(h.percentiles, new Map([[0, 1], [100, 1]]));
+  assert.deepStrictEqual(h.percentiles, new Map([[0, 1], [100, 1]]));
 
-  deepStrictEqual(h.percentilesBigInt, new Map([[0, 1n], [100, 1n]]));
+  assert.deepStrictEqual(h.percentilesBigInt, new Map([[0, 1n], [100, 1n]]));
 
   const mc = new MessageChannel();
   mc.port1.onmessage = common.mustCall(({ data }) => {
-    strictEqual(h.min, 1);
-    strictEqual(h.max, 1);
-    strictEqual(h.exceeds, 0);
-    strictEqual(h.mean, 1);
-    strictEqual(h.stddev, 0);
+    assert.strictEqual(h.min, 1);
+    assert.strictEqual(h.max, 1);
+    assert.strictEqual(h.exceeds, 0);
+    assert.strictEqual(h.mean, 1);
+    assert.strictEqual(h.stddev, 0);
 
     data.record(2n);
     data.recordDelta();
 
-    strictEqual(h.max, 2);
+    assert.strictEqual(h.max, 2);
 
     mc.port1.close();
   });
@@ -85,15 +80,15 @@ const { inspect } = require('util');
 
 {
   const e = monitorEventLoopDelay();
-  strictEqual(e.count, 0);
+  assert.strictEqual(e.count, 0);
   e.enable();
   const mc = new MessageChannel();
   mc.port1.onmessage = common.mustCall(({ data }) => {
-    strictEqual(typeof data.min, 'number');
-    ok(data.min > 0);
-    ok(data.count > 0);
-    strictEqual(data.disable, undefined);
-    strictEqual(data.enable, undefined);
+    assert.strictEqual(typeof data.min, 'number');
+    assert.ok(data.min > 0);
+    assert.ok(data.count > 0);
+    assert.strictEqual(data.disable, undefined);
+    assert.strictEqual(data.enable, undefined);
     mc.port1.close();
   });
   const interval = setInterval(() => {
@@ -112,19 +107,19 @@ const { inspect } = require('util');
     histogram = hi;
   }
   // The histogram should already be disabled.
-  strictEqual(histogram.disable(), false);
+  assert.strictEqual(histogram.disable(), false);
 }
 
 {
   const h = createHistogram();
-  ok(inspect(h, { depth: null }).startsWith('Histogram'));
-  strictEqual(inspect(h, { depth: -1 }), '[RecordableHistogram]');
+  assert.ok(inspect(h, { depth: null }).startsWith('Histogram'));
+  assert.strictEqual(inspect(h, { depth: -1 }), '[RecordableHistogram]');
 }
 
 {
   // Tests that RecordableHistogram is impossible to construct manually
   const h = createHistogram();
-  throws(() => new h.constructor(), { code: 'ERR_ILLEGAL_CONSTRUCTOR' });
+  assert.throws(() => new h.constructor(), { code: 'ERR_ILLEGAL_CONSTRUCTOR' });
 }
 
 {
@@ -133,7 +128,7 @@ const { inspect } = require('util');
     1,
     null,
   ].forEach((i) => {
-    throws(() => createHistogram(i), { code: 'ERR_INVALID_ARG_TYPE' });
+    assert.throws(() => createHistogram(i), { code: 'ERR_INVALID_ARG_TYPE' });
   });
 
   [
@@ -142,20 +137,20 @@ const { inspect } = require('util');
     null,
     {},
   ].forEach((i) => {
-    throws(() => createHistogram({ lowest: i }), {
+    assert.throws(() => createHistogram({ lowest: i }), {
       code: 'ERR_INVALID_ARG_TYPE',
     });
-    throws(() => createHistogram({ highest: i }), {
+    assert.throws(() => createHistogram({ highest: i }), {
       code: 'ERR_INVALID_ARG_TYPE',
     });
-    throws(() => createHistogram({ figures: i }), {
+    assert.throws(() => createHistogram({ figures: i }), {
       code: 'ERR_INVALID_ARG_TYPE',
     });
   });
 
   // Number greater than 5 is not allowed
   for (const i of [6, 10]) {
-    throws(() => createHistogram({ figures: i }), {
+    assert.throws(() => createHistogram({ figures: i }), {
       code: 'ERR_OUT_OF_RANGE',
     });
   }
@@ -169,12 +164,12 @@ const { inspect } = require('util');
 
   h1.record(1);
 
-  strictEqual(h2.count, 0);
-  strictEqual(h1.count, 1);
+  assert.strictEqual(h2.count, 0);
+  assert.strictEqual(h1.count, 1);
 
   h2.add(h1);
 
-  strictEqual(h2.count, 1);
+  assert.strictEqual(h2.count, 1);
 
   [
     'hello',
@@ -182,7 +177,7 @@ const { inspect } = require('util');
     false,
     {},
   ].forEach((i) => {
-    throws(() => h1.add(i), {
+    assert.throws(() => h1.add(i), {
       code: 'ERR_INVALID_ARG_TYPE',
     });
   });

@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -47,9 +47,9 @@ typedef struct {
 /* PKCS12 compatible key/IV generation */
 
 static int pkcs12kdf_derive(const unsigned char *pass, size_t passlen,
-                            const unsigned char *salt, size_t saltlen,
-                            int id, uint64_t iter, const EVP_MD *md_type,
-                            unsigned char *out, size_t n)
+    const unsigned char *salt, size_t saltlen,
+    int id, uint64_t iter, const EVP_MD *md_type,
+    unsigned char *out, size_t n)
 {
     unsigned char *B = NULL, *D = NULL, *I = NULL, *p = NULL, *Ai = NULL;
     size_t Slen, Plen, Ilen;
@@ -125,7 +125,7 @@ static int pkcs12kdf_derive(const unsigned char *pass, size_t passlen,
         }
     }
 
- end:
+end:
     OPENSSL_free(Ai);
     OPENSSL_free(B);
     OPENSSL_free(D);
@@ -183,23 +183,23 @@ static void *kdf_pkcs12_dup(void *vctx)
     dest = kdf_pkcs12_new(src->provctx);
     if (dest != NULL) {
         if (!ossl_prov_memdup(src->salt, src->salt_len,
-                              &dest->salt, &dest->salt_len)
-                || !ossl_prov_memdup(src->pass, src->pass_len,
-                                     &dest->pass , &dest->pass_len)
-                || !ossl_prov_digest_copy(&dest->digest, &src->digest))
+                &dest->salt, &dest->salt_len)
+            || !ossl_prov_memdup(src->pass, src->pass_len,
+                &dest->pass, &dest->pass_len)
+            || !ossl_prov_digest_copy(&dest->digest, &src->digest))
             goto err;
         dest->iter = src->iter;
         dest->id = src->id;
     }
     return dest;
 
- err:
+err:
     kdf_pkcs12_free(dest);
     return NULL;
 }
 
 static int pkcs12kdf_set_membuf(unsigned char **buffer, size_t *buflen,
-                             const OSSL_PARAM *p)
+    const OSSL_PARAM *p)
 {
     OPENSSL_clear_free(*buffer, *buflen);
     *buffer = NULL;
@@ -216,7 +216,7 @@ static int pkcs12kdf_set_membuf(unsigned char **buffer, size_t *buflen,
 }
 
 static int kdf_pkcs12_derive(void *vctx, unsigned char *key, size_t keylen,
-                             const OSSL_PARAM params[])
+    const OSSL_PARAM params[])
 {
     KDF_PKCS12 *ctx = (KDF_PKCS12 *)vctx;
     const EVP_MD *md;
@@ -236,7 +236,7 @@ static int kdf_pkcs12_derive(void *vctx, unsigned char *key, size_t keylen,
 
     md = ossl_prov_digest_md(&ctx->digest);
     return pkcs12kdf_derive(ctx->pass, ctx->pass_len, ctx->salt, ctx->salt_len,
-                            ctx->id, ctx->iter, md, key, keylen);
+        ctx->id, ctx->iter, md, key, keylen);
 }
 
 static int kdf_pkcs12_set_ctx_params(void *vctx, const OSSL_PARAM params[])
@@ -266,11 +266,20 @@ static int kdf_pkcs12_set_ctx_params(void *vctx, const OSSL_PARAM params[])
     if ((p = OSSL_PARAM_locate_const(params, OSSL_KDF_PARAM_ITER)) != NULL)
         if (!OSSL_PARAM_get_uint64(p, &ctx->iter))
             return 0;
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+    /*
+     * If we're running the fuzzer, limit iteration count to
+     * 100 so we don't time out running the derivation for
+     * a really long time
+     */
+    if (getenv("OPENSSL_RUNNING_UNIT_TESTS") == NULL && p != NULL && ctx->iter > 100)
+        ctx->iter = 100;
+#endif
     return 1;
 }
 
 static const OSSL_PARAM *kdf_pkcs12_settable_ctx_params(
-        ossl_unused void *ctx, ossl_unused void *provctx)
+    ossl_unused void *ctx, ossl_unused void *provctx)
 {
     static const OSSL_PARAM known_settable_ctx_params[] = {
         OSSL_PARAM_utf8_string(OSSL_KDF_PARAM_PROPERTIES, NULL, 0),
@@ -294,7 +303,7 @@ static int kdf_pkcs12_get_ctx_params(void *vctx, OSSL_PARAM params[])
 }
 
 static const OSSL_PARAM *kdf_pkcs12_gettable_ctx_params(
-        ossl_unused void *ctx, ossl_unused void *provctx)
+    ossl_unused void *ctx, ossl_unused void *provctx)
 {
     static const OSSL_PARAM known_gettable_ctx_params[] = {
         OSSL_PARAM_size_t(OSSL_KDF_PARAM_SIZE, NULL),
@@ -304,16 +313,16 @@ static const OSSL_PARAM *kdf_pkcs12_gettable_ctx_params(
 }
 
 const OSSL_DISPATCH ossl_kdf_pkcs12_functions[] = {
-    { OSSL_FUNC_KDF_NEWCTX, (void(*)(void))kdf_pkcs12_new },
-    { OSSL_FUNC_KDF_DUPCTX, (void(*)(void))kdf_pkcs12_dup },
-    { OSSL_FUNC_KDF_FREECTX, (void(*)(void))kdf_pkcs12_free },
-    { OSSL_FUNC_KDF_RESET, (void(*)(void))kdf_pkcs12_reset },
-    { OSSL_FUNC_KDF_DERIVE, (void(*)(void))kdf_pkcs12_derive },
+    { OSSL_FUNC_KDF_NEWCTX, (void (*)(void))kdf_pkcs12_new },
+    { OSSL_FUNC_KDF_DUPCTX, (void (*)(void))kdf_pkcs12_dup },
+    { OSSL_FUNC_KDF_FREECTX, (void (*)(void))kdf_pkcs12_free },
+    { OSSL_FUNC_KDF_RESET, (void (*)(void))kdf_pkcs12_reset },
+    { OSSL_FUNC_KDF_DERIVE, (void (*)(void))kdf_pkcs12_derive },
     { OSSL_FUNC_KDF_SETTABLE_CTX_PARAMS,
-      (void(*)(void))kdf_pkcs12_settable_ctx_params },
-    { OSSL_FUNC_KDF_SET_CTX_PARAMS, (void(*)(void))kdf_pkcs12_set_ctx_params },
+        (void (*)(void))kdf_pkcs12_settable_ctx_params },
+    { OSSL_FUNC_KDF_SET_CTX_PARAMS, (void (*)(void))kdf_pkcs12_set_ctx_params },
     { OSSL_FUNC_KDF_GETTABLE_CTX_PARAMS,
-      (void(*)(void))kdf_pkcs12_gettable_ctx_params },
-    { OSSL_FUNC_KDF_GET_CTX_PARAMS, (void(*)(void))kdf_pkcs12_get_ctx_params },
+        (void (*)(void))kdf_pkcs12_gettable_ctx_params },
+    { OSSL_FUNC_KDF_GET_CTX_PARAMS, (void (*)(void))kdf_pkcs12_get_ctx_params },
     OSSL_DISPATCH_END
 };

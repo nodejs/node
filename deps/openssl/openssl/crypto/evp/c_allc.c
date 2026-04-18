@@ -56,9 +56,9 @@ void openssl_add_all_ciphers_int(void)
 #ifndef OPENSSL_NO_RC4
     EVP_add_cipher(EVP_rc4());
     EVP_add_cipher(EVP_rc4_40());
-# ifndef OPENSSL_NO_MD5
+#ifndef OPENSSL_NO_MD5
     EVP_add_cipher(EVP_rc4_hmac_md5());
-# endif
+#endif
 #endif
 
 #ifndef OPENSSL_NO_IDEA
@@ -261,8 +261,8 @@ void openssl_add_all_ciphers_int(void)
 
 #ifndef OPENSSL_NO_CHACHA
     EVP_add_cipher(EVP_chacha20());
-# ifndef OPENSSL_NO_POLY1305
+#ifndef OPENSSL_NO_POLY1305
     EVP_add_cipher(EVP_chacha20_poly1305());
-# endif
+#endif
 #endif
 }

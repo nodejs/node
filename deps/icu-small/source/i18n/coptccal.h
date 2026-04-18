@@ -154,24 +154,15 @@ public:
      */
     const char * getType() const override;
 
-    /**
-     * @return      The related Gregorian year; will be obtained by modifying the value
-     *              obtained by get from UCAL_EXTENDED_YEAR field
-     * @internal
-     */
-    virtual int32_t getRelatedYear(UErrorCode &status) const override;
-
-    /**
-     * @param year  The related Gregorian year to set; will be modified as necessary then
-     *              set in UCAL_EXTENDED_YEAR field
-     * @internal
-     */
-    virtual void setRelatedYear(int32_t year) override;
-
 protected:
     //-------------------------------------------------------------------------
     // Calendar framework
     //-------------------------------------------------------------------------
+
+    /**
+     * @internal
+     */
+    int32_t getRelatedYearDifference() const override;
 
     /**
      * Return the extended year defined by the current fields.
@@ -179,21 +170,30 @@ protected:
      */
     virtual int32_t handleGetExtendedYear(UErrorCode& status) override;
 
-    /**
-     * Compute fields from the JD
-     * @internal
-     */
-    virtual void handleComputeFields(int32_t julianDay, UErrorCode &status) override;
-
     DECLARE_OVERRIDE_SYSTEM_DEFAULT_CENTURY
 
     /**
      * Return the date offset from Julian
      * @internal
      */
-    virtual int32_t getJDEpochOffset() const override;
+    int32_t getJDEpochOffset() const override;
 
-    virtual bool isEra0CountingBackward() const override { return true; }
+    /**
+     * Compute the era from extended year.
+     * @internal
+     */
+    int32_t extendedYearToEra(int32_t extendedYear) const override;
+
+    /**
+     * Compute the year from extended year.
+     * @internal
+     */
+    int32_t extendedYearToYear(int32_t extendedYear) const override;
+
+    /**
+     * @internal
+     */
+    bool isEra0CountingBackward() const override;
 public:
     /**
      * Override Calendar Returns a unique class ID POLYMORPHICALLY. Pure virtual
@@ -220,24 +220,6 @@ public:
      */
     U_I18N_API static UClassID U_EXPORT2 getStaticClassID();  
 
-#if 0
-    // We do not want to introduce this API in ICU4C.
-    // It was accidentally introduced in ICU4J as a public API.
-public:
-    //-------------------------------------------------------------------------
-    // Calendar system Conversion methods...
-    //-------------------------------------------------------------------------
-    /**
-     * Convert an Coptic year, month, and day to a Julian day.
-     *
-     * @param year the extended year
-     * @param month the month
-     * @param day the day
-     * @return Julian day
-     * @internal
-     */
-    static int32_t copticToJD(int32_t year, int32_t month, int32_t day);
-#endif
 };
 
 U_NAMESPACE_END

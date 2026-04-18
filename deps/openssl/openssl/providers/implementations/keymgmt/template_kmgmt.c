@@ -133,7 +133,7 @@ static int template_match(const void *keydata1, const void *keydata2, int select
 }
 
 static int key_to_params(void *key, OSSL_PARAM_BLD *tmpl,
-                         OSSL_PARAM params[], int include_private)
+    OSSL_PARAM params[], int include_private)
 {
     if (key == NULL)
         return 0;
@@ -144,7 +144,7 @@ static int key_to_params(void *key, OSSL_PARAM_BLD *tmpl,
 }
 
 static int template_export(void *key, int selection, OSSL_CALLBACK *param_cb,
-                           void *cbarg)
+    void *cbarg)
 {
     OSSL_PARAM_BLD *tmpl;
     OSSL_PARAM *params = NULL;
@@ -181,8 +181,8 @@ err:
 }
 
 static int ossl_template_key_fromdata(void *key,
-                                      const OSSL_PARAM params[],
-                                      int include_private)
+    const OSSL_PARAM params[],
+    int include_private)
 {
     const OSSL_PARAM *param_priv_key = NULL, *param_pub_key;
 
@@ -195,8 +195,7 @@ static int ossl_template_key_fromdata(void *key,
 
     param_pub_key = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_PUB_KEY);
     if (include_private)
-        param_priv_key =
-            OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_PRIV_KEY);
+        param_priv_key = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_PRIV_KEY);
 
     if (param_pub_key == NULL && param_priv_key == NULL)
         return 0;
@@ -231,9 +230,9 @@ static int template_import(void *key, int selection, const OSSL_PARAM params[])
     return ok;
 }
 
-#define TEMPLATE_KEY_TYPES()                                     \
-    OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_PUB_KEY, NULL, 0),   \
-    OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_PRIV_KEY, NULL, 0)
+#define TEMPLATE_KEY_TYPES()                                   \
+    OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_PUB_KEY, NULL, 0), \
+        OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_PRIV_KEY, NULL, 0)
 
 static const OSSL_PARAM template_key_types[] = {
     TEMPLATE_KEY_TYPES(),
@@ -331,7 +330,7 @@ static int template_gen_set_params(void *genctx, const OSSL_PARAM params[])
 }
 
 static void *template_gen_init(void *provctx, int selection,
-                               const OSSL_PARAM params[])
+    const OSSL_PARAM params[])
 {
     struct template_gen_ctx *gctx = NULL;
 
@@ -355,7 +354,7 @@ static void *template_gen_init(void *provctx, int selection,
 }
 
 static const OSSL_PARAM *template_gen_settable_params(ossl_unused void *genctx,
-                                                      ossl_unused void *provctx)
+    ossl_unused void *provctx)
 {
     static OSSL_PARAM settable[] = {
         OSSL_PARAM_END
@@ -410,7 +409,7 @@ static void *template_dup(const void *vsrckey, int selection)
 
     debug_print("dup returns %p\n", dstkey);
     return dstkey;
- err:
+err:
     template_free(dstkey);
     debug_print("dup returns NULL\n");
     return NULL;
@@ -419,10 +418,10 @@ static void *template_dup(const void *vsrckey, int selection)
 const OSSL_DISPATCH ossl_template_keymgmt_functions[] = {
     { OSSL_FUNC_KEYMGMT_NEW, (void (*)(void))template_new },
     { OSSL_FUNC_KEYMGMT_FREE, (void (*)(void))template_free },
-    { OSSL_FUNC_KEYMGMT_GET_PARAMS, (void (*) (void))template_get_params },
-    { OSSL_FUNC_KEYMGMT_GETTABLE_PARAMS, (void (*) (void))template_gettable_params },
-    { OSSL_FUNC_KEYMGMT_SET_PARAMS, (void (*) (void))template_set_params },
-    { OSSL_FUNC_KEYMGMT_SETTABLE_PARAMS, (void (*) (void))template_settable_params },
+    { OSSL_FUNC_KEYMGMT_GET_PARAMS, (void (*)(void))template_get_params },
+    { OSSL_FUNC_KEYMGMT_GETTABLE_PARAMS, (void (*)(void))template_gettable_params },
+    { OSSL_FUNC_KEYMGMT_SET_PARAMS, (void (*)(void))template_set_params },
+    { OSSL_FUNC_KEYMGMT_SETTABLE_PARAMS, (void (*)(void))template_settable_params },
     { OSSL_FUNC_KEYMGMT_HAS, (void (*)(void))template_has },
     { OSSL_FUNC_KEYMGMT_MATCH, (void (*)(void))template_match },
     { OSSL_FUNC_KEYMGMT_IMPORT_TYPES, (void (*)(void))template_imexport_types },
@@ -432,7 +431,7 @@ const OSSL_DISPATCH ossl_template_keymgmt_functions[] = {
     { OSSL_FUNC_KEYMGMT_GEN_INIT, (void (*)(void))template_gen_init },
     { OSSL_FUNC_KEYMGMT_GEN_SET_PARAMS, (void (*)(void))template_gen_set_params },
     { OSSL_FUNC_KEYMGMT_GEN_SETTABLE_PARAMS,
-      (void (*)(void))template_gen_settable_params },
+        (void (*)(void))template_gen_settable_params },
     { OSSL_FUNC_KEYMGMT_GEN, (void (*)(void))template_gen },
     { OSSL_FUNC_KEYMGMT_GEN_CLEANUP, (void (*)(void))template_gen_cleanup },
     { OSSL_FUNC_KEYMGMT_DUP, (void (*)(void))template_dup },

@@ -12,10 +12,10 @@ const cliMd = path.join(rootDir, 'doc', 'api', 'cli.md');
 const cliText = fs.readFileSync(cliMd, { encoding: 'utf8' });
 
 const parseSection = (text, startMarker, endMarker) => {
-  const regExp = new RegExp(`${startMarker}\r?\n([^]*)\r?\n${endMarker}`);
+  const regExp = new RegExp(`${RegExp.escape(startMarker)}\r?\n([^]*)\r?\n${RegExp.escape(endMarker)}`);
   const match = text.match(regExp);
-  assert(match,
-         `Unable to locate text between '${startMarker}' and '${endMarker}'.`);
+  if (!match)
+    assert.fail(`Unable to locate text between '${startMarker}' and '${endMarker}'.`);
   return match[1]
          .split(/\r?\n/)
          .filter((val) => val.trim() !== '');
@@ -47,6 +47,11 @@ for (const line of [...nodeOptionsLines, ...v8OptionsLines]) {
 if (!hasOpenSSL3) {
   documented.delete('--openssl-legacy-provider');
   documented.delete('--openssl-shared-config');
+}
+
+if (!common.hasFFI) {
+  documented.delete('--allow-ffi');
+  documented.delete('--experimental-ffi');
 }
 
 const isV8Sandboxed = process.config.variables.v8_enable_sandbox;

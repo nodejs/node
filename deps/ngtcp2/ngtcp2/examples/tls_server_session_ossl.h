@@ -30,18 +30,21 @@
 #endif // defined(HAVE_CONFIG_H)
 
 #include "tls_session_base_ossl.h"
+#include "shared.h"
+
+using namespace ngtcp2;
 
 class TLSServerContext;
 class HandlerBase;
 
 class TLSServerSession : public TLSSessionBase {
 public:
-  TLSServerSession();
-  ~TLSServerSession();
+  TLSServerSession() = default;
 
-  int init(const TLSServerContext &tls_ctx, HandlerBase *handler);
+  std::expected<void, Error> init(const TLSServerContext &tls_ctx,
+                                  HandlerBase *handler);
   // ticket is sent automatically.
-  int send_session_ticket() { return 0; }
+  std::expected<void, Error> send_session_ticket() { return {}; }
 };
 
 #endif // !defined(TLS_SERVER_SESSION_OSSL_H)

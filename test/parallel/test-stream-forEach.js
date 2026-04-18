@@ -104,10 +104,10 @@ const { once } = require('events');
     name: 'AbortError',
   }).then(common.mustCall());
 
-  setImmediate(() => {
+  setImmediate(common.mustCall(() => {
     ac.abort();
     assert.strictEqual(calls, 2);
-  });
+  }));
 }
 
 {

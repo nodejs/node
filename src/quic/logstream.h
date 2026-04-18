@@ -15,6 +15,11 @@ namespace node::quic {
 // and Keylog diagnostic data (one instance for each).
 class LogStream final : public AsyncWrap, public StreamBase {
  public:
+  enum InternalFields {
+    kInternalFieldCount = std::max<uint32_t>(AsyncWrap::kInternalFieldCount,
+                                             StreamBase::kInternalFieldCount),
+  };
+
   JS_CONSTRUCTOR(LogStream);
 
   static BaseObjectPtr<LogStream> Create(Environment* env);

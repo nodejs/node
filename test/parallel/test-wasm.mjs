@@ -1,6 +1,6 @@
 import '../common/index.mjs';
 import assert from 'node:assert';
-import { readSync } from '../common/fixtures.mjs';
+import * as fixtures from '../common/fixtures.mjs';
 
 // Test Wasm JSPI
 {
@@ -33,7 +33,7 @@ import { readSync } from '../common/fixtures.mjs';
    * that suspends on the promise.
    */
 
-  const { instance } = await WebAssembly.instantiate(readSync('wasm/jspi.wasm'), {
+  const { instance } = await WebAssembly.instantiate(fixtures.readSync('wasm/jspi.wasm'), {
     js: {
       async: new WebAssembly.Suspending(asyncImport),
     },

@@ -52,8 +52,7 @@ class ExitHandler {
   #handleProcessExitAndReset = (code) => {
     this.#handleProcessExit(code)
 
-    // Reset all the state. This is only relevant for tests since
-    // in reality the process fully exits here.
+    // Reset all the state. This is only relevant for tests since in reality the process fully exits here.
     this.#process.off('exit', this.#handleProcessExitAndReset)
     this.#process.off('uncaughtException', this.#handleExit)
     this.#process.off('unhandledRejection', this.#handleExit)
@@ -115,9 +114,8 @@ class ExitHandler {
   }
 
   #logConsoleError (err) {
-    // Run our error message formatters on all errors even if we
-    // have no npm or an unloaded npm. This will clean the error
-    // and possible return a formatted message about EACCESS or something.
+    // Run our error message formatters on all errors even if we have no npm or an unloaded npm.
+    // This will clean the error and possible return a formatted message about EACCESS or something.
     const { summary, detail } = errorMessage(err, this.#npm)
     const formatted = [...new Set([...summary, ...detail].flat().filter(Boolean))].join('\n')
     // If we didn't get anything from the formatted message then just display the full stack
@@ -147,9 +145,7 @@ class ExitHandler {
       return this.#process.exit(this.#process.exitCode || getExitCodeFromError(err) || 1)
     }
 
-    // npm was never loaded but we still might have a config loading error or
-    // something similar that we can run through the error message formatter
-    // to give the user a clue as to what happened.s
+    // npm was never loaded but we still might have a config loading error or something similar that we can run through the error message formatter to give the user a clue as to what happened.
     if (!this.#loaded) {
       this.#logConsoleError(new Error('Exit prior to config file resolving', { cause: err }))
       return this.#process.exit(this.#process.exitCode || getExitCodeFromError(err) || 1)
@@ -157,14 +153,12 @@ class ExitHandler {
 
     this.#exitErrorMessage = err?.suppressError === true ? false : !!err
 
-    // Prefer the exit code of the error, then the current process exit code,
-    // then set it to 1 if we still have an error. Otherwise, we call process.exit
-    // with undefined so that it can determine the final exit code
+    // Prefer the exit code of the error, then the current process exit code, then set it to 1 if we still have an error.
+    // Otherwise, we call process.exit with undefined so that it can determine the final exit code
     const exitCode = err?.exitCode ?? this.#process.exitCode ?? (err ? 1 : undefined)
 
-    // explicitly call process.exit now so we don't hang on things like the
-    // update notifier, also flush stdout/err beforehand because process.exit doesn't
-    // wait for that to happen.
+    // explicitly call process.exit now so we don't hang on things like the update notifier
+    // also flush stdout/err beforehand because process.exit doesn't wait for that to happen.
     this.#process.stderr.write('', () => this.#process.stdout.write('', () => {
       this.#process.exit(exitCode)
     }))

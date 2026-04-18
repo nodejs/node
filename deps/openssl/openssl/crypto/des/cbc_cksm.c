@@ -16,8 +16,8 @@
 #include "des_local.h"
 
 DES_LONG DES_cbc_cksum(const unsigned char *in, DES_cblock *output,
-                       long length, DES_key_schedule *schedule,
-                       const_DES_cblock *ivec)
+    long length, DES_key_schedule *schedule,
+    const_DES_cblock *ivec)
 {
     register DES_LONG tout0, tout1, tin0, tin1;
     register long l = length;

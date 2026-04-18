@@ -373,16 +373,12 @@ s390x_pcc:
 s390x_kdsa:
 	lr	%r0,%r2
 	lr	%r1,%r3
-	lhi	%r2,0
 
 	.long	0xb93a0004	# kdsa %r0,%r4
 	brc	1,.-4		# pay attention to "partial completion"
-	brc	7,.Lkdsa_err	# if CC==0 return 0, else return 1
-.Lkdsa_out:
+	ipm	%r2		# load program mask and
+	srl	%r2,28		# extract cc
 	br	%r14
-.Lkdsa_err:
-	lhi	%r2,1
-	j	.Lkdsa_out
 .size	s390x_kdsa,.-s390x_kdsa
 .globl	s390x_flip_endian32
 .type	s390x_flip_endian32,@function

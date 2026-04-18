@@ -22,6 +22,7 @@ const promise = Promise.resolve().then(() => {
   stop();
 });
 
+// eslint-disable-next-line node-core/must-call-assert
 promise.then();
 
 assert.strictEqual(seen, undefined);

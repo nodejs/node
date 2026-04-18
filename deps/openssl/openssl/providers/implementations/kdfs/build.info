@@ -31,7 +31,7 @@ SOURCE[$PBKDF2_GOAL]=pbkdf2.c
 # When the PBKDF2 moves to legacy, this can be removed.
 SOURCE[$PBKDF2_GOAL]=pbkdf2_fips.c
 
-SOURCE[$PBKDF1_GOAL]=pvkkdf.c
+SOURCE[$PVKKDF_GOAL]=pvkkdf.c
 
 SOURCE[$PKCS12KDF_GOAL]=pkcs12kdf.c
 

@@ -33,7 +33,7 @@
  */
 
 static int rinf_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
-                   void *exarg)
+    void *exarg)
 {
     X509_REQ_INFO *rinf = (X509_REQ_INFO *)*pval;
 
@@ -46,7 +46,7 @@ static int rinf_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
 }
 
 static int req_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
-                  void *exarg)
+    void *exarg)
 {
     X509_REQ *ret = (X509_REQ *)*pval;
 
@@ -62,66 +62,60 @@ static int req_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
         ASN1_OCTET_STRING_free(ret->distinguishing_id);
         OPENSSL_free(ret->propq);
         break;
-    case ASN1_OP_DUP_POST:
-        {
-            X509_REQ *old = exarg;
+    case ASN1_OP_DUP_POST: {
+        X509_REQ *old = exarg;
 
-            if (!ossl_x509_req_set0_libctx(ret, old->libctx, old->propq))
-                return 0;
-            if (old->req_info.pubkey != NULL) {
-                EVP_PKEY *pkey = X509_PUBKEY_get0(old->req_info.pubkey);
+        if (!ossl_x509_req_set0_libctx(ret, old->libctx, old->propq))
+            return 0;
+        if (old->req_info.pubkey != NULL) {
+            EVP_PKEY *pkey = X509_PUBKEY_get0(old->req_info.pubkey);
 
-                if (pkey != NULL) {
-                    pkey = EVP_PKEY_dup(pkey);
-                    if (pkey == NULL) {
-                        ERR_raise(ERR_LIB_X509, ERR_R_EVP_LIB);
-                        return 0;
-                    }
-                    if (!X509_PUBKEY_set(&ret->req_info.pubkey, pkey)) {
-                        EVP_PKEY_free(pkey);
-                        ERR_raise(ERR_LIB_X509, ERR_R_INTERNAL_ERROR);
-                        return 0;
-                    }
-                    EVP_PKEY_free(pkey);
+            if (pkey != NULL) {
+                pkey = EVP_PKEY_dup(pkey);
+                if (pkey == NULL) {
+                    ERR_raise(ERR_LIB_X509, ERR_R_EVP_LIB);
+                    return 0;
                 }
+                if (!X509_PUBKEY_set(&ret->req_info.pubkey, pkey)) {
+                    EVP_PKEY_free(pkey);
+                    ERR_raise(ERR_LIB_X509, ERR_R_INTERNAL_ERROR);
+                    return 0;
+                }
+                EVP_PKEY_free(pkey);
             }
         }
-        break;
-    case ASN1_OP_GET0_LIBCTX:
-        {
-            OSSL_LIB_CTX **libctx = exarg;
+    } break;
+    case ASN1_OP_GET0_LIBCTX: {
+        OSSL_LIB_CTX **libctx = exarg;
 
-            *libctx = ret->libctx;
-        }
-        break;
-    case ASN1_OP_GET0_PROPQ:
-        {
-            const char **propq = exarg;
+        *libctx = ret->libctx;
+    } break;
+    case ASN1_OP_GET0_PROPQ: {
+        const char **propq = exarg;
 
-            *propq = ret->propq;
-        }
-        break;
+        *propq = ret->propq;
+    } break;
     }
 
     return 1;
 }
 
 ASN1_SEQUENCE_enc(X509_REQ_INFO, enc, rinf_cb) = {
-        ASN1_SIMPLE(X509_REQ_INFO, version, ASN1_INTEGER),
-        ASN1_SIMPLE(X509_REQ_INFO, subject, X509_NAME),
-        ASN1_SIMPLE(X509_REQ_INFO, pubkey, X509_PUBKEY),
-        /* This isn't really OPTIONAL but it gets round invalid
-         * encodings
-         */
-        ASN1_IMP_SET_OF_OPT(X509_REQ_INFO, attributes, X509_ATTRIBUTE, 0)
+    ASN1_SIMPLE(X509_REQ_INFO, version, ASN1_INTEGER),
+    ASN1_SIMPLE(X509_REQ_INFO, subject, X509_NAME),
+    ASN1_SIMPLE(X509_REQ_INFO, pubkey, X509_PUBKEY),
+    /* This isn't really OPTIONAL but it gets round invalid
+     * encodings
+     */
+    ASN1_IMP_SET_OF_OPT(X509_REQ_INFO, attributes, X509_ATTRIBUTE, 0)
 } ASN1_SEQUENCE_END_enc(X509_REQ_INFO, X509_REQ_INFO)
 
 IMPLEMENT_ASN1_FUNCTIONS(X509_REQ_INFO)
 
 ASN1_SEQUENCE_ref(X509_REQ, req_cb) = {
-        ASN1_EMBED(X509_REQ, req_info, X509_REQ_INFO),
-        ASN1_EMBED(X509_REQ, sig_alg, X509_ALGOR),
-        ASN1_SIMPLE(X509_REQ, signature, ASN1_BIT_STRING)
+    ASN1_EMBED(X509_REQ, req_info, X509_REQ_INFO),
+    ASN1_EMBED(X509_REQ, sig_alg, X509_ALGOR),
+    ASN1_SIMPLE(X509_REQ, signature, ASN1_BIT_STRING)
 } ASN1_SEQUENCE_END_ref(X509_REQ, X509_REQ)
 
 IMPLEMENT_ASN1_FUNCTIONS(X509_REQ)
@@ -145,7 +139,7 @@ ASN1_OCTET_STRING *X509_REQ_get0_distinguishing_id(X509_REQ *x)
  * Use X509_REQ_new_ex() instead if possible.
  */
 int ossl_x509_req_set0_libctx(X509_REQ *x, OSSL_LIB_CTX *libctx,
-                              const char *propq)
+    const char *propq)
 {
     if (x != NULL) {
         x->libctx = libctx;

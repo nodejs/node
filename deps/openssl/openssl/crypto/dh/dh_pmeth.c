@@ -80,7 +80,6 @@ static void pkey_dh_cleanup(EVP_PKEY_CTX *ctx)
     }
 }
 
-
 static int pkey_dh_copy(EVP_PKEY_CTX *dst, const EVP_PKEY_CTX *src)
 {
     DH_PKEY_CTX *dctx, *sctx;
@@ -105,7 +104,7 @@ static int pkey_dh_copy(EVP_PKEY_CTX *dst, const EVP_PKEY_CTX *src)
     if (sctx->kdf_ukm != NULL) {
         dctx->kdf_ukm = OPENSSL_memdup(sctx->kdf_ukm, sctx->kdf_ukmlen);
         if (dctx->kdf_ukm == NULL)
-          return 0;
+            return 0;
         dctx->kdf_ukmlen = sctx->kdf_ukmlen;
     }
     dctx->kdf_outlen = sctx->kdf_outlen;
@@ -215,12 +214,11 @@ static int pkey_dh_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
 
     default:
         return -2;
-
     }
 }
 
 static int pkey_dh_ctrl_str(EVP_PKEY_CTX *ctx,
-                            const char *type, const char *value)
+    const char *type, const char *value)
 {
     if (strcmp(type, "dh_paramgen_prime_len") == 0) {
         int len;
@@ -272,7 +270,7 @@ static int pkey_dh_ctrl_str(EVP_PKEY_CTX *ctx,
 }
 
 static DH *ffc_params_generate(OSSL_LIB_CTX *libctx, DH_PKEY_CTX *dctx,
-                               BN_GENCB *pcb)
+    BN_GENCB *pcb)
 {
     DH *ret;
     int rv = 0;
@@ -296,20 +294,20 @@ static DH *ffc_params_generate(OSSL_LIB_CTX *libctx, DH_PKEY_CTX *dctx,
     if (dctx->md != NULL)
         ossl_ffc_set_digest(&ret->params, EVP_MD_get0_name(dctx->md), NULL);
 
-# ifndef FIPS_MODULE
+#ifndef FIPS_MODULE
     if (dctx->paramgen_type == DH_PARAMGEN_TYPE_FIPS_186_2)
         rv = ossl_ffc_params_FIPS186_2_generate(libctx, &ret->params,
-                                                FFC_PARAM_TYPE_DH,
-                                                prime_len, subprime_len, &res,
-                                                pcb);
+            FFC_PARAM_TYPE_DH,
+            prime_len, subprime_len, &res,
+            pcb);
     else
-# endif
-    /* For FIPS we always use the DH_PARAMGEN_TYPE_FIPS_186_4 generator */
-    if (dctx->paramgen_type >= DH_PARAMGEN_TYPE_FIPS_186_2)
-        rv = ossl_ffc_params_FIPS186_4_generate(libctx, &ret->params,
-                                                FFC_PARAM_TYPE_DH,
-                                                prime_len, subprime_len, &res,
-                                                pcb);
+#endif
+        /* For FIPS we always use the DH_PARAMGEN_TYPE_FIPS_186_4 generator */
+        if (dctx->paramgen_type >= DH_PARAMGEN_TYPE_FIPS_186_2)
+            rv = ossl_ffc_params_FIPS186_4_generate(libctx, &ret->params,
+                FFC_PARAM_TYPE_DH,
+                prime_len, subprime_len, &res,
+                pcb);
     if (rv <= 0) {
         DH_free(ret);
         return NULL;
@@ -318,7 +316,7 @@ static DH *ffc_params_generate(OSSL_LIB_CTX *libctx, DH_PKEY_CTX *dctx,
 }
 
 static int pkey_dh_paramgen(EVP_PKEY_CTX *ctx,
-                            EVP_PKEY *pkey)
+    EVP_PKEY *pkey)
 {
     DH *dh = NULL;
     DH_PKEY_CTX *dctx = ctx->data;
@@ -345,9 +343,9 @@ static int pkey_dh_paramgen(EVP_PKEY_CTX *ctx,
             return 0;
         evp_pkey_set_cb_translate(pcb, ctx);
     }
-# ifdef FIPS_MODULE
+#ifdef FIPS_MODULE
     dctx->paramgen_type = DH_PARAMGEN_TYPE_FIPS_186_4;
-# endif /* FIPS_MODULE */
+#endif /* FIPS_MODULE */
     if (dctx->paramgen_type >= DH_PARAMGEN_TYPE_FIPS_186_2) {
         dh = ffc_params_generate(NULL, dctx, pcb);
         BN_GENCB_free(pcb);
@@ -362,7 +360,7 @@ static int pkey_dh_paramgen(EVP_PKEY_CTX *ctx,
         return 0;
     }
     ret = DH_generate_parameters_ex(dh,
-                                    dctx->prime_len, dctx->generator, pcb);
+        dctx->prime_len, dctx->generator, pcb);
     BN_GENCB_free(pcb);
     if (ret)
         EVP_PKEY_assign_DH(pkey, dh);
@@ -394,7 +392,7 @@ static int pkey_dh_keygen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey)
 }
 
 static int pkey_dh_derive(EVP_PKEY_CTX *ctx, unsigned char *key,
-                          size_t *keylen)
+    size_t *keylen)
 {
     int ret;
     DH *dh;
@@ -426,8 +424,7 @@ static int pkey_dh_derive(EVP_PKEY_CTX *ctx, unsigned char *key,
             return ret;
         *keylen = ret;
         return 1;
-    }
-    else if (dctx->kdf_type == EVP_PKEY_DH_KDF_X9_42) {
+    } else if (dctx->kdf_type == EVP_PKEY_DH_KDF_X9_42) {
 
         unsigned char *Z = NULL;
         int Zlen = 0;
@@ -448,11 +445,11 @@ static int pkey_dh_derive(EVP_PKEY_CTX *ctx, unsigned char *key,
         if (DH_compute_key_padded(Z, dhpubbn, dh) <= 0)
             goto err;
         if (!DH_KDF_X9_42(key, *keylen, Z, Zlen, dctx->kdf_oid,
-                          dctx->kdf_ukm, dctx->kdf_ukmlen, dctx->kdf_md))
+                dctx->kdf_ukm, dctx->kdf_ukmlen, dctx->kdf_md))
             goto err;
         *keylen = dctx->kdf_outlen;
         ret = 1;
- err:
+    err:
         OPENSSL_clear_free(Z, Zlen);
         return ret;
     }

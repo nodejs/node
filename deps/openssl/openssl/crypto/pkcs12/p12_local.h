@@ -10,7 +10,7 @@
 struct PKCS12_MAC_DATA_st {
     X509_SIG *dinfo;
     ASN1_OCTET_STRING *salt;
-    ASN1_INTEGER *iter;         /* defaults to 1 */
+    ASN1_INTEGER *iter; /* defaults to 1 */
 };
 
 struct PKCS12_st {
@@ -24,7 +24,7 @@ struct PKCS12_SAFEBAG_st {
     union {
         struct pkcs12_bag_st *bag; /* secret, crl and certbag */
         struct pkcs8_priv_key_info_st *keybag; /* keybag */
-        X509_SIG *shkeybag;     /* shrouded key bag */
+        X509_SIG *shkeybag; /* shrouded key bag */
         STACK_OF(PKCS12_SAFEBAG) *safes;
         ASN1_TYPE *other;
     } value;
@@ -38,7 +38,7 @@ struct pkcs12_bag_st {
         ASN1_OCTET_STRING *x509crl;
         ASN1_OCTET_STRING *octet;
         ASN1_IA5STRING *sdsicert;
-        ASN1_TYPE *other;       /* Secret or other bag */
+        ASN1_TYPE *other; /* Secret or other bag */
     } value;
 };
 

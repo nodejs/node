@@ -853,7 +853,7 @@ DateTimePatternGenerator::addICUPatterns(const Locale& locale, UErrorCode& statu
         
         if (U_SUCCESS(status)) {
             UnicodeString conflictingPattern;
-            addPatternWithSkeleton(pattern, nullptr, false, conflictingPattern, status);
+            addPatternWithOptionalSkeleton(pattern, nullptr, false, conflictingPattern, status);
         }
     }
 }
@@ -1049,7 +1049,7 @@ struct DateTimePatternGenerator::AvailableFormatsSink : public ResourceSink {
             // derived from std patterns, but not a previous availableFormats entry:
             const UnicodeString& formatValue = value.getUnicodeString(errorCode);
             conflictingPattern.remove();
-            dtpg.addPatternWithSkeleton(formatValue, &formatKey, true, conflictingPattern, errorCode);
+            dtpg.addPatternWithSkeleton(formatValue, formatKey, true, conflictingPattern, errorCode);
         }
     }
 };
@@ -1513,7 +1513,18 @@ DateTimePatternGenerator::addPattern(
         return UDATPG_NO_CONFLICT;
     }
 
-    return addPatternWithSkeleton(pattern, nullptr, override, conflictingPattern, status);
+    return addPatternWithOptionalSkeleton(pattern, nullptr, override, conflictingPattern, status);
+}
+
+UDateTimePatternConflict
+DateTimePatternGenerator::addPatternWithSkeleton(
+    const UnicodeString& pattern,
+    const UnicodeString& skeletonToUse,
+    UBool override,
+    UnicodeString& conflictingPattern,
+    UErrorCode& status)
+{
+    return addPatternWithOptionalSkeleton(pattern, &skeletonToUse, override, conflictingPattern, status);
 }
 
 // For DateTimePatternGenerator::addPatternWithSkeleton -
@@ -1527,7 +1538,7 @@ DateTimePatternGenerator::addPattern(
 // 3. When adding the pattern (patternMap->add), we set a new boolean to indicate that the added entry had a
 // specified skeleton (which sets a new field in the PtnElem in the PatternMap).
 UDateTimePatternConflict
-DateTimePatternGenerator::addPatternWithSkeleton(
+DateTimePatternGenerator::addPatternWithOptionalSkeleton(
     const UnicodeString& pattern,
     const UnicodeString* skeletonToUse,
     UBool override,
@@ -1726,7 +1737,7 @@ DateTimePatternGenerator::adjustFieldTypes(const UnicodeString& pattern,
                     //    field length, but options bits can be used to override this.
                     // 2. There is a specified skeleton for the found pattern and one of the following is true:
                     //    a) The length of the field in the skeleton (skelFieldLen) is equal to reqFieldLen.
-                    //    b) The pattern field is numeric and the skeleton field is not, or vice versa.
+                    //    b) The pattern field is numeric and the requested field is not, or vice versa.
 
                     char16_t reqFieldChar = dtMatcher->skeleton.original.getFieldChar(typeValue);
                     int32_t reqFieldLen = dtMatcher->skeleton.original.getFieldLength(typeValue);
@@ -1744,8 +1755,8 @@ DateTimePatternGenerator::adjustFieldTypes(const UnicodeString& pattern,
                         // https://www.unicode.org/reports/tr35/tr35-dates.html#Date_Field_Symbol_Table for more info)
                         int32_t skelFieldLen = specifiedSkeleton->original.getFieldLength(typeValue);
                         UBool patFieldIsNumeric = (row->type > 0);
-                        UBool skelFieldIsNumeric = (specifiedSkeleton->type[typeValue] > 0);
-                        if (skelFieldLen == reqFieldLen || (patFieldIsNumeric && !skelFieldIsNumeric) || (skelFieldIsNumeric && !patFieldIsNumeric)) {
+                        UBool reqFieldIsNumeric = (dtMatcher->skeleton.type[typeValue] > 0);
+                        if (skelFieldLen == reqFieldLen || (patFieldIsNumeric && !reqFieldIsNumeric) || (reqFieldIsNumeric && !patFieldIsNumeric)) {
                             // don't adjust the field length in the found pattern
                             adjFieldLen = field.length();
                         }
@@ -2306,7 +2317,9 @@ DateTimeMatcher::DateTimeMatcher(const DateTimeMatcher& other) {
 }
 
 DateTimeMatcher& DateTimeMatcher::operator=(const DateTimeMatcher& other) {
-    copyFrom(other.skeleton);
+    if (this != &other) {
+        copyFrom(other.skeleton);
+    }
     return *this;
 }
 

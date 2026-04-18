@@ -35,7 +35,8 @@ struct RandomBytesTraits final {
   static bool DeriveBits(Environment* env,
                          const RandomBytesConfig& params,
                          ByteSource* out_,
-                         CryptoJobMode mode);
+                         CryptoJobMode mode,
+                         CryptoErrorStore* errors);
 
   static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
                                                 const RandomBytesConfig& params,
@@ -70,7 +71,8 @@ struct RandomPrimeTraits final {
   static bool DeriveBits(Environment* env,
                          const RandomPrimeConfig& params,
                          ByteSource* out_,
-                         CryptoJobMode mode);
+                         CryptoJobMode mode,
+                         CryptoErrorStore* errors);
 
   static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
                                                 const RandomPrimeConfig& params,
@@ -104,7 +106,8 @@ struct CheckPrimeTraits final {
   static bool DeriveBits(Environment* env,
                          const CheckPrimeConfig& params,
                          ByteSource* out,
-                         CryptoJobMode mode);
+                         CryptoJobMode mode,
+                         CryptoErrorStore* errors);
 
   static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
                                                 const CheckPrimeConfig& params,

@@ -21,3 +21,9 @@ assert.throws(() => port1.postMessage(a, [ a.buffer ]), {
 // Verify that the pool ArrayBuffer has not actually been transferred:
 assert.strictEqual(a.buffer, b.buffer);
 assert.strictEqual(a.length, length);
+
+// Verify that ArrayBuffer.prototype.transfer() also throws.
+assert.throws(() => a.buffer.transfer(), {
+  name: 'TypeError',
+});
+assert.strictEqual(a.buffer, b.buffer);

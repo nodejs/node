@@ -4,7 +4,7 @@ const common = require('../common');
 const bench = common.createBenchmark(main, {
   type: ['one_byte', 'two_bytes', 'three_bytes',
          'four_bytes', 'latin1'],
-  encoding: ['utf8', 'base64'],
+  encoding: ['utf8', 'base64', 'latin1', 'hex'],
   repeat: [1, 2, 16, 256], // x16
   n: [4e6],
 });
@@ -22,7 +22,7 @@ const chars = {
 function getInput(type, repeat, encoding) {
   const original = (repeat === 1) ? chars[type] : chars[type].repeat(repeat);
   if (encoding === 'base64') {
-    Buffer.from(original, 'utf8').toString('base64');
+    return Buffer.from(original, 'utf8').toString('base64');
   }
   return original;
 }

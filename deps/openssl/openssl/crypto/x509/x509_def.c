@@ -16,7 +16,7 @@
 
 #if defined(_WIN32)
 
-static char x509_private_dir[MAX_PATH + 1]; 
+static char x509_private_dir[MAX_PATH + 1];
 static char *x509_private_dirptr = NULL;
 
 static char x509_cert_area[MAX_PATH + 1];
@@ -67,7 +67,7 @@ DEFINE_RUN_ONCE_STATIC(do_openssldir_setup)
 
 const char *X509_get_default_private_dir(void)
 {
-#if defined (_WIN32)
+#if defined(_WIN32)
     RUN_ONCE(&openssldir_setup_init, do_openssldir_setup);
     return x509_private_dirptr;
 #else
@@ -77,7 +77,7 @@ const char *X509_get_default_private_dir(void)
 
 const char *X509_get_default_cert_area(void)
 {
-#if defined (_WIN32)
+#if defined(_WIN32)
     RUN_ONCE(&openssldir_setup_init, do_openssldir_setup);
     return x509_cert_areaptr;
 #else
@@ -87,7 +87,7 @@ const char *X509_get_default_cert_area(void)
 
 const char *X509_get_default_cert_dir(void)
 {
-#if defined (_WIN32)
+#if defined(_WIN32)
     RUN_ONCE(&openssldir_setup_init, do_openssldir_setup);
     return x509_cert_dirptr;
 #else
@@ -97,7 +97,7 @@ const char *X509_get_default_cert_dir(void)
 
 const char *X509_get_default_cert_file(void)
 {
-#if defined (_WIN32)
+#if defined(_WIN32)
     RUN_ONCE(&openssldir_setup_init, do_openssldir_setup);
     return x509_cert_fileptr;
 #else

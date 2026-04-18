@@ -43,11 +43,11 @@ int ossl_encode_der_length(WPACKET *pkt, size_t cont_len)
 
     if (cont_len > 0xff) {
         if (!WPACKET_put_bytes_u8(pkt, 0x82)
-                || !WPACKET_put_bytes_u16(pkt, cont_len))
+            || !WPACKET_put_bytes_u16(pkt, cont_len))
             return 0;
     } else {
         if (cont_len > 0x7f
-                && !WPACKET_put_bytes_u8(pkt, 0x81))
+            && !WPACKET_put_bytes_u8(pkt, 0x81))
             return 0;
         if (!WPACKET_put_bytes_u8(pkt, cont_len))
             return 0;
@@ -83,14 +83,14 @@ int ossl_encode_der_integer(WPACKET *pkt, const BIGNUM *n)
     cont_len = BN_num_bits(n) / 8 + 1;
 
     if (!WPACKET_start_sub_packet(pkt)
-            || !WPACKET_put_bytes_u8(pkt, ID_INTEGER)
-            || !ossl_encode_der_length(pkt, cont_len)
-            || !WPACKET_allocate_bytes(pkt, cont_len, &bnbytes)
-            || !WPACKET_close(pkt))
+        || !WPACKET_put_bytes_u8(pkt, ID_INTEGER)
+        || !ossl_encode_der_length(pkt, cont_len)
+        || !WPACKET_allocate_bytes(pkt, cont_len, &bnbytes)
+        || !WPACKET_close(pkt))
         return 0;
 
     if (bnbytes != NULL
-            && BN_bn2binpad(n, bnbytes, (int)cont_len) != (int)cont_len)
+        && BN_bn2binpad(n, bnbytes, (int)cont_len) != (int)cont_len)
         return 0;
 
     return 1;
@@ -123,9 +123,9 @@ int ossl_encode_der_dsa_sig(WPACKET *pkt, const BIGNUM *r, const BIGNUM *s)
 
     /* Calculate the content length */
     if (!ossl_encode_der_integer(dummypkt, r)
-            || !ossl_encode_der_integer(dummypkt, s)
-            || !WPACKET_get_length(dummypkt, &cont_len)
-            || (!isnull && !WPACKET_finish(dummypkt))) {
+        || !ossl_encode_der_integer(dummypkt, s)
+        || !WPACKET_get_length(dummypkt, &cont_len)
+        || (!isnull && !WPACKET_finish(dummypkt))) {
         if (!isnull)
             WPACKET_cleanup(dummypkt);
         return 0;
@@ -133,14 +133,14 @@ int ossl_encode_der_dsa_sig(WPACKET *pkt, const BIGNUM *r, const BIGNUM *s)
 
     /* Add the tag and length bytes */
     if (!WPACKET_put_bytes_u8(pkt, ID_SEQUENCE)
-            || !ossl_encode_der_length(pkt, cont_len)
-               /*
-                * Really encode the integers. We already wrote to the main pkt
-                * if it had a NULL buffer, so don't do it again
-                */
-            || (!isnull && !ossl_encode_der_integer(pkt, r))
-            || (!isnull && !ossl_encode_der_integer(pkt, s))
-            || !WPACKET_close(pkt))
+        || !ossl_encode_der_length(pkt, cont_len)
+        /*
+         * Really encode the integers. We already wrote to the main pkt
+         * if it had a NULL buffer, so don't do it again
+         */
+        || (!isnull && !ossl_encode_der_integer(pkt, r))
+        || (!isnull && !ossl_encode_der_integer(pkt, s))
+        || !WPACKET_close(pkt))
         return 0;
 
     return 1;
@@ -191,25 +191,26 @@ int ossl_decode_der_integer(PACKET *pkt, BIGNUM *n)
 
     /* Check we have an integer and get the content bytes */
     if (!PACKET_get_1(pkt, &tag)
-            || tag != ID_INTEGER
-            || !ossl_decode_der_length(pkt, &contpkt))
+        || tag != ID_INTEGER
+        || !ossl_decode_der_length(pkt, &contpkt))
         return 0;
 
     /* Peek ahead at the first bytes to check for proper encoding */
     tmppkt = contpkt;
     /* The INTEGER must be positive */
     if (!PACKET_get_1(&tmppkt, &tmp)
-            || (tmp & 0x80) != 0)
+        || (tmp & 0x80) != 0)
         return 0;
     /* If there a zero padding byte the next byte must have the msb set */
     if (PACKET_remaining(&tmppkt) > 0 && tmp == 0) {
         if (!PACKET_get_1(&tmppkt, &tmp)
-                || (tmp & 0x80) == 0)
+            || (tmp & 0x80) == 0)
             return 0;
     }
 
     if (BN_bin2bn(PACKET_data(&contpkt),
-                  (int)PACKET_remaining(&contpkt), n) == NULL)
+            (int)PACKET_remaining(&contpkt), n)
+        == NULL)
         return 0;
 
     return 1;
@@ -231,19 +232,19 @@ int ossl_decode_der_integer(PACKET *pkt, BIGNUM *n)
  * were consumed.
  */
 size_t ossl_decode_der_dsa_sig(BIGNUM *r, BIGNUM *s,
-                               const unsigned char **ppin, size_t len)
+    const unsigned char **ppin, size_t len)
 {
     size_t consumed;
     PACKET pkt, contpkt;
     unsigned int tag;
 
     if (!PACKET_buf_init(&pkt, *ppin, len)
-            || !PACKET_get_1(&pkt, &tag)
-            || tag != ID_SEQUENCE
-            || !ossl_decode_der_length(&pkt, &contpkt)
-            || !ossl_decode_der_integer(&contpkt, r)
-            || !ossl_decode_der_integer(&contpkt, s)
-            || PACKET_remaining(&contpkt) != 0)
+        || !PACKET_get_1(&pkt, &tag)
+        || tag != ID_SEQUENCE
+        || !ossl_decode_der_length(&pkt, &contpkt)
+        || !ossl_decode_der_integer(&contpkt, r)
+        || !ossl_decode_der_integer(&contpkt, s)
+        || PACKET_remaining(&contpkt) != 0)
         return 0;
 
     consumed = PACKET_data(&pkt) - *ppin;

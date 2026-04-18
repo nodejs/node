@@ -91,9 +91,9 @@ static X509_NAME *get_dirName(const GENERAL_NAMES *names)
 }
 
 void OSSL_OBJECT_DIGEST_INFO_get0_digest(const OSSL_OBJECT_DIGEST_INFO *o,
-                                         int *digestedObjectType,
-                                         const X509_ALGOR **digestAlgorithm,
-                                         const ASN1_BIT_STRING **digest)
+    int *digestedObjectType,
+    const X509_ALGOR **digestAlgorithm,
+    const ASN1_BIT_STRING **digest)
 {
     if (digestedObjectType != NULL)
         *digestedObjectType = ASN1_ENUMERATED_get(&o->digestedObjectType);
@@ -124,8 +124,8 @@ long X509_ACERT_get_version(const X509_ACERT *x)
 }
 
 void X509_ACERT_get0_signature(const X509_ACERT *x,
-                               const ASN1_BIT_STRING **psig,
-                               const X509_ALGOR **palg)
+    const ASN1_BIT_STRING **psig,
+    const X509_ALGOR **palg)
 {
     if (psig != NULL)
         *psig = &x->signature;
@@ -200,7 +200,7 @@ int X509_ACERT_get_attr_by_NID(const X509_ACERT *x, int nid, int lastpos)
 }
 
 int X509_ACERT_get_attr_by_OBJ(const X509_ACERT *x, const ASN1_OBJECT *obj,
-                               int lastpos)
+    int lastpos)
 {
     return X509at_get_attr_by_OBJ(x->acinfo->attributes, obj, lastpos);
 }
@@ -223,7 +223,7 @@ int X509_ACERT_add1_attr(X509_ACERT *x, X509_ATTRIBUTE *attr)
 }
 
 int X509_ACERT_add1_attr_by_OBJ(X509_ACERT *x, const ASN1_OBJECT *obj,
-                                int type, const void *bytes, int len)
+    int type, const void *bytes, int len)
 {
     STACK_OF(X509_ATTRIBUTE) **attrs = &x->acinfo->attributes;
 
@@ -231,7 +231,7 @@ int X509_ACERT_add1_attr_by_OBJ(X509_ACERT *x, const ASN1_OBJECT *obj,
 }
 
 int X509_ACERT_add1_attr_by_NID(X509_ACERT *x, int nid, int type,
-                                const void *bytes, int len)
+    const void *bytes, int len)
 {
     STACK_OF(X509_ATTRIBUTE) **attrs = &x->acinfo->attributes;
 
@@ -239,7 +239,7 @@ int X509_ACERT_add1_attr_by_NID(X509_ACERT *x, int nid, int type,
 }
 
 int X509_ACERT_add1_attr_by_txt(X509_ACERT *x, const char *attrname, int type,
-                                const unsigned char *bytes, int len)
+    const unsigned char *bytes, int len)
 {
     STACK_OF(X509_ATTRIBUTE) **attrs = &x->acinfo->attributes;
 
@@ -262,7 +262,7 @@ static int check_asn1_attribute(const char **value)
 }
 
 int X509_ACERT_add_attr_nconf(CONF *conf, const char *section,
-                              X509_ACERT *acert)
+    X509_ACERT *acert)
 {
     int ret = 0, i;
     STACK_OF(CONF_VALUE) *attr_sk = NCONF_get_section(conf, section);
@@ -276,7 +276,7 @@ int X509_ACERT_add_attr_nconf(CONF *conf, const char *section,
 
         if (value == NULL) {
             ERR_raise_data(ERR_LIB_X509, X509_R_INVALID_ATTRIBUTES,
-                           "name=%s,section=%s",v->name, section);
+                "name=%s,section=%s", v->name, section);
             goto err;
         }
 
@@ -291,7 +291,7 @@ int X509_ACERT_add_attr_nconf(CONF *conf, const char *section,
             att_len = i2d_ASN1_TYPE(asn1, &att_data);
 
             ret = X509_ACERT_add1_attr_by_txt(acert, v->name, V_ASN1_SEQUENCE,
-                                              att_data, att_len);
+                att_data, att_len);
             OPENSSL_free(att_data);
             ASN1_TYPE_free(asn1);
 
@@ -299,9 +299,9 @@ int X509_ACERT_add_attr_nconf(CONF *conf, const char *section,
                 goto err;
         } else {
             ret = X509_ACERT_add1_attr_by_txt(acert, v->name,
-                                              V_ASN1_OCTET_STRING,
-                                              (unsigned char *)value,
-                                              strlen(value));
+                V_ASN1_OCTET_STRING,
+                (unsigned char *)value,
+                strlen(value));
             if (!ret)
                 goto err;
         }
@@ -317,7 +317,7 @@ void *X509_ACERT_get_ext_d2i(const X509_ACERT *x, int nid, int *crit, int *idx)
 }
 
 int X509_ACERT_add1_ext_i2d(X509_ACERT *x, int nid, void *value, int crit,
-                            unsigned long flags)
+    unsigned long flags)
 {
     return X509V3_add1_i2d(&x->acinfo->extensions, nid, value, crit, flags);
 }

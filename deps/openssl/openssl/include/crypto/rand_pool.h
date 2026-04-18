@@ -8,11 +8,11 @@
  */
 
 #ifndef OSSL_PROVIDER_RAND_POOL_H
-# define OSSL_PROVIDER_RAND_POOL_H
-# pragma once
+#define OSSL_PROVIDER_RAND_POOL_H
+#pragma once
 
-# include <stdio.h>
-# include <openssl/rand.h>
+#include <stdio.h>
+#include <openssl/rand.h>
 
 /*
  * Maximum allocation size for RANDOM_POOL buffers
@@ -32,9 +32,8 @@
  * The factor 1.5 below is the pessimistic estimate for the extra amount
  * of entropy required when no get_nonce() callback is defined.
  */
-# define RAND_POOL_FACTOR        256
-# define RAND_POOL_MAX_LENGTH    (RAND_POOL_FACTOR * \
-                                  3 * (RAND_DRBG_STRENGTH / 16))
+#define RAND_POOL_FACTOR 256
+#define RAND_POOL_MAX_LENGTH (RAND_POOL_FACTOR * 3 * (RAND_DRBG_STRENGTH / 16))
 /*
  *                             = (RAND_POOL_FACTOR * \
  *                                1.5 * (RAND_DRBG_STRENGTH / 8))
@@ -57,7 +56,7 @@
  * with 40 bytes.  The value of forty eight is comfortably above this which
  * allows some slack in the platform specific values used.
  */
-# define RAND_POOL_MIN_ALLOCATION(secure) ((secure) ? 16 : 48)
+#define RAND_POOL_MIN_ALLOCATION(secure) ((secure) ? 16 : 48)
 
 /*
  * The 'random pool' acts as a dumb container for collecting random
@@ -69,11 +68,11 @@
  * lifetime is intended to be restricted to a single stack frame.
  */
 typedef struct rand_pool_st {
-    unsigned char *buffer;  /* points to the beginning of the random pool */
+    unsigned char *buffer; /* points to the beginning of the random pool */
     size_t len; /* current number of random bytes contained in the pool */
 
-    int attached;  /* true pool was attached to existing buffer */
-    int secure;    /* 1: allocated on the secure heap, 0: otherwise */
+    int attached; /* true pool was attached to existing buffer */
+    int secure; /* 1: allocated on the secure heap, 0: otherwise */
 
     size_t min_len; /* minimum number of random bytes requested */
     size_t max_len; /* maximum number of random bytes (allocated buffer size) */
@@ -83,9 +82,9 @@ typedef struct rand_pool_st {
 } RAND_POOL;
 
 RAND_POOL *ossl_rand_pool_new(int entropy_requested, int secure,
-                              size_t min_len, size_t max_len);
+    size_t min_len, size_t max_len);
 RAND_POOL *ossl_rand_pool_attach(const unsigned char *buffer, size_t len,
-                                 size_t entropy);
+    size_t entropy);
 void ossl_rand_pool_free(RAND_POOL *pool);
 
 const unsigned char *ossl_rand_pool_buffer(RAND_POOL *pool);
@@ -102,10 +101,10 @@ size_t ossl_rand_pool_bytes_needed(RAND_POOL *pool, unsigned int entropy_factor)
 size_t ossl_rand_pool_bytes_remaining(RAND_POOL *pool);
 
 int ossl_rand_pool_add(RAND_POOL *pool,
-                       const unsigned char *buffer, size_t len, size_t entropy);
+    const unsigned char *buffer, size_t len, size_t entropy);
 unsigned char *ossl_rand_pool_add_begin(RAND_POOL *pool, size_t len);
 int ossl_rand_pool_add_end(RAND_POOL *pool, size_t len, size_t entropy);
 int ossl_rand_pool_adin_mix_in(RAND_POOL *pool, const unsigned char *adin,
-                               size_t adin_len);
+    size_t adin_len);
 
 #endif /* OSSL_PROVIDER_RAND_POOL_H */

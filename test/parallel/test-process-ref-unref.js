@@ -7,9 +7,7 @@ const {
   it,
 } = require('node:test');
 
-const {
-  strictEqual,
-} = require('node:assert');
+const assert = require('node:assert');
 
 class Foo {
   refCalled = 0;
@@ -43,18 +41,18 @@ describe('process.ref/unref work as expected', () => {
     process.unref(foo1);
     process.ref(foo2);
     process.unref(foo2);
-    strictEqual(foo1.refCalled, 1);
-    strictEqual(foo1.unrefCalled, 1);
-    strictEqual(foo2.refCalled, 1);
-    strictEqual(foo2.unrefCalled, 1);
+    assert.strictEqual(foo1.refCalled, 1);
+    assert.strictEqual(foo1.unrefCalled, 1);
+    assert.strictEqual(foo2.refCalled, 1);
+    assert.strictEqual(foo2.unrefCalled, 1);
 
     // Objects that implement the legacy API also just work.
     const i = setInterval(() => {}, 1000);
-    strictEqual(i.hasRef(), true);
+    assert.strictEqual(i.hasRef(), true);
     process.unref(i);
-    strictEqual(i.hasRef(), false);
+    assert.strictEqual(i.hasRef(), false);
     process.ref(i);
-    strictEqual(i.hasRef(), true);
+    assert.strictEqual(i.hasRef(), true);
     clearInterval(i);
   });
 });

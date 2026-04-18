@@ -12,7 +12,7 @@ const { spawnSync } = require('child_process');
 const tmpdir = require('../common/tmpdir');
 const {
   kCpuProfInterval,
-  env
+  env,
 } = require('../common/cpu-prof');
 
 // --cpu-prof-name without --cpu-prof
@@ -24,7 +24,7 @@ const {
     fixtures.path('workload', 'fibonacci.js'),
   ], {
     cwd: tmpdir.path,
-    env
+    env,
   });
   const stderr = output.stderr.toString().trim();
   if (output.status !== 9) {
@@ -45,7 +45,7 @@ const {
     fixtures.path('workload', 'fibonacci.js'),
   ], {
     cwd: tmpdir.path,
-    env
+    env,
   });
   const stderr = output.stderr.toString().trim();
   if (output.status !== 9) {
@@ -66,7 +66,7 @@ for (const arg of [kCpuProfInterval, 'crashme']) {
     fixtures.path('workload', 'fibonacci.js'),
   ], {
     cwd: tmpdir.path,
-    env
+    env,
   });
   const stderr = output.stderr.toString().trim();
   if (output.status !== 9) {

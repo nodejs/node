@@ -859,12 +859,6 @@ std::unique_ptr<T> static_unique_pointer_cast(std::unique_ptr<U>&& ptr) {
 
 #define MAYBE_FIELD_PTR(ptr, field) ptr == nullptr ? nullptr : &(ptr->field)
 
-// Returns a non-zero code if it fails to open or read the file,
-// aborts if it fails to close the file.
-int ReadFileSync(std::string* result, const char* path);
-// Reads all contents of a FILE*, aborts if it fails.
-std::vector<char> ReadFileSync(FILE* fp);
-
 v8::Local<v8::FunctionTemplate> NewFunctionTemplate(
     v8::Isolate* isolate,
     v8::FunctionCallback callback,
@@ -1062,6 +1056,27 @@ inline v8::MaybeLocal<v8::Object> NewDictionaryInstanceNullProto(
     v8::Local<v8::Context> context,
     v8::Local<v8::DictionaryTemplate> tmpl,
     v8::MemorySpan<v8::MaybeLocal<v8::Value>> property_values);
+
+// Convert an uint32 to a V8 String.
+inline v8::Local<v8::String> Uint32ToString(v8::Local<v8::Context> context,
+                                            uint32_t index) {
+  // V8 internally caches strings for small integers, and asserts that a
+  // non-empty string local handle is returned for `ToString`.
+  return v8::Uint32::New(v8::Isolate::GetCurrent(), index)
+      ->ToString(context)
+      .ToLocalChecked();
+}
+bool SerializeHeapProfile(v8::Isolate* isolate, std::ostringstream& out_stream);
+
+struct HeapProfileOptions {
+  uint64_t sample_interval = 512 * 1024;
+  int stack_depth = 16;
+  v8::HeapProfiler::SamplingFlags flags =
+      v8::HeapProfiler::SamplingFlags::kSamplingNoFlags;
+};
+
+HeapProfileOptions ParseHeapProfileOptions(
+    const v8::FunctionCallbackInfo<v8::Value>& args);
 
 }  // namespace node
 

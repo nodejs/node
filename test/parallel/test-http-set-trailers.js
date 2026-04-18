@@ -43,9 +43,10 @@ function testHttp10(port, callback) {
 
   c.on('end', common.mustCall(() => {
     c.end();
-    assert.ok(
-      !/x-foo/.test(res_buffer),
-      `No trailer in HTTP/1.0 response. Response buffer: ${res_buffer}`
+    // Ensure no trailer being in HTTP/1.0 response
+    assert.doesNotMatch(
+      res_buffer,
+      /x-foo/,
     );
     callback();
   }));
@@ -68,9 +69,10 @@ function testHttp11(port, callback) {
     res_buffer += chunk;
     if (/0\r\n/.test(res_buffer)) { // got the end.
       clearTimeout(tid);
-      assert.ok(
-        /0\r\nx-foo: bar\r\n\r\n$/.test(res_buffer),
-        `No trailer in HTTP/1.1 response. Response buffer: ${res_buffer}`
+      // Ensure trailer being in HTTP/1.1 response
+      assert.match(
+        res_buffer,
+        /0\r\nx-foo: bar\r\n\r\n$/,
       );
       callback();
     }
@@ -94,9 +96,9 @@ const server = http.createServer((req, res) => {
   res.addTrailers({ 'x-foo': 'bar' });
   res.end('stuff\n');
 });
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
   Promise.all([testHttp10, testHttp11, testClientTrailers]
     .map((f) => util.promisify(f))
     .map((f) => f(server.address().port)))
-    .then(() => server.close());
-});
+    .then(() => server.close()).then(common.mustCall());
+}));

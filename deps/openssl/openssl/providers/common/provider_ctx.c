@@ -40,9 +40,8 @@ void ossl_prov_ctx_set0_core_bio_method(PROV_CTX *ctx, BIO_METHOD *corebiometh)
         ctx->corebiometh = corebiometh;
 }
 
-void
-ossl_prov_ctx_set0_core_get_params(PROV_CTX *ctx,
-                                   OSSL_FUNC_core_get_params_fn *c_get_params)
+void ossl_prov_ctx_set0_core_get_params(PROV_CTX *ctx,
+    OSSL_FUNC_core_get_params_fn *c_get_params)
 {
     if (ctx != NULL)
         ctx->core_get_params = c_get_params;
@@ -87,9 +86,9 @@ ossl_prov_ctx_get_param(PROV_CTX *ctx, const char *name, const char *defval)
         || ctx->core_get_params == NULL)
         return defval;
 
-    param[0].key = (char *) name;
+    param[0].key = (char *)name;
     param[0].data_type = OSSL_PARAM_UTF8_PTR;
-    param[0].data = (void *) &val;
+    param[0].data = (void *)&val;
     param[0].data_size = sizeof(val);
     param[0].return_size = OSSL_PARAM_UNMODIFIED;
 
@@ -112,9 +111,9 @@ int ossl_prov_ctx_get_bool_param(PROV_CTX *ctx, const char *name, int defval)
             || (OPENSSL_strcasecmp(val, "on") == 0))
             return 1;
         else if ((strcmp(val, "0") == 0)
-                 || (OPENSSL_strcasecmp(val, "no") == 0)
-                 || (OPENSSL_strcasecmp(val, "false") == 0)
-                 || (OPENSSL_strcasecmp(val, "off") == 0))
+            || (OPENSSL_strcasecmp(val, "no") == 0)
+            || (OPENSSL_strcasecmp(val, "false") == 0)
+            || (OPENSSL_strcasecmp(val, "off") == 0))
             return 0;
     }
     return defval;

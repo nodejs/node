@@ -14,40 +14,40 @@
 
 #ifndef OPENSSL_NO_DSA
 
-# ifndef OPENSSL_NO_ERR
+#ifndef OPENSSL_NO_ERR
 
 static const ERR_STRING_DATA DSA_str_reasons[] = {
-    {ERR_PACK(ERR_LIB_DSA, 0, DSA_R_BAD_FFC_PARAMETERS), "bad ffc parameters"},
-    {ERR_PACK(ERR_LIB_DSA, 0, DSA_R_BAD_Q_VALUE), "bad q value"},
-    {ERR_PACK(ERR_LIB_DSA, 0, DSA_R_BN_DECODE_ERROR), "bn decode error"},
-    {ERR_PACK(ERR_LIB_DSA, 0, DSA_R_BN_ERROR), "bn error"},
-    {ERR_PACK(ERR_LIB_DSA, 0, DSA_R_DECODE_ERROR), "decode error"},
-    {ERR_PACK(ERR_LIB_DSA, 0, DSA_R_INVALID_DIGEST_TYPE),
-    "invalid digest type"},
-    {ERR_PACK(ERR_LIB_DSA, 0, DSA_R_INVALID_PARAMETERS), "invalid parameters"},
-    {ERR_PACK(ERR_LIB_DSA, 0, DSA_R_MISSING_PARAMETERS), "missing parameters"},
-    {ERR_PACK(ERR_LIB_DSA, 0, DSA_R_MISSING_PRIVATE_KEY),
-    "missing private key"},
-    {ERR_PACK(ERR_LIB_DSA, 0, DSA_R_MODULUS_TOO_LARGE), "modulus too large"},
-    {ERR_PACK(ERR_LIB_DSA, 0, DSA_R_NO_PARAMETERS_SET), "no parameters set"},
-    {ERR_PACK(ERR_LIB_DSA, 0, DSA_R_PARAMETER_ENCODING_ERROR),
-    "parameter encoding error"},
-    {ERR_PACK(ERR_LIB_DSA, 0, DSA_R_P_NOT_PRIME), "p not prime"},
-    {ERR_PACK(ERR_LIB_DSA, 0, DSA_R_Q_NOT_PRIME), "q not prime"},
-    {ERR_PACK(ERR_LIB_DSA, 0, DSA_R_SEED_LEN_SMALL),
-    "seed_len is less than the length of q"},
-    {ERR_PACK(ERR_LIB_DSA, 0, DSA_R_TOO_MANY_RETRIES), "too many retries"},
-    {0, NULL}
+    { ERR_PACK(ERR_LIB_DSA, 0, DSA_R_BAD_FFC_PARAMETERS), "bad ffc parameters" },
+    { ERR_PACK(ERR_LIB_DSA, 0, DSA_R_BAD_Q_VALUE), "bad q value" },
+    { ERR_PACK(ERR_LIB_DSA, 0, DSA_R_BN_DECODE_ERROR), "bn decode error" },
+    { ERR_PACK(ERR_LIB_DSA, 0, DSA_R_BN_ERROR), "bn error" },
+    { ERR_PACK(ERR_LIB_DSA, 0, DSA_R_DECODE_ERROR), "decode error" },
+    { ERR_PACK(ERR_LIB_DSA, 0, DSA_R_INVALID_DIGEST_TYPE),
+        "invalid digest type" },
+    { ERR_PACK(ERR_LIB_DSA, 0, DSA_R_INVALID_PARAMETERS), "invalid parameters" },
+    { ERR_PACK(ERR_LIB_DSA, 0, DSA_R_MISSING_PARAMETERS), "missing parameters" },
+    { ERR_PACK(ERR_LIB_DSA, 0, DSA_R_MISSING_PRIVATE_KEY),
+        "missing private key" },
+    { ERR_PACK(ERR_LIB_DSA, 0, DSA_R_MODULUS_TOO_LARGE), "modulus too large" },
+    { ERR_PACK(ERR_LIB_DSA, 0, DSA_R_NO_PARAMETERS_SET), "no parameters set" },
+    { ERR_PACK(ERR_LIB_DSA, 0, DSA_R_PARAMETER_ENCODING_ERROR),
+        "parameter encoding error" },
+    { ERR_PACK(ERR_LIB_DSA, 0, DSA_R_P_NOT_PRIME), "p not prime" },
+    { ERR_PACK(ERR_LIB_DSA, 0, DSA_R_Q_NOT_PRIME), "q not prime" },
+    { ERR_PACK(ERR_LIB_DSA, 0, DSA_R_SEED_LEN_SMALL),
+        "seed_len is less than the length of q" },
+    { ERR_PACK(ERR_LIB_DSA, 0, DSA_R_TOO_MANY_RETRIES), "too many retries" },
+    { 0, NULL }
 };
 
-# endif
+#endif
 
 int ossl_err_load_DSA_strings(void)
 {
-# ifndef OPENSSL_NO_ERR
+#ifndef OPENSSL_NO_ERR
     if (ERR_reason_error_string(DSA_str_reasons[0].error) == NULL)
         ERR_load_strings_const(DSA_str_reasons);
-# endif
+#endif
     return 1;
 }
 #else

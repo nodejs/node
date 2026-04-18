@@ -8,19 +8,19 @@
  */
 
 #ifndef OSSL_INTERNAL_PACKET_QUIC_H
-# define OSSL_INTERNAL_PACKET_QUIC_H
-# pragma once
+#define OSSL_INTERNAL_PACKET_QUIC_H
+#pragma once
 
-# include "internal/packet.h"
-# include "internal/quic_vlint.h"
+#include "internal/packet.h"
+#include "internal/quic_vlint.h"
 
-# ifndef OPENSSL_NO_QUIC
+#ifndef OPENSSL_NO_QUIC
 /*
  * Decodes a QUIC variable-length integer in |pkt| and stores the result in
  * |data|.
  */
 __owur static ossl_inline int PACKET_get_quic_vlint(PACKET *pkt,
-                                                    uint64_t *data)
+    uint64_t *data)
 {
     size_t enclen;
 
@@ -44,8 +44,8 @@ __owur static ossl_inline int PACKET_get_quic_vlint(PACKET *pkt,
  * was encoded using the minimal possible number of bytes and 0 otherwise.
  */
 __owur static ossl_inline int PACKET_peek_quic_vlint_ex(PACKET *pkt,
-                                                        uint64_t *data,
-                                                        int *was_minimal)
+    uint64_t *data,
+    int *was_minimal)
 {
     size_t enclen;
 
@@ -66,7 +66,7 @@ __owur static ossl_inline int PACKET_peek_quic_vlint_ex(PACKET *pkt,
 }
 
 __owur static ossl_inline int PACKET_peek_quic_vlint(PACKET *pkt,
-                                                     uint64_t *data)
+    uint64_t *data)
 {
     return PACKET_peek_quic_vlint_ex(pkt, data, NULL);
 }
@@ -98,15 +98,13 @@ __owur static ossl_inline int PACKET_skip_quic_vlint(PACKET *pkt)
  * |subpkt|. Upon failure, the original |pkt| and |subpkt| are not modified.
  */
 __owur static ossl_inline int PACKET_get_quic_length_prefixed(PACKET *pkt,
-                                                              PACKET *subpkt)
+    PACKET *subpkt)
 {
     uint64_t length;
     const unsigned char *data;
     PACKET tmp = *pkt;
 
-    if (!PACKET_get_quic_vlint(&tmp, &length) ||
-        length > SIZE_MAX ||
-        !PACKET_get_bytes(&tmp, &data, (size_t)length)) {
+    if (!PACKET_get_quic_vlint(&tmp, &length) || length > SIZE_MAX || !PACKET_get_bytes(&tmp, &data, (size_t)length)) {
         return 0;
     }
 
@@ -139,12 +137,12 @@ __owur int WPACKET_start_quic_sub_packet_bound(WPACKET *pkt, size_t max_len);
  * variable-length integer encoding length.
  */
 __owur int WPACKET_quic_sub_allocate_bytes(WPACKET *pkt, size_t len,
-                                           unsigned char **bytes);
+    unsigned char **bytes);
 
 /*
  * Write a QUIC variable-length integer to the packet.
  */
 __owur int WPACKET_quic_write_vlint(WPACKET *pkt, uint64_t v);
 
-# endif                         /* OPENSSL_NO_QUIC */
-#endif                          /* OSSL_INTERNAL_PACKET_QUIC_H */
+#endif /* OPENSSL_NO_QUIC */
+#endif /* OSSL_INTERNAL_PACKET_QUIC_H */

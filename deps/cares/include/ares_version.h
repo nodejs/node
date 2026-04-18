@@ -28,12 +28,12 @@
 #define ARES__VERSION_H
 
 /* This is the global package copyright */
-#define ARES_COPYRIGHT "2004 - 2024 Daniel Stenberg, <daniel@haxx.se>."
+#define ARES_COPYRIGHT "2004 - 2025 Daniel Stenberg, <daniel@haxx.se>."
 
 #define ARES_VERSION_MAJOR 1
 #define ARES_VERSION_MINOR 34
-#define ARES_VERSION_PATCH 5
-#define ARES_VERSION_STR "1.34.5"
+#define ARES_VERSION_PATCH 6
+#define ARES_VERSION_STR "1.34.6"
 
 /* NOTE: We cannot make the version string a C preprocessor stringify operation
  *       due to assumptions made by integrators that aren't properly using

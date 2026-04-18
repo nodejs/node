@@ -506,10 +506,15 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace util
 }  // namespace node
 
-// The first argument passed to `NODE_BINDING_EXTERNAL_REFERENCE`,
-// which is `util` here, needs to be added to the
-// `EXTERNAL_REFERENCE_BINDING_LIST_BASE` list in node_external_reference.h
 NODE_BINDING_EXTERNAL_REFERENCE(util, node::util::RegisterExternalReferences)
+```
+
+And add the first argument passed to `NODE_BINDING_EXTERNAL_REFERENCE` to
+the list of external references in `src/node_external_reference.h`:
+
+```cpp
+#define EXTERNAL_REFERENCE_LIST_BASE(V) \
+  V(util) \
 ```
 
 Otherwise, you might see an error message like this when building the

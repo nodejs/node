@@ -95,6 +95,7 @@ const pkgMetaKeys = [
   'engines',
   'os',
   'cpu',
+  'libc',
   '_integrity',
   'license',
   '_hasShrinkwrap',

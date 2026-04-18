@@ -215,6 +215,17 @@ TEST_IMPL(udp_reuseport) {
   int r;
   int i;
 
+#if defined(__QEMU__)
+  /* QEMU's user-mode emulator sometimes runs threads in sequence
+   * instead of in parallel and that throws off the test.
+   * See https://github.com/libuv/libuv/issues/4777.
+   */
+  RETURN_SKIP("Unreliable under QEMU");
+#endif  /* defined(__QEMU__) */
+
+  if (uv_available_parallelism() < 2)
+    RETURN_SKIP("Unreliable without thread parallelism");
+
   r = uv_mutex_init(&mutex);
   ASSERT_OK(r);
 

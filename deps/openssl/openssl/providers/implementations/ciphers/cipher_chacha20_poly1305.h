@@ -16,13 +16,15 @@
 #define CHACHA20_POLY1305_IVLEN 12
 
 typedef struct {
-    PROV_CIPHER_CTX base;       /* must be first */
+    PROV_CIPHER_CTX base; /* must be first */
     PROV_CHACHA20_CTX chacha;
     POLY1305 poly1305;
     unsigned int nonce[12 / 4];
     unsigned char tag[POLY1305_BLOCK_SIZE];
     unsigned char tls_aad[POLY1305_BLOCK_SIZE];
-    struct { uint64_t aad, text; } len;
+    struct {
+        uint64_t aad, text;
+    } len;
     unsigned int aad : 1;
     unsigned int mac_inited : 1;
     size_t tag_len;
@@ -33,11 +35,11 @@ typedef struct {
 typedef struct prov_cipher_hw_chacha_aead_st {
     PROV_CIPHER_HW base; /* must be first */
     int (*aead_cipher)(PROV_CIPHER_CTX *dat, unsigned char *out, size_t *outl,
-                       const unsigned char *in, size_t len);
+        const unsigned char *in, size_t len);
     int (*initiv)(PROV_CIPHER_CTX *ctx);
     int (*tls_init)(PROV_CIPHER_CTX *ctx, unsigned char *aad, size_t alen);
     int (*tls_iv_set_fixed)(PROV_CIPHER_CTX *ctx, unsigned char *fixed,
-                            size_t flen);
+        size_t flen);
 } PROV_CIPHER_HW_CHACHA20_POLY1305;
 
 const PROV_CIPHER_HW *ossl_prov_cipher_hw_chacha20_poly1305(size_t keybits);

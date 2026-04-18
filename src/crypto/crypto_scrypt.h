@@ -60,7 +60,8 @@ struct ScryptTraits final {
   static bool DeriveBits(Environment* env,
                          const ScryptConfig& params,
                          ByteSource* out,
-                         CryptoJobMode mode);
+                         CryptoJobMode mode,
+                         CryptoErrorStore* errors);
 
   static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
                                                 const ScryptConfig& params,

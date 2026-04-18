@@ -13,7 +13,7 @@
 #include "cipher_chacha20_poly1305.h"
 
 static int chacha_poly1305_tls_init(PROV_CIPHER_CTX *bctx,
-                                    unsigned char *aad, size_t alen)
+    unsigned char *aad, size_t alen)
 {
     unsigned int len;
     PROV_CHACHA20_POLY1305_CTX *ctx = (PROV_CHACHA20_POLY1305_CTX *)bctx;
@@ -36,14 +36,14 @@ static int chacha_poly1305_tls_init(PROV_CIPHER_CTX *bctx,
     /* merge record sequence number as per RFC7905 */
     ctx->chacha.counter[1] = ctx->nonce[0];
     ctx->chacha.counter[2] = ctx->nonce[1] ^ CHACHA_U8TOU32(aad);
-    ctx->chacha.counter[3] = ctx->nonce[2] ^ CHACHA_U8TOU32(aad+4);
+    ctx->chacha.counter[3] = ctx->nonce[2] ^ CHACHA_U8TOU32(aad + 4);
     ctx->mac_inited = 0;
 
-    return POLY1305_BLOCK_SIZE;         /* tag length */
+    return POLY1305_BLOCK_SIZE; /* tag length */
 }
 
 static int chacha_poly1305_tls_iv_set_fixed(PROV_CIPHER_CTX *bctx,
-                                            unsigned char *fixed, size_t flen)
+    unsigned char *fixed, size_t flen)
 {
     PROV_CHACHA20_POLY1305_CTX *ctx = (PROV_CHACHA20_POLY1305_CTX *)bctx;
 
@@ -56,7 +56,7 @@ static int chacha_poly1305_tls_iv_set_fixed(PROV_CIPHER_CTX *bctx,
 }
 
 static int chacha20_poly1305_initkey(PROV_CIPHER_CTX *bctx,
-                                     const unsigned char *key, size_t keylen)
+    const unsigned char *key, size_t keylen)
 {
     PROV_CHACHA20_POLY1305_CTX *ctx = (PROV_CHACHA20_POLY1305_CTX *)bctx;
 
@@ -87,14 +87,14 @@ static int chacha20_poly1305_initiv(PROV_CIPHER_CTX *bctx)
 
     /* pad on the left */
     memcpy(tempiv + CHACHA_CTR_SIZE - noncelen, bctx->oiv,
-           noncelen);
+        noncelen);
 
     if (bctx->enc)
         ret = ossl_chacha20_einit(&ctx->chacha, NULL, 0,
-                                  tempiv, sizeof(tempiv), NULL);
+            tempiv, sizeof(tempiv), NULL);
     else
         ret = ossl_chacha20_dinit(&ctx->chacha, NULL, 0,
-                                  tempiv, sizeof(tempiv), NULL);
+            tempiv, sizeof(tempiv), NULL);
     ctx->nonce[0] = ctx->chacha.counter[1];
     ctx->nonce[1] = ctx->chacha.counter[2];
     ctx->nonce[2] = ctx->chacha.counter[3];
@@ -104,20 +104,19 @@ static int chacha20_poly1305_initiv(PROV_CIPHER_CTX *bctx)
 
 #if !defined(OPENSSL_SMALL_FOOTPRINT)
 
-# if defined(POLY1305_ASM) && (defined(__x86_64) || defined(__x86_64__) \
-     || defined(_M_AMD64) || defined(_M_X64))
-#  define XOR128_HELPERS
+#if defined(POLY1305_ASM) && (defined(__x86_64) || defined(__x86_64__) || defined(_M_AMD64) || defined(_M_X64))
+#define XOR128_HELPERS
 void *xor128_encrypt_n_pad(void *out, const void *inp, void *otp, size_t len);
 void *xor128_decrypt_n_pad(void *out, const void *inp, void *otp, size_t len);
 static const unsigned char zero[4 * CHACHA_BLK_SIZE] = { 0 };
-# else
+#else
 static const unsigned char zero[2 * CHACHA_BLK_SIZE] = { 0 };
-# endif
+#endif
 
 static int chacha20_poly1305_tls_cipher(PROV_CIPHER_CTX *bctx,
-                                        unsigned char *out,
-                                        size_t *out_padlen,
-                                        const unsigned char *in, size_t len)
+    unsigned char *out,
+    size_t *out_padlen,
+    const unsigned char *in, size_t len)
 {
     PROV_CHACHA20_POLY1305_CTX *ctx = (PROV_CHACHA20_POLY1305_CTX *)bctx;
     POLY1305 *poly = &ctx->poly1305;
@@ -126,11 +125,11 @@ static int chacha20_poly1305_tls_cipher(PROV_CIPHER_CTX *bctx,
 
     DECLARE_IS_ENDIAN;
 
-    buf = storage + ((0 - (size_t)storage) & 15);   /* align */
+    buf = storage + ((0 - (size_t)storage) & 15); /* align */
     ctr = buf + CHACHA_BLK_SIZE;
     tohash = buf + CHACHA_BLK_SIZE - POLY1305_BLOCK_SIZE;
 
-# ifdef XOR128_HELPERS
+#ifdef XOR128_HELPERS
     if (plen <= 3 * CHACHA_BLK_SIZE) {
         ctx->chacha.counter[0] = 0;
         buf_len = (plen + 2 * CHACHA_BLK_SIZE - 1) & (0 - CHACHA_BLK_SIZE);
@@ -153,13 +152,13 @@ static int chacha20_poly1305_tls_cipher(PROV_CIPHER_CTX *bctx,
             tohash_len = (size_t)(ctr - tohash);
         }
     }
-# else
+#else
     if (plen <= CHACHA_BLK_SIZE) {
         size_t i;
 
         ctx->chacha.counter[0] = 0;
         ChaCha20_ctr32(buf, zero, (buf_len = 2 * CHACHA_BLK_SIZE),
-                       ctx->chacha.key.d, ctx->chacha.counter);
+            ctx->chacha.key.d, ctx->chacha.counter);
         Poly1305_Init(poly, buf);
         ctx->chacha.partial_len = 0;
         memcpy(tohash, ctx->tls_aad, POLY1305_BLOCK_SIZE);
@@ -187,11 +186,11 @@ static int chacha20_poly1305_tls_cipher(PROV_CIPHER_CTX *bctx,
         ctr += i + tail;
         tohash_len += i + tail;
     }
-# endif
+#endif
     else {
         ctx->chacha.counter[0] = 0;
         ChaCha20_ctr32(buf, zero, (buf_len = CHACHA_BLK_SIZE),
-                       ctx->chacha.key.d, ctx->chacha.counter);
+            ctx->chacha.key.d, ctx->chacha.counter);
         Poly1305_Init(poly, buf);
         ctx->chacha.counter[0] = 1;
         ctx->chacha.partial_len = 0;
@@ -218,23 +217,23 @@ static int chacha20_poly1305_tls_cipher(PROV_CIPHER_CTX *bctx,
     if (IS_LITTLE_ENDIAN) {
         memcpy(ctr, (unsigned char *)&ctx->len, POLY1305_BLOCK_SIZE);
     } else {
-        ctr[0]  = (unsigned char)(ctx->len.aad);
-        ctr[1]  = (unsigned char)(ctx->len.aad>>8);
-        ctr[2]  = (unsigned char)(ctx->len.aad>>16);
-        ctr[3]  = (unsigned char)(ctx->len.aad>>24);
-        ctr[4]  = (unsigned char)(ctx->len.aad>>32);
-        ctr[5]  = (unsigned char)(ctx->len.aad>>40);
-        ctr[6]  = (unsigned char)(ctx->len.aad>>48);
-        ctr[7]  = (unsigned char)(ctx->len.aad>>56);
+        ctr[0] = (unsigned char)(ctx->len.aad);
+        ctr[1] = (unsigned char)(ctx->len.aad >> 8);
+        ctr[2] = (unsigned char)(ctx->len.aad >> 16);
+        ctr[3] = (unsigned char)(ctx->len.aad >> 24);
+        ctr[4] = (unsigned char)(ctx->len.aad >> 32);
+        ctr[5] = (unsigned char)(ctx->len.aad >> 40);
+        ctr[6] = (unsigned char)(ctx->len.aad >> 48);
+        ctr[7] = (unsigned char)(ctx->len.aad >> 56);
 
-        ctr[8]  = (unsigned char)(ctx->len.text);
-        ctr[9]  = (unsigned char)(ctx->len.text>>8);
-        ctr[10] = (unsigned char)(ctx->len.text>>16);
-        ctr[11] = (unsigned char)(ctx->len.text>>24);
-        ctr[12] = (unsigned char)(ctx->len.text>>32);
-        ctr[13] = (unsigned char)(ctx->len.text>>40);
-        ctr[14] = (unsigned char)(ctx->len.text>>48);
-        ctr[15] = (unsigned char)(ctx->len.text>>56);
+        ctr[8] = (unsigned char)(ctx->len.text);
+        ctr[9] = (unsigned char)(ctx->len.text >> 8);
+        ctr[10] = (unsigned char)(ctx->len.text >> 16);
+        ctr[11] = (unsigned char)(ctx->len.text >> 24);
+        ctr[12] = (unsigned char)(ctx->len.text >> 32);
+        ctr[13] = (unsigned char)(ctx->len.text >> 40);
+        ctr[14] = (unsigned char)(ctx->len.text >> 48);
+        ctr[15] = (unsigned char)(ctx->len.text >> 56);
     }
     tohash_len += POLY1305_BLOCK_SIZE;
 
@@ -250,7 +249,7 @@ static int chacha20_poly1305_tls_cipher(PROV_CIPHER_CTX *bctx,
         if (CRYPTO_memcmp(tohash, in, POLY1305_BLOCK_SIZE)) {
             if (len > POLY1305_BLOCK_SIZE)
                 memset(out - (len - POLY1305_BLOCK_SIZE), 0,
-                       len - POLY1305_BLOCK_SIZE);
+                    len - POLY1305_BLOCK_SIZE);
             return 0;
         }
         /* Strip the tag */
@@ -265,8 +264,8 @@ static const unsigned char zero[CHACHA_BLK_SIZE] = { 0 };
 #endif /* OPENSSL_SMALL_FOOTPRINT */
 
 static int chacha20_poly1305_aead_cipher(PROV_CIPHER_CTX *bctx,
-                                         unsigned char *out, size_t *outl,
-                                         const unsigned char *in, size_t inl)
+    unsigned char *out, size_t *outl,
+    const unsigned char *in, size_t inl)
 {
     PROV_CHACHA20_POLY1305_CTX *ctx = (PROV_CHACHA20_POLY1305_CTX *)bctx;
     POLY1305 *poly = &ctx->poly1305;
@@ -287,7 +286,7 @@ static int chacha20_poly1305_aead_cipher(PROV_CIPHER_CTX *bctx,
 
         ctx->chacha.counter[0] = 0;
         ChaCha20_ctr32(ctx->chacha.buf, zero, CHACHA_BLK_SIZE,
-                       ctx->chacha.key.d, ctx->chacha.counter);
+            ctx->chacha.key.d, ctx->chacha.counter);
         Poly1305_Init(poly, ctx->chacha.buf);
         ctx->chacha.counter[0] = 1;
         ctx->chacha.partial_len = 0;
@@ -339,7 +338,7 @@ static int chacha20_poly1305_aead_cipher(PROV_CIPHER_CTX *bctx,
 
         unsigned char temp[POLY1305_BLOCK_SIZE];
 
-        if (ctx->aad) {                        /* wrap up aad */
+        if (ctx->aad) { /* wrap up aad */
             if ((rem = (size_t)ctx->len.aad % POLY1305_BLOCK_SIZE))
                 Poly1305_Update(poly, zero, POLY1305_BLOCK_SIZE - rem);
             ctx->aad = 0;
@@ -350,24 +349,24 @@ static int chacha20_poly1305_aead_cipher(PROV_CIPHER_CTX *bctx,
 
         if (IS_LITTLE_ENDIAN) {
             Poly1305_Update(poly, (unsigned char *)&ctx->len,
-                            POLY1305_BLOCK_SIZE);
+                POLY1305_BLOCK_SIZE);
         } else {
-            temp[0]  = (unsigned char)(ctx->len.aad);
-            temp[1]  = (unsigned char)(ctx->len.aad>>8);
-            temp[2]  = (unsigned char)(ctx->len.aad>>16);
-            temp[3]  = (unsigned char)(ctx->len.aad>>24);
-            temp[4]  = (unsigned char)(ctx->len.aad>>32);
-            temp[5]  = (unsigned char)(ctx->len.aad>>40);
-            temp[6]  = (unsigned char)(ctx->len.aad>>48);
-            temp[7]  = (unsigned char)(ctx->len.aad>>56);
-            temp[8]  = (unsigned char)(ctx->len.text);
-            temp[9]  = (unsigned char)(ctx->len.text>>8);
-            temp[10] = (unsigned char)(ctx->len.text>>16);
-            temp[11] = (unsigned char)(ctx->len.text>>24);
-            temp[12] = (unsigned char)(ctx->len.text>>32);
-            temp[13] = (unsigned char)(ctx->len.text>>40);
-            temp[14] = (unsigned char)(ctx->len.text>>48);
-            temp[15] = (unsigned char)(ctx->len.text>>56);
+            temp[0] = (unsigned char)(ctx->len.aad);
+            temp[1] = (unsigned char)(ctx->len.aad >> 8);
+            temp[2] = (unsigned char)(ctx->len.aad >> 16);
+            temp[3] = (unsigned char)(ctx->len.aad >> 24);
+            temp[4] = (unsigned char)(ctx->len.aad >> 32);
+            temp[5] = (unsigned char)(ctx->len.aad >> 40);
+            temp[6] = (unsigned char)(ctx->len.aad >> 48);
+            temp[7] = (unsigned char)(ctx->len.aad >> 56);
+            temp[8] = (unsigned char)(ctx->len.text);
+            temp[9] = (unsigned char)(ctx->len.text >> 8);
+            temp[10] = (unsigned char)(ctx->len.text >> 16);
+            temp[11] = (unsigned char)(ctx->len.text >> 24);
+            temp[12] = (unsigned char)(ctx->len.text >> 32);
+            temp[13] = (unsigned char)(ctx->len.text >> 40);
+            temp[14] = (unsigned char)(ctx->len.text >> 48);
+            temp[15] = (unsigned char)(ctx->len.text >> 56);
             Poly1305_Update(poly, temp, POLY1305_BLOCK_SIZE);
         }
         Poly1305_Final(poly, bctx->enc ? ctx->tag : temp);
@@ -384,8 +383,7 @@ static int chacha20_poly1305_aead_cipher(PROV_CIPHER_CTX *bctx,
                 /* Strip the tag */
                 inl -= POLY1305_BLOCK_SIZE;
             }
-        }
-        else if (!bctx->enc) {
+        } else if (!bctx->enc) {
             if (CRYPTO_memcmp(temp, ctx->tag, ctx->tag_len))
                 goto err;
         }

@@ -4,8 +4,11 @@ const Client = require('./lib/dispatcher/client')
 const Dispatcher = require('./lib/dispatcher/dispatcher')
 const Pool = require('./lib/dispatcher/pool')
 const BalancedPool = require('./lib/dispatcher/balanced-pool')
+const RoundRobinPool = require('./lib/dispatcher/round-robin-pool')
 const Agent = require('./lib/dispatcher/agent')
+const Dispatcher1Wrapper = require('./lib/dispatcher/dispatcher1-wrapper')
 const ProxyAgent = require('./lib/dispatcher/proxy-agent')
+const Socks5ProxyAgent = require('./lib/dispatcher/socks5-proxy-agent')
 const EnvHttpProxyAgent = require('./lib/dispatcher/env-http-proxy-agent')
 const RetryAgent = require('./lib/dispatcher/retry-agent')
 const H2CClient = require('./lib/dispatcher/h2c-client')
@@ -31,8 +34,11 @@ module.exports.Dispatcher = Dispatcher
 module.exports.Client = Client
 module.exports.Pool = Pool
 module.exports.BalancedPool = BalancedPool
+module.exports.RoundRobinPool = RoundRobinPool
 module.exports.Agent = Agent
+module.exports.Dispatcher1Wrapper = Dispatcher1Wrapper
 module.exports.ProxyAgent = ProxyAgent
+module.exports.Socks5ProxyAgent = Socks5ProxyAgent
 module.exports.EnvHttpProxyAgent = EnvHttpProxyAgent
 module.exports.RetryAgent = RetryAgent
 module.exports.H2CClient = H2CClient
@@ -47,7 +53,8 @@ module.exports.interceptors = {
   dump: require('./lib/interceptor/dump'),
   dns: require('./lib/interceptor/dns'),
   cache: require('./lib/interceptor/cache'),
-  decompress: require('./lib/interceptor/decompress')
+  decompress: require('./lib/interceptor/decompress'),
+  deduplicate: require('./lib/interceptor/deduplicate')
 }
 
 module.exports.cacheStores = {
@@ -98,14 +105,14 @@ function makeDispatcher (fn) {
       url = util.parseURL(url)
     }
 
-    const { agent, dispatcher = getGlobalDispatcher() } = opts
+    const { agent, dispatcher = getGlobalDispatcher(), ...restOpts } = opts
 
     if (agent) {
       throw new InvalidArgumentError('unsupported opts.agent. Did you mean opts.client?')
     }
 
     return fn.call(dispatcher, {
-      ...opts,
+      ...restOpts,
       origin: url.origin,
       path: url.search ? `${url.pathname}${url.search}` : url.pathname,
       method: opts.method || (opts.body ? 'PUT' : 'GET')
@@ -118,10 +125,40 @@ module.exports.getGlobalDispatcher = getGlobalDispatcher
 
 const fetchImpl = require('./lib/web/fetch').fetch
 
+// Capture __filename at module load time for stack trace augmentation.
+// This may be undefined when bundled in environments like Node.js internals.
+const currentFilename = typeof __filename !== 'undefined' ? __filename : undefined
+
+function appendFetchStackTrace (err, filename) {
+  if (!err || typeof err !== 'object') {
+    return
+  }
+
+  const stack = typeof err.stack === 'string' ? err.stack : ''
+  const normalizedFilename = filename.replace(/\\/g, '/')
+
+  if (stack && (stack.includes(filename) || stack.includes(normalizedFilename))) {
+    return
+  }
+
+  const capture = {}
+  Error.captureStackTrace(capture, appendFetchStackTrace)
+
+  if (!capture.stack) {
+    return
+  }
+
+  const captureLines = capture.stack.split('\n').slice(1).join('\n')
+
+  err.stack = stack ? `${stack}\n${captureLines}` : capture.stack
+}
+
 module.exports.fetch = function fetch (init, options = undefined) {
   return fetchImpl(init, options).catch(err => {
-    if (err && typeof err === 'object') {
-      Error.captureStackTrace(err)
+    if (currentFilename) {
+      appendFetchStackTrace(err, currentFilename)
+    } else if (err && typeof err === 'object') {
+      Error.captureStackTrace(err, module.exports.fetch)
     }
     throw err
   })

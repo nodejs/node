@@ -58,6 +58,7 @@
       ['OS!="aix" and OS!="os400"', {
         'defines': [
           'BUILDING_V8_SHARED',  # Make V8_EXPORT visible.
+          'BUILDING_V8_PLATFORM_SHARED',  # Make V8_PLATFORM_EXPORT visible.
         ]
       }],
       ['node_shared=="true"', {
@@ -319,6 +320,11 @@
             '<(icu_gyp_path):icuuc',
           ],
         }],
+        ['v8_enable_temporal_support==1 and node_shared_temporal_capi=="false"', {
+          'dependencies': [
+            '../../deps/crates/crates.gyp:temporal_capi',
+          ],
+        }],
       ],
     },  # v8_initializers_slow
     {
@@ -354,6 +360,11 @@
           ],
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_initializers.*?v8_enable_webassembly.*?sources \\+= ")',
+          ],
+        }],
+        ['v8_enable_temporal_support==1 and node_shared_temporal_capi=="false"', {
+          'dependencies': [
+            '../../deps/crates/crates.gyp:temporal_capi',
           ],
         }],
         ['v8_target_arch=="ia32"', {
@@ -1128,6 +1139,13 @@
           ],
         }],
         ['v8_enable_temporal_support==1', {
+          'conditions': [
+            ['node_shared_temporal_capi=="false"', {
+              'dependencies': [
+                '../../deps/crates/crates.gyp:temporal_capi',
+              ],
+            }],
+          ],
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_temporal_support.*?sources \\+= ")',
           ],
@@ -1328,6 +1346,7 @@
         ['component=="shared_library"', {
           'defines': [
             'BUILDING_V8_SHARED',
+            'BUILDING_V8_PLATFORM_SHARED',
           ],
         }],
         ['v8_enable_i18n_support==1', {
@@ -1397,6 +1416,7 @@
       'defines!': [
         '_HAS_EXCEPTIONS=0',
         'BUILDING_V8_SHARED=1',
+        'BUILDING_V8_PLATFORM_SHARED=1',
       ],
       'cflags_cc!': ['-fno-exceptions'],
       'cflags_cc': ['-fexceptions'],
@@ -1409,6 +1429,15 @@
           'ExceptionHandling': 1,
         },
       },
+      # Reduce optimisation of one file on AIX - it causes torque
+      # to segfault if you build node with "--shared"
+      'conditions': [
+        ['OS=="aix" and node_shared=="true"', {
+          'cflags': ['-O1'],
+          'cflags!': ['-O3'],
+          'sources': ['<(V8_ROOT)/src/torque/implementation-visitor.cc'],
+        }],
+      ],
     },  # torque_base
     {
       'target_name': 'torque_ls_base',
@@ -1423,6 +1452,7 @@
       'defines!': [
         '_HAS_EXCEPTIONS=0',
         'BUILDING_V8_SHARED=1',
+        'BUILDING_V8_PLATFORM_SHARED=1',
       ],
       'cflags_cc!': ['-fno-exceptions'],
       'cflags_cc': ['-fexceptions'],
@@ -1764,6 +1794,7 @@
       ],
       'defines!': [
         'BUILDING_V8_SHARED=1',
+        'BUILDING_V8_PLATFORM_SHARED=1',
       ],
       'dependencies': [
         'v8_libbase',
@@ -1845,6 +1876,7 @@
       'defines!': [
         '_HAS_EXCEPTIONS=0',
         'BUILDING_V8_SHARED=1',
+        'BUILDING_V8_PLATFORM_SHARED=1',
       ],
       'cflags_cc!': ['-fno-exceptions'],
       'cflags_cc': ['-fexceptions'],
@@ -1888,6 +1920,7 @@
       'defines!': [
         '_HAS_EXCEPTIONS=0',
         'BUILDING_V8_SHARED=1',
+        'BUILDING_V8_PLATFORM_SHARED=1',
       ],
       'msvs_settings': {
         'VCCLCompilerTool': {
@@ -2102,10 +2135,12 @@
           ],
           'defines': [
             'BUILDING_V8_SHARED',
+            'BUILDING_V8_PLATFORM_SHARED',
           ],
           'direct_dependent_settings': {
             'defines': [
               'USING_V8_SHARED',
+              'USING_V8_PLATFORM_SHARED',
             ],
           },
           'conditions': [

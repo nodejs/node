@@ -14,9 +14,9 @@ if (!process.env.HAS_STARTED_WORKER) {
   process.env.HAS_STARTED_WORKER = 1;
   const w = new Worker(__filename, { execArgv: ['--trace-warnings'] });
   w.stderr.on('data', common.mustCall((chunk) => {
-    const error = decoder.write(chunk);
-    assert.ok(
-      /Warning: some warning[\s\S]*at Object\.<anonymous>/.test(error)
+    assert.match(
+      decoder.write(chunk),
+      /Warning: some warning[\s\S]*at Object\.<anonymous>/,
     );
   }));
 

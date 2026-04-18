@@ -210,8 +210,7 @@ void JSStream::Initialize(Local<Object> target,
   Isolate* isolate = env->isolate();
 
   Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
-  t->InstanceTemplate()
-    ->SetInternalFieldCount(StreamBase::kInternalFieldCount);
+  t->InstanceTemplate()->SetInternalFieldCount(JSStream::kInternalFieldCount);
   t->Inherit(AsyncWrap::GetConstructorTemplate(env));
 
   SetProtoMethod(isolate, t, "finishWrite", Finish<WriteWrap>);

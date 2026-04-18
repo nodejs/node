@@ -10,7 +10,7 @@ permissions:
 jobs:
   analyze:
     name: Analyze
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       actions: read
       contents: read
@@ -23,19 +23,19 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       # Initializes the CodeQL tools for scanning.
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@014f16e7ab1402f30e7c3329d33797e7948572db  # v4.31.3
+        uses: github/codeql-action/init@c10b8064de6f491fea524254123dbe5e09572f13  # v4.35.1
         with:
           languages: ${{ matrix.language }}
           config-file: ./.github/codeql-config.yml
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@014f16e7ab1402f30e7c3329d33797e7948572db  # v4.31.3
+        uses: github/codeql-action/autobuild@c10b8064de6f491fea524254123dbe5e09572f13  # v4.35.1
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@014f16e7ab1402f30e7c3329d33797e7948572db  # v4.31.3
+        uses: github/codeql-action/analyze@c10b8064de6f491fea524254123dbe5e09572f13  # v4.35.1
         with:
           category: /language:${{matrix.language}}

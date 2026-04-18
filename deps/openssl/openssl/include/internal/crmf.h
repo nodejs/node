@@ -7,10 +7,10 @@
  * https://www.openssl.org/source/license.html
  */
 #ifndef OSSL_CRYPTO_CRMF_H
-# define OSSL_CRYPTO_CRMF_H
-# pragma once
+#define OSSL_CRYPTO_CRMF_H
+#pragma once
 
-# include <openssl/crmf.h>
+#include <openssl/crmf.h>
 
 struct ossl_crmf_attributetypeandvalue_st {
     ASN1_OBJECT *type;

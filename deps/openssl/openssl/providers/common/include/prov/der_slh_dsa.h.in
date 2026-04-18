@@ -13,10 +13,12 @@
 #include "crypto/slh_dsa.h"
 
 /* Well known OIDs precompiled */
+/* clang-format off */
 {-
     $OUT = oids_to_c::process_leaves('providers/common/der/SLH_DSA.asn1',
                                      { dir => $config{sourcedir},
                                        filter => \&oids_to_c::filter_to_H });
 -}
+/* clang-format on */
 
 int ossl_DER_w_algorithmIdentifier_SLH_DSA(WPACKET *pkt, int tag, SLH_DSA_KEY *key);

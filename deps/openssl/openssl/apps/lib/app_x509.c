@@ -38,53 +38,51 @@ static int x509_ctrl(void *object, int cmd, void *value, size_t value_n)
 {
     switch (cmd) {
 #ifdef EVP_PKEY_CTRL_SET1_ID
-    case EVP_PKEY_CTRL_SET1_ID:
-        {
-            ASN1_OCTET_STRING *v = mk_octet_string(value, value_n);
+    case EVP_PKEY_CTRL_SET1_ID: {
+        ASN1_OCTET_STRING *v = mk_octet_string(value, value_n);
 
-            if (v == NULL) {
-                BIO_printf(bio_err,
-                           "error: setting distinguishing ID in certificate failed\n");
-                return 0;
-            }
-
-            X509_set0_distinguishing_id(object, v);
-            return 1;
+        if (v == NULL) {
+            BIO_printf(bio_err,
+                "error: setting distinguishing ID in certificate failed\n");
+            return 0;
         }
+
+        X509_set0_distinguishing_id(object, v);
+        return 1;
+    }
 #endif
     default:
         break;
     }
-    return -2;     /* typical EVP_PKEY return for "unsupported" */
+    return -2; /* typical EVP_PKEY return for "unsupported" */
 }
 
 static int x509_req_ctrl(void *object, int cmd, void *value, size_t value_n)
 {
     switch (cmd) {
 #ifdef EVP_PKEY_CTRL_SET1_ID
-    case EVP_PKEY_CTRL_SET1_ID:
-        {
-            ASN1_OCTET_STRING *v = mk_octet_string(value, value_n);
+    case EVP_PKEY_CTRL_SET1_ID: {
+        ASN1_OCTET_STRING *v = mk_octet_string(value, value_n);
 
-            if (v == NULL) {
-                BIO_printf(bio_err,
-                           "error: setting distinguishing ID in certificate signing request failed\n");
-                return 0;
-            }
-
-            X509_REQ_set0_distinguishing_id(object, v);
-            return 1;
+        if (v == NULL) {
+            BIO_printf(bio_err,
+                "error: setting distinguishing ID in certificate signing request failed\n");
+            return 0;
         }
+
+        X509_REQ_set0_distinguishing_id(object, v);
+        return 1;
+    }
 #endif
     default:
         break;
     }
-    return -2;     /* typical EVP_PKEY return for "unsupported" */
+    return -2; /* typical EVP_PKEY return for "unsupported" */
 }
 
 static int do_x509_ctrl_string(int (*ctrl)(void *object, int cmd,
-                                           void *value, size_t value_n),
-                               void *object, const char *value)
+                                   void *value, size_t value_n),
+    void *object, const char *value)
 {
     int rv = 0;
     char *stmp, *vtmp = NULL;

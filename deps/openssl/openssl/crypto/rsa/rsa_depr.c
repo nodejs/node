@@ -27,7 +27,7 @@
 #include <openssl/rsa.h>
 
 RSA *RSA_generate_key(int bits, unsigned long e_value,
-                      void (*callback) (int, int, void *), void *cb_arg)
+    void (*callback)(int, int, void *), void *cb_arg)
 {
     int i;
     BN_GENCB *cb = BN_GENCB_new();
@@ -54,7 +54,7 @@ RSA *RSA_generate_key(int bits, unsigned long e_value,
         BN_GENCB_free(cb);
         return rsa;
     }
- err:
+err:
     BN_free(e);
     RSA_free(rsa);
     BN_GENCB_free(cb);

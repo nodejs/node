@@ -19,7 +19,7 @@
 
 #ifdef RMD160_ASM
 void ripemd160_block_x86(RIPEMD160_CTX *c, unsigned long *p, size_t num);
-# define ripemd160_block ripemd160_block_x86
+#define ripemd160_block ripemd160_block_x86
 #else
 void ripemd160_block(RIPEMD160_CTX *c, unsigned long *p, size_t num);
 #endif
@@ -36,23 +36,23 @@ int RIPEMD160_Init(RIPEMD160_CTX *c)
 }
 
 #ifndef ripemd160_block_data_order
-# ifdef X
-#  undef X
-# endif
+#ifdef X
+#undef X
+#endif
 void ripemd160_block_data_order(RIPEMD160_CTX *ctx, const void *p, size_t num)
 {
     const unsigned char *data = p;
     register unsigned MD32_REG_T A, B, C, D, E;
     unsigned MD32_REG_T a, b, c, d, e, l;
-# ifndef MD32_XARRAY
+#ifndef MD32_XARRAY
     /* See comment in crypto/sha/sha_local.h for details. */
     unsigned MD32_REG_T XX0, XX1, XX2, XX3, XX4, XX5, XX6, XX7,
         XX8, XX9, XX10, XX11, XX12, XX13, XX14, XX15;
-#  define X(i)   XX##i
-# else
+#define X(i) XX##i
+#else
     RIPEMD160_LONG XX[16];
-#  define X(i)   XX[i]
-# endif
+#define X(i) XX[i]
+#endif
 
     for (; num--;) {
 
@@ -282,7 +282,6 @@ void ripemd160_block_data_order(RIPEMD160_CTX *ctx, const void *p, size_t num)
         ctx->D = ctx->E + a + B;
         ctx->E = ctx->A + b + C;
         ctx->A = D;
-
     }
 }
 #endif

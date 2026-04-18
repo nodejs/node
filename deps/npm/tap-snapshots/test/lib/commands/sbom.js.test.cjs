@@ -11,7 +11,7 @@ exports[`test/lib/commands/sbom.js TAP sbom --omit dev > must match snapshot 1`]
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
   "name": "test-npm-sbom@1.0.0",
-  "documentNamespace": "http://spdx.org/spdxdocs/test-npm-sbom-1.0.0-00000000-0000-0000-0000-000000000000",
+  "documentNamespace": "http://spdx.org/spdxdocs/test-npm-sbom-1.0.0-12345678-90ab-cdef-1234-567890abcdef",
   "creationInfo": {
     "created": "2020-01-01T00:00:00.000Z",
     "creators": [
@@ -101,7 +101,7 @@ exports[`test/lib/commands/sbom.js TAP sbom --omit optional > must match snapsho
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
   "name": "test-npm-sbom@1.0.0",
-  "documentNamespace": "http://spdx.org/spdxdocs/test-npm-sbom-1.0.0-00000000-0000-0000-0000-000000000000",
+  "documentNamespace": "http://spdx.org/spdxdocs/test-npm-sbom-1.0.0-12345678-90ab-cdef-1234-567890abcdef",
   "creationInfo": {
     "created": "2020-01-01T00:00:00.000Z",
     "creators": [
@@ -169,7 +169,7 @@ exports[`test/lib/commands/sbom.js TAP sbom --omit peer > must match snapshot 1`
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
   "name": "test-npm-sbom@1.0.0",
-  "documentNamespace": "http://spdx.org/spdxdocs/test-npm-sbom-1.0.0-00000000-0000-0000-0000-000000000000",
+  "documentNamespace": "http://spdx.org/spdxdocs/test-npm-sbom-1.0.0-12345678-90ab-cdef-1234-567890abcdef",
   "creationInfo": {
     "created": "2020-01-01T00:00:00.000Z",
     "creators": [
@@ -236,7 +236,7 @@ exports[`test/lib/commands/sbom.js TAP sbom basic sbom - cyclonedx > must match 
   "$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:00000000-0000-0000-0000-000000000000",
+  "serialNumber": "urn:uuid:12345678-90ab-cdef-1234-567890abcdef",
   "version": 1,
   "metadata": {
     "timestamp": "2020-01-01T00:00:00.000Z",
@@ -327,7 +327,7 @@ exports[`test/lib/commands/sbom.js TAP sbom basic sbom - spdx > must match snaps
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
   "name": "test-npm-sbom@1.0.0",
-  "documentNamespace": "http://spdx.org/spdxdocs/test-npm-sbom-1.0.0-00000000-0000-0000-0000-000000000000",
+  "documentNamespace": "http://spdx.org/spdxdocs/test-npm-sbom-1.0.0-12345678-90ab-cdef-1234-567890abcdef",
   "creationInfo": {
     "created": "2020-01-01T00:00:00.000Z",
     "creators": [
@@ -438,7 +438,7 @@ exports[`test/lib/commands/sbom.js TAP sbom duplicate deps - cyclonedx > must ma
   "$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:00000000-0000-0000-0000-000000000000",
+  "serialNumber": "urn:uuid:12345678-90ab-cdef-1234-567890abcdef",
   "version": 1,
   "metadata": {
     "timestamp": "2020-01-01T00:00:00.000Z",
@@ -546,7 +546,7 @@ exports[`test/lib/commands/sbom.js TAP sbom duplicate deps - spdx > must match s
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
   "name": "test-npm-sbom@1.0.0",
-  "documentNamespace": "http://spdx.org/spdxdocs/test-npm-sbom-1.0.0-00000000-0000-0000-0000-000000000000",
+  "documentNamespace": "http://spdx.org/spdxdocs/test-npm-sbom-1.0.0-12345678-90ab-cdef-1234-567890abcdef",
   "creationInfo": {
     "created": "2020-01-01T00:00:00.000Z",
     "creators": [
@@ -685,7 +685,7 @@ exports[`test/lib/commands/sbom.js TAP sbom extraneous dep > must match snapshot
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
   "name": "test-npm-ls@1.0.0",
-  "documentNamespace": "http://spdx.org/spdxdocs/test-npm-sbom-1.0.0-00000000-0000-0000-0000-000000000000",
+  "documentNamespace": "http://spdx.org/spdxdocs/test-npm-sbom-1.0.0-12345678-90ab-cdef-1234-567890abcdef",
   "creationInfo": {
     "created": "2020-01-01T00:00:00.000Z",
     "creators": [
@@ -797,7 +797,7 @@ exports[`test/lib/commands/sbom.js TAP sbom loading a tree containing workspaces
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
   "name": "workspaces-tree@1.0.0",
-  "documentNamespace": "http://spdx.org/spdxdocs/test-npm-sbom-1.0.0-00000000-0000-0000-0000-000000000000",
+  "documentNamespace": "http://spdx.org/spdxdocs/test-npm-sbom-1.0.0-12345678-90ab-cdef-1234-567890abcdef",
   "creationInfo": {
     "created": "2020-01-01T00:00:00.000Z",
     "creators": [
@@ -980,7 +980,7 @@ exports[`test/lib/commands/sbom.js TAP sbom loading a tree containing workspaces
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
   "name": "workspaces-tree@1.0.0",
-  "documentNamespace": "http://spdx.org/spdxdocs/test-npm-sbom-1.0.0-00000000-0000-0000-0000-000000000000",
+  "documentNamespace": "http://spdx.org/spdxdocs/test-npm-sbom-1.0.0-12345678-90ab-cdef-1234-567890abcdef",
   "creationInfo": {
     "created": "2020-01-01T00:00:00.000Z",
     "creators": [
@@ -1070,7 +1070,7 @@ exports[`test/lib/commands/sbom.js TAP sbom loading a tree containing workspaces
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
   "name": "workspaces-tree@1.0.0",
-  "documentNamespace": "http://spdx.org/spdxdocs/test-npm-sbom-1.0.0-00000000-0000-0000-0000-000000000000",
+  "documentNamespace": "http://spdx.org/spdxdocs/test-npm-sbom-1.0.0-12345678-90ab-cdef-1234-567890abcdef",
   "creationInfo": {
     "created": "2020-01-01T00:00:00.000Z",
     "creators": [
@@ -1341,7 +1341,7 @@ exports[`test/lib/commands/sbom.js TAP sbom loading a tree containing workspaces
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
   "name": "workspaces-tree@1.0.0",
-  "documentNamespace": "http://spdx.org/spdxdocs/test-npm-sbom-1.0.0-00000000-0000-0000-0000-000000000000",
+  "documentNamespace": "http://spdx.org/spdxdocs/test-npm-sbom-1.0.0-12345678-90ab-cdef-1234-567890abcdef",
   "creationInfo": {
     "created": "2020-01-01T00:00:00.000Z",
     "creators": [
@@ -1413,7 +1413,7 @@ exports[`test/lib/commands/sbom.js TAP sbom lock file only > must match snapshot
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
   "name": "test-npm-ls@1.0.0",
-  "documentNamespace": "http://spdx.org/spdxdocs/test-npm-sbom-1.0.0-00000000-0000-0000-0000-000000000000",
+  "documentNamespace": "http://spdx.org/spdxdocs/test-npm-sbom-1.0.0-12345678-90ab-cdef-1234-567890abcdef",
   "creationInfo": {
     "created": "2020-01-01T00:00:00.000Z",
     "creators": [
@@ -1525,7 +1525,7 @@ exports[`test/lib/commands/sbom.js TAP sbom missing (optional) dep > must match 
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
   "name": "test-npm-ls@1.0.0",
-  "documentNamespace": "http://spdx.org/spdxdocs/test-npm-sbom-1.0.0-00000000-0000-0000-0000-000000000000",
+  "documentNamespace": "http://spdx.org/spdxdocs/test-npm-sbom-1.0.0-12345678-90ab-cdef-1234-567890abcdef",
   "creationInfo": {
     "created": "2020-01-01T00:00:00.000Z",
     "creators": [

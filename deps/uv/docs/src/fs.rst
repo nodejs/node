@@ -19,7 +19,7 @@ observable behavior. Libuv reverts to using its threadpool when the necessary
 kernel features are unavailable or unsuitable. Starting with libuv v1.49.0 this
 behavior was reverted and Libuv on Linux by default will be using the threadpool
 again. In order to enable io_uring the :c:type:`uv_loop_t` instance must be
-configured with the :c:type:`UV_LOOP_ENABLE_IO_URING_SQPOLL` option.
+configured with the :c:type:`UV_LOOP_USE_IO_URING_SQPOLL` option.
 
 .. note::
      On Windows `uv_fs_*` functions use utf-8 encoding.
@@ -129,7 +129,8 @@ Data types
             uint64_t f_bavail;
             uint64_t f_files;
             uint64_t f_ffree;
-            uint64_t f_spare[4];
+            uint64_t f_frsize;
+            uint64_t f_spare[3];
         } uv_statfs_t;
 
 .. c:enum:: uv_dirent_type_t

@@ -14,60 +14,60 @@
 
 #ifndef OPENSSL_NO_OCSP
 
-# ifndef OPENSSL_NO_ERR
+#ifndef OPENSSL_NO_ERR
 
 static const ERR_STRING_DATA OCSP_str_reasons[] = {
-    {ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_CERTIFICATE_VERIFY_ERROR),
-    "certificate verify error"},
-    {ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_DIGEST_ERR), "digest err"},
-    {ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_DIGEST_NAME_ERR), "digest name err"},
-    {ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_DIGEST_SIZE_ERR), "digest size err"},
-    {ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_ERROR_IN_NEXTUPDATE_FIELD),
-    "error in nextupdate field"},
-    {ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_ERROR_IN_THISUPDATE_FIELD),
-    "error in thisupdate field"},
-    {ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_MISSING_OCSPSIGNING_USAGE),
-    "missing ocspsigning usage"},
-    {ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_NEXTUPDATE_BEFORE_THISUPDATE),
-    "nextupdate before thisupdate"},
-    {ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_NOT_BASIC_RESPONSE),
-    "not basic response"},
-    {ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_NO_CERTIFICATES_IN_CHAIN),
-    "no certificates in chain"},
-    {ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_NO_RESPONSE_DATA), "no response data"},
-    {ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_NO_REVOKED_TIME), "no revoked time"},
-    {ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_NO_SIGNER_KEY), "no signer key"},
-    {ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_PRIVATE_KEY_DOES_NOT_MATCH_CERTIFICATE),
-    "private key does not match certificate"},
-    {ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_REQUEST_NOT_SIGNED),
-    "request not signed"},
-    {ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_RESPONSE_CONTAINS_NO_REVOCATION_DATA),
-    "response contains no revocation data"},
-    {ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_ROOT_CA_NOT_TRUSTED),
-    "root ca not trusted"},
-    {ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_SIGNATURE_FAILURE), "signature failure"},
-    {ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_SIGNER_CERTIFICATE_NOT_FOUND),
-    "signer certificate not found"},
-    {ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_STATUS_EXPIRED), "status expired"},
-    {ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_STATUS_NOT_YET_VALID),
-    "status not yet valid"},
-    {ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_STATUS_TOO_OLD), "status too old"},
-    {ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_UNKNOWN_MESSAGE_DIGEST),
-    "unknown message digest"},
-    {ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_UNKNOWN_NID), "unknown nid"},
-    {ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_UNSUPPORTED_REQUESTORNAME_TYPE),
-    "unsupported requestorname type"},
-    {0, NULL}
+    { ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_CERTIFICATE_VERIFY_ERROR),
+        "certificate verify error" },
+    { ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_DIGEST_ERR), "digest err" },
+    { ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_DIGEST_NAME_ERR), "digest name err" },
+    { ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_DIGEST_SIZE_ERR), "digest size err" },
+    { ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_ERROR_IN_NEXTUPDATE_FIELD),
+        "error in nextupdate field" },
+    { ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_ERROR_IN_THISUPDATE_FIELD),
+        "error in thisupdate field" },
+    { ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_MISSING_OCSPSIGNING_USAGE),
+        "missing ocspsigning usage" },
+    { ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_NEXTUPDATE_BEFORE_THISUPDATE),
+        "nextupdate before thisupdate" },
+    { ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_NOT_BASIC_RESPONSE),
+        "not basic response" },
+    { ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_NO_CERTIFICATES_IN_CHAIN),
+        "no certificates in chain" },
+    { ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_NO_RESPONSE_DATA), "no response data" },
+    { ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_NO_REVOKED_TIME), "no revoked time" },
+    { ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_NO_SIGNER_KEY), "no signer key" },
+    { ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_PRIVATE_KEY_DOES_NOT_MATCH_CERTIFICATE),
+        "private key does not match certificate" },
+    { ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_REQUEST_NOT_SIGNED),
+        "request not signed" },
+    { ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_RESPONSE_CONTAINS_NO_REVOCATION_DATA),
+        "response contains no revocation data" },
+    { ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_ROOT_CA_NOT_TRUSTED),
+        "root ca not trusted" },
+    { ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_SIGNATURE_FAILURE), "signature failure" },
+    { ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_SIGNER_CERTIFICATE_NOT_FOUND),
+        "signer certificate not found" },
+    { ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_STATUS_EXPIRED), "status expired" },
+    { ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_STATUS_NOT_YET_VALID),
+        "status not yet valid" },
+    { ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_STATUS_TOO_OLD), "status too old" },
+    { ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_UNKNOWN_MESSAGE_DIGEST),
+        "unknown message digest" },
+    { ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_UNKNOWN_NID), "unknown nid" },
+    { ERR_PACK(ERR_LIB_OCSP, 0, OCSP_R_UNSUPPORTED_REQUESTORNAME_TYPE),
+        "unsupported requestorname type" },
+    { 0, NULL }
 };
 
-# endif
+#endif
 
 int ossl_err_load_OCSP_strings(void)
 {
-# ifndef OPENSSL_NO_ERR
+#ifndef OPENSSL_NO_ERR
     if (ERR_reason_error_string(OCSP_str_reasons[0].error) == NULL)
         ERR_load_strings_const(OCSP_str_reasons);
-# endif
+#endif
     return 1;
 }
 #else

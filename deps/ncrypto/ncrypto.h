@@ -66,7 +66,10 @@ namespace ncrypto {
 #define NCRYPTO_STR(x) #x
 #define NCRYPTO_REQUIRE(EXPR)                                                  \
   {                                                                            \
-    if (!(EXPR) { abort(); }) }
+    if (!(EXPR)) {                                                             \
+      abort();                                                                 \
+    }                                                                          \
+  }
 
 #define NCRYPTO_FAIL(MESSAGE)                                                  \
   do {                                                                         \
@@ -855,6 +858,9 @@ class EVPKeyPointer final {
     DER,
     PEM,
     JWK,
+    RAW_PUBLIC,
+    RAW_PRIVATE,
+    RAW_SEED,
   };
 
   enum class PKParseError { NOT_RECOGNIZED, NEED_PASSPHRASE, FAILED };
@@ -864,6 +870,7 @@ class EVPKeyPointer final {
     bool output_key_object = false;
     PKFormatType format = PKFormatType::DER;
     PKEncodingType type = PKEncodingType::PKCS8;
+    int ec_point_form = POINT_CONVERSION_UNCOMPRESSED;
     AsymmetricKeyEncodingConfig() = default;
     AsymmetricKeyEncodingConfig(bool output_key_object,
                                 PKFormatType format,
@@ -1575,8 +1582,9 @@ int NoPasswordCallback(char* buf, int size, int rwflag, void* u);
 
 int PasswordCallback(char* buf, int size, int rwflag, void* u);
 
-bool SafeX509SubjectAltNamePrint(const BIOPointer& out, X509_EXTENSION* ext);
-bool SafeX509InfoAccessPrint(const BIOPointer& out, X509_EXTENSION* ext);
+bool SafeX509SubjectAltNamePrint(const BIOPointer& out,
+                                 const X509_EXTENSION* ext);
+bool SafeX509InfoAccessPrint(const BIOPointer& out, const X509_EXTENSION* ext);
 
 // ============================================================================
 // SPKAC

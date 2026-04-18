@@ -34,63 +34,78 @@
 #include <openssl/core_dispatch.h>
 
 #ifndef OPENSSL_NO_RC4
-# define DEFAULT_PVK_ENCR_STRENGTH      2
+#define DEFAULT_PVK_ENCR_STRENGTH 2
 #else
-# define DEFAULT_PVK_ENCR_STRENGTH      0
+#define DEFAULT_PVK_ENCR_STRENGTH 0
 #endif
 
 typedef enum OPTION_choice {
     OPT_COMMON,
-    OPT_INFORM, OPT_OUTFORM, OPT_ENGINE, OPT_IN, OPT_OUT,
-    OPT_PUBIN, OPT_PUBOUT, OPT_PASSOUT, OPT_PASSIN,
-    OPT_RSAPUBKEY_IN, OPT_RSAPUBKEY_OUT,
+    OPT_INFORM,
+    OPT_OUTFORM,
+    OPT_ENGINE,
+    OPT_IN,
+    OPT_OUT,
+    OPT_PUBIN,
+    OPT_PUBOUT,
+    OPT_PASSOUT,
+    OPT_PASSIN,
+    OPT_RSAPUBKEY_IN,
+    OPT_RSAPUBKEY_OUT,
     /* Do not change the order here; see case statements below */
-    OPT_PVK_NONE, OPT_PVK_WEAK, OPT_PVK_STRONG,
-    OPT_NOOUT, OPT_TEXT, OPT_MODULUS, OPT_CHECK, OPT_CIPHER,
-    OPT_PROV_ENUM, OPT_TRADITIONAL
+    OPT_PVK_NONE,
+    OPT_PVK_WEAK,
+    OPT_PVK_STRONG,
+    OPT_NOOUT,
+    OPT_TEXT,
+    OPT_MODULUS,
+    OPT_CHECK,
+    OPT_CIPHER,
+    OPT_PROV_ENUM,
+    OPT_TRADITIONAL
 } OPTION_CHOICE;
 
 const OPTIONS rsa_options[] = {
     OPT_SECTION("General"),
-    {"help", OPT_HELP, '-', "Display this summary"},
-    {"check", OPT_CHECK, '-', "Verify key consistency"},
-    {"", OPT_CIPHER, '-', "Any supported cipher"},
+    { "help", OPT_HELP, '-', "Display this summary" },
+    { "check", OPT_CHECK, '-', "Verify key consistency" },
+    { "", OPT_CIPHER, '-', "Any supported cipher" },
 #ifndef OPENSSL_NO_ENGINE
-    {"engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device"},
+    { "engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device" },
 #endif
 
     OPT_SECTION("Input"),
-    {"in", OPT_IN, 's', "Input file"},
-    {"inform", OPT_INFORM, 'f', "Input format (DER/PEM/P12/ENGINE)"},
-    {"pubin", OPT_PUBIN, '-', "Expect a public key in input file"},
-    {"RSAPublicKey_in", OPT_RSAPUBKEY_IN, '-', "Input is an RSAPublicKey"},
-    {"passin", OPT_PASSIN, 's', "Input file pass phrase source"},
+    { "in", OPT_IN, 's', "Input file" },
+    { "inform", OPT_INFORM, 'f', "Input format (DER/PEM/P12/ENGINE)" },
+    { "pubin", OPT_PUBIN, '-', "Expect a public key in input file" },
+    { "RSAPublicKey_in", OPT_RSAPUBKEY_IN, '-', "Input is an RSAPublicKey" },
+    { "passin", OPT_PASSIN, 's', "Input file pass phrase source" },
 
     OPT_SECTION("Output"),
-    {"out", OPT_OUT, '>', "Output file"},
-    {"outform", OPT_OUTFORM, 'f', "Output format, one of DER PEM PVK"},
-    {"pubout", OPT_PUBOUT, '-', "Output a public key"},
-    {"RSAPublicKey_out", OPT_RSAPUBKEY_OUT, '-', "Output is an RSAPublicKey"},
-    {"passout", OPT_PASSOUT, 's', "Output file pass phrase source"},
-    {"noout", OPT_NOOUT, '-', "Don't print key out"},
-    {"text", OPT_TEXT, '-', "Print the key in text"},
-    {"modulus", OPT_MODULUS, '-', "Print the RSA key modulus"},
-    {"traditional", OPT_TRADITIONAL, '-',
-     "Use traditional format for private keys"},
+    { "out", OPT_OUT, '>', "Output file" },
+    { "outform", OPT_OUTFORM, 'f', "Output format, one of DER PEM PVK" },
+    { "pubout", OPT_PUBOUT, '-', "Output a public key" },
+    { "RSAPublicKey_out", OPT_RSAPUBKEY_OUT, '-', "Output is an RSAPublicKey" },
+    { "passout", OPT_PASSOUT, 's', "Output file pass phrase source" },
+    { "noout", OPT_NOOUT, '-', "Don't print key out" },
+    { "text", OPT_TEXT, '-', "Print the key in text" },
+    { "modulus", OPT_MODULUS, '-', "Print the RSA key modulus" },
+    { "traditional", OPT_TRADITIONAL, '-',
+        "Use traditional format for private keys" },
 
 #ifndef OPENSSL_NO_RC4
     OPT_SECTION("PVK"),
-    {"pvk-strong", OPT_PVK_STRONG, '-', "Enable 'Strong' PVK encoding level (default)"},
-    {"pvk-weak", OPT_PVK_WEAK, '-', "Enable 'Weak' PVK encoding level"},
-    {"pvk-none", OPT_PVK_NONE, '-', "Don't enforce PVK encoding"},
+    { "pvk-strong", OPT_PVK_STRONG, '-', "Enable 'Strong' PVK encoding level (default)" },
+    { "pvk-weak", OPT_PVK_WEAK, '-', "Enable 'Weak' PVK encoding level" },
+    { "pvk-none", OPT_PVK_NONE, '-', "Don't enforce PVK encoding" },
 #endif
 
     OPT_PROV_OPTIONS,
-    {NULL}
+    { NULL }
 };
 
 static int try_legacy_encoding(EVP_PKEY *pkey, int outformat, int pubout,
-                               BIO *out)
+    BIO *out)
 {
     int ret = 0;
 #ifndef OPENSSL_NO_DEPRECATED_3_0
@@ -109,10 +124,10 @@ static int try_legacy_encoding(EVP_PKEY *pkey, int outformat, int pubout,
             ret = PEM_write_bio_RSAPublicKey(out, rsa) > 0;
         else
             ret = PEM_write_bio_RSA_PUBKEY(out, rsa) > 0;
-# ifndef OPENSSL_NO_DSA
+#ifndef OPENSSL_NO_DSA
     } else if (outformat == FORMAT_MSBLOB || outformat == FORMAT_PVK) {
         ret = i2b_PublicKey_bio(out, pkey) > 0;
-# endif
+#endif
     }
 #endif
 
@@ -145,7 +160,7 @@ int rsa_main(int argc, char **argv)
         switch (o) {
         case OPT_EOF:
         case OPT_ERR:
- opthelp:
+        opthelp:
             BIO_printf(bio_err, "%s: Use -help for summary.\n", prog);
             goto end;
         case OPT_HELP:
@@ -187,9 +202,9 @@ int rsa_main(int argc, char **argv)
         case OPT_RSAPUBKEY_OUT:
             pubout = 2;
             break;
-        case OPT_PVK_STRONG:    /* pvk_encr:= 2 */
-        case OPT_PVK_WEAK:      /* pvk_encr:= 1 */
-        case OPT_PVK_NONE:      /* pvk_encr:= 0 */
+        case OPT_PVK_STRONG: /* pvk_encr:= 2 */
+        case OPT_PVK_WEAK: /* pvk_encr:= 1 */
+        case OPT_PVK_NONE: /* pvk_encr:= 0 */
             pvk_encr = (o - OPT_PVK_NONE);
             break;
         case OPT_NOOUT:
@@ -338,7 +353,7 @@ int rsa_main(int argc, char **argv)
     } else {
         assert(private);
         selection = (OSSL_KEYMGMT_SELECT_KEYPAIR
-                     | OSSL_KEYMGMT_SELECT_ALL_PARAMETERS);
+            | OSSL_KEYMGMT_SELECT_ALL_PARAMETERS);
     }
 
     /* For DER based output, select the desired output structure */
@@ -359,8 +374,8 @@ int rsa_main(int argc, char **argv)
 
     /* Now, perform the encoding */
     ectx = OSSL_ENCODER_CTX_new_for_pkey(pkey, selection,
-                                         output_type, output_structure,
-                                         NULL);
+        output_type, output_structure,
+        NULL);
     if (OSSL_ENCODER_CTX_get_num_encoders(ectx) == 0) {
         if ((!pubout && !pubin)
             || !try_legacy_encoding(pkey, outformat, pubout, out))
@@ -380,8 +395,8 @@ int rsa_main(int argc, char **argv)
         if (passout != NULL)
             /* When passout given, override the passphrase prompter */
             OSSL_ENCODER_CTX_set_passphrase(ectx,
-                                            (const unsigned char *)passout,
-                                            strlen(passout));
+                (const unsigned char *)passout,
+                strlen(passout));
     }
 
     /* PVK is a bit special... */
@@ -401,7 +416,7 @@ int rsa_main(int argc, char **argv)
         goto end;
     }
     ret = 0;
- end:
+end:
     OSSL_ENCODER_CTX_free(ectx);
     release_engine(e);
     BIO_free_all(out);

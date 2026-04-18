@@ -12,9 +12,9 @@
 #include "crypto/sm4_platform.h"
 
 PROV_CIPHER_FUNC(void, xts_stream,
-                 (const unsigned char *in, unsigned char *out, size_t len,
-                  const SM4_KEY *key1, const SM4_KEY *key2,
-                  const unsigned char iv[16], const int enc));
+    (const unsigned char *in, unsigned char *out, size_t len,
+        const SM4_KEY *key1, const SM4_KEY *key2,
+        const unsigned char iv[16], const int enc));
 
 typedef struct prov_sm4_xts_ctx_st {
     /* Must be first */

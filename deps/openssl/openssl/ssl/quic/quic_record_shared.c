@@ -18,8 +18,8 @@ static const unsigned char quic_v1_ku_label[] = {
 };
 
 OSSL_QRL_ENC_LEVEL *ossl_qrl_enc_level_set_get(OSSL_QRL_ENC_LEVEL_SET *els,
-                                               uint32_t enc_level,
-                                               int require_prov)
+    uint32_t enc_level,
+    int require_prov)
 {
     OSSL_QRL_ENC_LEVEL *el;
 
@@ -30,39 +30,39 @@ OSSL_QRL_ENC_LEVEL *ossl_qrl_enc_level_set_get(OSSL_QRL_ENC_LEVEL_SET *els,
 
     if (require_prov)
         switch (el->state) {
-            case QRL_EL_STATE_PROV_NORMAL:
-            case QRL_EL_STATE_PROV_UPDATING:
-            case QRL_EL_STATE_PROV_COOLDOWN:
-                break;
-            default:
-                return NULL;
+        case QRL_EL_STATE_PROV_NORMAL:
+        case QRL_EL_STATE_PROV_UPDATING:
+        case QRL_EL_STATE_PROV_COOLDOWN:
+            break;
+        default:
+            return NULL;
         }
 
     return el;
 }
 
 int ossl_qrl_enc_level_set_have_el(OSSL_QRL_ENC_LEVEL_SET *els,
-                                  uint32_t enc_level)
+    uint32_t enc_level)
 {
     OSSL_QRL_ENC_LEVEL *el = ossl_qrl_enc_level_set_get(els, enc_level, 0);
 
     switch (el->state) {
-        case QRL_EL_STATE_UNPROV:
-            return 0;
-        case QRL_EL_STATE_PROV_NORMAL:
-        case QRL_EL_STATE_PROV_UPDATING:
-        case QRL_EL_STATE_PROV_COOLDOWN:
-            return 1;
-        default:
-        case QRL_EL_STATE_DISCARDED:
-            return -1;
+    case QRL_EL_STATE_UNPROV:
+        return 0;
+    case QRL_EL_STATE_PROV_NORMAL:
+    case QRL_EL_STATE_PROV_UPDATING:
+    case QRL_EL_STATE_PROV_COOLDOWN:
+        return 1;
+    default:
+    case QRL_EL_STATE_DISCARDED:
+        return -1;
     }
 }
 
 int ossl_qrl_enc_level_set_has_keyslot(OSSL_QRL_ENC_LEVEL_SET *els,
-                                       uint32_t enc_level,
-                                       unsigned char tgt_state,
-                                       size_t keyslot)
+    uint32_t enc_level,
+    unsigned char tgt_state,
+    size_t keyslot)
 {
     OSSL_QRL_ENC_LEVEL *el = ossl_qrl_enc_level_set_get(els, enc_level, 0);
 
@@ -70,20 +70,20 @@ int ossl_qrl_enc_level_set_has_keyslot(OSSL_QRL_ENC_LEVEL_SET *els,
         return 0;
 
     switch (tgt_state) {
-        case QRL_EL_STATE_PROV_NORMAL:
-        case QRL_EL_STATE_PROV_UPDATING:
-            return enc_level == QUIC_ENC_LEVEL_1RTT || keyslot == 0;
-        case QRL_EL_STATE_PROV_COOLDOWN:
-            assert(enc_level == QUIC_ENC_LEVEL_1RTT);
-            return keyslot == (el->key_epoch & 1);
-        default:
-            return 0;
+    case QRL_EL_STATE_PROV_NORMAL:
+    case QRL_EL_STATE_PROV_UPDATING:
+        return enc_level == QUIC_ENC_LEVEL_1RTT || keyslot == 0;
+    case QRL_EL_STATE_PROV_COOLDOWN:
+        assert(enc_level == QUIC_ENC_LEVEL_1RTT);
+        return keyslot == (el->key_epoch & 1);
+    default:
+        return 0;
     }
 }
 
 static void el_teardown_keyslot(OSSL_QRL_ENC_LEVEL_SET *els,
-                                uint32_t enc_level,
-                                size_t keyslot)
+    uint32_t enc_level,
+    size_t keyslot)
 {
     OSSL_QRL_ENC_LEVEL *el = ossl_qrl_enc_level_set_get(els, enc_level, 0);
 
@@ -99,11 +99,11 @@ static void el_teardown_keyslot(OSSL_QRL_ENC_LEVEL_SET *els,
 }
 
 static int el_setup_keyslot(OSSL_QRL_ENC_LEVEL_SET *els,
-                            uint32_t enc_level,
-                            unsigned char tgt_state,
-                            size_t keyslot,
-                            const unsigned char *secret,
-                            size_t secret_len)
+    uint32_t enc_level,
+    unsigned char tgt_state,
+    size_t keyslot,
+    const unsigned char *secret,
+    size_t secret_len)
 {
     OSSL_QRL_ENC_LEVEL *el = ossl_qrl_enc_level_set_get(els, enc_level, 0);
     unsigned char key[EVP_MAX_KEY_LENGTH];
@@ -113,15 +113,15 @@ static int el_setup_keyslot(OSSL_QRL_ENC_LEVEL_SET *els,
     EVP_CIPHER_CTX *cctx = NULL;
 
     if (!ossl_assert(el != NULL
-                     && ossl_qrl_enc_level_set_has_keyslot(els, enc_level,
-                                                           tgt_state, keyslot))) {
+            && ossl_qrl_enc_level_set_has_keyslot(els, enc_level,
+                tgt_state, keyslot))) {
         ERR_raise(ERR_LIB_SSL, ERR_R_PASSED_INVALID_ARGUMENT);
         return 0;
     }
 
     cipher_name = ossl_qrl_get_suite_cipher_name(el->suite_id);
-    iv_len      = ossl_qrl_get_suite_cipher_iv_len(el->suite_id);
-    key_len     = ossl_qrl_get_suite_cipher_key_len(el->suite_id);
+    iv_len = ossl_qrl_get_suite_cipher_iv_len(el->suite_id);
+    key_len = ossl_qrl_get_suite_cipher_key_len(el->suite_id);
     if (cipher_name == NULL) {
         ERR_raise(ERR_LIB_SSL, ERR_R_INTERNAL_ERROR);
         return 0;
@@ -137,22 +137,22 @@ static int el_setup_keyslot(OSSL_QRL_ENC_LEVEL_SET *els,
 
     /* Derive "quic iv" key. */
     if (!tls13_hkdf_expand_ex(el->libctx, el->propq,
-                              el->md,
-                              secret,
-                              quic_v1_iv_label,
-                              sizeof(quic_v1_iv_label),
-                              NULL, 0,
-                              el->iv[keyslot], iv_len, 1))
+            el->md,
+            secret,
+            quic_v1_iv_label,
+            sizeof(quic_v1_iv_label),
+            NULL, 0,
+            el->iv[keyslot], iv_len, 1))
         goto err;
 
     /* Derive "quic key" key. */
     if (!tls13_hkdf_expand_ex(el->libctx, el->propq,
-                              el->md,
-                              secret,
-                              quic_v1_key_label,
-                              sizeof(quic_v1_key_label),
-                              NULL, 0,
-                              key, key_len, 1))
+            el->md,
+            secret,
+            quic_v1_key_label,
+            sizeof(quic_v1_key_label),
+            NULL, 0,
+            key, key_len, 1))
         goto err;
 
     /* Create and initialise cipher context. */
@@ -185,7 +185,7 @@ static int el_setup_keyslot(OSSL_QRL_ENC_LEVEL_SET *els,
     EVP_CIPHER_free(cipher);
     return 1;
 
- err:
+err:
     EVP_CIPHER_CTX_free(cctx);
     EVP_CIPHER_free(cipher);
     OPENSSL_cleanse(el->iv[keyslot], sizeof(el->iv[keyslot]));
@@ -194,15 +194,15 @@ static int el_setup_keyslot(OSSL_QRL_ENC_LEVEL_SET *els,
 }
 
 int ossl_qrl_enc_level_set_provide_secret(OSSL_QRL_ENC_LEVEL_SET *els,
-                                          OSSL_LIB_CTX *libctx,
-                                          const char *propq,
-                                          uint32_t enc_level,
-                                          uint32_t suite_id,
-                                          EVP_MD *md,
-                                          const unsigned char *secret,
-                                          size_t secret_len,
-                                          unsigned char init_key_phase_bit,
-                                          int is_tx)
+    OSSL_LIB_CTX *libctx,
+    const char *propq,
+    uint32_t enc_level,
+    uint32_t suite_id,
+    EVP_MD *md,
+    const unsigned char *secret,
+    size_t secret_len,
+    unsigned char init_key_phase_bit,
+    int is_tx)
 {
     OSSL_QRL_ENC_LEVEL *el = ossl_qrl_enc_level_set_get(els, enc_level, 0);
     unsigned char ku_key[EVP_MAX_KEY_LENGTH], hpr_key[EVP_MAX_KEY_LENGTH];
@@ -252,28 +252,28 @@ int ossl_qrl_enc_level_set_provide_secret(OSSL_QRL_ENC_LEVEL_SET *els,
         own_md = 1;
     }
 
-    el->libctx      = libctx;
-    el->propq       = propq;
-    el->md          = md;
-    el->suite_id    = suite_id;
-    el->tag_len     = ossl_qrl_get_suite_cipher_tag_len(suite_id);
-    el->op_count    = 0;
-    el->key_epoch   = (uint64_t)init_key_phase_bit;
-    el->is_tx       = (unsigned char)is_tx;
+    el->libctx = libctx;
+    el->propq = propq;
+    el->md = md;
+    el->suite_id = suite_id;
+    el->tag_len = ossl_qrl_get_suite_cipher_tag_len(suite_id);
+    el->op_count = 0;
+    el->key_epoch = (uint64_t)init_key_phase_bit;
+    el->is_tx = (unsigned char)is_tx;
 
     /* Derive "quic hp" key. */
     if (!tls13_hkdf_expand_ex(libctx, propq,
-                              md,
-                              secret,
-                              quic_v1_hp_label,
-                              sizeof(quic_v1_hp_label),
-                              NULL, 0,
-                              hpr_key, hpr_key_len, 1))
+            md,
+            secret,
+            quic_v1_hp_label,
+            sizeof(quic_v1_hp_label),
+            NULL, 0,
+            hpr_key, hpr_key_len, 1))
         goto err;
 
     /* Setup KS0 (or KS1 if init_key_phase_bit), our initial keyslot. */
     if (!el_setup_keyslot(els, enc_level, QRL_EL_STATE_PROV_NORMAL,
-                          init_keyslot, secret, secret_len))
+            init_keyslot, secret, secret_len))
         goto err;
 
     have_ks0 = 1;
@@ -281,39 +281,39 @@ int ossl_qrl_enc_level_set_provide_secret(OSSL_QRL_ENC_LEVEL_SET *els,
     if (enc_level == QUIC_ENC_LEVEL_1RTT) {
         /* Derive "quic ku" key (the epoch 1 secret). */
         if (!tls13_hkdf_expand_ex(libctx, propq,
-                                  md,
-                                  secret,
-                                  quic_v1_ku_label,
-                                  sizeof(quic_v1_ku_label),
-                                  NULL, 0,
-                                  is_tx ? el->ku : ku_key, secret_len, 1))
+                md,
+                secret,
+                quic_v1_ku_label,
+                sizeof(quic_v1_ku_label),
+                NULL, 0,
+                is_tx ? el->ku : ku_key, secret_len, 1))
             goto err;
 
         if (!is_tx) {
             /* Setup KS1 (or KS0 if init_key_phase_bit), our next keyslot. */
             if (!el_setup_keyslot(els, enc_level, QRL_EL_STATE_PROV_NORMAL,
-                                  !init_keyslot, ku_key, secret_len))
+                    !init_keyslot, ku_key, secret_len))
                 goto err;
 
             have_ks1 = 1;
 
             /* Derive NEXT "quic ku" key (the epoch 2 secret). */
             if (!tls13_hkdf_expand_ex(libctx, propq,
-                                      md,
-                                      ku_key,
-                                      quic_v1_ku_label,
-                                      sizeof(quic_v1_ku_label),
-                                      NULL, 0,
-                                      el->ku, secret_len, 1))
+                    md,
+                    ku_key,
+                    quic_v1_ku_label,
+                    sizeof(quic_v1_ku_label),
+                    NULL, 0,
+                    el->ku, secret_len, 1))
                 goto err;
         }
     }
 
     /* Setup header protection context. */
     if (!ossl_quic_hdr_protector_init(&el->hpr,
-                                      libctx, propq,
-                                      ossl_qrl_get_suite_hdr_prot_cipher_id(suite_id),
-                                      hpr_key, hpr_key_len))
+            libctx, propq,
+            ossl_qrl_get_suite_hdr_prot_cipher_id(suite_id),
+            hpr_key, hpr_key_len))
         goto err;
 
     /*
@@ -327,7 +327,7 @@ int ossl_qrl_enc_level_set_provide_secret(OSSL_QRL_ENC_LEVEL_SET *els,
     el->state = QRL_EL_STATE_PROV_NORMAL;
     return 1;
 
- err:
+err:
     el->suite_id = 0;
     el->md = NULL;
     OPENSSL_cleanse(hpr_key, sizeof(hpr_key));
@@ -343,7 +343,7 @@ int ossl_qrl_enc_level_set_provide_secret(OSSL_QRL_ENC_LEVEL_SET *els,
 }
 
 int ossl_qrl_enc_level_set_key_update(OSSL_QRL_ENC_LEVEL_SET *els,
-                                      uint32_t enc_level)
+    uint32_t enc_level)
 {
     OSSL_QRL_ENC_LEVEL *el = ossl_qrl_enc_level_set_get(els, enc_level, 0);
     size_t secret_len;
@@ -376,18 +376,18 @@ int ossl_qrl_enc_level_set_key_update(OSSL_QRL_ENC_LEVEL_SET *els,
 
     /* Derive NEXT "quic ku" key (the epoch n+1 secret). */
     if (!tls13_hkdf_expand_ex(el->libctx, el->propq,
-                              el->md, el->ku,
-                              quic_v1_ku_label,
-                              sizeof(quic_v1_ku_label),
-                              NULL, 0,
-                              new_ku, secret_len, 1))
+            el->md, el->ku,
+            quic_v1_ku_label,
+            sizeof(quic_v1_ku_label),
+            NULL, 0,
+            new_ku, secret_len, 1))
         return 0;
 
     el_teardown_keyslot(els, enc_level, 0);
 
     /* Setup keyslot for CURRENT "quic ku" key. */
     if (!el_setup_keyslot(els, enc_level, QRL_EL_STATE_PROV_NORMAL,
-                          0, el->ku, secret_len))
+            0, el->ku, secret_len))
         return 0;
 
     ++el->key_epoch;
@@ -399,7 +399,7 @@ int ossl_qrl_enc_level_set_key_update(OSSL_QRL_ENC_LEVEL_SET *els,
 
 /* Transitions from PROV_UPDATING to PROV_COOLDOWN. */
 int ossl_qrl_enc_level_set_key_update_done(OSSL_QRL_ENC_LEVEL_SET *els,
-                                           uint32_t enc_level)
+    uint32_t enc_level)
 {
     OSSL_QRL_ENC_LEVEL *el = ossl_qrl_enc_level_set_get(els, enc_level, 0);
 
@@ -419,7 +419,7 @@ int ossl_qrl_enc_level_set_key_update_done(OSSL_QRL_ENC_LEVEL_SET *els,
  * auto-transitions to PROV_COOLDOWN first.)
  */
 int ossl_qrl_enc_level_set_key_cooldown_done(OSSL_QRL_ENC_LEVEL_SET *els,
-                                             uint32_t enc_level)
+    uint32_t enc_level)
 {
     OSSL_QRL_ENC_LEVEL *el = ossl_qrl_enc_level_set_get(els, enc_level, 0);
     size_t secret_len;
@@ -444,17 +444,17 @@ int ossl_qrl_enc_level_set_key_cooldown_done(OSSL_QRL_ENC_LEVEL_SET *els,
     secret_len = ossl_qrl_get_suite_secret_len(el->suite_id);
 
     if (!el_setup_keyslot(els, enc_level, QRL_EL_STATE_PROV_NORMAL,
-                          ~el->key_epoch & 1, el->ku, secret_len))
+            ~el->key_epoch & 1, el->ku, secret_len))
         return 0;
 
     /* Derive NEXT "quic ku" key (the epoch n+1 secret). */
     if (!tls13_hkdf_expand_ex(el->libctx, el->propq,
-                              el->md,
-                              el->ku,
-                              quic_v1_ku_label,
-                              sizeof(quic_v1_ku_label),
-                              NULL, 0,
-                              new_ku, secret_len, 1)) {
+            el->md,
+            el->ku,
+            quic_v1_ku_label,
+            sizeof(quic_v1_ku_label),
+            NULL, 0,
+            new_ku, secret_len, 1)) {
         el_teardown_keyslot(els, enc_level, ~el->key_epoch & 1);
         return 0;
     }
@@ -469,7 +469,7 @@ int ossl_qrl_enc_level_set_key_cooldown_done(OSSL_QRL_ENC_LEVEL_SET *els,
  * state to DISCARDED.
  */
 void ossl_qrl_enc_level_set_discard(OSSL_QRL_ENC_LEVEL_SET *els,
-                                    uint32_t enc_level)
+    uint32_t enc_level)
 {
     OSSL_QRL_ENC_LEVEL *el = ossl_qrl_enc_level_set_get(els, enc_level, 0);
 
@@ -484,6 +484,6 @@ void ossl_qrl_enc_level_set_discard(OSSL_QRL_ENC_LEVEL_SET *els,
     }
 
     EVP_MD_free(el->md);
-    el->md      = NULL;
-    el->state   = QRL_EL_STATE_DISCARDED;
+    el->md = NULL;
+    el->state = QRL_EL_STATE_DISCARDED;
 }

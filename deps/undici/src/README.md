@@ -103,7 +103,7 @@ const response = await fetch('https://api.example.com/data');
 - Superior performance, especially with `undici.request`
 - HTTP/1.1 pipelining support
 - Custom interceptors and middleware
-- Advanced features like `ProxyAgent`, `MockAgent`
+- Advanced features like `ProxyAgent`, `Socks5Agent`, `MockAgent`
 
 **Cons:**
 - Additional dependency to manage
@@ -122,7 +122,7 @@ const response = await fetch('https://api.example.com/data');
 #### Use Undici Module When:
 - You need the latest undici features and performance improvements
 - You require advanced connection pooling configuration
-- You need APIs not available in the built-in fetch (`ProxyAgent`, `MockAgent`, etc.)
+- You need APIs not available in the built-in fetch (`ProxyAgent`, `Socks5Agent`, `MockAgent`, etc.)
 - Performance is critical (use `undici.request` for maximum speed)
 - You want better error handling and debugging capabilities
 - You need HTTP/1.1 pipelining or advanced interceptors
@@ -154,6 +154,57 @@ const { statusCode, body } = await request('https://api.example.com/data');
 const data = await body.json();
 ```
 
+### Keep `fetch` and `FormData` together
+
+When you send a `FormData` body, keep `fetch` and `FormData` from the same
+implementation.
+
+Use one of these patterns:
+
+```js
+// Built-in globals
+const body = new FormData()
+body.set('name', 'some')
+await fetch('https://example.com', {
+  method: 'POST',
+  body
+})
+```
+
+```js
+// undici module imports
+import { fetch, FormData } from 'undici'
+
+const body = new FormData()
+body.set('name', 'some')
+await fetch('https://example.com', {
+  method: 'POST',
+  body
+})
+```
+
+If you want the installed `undici` package to provide the globals, call
+`install()` first:
+
+```js
+import { install } from 'undici'
+
+install()
+
+const body = new FormData()
+body.set('name', 'some')
+await fetch('https://example.com', {
+  method: 'POST',
+  body
+})
+```
+
+`install()` replaces the global `fetch`, `Headers`, `Response`, `Request`, and
+`FormData` implementations with undici's versions, so they all match.
+
+Avoid mixing a global `FormData` with `undici.fetch()`, or `undici.FormData`
+with the built-in global `fetch()`.
+
 ### Version Compatibility
 
 You can check which version of undici is bundled with your Node.js version:
@@ -165,6 +216,8 @@ console.log(process.versions.undici);
 Installing undici as a module allows you to use a newer version than what's bundled with Node.js, giving you access to the latest features and performance improvements.
 
 ## Quick Start
+
+### Basic Request
 
 ```js
 import { request } from 'undici'
@@ -183,6 +236,50 @@ for await (const data of body) { console.log('data', data) }
 
 console.log('trailers', trailers)
 ```
+
+### Using Cache Interceptor
+
+Undici provides a powerful HTTP caching interceptor that follows HTTP caching best practices. Here's how to use it:
+
+```js
+import { fetch, Agent, interceptors, cacheStores } from 'undici';
+
+// Create a client with cache interceptor
+const client = new Agent().compose(interceptors.cache({
+  // Optional: Configure cache store (defaults to MemoryCacheStore)
+  store: new cacheStores.MemoryCacheStore({
+    maxSize: 100 * 1024 * 1024, // 100MB
+    maxCount: 1000,
+    maxEntrySize: 5 * 1024 * 1024 // 5MB
+  }),
+  
+  // Optional: Specify which HTTP methods to cache (default: ['GET', 'HEAD'])
+  methods: ['GET', 'HEAD']
+}));
+
+// Set the global dispatcher to use our caching client
+setGlobalDispatcher(client);
+
+// Now all fetch requests will use the cache
+async function getData() {
+  const response = await fetch('https://api.example.com/data');
+  // The server should set appropriate Cache-Control headers in the response
+  // which the cache will respect based on the cache policy
+  return response.json();
+}
+
+// First request - fetches from origin
+const data1 = await getData();
+
+// Second request - served from cache if within max-age
+const data2 = await getData();
+```
+
+#### Key Features:
+- **Automatic Caching**: Respects `Cache-Control` and `Expires` headers
+- **Validation**: Supports `ETag` and `Last-Modified` validation
+- **Storage Options**: In-memory or persistent SQLite storage
+- **Flexible**: Configure cache size, TTL, and more
 
 ## Global Installation
 
@@ -216,6 +313,11 @@ The `install()` function adds the following classes to `globalThis`:
 - `WebSocket` - WebSocket client
 - `CloseEvent`, `ErrorEvent`, `MessageEvent` - WebSocket events
 - `EventSource` - Server-sent events client
+
+When you call `install()`, these globals come from the same undici
+implementation. For example, global `fetch` and global `FormData` will both be
+undici's versions, which is the recommended setup if you want to use undici
+through globals.
 
 This is useful for:
 - Polyfilling environments that don't have fetch
@@ -472,7 +574,7 @@ Note that consuming the response body is _mandatory_ for `request`:
 ```js
 // Do
 const { body, headers } = await request(url);
-await res.body.dump(); // force consumption of body
+await body.dump(); // force consumption of body
 
 // Do not
 const { headers } = await request(url);
@@ -486,6 +588,12 @@ const { headers } = await request(url);
 * https://github.com/wintercg/fetch/issues/6
 
 The [Fetch Standard](https://fetch.spec.whatwg.org) requires implementations to exclude certain headers from requests and responses. In browser environments, some headers are forbidden so the user agent remains in full control over them. In Undici, these constraints are removed to give more control to the user.
+
+#### Content-Encoding
+
+* https://www.rfc-editor.org/rfc/rfc9110#field.content-encoding
+
+Undici limits the number of `Content-Encoding` layers in a response to **5** to prevent resource exhaustion attacks. If a server responds with more than 5 content-encodings (e.g., `Content-Encoding: gzip, gzip, gzip, gzip, gzip, gzip`), the fetch will be rejected with an error. This limit matches the approach taken by [curl](https://curl.se/docs/CVE-2022-32206.html) and [urllib3](https://github.com/advisories/GHSA-gm62-xv2j-4rw9).
 
 #### `undici.upgrade([url, options]): Promise`
 
@@ -510,6 +618,12 @@ See [Dispatcher.upgrade](./docs/docs/api/Dispatcher.md#dispatcherupgradeoptions-
 
 Sets the global dispatcher used by Common API Methods. Global dispatcher is shared among compatible undici modules,
 including undici that is bundled internally with node.js.
+
+Undici stores this dispatcher under `Symbol.for('undici.globalDispatcher.2')`.
+
+`setGlobalDispatcher()` also mirrors the configured dispatcher to
+`Symbol.for('undici.globalDispatcher.1')` using `Dispatcher1Wrapper`, so Node.js built-in `fetch`
+can keep using the legacy handler contract while Undici uses the new handler API.
 
 ### `undici.getGlobalDispatcher()`
 

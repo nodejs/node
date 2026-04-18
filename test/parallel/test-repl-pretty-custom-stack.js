@@ -10,8 +10,6 @@ function run({ command, expected }) {
   const { replServer, output } = startNewREPLServer({
     terminal: false,
     useColors: false
-  }, {
-    disableDomainErrorAssert: true,
   });
 
   replServer.write(`${command}\n`);

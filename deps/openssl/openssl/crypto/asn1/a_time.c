@@ -258,13 +258,13 @@ int ossl_asn1_time_to_tm(struct tm *tm, const ASN1_TIME *d)
             *tm = tmp;
         return 1;
     }
- err:
+err:
     return 0;
 }
 
 ASN1_TIME *ossl_asn1_time_from_tm(ASN1_TIME *s, struct tm *ts, int type)
 {
-    char* p;
+    char *p;
     ASN1_TIME *tmps = NULL;
     const size_t len = 20;
 
@@ -291,7 +291,7 @@ ASN1_TIME *ossl_asn1_time_from_tm(ASN1_TIME *s, struct tm *ts, int type)
         goto err;
 
     tmps->type = type;
-    p = (char*)tmps->data;
+    p = (char *)tmps->data;
 
     if (ts->tm_mon > INT_MAX - 1)
         goto err;
@@ -300,21 +300,21 @@ ASN1_TIME *ossl_asn1_time_from_tm(ASN1_TIME *s, struct tm *ts, int type)
         if (ts->tm_year > INT_MAX - 1900)
             goto err;
         tmps->length = BIO_snprintf(p, len, "%04d%02d%02d%02d%02d%02dZ",
-                                    ts->tm_year + 1900, ts->tm_mon + 1,
-                                    ts->tm_mday, ts->tm_hour, ts->tm_min,
-                                    ts->tm_sec);
+            ts->tm_year + 1900, ts->tm_mon + 1,
+            ts->tm_mday, ts->tm_hour, ts->tm_min,
+            ts->tm_sec);
     } else {
         tmps->length = BIO_snprintf(p, len, "%02d%02d%02d%02d%02d%02dZ",
-                                    ts->tm_year % 100, ts->tm_mon + 1,
-                                    ts->tm_mday, ts->tm_hour, ts->tm_min,
-                                    ts->tm_sec);
+            ts->tm_year % 100, ts->tm_mon + 1,
+            ts->tm_mday, ts->tm_hour, ts->tm_min,
+            ts->tm_sec);
     }
 
 #ifdef CHARSET_EBCDIC
     ebcdic2ascii(tmps->data, tmps->data, tmps->length);
 #endif
     return tmps;
- err:
+err:
     if (tmps != s)
         ASN1_STRING_free(tmps);
     return NULL;
@@ -326,7 +326,7 @@ ASN1_TIME *ASN1_TIME_set(ASN1_TIME *s, time_t t)
 }
 
 ASN1_TIME *ASN1_TIME_adj(ASN1_TIME *s, time_t t,
-                         int offset_day, long offset_sec)
+    int offset_day, long offset_sec)
 {
     struct tm *ts;
     struct tm data;
@@ -354,7 +354,7 @@ int ASN1_TIME_check(const ASN1_TIME *t)
 
 /* Convert an ASN1_TIME structure to GeneralizedTime */
 ASN1_GENERALIZEDTIME *ASN1_TIME_to_generalizedtime(const ASN1_TIME *t,
-                                                   ASN1_GENERALIZEDTIME **out)
+    ASN1_GENERALIZEDTIME **out)
 {
     ASN1_GENERALIZEDTIME *ret = NULL;
     struct tm tm;
@@ -456,7 +456,7 @@ int ASN1_TIME_to_tm(const ASN1_TIME *s, struct tm *tm)
 }
 
 int ASN1_TIME_diff(int *pday, int *psec,
-                   const ASN1_TIME *from, const ASN1_TIME *to)
+    const ASN1_TIME *from, const ASN1_TIME *to)
 {
     struct tm tm_from, tm_to;
 
@@ -483,7 +483,6 @@ int ASN1_TIME_print_ex(BIO *bp, const ASN1_TIME *tm, unsigned long flags)
 {
     return ossl_asn1_time_print_ex(bp, tm, flags) > 0;
 }
-
 
 /* prints the time with the date format of ISO 8601 */
 /* returns 0 on BIO write error, else -1 in case of parse failure, else 1 */
@@ -520,26 +519,30 @@ int ossl_asn1_time_print_ex(BIO *bp, const ASN1_TIME *tm, unsigned long flags)
         if (f_len > 0) {
             if ((flags & ASN1_DTFLGS_TYPE_MASK) == ASN1_DTFLGS_ISO8601) {
                 return BIO_printf(bp, "%4d-%02d-%02d %02d:%02d:%02d.%.*sZ",
-                                  stm.tm_year + 1900, stm.tm_mon + 1,
-                                  stm.tm_mday, stm.tm_hour,
-                                  stm.tm_min, stm.tm_sec, f_len, f) > 0;
+                           stm.tm_year + 1900, stm.tm_mon + 1,
+                           stm.tm_mday, stm.tm_hour,
+                           stm.tm_min, stm.tm_sec, f_len, f)
+                    > 0;
             } else {
                 return BIO_printf(bp, "%s %2d %02d:%02d:%02d.%.*s %d GMT",
-                                  _asn1_mon[stm.tm_mon], stm.tm_mday, stm.tm_hour,
-                                  stm.tm_min, stm.tm_sec, f_len, f,
-                                  stm.tm_year + 1900) > 0;
+                           _asn1_mon[stm.tm_mon], stm.tm_mday, stm.tm_hour,
+                           stm.tm_min, stm.tm_sec, f_len, f,
+                           stm.tm_year + 1900)
+                    > 0;
             }
         }
     }
     if ((flags & ASN1_DTFLGS_TYPE_MASK) == ASN1_DTFLGS_ISO8601) {
         return BIO_printf(bp, "%4d-%02d-%02d %02d:%02d:%02dZ",
-                          stm.tm_year + 1900, stm.tm_mon + 1,
-                          stm.tm_mday, stm.tm_hour,
-                          stm.tm_min, stm.tm_sec) > 0;
+                   stm.tm_year + 1900, stm.tm_mon + 1,
+                   stm.tm_mday, stm.tm_hour,
+                   stm.tm_min, stm.tm_sec)
+            > 0;
     } else {
         return BIO_printf(bp, "%s %2d %02d:%02d:%02d %d GMT",
-                          _asn1_mon[stm.tm_mon], stm.tm_mday, stm.tm_hour,
-                          stm.tm_min, stm.tm_sec, stm.tm_year + 1900) > 0;
+                   _asn1_mon[stm.tm_mon], stm.tm_mday, stm.tm_hour,
+                   stm.tm_min, stm.tm_sec, stm.tm_year + 1900)
+            > 0;
     }
 }
 

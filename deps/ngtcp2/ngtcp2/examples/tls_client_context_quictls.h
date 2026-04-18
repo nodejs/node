@@ -31,19 +31,24 @@
 
 #include <openssl/ssl.h>
 
+#include "shared.h"
+
+using namespace ngtcp2;
+
 class TLSClientContext {
 public:
-  TLSClientContext();
+  TLSClientContext() = default;
   ~TLSClientContext();
 
-  int init(const char *private_key_file, const char *cert_file);
+  std::expected<void, Error> init(const char *private_key_file,
+                                  const char *cert_file);
 
   SSL_CTX *get_native_handle() const;
 
   void enable_keylog();
 
 private:
-  SSL_CTX *ssl_ctx_;
+  SSL_CTX *ssl_ctx_{};
 };
 
 #endif // !defined(TLS_CLIENT_CONTEXT_QUICTLS_H)

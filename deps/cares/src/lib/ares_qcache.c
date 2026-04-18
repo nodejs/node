@@ -421,10 +421,20 @@ done:
   return status;
 }
 
-ares_status_t ares_qcache_insert(ares_channel_t       *channel,
-                                 const ares_timeval_t *now,
-                                 const ares_query_t   *query,
-                                 ares_dns_record_t    *dnsrec)
+ares_status_t ares_qcache_insert(ares_channel_t          *channel,
+                                 const ares_timeval_t    *now,
+                                 const ares_query_t      *query,
+                                 const ares_dns_record_t *dnsrec)
 {
-  return ares_qcache_insert_int(channel->qcache, dnsrec, query->query, now);
+  ares_dns_record_t *dupdns = ares_dns_record_duplicate(dnsrec);
+  ares_status_t      status;
+
+  if (dupdns == NULL) {
+    return ARES_ENOMEM;
+  }
+  status = ares_qcache_insert_int(channel->qcache, dupdns, query->query, now);
+  if (status != ARES_SUCCESS) {
+    ares_dns_record_destroy(dupdns);
+  }
+  return status;
 }

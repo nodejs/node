@@ -34,7 +34,7 @@ static void str_free(char *s)
 }
 
 static int int_x509_param_set_hosts(X509_VERIFY_PARAM *vpm, int mode,
-                                    const char *name, size_t namelen)
+    const char *name, size_t namelen)
 {
     char *copy;
 
@@ -45,7 +45,7 @@ static int int_x509_param_set_hosts(X509_VERIFY_PARAM *vpm, int mode,
     if (namelen == 0 || name == NULL)
         namelen = name ? strlen(name) : 0;
     else if (name != NULL
-             && memchr(name, '\0', namelen > 1 ? namelen - 1 : namelen) != NULL)
+        && memchr(name, '\0', namelen > 1 ? namelen - 1 : namelen) != NULL)
         return 0;
     if (namelen > 0 && name[namelen - 1] == '\0')
         --namelen;
@@ -61,8 +61,7 @@ static int int_x509_param_set_hosts(X509_VERIFY_PARAM *vpm, int mode,
     if (copy == NULL)
         return 0;
 
-    if (vpm->hosts == NULL &&
-        (vpm->hosts = sk_OPENSSL_STRING_new_null()) == NULL) {
+    if (vpm->hosts == NULL && (vpm->hosts = sk_OPENSSL_STRING_new_null()) == NULL) {
         OPENSSL_free(copy);
         return 0;
     }
@@ -144,12 +143,12 @@ void X509_VERIFY_PARAM_free(X509_VERIFY_PARAM *param)
 
 /* Macro to test and copy a field if necessary */
 
-#define x509_verify_param_copy(field, def) \
+#define x509_verify_param_copy(field, def)       \
     if (test_x509_verify_param_copy(field, def)) \
         dest->field = src->field;
 
 int X509_VERIFY_PARAM_inherit(X509_VERIFY_PARAM *dest,
-                              const X509_VERIFY_PARAM *src)
+    const X509_VERIFY_PARAM *src)
 {
     unsigned long inh_flags;
     int to_default, to_overwrite;
@@ -196,8 +195,7 @@ int X509_VERIFY_PARAM_inherit(X509_VERIFY_PARAM *dest,
         sk_OPENSSL_STRING_pop_free(dest->hosts, str_free);
         dest->hosts = NULL;
         if (src->hosts != NULL) {
-            dest->hosts =
-                sk_OPENSSL_STRING_deep_copy(src->hosts, str_copy, str_free);
+            dest->hosts = sk_OPENSSL_STRING_deep_copy(src->hosts, str_copy, str_free);
             if (dest->hosts == NULL)
                 return 0;
         }
@@ -217,7 +215,7 @@ int X509_VERIFY_PARAM_inherit(X509_VERIFY_PARAM *dest,
 }
 
 int X509_VERIFY_PARAM_set1(X509_VERIFY_PARAM *to,
-                           const X509_VERIFY_PARAM *from)
+    const X509_VERIFY_PARAM *from)
 {
     unsigned long save_flags;
     int ret;
@@ -234,7 +232,7 @@ int X509_VERIFY_PARAM_set1(X509_VERIFY_PARAM *to,
 }
 
 static int int_x509_param_set1(char **pdest, size_t *pdestlen,
-                               const char *src, size_t srclen)
+    const char *src, size_t srclen)
 {
     char *tmp;
 
@@ -274,7 +272,7 @@ int X509_VERIFY_PARAM_set_flags(X509_VERIFY_PARAM *param, unsigned long flags)
 }
 
 int X509_VERIFY_PARAM_clear_flags(X509_VERIFY_PARAM *param,
-                                  unsigned long flags)
+    unsigned long flags)
 {
     param->flags &= ~flags;
     return 1;
@@ -334,7 +332,7 @@ void X509_VERIFY_PARAM_set_time(X509_VERIFY_PARAM *param, time_t t)
 }
 
 int X509_VERIFY_PARAM_add0_policy(X509_VERIFY_PARAM *param,
-                                  ASN1_OBJECT *policy)
+    ASN1_OBJECT *policy)
 {
     if (param->policies == NULL) {
         param->policies = sk_ASN1_OBJECT_new_null();
@@ -348,7 +346,7 @@ int X509_VERIFY_PARAM_add0_policy(X509_VERIFY_PARAM *param,
 }
 
 int X509_VERIFY_PARAM_set1_policies(X509_VERIFY_PARAM *param,
-                                    STACK_OF(ASN1_OBJECT) *policies)
+    STACK_OF(ASN1_OBJECT) *policies)
 {
     int i;
     ASN1_OBJECT *oid, *doid;
@@ -388,19 +386,19 @@ char *X509_VERIFY_PARAM_get0_host(X509_VERIFY_PARAM *param, int idx)
 }
 
 int X509_VERIFY_PARAM_set1_host(X509_VERIFY_PARAM *param,
-                                const char *name, size_t namelen)
+    const char *name, size_t namelen)
 {
     return int_x509_param_set_hosts(param, SET_HOST, name, namelen);
 }
 
 int X509_VERIFY_PARAM_add1_host(X509_VERIFY_PARAM *param,
-                                const char *name, size_t namelen)
+    const char *name, size_t namelen)
 {
     return int_x509_param_set_hosts(param, ADD_HOST, name, namelen);
 }
 
 void X509_VERIFY_PARAM_set_hostflags(X509_VERIFY_PARAM *param,
-                                     unsigned int flags)
+    unsigned int flags)
 {
     param->hostflags = flags;
 }
@@ -421,7 +419,7 @@ char *X509_VERIFY_PARAM_get0_peername(const X509_VERIFY_PARAM *param)
  * the target peername.
  */
 void X509_VERIFY_PARAM_move_peername(X509_VERIFY_PARAM *to,
-                                     X509_VERIFY_PARAM *from)
+    X509_VERIFY_PARAM *from)
 {
     char *peername = (from != NULL) ? from->peername : NULL;
 
@@ -439,14 +437,13 @@ char *X509_VERIFY_PARAM_get0_email(X509_VERIFY_PARAM *param)
 }
 
 int X509_VERIFY_PARAM_set1_email(X509_VERIFY_PARAM *param,
-                                 const char *email, size_t emaillen)
+    const char *email, size_t emaillen)
 {
     return int_x509_param_set1(&param->email, &param->emaillen,
-                               email, emaillen);
+        email, emaillen);
 }
 
-static unsigned char
-*int_X509_VERIFY_PARAM_get0_ip(X509_VERIFY_PARAM *param, size_t *plen)
+static unsigned char *int_X509_VERIFY_PARAM_get0_ip(X509_VERIFY_PARAM *param, size_t *plen)
 {
     if (param == NULL || param->ip == NULL) {
         ERR_raise(ERR_LIB_X509, ERR_R_PASSED_NULL_PARAMETER);
@@ -466,14 +463,14 @@ char *X509_VERIFY_PARAM_get1_ip_asc(X509_VERIFY_PARAM *param)
 }
 
 int X509_VERIFY_PARAM_set1_ip(X509_VERIFY_PARAM *param,
-                              const unsigned char *ip, size_t iplen)
+    const unsigned char *ip, size_t iplen)
 {
     if (iplen != 0 && iplen != 4 && iplen != 16) {
         ERR_raise(ERR_LIB_X509, ERR_R_PASSED_INVALID_ARGUMENT);
         return 0;
     }
     return int_x509_param_set1((char **)&param->ip, &param->iplen,
-                               (char *)ip, iplen);
+        (char *)ip, iplen);
 }
 
 int X509_VERIFY_PARAM_set1_ip_asc(X509_VERIFY_PARAM *param, const char *ipasc)
@@ -510,78 +507,66 @@ const char *X509_VERIFY_PARAM_get0_name(const X509_VERIFY_PARAM *param)
  */
 
 static const X509_VERIFY_PARAM default_table[] = {
-    {
-     "code_sign",               /* Code sign parameters */
-     0,                         /* check time to use */
-     0,                         /* inheritance flags */
-     0,                         /* flags */
-     X509_PURPOSE_CODE_SIGN,    /* purpose */
-     X509_TRUST_OBJECT_SIGN,    /* trust */
-     -1,                        /* depth */
-     -1,                        /* auth_level */
-     NULL,                      /* policies */
-     vpm_empty_id
-    },
-    {
-     "default",                 /* X509 default parameters */
-     0,                         /* check time to use */
-     0,                         /* inheritance flags */
-     X509_V_FLAG_TRUSTED_FIRST, /* flags */
-     0,                         /* purpose */
-     0,                         /* trust */
-     100,                       /* depth */
-     -1,                        /* auth_level */
-     NULL,                      /* policies */
-     vpm_empty_id
-    },
-    {
-     "pkcs7",                   /* S/MIME sign parameters */
-     0,                         /* check time to use */
-     0,                         /* inheritance flags */
-     0,                         /* flags */
-     X509_PURPOSE_SMIME_SIGN,   /* purpose */
-     X509_TRUST_EMAIL,          /* trust */
-     -1,                        /* depth */
-     -1,                        /* auth_level */
-     NULL,                      /* policies */
-     vpm_empty_id
-    },
-    {
-     "smime_sign",              /* S/MIME sign parameters */
-     0,                         /* check time to use */
-     0,                         /* inheritance flags */
-     0,                         /* flags */
-     X509_PURPOSE_SMIME_SIGN,   /* purpose */
-     X509_TRUST_EMAIL,          /* trust */
-     -1,                        /* depth */
-     -1,                        /* auth_level */
-     NULL,                      /* policies */
-     vpm_empty_id
-    },
-    {
-     "ssl_client",              /* SSL/TLS client parameters */
-     0,                         /* check time to use */
-     0,                         /* inheritance flags */
-     0,                         /* flags */
-     X509_PURPOSE_SSL_CLIENT,   /* purpose */
-     X509_TRUST_SSL_CLIENT,     /* trust */
-     -1,                        /* depth */
-     -1,                        /* auth_level */
-     NULL,                      /* policies */
-     vpm_empty_id
-    },
-    {
-     "ssl_server",              /* SSL/TLS server parameters */
-     0,                         /* check time to use */
-     0,                         /* inheritance flags */
-     0,                         /* flags */
-     X509_PURPOSE_SSL_SERVER,   /* purpose */
-     X509_TRUST_SSL_SERVER,     /* trust */
-     -1,                        /* depth */
-     -1,                        /* auth_level */
-     NULL,                      /* policies */
-     vpm_empty_id
-    }
+    { "code_sign", /* Code sign parameters */
+        0, /* check time to use */
+        0, /* inheritance flags */
+        0, /* flags */
+        X509_PURPOSE_CODE_SIGN, /* purpose */
+        X509_TRUST_OBJECT_SIGN, /* trust */
+        -1, /* depth */
+        -1, /* auth_level */
+        NULL, /* policies */
+        vpm_empty_id },
+    { "default", /* X509 default parameters */
+        0, /* check time to use */
+        0, /* inheritance flags */
+        X509_V_FLAG_TRUSTED_FIRST, /* flags */
+        0, /* purpose */
+        0, /* trust */
+        100, /* depth */
+        -1, /* auth_level */
+        NULL, /* policies */
+        vpm_empty_id },
+    { "pkcs7", /* S/MIME sign parameters */
+        0, /* check time to use */
+        0, /* inheritance flags */
+        0, /* flags */
+        X509_PURPOSE_SMIME_SIGN, /* purpose */
+        X509_TRUST_EMAIL, /* trust */
+        -1, /* depth */
+        -1, /* auth_level */
+        NULL, /* policies */
+        vpm_empty_id },
+    { "smime_sign", /* S/MIME sign parameters */
+        0, /* check time to use */
+        0, /* inheritance flags */
+        0, /* flags */
+        X509_PURPOSE_SMIME_SIGN, /* purpose */
+        X509_TRUST_EMAIL, /* trust */
+        -1, /* depth */
+        -1, /* auth_level */
+        NULL, /* policies */
+        vpm_empty_id },
+    { "ssl_client", /* SSL/TLS client parameters */
+        0, /* check time to use */
+        0, /* inheritance flags */
+        0, /* flags */
+        X509_PURPOSE_SSL_CLIENT, /* purpose */
+        X509_TRUST_SSL_CLIENT, /* trust */
+        -1, /* depth */
+        -1, /* auth_level */
+        NULL, /* policies */
+        vpm_empty_id },
+    { "ssl_server", /* SSL/TLS server parameters */
+        0, /* check time to use */
+        0, /* inheritance flags */
+        0, /* flags */
+        X509_PURPOSE_SSL_SERVER, /* purpose */
+        X509_TRUST_SSL_SERVER, /* trust */
+        -1, /* depth */
+        -1, /* auth_level */
+        NULL, /* policies */
+        vpm_empty_id }
 };
 
 static STACK_OF(X509_VERIFY_PARAM) *param_table = NULL;
@@ -595,7 +580,7 @@ DECLARE_OBJ_BSEARCH_CMP_FN(X509_VERIFY_PARAM, X509_VERIFY_PARAM, table);
 IMPLEMENT_OBJ_BSEARCH_CMP_FN(X509_VERIFY_PARAM, X509_VERIFY_PARAM, table);
 
 static int param_cmp(const X509_VERIFY_PARAM *const *a,
-                     const X509_VERIFY_PARAM *const *b)
+    const X509_VERIFY_PARAM *const *b)
 {
     return strcmp((*a)->name, (*b)->name);
 }

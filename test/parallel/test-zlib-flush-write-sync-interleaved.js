@@ -19,7 +19,7 @@ for (const chunk of ['abc', 'def', 'ghi']) {
   compress.write(chunk, common.mustCall(() => events.push({ written: chunk })));
   compress.flush(Z_PARTIAL_FLUSH, common.mustCall(() => {
     events.push('flushed');
-    const chunk = compress.read();
+    const chunk = compress.read(compress.readableLength);
     if (chunk !== null)
       compressedChunks.push(chunk);
   }));
@@ -36,7 +36,7 @@ function writeToDecompress() {
   const chunk = compressedChunks.shift();
   if (chunk === undefined) return decompress.end();
   decompress.write(chunk, common.mustCall(() => {
-    events.push({ read: decompress.read() });
+    events.push({ read: decompress.read(decompress.readableLength) });
     writeToDecompress();
   }));
 }

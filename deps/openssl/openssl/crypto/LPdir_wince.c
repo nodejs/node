@@ -41,4 +41,6 @@
  * We might want to define LP_MULTIBYTE_AVAILABLE here.  It's currently under
  * investigation what the exact conditions would be
  */
+/* clang-format off */
 #include "LPdir_win.c"
+/* clang-format on */

@@ -83,7 +83,8 @@ bool AstRawString::AsArrayIndex(uint32_t* index) const {
   // can't be convertible to an array index.
   if (!IsIntegerIndex()) return false;
   if (length() <= Name::kMaxCachedArrayIndexLength) {
-    *index = Name::ArrayIndexValueBits::decode(raw_hash_field_);
+    *index = StringHasher::DecodeArrayIndexFromHashField(
+        raw_hash_field_, HashSeed(GetReadOnlyRoots()));
     return true;
   }
   // Might be an index, but too big to cache it. Do the slow conversion. This

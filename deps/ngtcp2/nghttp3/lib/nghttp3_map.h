@@ -39,14 +39,13 @@
 
 typedef uint64_t nghttp3_map_key_type;
 
-typedef struct nghttp3_map_bucket {
-  uint32_t psl;
-  nghttp3_map_key_type key;
-  void *data;
-} nghttp3_map_bucket;
-
 typedef struct nghttp3_map {
-  nghttp3_map_bucket *table;
+  nghttp3_map_key_type *keys;
+  void **data;
+  /* psl is the Probe Sequence Length.  0 has special meaning that the
+     element is not stored at i-th position if psl[i] == 0.  Because
+     of this, the actual psl value is psl[i] - 1 if psl[i] > 0. */
+  uint8_t *psl;
   const nghttp3_mem *mem;
   uint64_t seed;
   size_t size;

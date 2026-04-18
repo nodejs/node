@@ -22,9 +22,9 @@ const OSSL_PROVIDER_INFO ossl_predefined_providers[] = {
     { "fips", NULL, ossl_fips_intern_provider_init, NULL, 1 },
 #else
     { "default", NULL, ossl_default_provider_init, NULL, 1 },
-# ifdef STATIC_LEGACY
+#ifdef STATIC_LEGACY
     { "legacy", NULL, ossl_legacy_provider_init, NULL, 0 },
-# endif
+#endif
     { "base", NULL, ossl_base_provider_init, NULL, 0 },
     { "null", NULL, ossl_null_provider_init, NULL, 0 },
 #endif

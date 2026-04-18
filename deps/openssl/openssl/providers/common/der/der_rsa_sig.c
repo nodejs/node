@@ -24,14 +24,14 @@
 #define ossl_der_oid_mdc2WithRSAEncryption \
     ossl_der_oid_mdc2WithRSASignature
 
-#define MD_with_RSA_CASE(name, var)                                     \
-    case NID_##name:                                                    \
-        var = ossl_der_oid_##name##WithRSAEncryption;                   \
-        var##_sz = sizeof(ossl_der_oid_##name##WithRSAEncryption);      \
+#define MD_with_RSA_CASE(name, var)                                \
+    case NID_##name:                                               \
+        var = ossl_der_oid_##name##WithRSAEncryption;              \
+        var##_sz = sizeof(ossl_der_oid_##name##WithRSAEncryption); \
         break;
 
 int ossl_DER_w_algorithmIdentifier_MDWithRSAEncryption(WPACKET *pkt, int tag,
-                                                       int mdnid)
+    int mdnid)
 {
     const unsigned char *precompiled = NULL;
     size_t precompiled_sz = 0;

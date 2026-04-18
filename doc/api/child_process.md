@@ -118,51 +118,37 @@ operating systems (Unix, Linux, macOS) [`child_process.execFile()`][] can be
 more efficient because it does not spawn a shell by default. On Windows,
 however, `.bat` and `.cmd` files are not executable on their own without a
 terminal, and therefore cannot be launched using [`child_process.execFile()`][].
-When running on Windows, `.bat` and `.cmd` files can be invoked using
-[`child_process.spawn()`][] with the `shell` option set, with
-[`child_process.exec()`][], or by spawning `cmd.exe` and passing the `.bat` or
-`.cmd` file as an argument (which is what the `shell` option and
-[`child_process.exec()`][] do). In any case, if the script filename contains
-spaces it needs to be quoted.
+When running on Windows, `.bat` and `.cmd` files can be invoked by:
+
+* using [`child_process.spawn()`][] with the `shell` option set (not recommended, see [DEP0190][]), or
+* using [`child_process.exec()`][], or
+* spawning `cmd.exe` and passing the `.bat` or `.cmd` file as an argument
+  (which is what [`child_process.exec()`][] does internally).
+
+In any case, if the script filename contains spaces, it needs to be quoted.
 
 ```cjs
-// OR...
 const { exec, spawn } = require('node:child_process');
 
-exec('my.bat', (err, stdout, stderr) => {
-  if (err) {
-    console.error(err);
-    return;
-  }
-  console.log(stdout);
-});
+exec('my.bat', (err, stdout, stderr) => { /* ... */ });
 
-// Script with spaces in the filename:
-const bat = spawn('"my script.cmd" a b', { shell: true });
-// or:
-exec('"my script.cmd" a b', (err, stdout, stderr) => {
-  // ...
-});
+// Or, spawning cmd.exe directly:
+const bat = spawn('cmd.exe', ['/c', 'my.bat']);
+
+// If the script filename contains spaces, it needs to be quoted
+exec('"my script.cmd" a b', (err, stdout, stderr) => { /* ... */ });
 ```
 
 ```mjs
-// OR...
 import { exec, spawn } from 'node:child_process';
 
-exec('my.bat', (err, stdout, stderr) => {
-  if (err) {
-    console.error(err);
-    return;
-  }
-  console.log(stdout);
-});
+exec('my.bat', (err, stdout, stderr) => { /* ... */ });
 
-// Script with spaces in the filename:
-const bat = spawn('"my script.cmd" a b', { shell: true });
-// or:
-exec('"my script.cmd" a b', (err, stdout, stderr) => {
-  // ...
-});
+// Or, spawning cmd.exe directly:
+const bat = spawn('cmd.exe', ['/c', 'my.bat']);
+
+// If the script filename contains spaces, it needs to be quoted
+exec('"my script.cmd" a b', (err, stdout, stderr) => { /* ... */ });
 ```
 
 ### `child_process.exec(command[, options][, callback])`
@@ -1557,6 +1543,10 @@ re-raise the handled signal.
 
 See waitpid(2).
 
+When `code` is `null` due to signal termination, you can use
+[`util.convertProcessSignalToExitCode()`][] to convert the signal to a POSIX
+exit code.
+
 ### Event: `'message'`
 
 <!-- YAML
@@ -1670,6 +1660,11 @@ within the child process to close the IPC channel as well.
 
 The `subprocess.exitCode` property indicates the exit code of the child process.
 If the child process is still running, the field will be `null`.
+
+When the child process is terminated by a signal, `subprocess.exitCode` will be
+`null` and [`subprocess.signalCode`][] will be set. To get the corresponding
+POSIX exit code, use
+[`util.convertProcessSignalToExitCode(subprocess.signalCode)`][`util.convertProcessSignalToExitCode()`].
 
 ### `subprocess.kill([signal])`
 
@@ -2107,6 +2102,10 @@ connection to the child.
 The `subprocess.signalCode` property indicates the signal received by
 the child process if any, else `null`.
 
+When the child process is terminated by a signal, [`subprocess.exitCode`][] will be `null`.
+To get the corresponding POSIX exit code, use
+[`util.convertProcessSignalToExitCode(subprocess.signalCode)`][`util.convertProcessSignalToExitCode()`].
+
 ### `subprocess.spawnargs`
 
 * Type: {Array}
@@ -2357,6 +2356,7 @@ Therefore, this feature requires opting in by setting the
 or [`child_process.fork()`][].
 
 [Advanced serialization]: #advanced-serialization
+[DEP0190]: deprecations.md#DEP0190
 [Default Windows shell]: #default-windows-shell
 [HTML structured clone algorithm]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm
 [Shell requirements]: #shell-requirements
@@ -2387,12 +2387,15 @@ or [`child_process.fork()`][].
 [`stdio`]: #optionsstdio
 [`subprocess.connected`]: #subprocessconnected
 [`subprocess.disconnect()`]: #subprocessdisconnect
+[`subprocess.exitCode`]: #subprocessexitcode
 [`subprocess.kill()`]: #subprocesskillsignal
 [`subprocess.send()`]: #subprocesssendmessage-sendhandle-options-callback
+[`subprocess.signalCode`]: #subprocesssignalcode
 [`subprocess.stderr`]: #subprocessstderr
 [`subprocess.stdin`]: #subprocessstdin
 [`subprocess.stdio`]: #subprocessstdio
 [`subprocess.stdout`]: #subprocessstdout
+[`util.convertProcessSignalToExitCode()`]: util.md#utilconvertprocesssignaltoexitcodesignalcode
 [`util.promisify()`]: util.md#utilpromisifyoriginal
 [synchronous counterparts]: #synchronous-process-creation
 [v8.serdes]: v8.md#serialization-api

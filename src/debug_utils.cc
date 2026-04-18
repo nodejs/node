@@ -333,7 +333,8 @@ void DumpJavaScriptBacktrace(FILE* fp) {
   }
 
   Local<StackTrace> stack;
-  if (!GetCurrentStackTrace(isolate).ToLocal(&stack)) {
+  if (!GetCurrentStackTrace(isolate).ToLocal(&stack) ||
+      stack->GetFrameCount() == 0) {
     return;
   }
 

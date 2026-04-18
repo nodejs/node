@@ -18,7 +18,7 @@ server.keepAliveTimeout = common.platformTimeout(200);
 
 const agent = new http.Agent({
   keepAlive: true,
-  maxSockets: 1
+  maxSockets: 1,
 });
 
 function request(path, callback) {

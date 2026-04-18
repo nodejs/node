@@ -11,17 +11,17 @@
  */
 
 #ifndef OSSL_CRYPTO_EC_CURVE448_ARCH_32_INTRINSICS_H
-# define OSSL_CRYPTO_EC_CURVE448_ARCH_32_INTRINSICS_H
+#define OSSL_CRYPTO_EC_CURVE448_ARCH_32_INTRINSICS_H
 
 #include "internal/constant_time.h"
 
-# define ARCH_WORD_BITS 32
+#define ARCH_WORD_BITS 32
 
-#define word_is_zero(a)     constant_time_is_zero_32(a)
+#define word_is_zero(a) constant_time_is_zero_32(a)
 
 static ossl_inline uint64_t widemul(uint32_t a, uint32_t b)
 {
     return ((uint64_t)a) * b;
 }
 
-#endif                          /* OSSL_CRYPTO_EC_CURVE448_ARCH_32_INTRINSICS_H */
+#endif /* OSSL_CRYPTO_EC_CURVE448_ARCH_32_INTRINSICS_H */

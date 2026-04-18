@@ -46,7 +46,7 @@ RSA_PRIME_INFO *ossl_rsa_multip_info_new(void)
 
     return pinfo;
 
- err:
+err:
     BN_free(pinfo->r);
     BN_free(pinfo->d);
     BN_free(pinfo->t);
@@ -90,7 +90,7 @@ int ossl_rsa_multip_calc_product(RSA *rsa)
     }
 
     rv = 1;
- err:
+err:
     BN_CTX_free(ctx);
     return rv;
 }

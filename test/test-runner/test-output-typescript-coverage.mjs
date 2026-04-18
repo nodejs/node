@@ -1,6 +1,9 @@
 // Test that the output of test-runner/output/typescript-coverage.mts matches
 // test-runner/output/typescript-coverage.snapshot
 import * as common from '../common/index.mjs';
+if (!process.config.variables.node_use_amaro) {
+  common.skip('Requires Amaro');
+}
 import * as fixtures from '../common/fixtures.mjs';
 import { spawnAndAssert, defaultTransform, ensureCwdIsProjectRoot } from '../common/assertSnapshot.js';
 
@@ -16,7 +19,6 @@ await spawnAndAssert(
     flags: [
       '--disable-warning=ExperimentalWarning',
       '--test-reporter=tap',
-      '--experimental-transform-types',
       '--experimental-test-module-mocks',
       '--experimental-test-coverage',
       '--test-coverage-exclude=!test/**',

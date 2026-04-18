@@ -961,10 +961,9 @@ class WasmDispatchTableForImports : public TrustedObject {
   // In jitless mode, reuse the 'target' field storage to hold the (uint32_t)
   // function index.
   static constexpr size_t kFunctionIndexBias = kTargetBias;
-#else
+#endif  // V8_ENABLE_DRUMBRAKE
   static constexpr size_t kEntryPaddingSize =
       TAGGED_SIZE_8_BYTES ? kUInt32Size : 0;
-#endif  // V8_ENABLE_DRUMBRAKE
   static_assert(sizeof(WasmCodePointer) == kUInt32Size);
   static constexpr size_t kImplicitArgBias =
       kTargetBias + kEntryPaddingSize + kUInt32Size;

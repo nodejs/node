@@ -17,7 +17,6 @@ struct ChaCha20Poly1305CipherConfig final : public MemoryRetainer {
   ncrypto::Cipher cipher;
   ByteSource iv;
   ByteSource additional_data;
-  ByteSource tag;
 
   ChaCha20Poly1305CipherConfig() = default;
 

@@ -2,7 +2,7 @@
 // on a threading library for a new project it bears remembering that in the
 // future libuv may introduce API changes which may render it non-ABI-stable,
 // which, in turn, may affect the ABI stability of the project despite its use
-// of N-API.
+// of Node-API.
 #include <uv.h>
 #include <node_api.h>
 #include "../../js-native-api/common.h"

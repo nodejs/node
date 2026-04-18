@@ -16,6 +16,8 @@ extern uintptr_t
 extern int debug_symbols_generated;
 extern int nodedbg_const_ContextEmbedderIndex__kEnvironment__int;
 extern int nodedbg_const_BaseObject__kInternalFieldCount__int;
+extern int nodedbg_const_HandleWrap__kInternalFieldCount__int;
+extern int nodedbg_const_ReqWrap__kInternalFieldCount__int;
 extern uintptr_t
     nodedbg_offset_Environment_HandleWrapQueue__head___ListNode_HandleWrap;
 extern uintptr_t
@@ -73,6 +75,18 @@ TEST_F(DebugSymbolsTest, ContextEmbedderEnvironmentIndex) {
 TEST_F(DebugSymbolsTest, BaseObjectkInternalFieldCount) {
   int kInternalFieldCount = node::BaseObject::kInternalFieldCount;
   EXPECT_EQ(nodedbg_const_BaseObject__kInternalFieldCount__int,
+            kInternalFieldCount);
+}
+
+TEST_F(DebugSymbolsTest, HandleWrapInternalFieldCount) {
+  int kInternalFieldCount = node::HandleWrap::kInternalFieldCount;
+  EXPECT_EQ(nodedbg_const_HandleWrap__kInternalFieldCount__int,
+            kInternalFieldCount);
+}
+
+TEST_F(DebugSymbolsTest, ReqWrapInternalFieldCount) {
+  int kInternalFieldCount = node::ReqWrap<uv_req_t>::kInternalFieldCount;
+  EXPECT_EQ(nodedbg_const_ReqWrap__kInternalFieldCount__int,
             kInternalFieldCount);
 }
 
@@ -149,7 +163,7 @@ TEST_F(DebugSymbolsTest, HandleWrapList) {
 
   auto obj_template = v8::FunctionTemplate::New(isolate_);
   obj_template->InstanceTemplate()->SetInternalFieldCount(
-      nodedbg_const_BaseObject__kInternalFieldCount__int);
+      nodedbg_const_HandleWrap__kInternalFieldCount__int);
 
   v8::Local<v8::Object> object = obj_template->GetFunction(env.context())
                                      .ToLocalChecked()
@@ -182,7 +196,7 @@ TEST_F(DebugSymbolsTest, ReqWrapList) {
 
   auto obj_template = v8::FunctionTemplate::New(isolate_);
   obj_template->InstanceTemplate()->SetInternalFieldCount(
-      nodedbg_const_BaseObject__kInternalFieldCount__int);
+      nodedbg_const_ReqWrap__kInternalFieldCount__int);
 
   v8::Local<v8::Object> object = obj_template->GetFunction(env.context())
                                      .ToLocalChecked()

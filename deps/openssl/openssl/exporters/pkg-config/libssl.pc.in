@@ -1,3 +1,4 @@
+# {- $OpenSSL::safe::installdata::COMMENT // "" -}
 prefix={- $OpenSSL::safe::installdata::PREFIX[0] -}
 exec_prefix=${prefix}
 libdir={- if (defined $OpenSSL::safe::installdata::LIBDIR_REL_PREFIX[0]) {

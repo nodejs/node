@@ -26,7 +26,7 @@ const net = require('net');
 
 let serverConnection;
 let clientConnection;
-const echoServer = net.createServer(function(connection) {
+const echoServer = net.createServer(common.mustCall((connection) => {
   serverConnection = connection;
   setTimeout(common.mustCall(function() {
     // Make sure both connections are still open
@@ -43,7 +43,7 @@ const echoServer = net.createServer(function(connection) {
   connection.on('end', function() {
     connection.end();
   });
-});
+}));
 echoServer.listen(0);
 
 echoServer.on('listening', function() {

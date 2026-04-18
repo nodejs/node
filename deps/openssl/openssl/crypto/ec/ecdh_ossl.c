@@ -26,7 +26,7 @@
 #include "ec_local.h"
 
 int ossl_ecdh_compute_key(unsigned char **psec, size_t *pseclen,
-                          const EC_POINT *pub_key, const EC_KEY *ecdh)
+    const EC_POINT *pub_key, const EC_KEY *ecdh)
 {
     if (ecdh->group->meth->ecdh_compute_key == NULL) {
         ERR_raise(ERR_LIB_EC, EC_R_CURVE_DOES_NOT_SUPPORT_ECDH);
@@ -47,7 +47,7 @@ int ossl_ecdh_compute_key(unsigned char **psec, size_t *pseclen,
  * (ECC CDH) Primitive:". The steps listed below refer to SP800-56A.
  */
 int ossl_ecdh_simple_compute_key(unsigned char **pout, size_t *poutlen,
-                                 const EC_POINT *pub_key, const EC_KEY *ecdh)
+    const EC_POINT *pub_key, const EC_KEY *ecdh)
 {
     BN_CTX *ctx;
     EC_POINT *tmp = NULL;
@@ -136,7 +136,7 @@ int ossl_ecdh_simple_compute_key(unsigned char **pout, size_t *poutlen,
 
     ret = 1;
 
- err:
+err:
     /* Step(4) : Destroy all intermediate calculations */
     BN_clear(x);
     EC_POINT_clear_free(tmp);

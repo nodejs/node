@@ -526,7 +526,7 @@ class InputsRepFactory {
   };
 };
 
-struct EffectDimensions {
+struct __attribute__((packed))  EffectDimensions {
   // Produced by loads, consumed by operations that should not move before loads
   // because they change memory.
   bool load_heap_memory : 1;
@@ -621,7 +621,7 @@ static_assert(sizeof(EffectDimensions) == sizeof(EffectDimensions::Bits));
 // they become more restricted in their movement. Note that calls are not the
 // most side-effectful operations, as they do not leave the heap in an
 // inconsistent state, so they do not need to be marked as raw heap access.
-struct OpEffects {
+struct __attribute__((packed)) OpEffects {
   EffectDimensions produces;
   EffectDimensions consumes;
 
@@ -2878,7 +2878,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
 // When result_rep is RegisterRepresentation::Compressed(), then the load does
 // not decompress the value.
 struct LoadOp : OperationT<LoadOp> {
-  struct Kind {
+  struct __attribute__((packed)) Kind {
     // The `base` input is a tagged pointer to a HeapObject.
     bool tagged_base : 1;
     // The effective address might be unaligned. This is only set to true if

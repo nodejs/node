@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -103,7 +103,7 @@ static uint64_t u64_max(uint64_t x, uint64_t y)
  * b.
  */
 static int uint_range_overlaps(const UINT_RANGE *a,
-                               const UINT_RANGE *b)
+    const UINT_RANGE *b)
 {
     return u64_min(a->end, b->end)
         >= u64_max(a->start, b->start);
@@ -118,7 +118,7 @@ static UINT_SET_ITEM *create_set_item(uint64_t start, uint64_t end)
 
     ossl_list_uint_set_init_elem(x);
     x->range.start = start;
-    x->range.end   = end;
+    x->range.end = end;
     return x;
 }
 
@@ -219,7 +219,7 @@ int ossl_uint_set_insert(UINT_SET *s, const UINT_RANGE *range)
             }
             break;
         } else if (end < z->range.start
-                    && (zprev == NULL || start > zprev->range.end)) {
+            && (zprev == NULL || start > zprev->range.end)) {
             if (z->range.start == end + 1) {
                 /* We can extend the following range backwards. */
                 z->range.start = start;
@@ -303,6 +303,8 @@ int ossl_uint_set_remove(UINT_SET *s, const UINT_RANGE *range)
              * handled by the above cases.
              */
             y = create_set_item(end + 1, z->range.end);
+            if (y == NULL)
+                return 0;
             ossl_list_uint_set_insert_after(s, z, y);
             z->range.end = start - 1;
             break;

@@ -1,7 +1,6 @@
 const reifyFinish = require('../utils/reify-finish.js')
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 
-// prune extraneous packages
 class Prune extends ArboristWorkspaceCmd {
   static description = 'Remove extraneous packages'
   static name = 'prune'

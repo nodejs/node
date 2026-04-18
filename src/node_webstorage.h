@@ -3,6 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <unordered_map>
 #include "base_object.h"
 #include "node_mem.h"
 #include "sqlite3.h"
@@ -40,6 +41,7 @@ class Storage : public BaseObject {
   v8::MaybeLocal<v8::Value> LoadKey(const int index);
   v8::Maybe<void> Remove(v8::Local<v8::Name> key);
   v8::Maybe<void> Store(v8::Local<v8::Name> key, v8::Local<v8::Value> value);
+  std::unordered_map<std::u16string, std::u16string> GetAll();
 
   SET_MEMORY_INFO_NAME(Storage)
   SET_SELF_SIZE(Storage)

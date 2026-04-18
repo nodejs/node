@@ -33,8 +33,8 @@ static int pref_cmp(const void *va, const void *vb)
 
 ML_COMMON_PKCS8_FMT_PREF *
 ossl_ml_common_pkcs8_fmt_order(const char *algorithm_name,
-                               const ML_COMMON_PKCS8_FMT *p8fmt,
-                               const char *direction, const char *formats)
+    const ML_COMMON_PKCS8_FMT *p8fmt,
+    const char *direction, const char *formats)
 {
     ML_COMMON_PKCS8_FMT_PREF *ret;
     int i, count = 0;
@@ -57,7 +57,7 @@ ossl_ml_common_pkcs8_fmt_order(const char *algorithm_name,
 
     /*
      * Formats are case-insensitive, separated by spaces, tabs or commas.
-     * Duplicate formats are allowed, the first occurence determines the order.
+     * Duplicate formats are allowed, the first occurrence determines the order.
      */
     do {
         if (*(fmt += strspn(fmt, sep)) == '\0')
@@ -67,7 +67,8 @@ ossl_ml_common_pkcs8_fmt_order(const char *algorithm_name,
             /* Skip slots already selected or with a different name. */
             if (ret[i].pref > 0
                 || OPENSSL_strncasecmp(ret[i].fmt->p8_name,
-                                       fmt, (end - fmt)) != 0)
+                       fmt, (end - fmt))
+                    != 0)
                 continue;
             /* First time match */
             ret[i].pref = ++count;
@@ -80,8 +81,8 @@ ossl_ml_common_pkcs8_fmt_order(const char *algorithm_name,
     if (count == 0) {
         OPENSSL_free(ret);
         ERR_raise_data(ERR_LIB_PROV, PROV_R_ML_DSA_NO_FORMAT,
-                       "no %s private key %s formats are enabled",
-                       algorithm_name, direction);
+            "no %s private key %s formats are enabled",
+            algorithm_name, direction);
         return NULL;
     }
     /* Sort by preference, with 0's last */

@@ -102,7 +102,7 @@ if (!id) {
     }));
   }, 2));
 } else {
-  assert(0); // Bad command line argument
+  assert.fail('Bad command line argument');
 }
 
 function startWorker() {

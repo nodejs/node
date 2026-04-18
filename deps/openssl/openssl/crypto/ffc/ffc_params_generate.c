@@ -45,9 +45,9 @@ static int ffc_validate_LN(size_t L, size_t N, int type, int verify)
         /* Valid DH L,N parameters from SP800-56Ar3 5.5.1 Table 1 */
         if (L == 2048 && (N == 224 || N == 256))
             return 112;
-# ifndef OPENSSL_NO_DH
+#ifndef OPENSSL_NO_DH
         ERR_raise(ERR_LIB_DH, DH_R_BAD_FFC_PARAMETERS);
-# endif
+#endif
     } else if (type == FFC_PARAM_TYPE_DSA) {
         /* Valid DSA L,N parameters from FIPS 186-4 Section 4.2 */
         /* In fips mode 1024/160 can only be used for verification */
@@ -57,9 +57,9 @@ static int ffc_validate_LN(size_t L, size_t N, int type, int verify)
             return 112;
         if (L == 3072 && N == 256)
             return 128;
-# ifndef OPENSSL_NO_DSA
+#ifndef OPENSSL_NO_DSA
         ERR_raise(ERR_LIB_DSA, DSA_R_BAD_FFC_PARAMETERS);
-# endif
+#endif
     }
     return 0;
 }
@@ -73,9 +73,9 @@ static int ffc_validate_LN(size_t L, size_t N, int type, int verify)
         /* Valid DH L,N parameters from SP800-56Ar3 5.5.1 Table 1 */
         if (L == 2048 && (N == 224 || N == 256))
             return 112;
-# ifndef OPENSSL_NO_DH
+#ifndef OPENSSL_NO_DH
         ERR_raise(ERR_LIB_DH, DH_R_BAD_FFC_PARAMETERS);
-# endif
+#endif
     } else if (type == FFC_PARAM_TYPE_DSA) {
         if (L >= 3072 && N >= 256)
             return 128;
@@ -83,9 +83,9 @@ static int ffc_validate_LN(size_t L, size_t N, int type, int verify)
             return 112;
         if (L >= 1024 && N >= 160)
             return 80;
-# ifndef OPENSSL_NO_DSA
+#ifndef OPENSSL_NO_DSA
         ERR_raise(ERR_LIB_DSA, DSA_R_BAD_FFC_PARAMETERS);
-# endif
+#endif
     }
     return 0;
 }
@@ -93,9 +93,9 @@ static int ffc_validate_LN(size_t L, size_t N, int type, int verify)
 
 /* FIPS186-4 A.2.1 Unverifiable Generation of Generator g */
 static int generate_unverifiable_g(BN_CTX *ctx, BN_MONT_CTX *mont, BIGNUM *g,
-                                   BIGNUM *hbn, const BIGNUM *p,
-                                   const BIGNUM *e,const BIGNUM *pm1,
-                                   int *hret)
+    BIGNUM *hbn, const BIGNUM *p,
+    const BIGNUM *e, const BIGNUM *pm1,
+    int *hret)
 {
     int h = 2;
 
@@ -130,9 +130,9 @@ static int generate_unverifiable_g(BN_CTX *ctx, BN_MONT_CTX *mont, BIGNUM *g,
  * Returns a value in g.
  */
 static int generate_canonical_g(BN_CTX *ctx, BN_MONT_CTX *mont,
-                                const EVP_MD *evpmd, BIGNUM *g, BIGNUM *tmp,
-                                const BIGNUM *p, const BIGNUM *e,
-                                int gindex, unsigned char *seed, size_t seedlen)
+    const EVP_MD *evpmd, BIGNUM *g, BIGNUM *tmp,
+    const BIGNUM *p, const BIGNUM *e,
+    int gindex, unsigned char *seed, size_t seedlen)
 {
     int ret = 0;
     int counter = 1;
@@ -148,11 +148,11 @@ static int generate_canonical_g(BN_CTX *ctx, BN_MONT_CTX *mont,
     if (mctx == NULL)
         return 0;
 
-   /*
-    * A.2.3 Step (4) & (5)
-    * A.2.4 Step (6) & (7)
-    * counter = 0; counter += 1
-    */
+    /*
+     * A.2.3 Step (4) & (5)
+     * A.2.4 Step (6) & (7)
+     * counter = 0; counter += 1
+     */
     for (counter = 1; counter <= 0xFFFF; ++counter) {
         /*
          * A.2.3 Step (7) & (8) & (9)
@@ -166,13 +166,13 @@ static int generate_canonical_g(BN_CTX *ctx, BN_MONT_CTX *mont,
         md[1] = (unsigned char)((counter >> 8) & 0xff);
         md[2] = (unsigned char)(counter & 0xff);
         if (!EVP_DigestInit_ex(mctx, evpmd, NULL)
-                || !EVP_DigestUpdate(mctx, seed, seedlen)
-                || !EVP_DigestUpdate(mctx, ggen, sizeof(ggen))
-                || !EVP_DigestUpdate(mctx, md, 3)
-                || !EVP_DigestFinal_ex(mctx, md, NULL)
-                || (BN_bin2bn(md, mdsize, tmp) == NULL)
-                || !BN_mod_exp_mont(g, tmp, e, p, ctx, mont))
-                    break; /* exit on failure */
+            || !EVP_DigestUpdate(mctx, seed, seedlen)
+            || !EVP_DigestUpdate(mctx, ggen, sizeof(ggen))
+            || !EVP_DigestUpdate(mctx, md, 3)
+            || !EVP_DigestFinal_ex(mctx, md, NULL)
+            || (BN_bin2bn(md, mdsize, tmp) == NULL)
+            || !BN_mod_exp_mont(g, tmp, e, p, ctx, mont))
+            break; /* exit on failure */
         /*
          * A.2.3 Step (10)
          * A.2.4 Step (12)
@@ -189,9 +189,9 @@ static int generate_canonical_g(BN_CTX *ctx, BN_MONT_CTX *mont,
 
 /* Generation of p is the same for FIPS 186-4 & FIPS 186-2 */
 static int generate_p(BN_CTX *ctx, const EVP_MD *evpmd, int max_counter, int n,
-                      unsigned char *buf, size_t buf_len, const BIGNUM *q,
-                      BIGNUM *p, int L, BN_GENCB *cb, int *counter,
-                      int *res)
+    unsigned char *buf, size_t buf_len, const BIGNUM *q,
+    BIGNUM *p, int L, BN_GENCB *cb, int *counter,
+    int *res)
 {
     int ret = -1;
     int i, j, k, r;
@@ -242,14 +242,14 @@ static int generate_p(BN_CTX *ctx, const EVP_MD *evpmd, int max_counter, int n,
              * tmp = V(j) = Hash((seed + offset + j) % 2^seedlen)
              */
             if (!EVP_Digest(buf, buf_len, md, NULL, evpmd, NULL)
-                    || (BN_bin2bn(md, mdsize, tmp) == NULL)
-                    /*
-                     * A.1.1.2 Step (11.2)
-                     * A.1.1.3 Step (13.2)
-                     * W += V(j) * 2^(outlen * j)
-                     */
-                    || !BN_lshift(tmp, tmp, (mdsize << 3) * j)
-                    || !BN_add(W, W, tmp))
+                || (BN_bin2bn(md, mdsize, tmp) == NULL)
+                /*
+                 * A.1.1.2 Step (11.2)
+                 * A.1.1.3 Step (13.2)
+                 * W += V(j) * 2^(outlen * j)
+                 */
+                || !BN_lshift(tmp, tmp, (mdsize << 3) * j)
+                || !BN_add(W, W, tmp))
                 goto err;
         }
 
@@ -259,22 +259,22 @@ static int generate_p(BN_CTX *ctx, const EVP_MD *evpmd, int max_counter, int n,
          * X = W + 2^(L-1) where W < 2^(L-1)
          */
         if (!BN_mask_bits(W, L - 1)
-                || !BN_copy(X, W)
-                || !BN_add(X, X, test)
-                /*
-                 * A.1.1.2 Step (11.4) AND
-                 * A.1.1.3 Step (13.4)
-                 * c = X mod 2q
-                 */
-                || !BN_lshift1(tmp, q)
-                || !BN_mod(c, X, tmp, ctx)
-                /*
-                 * A.1.1.2 Step (11.5) AND
-                 * A.1.1.3 Step (13.5)
-                 * p = X - (c - 1)
-                 */
-                || !BN_sub(tmp, c, BN_value_one())
-                || !BN_sub(p, X, tmp))
+            || !BN_copy(X, W)
+            || !BN_add(X, X, test)
+            /*
+             * A.1.1.2 Step (11.4) AND
+             * A.1.1.3 Step (13.4)
+             * c = X mod 2q
+             */
+            || !BN_lshift1(tmp, q)
+            || !BN_mod(c, X, tmp, ctx)
+            /*
+             * A.1.1.2 Step (11.5) AND
+             * A.1.1.3 Step (13.5)
+             * p = X - (c - 1)
+             */
+            || !BN_sub(tmp, c, BN_value_one())
+            || !BN_sub(p, X, tmp))
             goto err;
 
         /*
@@ -294,7 +294,7 @@ static int generate_p(BN_CTX *ctx, const EVP_MD *evpmd, int max_counter, int n,
             /* A.1.1.2 Step (11.8) : Return if p is prime */
             if (r > 0) {
                 *counter = i;
-                ret = 1;   /* return success */
+                ret = 1; /* return success */
                 goto err;
             }
             if (r != 0)
@@ -311,9 +311,9 @@ err:
 }
 
 static int generate_q_fips186_4(BN_CTX *ctx, BIGNUM *q, const EVP_MD *evpmd,
-                                int qsize, unsigned char *seed, size_t seedlen,
-                                int generate_seed, int *retm, int *res,
-                                BN_GENCB *cb)
+    int qsize, unsigned char *seed, size_t seedlen,
+    int generate_seed, int *retm, int *res,
+    BN_GENCB *cb)
 {
     int ret = 0, r;
     int m = *retm;
@@ -332,7 +332,7 @@ static int generate_q_fips186_4(BN_CTX *ctx, BIGNUM *q, const EVP_MD *evpmd,
 
         /* A.1.1.2 Step (5) : generate seed with size seed_len */
         if (generate_seed
-                && RAND_bytes_ex(libctx, seed, seedlen, 0) <= 0)
+            && RAND_bytes_ex(libctx, seed, seedlen, 0) <= 0)
             goto err;
         /*
          * A.1.1.2 Step (6) AND
@@ -355,7 +355,7 @@ static int generate_q_fips186_4(BN_CTX *ctx, BIGNUM *q, const EVP_MD *evpmd,
          * q = U + 2^(N-1) + (1 - U %2) (This sets top and bottom bits)
          */
         pmd[0] |= 0x80;
-        pmd[qsize-1] |= 0x01;
+        pmd[qsize - 1] |= 0x01;
         if (!BN_bin2bn(pmd, qsize, q))
             goto err;
 
@@ -387,9 +387,9 @@ err:
 }
 
 static int generate_q_fips186_2(BN_CTX *ctx, BIGNUM *q, const EVP_MD *evpmd,
-                                unsigned char *buf, unsigned char *seed,
-                                size_t qsize, int generate_seed, int *retm,
-                                int *res, BN_GENCB *cb)
+    unsigned char *buf, unsigned char *seed,
+    size_t qsize, int generate_seed, int *retm,
+    int *res, BN_GENCB *cb)
 {
     unsigned char buf2[EVP_MAX_MD_SIZE];
     unsigned char md[EVP_MAX_MD_SIZE];
@@ -514,9 +514,9 @@ static const char *default_mdname(size_t N)
  *     but G is unverifiable.
  */
 int ossl_ffc_params_FIPS186_4_gen_verify(OSSL_LIB_CTX *libctx,
-                                         FFC_PARAMS *params, int mode, int type,
-                                         size_t L, size_t N, int *res,
-                                         BN_GENCB *cb)
+    FFC_PARAMS *params, int mode, int type,
+    size_t L, size_t N, int *res,
+    BN_GENCB *cb)
 {
     int ok = FFC_PARAM_RET_STATUS_FAILED;
     unsigned char *seed = NULL, *seed_tmp = NULL;
@@ -684,7 +684,7 @@ int ossl_ffc_params_FIPS186_4_gen_verify(OSSL_LIB_CTX *libctx,
 
     for (;;) {
         if (!generate_q_fips186_4(ctx, q, md, qsize, seed, seedlen,
-                                  seed != params->seed, &m, res, cb))
+                seed != params->seed, &m, res, cb))
             goto err;
         /* A.1.1.3 Step (9): Verify that q matches the expected value */
         if (verify && (BN_cmp(q, params->q) != 0)) {
@@ -698,7 +698,7 @@ int ossl_ffc_params_FIPS186_4_gen_verify(OSSL_LIB_CTX *libctx,
 
         memcpy(seed_tmp, seed, seedlen);
         r = generate_p(ctx, md, counter, n, seed_tmp, seedlen, q, p, L,
-                       cb, &pcounter, res);
+            cb, &pcounter, res);
         if (r > 0)
             break; /* found p */
         if (r < 0)
@@ -713,7 +713,7 @@ int ossl_ffc_params_FIPS186_4_gen_verify(OSSL_LIB_CTX *libctx,
             goto err;
         }
     }
-    if(!BN_GENCB_call(cb, 2, 1))
+    if (!BN_GENCB_call(cb, 2, 1))
         goto err;
     /*
      * Gets here if we found p.
@@ -733,7 +733,7 @@ g_only:
 
     if (((flags & FFC_PARAM_FLAG_VALIDATE_G) != 0)
         && !ossl_ffc_params_validate_unverifiable_g(ctx, mont, p, q, params->g,
-                                                    tmp, res))
+            tmp, res))
         goto err;
 
     /*
@@ -749,7 +749,7 @@ g_only:
     if ((seed != NULL) && (params->gindex != FFC_UNVERIFIABLE_GINDEX)) {
         canonical_g = 1;
         if (!generate_canonical_g(ctx, mont, md, g, tmp, p, e,
-                                  params->gindex, seed, seedlen)) {
+                params->gindex, seed, seedlen)) {
             *res = FFC_CHECK_INVALID_G;
             goto err;
         }
@@ -782,7 +782,7 @@ g_only:
         if (params->p == NULL || params->q == NULL || params->g == NULL)
             goto err;
         if (!ossl_ffc_params_set_validate_params(params, seed, seedlen,
-                                                 pcounter))
+                pcounter))
             goto err;
         params->h = hret;
     }
@@ -807,9 +807,9 @@ err:
 
 /* Note this function is only used for verification in fips mode */
 int ossl_ffc_params_FIPS186_2_gen_verify(OSSL_LIB_CTX *libctx,
-                                         FFC_PARAMS *params, int mode, int type,
-                                         size_t L, size_t N, int *res,
-                                         BN_GENCB *cb)
+    FFC_PARAMS *params, int mode, int type,
+    size_t L, size_t N, int *res,
+    BN_GENCB *cb)
 {
     int ok = FFC_PARAM_RET_STATUS_FAILED;
     unsigned char seed[SHA256_DIGEST_LENGTH];
@@ -935,7 +935,7 @@ int ossl_ffc_params_FIPS186_2_gen_verify(OSSL_LIB_CTX *libctx,
     use_random_seed = (seed_in == NULL);
     for (;;) {
         if (!generate_q_fips186_2(ctx, q, md, buf, seed, qsize,
-                                  use_random_seed, &m, res, cb))
+                use_random_seed, &m, res, cb))
             goto err;
 
         if (!BN_GENCB_call(cb, 2, 0))
@@ -956,7 +956,7 @@ int ossl_ffc_params_FIPS186_2_gen_verify(OSSL_LIB_CTX *libctx,
         }
 
         rv = generate_p(ctx, md, counter, n, buf, qsize, q, p, L, cb,
-                        &pcounter, res);
+            &pcounter, res);
         if (rv > 0)
             break; /* found it */
         if (rv == -1)
@@ -998,9 +998,9 @@ g_only:
         if (!generate_unverifiable_g(ctx, mont, g, tmp, p, r0, test, &hret))
             goto err;
     } else if (((flags & FFC_PARAM_FLAG_VALIDATE_G) != 0)
-               && !ossl_ffc_params_validate_unverifiable_g(ctx, mont, p, q,
-                                                           params->g, tmp,
-                                                           res)) {
+        && !ossl_ffc_params_validate_unverifiable_g(ctx, mont, p, q,
+            params->g, tmp,
+            res)) {
         goto err;
     }
 
@@ -1041,22 +1041,22 @@ err:
 }
 
 int ossl_ffc_params_FIPS186_4_generate(OSSL_LIB_CTX *libctx, FFC_PARAMS *params,
-                                       int type, size_t L, size_t N,
-                                       int *res, BN_GENCB *cb)
+    int type, size_t L, size_t N,
+    int *res, BN_GENCB *cb)
 {
     return ossl_ffc_params_FIPS186_4_gen_verify(libctx, params,
-                                                FFC_PARAM_MODE_GENERATE,
-                                                type, L, N, res, cb);
+        FFC_PARAM_MODE_GENERATE,
+        type, L, N, res, cb);
 }
 
 /* This should no longer be used in FIPS mode */
 int ossl_ffc_params_FIPS186_2_generate(OSSL_LIB_CTX *libctx, FFC_PARAMS *params,
-                                       int type, size_t L, size_t N,
-                                       int *res, BN_GENCB *cb)
+    int type, size_t L, size_t N,
+    int *res, BN_GENCB *cb)
 {
     if (!ossl_ffc_params_FIPS186_2_gen_verify(libctx, params,
-                                              FFC_PARAM_MODE_GENERATE,
-                                              type, L, N, res, cb))
+            FFC_PARAM_MODE_GENERATE,
+            type, L, N, res, cb))
         return 0;
 
     ossl_ffc_params_enable_flags(params, FFC_PARAM_FLAG_VALIDATE_LEGACY, 1);

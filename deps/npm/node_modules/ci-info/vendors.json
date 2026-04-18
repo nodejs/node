@@ -6,6 +6,11 @@
     "pr": "AGOLA_PULL_REQUEST_ID"
   },
   {
+    "name": "Alpic",
+    "constant": "ALPIC",
+    "env": "ALPIC_HOST"
+  },
+  {
     "name": "Appcircle",
     "constant": "APPCIRCLE",
     "env": "AC_APPCIRCLE",

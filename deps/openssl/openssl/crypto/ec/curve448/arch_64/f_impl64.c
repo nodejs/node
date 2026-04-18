@@ -19,9 +19,9 @@
 NON_EMPTY_TRANSLATION_UNIT
 #else
 
-# include "../field.h"
+#include "../field.h"
 
-void ossl_gf_mul(gf_s * RESTRICT cs, const gf as, const gf bs)
+void ossl_gf_mul(gf_s *RESTRICT cs, const gf as, const gf bs)
 {
     const uint64_t *a = as->limb, *b = bs->limb;
     uint64_t *c = cs->limb;
@@ -73,7 +73,7 @@ void ossl_gf_mul(gf_s * RESTRICT cs, const gf as, const gf bs)
     c[1] += ((uint64_t)(accum1));
 }
 
-void ossl_gf_mulw_unsigned(gf_s * RESTRICT cs, const gf as, uint32_t b)
+void ossl_gf_mulw_unsigned(gf_s *RESTRICT cs, const gf as, uint32_t b)
 {
     const uint64_t *a = as->limb;
     uint64_t *c = cs->limb;
@@ -99,7 +99,7 @@ void ossl_gf_mulw_unsigned(gf_s * RESTRICT cs, const gf as, uint32_t b)
     c[1] += accum4 >> 56;
 }
 
-void ossl_gf_sqr(gf_s * RESTRICT cs, const gf as)
+void ossl_gf_sqr(gf_s *RESTRICT cs, const gf as)
 {
     const uint64_t *a = as->limb;
     uint64_t *c = cs->limb;

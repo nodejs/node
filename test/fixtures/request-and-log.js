@@ -1,3 +1,11 @@
+let restore;
+if (process.env.SET_GLOBAL_PROXY) {
+  const config = JSON.parse(process.env.SET_GLOBAL_PROXY);
+  restore = require('http').setGlobalProxyFromEnv(config);
+} else if (process.env.SET_GLOBAL_PROXY_DEFAULT) {
+  restore = require('http').setGlobalProxyFromEnv();
+}
+
 const url = process.env.REQUEST_URL;
 
 let lib;
@@ -32,24 +40,39 @@ if (process.env.RESOLVE_TO_LOCALHOST) {
   };
 }
 
-const req = request(url, {
-  timeout,
-  agent,
-  lookup,
-}, (res) => {
-  // Log the status code
-  console.log(`Status Code: ${res.statusCode}`);
-  console.log('Headers:', res.headers);
-  res.pipe(process.stdout);
-});
+function startRequest(callback) {
+  const req = request(url, {
+    timeout,
+    agent,
+    lookup,
+  }, (res) => {
+    // Log the status code
+    if (!process.env.NO_LOG_REQUEST) {
+      console.log(`Status Code: ${res.statusCode}`);
+      console.log('Headers:', res.headers);
+    }
+    res.pipe(process.stdout);
 
-req.on('error', (e) => {
-  console.error('Request Error', e);
-});
+    if (callback) {
+      res.on('end', callback);
+    }
+  });
 
-req.on('timeout', () => {
-  console.error('Request timed out');
-  req.destroy();
-});
+  req.on('error', (e) => {
+    console.error('Request Error', e);
+  });
 
-req.end();
+  req.on('timeout', () => {
+    console.error('Request timed out');
+    req.destroy();
+  });
+
+  req.end();
+}
+
+startRequest(() => {
+  if (process.env.CLEAR_GLOBAL_PROXY_AND_RETRY) {
+    restore();
+    startRequest();
+  }
+});

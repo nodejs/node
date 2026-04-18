@@ -36,7 +36,6 @@ if (process.argv[2] === 'child') {
     console.log('filler');
   }
   console.log('goodbye');
-  process.exit(0);
 } else {
   // parent process
   const spawn = require('child_process').spawn;

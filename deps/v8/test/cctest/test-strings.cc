@@ -1854,35 +1854,64 @@ TEST(HashArrayIndexStrings) {
   v8::HandleScope scope(CcTest::isolate());
   i::Isolate* isolate = CcTest::i_isolate();
 
-  CHECK_EQ(Name::HashBits::decode(
-               StringHasher::MakeArrayIndexHash(0 /* value */, 1 /* length */)),
+  i::HashSeed seed(isolate);
+  CHECK_EQ(Name::HashBits::decode(StringHasher::MakeArrayIndexHash(
+               0 /* value */, 1 /* length */, seed)),
            isolate->factory()->zero_string()->hash());
 
-  CHECK_EQ(Name::HashBits::decode(
-               StringHasher::MakeArrayIndexHash(1 /* value */, 1 /* length */)),
+  CHECK_EQ(Name::HashBits::decode(StringHasher::MakeArrayIndexHash(
+               1 /* value */, 1 /* length */, seed)),
            isolate->factory()->one_string()->hash());
 
+  CHECK_EQ(0u, StringHasher::DecodeArrayIndexFromHashField(
+                   isolate->factory()->zero_string()->raw_hash_field(), seed));
+  CHECK_EQ(1u, StringHasher::DecodeArrayIndexFromHashField(
+                   isolate->factory()->one_string()->raw_hash_field(), seed));
+
   IndexData tests[] = {
-    {"", false, 0, false, 0},
-    {"123no", false, 0, false, 0},
-    {"12345", true, 12345, true, 12345},
-    {"12345678", true, 12345678, true, 12345678},
-    {"4294967294", true, 4294967294u, true, 4294967294u},
+      {"", false, 0, false, 0},
+      {"123no", false, 0, false, 0},
+      {"12345", true, 12345, true, 12345},
+      {"12345678", true, 12345678, true, 12345678},
+      {"1000000", true, 1000000, true, 1000000},
+      {"9999999", true, 9999999, true, 9999999},
+      {"10000000", true, 10000000, true, 10000000},
+      {"16777215", true, 16777215, true, 16777215},  // max cached index
+      {"99999999", true, 99999999, true, 99999999},
+      {"4294967294", true, 4294967294u, true, 4294967294u},
 #if V8_TARGET_ARCH_32_BIT
-    {"4294967295", false, 0, false, 0},  // Valid length but not index.
-    {"4294967296", false, 0, false, 0},
-    {"9007199254740991", false, 0, false, 0},
+      {"4294967295", false, 0, false, 0},  // Valid length but not index.
+      {"4294967296", false, 0, false, 0},
+      {"9007199254740991", false, 0, false, 0},
 #else
-    {"4294967295", false, 0, true, 4294967295u},
-    {"4294967296", false, 0, true, 4294967296ull},
-    {"9007199254740991", false, 0, true, 9007199254740991ull},
+      {"4294967295", false, 0, true, 4294967295u},
+      {"4294967296", false, 0, true, 4294967296ull},
+      {"9007199254740991", false, 0, true, 9007199254740991ull},
 #endif
-    {"9007199254740992", false, 0, false, 0},
-    {"18446744073709551615", false, 0, false, 0},
-    {"18446744073709551616", false, 0, false, 0}
-  };
+      {"9007199254740992", false, 0, false, 0},
+      {"18446744073709551615", false, 0, false, 0},
+      {"18446744073709551616", false, 0, false, 0}};
   for (int i = 0, n = arraysize(tests); i < n; i++) {
     TestString(isolate, tests[i]);
+  }
+}
+
+TEST(ArrayIndexHashRoundTrip) {
+  CcTest::InitializeVM();
+  LocalContext context;
+  v8::HandleScope scope(CcTest::isolate());
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HashSeed seed(isolate);
+
+  constexpr uint32_t max_value = (1u << Name::kArrayIndexValueBits) - 1;
+  for (uint32_t value = 0; value <= max_value; value++) {
+    uint32_t length =
+        value == 0 ? 1 : static_cast<uint32_t>(std::log10(value)) + 1;
+    uint32_t raw_hash_field =
+        StringHasher::MakeArrayIndexHash(value, length, seed);
+    uint32_t decoded =
+        StringHasher::DecodeArrayIndexFromHashField(raw_hash_field, seed);
+    CHECK_EQ(value, decoded);
   }
 }
 

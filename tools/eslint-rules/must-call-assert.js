@@ -3,7 +3,6 @@
 const message =
   'Assertions must be wrapped into `common.mustSucceed`, `common.mustCall` or `common.mustCallAtLeast`';
 
-
 const requireCall = 'CallExpression[callee.name="require"]';
 const assertModuleSpecifier = '/^(node:)?assert(.strict)?$/';
 
@@ -132,6 +131,92 @@ module.exports = {
           node,
           message: 'Only assign `node:assert` to `assert`',
         });
+      },
+
+      [`CallExpression[callee.property.name="then"][arguments.length=1]>CallExpression:matches(${[
+        '[callee.name="mustCall"]',
+        '[callee.object.name="common"][callee.property.name="mustCall"]',
+      ].join(',')})[arguments.length=1]>:has(ReturnStatement)`]: (node) => {
+        context.report({
+          node,
+          message: 'Cannot mix `common.mustCall` and return statement inside a `.then` chain',
+        });
+      },
+
+      'ExpressionStatement>CallExpression[callee.property.name="then"]': (node) => {
+        const { arguments: { length, 0: arg }, callee: { object } } = node;
+
+        if (object.type === 'CallExpression' &&
+            object.callee.type === 'Identifier' &&
+            object.callee.name === 'checkSupportReusePort') {
+          return;
+        }
+
+        const defaultMessage = 'Last item of `.then` list must use `mustCall()` ' +
+                               'or `mustNotCall("expected never settling promise")`';
+
+        if (length !== 1) {
+          context.report({
+            node,
+            message: 'Expected exactly one argument for `.then`, consider using ' +
+                     '`assert.rejects` or remove the second argument',
+          });
+        } else if (arg.type !== 'CallExpression') {
+          context.report({
+            node: arg,
+            message: defaultMessage,
+          });
+        } else {
+          const message = {
+            mustCall(args) {
+              switch (args.length) {
+                case 0: return false;
+                case 1: {
+                  const [arg] = args;
+                  if (arg.async || arg.body.type !== 'BlockStatement')
+                    return 'Add an additional `.then(common.mustCall())` to detect if resulting promise settles';
+                  return false;
+                }
+                default: return 'do not use more than one argument';
+              }
+            },
+            mustNotCall(args) {
+              if (args.length === 1 && args[0].type === 'Literal' && args[0].value.includes('never settling')) {
+                return false;
+              }
+              return 'Unexpected `common.mustNotCall`, either add a label mention ' +
+                     '"never settling promise" or use `common.mustCall`';
+            },
+          }[arg.callee.type === 'MemberExpression' && arg.callee.object.name === 'common' ?
+            arg.callee.property.name :
+            arg.callee.name]?.(arg.arguments) ?? defaultMessage;
+          if (message) {
+            context.report({ node: arg, message });
+          }
+        }
+
+        node = node.callee.object;
+        // Walk down .then chain
+        while (
+          node?.type === 'CallExpression' &&
+          node.callee.type === 'MemberExpression' &&
+          node.callee.property.name === 'then'
+        ) {
+          const { arguments: { 0: arg } } = node;
+          if (arg &&
+          arg.type === 'CallExpression' &&
+          (arg.callee.type === 'MemberExpression' && arg.callee.object.name === 'common' ?
+            arg.callee.property.name :
+            arg.callee.name
+          ) === 'mustCall') {
+            context.report({
+              node,
+              message: 'in a `.then` chain, only use mustCall as the last node',
+            });
+          }
+          // Go deeper: find next "left" call in chain
+          node = node.callee.object;
+        }
       },
     };
   },

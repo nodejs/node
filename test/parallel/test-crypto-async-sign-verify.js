@@ -154,13 +154,16 @@ MCowBQYDK2VuAyEA6pwGRbadNQAI/tYN8+/p/0/hbsdHfOEGr1ADiLVk/Gc=
   const signature = crypto.randomBytes(16);
 
   let expected = /no default digest/;
+  let expectedCode = 'ERR_OSSL_EVP_NO_DEFAULT_DIGEST';
   if (hasOpenSSL3 || process.features.openssl_is_boringssl) {
     expected = /operation[\s_]not[\s_]supported[\s_]for[\s_]this[\s_]keytype/i;
+    expectedCode = 'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE';
   }
 
   crypto.verify(undefined, data, untrustedKey, signature, common.mustCall((err) => {
     assert.ok(err);
     assert.match(err.message, expected);
+    assert.strictEqual(err.code, expectedCode);
   }));
 }
 
@@ -171,5 +174,6 @@ MCowBQYDK2VuAyEA6pwGRbadNQAI/tYN8+/p/0/hbsdHfOEGr1ADiLVk/Gc=
   crypto.sign('sha512', 'message', privateKey, common.mustCall((err) => {
     assert.ok(err);
     assert.match(err.message, /digest[\s_]too[\s_]big[\s_]for[\s_]rsa[\s_]key/i);
+    assert.match(err.code, /^ERR_OSSL_.*DIGEST_TOO_BIG_FOR_RSA_KEY$/);
   }));
 }

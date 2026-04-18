@@ -8,10 +8,10 @@
  */
 
 #ifndef OSSL_APPS_TIMEOUTS_H
-# define OSSL_APPS_TIMEOUTS_H
+#define OSSL_APPS_TIMEOUTS_H
 
 /* numbers in us */
-# define DGRAM_RCV_TIMEOUT         250000
-# define DGRAM_SND_TIMEOUT         250000
+#define DGRAM_RCV_TIMEOUT 250000
+#define DGRAM_SND_TIMEOUT 250000
 
-#endif                          /* ! OSSL_APPS_TIMEOUTS_H */
+#endif /* ! OSSL_APPS_TIMEOUTS_H */

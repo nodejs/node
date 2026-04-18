@@ -41,7 +41,6 @@ class PreferredAddress final {
     char host[NI_MAXHOST];
     int family;
     uint16_t port;
-    std::string_view address;
   };
 
   explicit PreferredAddress(ngtcp2_path* dest,

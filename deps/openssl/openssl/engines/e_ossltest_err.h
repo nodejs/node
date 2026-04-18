@@ -9,19 +9,17 @@
  */
 
 #ifndef OSSL_E_OSSLTEST_ERR_H
-# define OSSL_E_OSSLTEST_ERR_H
-# pragma once
+#define OSSL_E_OSSLTEST_ERR_H
+#pragma once
 
-# include <openssl/opensslconf.h>
-# include <openssl/symhacks.h>
+#include <openssl/opensslconf.h>
+#include <openssl/symhacks.h>
 
-
-# define OSSLTESTerr(f, r) ERR_OSSLTEST_error(0, (r), OPENSSL_FILE, OPENSSL_LINE)
-
+#define OSSLTESTerr(f, r) ERR_OSSLTEST_error(0, (r), OPENSSL_FILE, OPENSSL_LINE)
 
 /*
  * OSSLTEST reason codes.
  */
-# define OSSLTEST_R_INIT_FAILED                           100
+#define OSSLTEST_R_INIT_FAILED 100
 
 #endif

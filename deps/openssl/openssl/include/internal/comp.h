@@ -7,7 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 #ifndef _INTERNAL_COMP_H
-#define	_INTERNAL_COMP_H
+#define _INTERNAL_COMP_H
 
 #include <openssl/comp.h>
 

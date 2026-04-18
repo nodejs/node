@@ -6,3 +6,4 @@ strictEqual(wasmExports.getLength('hello'), 5);
 strictEqual(wasmExports.concatStrings('hello', ' world'), 'hello world');
 strictEqual(wasmExports.compareStrings('test', 'test'), 1);
 strictEqual(wasmExports.compareStrings('test', 'different'), 0);
+strictEqual(wasmExports.getHello(), 'hello');

@@ -23,27 +23,32 @@ static int add_certs_from_file(STACK_OF(X509) *stack, char *certfile);
 
 typedef enum OPTION_choice {
     OPT_COMMON,
-    OPT_INFORM, OPT_OUTFORM, OPT_IN, OPT_OUT, OPT_NOCRL, OPT_CERTFILE,
+    OPT_INFORM,
+    OPT_OUTFORM,
+    OPT_IN,
+    OPT_OUT,
+    OPT_NOCRL,
+    OPT_CERTFILE,
     OPT_PROV_ENUM
 } OPTION_CHOICE;
 
 const OPTIONS crl2pkcs7_options[] = {
     OPT_SECTION("General"),
-    {"help", OPT_HELP, '-', "Display this summary"},
+    { "help", OPT_HELP, '-', "Display this summary" },
 
     OPT_SECTION("Input"),
-    {"in", OPT_IN, '<', "Input file"},
-    {"inform", OPT_INFORM, 'F', "Input format - DER or PEM"},
-    {"nocrl", OPT_NOCRL, '-', "No crl to load, just certs from '-certfile'"},
-    {"certfile", OPT_CERTFILE, '<',
-     "File of chain of certs to a trusted CA; can be repeated"},
+    { "in", OPT_IN, '<', "Input file" },
+    { "inform", OPT_INFORM, 'F', "Input format - DER or PEM" },
+    { "nocrl", OPT_NOCRL, '-', "No crl to load, just certs from '-certfile'" },
+    { "certfile", OPT_CERTFILE, '<',
+        "File of chain of certs to a trusted CA; can be repeated" },
 
     OPT_SECTION("Output"),
-    {"out", OPT_OUT, '>', "Output file"},
-    {"outform", OPT_OUTFORM, 'F', "Output format - DER or PEM"},
+    { "out", OPT_OUT, '>', "Output file" },
+    { "outform", OPT_OUTFORM, 'F', "Output format - DER or PEM" },
 
     OPT_PROV_OPTIONS,
-    {NULL}
+    { NULL }
 };
 
 int crl2pkcs7_main(int argc, char **argv)
@@ -56,8 +61,7 @@ int crl2pkcs7_main(int argc, char **argv)
     STACK_OF(X509_CRL) *crl_stack = NULL;
     X509_CRL *crl = NULL;
     char *infile = NULL, *outfile = NULL, *prog, *certfile;
-    int i = 0, informat = FORMAT_PEM, outformat = FORMAT_PEM, ret = 1, nocrl =
-        0;
+    int i = 0, informat = FORMAT_PEM, outformat = FORMAT_PEM, ret = 1, nocrl = 0;
     OPTION_CHOICE o;
 
     prog = opt_init(argc, argv, crl2pkcs7_options);
@@ -65,7 +69,7 @@ int crl2pkcs7_main(int argc, char **argv)
         switch (o) {
         case OPT_EOF:
         case OPT_ERR:
- opthelp:
+        opthelp:
             BIO_printf(bio_err, "%s: Use -help for summary.\n", prog);
             goto end;
         case OPT_HELP:
@@ -141,7 +145,7 @@ int crl2pkcs7_main(int argc, char **argv)
 
         if (!sk_X509_CRL_push(crl_stack, crl))
             goto end;
-        crl = NULL;             /* now part of p7 for OPENSSL_freeing */
+        crl = NULL; /* now part of p7 for OPENSSL_freeing */
     }
 
     if (certflst != NULL) {
@@ -173,7 +177,7 @@ int crl2pkcs7_main(int argc, char **argv)
         goto end;
     }
     ret = 0;
- end:
+end:
     sk_OPENSSL_STRING_free(certflst);
     BIO_free(in);
     BIO_free_all(out);
@@ -229,7 +233,7 @@ static int add_certs_from_file(STACK_OF(X509) *stack, char *certfile)
     }
 
     ret = count;
- end:
+end:
     /* never need to OPENSSL_free x */
     BIO_free(in);
     sk_X509_INFO_free(sk);

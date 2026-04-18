@@ -66,7 +66,7 @@ uint64_t V8ProfilerConnection::DispatchMessage(const char* method,
   Debug(env(),
         DebugCategory::INSPECTOR_PROFILER,
         "Dispatching message %s\n",
-        message.c_str());
+        message);
   session_->Dispatch(StringView(message_data, message.length()));
   return id;
 }

@@ -20,6 +20,10 @@ const ca = fixtures.readKey('fake-startcom-root-cert.pem');
 function onRequest(request, response) {
   const { socket: { alpnProtocol } } = request.httpVersion === '2.0' ?
     request.stream.session : request;
+  // Verify that http1Options are applied when allowHTTP1 is true
+  if (request.httpVersion === '1.1') {
+    assert.strictEqual(request.socket.server.keepAliveTimeout, 10000);
+  }
   response.status(200);
   response.end(JSON.stringify({
     alpnProtocol,
@@ -46,8 +50,11 @@ class MyServerResponse extends http.ServerResponse {
     {
       cert,
       key, allowHTTP1: true,
-      Http1IncomingMessage: MyIncomingMessage,
-      Http1ServerResponse: MyServerResponse
+      http1Options: {
+        IncomingMessage: MyIncomingMessage,
+        ServerResponse: MyServerResponse,
+        keepAliveTimeout: 10000,
+      },
     },
     common.mustCall(onRequest, 1)
   );

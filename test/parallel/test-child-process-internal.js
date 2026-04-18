@@ -34,9 +34,6 @@ if (process.argv[2] === 'child') {
 
   // Send internal message
   process.send(internal);
-
-  process.exit(0);
-
 } else {
 
   const fork = require('child_process').fork;

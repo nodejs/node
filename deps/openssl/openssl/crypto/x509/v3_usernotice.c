@@ -11,8 +11,7 @@
 #include <openssl/x509v3.h>
 #include "ext_dat.h"
 
-ASN1_ITEM_TEMPLATE(OSSL_USER_NOTICE_SYNTAX) =
-    ASN1_EX_TEMPLATE_TYPE(ASN1_TFLG_SEQUENCE_OF, 0, OSSL_USER_NOTICE_SYNTAX, USERNOTICE)
+ASN1_ITEM_TEMPLATE(OSSL_USER_NOTICE_SYNTAX) = ASN1_EX_TEMPLATE_TYPE(ASN1_TFLG_SEQUENCE_OF, 0, OSSL_USER_NOTICE_SYNTAX, USERNOTICE)
 ASN1_ITEM_TEMPLATE_END(OSSL_USER_NOTICE_SYNTAX)
 
 IMPLEMENT_ASN1_FUNCTIONS(OSSL_USER_NOTICE_SYNTAX)
@@ -27,11 +26,13 @@ static int print_notice(BIO *out, USERNOTICE *notice, int indent)
         NOTICEREF *ref;
         ref = notice->noticeref;
         if (BIO_printf(out, "%*sOrganization: %.*s\n", indent, "",
-                   ref->organization->length,
-                   ref->organization->data) <= 0)
+                ref->organization->length,
+                ref->organization->data)
+            <= 0)
             return 0;
         if (BIO_printf(out, "%*sNumber%s: ", indent, "",
-                   sk_ASN1_INTEGER_num(ref->noticenos) > 1 ? "s" : "") <= 0)
+                sk_ASN1_INTEGER_num(ref->noticenos) > 1 ? "s" : "")
+            <= 0)
             return 0;
         for (i = 0; i < sk_ASN1_INTEGER_num(ref->noticenos); i++) {
             num = sk_ASN1_INTEGER_value(ref->noticenos, i);
@@ -57,13 +58,14 @@ static int print_notice(BIO *out, USERNOTICE *notice, int indent)
         return 1;
 
     return BIO_printf(out, "%*sExplicit Text: %.*s", indent, "",
-                notice->exptext->length,
-                notice->exptext->data) >= 0;
+               notice->exptext->length,
+               notice->exptext->data)
+        >= 0;
 }
 
 static int i2r_USER_NOTICE_SYNTAX(X509V3_EXT_METHOD *method,
-                                  OSSL_USER_NOTICE_SYNTAX *uns,
-                                  BIO *out, int indent)
+    OSSL_USER_NOTICE_SYNTAX *uns,
+    BIO *out, int indent)
 {
     int i;
     USERNOTICE *unotice;

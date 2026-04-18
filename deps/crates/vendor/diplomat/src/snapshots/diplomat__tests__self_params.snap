@@ -1,0 +1,28 @@
+---
+source: macro/src/lib.rs
+expression: "pretty_print_code(gen_bridge(parse_quote!\n{\n    mod ffi\n    {\n        #[diplomat::opaque] struct RefList<'a>\n        { data: &'a i32, next: Option<Box<Self>>, } impl<'b> RefList<'b>\n        {\n            pub fn extend(&mut self, other: &Self) -> Self\n            { unimplemented!() }\n        }\n    }\n}).to_token_stream())"
+---
+mod ffi {
+    struct RefList<'a> {
+        data: &'a i32,
+        next: Option<Box<Self>>,
+    }
+    impl<'b> RefList<'b> {
+        pub fn extend(&mut self, other: &Self) -> Self {
+            unimplemented!()
+        }
+    }
+    use diplomat_runtime::*;
+    use core::ffi::c_void;
+    #[no_mangle]
+    #[allow(deprecated)]
+    extern "C" fn RefList_extend<'b>(
+        this: &mut RefList<'b>,
+        other: &RefList<'b>,
+    ) -> RefList<'b> {
+        this.extend(other)
+    }
+    #[no_mangle]
+    #[allow(deprecated)]
+    extern "C" fn RefList_destroy<'a>(this: Box<RefList<'a>>) {}
+}

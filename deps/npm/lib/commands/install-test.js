@@ -1,7 +1,5 @@
 const Install = require('./install.js')
 
-// npm install-test
-// Runs `npm install` and then runs `npm test`
 class InstallTest extends Install {
   static description = 'Install package(s) and run tests'
   static name = 'install-test'

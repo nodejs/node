@@ -3,7 +3,7 @@ const common = require('../common');
 const assert = require('assert');
 const { execFileSync } = require('child_process');
 const { readFileSync, globSync } = require('fs');
-const { path } = require('../common/fixtures');
+const fixtures = require('../common/fixtures');
 const { isMainThread } = require('worker_threads');
 
 // This test checks for regressions in environment variable handling and
@@ -16,7 +16,7 @@ const { isMainThread } = require('worker_threads');
 // Typically, only a few strings change with each ICU update. If this script
 // suddenly generates identical values for all locales, it indicates a bug.
 // Editing json file manually is also fine.
-const localizationDataFile = path(`icu/localizationData-v${process.versions.icu}.json`);
+const localizationDataFile = fixtures.path(`icu/localizationData-v${process.versions.icu}.json`);
 
 let localizationData;
 try {
@@ -31,21 +31,11 @@ try {
   console.log(`The ICU is v${process.versions.icu}, but there is no fixture for this version. ` +
   `Trying the latest known version: v${latestVersion}. If this test fails with a few strings changed ` +
   `after ICU update, run this: \n${process.argv[0]} tools/icu/update-test-data.mjs\n`);
-  localizationData = JSON.parse(readFileSync(path(`icu/localizationData-v${latestVersion}.json`)));
+  localizationData = JSON.parse(readFileSync(fixtures.path(`icu/localizationData-v${latestVersion}.json`)));
 }
 
 
-// small-icu doesn't support non-English locales
-const hasFullICU = (() => {
-  try {
-    const january = new Date(9e8);
-    const spanish = new Intl.DateTimeFormat('es', { month: 'long' });
-    return spanish.format(january) === 'enero';
-  } catch {
-    return false;
-  }
-})();
-if (!hasFullICU)
+if (!common.hasFullICU)
   common.skip('small ICU');
 
 const icuVersionMajor = Number(process.config.variables.icu_ver_major ?? 0);

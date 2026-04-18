@@ -7,14 +7,11 @@ const { startNewREPLServer } = require('../common/repl');
 const stackRegExp = /(at .*REPL\d+:)[0-9]+:[0-9]+/g;
 
 function run({ command, expected, ...extraREPLOptions }, i) {
-  const { replServer, output } = startNewREPLServer(
-    {
-      terminal: false,
-      useColors: false,
-      ...extraREPLOptions
-    },
-    { disableDomainErrorAssert: true }
-  );
+  const { replServer, output } = startNewREPLServer({
+    terminal: false,
+    useColors: false,
+    ...extraREPLOptions
+  });
 
   replServer.write(`${command}\n`);
   if (typeof expected === 'string') {

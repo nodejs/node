@@ -52,7 +52,6 @@ struct AESCipherConfig final : public MemoryRetainer {
   size_t length;
   ByteSource iv;  // Used for both iv or counter
   ByteSource additional_data;
-  ByteSource tag;  // Used only for authenticated modes (GCM)
 
   AESCipherConfig() = default;
 

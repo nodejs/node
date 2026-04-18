@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -22,11 +22,11 @@
  * used is contained in *num;
  */
 void RC5_32_ofb64_encrypt(const unsigned char *in, unsigned char *out,
-                          long length, RC5_32_KEY *schedule,
-                          unsigned char *ivec, int *num)
+    long length, RC5_32_KEY *schedule,
+    unsigned char *ivec, int *num)
 {
     register unsigned long v0, v1, t;
-    register int n = *num;
+    register int n = *num & 0x07;
     register long l = length;
     unsigned char d[8];
     register char *dp;

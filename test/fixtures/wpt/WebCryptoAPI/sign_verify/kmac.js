@@ -15,7 +15,7 @@ function run_test() {
         var promise = importVectorKeys(vector, ["verify", "sign"])
         .then(function(vector) {
             promise_test(function(test) {
-                var algorithmParams = {name: vector.algorithm, length: vector.length};
+                var algorithmParams = {name: vector.algorithm, outputLength: vector.outputLength};
                 if (vector.customization !== undefined) {
                     algorithmParams.customization = vector.customization;
                 }
@@ -23,7 +23,7 @@ function run_test() {
                 .then(function(is_verified) {
                     assert_true(is_verified, "Signature verified");
                 }, function(err) {
-                    assert_unreached("Verification should not throw error " + vector.name + ": " + err.message + "'");
+                    assert_unreached("Verification should not throw error " + vector.name + ": '" + err.message + "'");
                 });
 
                 return operation;
@@ -40,13 +40,20 @@ function run_test() {
         all_promises.push(promise);
     });
 
-    // Test verification with an altered buffer after call
+    // Test verification with an altered buffer during call
     testVectors.forEach(function(vector) {
         var promise = importVectorKeys(vector, ["verify", "sign"])
         .then(function(vector) {
             promise_test(function(test) {
                 var signature = copyBuffer(vector.signature);
-                var algorithmParams = {name: vector.algorithm, length: vector.length};
+                signature[0] = 255 - signature[0];
+                var algorithmParams = {
+                    outputLength: vector.outputLength,
+                    get name() {
+                        signature[0] = vector.signature[0];
+                        return vector.algorithm;
+                    }
+                };
                 if (vector.customization !== undefined) {
                     algorithmParams.customization = vector.customization;
                 }
@@ -54,7 +61,35 @@ function run_test() {
                 .then(function(is_verified) {
                     assert_true(is_verified, "Signature is not verified");
                 }, function(err) {
-                    assert_unreached("Verification should not throw error " + vector.name + ": " + err.message + "'");
+                    assert_unreached("Verification should not throw error " + vector.name + ": '" + err.message + "'");
+                });
+
+                return operation;
+            }, vector.name + " verification with altered signature during call");
+        }, function(err) {
+            promise_test(function(test) {
+                assert_unreached("importVectorKeys failed for " + vector.name + ". Message: ''" + err.message + "''");
+            }, "importVectorKeys step: " + vector.name + " verification with altered signature during call");
+        });
+
+        all_promises.push(promise);
+    });
+
+    // Test verification with an altered buffer after call
+    testVectors.forEach(function(vector) {
+        var promise = importVectorKeys(vector, ["verify", "sign"])
+        .then(function(vector) {
+            promise_test(function(test) {
+                var signature = copyBuffer(vector.signature);
+                var algorithmParams = {name: vector.algorithm, outputLength: vector.outputLength};
+                if (vector.customization !== undefined) {
+                    algorithmParams.customization = vector.customization;
+                }
+                var operation = subtle.verify(algorithmParams, vector.key, signature, vector.plaintext)
+                .then(function(is_verified) {
+                    assert_true(is_verified, "Signature is not verified");
+                }, function(err) {
+                    assert_unreached("Verification should not throw error " + vector.name + ": '" + err.message + "'");
                 });
 
                 signature[0] = 255 - signature[0];
@@ -69,13 +104,83 @@ function run_test() {
         all_promises.push(promise);
     });
 
-    // Check for successful verification even if plaintext is altered after call.
+    // Test verification with a transferred buffer during call
+    testVectors.forEach(function(vector) {
+        var promise = importVectorKeys(vector, ["verify", "sign"])
+        .then(function(vector) {
+            promise_test(function(test) {
+                var signature = copyBuffer(vector.signature);
+                var algorithmParams = {
+                    get name() {
+                        signature.buffer.transfer();
+                        return vector.algorithm;
+                    },
+                    outputLength: vector.outputLength
+                };
+                if (vector.customization !== undefined) {
+                    algorithmParams.customization = vector.customization;
+                }
+                var operation = subtle.verify(algorithmParams, vector.key, signature, vector.plaintext)
+                .then(function(is_verified) {
+                    assert_false(is_verified, "Signature is NOT verified");
+                }, function(err) {
+                    assert_unreached("Verification should not throw error " + vector.name + ": '" + err.message + "'");
+                });
+
+                return operation;
+            }, vector.name + " verification with transferred signature during call");
+        }, function(err) {
+            promise_test(function(test) {
+                assert_unreached("importVectorKeys failed for " + vector.name + ". Message: ''" + err.message + "''");
+            }, "importVectorKeys step: " + vector.name + " verification with transferred signature during call");
+        });
+
+        all_promises.push(promise);
+    });
+
+    // Test verification with a transferred buffer after call
+    testVectors.forEach(function(vector) {
+        var promise = importVectorKeys(vector, ["verify", "sign"])
+        .then(function(vector) {
+            promise_test(function(test) {
+                var signature = copyBuffer(vector.signature);
+                var algorithmParams = {name: vector.algorithm, outputLength: vector.outputLength};
+                if (vector.customization !== undefined) {
+                    algorithmParams.customization = vector.customization;
+                }
+                var operation = subtle.verify(algorithmParams, vector.key, signature, vector.plaintext)
+                .then(function(is_verified) {
+                    assert_true(is_verified, "Signature is not verified");
+                }, function(err) {
+                    assert_unreached("Verification should not throw error " + vector.name + ": '" + err.message + "'");
+                });
+
+                signature.buffer.transfer();
+                return operation;
+            }, vector.name + " verification with transferred signature after call");
+        }, function(err) {
+            promise_test(function(test) {
+                assert_unreached("importVectorKeys failed for " + vector.name + ". Message: ''" + err.message + "''");
+            }, "importVectorKeys step: " + vector.name + " verification with transferred signature after call");
+        });
+
+        all_promises.push(promise);
+    });
+
+    // Check for successful verification even if plaintext is altered during call.
     testVectors.forEach(function(vector) {
         var promise = importVectorKeys(vector, ["verify", "sign"])
         .then(function(vector) {
             promise_test(function(test) {
                 var plaintext = copyBuffer(vector.plaintext);
-                var algorithmParams = {name: vector.algorithm, length: vector.length};
+                plaintext[0] = 255 - plaintext[0];
+                var algorithmParams = {
+                    outputLength: vector.outputLength,
+                    get name() {
+                        plaintext[0] = vector.plaintext[0];
+                        return vector.algorithm;
+                    }
+                };
                 if (vector.customization !== undefined) {
                     algorithmParams.customization = vector.customization;
                 }
@@ -83,7 +188,35 @@ function run_test() {
                 .then(function(is_verified) {
                     assert_true(is_verified, "Signature verified");
                 }, function(err) {
-                    assert_unreached("Verification should not throw error " + vector.name + ": " + err.message + "'");
+                    assert_unreached("Verification should not throw error " + vector.name + ": '" + err.message + "'");
+                });
+
+                return operation;
+            }, vector.name + " with altered plaintext during call");
+        }, function(err) {
+            promise_test(function(test) {
+                assert_unreached("importVectorKeys failed for " + vector.name + ". Message: ''" + err.message + "''");
+            }, "importVectorKeys step: " + vector.name + " with altered plaintext during call");
+        });
+
+        all_promises.push(promise);
+    });
+
+    // Check for successful verification even if plaintext is altered after call.
+    testVectors.forEach(function(vector) {
+        var promise = importVectorKeys(vector, ["verify", "sign"])
+        .then(function(vector) {
+            promise_test(function(test) {
+                var plaintext = copyBuffer(vector.plaintext);
+                var algorithmParams = {name: vector.algorithm, outputLength: vector.outputLength};
+                if (vector.customization !== undefined) {
+                    algorithmParams.customization = vector.customization;
+                }
+                var operation = subtle.verify(algorithmParams, vector.key, vector.signature, plaintext)
+                .then(function(is_verified) {
+                    assert_true(is_verified, "Signature verified");
+                }, function(err) {
+                    assert_unreached("Verification should not throw error " + vector.name + ": '" + err.message + "'");
                 });
 
                 plaintext[0] = 255 - plaintext[0];
@@ -92,7 +225,70 @@ function run_test() {
         }, function(err) {
             promise_test(function(test) {
                 assert_unreached("importVectorKeys failed for " + vector.name + ". Message: ''" + err.message + "''");
-            }, "importVectorKeys step: " + vector.name + " with altered plaintext");
+            }, "importVectorKeys step: " + vector.name + " with altered plaintext after call");
+        });
+
+        all_promises.push(promise);
+    });
+
+    // Check for failed verification if plaintext is transferred during call.
+    testVectors.forEach(function(vector) {
+        var promise = importVectorKeys(vector, ["verify", "sign"])
+        .then(function(vector) {
+            promise_test(function(test) {
+                var plaintext = copyBuffer(vector.plaintext);
+                var algorithmParams = {
+                    get name() {
+                        plaintext.buffer.transfer();
+                        return vector.algorithm;
+                    },
+                    outputLength: vector.outputLength
+                };
+                if (vector.customization !== undefined) {
+                    algorithmParams.customization = vector.customization;
+                }
+                var operation = subtle.verify(algorithmParams, vector.key, vector.signature, plaintext)
+                .then(function(is_verified) {
+                    assert_false(is_verified, "Signature is NOT verified");
+                }, function(err) {
+                    assert_unreached("Verification should not throw error " + vector.name + ": '" + err.message + "'");
+                });
+
+                return operation;
+            }, vector.name + " with transferred plaintext during call");
+        }, function(err) {
+            promise_test(function(test) {
+                assert_unreached("importVectorKeys failed for " + vector.name + ". Message: ''" + err.message + "''");
+            }, "importVectorKeys step: " + vector.name + " with transferred plaintext during call");
+        });
+
+        all_promises.push(promise);
+    });
+
+    // Check for successful verification even if plaintext is transferred after call.
+    testVectors.forEach(function(vector) {
+        var promise = importVectorKeys(vector, ["verify", "sign"])
+        .then(function(vector) {
+            promise_test(function(test) {
+                var plaintext = copyBuffer(vector.plaintext);
+                var algorithmParams = {name: vector.algorithm, outputLength: vector.outputLength};
+                if (vector.customization !== undefined) {
+                    algorithmParams.customization = vector.customization;
+                }
+                var operation = subtle.verify(algorithmParams, vector.key, vector.signature, plaintext)
+                .then(function(is_verified) {
+                    assert_true(is_verified, "Signature verified");
+                }, function(err) {
+                    assert_unreached("Verification should not throw error " + vector.name + ": '" + err.message + "'");
+                });
+
+                plaintext.buffer.transfer();
+                return operation;
+            }, vector.name + " with transferred plaintext after call");
+        }, function(err) {
+            promise_test(function(test) {
+                assert_unreached("importVectorKeys failed for " + vector.name + ". Message: ''" + err.message + "''");
+            }, "importVectorKeys step: " + vector.name + " with transferred plaintext after call");
         });
 
         all_promises.push(promise);
@@ -105,13 +301,13 @@ function run_test() {
         var promise = importVectorKeys(vector, ["sign"])
         .then(function(vector) {
             promise_test(function(test) {
-                var algorithmParams = {name: vector.algorithm, length: vector.length};
+                var algorithmParams = {name: vector.algorithm, outputLength: vector.outputLength};
                 if (vector.customization !== undefined) {
                     algorithmParams.customization = vector.customization;
                 }
                 return subtle.verify(algorithmParams, vector.key, vector.signature, vector.plaintext)
                 .then(function(plaintext) {
-                    assert_unreached("Should have thrown error for no verify usage in " + vector.name + ": " + err.message + "'");
+                    assert_unreached("Should have thrown error for no verify usage in " + vector.name + ": '" + err.message + "'");
                 }, function(err) {
                     assert_equals(err.name, "InvalidAccessError", "Should throw InvalidAccessError instead of '" + err.message + "'");
                 });
@@ -130,7 +326,7 @@ function run_test() {
         var promise = importVectorKeys(vector, ["verify", "sign"])
         .then(function(vectors) {
             promise_test(function(test) {
-                var algorithmParams = {name: vector.algorithm, length: vector.length};
+                var algorithmParams = {name: vector.algorithm, outputLength: vector.outputLength};
                 if (vector.customization !== undefined) {
                     algorithmParams.customization = vector.customization;
                 }
@@ -143,7 +339,7 @@ function run_test() {
                         assert_true(is_verified, "Round trip verifies");
                         return signature;
                     }, function(err) {
-                        assert_unreached("verify error for test " + vector.name + ": " + err.message + "'");
+                        assert_unreached("verify error for test " + vector.name + ": '" + err.message + "'");
                     });
                 });
             }, vector.name + " round trip");
@@ -167,7 +363,7 @@ function run_test() {
             return importVectorKeys(vector, ["verify", "sign"])
             .then(function(vectors) {
                 promise_test(function(test) {
-                    var algorithmParams = {name: vector.algorithm, length: vector.length};
+                    var algorithmParams = {name: vector.algorithm, outputLength: vector.outputLength};
                     if (vector.customization !== undefined) {
                         algorithmParams.customization = vector.customization;
                     }
@@ -205,7 +401,7 @@ function run_test() {
             return importVectorKeys(vector, ["verify", "sign"])
             .then(function(vector) {
                 promise_test(function(test) {
-                    var algorithmParams = {name: vector.algorithm, length: vector.length};
+                    var algorithmParams = {name: vector.algorithm, outputLength: vector.outputLength};
                     if (vector.customization !== undefined) {
                         algorithmParams.customization = vector.customization;
                     }
@@ -242,7 +438,7 @@ function run_test() {
             var plaintext = copyBuffer(vector.plaintext);
             plaintext[0] = 255 - plaintext[0];
             promise_test(function(test) {
-                var algorithmParams = {name: vector.algorithm, length: vector.length};
+                var algorithmParams = {name: vector.algorithm, outputLength: vector.outputLength};
                 if (vector.customization !== undefined) {
                     algorithmParams.customization = vector.customization;
                 }
@@ -250,7 +446,7 @@ function run_test() {
                 .then(function(is_verified) {
                     assert_false(is_verified, "Signature is NOT verified");
                 }, function(err) {
-                    assert_unreached("Verification should not throw error " + vector.name + ": " + err.message + "'");
+                    assert_unreached("Verification should not throw error " + vector.name + ": '" + err.message + "'");
                 });
 
                 return operation;
@@ -274,7 +470,7 @@ function run_test() {
             var signature = copyBuffer(vector.signature);
             signature[0] = 255 - signature[0];
             promise_test(function(test) {
-                var algorithmParams = {name: vector.algorithm, length: vector.length};
+                var algorithmParams = {name: vector.algorithm, outputLength: vector.outputLength};
                 if (vector.customization !== undefined) {
                     algorithmParams.customization = vector.customization;
                 }
@@ -282,7 +478,7 @@ function run_test() {
                 .then(function(is_verified) {
                     assert_false(is_verified, "Signature is NOT verified");
                 }, function(err) {
-                    assert_unreached("Verification should not throw error " + vector.name + ": " + err.message + "'");
+                    assert_unreached("Verification should not throw error " + vector.name + ": '" + err.message + "'");
                 });
 
                 return operation;
@@ -305,7 +501,7 @@ function run_test() {
         .then(function(vector) {
             var signature = vector.signature.slice(1); // Drop first byte
             promise_test(function(test) {
-                var algorithmParams = {name: vector.algorithm, length: vector.length};
+                var algorithmParams = {name: vector.algorithm, outputLength: vector.outputLength};
                 if (vector.customization !== undefined) {
                     algorithmParams.customization = vector.customization;
                 }
@@ -313,7 +509,7 @@ function run_test() {
                 .then(function(is_verified) {
                     assert_false(is_verified, "Signature is NOT verified");
                 }, function(err) {
-                    assert_unreached("Verification should not throw error " + vector.name + ": " + err.message + "'");
+                    assert_unreached("Verification should not throw error " + vector.name + ": '" + err.message + "'");
                 });
 
                 return operation;
@@ -335,8 +531,8 @@ function run_test() {
         var promise = importVectorKeys(vector, ["verify", "sign"])
         .then(function(vector) {
             promise_test(function(test) {
-                var differentLength = vector.length === 256 ? 512 : 256;
-                var algorithmParams = {name: vector.algorithm, length: differentLength};
+                var differentLength = vector.outputLength === 256 ? 512 : 256;
+                var algorithmParams = {name: vector.algorithm, outputLength: differentLength};
                 if (vector.customization !== undefined) {
                     algorithmParams.customization = vector.customization;
                 }
@@ -344,7 +540,7 @@ function run_test() {
                 .then(function(is_verified) {
                     assert_false(is_verified, "Signature is NOT verified with wrong length");
                 }, function(err) {
-                    assert_unreached("Verification should not throw error " + vector.name + ": " + err.message + "'");
+                    assert_unreached("Verification should not throw error " + vector.name + ": '" + err.message + "'");
                 });
 
                 return operation;
@@ -384,35 +580,6 @@ function run_test() {
                 return vector;
             });
         }
-    }
-
-    // Returns a copy of the sourceBuffer it is sent.
-    function copyBuffer(sourceBuffer) {
-        var source = new Uint8Array(sourceBuffer);
-        var copy = new Uint8Array(sourceBuffer.byteLength)
-
-        for (var i=0; i<source.byteLength; i++) {
-            copy[i] = source[i];
-        }
-
-        return copy;
-    }
-
-    function equalBuffers(a, b) {
-        if (a.byteLength !== b.byteLength) {
-            return false;
-        }
-
-        var aBytes = new Uint8Array(a);
-        var bBytes = new Uint8Array(b);
-
-        for (var i=0; i<a.byteLength; i++) {
-            if (aBytes[i] !== bBytes[i]) {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     return;

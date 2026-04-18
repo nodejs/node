@@ -608,14 +608,15 @@ const errorTests = [
   // access to internal modules without the --expose-internals flag.
   {
     // Shrink the stack trace to avoid having to update this test whenever the
-    // implementation of require() changes. It's set to 4 because somehow setting it
+    // implementation of require() changes. It's set to 5 because somehow setting it
     // to a lower value breaks the error formatting and the message becomes
     // "Uncaught [Error...", which is probably a bug(?).
-    send: 'Error.stackTraceLimit = 4; require("internal/repl")',
+    send: 'Error.stackTraceLimit = 5; require("internal/repl")',
     expect: [
       /^Uncaught Error: Cannot find module 'internal\/repl'/,
       /^Require stack:/,
       /^- <repl>/,  // This just tests MODULE_NOT_FOUND so let's skip the stack trace
+      /^ {4}at .*/, // Some stack frame that we have to capture otherwise error message is buggy.
       /^ {4}at .*/, // Some stack frame that we have to capture otherwise error message is buggy.
       /^ {4}at .*/, // Some stack frame that we have to capture otherwise error message is buggy.
       /^ {4}at .*/, // Some stack frame that we have to capture otherwise error message is buggy.
@@ -730,7 +731,7 @@ const errorTests = [
   },
   {
     send: 'repl.writer.options.showProxy = false, new Proxy({x:42}, {});',
-    expect: '{ x: 42 }'
+    expect: 'Proxy({ x: 42 })'
   },
 
   // Newline within template string maintains whitespace.

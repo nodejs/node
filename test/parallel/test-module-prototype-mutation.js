@@ -49,4 +49,4 @@ assert.strictEqual(
 );
 
 import(fixtures.fileURL('es-module-specifiers', 'index.mjs'))
-  .then(common.mustCall((module) => assert.strictEqual(module.noMain, 'no main field')));
+  .then(common.mustCall((module) => { assert.strictEqual(module.noMain, 'no main field'); }));

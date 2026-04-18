@@ -13,35 +13,37 @@
 
 #ifndef OPENSSL_NO_DH
 
-# define FFDHE(sz, keylength) {                                             \
-        SN_ffdhe##sz, NID_ffdhe##sz,                                        \
-        sz,                                                                 \
-        keylength,                                                          \
-        &ossl_bignum_ffdhe##sz##_p, &ossl_bignum_ffdhe##sz##_q,             \
-        &ossl_bignum_const_2,                                               \
-    }
+#define FFDHE(sz, keylength) {  \
+    SN_ffdhe##sz,               \
+    NID_ffdhe##sz,              \
+    sz,                         \
+    keylength,                  \
+    &ossl_bignum_ffdhe##sz##_p, \
+    &ossl_bignum_ffdhe##sz##_q, \
+    &ossl_bignum_const_2,       \
+}
 
-# define MODP(sz, keylength)  {                                             \
-        SN_modp_##sz, NID_modp_##sz,                                        \
-        sz,                                                                 \
-        keylength,                                                          \
-        &ossl_bignum_modp_##sz##_p, &ossl_bignum_modp_##sz##_q,             \
-        &ossl_bignum_const_2                                                \
-    }
+#define MODP(sz, keylength) {                               \
+    SN_modp_##sz, NID_modp_##sz,                            \
+    sz,                                                     \
+    keylength,                                              \
+    &ossl_bignum_modp_##sz##_p, &ossl_bignum_modp_##sz##_q, \
+    &ossl_bignum_const_2                                    \
+}
 
-# define RFC5114(name, uid, sz, tag) {                                      \
-        name, uid,                                                          \
-        sz,                                                                 \
-        0,                                                                  \
-        &ossl_bignum_dh##tag##_p, &ossl_bignum_dh##tag##_q,                 \
-        &ossl_bignum_dh##tag##_g                                            \
-    }
+#define RFC5114(name, uid, sz, tag) {                   \
+    name, uid,                                          \
+    sz,                                                 \
+    0,                                                  \
+    &ossl_bignum_dh##tag##_p, &ossl_bignum_dh##tag##_q, \
+    &ossl_bignum_dh##tag##_g                            \
+}
 
 #else
 
-# define FFDHE(sz, keylength)           { SN_ffdhe##sz, NID_ffdhe##sz }
-# define MODP(sz, keylength)            { SN_modp_##sz, NID_modp_##sz }
-# define RFC5114(name, uid, sz, tag)    { name, uid }
+#define FFDHE(sz, keylength) { SN_ffdhe##sz, NID_ffdhe##sz }
+#define MODP(sz, keylength) { SN_modp_##sz, NID_modp_##sz }
+#define RFC5114(name, uid, sz, tag) { name, uid }
 
 #endif
 
@@ -76,10 +78,10 @@ static const DH_NAMED_GROUP dh_named_groups[] = {
     MODP(4096, 325),
     MODP(6144, 375),
     MODP(8192, 400),
-    /*
-     * Additional dh named groups from RFC 5114 that have a different g.
-     * The uid can be any unique identifier.
-     */
+/*
+ * Additional dh named groups from RFC 5114 that have a different g.
+ * The uid can be any unique identifier.
+ */
 #ifndef FIPS_MODULE
     RFC5114("dh_1024_160", 1, 1024, 1024_160),
     RFC5114("dh_2048_224", 2, 2048, 2048_224),
@@ -111,8 +113,8 @@ const DH_NAMED_GROUP *ossl_ffc_uid_to_dh_named_group(int uid)
 
 #ifndef OPENSSL_NO_DH
 const DH_NAMED_GROUP *ossl_ffc_numbers_to_dh_named_group(const BIGNUM *p,
-                                                         const BIGNUM *q,
-                                                         const BIGNUM *g)
+    const BIGNUM *q,
+    const BIGNUM *g)
 {
     size_t i;
 
@@ -163,7 +165,7 @@ int ossl_ffc_named_group_set(FFC_PARAMS *ffc, const DH_NAMED_GROUP *group)
         return 0;
 
     ossl_ffc_params_set0_pqg(ffc, (BIGNUM *)group->p, (BIGNUM *)group->q,
-                             (BIGNUM *)group->g);
+        (BIGNUM *)group->g);
     ffc->keylength = group->keylength;
 
     /* flush the cached nid, The DH layer is responsible for caching */

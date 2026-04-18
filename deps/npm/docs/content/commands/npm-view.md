@@ -74,6 +74,22 @@ If the field value you are querying for is a property of an object, you should r
 npm view express time'[4.8.0]'
 ```
 
+Note: When accessing object properties that contain special characters or numeric keys, you need to use quotes around the key name.
+For example, to get the publish time of a specific version:
+
+```bash
+npm view express "time[4.17.1]"
+```
+
+Without quotes, the shell may interpret the square brackets as glob patterns, causing the command to fail.
+You can also access the time field for a specific version by specifying the version in the package descriptor:
+
+```bash
+npm view express@4.17.1 time
+```
+
+This will return all version-time pairs, but the context will be for that specific version.
+
 Multiple fields may be specified, and will be printed one after another.
 For example, to get all the contributor names and email addresses, you can do this:
 
@@ -100,6 +116,56 @@ To show the `connect` package version history, you can do this:
 
 ```bash
 npm view connect versions
+```
+
+### Field Access Patterns
+
+The `npm view` command supports different ways to access nested fields and array elements in package metadata. Understanding these patterns makes it easier to extract specific information.
+
+#### Nested Object Fields
+
+Use dot notation to access nested object fields:
+
+```bash
+# Access nested properties
+npm view npm repository.url
+npm view express bugs.url
+```
+
+#### Array Element Access
+
+For arrays, use numeric indices in square brackets to access specific elements:
+
+```bash
+# Get the first contributor's email
+npm view express contributors[0].email
+
+# Get the second maintainer's name
+npm view express maintainers[1].name
+```
+
+#### Object Property Access
+
+For object properties (like accessing specific versions in the `time` field), use bracket notation with the property name in quotes:
+
+```bash
+# Get publish time for a specific version
+npm view express "time[4.17.1]"
+
+# Get dist-tags
+npm view express "dist-tags.latest"
+```
+
+#### Extracting Fields from Arrays
+
+Request a non-numeric field on an array to get all values from objects in the list:
+
+```bash
+# Get all contributor emails
+npm view express contributors.email
+
+# Get all contributor names
+npm view express contributors.name
 ```
 
 ### Configuration

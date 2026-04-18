@@ -9,19 +9,19 @@
  */
 
 #ifndef OSSL_CRYPTO_X509V3ERR_H
-# define OSSL_CRYPTO_X509V3ERR_H
-# pragma once
+#define OSSL_CRYPTO_X509V3ERR_H
+#pragma once
 
-# include <openssl/opensslconf.h>
-# include <openssl/symhacks.h>
+#include <openssl/opensslconf.h>
+#include <openssl/symhacks.h>
 
-# ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
-# endif
+#endif
 
 int ossl_err_load_X509V3_strings(void);
 
-# ifdef  __cplusplus
+#ifdef __cplusplus
 }
-# endif
+#endif
 #endif

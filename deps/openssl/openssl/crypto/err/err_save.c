@@ -63,9 +63,9 @@ void OSSL_ERR_STATE_save_to_mark(ERR_STATE *es)
 
     /* Determine number of errors we are going to move. */
     for (count = 0, top = thread_es->top;
-         thread_es->bottom != top
-         && thread_es->err_marks[top] == 0;
-         ++count)
+        thread_es->bottom != top
+        && thread_es->err_marks[top] == 0;
+        ++count)
         top = top > 0 ? top - 1 : ERR_NUM_ERRORS - 1;
 
     /* Move the errors, preserving order. */
@@ -75,31 +75,31 @@ void OSSL_ERR_STATE_save_to_mark(ERR_STATE *es)
         err_clear(es, i, 1);
 
         /* Move the error entry to the given ERR_STATE. */
-        es->err_flags[i]        = thread_es->err_flags[j];
-        es->err_marks[i]        = 0;
-        es->err_buffer[i]       = thread_es->err_buffer[j];
-        es->err_data[i]         = thread_es->err_data[j];
-        es->err_data_size[i]    = thread_es->err_data_size[j];
-        es->err_data_flags[i]   = thread_es->err_data_flags[j];
-        es->err_file[i]         = thread_es->err_file[j];
-        es->err_line[i]         = thread_es->err_line[j];
-        es->err_func[i]         = thread_es->err_func[j];
+        es->err_flags[i] = thread_es->err_flags[j];
+        es->err_marks[i] = 0;
+        es->err_buffer[i] = thread_es->err_buffer[j];
+        es->err_data[i] = thread_es->err_data[j];
+        es->err_data_size[i] = thread_es->err_data_size[j];
+        es->err_data_flags[i] = thread_es->err_data_flags[j];
+        es->err_file[i] = thread_es->err_file[j];
+        es->err_line[i] = thread_es->err_line[j];
+        es->err_func[i] = thread_es->err_func[j];
 
-        thread_es->err_flags[j]      = 0;
-        thread_es->err_buffer[j]     = 0;
-        thread_es->err_data[j]       = NULL;
-        thread_es->err_data_size[j]  = 0;
+        thread_es->err_flags[j] = 0;
+        thread_es->err_buffer[j] = 0;
+        thread_es->err_data[j] = NULL;
+        thread_es->err_data_size[j] = 0;
         thread_es->err_data_flags[j] = 0;
-        thread_es->err_file[j]       = NULL;
-        thread_es->err_line[j]       = 0;
-        thread_es->err_func[j]       = NULL;
+        thread_es->err_file[j] = NULL;
+        thread_es->err_line[j] = 0;
+        thread_es->err_func[j] = NULL;
     }
 
     if (i > 0) {
         thread_es->top = top;
         /* If we moved anything, es's stack always starts at [0]. */
-        es->top     = i - 1;
-        es->bottom  = ERR_NUM_ERRORS - 1;
+        es->top = i - 1;
+        es->bottom = ERR_NUM_ERRORS - 1;
     } else {
         /* Didn't move anything - empty stack */
         es->top = es->bottom = 0;
@@ -137,7 +137,7 @@ void OSSL_ERR_STATE_restore(const ERR_STATE *es)
         thread_es->err_buffer[top] = es->err_buffer[i];
 
         err_set_debug(thread_es, top, es->err_file[i], es->err_line[i],
-                      es->err_func[i]);
+            es->err_func[i]);
 
         if (es->err_data[i] != NULL && es->err_data_size[i] != 0) {
             void *data;
@@ -147,7 +147,7 @@ void OSSL_ERR_STATE_restore(const ERR_STATE *es)
             if (data != NULL) {
                 memcpy(data, es->err_data[i], data_sz);
                 err_set_data(thread_es, top, data, data_sz,
-                             es->err_data_flags[i] | ERR_TXT_MALLOCED);
+                    es->err_data_flags[i] | ERR_TXT_MALLOCED);
             }
         } else {
             err_clear_data(thread_es, top, 0);

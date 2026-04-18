@@ -17,6 +17,7 @@ const testContents = [
   'line 1',
   'line 1\nline 2 南越国是前203年至前111年存在于岭南地区的一个国家\nline 3\ntrailing',
   'line 1\nline 2\nline 3 ends with newline\n',
+  Array(1e4).fill(0).map((_, i) => i).join('\n'), // More that 2 * highWaterMark
 ];
 
 async function testSimple() {
@@ -24,6 +25,29 @@ async function testSimple() {
     fs.writeFileSync(filename, fileContent);
 
     const readable = fs.createReadStream(filename);
+    const rli = readline.createInterface({
+      input: readable,
+      crlfDelay: Infinity
+    });
+
+    const iteratedLines = [];
+    for await (const k of rli) {
+      iteratedLines.push(k);
+    }
+
+    const expectedLines = fileContent.split('\n');
+    if (expectedLines[expectedLines.length - 1] === '') {
+      expectedLines.pop();
+    }
+    assert.deepStrictEqual(iteratedLines, expectedLines);
+    assert.strictEqual(iteratedLines.join(''), fileContent.replace(/\n/g, ''));
+  }
+}
+
+// Same as testSimple, but with Readable.from() instead of fs.createReadStream
+async function testReadableFrom() {
+  for (const fileContent of testContents) {
+    const readable = Readable.from([fileContent]);
     const rli = readline.createInterface({
       input: readable,
       crlfDelay: Infinity
@@ -115,6 +139,7 @@ async function testSlowStreamForLeaks() {
 }
 
 testSimple()
+  .then(testReadableFrom)
   .then(testMutual)
   .then(testSlowStreamForLeaks)
   .then(common.mustCall());

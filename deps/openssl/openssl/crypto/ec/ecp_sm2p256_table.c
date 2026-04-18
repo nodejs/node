@@ -28,7 +28,7 @@ __attribute((aligned(4096)))
 #elif defined(_MSC_VER)
 __declspec(align(4096))
 #elif defined(__SUNPRO_C)
-# pragma align 4096(ecp_sm2p256_precomputed)
+#pragma align 4096(ecp_sm2p256_precomputed)
 #endif
 extern const BN_ULONG ecp_sm2p256_precomputed[8 * 32 * 256];
 const BN_ULONG ecp_sm2p256_precomputed[8 * 32 * 256] = {

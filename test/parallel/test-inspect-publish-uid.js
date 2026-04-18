@@ -34,9 +34,9 @@ async function testArg(argValue) {
   function scriptMain(code) {
     const url = require('inspector').url();
     const { host } = require('url').parse(url);
-    require('http').get('http://' + host + '/json/list', (response) => {
+    require('http').get('http://' + host + '/json/list', common.mustCall((response) => {
       assert.strictEqual(response.statusCode, code);
       response.destroy();
-    });
+    }));
   }
 }

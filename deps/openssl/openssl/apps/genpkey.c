@@ -18,45 +18,57 @@
 static int verbose = 1;
 
 static int init_keygen_file(EVP_PKEY_CTX **pctx, const char *file, ENGINE *e,
-                            OSSL_LIB_CTX *libctx, const char *propq);
+    OSSL_LIB_CTX *libctx, const char *propq);
 typedef enum OPTION_choice {
     OPT_COMMON,
-    OPT_ENGINE, OPT_OUTFORM, OPT_OUT, OPT_PASS, OPT_PARAMFILE,
-    OPT_ALGORITHM, OPT_PKEYOPT, OPT_GENPARAM, OPT_TEXT, OPT_CIPHER,
-    OPT_VERBOSE, OPT_QUIET, OPT_CONFIG, OPT_OUTPUBKEY,
-    OPT_PROV_ENUM, OPT_R_ENUM
+    OPT_ENGINE,
+    OPT_OUTFORM,
+    OPT_OUT,
+    OPT_PASS,
+    OPT_PARAMFILE,
+    OPT_ALGORITHM,
+    OPT_PKEYOPT,
+    OPT_GENPARAM,
+    OPT_TEXT,
+    OPT_CIPHER,
+    OPT_VERBOSE,
+    OPT_QUIET,
+    OPT_CONFIG,
+    OPT_OUTPUBKEY,
+    OPT_PROV_ENUM,
+    OPT_R_ENUM
 } OPTION_CHOICE;
 
 const OPTIONS genpkey_options[] = {
     OPT_SECTION("General"),
-    {"help", OPT_HELP, '-', "Display this summary"},
+    { "help", OPT_HELP, '-', "Display this summary" },
 #ifndef OPENSSL_NO_ENGINE
-    {"engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device"},
+    { "engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device" },
 #endif
-    {"paramfile", OPT_PARAMFILE, '<', "Parameters file"},
-    {"algorithm", OPT_ALGORITHM, 's', "The public key algorithm"},
-    {"verbose", OPT_VERBOSE, '-', "Output status while generating keys"},
-    {"quiet", OPT_QUIET, '-', "Do not output status while generating keys"},
-    {"pkeyopt", OPT_PKEYOPT, 's',
-     "Set the public key algorithm option as opt:value"},
-     OPT_CONFIG_OPTION,
+    { "paramfile", OPT_PARAMFILE, '<', "Parameters file" },
+    { "algorithm", OPT_ALGORITHM, 's', "The public key algorithm" },
+    { "verbose", OPT_VERBOSE, '-', "Output status while generating keys" },
+    { "quiet", OPT_QUIET, '-', "Do not output status while generating keys" },
+    { "pkeyopt", OPT_PKEYOPT, 's',
+        "Set the public key algorithm option as opt:value" },
+    OPT_CONFIG_OPTION,
 
     OPT_SECTION("Output"),
-    {"out", OPT_OUT, '>', "Output (private key) file"},
-    {"outpubkey", OPT_OUTPUBKEY, '>', "Output public key file"},
-    {"outform", OPT_OUTFORM, 'F', "output format (DER or PEM)"},
-    {"pass", OPT_PASS, 's', "Output file pass phrase source"},
-    {"genparam", OPT_GENPARAM, '-', "Generate parameters, not key"},
-    {"text", OPT_TEXT, '-', "Print the private key in text"},
-    {"", OPT_CIPHER, '-', "Cipher to use to encrypt the key"},
+    { "out", OPT_OUT, '>', "Output (private key) file" },
+    { "outpubkey", OPT_OUTPUBKEY, '>', "Output public key file" },
+    { "outform", OPT_OUTFORM, 'F', "output format (DER or PEM)" },
+    { "pass", OPT_PASS, 's', "Output file pass phrase source" },
+    { "genparam", OPT_GENPARAM, '-', "Generate parameters, not key" },
+    { "text", OPT_TEXT, '-', "Print the private key in text" },
+    { "", OPT_CIPHER, '-', "Cipher to use to encrypt the key" },
 
     OPT_PROV_OPTIONS,
     OPT_R_OPTIONS,
 
     /* This is deliberately last. */
-    {OPT_HELP_STR, 1, 1,
-     "Order of options may be important!  See the documentation.\n"},
-    {NULL}
+    { OPT_HELP_STR, 1, 1,
+        "Order of options may be important!  See the documentation.\n" },
+    { NULL }
 };
 
 static const char *param_datatype_2name(unsigned int type, int *ishex)
@@ -64,11 +76,17 @@ static const char *param_datatype_2name(unsigned int type, int *ishex)
     *ishex = 0;
 
     switch (type) {
-    case OSSL_PARAM_INTEGER: return "int";
-    case OSSL_PARAM_UNSIGNED_INTEGER: return "uint";
-    case OSSL_PARAM_REAL: return "float";
-    case OSSL_PARAM_OCTET_STRING: *ishex = 1; return "string";
-    case OSSL_PARAM_UTF8_STRING: return "string";
+    case OSSL_PARAM_INTEGER:
+        return "int";
+    case OSSL_PARAM_UNSIGNED_INTEGER:
+        return "uint";
+    case OSSL_PARAM_REAL:
+        return "float";
+    case OSSL_PARAM_OCTET_STRING:
+        *ishex = 1;
+        return "string";
+    case OSSL_PARAM_UTF8_STRING:
+        return "string";
     default:
         return NULL;
     }
@@ -129,7 +147,7 @@ int genpkey_main(int argc, char **argv)
         switch (o) {
         case OPT_EOF:
         case OPT_ERR:
- opthelp:
+        opthelp:
             BIO_printf(bio_err, "%s: Use -help for summary.\n", prog);
             goto end;
         case OPT_HELP:
@@ -294,7 +312,7 @@ int genpkey_main(int argc, char **argv)
         }
     }
 
- end:
+end:
     sk_OPENSSL_STRING_free(keyopt);
     if (ret != 0) {
         ERR_print_errors(bio_err);
@@ -303,13 +321,13 @@ int genpkey_main(int argc, char **argv)
             rv = mem_bio_to_file(mem_outpubkey, outpubkeyfile, outformat, private);
             if (!rv)
                 BIO_printf(bio_err, "Error writing to outpubkey: '%s'. Error: %s\n",
-                           outpubkeyfile, strerror(errno));
+                    outpubkeyfile, strerror(errno));
         }
         if (mem_out != NULL) {
             rv = mem_bio_to_file(mem_out, outfile, outformat, private);
             if (!rv)
                 BIO_printf(bio_err, "Error writing to outfile: '%s'. Error: %s\n",
-                           outfile, strerror(errno));
+                    outfile, strerror(errno));
         }
     }
     EVP_PKEY_free(pkey);
@@ -324,7 +342,7 @@ int genpkey_main(int argc, char **argv)
 }
 
 static int init_keygen_file(EVP_PKEY_CTX **pctx, const char *file, ENGINE *e,
-                            OSSL_LIB_CTX *libctx, const char *propq)
+    OSSL_LIB_CTX *libctx, const char *propq)
 {
     BIO *pbio;
     EVP_PKEY *pkey = NULL;
@@ -360,18 +378,17 @@ static int init_keygen_file(EVP_PKEY_CTX **pctx, const char *file, ENGINE *e,
     *pctx = ctx;
     return 1;
 
- err:
+err:
     BIO_puts(bio_err, "Error initializing context\n");
     ERR_print_errors(bio_err);
     EVP_PKEY_CTX_free(ctx);
     EVP_PKEY_free(pkey);
     return 0;
-
 }
 
 int init_gen_str(EVP_PKEY_CTX **pctx,
-                 const char *algname, ENGINE *e, int do_param,
-                 OSSL_LIB_CTX *libctx, const char *propq)
+    const char *algname, ENGINE *e, int do_param,
+    OSSL_LIB_CTX *libctx, const char *propq)
 {
     EVP_PKEY_CTX *ctx = NULL;
     int pkey_id;
@@ -400,11 +417,9 @@ int init_gen_str(EVP_PKEY_CTX **pctx,
     *pctx = ctx;
     return 1;
 
- err:
+err:
     BIO_printf(bio_err, "Error initializing %s context\n", algname);
     ERR_print_errors(bio_err);
     EVP_PKEY_CTX_free(ctx);
     return 0;
-
 }
-

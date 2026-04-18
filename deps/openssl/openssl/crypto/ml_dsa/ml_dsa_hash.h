@@ -11,16 +11,16 @@
 
 static ossl_inline ossl_unused int
 shake_xof(EVP_MD_CTX *ctx, const EVP_MD *md, const uint8_t *in, size_t in_len,
-          uint8_t *out, size_t out_len)
+    uint8_t *out, size_t out_len)
 {
     return (EVP_DigestInit_ex2(ctx, md, NULL) == 1
-            && EVP_DigestUpdate(ctx, in, in_len) == 1
-            && EVP_DigestSqueeze(ctx, out, out_len) == 1);
+        && EVP_DigestUpdate(ctx, in, in_len) == 1
+        && EVP_DigestSqueeze(ctx, out, out_len) == 1);
 }
 
 static ossl_inline ossl_unused int
 shake_xof_2(EVP_MD_CTX *ctx, const EVP_MD *md, const uint8_t *in1, size_t in1_len,
-            const uint8_t *in2, size_t in2_len, uint8_t *out, size_t out_len)
+    const uint8_t *in2, size_t in2_len, uint8_t *out, size_t out_len)
 {
     return EVP_DigestInit_ex2(ctx, md, NULL)
         && EVP_DigestUpdate(ctx, in1, in1_len)
@@ -30,8 +30,8 @@ shake_xof_2(EVP_MD_CTX *ctx, const EVP_MD *md, const uint8_t *in1, size_t in1_le
 
 static ossl_inline ossl_unused int
 shake_xof_3(EVP_MD_CTX *ctx, const EVP_MD *md, const uint8_t *in1, size_t in1_len,
-            const uint8_t *in2, size_t in2_len,
-            const uint8_t *in3, size_t in3_len, uint8_t *out, size_t out_len)
+    const uint8_t *in2, size_t in2_len,
+    const uint8_t *in3, size_t in3_len, uint8_t *out, size_t out_len)
 {
     return EVP_DigestInit_ex2(ctx, md, NULL)
         && EVP_DigestUpdate(ctx, in1, in1_len)

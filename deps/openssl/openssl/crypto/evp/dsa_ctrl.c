@@ -36,7 +36,7 @@ int EVP_PKEY_CTX_set_dsa_paramgen_type(EVP_PKEY_CTX *ctx, const char *name)
         return ret;
 
     *p++ = OSSL_PARAM_construct_utf8_string(OSSL_PKEY_PARAM_FFC_TYPE,
-                                            (char *)name, 0);
+        (char *)name, 0);
     *p++ = OSSL_PARAM_construct_end();
 
     return EVP_PKEY_CTX_set_params(ctx, params);
@@ -57,8 +57,8 @@ int EVP_PKEY_CTX_set_dsa_paramgen_gindex(EVP_PKEY_CTX *ctx, int gindex)
 }
 
 int EVP_PKEY_CTX_set_dsa_paramgen_seed(EVP_PKEY_CTX *ctx,
-                                       const unsigned char *seed,
-                                       size_t seedlen)
+    const unsigned char *seed,
+    size_t seedlen)
 {
     int ret;
     OSSL_PARAM params[2], *p = params;
@@ -67,7 +67,7 @@ int EVP_PKEY_CTX_set_dsa_paramgen_seed(EVP_PKEY_CTX *ctx,
         return ret;
 
     *p++ = OSSL_PARAM_construct_octet_string(OSSL_PKEY_PARAM_FFC_SEED,
-                                             (void *)seed, seedlen);
+        (void *)seed, seedlen);
     *p++ = OSSL_PARAM_construct_end();
 
     return EVP_PKEY_CTX_set_params(ctx, params);
@@ -104,8 +104,8 @@ int EVP_PKEY_CTX_set_dsa_paramgen_q_bits(EVP_PKEY_CTX *ctx, int qbits)
 }
 
 int EVP_PKEY_CTX_set_dsa_paramgen_md_props(EVP_PKEY_CTX *ctx,
-                                           const char *md_name,
-                                           const char *md_properties)
+    const char *md_name,
+    const char *md_properties)
 {
     int ret;
     OSSL_PARAM params[3], *p = params;
@@ -114,10 +114,10 @@ int EVP_PKEY_CTX_set_dsa_paramgen_md_props(EVP_PKEY_CTX *ctx,
         return ret;
 
     *p++ = OSSL_PARAM_construct_utf8_string(OSSL_PKEY_PARAM_FFC_DIGEST,
-                                            (char *)md_name, 0);
+        (char *)md_name, 0);
     if (md_properties != NULL)
         *p++ = OSSL_PARAM_construct_utf8_string(OSSL_PKEY_PARAM_FFC_DIGEST_PROPS,
-                                                (char *)md_properties, 0);
+            (char *)md_properties, 0);
     *p++ = OSSL_PARAM_construct_end();
 
     return EVP_PKEY_CTX_set_params(ctx, params);
@@ -127,6 +127,6 @@ int EVP_PKEY_CTX_set_dsa_paramgen_md_props(EVP_PKEY_CTX *ctx,
 int EVP_PKEY_CTX_set_dsa_paramgen_md(EVP_PKEY_CTX *ctx, const EVP_MD *md)
 {
     return EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_DSA, EVP_PKEY_OP_PARAMGEN,
-                             EVP_PKEY_CTRL_DSA_PARAMGEN_MD, 0, (void *)(md));
+        EVP_PKEY_CTRL_DSA_PARAMGEN_MD, 0, (void *)(md));
 }
 #endif

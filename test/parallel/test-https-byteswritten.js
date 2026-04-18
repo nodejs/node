@@ -35,16 +35,16 @@ const options = {
 
 const body = 'hello world\n';
 
-const httpsServer = https.createServer(options, function(req, res) {
-  res.on('finish', function() {
+const httpsServer = https.createServer(options, common.mustCallAtLeast((req, res) => {
+  res.on('finish', common.mustCall(() => {
     assert.strictEqual(typeof req.connection.bytesWritten, 'number');
     assert(req.connection.bytesWritten > 0);
     httpsServer.close();
     console.log('ok');
-  });
+  }));
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end(body);
-});
+}));
 
 httpsServer.listen(0, function() {
   https.get({

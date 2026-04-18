@@ -30,8 +30,6 @@
 
 using namespace ngtcp2;
 
-TLSSessionBase::TLSSessionBase() : ssl_{nullptr} {}
-
 TLSSessionBase::~TLSSessionBase() {
   if (ssl_) {
     wolfSSL_free(ssl_);
@@ -42,6 +40,17 @@ WOLFSSL *TLSSessionBase::get_native_handle() const { return ssl_; }
 
 std::string TLSSessionBase::get_cipher_name() const {
   return wolfSSL_get_cipher_name(ssl_);
+}
+
+std::string_view TLSSessionBase::get_negotiated_group() const {
+  using namespace std::literals;
+
+  auto name = wolfSSL_get_curve_name(ssl_);
+  if (!name) {
+    return ""sv;
+  }
+
+  return name;
 }
 
 std::string TLSSessionBase::get_selected_alpn() const {

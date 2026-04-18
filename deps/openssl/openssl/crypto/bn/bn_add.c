@@ -135,7 +135,7 @@ int BN_usub(BIGNUM *r, const BIGNUM *a, const BIGNUM *b)
     min = b->top;
     dif = max - min;
 
-    if (dif < 0) {              /* hmm... should not be happening */
+    if (dif < 0) { /* hmm... should not be happening */
         ERR_raise(ERR_LIB_BN, BN_R_ARG2_LT_ARG3);
         return 0;
     }
@@ -168,4 +168,3 @@ int BN_usub(BIGNUM *r, const BIGNUM *a, const BIGNUM *b)
 
     return 1;
 }
-

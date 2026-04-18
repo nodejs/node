@@ -53,7 +53,8 @@ class HelpSearch extends BaseCommand {
 
       // if a line has a search term, then skip it and the next line.
       // if the next line has a search term, then skip all 3
-      // otherwise, set the line to null.  then remove the nulls.
+      // otherwise, set the line to null
+      // finally, remove the nulls
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i]
         const nextLine = lines[i + 1]
@@ -123,11 +124,9 @@ class HelpSearch extends BaseCommand {
       })
     }
 
-    // sort results by number of results found, then by number of hits
-    // then by number of matching lines
+    // sort results by number of results found, then by number of hits then by number of matching lines
 
-    // coverage is ignored here because the contents of results are
-    // nondeterministic due to either glob or readFiles or Object.entries
+    // coverage is ignored here because the contents of results are nondeterministic due to either glob or readFiles or Object.entries
     return results.sort(/* istanbul ignore next */ (a, b) =>
       a.found.length > b.found.length ? -1
       : a.found.length < b.found.length ? 1

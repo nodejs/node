@@ -435,3 +435,11 @@ if (!process.features.openssl_is_boringssl) {
     subtle.importKey('jwk', jwk, { name: 'HMAC', hash: 'SHA3-256' }, false, ['sign', 'verify']).then(common.mustCall());
   }
 }
+
+{
+  const keyData = new Uint8Array(32);
+  assert.rejects(
+    subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false),
+    { code: 'ERR_MISSING_ARGS' }
+  ).then(common.mustCall());
+}

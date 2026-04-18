@@ -26,7 +26,7 @@ class Npm {
         command: c,
       })
     }
-    return require(`./commands/${command}.js`)
+    return require(`./commands/${command}`)
   }
 
   unrefPromises = []
@@ -43,18 +43,13 @@ class Npm {
   #logFile = new LogFile()
   #timers = new Timers()
 
-  // all these options are only used by tests in order to make testing more
-  // closely resemble real world usage. for now, npm has no programmatic API so
-  // it is ok to add stuff here, but we should not rely on it more than
-  // necessary. XXX: make these options not necessary by refactoring @npmcli/config
+  // All these options are only used by tests in order to make testing more closely resemble real world usage.
+  // For now, npm has no programmatic API so it is ok to add stuff here, but we should not rely on it more than necessary.
+  // XXX: make these options not necessary by refactoring @npmcli/config
   //   - npmRoot: this is where npm looks for docs files and the builtin config
-  //   - argv: this allows tests to extend argv in the same way the argv would
-  //     be passed in via a CLI arg.
-  //   - excludeNpmCwd: this is a hack to get @npmcli/config to stop walking up
-  //     dirs to set a local prefix when it encounters the `npmRoot`. this
-  //     allows tests created by tap inside this repo to not set the local
-  //     prefix to `npmRoot` since that is the first dir it would encounter when
-  //     doing implicit detection
+  //   - argv: this allows tests to extend argv in the same way the argv would be passed in via a CLI arg.
+  //   - excludeNpmCwd: this is a hack to get @npmcli/config to stop walking up dirs to set a local prefix when it encounters the `npmRoot`.
+  //       this allows tests created by tap inside this repo to not set the local prefix to `npmRoot` since that is the first dir it would encounter when doing implicit detection
   constructor ({
     stdout = process.stdout,
     stderr = process.stderr,
@@ -72,6 +67,7 @@ class Npm {
       shorthands,
       argv: [...process.argv, ...argv],
       excludeNpmCwd,
+      warn: false,
     })
   }
 
@@ -107,13 +103,11 @@ class Npm {
     }
 
     // Remove first argv since that is our command as typed
-    // Note that this might not be the actual name of the command
-    // due to aliases, etc. But we use the raw form of it later
-    // in user output so it must be preserved as is.
+    // Note that this might not be the actual name of the command due to aliases, etc.
+    // But we use the raw form of it later in user output so it must be preserved as is.
     const commandArg = this.argv.shift()
 
-    // This is the actual name of the command that will be run or
-    // undefined if deref could not find a match
+    // This is the actual name of the command that will be run or undefined if deref could not find a match
     const command = deref(commandArg)
 
     await this.#display.load({
@@ -136,47 +130,38 @@ class Npm {
       return { exec: false }
     }
 
-    // mkdir this separately since the logs dir can be set to
-    // a different location. if this fails, then we don't have
-    // a cache dir, but we don't want to fail immediately since
-    // the command might not need a cache dir (like `npm --version`)
+    // mkdir this separately since the logs dir can be set to a different location.
+    // if this fails, then we don't have a cache dir, but we don't want to fail immediately since the command might not need a cache dir (like `npm --version`)
     await time.start('npm:load:mkdirpcache', () =>
       fs.mkdir(this.cache, { recursive: true })
         .catch((e) => log.verbose('cache', `could not create cache: ${e}`)))
 
-    // it's ok if this fails. user might have specified an invalid dir
-    // which we will tell them about at the end
+    // it's ok if this fails. user might have specified an invalid dir which we will tell them about at the end
     if (this.config.get('logs-max') > 0) {
       await time.start('npm:load:mkdirplogs', () =>
         fs.mkdir(this.#logsDir, { recursive: true })
           .catch((e) => log.verbose('logfile', `could not create logs-dir: ${e}`)))
     }
 
-    // note: this MUST be shorter than the actual argv length, because it
-    // uses the same memory, so node will truncate it if it's too long.
-    // We time this because setting process.title is slow sometimes but we
-    // have to do it for security reasons. But still helpful to know how slow it is.
+    // note: this MUST be shorter than the actual argv length, because it uses the same memory, so node will truncate it if it's too long.
+    // We time this because setting process.title is slow sometimes but we have to do it for security reasons. But still helpful to know how slow it is.
     time.start('npm:load:setTitle', () => {
       const { parsedArgv: { cooked, remain } } = this.config
-      // Secrets are mostly in configs, so title is set using only the positional args
-      // to keep those from being leaked.  We still do a best effort replaceInfo.
+      // Secrets are mostly in configs, so title is set using only the positional args to keep those from being leaked.
+      // We still do a best effort replaceInfo.
       this.#title = ['npm'].concat(replaceInfo(remain)).join(' ').trim()
       process.title = this.#title
-      // The cooked argv is also logged separately for debugging purposes. It is
-      // cleaned as a best effort by replacing known secrets like basic auth
-      // password and strings that look like npm tokens. XXX: for this to be
-      // safer the config should create a sanitized version of the argv as it
-      // has the full context of what each option contains.
+      // The cooked argv is also logged separately for debugging purposes.
+      // It is cleaned as a best effort by replacing known secrets like basic auth password and strings that look like npm tokens.
+      // XXX: for this to be safer the config should create a sanitized version of the argv as it has the full context of what each option contains.
       this.#argvClean = replaceInfo(cooked)
       log.verbose('title', this.title)
       log.verbose('argv', this.#argvClean.map(JSON.stringify).join(' '))
     })
 
     // logFile.load returns a promise that resolves when old logs are done being cleaned.
-    // We save this promise to an array so that we can await it in tests to ensure more
-    // deterministic logging behavior. The process will also hang open if this were to
-    // take a long time to resolve, but that is why process.exit is called explicitly
-    // in the exit-handler.
+    // We save this promise to an array so that we can await it in tests to ensure more deterministic logging behavior.
+    // The process will also hang open if this were to take a long time to resolve, but that is why process.exit is called explicitly in the exit-handler.
     this.unrefPromises.push(this.#logFile.load({
       command,
       path: this.logPath,
@@ -220,15 +205,69 @@ class Npm {
     const Command = this.constructor.cmd(cmd)
     const command = new Command(this)
 
-    // since 'test', 'start', 'stop', etc. commands re-enter this function
-    // to call the run command, we need to only set it one time.
+    // since 'test', 'start', 'stop', etc. commands re-enter this function to call the run command, we need to only set it one time.
     if (!this.#command) {
       this.#command = command
       process.env.npm_command = this.command
     }
 
+    // Only log warnings for legacy commands without definitions or subcommands
+    // Commands with definitions will handle warnings in base-cmd flags()
+    // Commands with subcommands will delegate to the subcommand to handle warnings
+    if (!Command.definitions && !Command.subcommands) {
+      this.config.logWarnings()
+    }
+
+    // this needs to be rest after because some commands run this.npm.config.checkUnknown('publishConfig', key)
+    this.config.warn = true
+
+    return this.execCommandClass(command, args, [cmd])
+  }
+
+  // Unified command execution for both top-level commands and subcommands
+  // Supports n-depth subcommands, workspaces, and definitions
+  async execCommandClass (commandInstance, args, commandPath = []) {
+    const Command = commandInstance.constructor
+    const commandName = commandPath.join(':')
+
+    // Handle subcommands if present
+    if (Command.subcommands) {
+      const subcommandName = args[0]
+
+      // If help is requested without a subcommand, show main command help
+      if (this.config.get('usage') && !subcommandName) {
+        return output.standard(commandInstance.usage)
+      }
+
+      // If no subcommand provided, show usage error
+      if (!subcommandName) {
+        throw commandInstance.usageError()
+      }
+
+      // Check if the subcommand exists
+      const SubCommand = Command.subcommands[subcommandName]
+      if (!SubCommand) {
+        throw commandInstance.usageError(`Unknown subcommand: ${subcommandName}`)
+      }
+
+      // Check if help is requested for the subcommand
+      if (this.config.get('usage')) {
+        const parentName = commandPath[0]
+        return output.standard(SubCommand.getUsage(parentName))
+      }
+
+      // Create subcommand instance and recurse
+      const subcommandInstance = new SubCommand(this)
+      const subcommandArgs = args.slice(1) // Remove subcommand name from args
+      const subcommandPath = [...commandPath, subcommandName]
+
+      return time.start(`command:${subcommandPath.join(':')}`, () =>
+        this.execCommandClass(subcommandInstance, subcommandArgs, subcommandPath))
+    }
+
+    // No subcommands - execute this command
     if (this.config.get('usage')) {
-      return output.standard(command.usage)
+      return output.standard(commandInstance.usage)
     }
 
     let execWorkspaces = false
@@ -248,16 +287,29 @@ class Npm {
       execWorkspaces = true
     }
 
-    if (command.checkDevEngines && !this.global) {
-      await command.checkDevEngines()
+    // Check dev engines if needed
+    if (commandInstance.checkDevEngines && !this.global) {
+      await commandInstance.checkDevEngines()
     }
 
-    return time.start(`command:${cmd}`, () =>
-      execWorkspaces ? command.execWorkspaces(args) : command.exec(args))
+    // Execute command with or without definitions
+    if (Command.definitions) {
+      // config.argv contains the full argv with flags (set by Config in production, by MockNpm in tests)
+      // Pass depth so flags() knows how many command names to skip
+      const [flags, positionalArgs] = commandInstance.flags(commandPath.length)
+      return time.start(`command:${commandName}`, () =>
+        execWorkspaces
+          ? commandInstance.execWorkspaces(positionalArgs, flags)
+          : commandInstance.exec(positionalArgs, flags))
+    } else {
+      // Legacy commands without definitions
+      this.config.logWarnings()
+      return time.start(`command:${commandName}`, () =>
+        execWorkspaces ? commandInstance.execWorkspaces(args) : commandInstance.exec(args))
+    }
   }
 
-  // This gets called at the end of the exit handler and
-  // during any tests to cleanup all of our listeners
+  // This gets called at the end of the exit handler and during any tests to cleanup all of our listeners
   // Everything in here should be synchronous
   unload () {
     this.#timers.off()
@@ -276,8 +328,7 @@ class Npm {
 
     output.flush({
       [META]: true,
-      // json can be set during a command so we send the
-      // final value of it to the display layer here
+      // json can be set during a command so we send the final value of it to the display layer here
       json: this.loaded && this.config.get('json'),
       jsonError: jsonError(err, this),
     })
@@ -366,9 +417,7 @@ class Npm {
     return flat
   }
 
-  // color and logColor are a special derived values that takes into
-  // consideration not only the config, but whether or not we are operating
-  // in a tty with the associated output (stdout/stderr)
+  // color and logColor are a special derived values that takes into consideration not only the config, but whether or not we are operating in a tty with the associated output (stdout/stderr)
   get color () {
     return this.flatOptions.color
   }

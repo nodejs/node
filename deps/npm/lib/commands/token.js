@@ -16,7 +16,7 @@ async function paginate (href, opts, items = []) {
 class Token extends BaseCommand {
   static description = 'Manage your authentication tokens'
   static name = 'token'
-  static usage = ['list', 'revoke <id|token>', 'create --name=<name> [--token-description=<desc>] [--packages=<pkg1,pkg2>] [--packages-all] [--scopes=<scope1,scope2>] [--orgs=<org1,org2>] [--packages-and-scopes-permission=<read-only|read-write|no-access>] [--orgs-permission=<read-only|read-write|no-access>] [--expires=<days>] [--cidr=<ip-range>] [--bypass-2fa] [--password=<pass>]']
+  static usage = ['list', 'revoke <id|token>', 'create']
   static params = ['name',
     'token-description',
     'expires',
@@ -95,9 +95,8 @@ class Token extends BaseCommand {
     this.generateTokenIds(tokens, 6)
     const chalk = this.npm.chalk
     for (const token of tokens) {
-      const level = token.readonly ? 'Read only token' : 'Publish token'
       const created = String(token.created).slice(0, 10)
-      output.standard(`${chalk.blue(level)} ${token.token}… with id ${chalk.cyan(token.id)} created ${created}`)
+      output.standard(`${chalk.blue('Token')} ${token.token}… with id ${chalk.cyan(token.id)} created ${created}`)
       if (token.cidr_whitelist) {
         output.standard(`with IP whitelist: ${chalk.green(token.cidr_whitelist.join(','))}`)
       }
@@ -231,10 +230,7 @@ class Token extends BaseCommand {
       Object.keys(result).forEach(k => output.standard(k + '\t' + result[k]))
     } else {
       const chalk = this.npm.chalk
-      // Display based on access level
-      // Identical to list? XXX
-      const level = result.access === 'read-only' || result.readonly ? 'read only' : 'publish'
-      output.standard(`Created ${chalk.blue(level)} token ${result.token}`, { [META]: true, redact: false })
+      output.standard(`Created token ${result.token}`, { [META]: true, redact: false })
       if (result.cidr_whitelist?.length) {
         output.standard(`with IP whitelist: ${chalk.green(result.cidr_whitelist.join(','))}`)
       }

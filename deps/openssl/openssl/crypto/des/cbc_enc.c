@@ -15,4 +15,6 @@
 
 #define CBC_ENC_C__DONT_UPDATE_IV
 
+/* clang-format off */
 #include "ncbc_enc.c"           /* des_cbc_encrypt */
+/* clang-format on */

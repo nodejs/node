@@ -14,6 +14,7 @@
 #include "internal/der.h"
 
 /* Well known OIDs precompiled */
+/* clang-format off */
 
 /*
  * ecdsa-with-SHA1 OBJECT IDENTIFIER ::= { id-ecSigType 1 }
@@ -278,9 +279,10 @@ extern const unsigned char ossl_der_oid_id_ecdsa_with_sha3_384[DER_OID_SZ_id_ecd
 #define DER_OID_SZ_id_ecdsa_with_sha3_512 11
 extern const unsigned char ossl_der_oid_id_ecdsa_with_sha3_512[DER_OID_SZ_id_ecdsa_with_sha3_512];
 
+/* clang-format on */
 
 /* Subject Public Key Info */
 int ossl_DER_w_algorithmIdentifier_EC(WPACKET *pkt, int cont, EC_KEY *ec);
 /* Signature */
 int ossl_DER_w_algorithmIdentifier_ECDSA_with_MD(WPACKET *pkt, int cont,
-                                                 EC_KEY *ec, int mdnid);
+    EC_KEY *ec, int mdnid);

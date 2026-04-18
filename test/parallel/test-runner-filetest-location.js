@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
 const fixtures = require('../common/fixtures');
-const { strictEqual } = require('node:assert');
+const assert = require('node:assert');
 const { relative } = require('node:path');
 const { run } = require('node:test');
 const fixture = fixtures.path('test-runner', 'index.js');
@@ -12,9 +12,9 @@ const stream = run({
 });
 
 stream.on('test:fail', common.mustCall((result) => {
-  strictEqual(result.name, relativePath);
-  strictEqual(result.details.error.failureType, 'testCodeFailure');
-  strictEqual(result.line, 1);
-  strictEqual(result.column, 1);
-  strictEqual(result.file, fixture);
+  assert.strictEqual(result.name, relativePath);
+  assert.strictEqual(result.details.error.failureType, 'testCodeFailure');
+  assert.strictEqual(result.line, 1);
+  assert.strictEqual(result.column, 1);
+  assert.strictEqual(result.file, fixture);
 }));

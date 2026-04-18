@@ -1,19 +1,20 @@
 'use strict'
 
 const assert = require('node:assert')
+const { forgivingBase64, collectASequenceOfCodePoints, collectASequenceOfCodePointsFast, isomorphicDecode, removeASCIIWhitespace, removeChars } = require('../infra')
 
 const encoder = new TextEncoder()
 
 /**
  * @see https://mimesniff.spec.whatwg.org/#http-token-code-point
  */
-const HTTP_TOKEN_CODEPOINTS = /^[!#$%&'*+\-.^_|~A-Za-z0-9]+$/
-const HTTP_WHITESPACE_REGEX = /[\u000A\u000D\u0009\u0020]/ // eslint-disable-line
-const ASCII_WHITESPACE_REPLACE_REGEX = /[\u0009\u000A\u000C\u000D\u0020]/g // eslint-disable-line
+const HTTP_TOKEN_CODEPOINTS = /^[-!#$%&'*+.^_|~A-Za-z0-9]+$/u
+const HTTP_WHITESPACE_REGEX = /[\u000A\u000D\u0009\u0020]/u // eslint-disable-line
+
 /**
  * @see https://mimesniff.spec.whatwg.org/#http-quoted-string-token-code-point
  */
-const HTTP_QUOTED_STRING_TOKENS = /^[\u0009\u0020-\u007E\u0080-\u00FF]+$/ // eslint-disable-line
+const HTTP_QUOTED_STRING_TOKENS = /^[\u0009\u0020-\u007E\u0080-\u00FF]+$/u // eslint-disable-line
 
 // https://fetch.spec.whatwg.org/#data-url-processor
 /** @param {URL} dataURL */
@@ -68,7 +69,7 @@ function dataURLProcessor (dataURL) {
   // 11. If mimeType ends with U+003B (;), followed by
   // zero or more U+0020 SPACE, followed by an ASCII
   // case-insensitive match for "base64", then:
-  if (/;(\u0020){0,}base64$/i.test(mimeType)) {
+  if (/;(?:\u0020*)base64$/ui.test(mimeType)) {
     // 1. Let stringBody be the isomorphic decode of body.
     const stringBody = isomorphicDecode(body)
 
@@ -86,7 +87,7 @@ function dataURLProcessor (dataURL) {
 
     // 5. Remove trailing U+0020 SPACE code points from mimeType,
     // if any.
-    mimeType = mimeType.replace(/(\u0020)+$/, '')
+    mimeType = mimeType.replace(/(\u0020+)$/u, '')
 
     // 6. Remove the last U+003B (;) code point from mimeType.
     mimeType = mimeType.slice(0, -1)
@@ -136,49 +137,6 @@ function URLSerializer (url, excludeFragment = false) {
   return serialized
 }
 
-// https://infra.spec.whatwg.org/#collect-a-sequence-of-code-points
-/**
- * @param {(char: string) => boolean} condition
- * @param {string} input
- * @param {{ position: number }} position
- */
-function collectASequenceOfCodePoints (condition, input, position) {
-  // 1. Let result be the empty string.
-  let result = ''
-
-  // 2. While position doesn’t point past the end of input and the
-  // code point at position within input meets the condition condition:
-  while (position.position < input.length && condition(input[position.position])) {
-    // 1. Append that code point to the end of result.
-    result += input[position.position]
-
-    // 2. Advance position by 1.
-    position.position++
-  }
-
-  // 3. Return result.
-  return result
-}
-
-/**
- * A faster collectASequenceOfCodePoints that only works when comparing a single character.
- * @param {string} char
- * @param {string} input
- * @param {{ position: number }} position
- */
-function collectASequenceOfCodePointsFast (char, input, position) {
-  const idx = input.indexOf(char, position.position)
-  const start = position.position
-
-  if (idx === -1) {
-    position.position = input.length
-    return input.slice(start)
-  }
-
-  position.position = idx
-  return input.slice(start, position.position)
-}
-
 // https://url.spec.whatwg.org/#string-percent-decode
 /** @param {string} input */
 function stringPercentDecode (input) {
@@ -219,8 +177,9 @@ function percentDecode (input) {
   /** @type {Uint8Array} */
   const output = new Uint8Array(length)
   let j = 0
+  let i = 0
   // 2. For each byte byte in input:
-  for (let i = 0; i < length; ++i) {
+  while (i < length) {
     const byte = input[i]
 
     // 1. If byte is not 0x25 (%), then append byte to output.
@@ -248,6 +207,7 @@ function percentDecode (input) {
       // 3. Skip the next two bytes in input.
       i += 2
     }
+    ++i
   }
 
   // 3. Return output.
@@ -427,45 +387,6 @@ function parseMIMEType (input) {
   return mimeType
 }
 
-// https://infra.spec.whatwg.org/#forgiving-base64-decode
-/** @param {string} data */
-function forgivingBase64 (data) {
-  // 1. Remove all ASCII whitespace from data.
-  data = data.replace(ASCII_WHITESPACE_REPLACE_REGEX, '')
-
-  let dataLength = data.length
-  // 2. If data’s code point length divides by 4 leaving
-  // no remainder, then:
-  if (dataLength % 4 === 0) {
-    // 1. If data ends with one or two U+003D (=) code points,
-    // then remove them from data.
-    if (data.charCodeAt(dataLength - 1) === 0x003D) {
-      --dataLength
-      if (data.charCodeAt(dataLength - 1) === 0x003D) {
-        --dataLength
-      }
-    }
-  }
-
-  // 3. If data’s code point length divides by 4 leaving
-  // a remainder of 1, then return failure.
-  if (dataLength % 4 === 1) {
-    return 'failure'
-  }
-
-  // 4. If data contains a code point that is not one of
-  //  U+002B (+)
-  //  U+002F (/)
-  //  ASCII alphanumeric
-  // then return failure.
-  if (/[^+/0-9A-Za-z]/.test(data.length === dataLength ? data : data.substring(0, dataLength))) {
-    return 'failure'
-  }
-
-  const buffer = Buffer.from(data, 'base64')
-  return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
-}
-
 // https://fetch.spec.whatwg.org/#collect-an-http-quoted-string
 // tests: https://fetch.spec.whatwg.org/#example-http-quoted-string
 /**
@@ -572,7 +493,7 @@ function serializeAMimeType (mimeType) {
     if (!HTTP_TOKEN_CODEPOINTS.test(value)) {
       // 1. Precede each occurrence of U+0022 (") or
       //    U+005C (\) in value with U+005C (\).
-      value = value.replace(/(\\|")/g, '\\$1')
+      value = value.replace(/[\\"]/ug, '\\$&')
 
       // 2. Prepend U+0022 (") to value.
       value = '"' + value
@@ -606,71 +527,6 @@ function isHTTPWhiteSpace (char) {
  */
 function removeHTTPWhitespace (str, leading = true, trailing = true) {
   return removeChars(str, leading, trailing, isHTTPWhiteSpace)
-}
-
-/**
- * @see https://infra.spec.whatwg.org/#ascii-whitespace
- * @param {number} char
- */
-function isASCIIWhitespace (char) {
-  // "\r\n\t\f "
-  return char === 0x00d || char === 0x00a || char === 0x009 || char === 0x00c || char === 0x020
-}
-
-/**
- * @see https://infra.spec.whatwg.org/#strip-leading-and-trailing-ascii-whitespace
- * @param {string} str
- * @param {boolean} [leading=true]
- * @param {boolean} [trailing=true]
- */
-function removeASCIIWhitespace (str, leading = true, trailing = true) {
-  return removeChars(str, leading, trailing, isASCIIWhitespace)
-}
-
-/**
- * @param {string} str
- * @param {boolean} leading
- * @param {boolean} trailing
- * @param {(charCode: number) => boolean} predicate
- * @returns
- */
-function removeChars (str, leading, trailing, predicate) {
-  let lead = 0
-  let trail = str.length - 1
-
-  if (leading) {
-    while (lead < str.length && predicate(str.charCodeAt(lead))) lead++
-  }
-
-  if (trailing) {
-    while (trail > 0 && predicate(str.charCodeAt(trail))) trail--
-  }
-
-  return lead === 0 && trail === str.length - 1 ? str : str.slice(lead, trail + 1)
-}
-
-/**
- * @see https://infra.spec.whatwg.org/#isomorphic-decode
- * @param {Uint8Array} input
- * @returns {string}
- */
-function isomorphicDecode (input) {
-  // 1. To isomorphic decode a byte sequence input, return a string whose code point
-  //    length is equal to input’s length and whose code points have the same values
-  //    as the values of input’s bytes, in the same order.
-  const length = input.length
-  if ((2 << 15) - 1 > length) {
-    return String.fromCharCode.apply(null, input)
-  }
-  let result = ''; let i = 0
-  let addition = (2 << 15) - 1
-  while (i < length) {
-    if (i + addition > length) {
-      addition = length - i
-    }
-    result += String.fromCharCode.apply(null, input.subarray(i, i += addition))
-  }
-  return result
 }
 
 /**
@@ -730,15 +586,11 @@ function minimizeSupportedMimeType (mimeType) {
 module.exports = {
   dataURLProcessor,
   URLSerializer,
-  collectASequenceOfCodePoints,
-  collectASequenceOfCodePointsFast,
   stringPercentDecode,
   parseMIMEType,
   collectAnHTTPQuotedString,
   serializeAMimeType,
-  removeChars,
   removeHTTPWhitespace,
   minimizeSupportedMimeType,
-  HTTP_TOKEN_CODEPOINTS,
-  isomorphicDecode
+  HTTP_TOKEN_CODEPOINTS
 }

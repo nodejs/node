@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 if (process.argv[2] === 'child')
@@ -23,10 +23,10 @@ function parent() {
     err += c;
   });
 
-  child.on('close', function(code, signal) {
+  child.on('close', common.mustCall((code, signal) => {
     assert.strictEqual(code, 0);
     assert.strictEqual(err, '');
     assert.strictEqual(out, 'foo');
     console.log('ok');
-  });
+  }));
 }

@@ -1,5 +1,6 @@
 // META: title=WebCryptoAPI: deriveBits() Using Argon2
 // META: timeout=long
+// META: script=../util/helpers.js
 // META: script=/common/subset-tests.js
 // META: script=argon2_vectors.js
 // META: script=argon2.js

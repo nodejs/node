@@ -31,6 +31,8 @@
 
 #include <ngtcp2/ngtcp2.h>
 
+#include "ngtcp2_pktns_id.h"
+
 /**
  * @struct
  *
@@ -128,6 +130,43 @@ typedef struct ngtcp2_conn_stat {
    * scheduled and transmitted together.
    */
   size_t send_quantum;
+  /*
+   * pkt_sent is the number of QUIC packets sent.
+   */
+  uint64_t pkt_sent;
+  /*
+   * bytes_sent is the number of bytes (the sum of QUIC packet length)
+   * sent.
+   */
+  uint64_t bytes_sent;
+  /*
+   * pkt_recv is the number of QUIC packets received, excluding
+   * discarded ones.
+   */
+  uint64_t pkt_recv;
+  /*
+   * bytes_recv is the number of bytes (the sum of QUIC packet length)
+   * received, excluding discarded ones.
+   */
+  uint64_t bytes_recv;
+  /*
+   * pkt_lost is the number of QUIC packets that are considered lost,
+   * excluding PMTUD packets.
+   */
+  uint64_t pkt_lost;
+  /*
+   * bytes_lost is the number of bytes (the sum of QUIC packet length)
+   * lost, excluding PMTUD packets.
+   */
+  uint64_t bytes_lost;
+  /*
+   * ping_recv is the number of PING frames received.
+   */
+  uint64_t ping_recv;
+  /*
+   * pkt_discarded is the number of QUIC packets discarded.
+   */
+  uint64_t pkt_discarded;
 } ngtcp2_conn_stat;
 
 #endif /* !defined(NGTCP2_CONN_STAT_H) */

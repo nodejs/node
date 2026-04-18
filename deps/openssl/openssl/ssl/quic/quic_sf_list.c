@@ -22,13 +22,13 @@ static void stream_frame_free(SFRAME_LIST *fl, STREAM_FRAME *sf)
 {
     if (fl->cleanse && sf->data != NULL)
         OPENSSL_cleanse((unsigned char *)sf->data,
-                        (size_t)(sf->range.end - sf->range.start));
+            (size_t)(sf->range.end - sf->range.start));
     ossl_qrx_pkt_release(sf->pkt);
     OPENSSL_free(sf);
 }
 
 static STREAM_FRAME *stream_frame_new(UINT_RANGE *range, OSSL_QRX_PKT *pkt,
-                                      const unsigned char *data)
+    const unsigned char *data)
 {
     STREAM_FRAME *sf = OPENSSL_zalloc(sizeof(*sf));
 
@@ -61,8 +61,8 @@ void ossl_sframe_list_destroy(SFRAME_LIST *fl)
 }
 
 static int append_frame(SFRAME_LIST *fl, UINT_RANGE *range,
-                        OSSL_QRX_PKT *pkt,
-                        const unsigned char *data)
+    OSSL_QRX_PKT *pkt,
+    const unsigned char *data)
 {
     STREAM_FRAME *new_frame;
 
@@ -77,8 +77,8 @@ static int append_frame(SFRAME_LIST *fl, UINT_RANGE *range,
 }
 
 int ossl_sframe_list_insert(SFRAME_LIST *fl, UINT_RANGE *range,
-                            OSSL_QRX_PKT *pkt,
-                            const unsigned char *data, int fin)
+    OSSL_QRX_PKT *pkt,
+    const unsigned char *data, int fin)
 {
     STREAM_FRAME *sf, *new_frame, *prev_frame, *next_frame;
 #ifndef NDEBUG
@@ -87,7 +87,7 @@ int ossl_sframe_list_insert(SFRAME_LIST *fl, UINT_RANGE *range,
 
     /* This check for FINAL_SIZE_ERROR is handled by QUIC FC already */
     assert((!fin || curr_end <= range->end)
-           && (!fl->fin || curr_end >= range->end));
+        && (!fl->fin || curr_end >= range->end));
 #endif
 
     if (fl->offset >= range->end)
@@ -115,7 +115,7 @@ int ossl_sframe_list_insert(SFRAME_LIST *fl, UINT_RANGE *range,
 
     prev_frame = NULL;
     for (sf = fl->head; sf != NULL && sf->range.start < range->start;
-         sf = sf->next)
+        sf = sf->next)
         prev_frame = sf;
 
     if (!ossl_assert(sf != NULL))
@@ -134,7 +134,7 @@ int ossl_sframe_list_insert(SFRAME_LIST *fl, UINT_RANGE *range,
         return 0;
 
     for (next_frame = sf;
-         next_frame != NULL && next_frame->range.end <= range->end;) {
+        next_frame != NULL && next_frame->range.end <= range->end;) {
         STREAM_FRAME *drop_frame = next_frame;
 
         next_frame = next_frame->next;
@@ -172,15 +172,15 @@ int ossl_sframe_list_insert(SFRAME_LIST *fl, UINT_RANGE *range,
 
     ++fl->num_frames;
 
- end:
+end:
     fl->fin = fin || fl->fin;
 
     return 1;
 }
 
 int ossl_sframe_list_peek(const SFRAME_LIST *fl, void **iter,
-                          UINT_RANGE *range, const unsigned char **data,
-                          int *fin)
+    UINT_RANGE *range, const unsigned char **data,
+    int *fin)
 {
     STREAM_FRAME *sf = *iter;
     uint64_t start;
@@ -222,9 +222,9 @@ int ossl_sframe_list_drop_frames(SFRAME_LIST *fl, uint64_t limit)
     /* offset cannot move back or past the data received */
     if (!ossl_assert(limit >= fl->offset)
         || !ossl_assert(fl->tail == NULL
-                        || limit <= fl->tail->range.end)
+            || limit <= fl->tail->range.end)
         || !ossl_assert(fl->tail != NULL
-                        || limit == fl->offset))
+            || limit == fl->offset))
         return 0;
 
     fl->offset = limit;
@@ -249,8 +249,8 @@ int ossl_sframe_list_drop_frames(SFRAME_LIST *fl, uint64_t limit)
 }
 
 int ossl_sframe_list_lock_head(SFRAME_LIST *fl, UINT_RANGE *range,
-                               const unsigned char **data,
-                               int *fin)
+    const unsigned char **data,
+    int *fin)
 {
     int ret;
     void *iter = NULL;
@@ -270,8 +270,8 @@ int ossl_sframe_list_is_head_locked(SFRAME_LIST *fl)
 }
 
 int ossl_sframe_list_move_data(SFRAME_LIST *fl,
-                               sframe_list_write_at_cb *write_at_cb,
-                               void *cb_arg)
+    sframe_list_write_at_cb *write_at_cb,
+    void *cb_arg)
 {
     STREAM_FRAME *sf = fl->head, *prev_frame = NULL;
     uint64_t limit = fl->offset;
@@ -300,7 +300,7 @@ int ossl_sframe_list_move_data(SFRAME_LIST *fl,
 
             if (fl->cleanse)
                 OPENSSL_cleanse((unsigned char *)sf->data,
-                                (size_t)(sf->range.end - sf->range.start));
+                    (size_t)(sf->range.end - sf->range.start));
 
             /* release the packet */
             sf->data = NULL;

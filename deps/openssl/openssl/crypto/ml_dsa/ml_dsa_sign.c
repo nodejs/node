@@ -33,8 +33,8 @@
  * @param c_tilde_len The size of |c_tilde|
  */
 static void signature_init(ML_DSA_SIG *sig,
-                           POLY *hint, uint32_t k, POLY *z, uint32_t l,
-                           uint8_t *c_tilde, size_t c_tilde_len)
+    POLY *hint, uint32_t k, POLY *z, uint32_t l,
+    uint8_t *c_tilde, size_t c_tilde_len)
 {
     vector_init(&sig->z, z, l);
     vector_init(&sig->hint, hint, k);
@@ -47,10 +47,10 @@ static void signature_init(ML_DSA_SIG *sig,
  * @returns 1 on success and 0 on failure.
  */
 static int ml_dsa_sign_internal(const ML_DSA_KEY *priv, int msg_is_mu,
-                                const uint8_t *encoded_msg,
-                                size_t encoded_msg_len,
-                                const uint8_t *rnd, size_t rnd_len,
-                                uint8_t *out_sig)
+    const uint8_t *encoded_msg,
+    size_t encoded_msg_len,
+    const uint8_t *rnd, size_t rnd_len,
+    uint8_t *out_sig)
 {
     int ret = 0;
     const ML_DSA_PARAMS *params = priv->params;
@@ -80,8 +80,7 @@ static int ml_dsa_sign_internal(const ML_DSA_KEY *priv, int msg_is_mu,
      */
     w1_encoded_len = k * (gamma2 == ML_DSA_GAMMA2_Q_MINUS1_DIV88 ? 192 : 128);
     alloc_len = w1_encoded_len
-        + sizeof(*polys) * (1 + num_polys_k + num_polys_l
-                            + num_polys_k_by_l + num_polys_sig_k);
+        + sizeof(*polys) * (1 + num_polys_k + num_polys_l + num_polys_k_by_l + num_polys_sig_k);
     alloc = OPENSSL_malloc(alloc_len);
     if (alloc == NULL)
         return 0;
@@ -116,12 +115,12 @@ static int ml_dsa_sign_internal(const ML_DSA_KEY *priv, int msg_is_mu,
         mu_ptr = (uint8_t *)encoded_msg;
     } else {
         if (!shake_xof_2(md_ctx, priv->shake256_md, priv->tr, sizeof(priv->tr),
-                         encoded_msg, encoded_msg_len, mu_ptr, mu_len))
+                encoded_msg, encoded_msg_len, mu_ptr, mu_len))
             goto err;
     }
     if (!shake_xof_3(md_ctx, priv->shake256_md, priv->K, sizeof(priv->K),
-                     rnd, rnd_len, mu_ptr, mu_len,
-                     rho_prime, sizeof(rho_prime)))
+            rnd, rnd_len, mu_ptr, mu_len,
+            rho_prime, sizeof(rho_prime)))
         goto err;
 
     vector_copy(&s1_ntt, &priv->s1);
@@ -135,14 +134,14 @@ static int ml_dsa_sign_internal(const ML_DSA_KEY *priv, int msg_is_mu,
      * kappa must not exceed 2^16. But the probability of it
      * exceeding even 1000 iterations is vanishingly small.
      */
-    for (kappa = 0; ; kappa += l) {
+    for (kappa = 0;; kappa += l) {
         VECTOR *y_ntt = &cs1;
         VECTOR *r0 = &w1;
         VECTOR *ct0 = &w1;
         uint32_t z_max, r0_max, ct0_max, h_ones;
 
         vector_expand_mask(&y, rho_prime, sizeof(rho_prime), kappa,
-                           gamma1, md_ctx, priv->shake256_md);
+            gamma1, md_ctx, priv->shake256_md);
         vector_copy(y_ntt, &y);
         vector_ntt(y_ntt);
 
@@ -153,11 +152,11 @@ static int ml_dsa_sign_internal(const ML_DSA_KEY *priv, int msg_is_mu,
         ossl_ml_dsa_w1_encode(&w1, gamma2, w1_encoded, w1_encoded_len);
 
         if (!shake_xof_2(md_ctx, priv->shake256_md, mu_ptr, mu_len,
-                         w1_encoded, w1_encoded_len, c_tilde, c_tilde_len))
+                w1_encoded, w1_encoded_len, c_tilde, c_tilde_len))
             break;
 
         if (!poly_sample_in_ball_ntt(c_ntt, c_tilde, c_tilde_len,
-                                     md_ctx, priv->shake256_md, params->tau))
+                md_ctx, priv->shake256_md, params->tau))
             break;
 
         vector_mult_scalar(&s1_ntt, c_ntt, &cs1);
@@ -178,7 +177,7 @@ static int ml_dsa_sign_internal(const ML_DSA_KEY *priv, int msg_is_mu,
         z_max = vector_max(&sig.z);
         r0_max = vector_max_signed(r0);
         if (value_barrier_32(constant_time_ge(z_max, gamma1 - params->beta)
-                             | constant_time_ge(r0_max, gamma2 - params->beta)))
+                | constant_time_ge(r0_max, gamma2 - params->beta)))
             continue;
 
         vector_mult_scalar(&t0_ntt, c_ntt, ct0);
@@ -189,7 +188,7 @@ static int ml_dsa_sign_internal(const ML_DSA_KEY *priv, int msg_is_mu,
         h_ones = vector_count_ones(&sig.hint);
         /* Same reasoning applies to the leak as above */
         if (value_barrier_32(constant_time_ge(ct0_max, gamma2)
-                             | constant_time_lt(params->omega, h_ones)))
+                | constant_time_lt(params->omega, h_ones)))
             continue;
         ret = ossl_ml_dsa_sig_encode(&sig, params, out_sig);
         break;
@@ -205,8 +204,8 @@ err:
  * See FIPS 204, Algorithm 8, ML-DSA.Verify_internal().
  */
 static int ml_dsa_verify_internal(const ML_DSA_KEY *pub, int msg_is_mu,
-                                  const uint8_t *msg_enc, size_t msg_enc_len,
-                                  const uint8_t *sig_enc, size_t sig_enc_len)
+    const uint8_t *msg_enc, size_t msg_enc_len,
+    const uint8_t *sig_enc, size_t sig_enc_len)
 {
     int ret = 0;
     uint8_t *alloc = NULL, *w1_encoded;
@@ -234,10 +233,7 @@ static int ml_dsa_verify_internal(const ML_DSA_KEY *pub, int msg_is_mu,
     /* Allocate space for all the POLYNOMIALS used by temporary VECTORS */
     w1_encoded_len = k * (gamma2 == ML_DSA_GAMMA2_Q_MINUS1_DIV88 ? 192 : 128);
     alloc = OPENSSL_malloc(w1_encoded_len
-                           + sizeof(*polys) * (1 + num_polys_k
-                                               + num_polys_l
-                                               + num_polys_k_by_l
-                                               + num_polys_sig));
+        + sizeof(*polys) * (1 + num_polys_k + num_polys_l + num_polys_k_by_l + num_polys_sig));
     if (alloc == NULL)
         return 0;
     md_ctx = EVP_MD_CTX_new();
@@ -256,7 +252,7 @@ static int ml_dsa_verify_internal(const ML_DSA_KEY *pub, int msg_is_mu,
     vector_init(&ct1_ntt, p + k, k);
 
     if (!ossl_ml_dsa_sig_decode(&sig, sig_enc, sig_enc_len, pub->params)
-            || !matrix_expand_A(md_ctx, pub->shake128_md, pub->rho, &a_ntt))
+        || !matrix_expand_A(md_ctx, pub->shake128_md, pub->rho, &a_ntt))
         goto err;
     if (msg_is_mu) {
         if (msg_enc_len != mu_len)
@@ -264,12 +260,12 @@ static int ml_dsa_verify_internal(const ML_DSA_KEY *pub, int msg_is_mu,
         mu_ptr = (uint8_t *)msg_enc;
     } else {
         if (!shake_xof_2(md_ctx, pub->shake256_md, pub->tr, sizeof(pub->tr),
-                         msg_enc, msg_enc_len, mu_ptr, mu_len))
+                msg_enc, msg_enc_len, mu_ptr, mu_len))
             goto err;
     }
     /* Compute verifiers challenge c_ntt = NTT(SampleInBall(c_tilde) */
     if (!poly_sample_in_ball_ntt(c_ntt, c_tilde_sig, c_tilde_len,
-                                 md_ctx, pub->shake256_md, params->tau))
+            md_ctx, pub->shake256_md, params->tau))
         goto err;
 
     /* ct1_ntt = NTT(c) * NTT(t1 * 2^d) */
@@ -293,7 +289,7 @@ static int ml_dsa_verify_internal(const ML_DSA_KEY *pub, int msg_is_mu,
     ossl_ml_dsa_w1_encode(w1, gamma2, w1_encoded, w1_encoded_len);
 
     if (!shake_xof_3(md_ctx, pub->shake256_md, mu_ptr, mu_len,
-                     w1_encoded, w1_encoded_len, NULL, 0, c_tilde, c_tilde_len))
+            w1_encoded, w1_encoded_len, NULL, 0, c_tilde, c_tilde_len))
         goto err;
 
     ret = (z_max < (uint32_t)(params->gamma1 - params->beta))
@@ -328,8 +324,8 @@ err:
  * is 0 then it returns |msg|. NULL is returned if there is a failure.
  */
 static uint8_t *msg_encode(const uint8_t *msg, size_t msg_len,
-                           const uint8_t *ctx, size_t ctx_len, int encode,
-                           uint8_t *tmp, size_t tmp_len, size_t *out_len)
+    const uint8_t *ctx, size_t ctx_len, int encode,
+    uint8_t *tmp, size_t tmp_len, size_t *out_len)
 {
     uint8_t *encoded = NULL;
     size_t encoded_len;
@@ -365,10 +361,10 @@ static uint8_t *msg_encode(const uint8_t *msg, size_t msg_len,
  * @returns 1 on success, or 0 on error.
  */
 int ossl_ml_dsa_sign(const ML_DSA_KEY *priv, int msg_is_mu,
-                     const uint8_t *msg, size_t msg_len,
-                     const uint8_t *context, size_t context_len,
-                     const uint8_t *rand, size_t rand_len, int encode,
-                     unsigned char *sig, size_t *sig_len, size_t sig_size)
+    const uint8_t *msg, size_t msg_len,
+    const uint8_t *context, size_t context_len,
+    const uint8_t *rand, size_t rand_len, int encode,
+    unsigned char *sig, size_t *sig_len, size_t sig_size)
 {
     int ret = 1;
     uint8_t m_tmp[1024], *m = m_tmp, *alloced_m = NULL;
@@ -384,7 +380,7 @@ int ossl_ml_dsa_sign(const ML_DSA_KEY *priv, int msg_is_mu,
             m_len = msg_len;
         } else {
             m = msg_encode(msg, msg_len, context, context_len, encode,
-                           m_tmp, sizeof(m_tmp), &m_len);
+                m_tmp, sizeof(m_tmp), &m_len);
             if (m == NULL)
                 return 0;
             if (m != msg && m != m_tmp)
@@ -403,9 +399,9 @@ int ossl_ml_dsa_sign(const ML_DSA_KEY *priv, int msg_is_mu,
  * @returns 1 on success, or 0 on error.
  */
 int ossl_ml_dsa_verify(const ML_DSA_KEY *pub, int msg_is_mu,
-                       const uint8_t *msg, size_t msg_len,
-                       const uint8_t *context, size_t context_len, int encode,
-                       const uint8_t *sig, size_t sig_len)
+    const uint8_t *msg, size_t msg_len,
+    const uint8_t *context, size_t context_len, int encode,
+    const uint8_t *sig, size_t sig_len)
 {
     uint8_t *m, *alloced_m = NULL;
     size_t m_len;
@@ -420,7 +416,7 @@ int ossl_ml_dsa_verify(const ML_DSA_KEY *pub, int msg_is_mu,
         m_len = msg_len;
     } else {
         m = msg_encode(msg, msg_len, context, context_len, encode,
-                       m_tmp, sizeof(m_tmp), &m_len);
+            m_tmp, sizeof(m_tmp), &m_len);
         if (m == NULL)
             return 0;
         if (m != msg && m != m_tmp)

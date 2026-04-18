@@ -305,6 +305,7 @@ audited 1 package in xxx
 1 package has a verified registry signature
 
 1 package has a verified attestation
+(use --json --include-attestations to view attestation details)
 `
 
 exports[`test/lib/commands/audit.js TAP audit signatures with valid signatures > must match snapshot 1`] = `

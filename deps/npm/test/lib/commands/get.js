@@ -1,6 +1,12 @@
 const t = require('tap')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm')
 
+t.test('completion', async t => {
+  const { get } = await loadMockNpm(t, { command: 'get' })
+  const res = await get.completion({ conf: { argv: { remain: ['npm', 'get'] } } })
+  t.type(res, Array)
+})
+
 t.test('should retrieve values from config', async t => {
   const name = 'editor'
   const value = 'vigor'

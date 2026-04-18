@@ -48,8 +48,8 @@ int ossl_policy_cache_set_mapping(X509 *x, POLICY_MAPPINGS *maps)
         /* Create a NODE from anyPolicy */
         if (data == NULL) {
             data = ossl_policy_data_new(NULL, map->issuerDomainPolicy,
-                                        cache->anyPolicy->flags
-                                        & POLICY_DATA_FLAG_CRITICAL);
+                cache->anyPolicy->flags
+                    & POLICY_DATA_FLAG_CRITICAL);
             if (data == NULL)
                 goto bad_mapping;
             data->qualifier_set = cache->anyPolicy->qualifier_set;
@@ -65,15 +65,13 @@ int ossl_policy_cache_set_mapping(X509 *x, POLICY_MAPPINGS *maps)
         } else
             data->flags |= POLICY_DATA_FLAG_MAPPED;
         if (!sk_ASN1_OBJECT_push(data->expected_policy_set,
-                                 map->subjectDomainPolicy))
+                map->subjectDomainPolicy))
             goto bad_mapping;
         map->subjectDomainPolicy = NULL;
-
     }
 
     ret = 1;
- bad_mapping:
+bad_mapping:
     sk_POLICY_MAPPING_pop_free(maps, POLICY_MAPPING_free);
     return ret;
-
 }

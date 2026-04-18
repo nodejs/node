@@ -8,13 +8,13 @@
  */
 
 #ifndef OSSL_QUIC_CFQ_H
-# define OSSL_QUIC_CFQ_H
+#define OSSL_QUIC_CFQ_H
 
-# include <openssl/ssl.h>
-# include "internal/quic_types.h"
-# include "internal/quic_predef.h"
+#include <openssl/ssl.h>
+#include "internal/quic_types.h"
+#include "internal/quic_predef.h"
 
-# ifndef OPENSSL_NO_QUIC
+#ifndef OPENSSL_NO_QUIC
 
 /*
  * QUIC Control Frame Queue Item
@@ -31,16 +31,16 @@ struct quic_cfq_item_st {
      * TXPIM in keeping a list of GCR control frames which were sent in a
      * packet. They may be used for any purpose.
      */
-    QUIC_CFQ_ITEM  *pkt_prev, *pkt_next;
+    QUIC_CFQ_ITEM *pkt_prev, *pkt_next;
 
     /* All other fields are private; use ossl_quic_cfq_item_* accessors. */
 };
 
-#  define QUIC_CFQ_STATE_NEW      0
-#  define QUIC_CFQ_STATE_TX       1
+#define QUIC_CFQ_STATE_NEW 0
+#define QUIC_CFQ_STATE_TX 1
 
 /* If set, do not retransmit on loss */
-#define QUIC_CFQ_ITEM_FLAG_UNRELIABLE   (1U << 0)
+#define QUIC_CFQ_ITEM_FLAG_UNRELIABLE (1U << 0)
 
 /* Returns the frame type of a CFQ item. */
 uint64_t ossl_quic_cfq_item_get_frame_type(const QUIC_CFQ_ITEM *item);
@@ -97,17 +97,17 @@ void ossl_quic_cfq_free(QUIC_CFQ *cfq);
  *
  * flags is zero or more QUIC_CFQ_ITEM_FLAG values.
  */
-typedef void (cfq_free_cb)(unsigned char *buf, size_t buf_len, void *arg);
+typedef void(cfq_free_cb)(unsigned char *buf, size_t buf_len, void *arg);
 
-QUIC_CFQ_ITEM *ossl_quic_cfq_add_frame(QUIC_CFQ            *cfq,
-                                       uint32_t             priority,
-                                       uint32_t             pn_space,
-                                       uint64_t             frame_type,
-                                       uint32_t             flags,
-                                       const unsigned char *encoded,
-                                       size_t               encoded_len,
-                                       cfq_free_cb         *free_cb,
-                                       void                *free_cb_arg);
+QUIC_CFQ_ITEM *ossl_quic_cfq_add_frame(QUIC_CFQ *cfq,
+    uint32_t priority,
+    uint32_t pn_space,
+    uint64_t frame_type,
+    uint32_t flags,
+    const unsigned char *encoded,
+    size_t encoded_len,
+    cfq_free_cb *free_cb,
+    void *free_cb_arg);
 
 /*
  * Effects an immediate transition of the given CFQ item to the TX state.
@@ -120,7 +120,7 @@ void ossl_quic_cfq_mark_tx(QUIC_CFQ *cfq, QUIC_CFQ_ITEM *item);
  * the priority is changed to the given value.
  */
 void ossl_quic_cfq_mark_lost(QUIC_CFQ *cfq, QUIC_CFQ_ITEM *item,
-                             uint32_t priority);
+    uint32_t priority);
 
 /*
  * Releases a CFQ item. The item may be in either state (NEW or TX) prior to the
@@ -138,7 +138,7 @@ void ossl_quic_cfq_release(QUIC_CFQ *cfq, QUIC_CFQ_ITEM *item);
  * transmission. If there are none, returns NULL.
  */
 QUIC_CFQ_ITEM *ossl_quic_cfq_get_priority_head(const QUIC_CFQ *cfq,
-                                               uint32_t pn_space);
+    uint32_t pn_space);
 
 /*
  * Given a CFQ item, gets the next CFQ item awaiting transmission in priority
@@ -147,8 +147,8 @@ QUIC_CFQ_ITEM *ossl_quic_cfq_get_priority_head(const QUIC_CFQ *cfq,
  * Returns NULL if the given item is the last item in priority order.
  */
 QUIC_CFQ_ITEM *ossl_quic_cfq_item_get_priority_next(const QUIC_CFQ_ITEM *item,
-                                                    uint32_t pn_space);
+    uint32_t pn_space);
 
-# endif
+#endif
 
 #endif

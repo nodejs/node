@@ -14,7 +14,7 @@
 #include "internal/nelem.h"
 
 size_t SHA3_absorb(uint64_t A[5][5], const unsigned char *inp, size_t len,
-                   size_t r);
+    size_t r);
 void SHA3_squeeze(uint64_t A[5][5], unsigned char *out, size_t len, size_t r, int next);
 
 #if !defined(KECCAK1600_ASM) || !defined(SELFTEST)
@@ -22,33 +22,27 @@ void SHA3_squeeze(uint64_t A[5][5], unsigned char *out, size_t len, size_t r, in
 /*
  * Choose some sensible defaults
  */
-#if !defined(KECCAK_REF) && !defined(KECCAK_1X) && !defined(KECCAK_1X_ALT) && \
-    !defined(KECCAK_2X) && !defined(KECCAK_INPLACE)
-# define KECCAK_2X      /* default to KECCAK_2X variant */
+#if !defined(KECCAK_REF) && !defined(KECCAK_1X) && !defined(KECCAK_1X_ALT) && !defined(KECCAK_2X) && !defined(KECCAK_INPLACE)
+#define KECCAK_2X /* default to KECCAK_2X variant */
 #endif
 
-#if defined(__i386) || defined(__i386__) || defined(_M_IX86) || \
-    (defined(__x86_64) && !defined(__BMI__)) || defined(_M_X64) || \
-    defined(__mips) || defined(__riscv) || defined(__s390__) || \
-    defined(__EMSCRIPTEN__)
+#if defined(__i386) || defined(__i386__) || defined(_M_IX86) || (defined(__x86_64) && !defined(__BMI__)) || defined(_M_X64) || defined(__mips) || defined(__riscv) || defined(__s390__) || defined(__EMSCRIPTEN__)
 /*
  * These don't have "and with complement" instruction, so minimize amount
  * of "not"-s. Implemented only in the [default] KECCAK_2X variant.
  */
-# define KECCAK_COMPLEMENTING_TRANSFORM
+#define KECCAK_COMPLEMENTING_TRANSFORM
 #endif
 
-#if defined(__x86_64__) || defined(__aarch64__) || \
-    defined(__mips64) || defined(__ia64) || \
-    (defined(__VMS) && !defined(__vax))
+#if defined(__x86_64__) || defined(__aarch64__) || defined(__mips64) || defined(__ia64) || (defined(__VMS) && !defined(__vax))
 /*
  * These are available even in ILP32 flavours, but even then they are
  * capable of performing 64-bit operations as efficiently as in *P64.
  * Since it's not given that we can use sizeof(void *), just shunt it.
  */
-# define BIT_INTERLEAVE (0)
+#define BIT_INTERLEAVE (0)
 #else
-# define BIT_INTERLEAVE (sizeof(void *) < 8)
+#define BIT_INTERLEAVE (sizeof(void *) < 8)
 #endif
 
 #define ROL32(a, offset) (((a) << (offset)) | ((a) >> ((32 - (offset)) & 31)))
@@ -58,7 +52,7 @@ static uint64_t ROL64(uint64_t val, int offset)
     if (offset == 0) {
         return val;
     } else if (!BIT_INTERLEAVE) {
-        return (val << offset) | (val >> (64-offset));
+        return (val << offset) | (val >> (64 - offset));
     } else {
         uint32_t hi = (uint32_t)(val >> 32), lo = (uint32_t)val;
 
@@ -79,11 +73,11 @@ static uint64_t ROL64(uint64_t val, int offset)
 }
 
 static const unsigned char rhotates[5][5] = {
-    {  0,  1, 62, 28, 27 },
-    { 36, 44,  6, 55, 20 },
-    {  3, 10, 43, 25, 39 },
-    { 41, 45, 15, 21,  8 },
-    { 18,  2, 61, 56, 14 }
+    { 0, 1, 62, 28, 27 },
+    { 36, 44, 6, 55, 20 },
+    { 3, 10, 43, 25, 39 },
+    { 41, 45, 15, 21, 8 },
+    { 18, 2, 61, 56, 14 }
 };
 
 static const uint64_t iotas[] = {
@@ -263,8 +257,8 @@ static void KeccakF1600(uint64_t A[5][5])
  */
 static void Round(uint64_t A[5][5], size_t i)
 {
-    uint64_t C[5], E[2];        /* registers */
-    uint64_t D[5], T[2][5];     /* memory    */
+    uint64_t C[5], E[2]; /* registers */
+    uint64_t D[5], T[2][5]; /* memory    */
 
     assert(i < OSSL_NELEM(iotas));
 
@@ -287,11 +281,11 @@ static void Round(uint64_t A[5][5], size_t i)
     T[0][3] = A[0][3] ^ C[2]; /* D[3] */
     T[0][4] = A[0][4] ^ E[1]; /* D[4] */
 
-    C[3] = ROL64(A[3][3] ^ C[2], rhotates[3][3]);   /* D[3] */
-    C[4] = ROL64(A[4][4] ^ E[1], rhotates[4][4]);   /* D[4] */
-    C[0] =       A[0][0] ^ C[0]; /* rotate by 0 */  /* D[0] */
-    C[2] = ROL64(A[2][2] ^ C[1], rhotates[2][2]);   /* D[2] */
-    C[1] = ROL64(A[1][1] ^ E[0], rhotates[1][1]);   /* D[1] */
+    C[3] = ROL64(A[3][3] ^ C[2], rhotates[3][3]); /* D[3] */
+    C[4] = ROL64(A[4][4] ^ E[1], rhotates[4][4]); /* D[4] */
+    C[0] = A[0][0] ^ C[0]; /* rotate by 0 */ /* D[0] */
+    C[2] = ROL64(A[2][2] ^ C[1], rhotates[2][2]); /* D[2] */
+    C[1] = ROL64(A[1][1] ^ E[0], rhotates[1][1]); /* D[1] */
 #else
     D[0] = ROL64(C[1], 1) ^ C[4];
     D[1] = ROL64(C[2], 1) ^ C[0];
@@ -305,7 +299,7 @@ static void Round(uint64_t A[5][5], size_t i)
     T[0][3] = A[0][3] ^ D[3];
     T[0][4] = A[0][4] ^ D[4];
 
-    C[0] =       A[0][0] ^ D[0]; /* rotate by 0 */
+    C[0] = A[0][0] ^ D[0]; /* rotate by 0 */
     C[1] = ROL64(A[1][1] ^ D[1], rhotates[1][1]);
     C[2] = ROL64(A[2][2] ^ D[2], rhotates[2][2]);
     C[3] = ROL64(A[3][3] ^ D[3], rhotates[3][3]);
@@ -323,11 +317,11 @@ static void Round(uint64_t A[5][5], size_t i)
     T[1][3] = A[1][3] ^ (E[1] = D[3]);
     T[1][4] = A[2][4] ^ (C[2] = D[4]); /* borrow T[1][4] */
 
-    C[0] = ROL64(T[0][3],        rhotates[0][3]);
-    C[1] = ROL64(A[1][4] ^ C[2], rhotates[1][4]);   /* D[4] */
-    C[2] = ROL64(A[2][0] ^ C[3], rhotates[2][0]);   /* D[0] */
-    C[3] = ROL64(A[3][1] ^ C[4], rhotates[3][1]);   /* D[1] */
-    C[4] = ROL64(A[4][2] ^ E[0], rhotates[4][2]);   /* D[2] */
+    C[0] = ROL64(T[0][3], rhotates[0][3]);
+    C[1] = ROL64(A[1][4] ^ C[2], rhotates[1][4]); /* D[4] */
+    C[2] = ROL64(A[2][0] ^ C[3], rhotates[2][0]); /* D[0] */
+    C[3] = ROL64(A[3][1] ^ C[4], rhotates[3][1]); /* D[1] */
+    C[4] = ROL64(A[4][2] ^ E[0], rhotates[4][2]); /* D[2] */
 
     A[1][0] = C[0] ^ (~C[1] & C[2]);
     A[1][1] = C[1] ^ (~C[2] & C[3]);
@@ -335,8 +329,8 @@ static void Round(uint64_t A[5][5], size_t i)
     A[1][3] = C[3] ^ (~C[4] & C[0]);
     A[1][4] = C[4] ^ (~C[0] & C[1]);
 
-    C[0] = ROL64(T[0][1],        rhotates[0][1]);
-    C[1] = ROL64(T[1][2],        rhotates[1][2]);
+    C[0] = ROL64(T[0][1], rhotates[0][1]);
+    C[1] = ROL64(T[1][2], rhotates[1][2]);
     C[2] = ROL64(A[2][3] ^ D[3], rhotates[2][3]);
     C[3] = ROL64(A[3][4] ^ D[4], rhotates[3][4]);
     C[4] = ROL64(A[4][0] ^ D[0], rhotates[4][0]);
@@ -347,9 +341,9 @@ static void Round(uint64_t A[5][5], size_t i)
     A[2][3] = C[3] ^ (~C[4] & C[0]);
     A[2][4] = C[4] ^ (~C[0] & C[1]);
 
-    C[0] = ROL64(T[0][4],        rhotates[0][4]);
-    C[1] = ROL64(T[1][0],        rhotates[1][0]);
-    C[2] = ROL64(T[1][1],        rhotates[2][1]); /* originally A[2][1] */
+    C[0] = ROL64(T[0][4], rhotates[0][4]);
+    C[1] = ROL64(T[1][0], rhotates[1][0]);
+    C[2] = ROL64(T[1][1], rhotates[2][1]); /* originally A[2][1] */
     C[3] = ROL64(A[3][2] ^ D[2], rhotates[3][2]);
     C[4] = ROL64(A[4][3] ^ D[3], rhotates[4][3]);
 
@@ -359,10 +353,10 @@ static void Round(uint64_t A[5][5], size_t i)
     A[3][3] = C[3] ^ (~C[4] & C[0]);
     A[3][4] = C[4] ^ (~C[0] & C[1]);
 
-    C[0] = ROL64(T[0][2],        rhotates[0][2]);
-    C[1] = ROL64(T[1][3],        rhotates[1][3]);
-    C[2] = ROL64(T[1][4],        rhotates[2][4]); /* originally A[2][4] */
-    C[3] = ROL64(T[0][0],        rhotates[3][0]); /* originally A[3][0] */
+    C[0] = ROL64(T[0][2], rhotates[0][2]);
+    C[1] = ROL64(T[1][3], rhotates[1][3]);
+    C[2] = ROL64(T[1][4], rhotates[2][4]); /* originally A[2][4] */
+    C[3] = ROL64(T[0][0], rhotates[3][0]); /* originally A[3][0] */
     C[4] = ROL64(A[4][1] ^ D[1], rhotates[4][1]);
 
     A[4][0] = C[0] ^ (~C[1] & C[2]);
@@ -401,8 +395,8 @@ static void Round(uint64_t A[5][5], size_t i)
     C[3] = A[0][3] ^ A[1][3] ^ A[2][3] ^ A[3][3] ^ A[4][3];
     C[4] = A[0][4] ^ A[1][4] ^ A[2][4] ^ A[3][4] ^ A[4][4];
 
-    D[1] = C[0] ^  ROL64(C[2], 1);
-    D[2] = C[1] ^  ROL64(C[3], 1);
+    D[1] = C[0] ^ ROL64(C[2], 1);
+    D[2] = C[1] ^ ROL64(C[3], 1);
     D[3] = C[2] ^= ROL64(C[4], 1);
     D[4] = C[3] ^= ROL64(C[0], 1);
     D[0] = C[4] ^= ROL64(C[1], 1);
@@ -467,10 +461,10 @@ static void Round(uint64_t A[5][5], size_t i)
     A[1][2] = ROL64(A[2][0], rhotates[2][0]);
     A[3][1] = ROL64(A[1][0], rhotates[1][0]);
 
-    A[1][0] = ROL64(C[3],    rhotates[0][3]);
-    A[2][0] = ROL64(C[1],    rhotates[0][1]);
-    A[3][0] = ROL64(C[4],    rhotates[0][4]);
-    A[4][0] = ROL64(C[2],    rhotates[0][2]);
+    A[1][0] = ROL64(C[3], rhotates[0][3]);
+    A[2][0] = ROL64(C[1], rhotates[0][1]);
+    A[3][0] = ROL64(C[4], rhotates[0][4]);
+    A[4][0] = ROL64(C[2], rhotates[0][2]);
 
     C[0] = A[0][0];
     C[1] = A[1][0];
@@ -485,8 +479,8 @@ static void Round(uint64_t A[5][5], size_t i)
     A[1][2] ^= (~A[1][3] & A[1][4]);
     A[0][3] ^= (~A[0][4] & C[0]);
     A[1][3] ^= (~A[1][4] & C[1]);
-    A[0][4] ^= (~C[0]    & D[0]);
-    A[1][4] ^= (~C[1]    & D[1]);
+    A[0][4] ^= (~C[0] & D[0]);
+    A[1][4] ^= (~C[1] & D[1]);
 
     C[2] = A[2][0];
     C[3] = A[3][0];
@@ -501,8 +495,8 @@ static void Round(uint64_t A[5][5], size_t i)
     A[3][2] ^= (~A[3][3] & A[3][4]);
     A[2][3] ^= (~A[2][4] & C[2]);
     A[3][3] ^= (~A[3][4] & C[3]);
-    A[2][4] ^= (~C[2]    & D[2]);
-    A[3][4] ^= (~C[3]    & D[3]);
+    A[2][4] ^= (~C[2] & D[2]);
+    A[3][4] ^= (~C[3] & D[3]);
 
     C[4] = A[4][0];
     D[4] = A[4][1];
@@ -511,7 +505,7 @@ static void Round(uint64_t A[5][5], size_t i)
     A[4][1] ^= (~A[4][2] & A[4][3]);
     A[4][2] ^= (~A[4][3] & A[4][4]);
     A[4][3] ^= (~A[4][4] & C[4]);
-    A[4][4] ^= (~C[4]    & D[4]);
+    A[4][4] ^= (~C[4] & D[4]);
     A[0][0] ^= iotas[i];
 }
 
@@ -552,18 +546,18 @@ static void Round(uint64_t R[5][5], uint64_t A[5][5], size_t i)
     D[3] = ROL64(C[4], 1) ^ C[2];
     D[4] = ROL64(C[0], 1) ^ C[3];
 
-    C[0] =       A[0][0] ^ D[0]; /* rotate by 0 */
+    C[0] = A[0][0] ^ D[0]; /* rotate by 0 */
     C[1] = ROL64(A[1][1] ^ D[1], rhotates[1][1]);
     C[2] = ROL64(A[2][2] ^ D[2], rhotates[2][2]);
     C[3] = ROL64(A[3][3] ^ D[3], rhotates[3][3]);
     C[4] = ROL64(A[4][4] ^ D[4], rhotates[4][4]);
 
 #ifdef KECCAK_COMPLEMENTING_TRANSFORM
-    R[0][0] = C[0] ^ ( C[1] | C[2]) ^ iotas[i];
+    R[0][0] = C[0] ^ (C[1] | C[2]) ^ iotas[i];
     R[0][1] = C[1] ^ (~C[2] | C[3]);
-    R[0][2] = C[2] ^ ( C[3] & C[4]);
-    R[0][3] = C[3] ^ ( C[4] | C[0]);
-    R[0][4] = C[4] ^ ( C[0] & C[1]);
+    R[0][2] = C[2] ^ (C[3] & C[4]);
+    R[0][3] = C[3] ^ (C[4] | C[0]);
+    R[0][4] = C[4] ^ (C[0] & C[1]);
 #else
     R[0][0] = C[0] ^ (~C[1] & C[2]) ^ iotas[i];
     R[0][1] = C[1] ^ (~C[2] & C[3]);
@@ -579,11 +573,11 @@ static void Round(uint64_t R[5][5], uint64_t A[5][5], size_t i)
     C[4] = ROL64(A[4][2] ^ D[2], rhotates[4][2]);
 
 #ifdef KECCAK_COMPLEMENTING_TRANSFORM
-    R[1][0] = C[0] ^ (C[1] |  C[2]);
-    R[1][1] = C[1] ^ (C[2] &  C[3]);
+    R[1][0] = C[0] ^ (C[1] | C[2]);
+    R[1][1] = C[1] ^ (C[2] & C[3]);
     R[1][2] = C[2] ^ (C[3] | ~C[4]);
-    R[1][3] = C[3] ^ (C[4] |  C[0]);
-    R[1][4] = C[4] ^ (C[0] &  C[1]);
+    R[1][3] = C[3] ^ (C[4] | C[0]);
+    R[1][4] = C[4] ^ (C[0] & C[1]);
 #else
     R[1][0] = C[0] ^ (~C[1] & C[2]);
     R[1][1] = C[1] ^ (~C[2] & C[3]);
@@ -599,11 +593,11 @@ static void Round(uint64_t R[5][5], uint64_t A[5][5], size_t i)
     C[4] = ROL64(A[4][0] ^ D[0], rhotates[4][0]);
 
 #ifdef KECCAK_COMPLEMENTING_TRANSFORM
-    R[2][0] =  C[0] ^ ( C[1] | C[2]);
-    R[2][1] =  C[1] ^ ( C[2] & C[3]);
-    R[2][2] =  C[2] ^ (~C[3] & C[4]);
-    R[2][3] = ~C[3] ^ ( C[4] | C[0]);
-    R[2][4] =  C[4] ^ ( C[0] & C[1]);
+    R[2][0] = C[0] ^ (C[1] | C[2]);
+    R[2][1] = C[1] ^ (C[2] & C[3]);
+    R[2][2] = C[2] ^ (~C[3] & C[4]);
+    R[2][3] = ~C[3] ^ (C[4] | C[0]);
+    R[2][4] = C[4] ^ (C[0] & C[1]);
 #else
     R[2][0] = C[0] ^ (~C[1] & C[2]);
     R[2][1] = C[1] ^ (~C[2] & C[3]);
@@ -619,11 +613,11 @@ static void Round(uint64_t R[5][5], uint64_t A[5][5], size_t i)
     C[4] = ROL64(A[4][3] ^ D[3], rhotates[4][3]);
 
 #ifdef KECCAK_COMPLEMENTING_TRANSFORM
-    R[3][0] =  C[0] ^ ( C[1] & C[2]);
-    R[3][1] =  C[1] ^ ( C[2] | C[3]);
-    R[3][2] =  C[2] ^ (~C[3] | C[4]);
-    R[3][3] = ~C[3] ^ ( C[4] & C[0]);
-    R[3][4] =  C[4] ^ ( C[0] | C[1]);
+    R[3][0] = C[0] ^ (C[1] & C[2]);
+    R[3][1] = C[1] ^ (C[2] | C[3]);
+    R[3][2] = C[2] ^ (~C[3] | C[4]);
+    R[3][3] = ~C[3] ^ (C[4] & C[0]);
+    R[3][4] = C[4] ^ (C[0] | C[1]);
 #else
     R[3][0] = C[0] ^ (~C[1] & C[2]);
     R[3][1] = C[1] ^ (~C[2] & C[3]);
@@ -639,11 +633,11 @@ static void Round(uint64_t R[5][5], uint64_t A[5][5], size_t i)
     C[4] = ROL64(A[4][1] ^ D[1], rhotates[4][1]);
 
 #ifdef KECCAK_COMPLEMENTING_TRANSFORM
-    R[4][0] =  C[0] ^ (~C[1] & C[2]);
-    R[4][1] = ~C[1] ^ ( C[2] | C[3]);
-    R[4][2] =  C[2] ^ ( C[3] & C[4]);
-    R[4][3] =  C[3] ^ ( C[4] | C[0]);
-    R[4][4] =  C[4] ^ ( C[0] & C[1]);
+    R[4][0] = C[0] ^ (~C[1] & C[2]);
+    R[4][1] = ~C[1] ^ (C[2] | C[3]);
+    R[4][2] = C[2] ^ (C[3] & C[4]);
+    R[4][3] = C[3] ^ (C[4] | C[0]);
+    R[4][4] = C[4] ^ (C[0] & C[1]);
 #else
     R[4][0] = C[0] ^ (~C[1] & C[2]);
     R[4][1] = C[1] ^ (~C[2] & C[3]);
@@ -682,7 +676,7 @@ static void KeccakF1600(uint64_t A[5][5])
 #endif
 }
 
-#else   /* define KECCAK_INPLACE to compile this code path */
+#else /* define KECCAK_INPLACE to compile this code path */
 /*
  * This implementation is KECCAK_1X from above combined 4 times with
  * a twist that allows to omit temporary storage and perform in-place
@@ -711,7 +705,7 @@ static void FourRounds(uint64_t A[5][5], size_t i)
     D[3] = ROL64(C[4], 1) ^ C[2];
     D[4] = ROL64(C[0], 1) ^ C[3];
 
-    B[0] =       A[0][0] ^ D[0]; /* rotate by 0 */
+    B[0] = A[0][0] ^ D[0]; /* rotate by 0 */
     B[1] = ROL64(A[1][1] ^ D[1], rhotates[1][1]);
     B[2] = ROL64(A[2][2] ^ D[2], rhotates[2][2]);
     B[3] = ROL64(A[3][3] ^ D[3], rhotates[3][3]);
@@ -778,7 +772,7 @@ static void FourRounds(uint64_t A[5][5], size_t i)
     D[3] = ROL64(C[4], 1) ^ C[2];
     D[4] = ROL64(C[0], 1) ^ C[3];
 
-    B[0] =       A[0][0] ^ D[0]; /* rotate by 0 */
+    B[0] = A[0][0] ^ D[0]; /* rotate by 0 */
     B[1] = ROL64(A[3][1] ^ D[1], rhotates[1][1]);
     B[2] = ROL64(A[1][2] ^ D[2], rhotates[2][2]);
     B[3] = ROL64(A[4][3] ^ D[3], rhotates[3][3]);
@@ -845,7 +839,7 @@ static void FourRounds(uint64_t A[5][5], size_t i)
     D[3] = ROL64(C[4], 1) ^ C[2];
     D[4] = ROL64(C[0], 1) ^ C[3];
 
-    B[0] =       A[0][0] ^ D[0]; /* rotate by 0 */
+    B[0] = A[0][0] ^ D[0]; /* rotate by 0 */
     B[1] = ROL64(A[2][1] ^ D[1], rhotates[1][1]);
     B[2] = ROL64(A[4][2] ^ D[2], rhotates[2][2]);
     B[3] = ROL64(A[1][3] ^ D[3], rhotates[3][3]);
@@ -912,7 +906,7 @@ static void FourRounds(uint64_t A[5][5], size_t i)
     D[3] = ROL64(C[4], 1) ^ C[2];
     D[4] = ROL64(C[0], 1) ^ C[3];
 
-    B[0] =       A[0][0] ^ D[0]; /* rotate by 0 */
+    B[0] = A[0][0] ^ D[0]; /* rotate by 0 */
     B[1] = ROL64(A[0][1] ^ D[1], rhotates[1][1]);
     B[2] = ROL64(A[0][2] ^ D[2], rhotates[2][2]);
     B[3] = ROL64(A[0][3] ^ D[3], rhotates[3][3]);
@@ -991,28 +985,44 @@ static uint64_t BitInterleave(uint64_t Ai)
         uint32_t t0, t1;
 
         t0 = lo & 0x55555555;
-        t0 |= t0 >> 1;  t0 &= 0x33333333;
-        t0 |= t0 >> 2;  t0 &= 0x0f0f0f0f;
-        t0 |= t0 >> 4;  t0 &= 0x00ff00ff;
-        t0 |= t0 >> 8;  t0 &= 0x0000ffff;
+        t0 |= t0 >> 1;
+        t0 &= 0x33333333;
+        t0 |= t0 >> 2;
+        t0 &= 0x0f0f0f0f;
+        t0 |= t0 >> 4;
+        t0 &= 0x00ff00ff;
+        t0 |= t0 >> 8;
+        t0 &= 0x0000ffff;
 
         t1 = hi & 0x55555555;
-        t1 |= t1 >> 1;  t1 &= 0x33333333;
-        t1 |= t1 >> 2;  t1 &= 0x0f0f0f0f;
-        t1 |= t1 >> 4;  t1 &= 0x00ff00ff;
-        t1 |= t1 >> 8;  t1 <<= 16;
+        t1 |= t1 >> 1;
+        t1 &= 0x33333333;
+        t1 |= t1 >> 2;
+        t1 &= 0x0f0f0f0f;
+        t1 |= t1 >> 4;
+        t1 &= 0x00ff00ff;
+        t1 |= t1 >> 8;
+        t1 <<= 16;
 
         lo &= 0xaaaaaaaa;
-        lo |= lo << 1;  lo &= 0xcccccccc;
-        lo |= lo << 2;  lo &= 0xf0f0f0f0;
-        lo |= lo << 4;  lo &= 0xff00ff00;
-        lo |= lo << 8;  lo >>= 16;
+        lo |= lo << 1;
+        lo &= 0xcccccccc;
+        lo |= lo << 2;
+        lo &= 0xf0f0f0f0;
+        lo |= lo << 4;
+        lo &= 0xff00ff00;
+        lo |= lo << 8;
+        lo >>= 16;
 
         hi &= 0xaaaaaaaa;
-        hi |= hi << 1;  hi &= 0xcccccccc;
-        hi |= hi << 2;  hi &= 0xf0f0f0f0;
-        hi |= hi << 4;  hi &= 0xff00ff00;
-        hi |= hi << 8;  hi &= 0xffff0000;
+        hi |= hi << 1;
+        hi &= 0xcccccccc;
+        hi |= hi << 2;
+        hi &= 0xf0f0f0f0;
+        hi |= hi << 4;
+        hi &= 0xff00ff00;
+        hi |= hi << 8;
+        hi &= 0xffff0000;
 
         Ai = ((uint64_t)(hi | lo) << 32) | (t1 | t0);
     }
@@ -1027,28 +1037,44 @@ static uint64_t BitDeinterleave(uint64_t Ai)
         uint32_t t0, t1;
 
         t0 = lo & 0x0000ffff;
-        t0 |= t0 << 8;  t0 &= 0x00ff00ff;
-        t0 |= t0 << 4;  t0 &= 0x0f0f0f0f;
-        t0 |= t0 << 2;  t0 &= 0x33333333;
-        t0 |= t0 << 1;  t0 &= 0x55555555;
+        t0 |= t0 << 8;
+        t0 &= 0x00ff00ff;
+        t0 |= t0 << 4;
+        t0 &= 0x0f0f0f0f;
+        t0 |= t0 << 2;
+        t0 &= 0x33333333;
+        t0 |= t0 << 1;
+        t0 &= 0x55555555;
 
         t1 = hi << 16;
-        t1 |= t1 >> 8;  t1 &= 0xff00ff00;
-        t1 |= t1 >> 4;  t1 &= 0xf0f0f0f0;
-        t1 |= t1 >> 2;  t1 &= 0xcccccccc;
-        t1 |= t1 >> 1;  t1 &= 0xaaaaaaaa;
+        t1 |= t1 >> 8;
+        t1 &= 0xff00ff00;
+        t1 |= t1 >> 4;
+        t1 &= 0xf0f0f0f0;
+        t1 |= t1 >> 2;
+        t1 &= 0xcccccccc;
+        t1 |= t1 >> 1;
+        t1 &= 0xaaaaaaaa;
 
         lo >>= 16;
-        lo |= lo << 8;  lo &= 0x00ff00ff;
-        lo |= lo << 4;  lo &= 0x0f0f0f0f;
-        lo |= lo << 2;  lo &= 0x33333333;
-        lo |= lo << 1;  lo &= 0x55555555;
+        lo |= lo << 8;
+        lo &= 0x00ff00ff;
+        lo |= lo << 4;
+        lo &= 0x0f0f0f0f;
+        lo |= lo << 2;
+        lo &= 0x33333333;
+        lo |= lo << 1;
+        lo &= 0x55555555;
 
         hi &= 0xffff0000;
-        hi |= hi >> 8;  hi &= 0xff00ff00;
-        hi |= hi >> 4;  hi &= 0xf0f0f0f0;
-        hi |= hi >> 2;  hi &= 0xcccccccc;
-        hi |= hi >> 1;  hi &= 0xaaaaaaaa;
+        hi |= hi >> 8;
+        hi &= 0xff00ff00;
+        hi |= hi >> 4;
+        hi &= 0xf0f0f0f0;
+        hi |= hi >> 2;
+        hi &= 0xcccccccc;
+        hi |= hi >> 1;
+        hi &= 0xaaaaaaaa;
 
         Ai = ((uint64_t)(hi | lo) << 32) | (t1 | t0);
     }
@@ -1067,7 +1093,7 @@ static uint64_t BitDeinterleave(uint64_t Ai)
  * caller's responsibility.
  */
 size_t SHA3_absorb(uint64_t A[5][5], const unsigned char *inp, size_t len,
-                   size_t r)
+    size_t r)
 {
     uint64_t *A_flat = (uint64_t *)A;
     size_t i, w = r / 8;
@@ -1076,10 +1102,7 @@ size_t SHA3_absorb(uint64_t A[5][5], const unsigned char *inp, size_t len,
 
     while (len >= r) {
         for (i = 0; i < w; i++) {
-            uint64_t Ai = (uint64_t)inp[0]       | (uint64_t)inp[1] << 8  |
-                          (uint64_t)inp[2] << 16 | (uint64_t)inp[3] << 24 |
-                          (uint64_t)inp[4] << 32 | (uint64_t)inp[5] << 40 |
-                          (uint64_t)inp[6] << 48 | (uint64_t)inp[7] << 56;
+            uint64_t Ai = (uint64_t)inp[0] | (uint64_t)inp[1] << 8 | (uint64_t)inp[2] << 16 | (uint64_t)inp[3] << 24 | (uint64_t)inp[4] << 32 | (uint64_t)inp[5] << 40 | (uint64_t)inp[6] << 48 | (uint64_t)inp[7] << 56;
             inp += 8;
 
             A_flat[i] ^= BitInterleave(Ai);
@@ -1101,7 +1124,7 @@ size_t SHA3_absorb(uint64_t A[5][5], const unsigned char *inp, size_t len,
  * and |next| must be 0.
  */
 void SHA3_squeeze(uint64_t A[5][5], unsigned char *out, size_t len, size_t r,
-                  int next)
+    int next)
 {
     uint64_t *A_flat = (uint64_t *)A;
     size_t i, w = r / 8;
@@ -1151,7 +1174,7 @@ void SHA3_squeeze(uint64_t A[5][5], unsigned char *out, size_t len, size_t r,
  */
 
 void SHA3_sponge(const unsigned char *inp, size_t len,
-                 unsigned char *out, size_t d, size_t r)
+    unsigned char *out, size_t d, size_t r)
 {
     uint64_t A[5][5];
 
@@ -1160,7 +1183,7 @@ void SHA3_sponge(const unsigned char *inp, size_t len,
     SHA3_squeeze(A, out, d, r);
 }
 
-# include <stdio.h>
+#include <stdio.h>
 
 int main(void)
 {

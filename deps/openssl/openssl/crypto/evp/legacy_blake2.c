@@ -8,7 +8,7 @@
  */
 
 #include "crypto/evp.h"
-#include "prov/blake2.h"        /* diverse BLAKE2 macros */
+#include "prov/blake2.h" /* diverse BLAKE2 macros */
 #include "legacy_meth.h"
 
 /*
@@ -44,7 +44,7 @@ static const EVP_MD blake2b_md = {
     0,
     EVP_ORIG_GLOBAL,
     LEGACY_EVP_MD_METH_TABLE(blake2b_int_init, blake2b_int_update,
-                             blake2b_int_final, NULL, BLAKE2B_BLOCKBYTES),
+        blake2b_int_final, NULL, BLAKE2B_BLOCKBYTES),
 };
 
 const EVP_MD *EVP_blake2b512(void)
@@ -59,7 +59,7 @@ static const EVP_MD blake2s_md = {
     0,
     EVP_ORIG_GLOBAL,
     LEGACY_EVP_MD_METH_TABLE(blake2s_int_init, blake2s_int_update,
-                             blake2s_int_final, NULL, BLAKE2S_BLOCKBYTES),
+        blake2s_int_final, NULL, BLAKE2S_BLOCKBYTES),
 };
 
 const EVP_MD *EVP_blake2s256(void)

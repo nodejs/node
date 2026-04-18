@@ -3,7 +3,7 @@ import '../common/index.mjs';
 import assert from 'node:assert';
 
 import { spawnSyncAndAssert } from '../common/child_process.js';
-import * as fixtures from '../common/fixtures.js';
+import * as fixtures from '../common/fixtures.mjs';
 
 spawnSyncAndAssert(
   process.execPath,
@@ -12,6 +12,6 @@ spawnSyncAndAssert(
     stderr(output) {
       assert.match(output, /ExperimentalWarning/);
       assert.match(output, /Importing WebAssembly module instances/);
-    }
+    },
   }
 );

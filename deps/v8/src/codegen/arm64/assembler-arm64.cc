@@ -4968,7 +4968,7 @@ void Assembler::CheckVeneerPool(bool force_emit, bool require_jump,
     return;
   }
 
-  CHECK_LT(pc_offset(), unresolved_branches_first_limit());
+  DCHECK(pc_offset() < unresolved_branches_first_limit());
 
   // Some short sequence of instruction mustn't be broken up by veneer pool
   // emission, such sequences are protected by calls to BlockVeneerPoolFor and

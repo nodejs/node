@@ -13,7 +13,7 @@ The Dev Container also allows you to test your changes in a different operating 
 third-party code from bug reports safely with your work-in-progress Node.js branches in an isolated environment.
 
 There are many command line tools, IDEs and services that [support Dev Containers](https://containers.dev/supporting).
-Among them, [Visual Studio Code (VS Code)](https://code.visualstudio.com/) is a very popuplar option.
+Among them, [Visual Studio Code (VS Code)](https://code.visualstudio.com/) is a very popular option.
 This guide will walk you through the steps to set up a Dev Container for Node.js development using VS Code.
 You should be able to use the same [`nodejs/devcontainer:nightly` image](https://hub.docker.com/r/nodejs/devcontainer)
 in other tools and services using generally similar steps.

@@ -132,6 +132,77 @@ t.test('incorrect levels', async t => {
   t.strictSame(outputs, [], 'output is ignored')
 })
 
+t.test('notice deduplication', async t => {
+  const { log, logs, display } = await mockDisplay(t, {
+    load: { loglevel: 'notice' },
+  })
+
+  // Log the same notice multiple times - should be deduplicated
+  log.notice('', 'This is a duplicate notice')
+  log.notice('', 'This is a duplicate notice')
+  log.notice('', 'This is a duplicate notice')
+
+  // Should only appear once in logs
+  t.equal(logs.notice.length, 1, 'notice appears only once')
+  t.strictSame(logs.notice, ['This is a duplicate notice'])
+
+  // Different notice should appear
+  log.notice('', 'This is a different notice')
+  t.equal(logs.notice.length, 2, 'different notice is shown')
+  t.strictSame(logs.notice, [
+    'This is a duplicate notice',
+    'This is a different notice',
+  ])
+
+  // Same notice with different title should appear
+  log.notice('title', 'This is a duplicate notice')
+  t.equal(logs.notice.length, 3, 'notice with different title is shown')
+  t.match(logs.notice[2], /title.*This is a duplicate notice/)
+
+  // Log the first notice again - should still be deduplicated
+  log.notice('', 'This is a duplicate notice')
+  t.equal(logs.notice.length, 3, 'original notice still deduplicated')
+
+  // Call off() to simulate end of command and clear deduplication
+  display.off()
+
+  // Create a new display instance to simulate a new command
+  const logsResult = mockLogs()
+  const Display = tmock(t, '{LIB}/utils/display')
+  const display2 = new Display(logsResult.streams)
+  await display2.load({
+    loglevel: 'silly',
+    stderrColor: false,
+    stdoutColor: false,
+    heading: 'npm',
+  })
+  t.teardown(() => display2.off())
+
+  // Log the same notice again - should appear since deduplication was cleared
+  log.notice('', 'This is a duplicate notice')
+  t.equal(logsResult.logs.logs.notice.length, 1, 'notice appears after display.off() clears deduplication')
+  t.strictSame(logsResult.logs.logs.notice, ['This is a duplicate notice'])
+})
+
+t.test('notice deduplication does not apply in verbose mode', async t => {
+  const { log, logs } = await mockDisplay(t, {
+    load: { loglevel: 'verbose' },
+  })
+
+  // Log the same notice multiple times in verbose mode
+  log.notice('', 'Repeated notice')
+  log.notice('', 'Repeated notice')
+  log.notice('', 'Repeated notice')
+
+  // Should appear all three times in verbose mode
+  t.equal(logs.notice.length, 3, 'all notices appear in verbose mode')
+  t.strictSame(logs.notice, [
+    'Repeated notice',
+    'Repeated notice',
+    'Repeated notice',
+  ])
+})
+
 t.test('Display.clean', async (t) => {
   const { output, outputs, clearOutput } = await mockDisplay(t)
 
@@ -198,4 +269,47 @@ t.test('Display.clean', async (t) => {
     t.equal(outputs[0], clean)
     clearOutput()
   }
+})
+
+t.test('prompt functionality', async t => {
+  t.test('regular prompt completion works', async t => {
+    const { input } = await mockDisplay(t)
+
+    const result = await input.read(() => Promise.resolve('user-input'))
+
+    t.equal(result, 'user-input', 'should return the input result')
+  })
+
+  t.test('silent prompt completion works', async t => {
+    const { input } = await mockDisplay(t)
+
+    const result = await input.read(
+      () => Promise.resolve('secret-password'),
+      { silent: true }
+    )
+
+    t.equal(result, 'secret-password', 'should return the input result for silent prompts')
+  })
+
+  t.test('metadata is correctly passed through', async t => {
+    const { input } = await mockDisplay(t)
+
+    await input.read(
+      () => Promise.resolve('result1'),
+      { silent: false }
+    )
+    t.pass('should handle silent false option')
+
+    await input.read(
+      () => Promise.resolve('result2'),
+      {}
+    )
+    t.pass('should handle empty options')
+
+    await input.read(
+      () => Promise.resolve('result3'),
+      { silent: true }
+    )
+    t.pass('should handle silent true option')
+  })
 })

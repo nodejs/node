@@ -8,12 +8,12 @@
  */
 
 #ifndef OSSL_QUIC_ENGINE_LOCAL_H
-# define OSSL_QUIC_ENGINE_LOCAL_H
+#define OSSL_QUIC_ENGINE_LOCAL_H
 
-# include "internal/quic_engine.h"
-# include "internal/quic_reactor.h"
+#include "internal/quic_engine.h"
+#include "internal/quic_reactor.h"
 
-# ifndef OPENSSL_NO_QUIC
+#ifndef OPENSSL_NO_QUIC
 
 /*
  * QUIC Engine Structure
@@ -29,8 +29,8 @@ DECLARE_LIST_OF(port, QUIC_PORT);
 
 struct quic_engine_st {
     /* All objects in a QUIC event domain share the same (libctx, propq). */
-    OSSL_LIB_CTX                    *libctx;
-    const char                      *propq;
+    OSSL_LIB_CTX *libctx;
+    const char *propq;
 
     /*
      * Master synchronisation mutex for the entire QUIC event domain. Used for
@@ -38,22 +38,23 @@ struct quic_engine_st {
      * of the engine passes it to us and is responsible for freeing it after
      * engine destruction.
      */
-    CRYPTO_MUTEX                    *mutex;
+    CRYPTO_MUTEX *mutex;
 
     /* Callback used to get the current time. */
-    OSSL_TIME                       (*now_cb)(void *arg);
-    void                            *now_cb_arg;
+    OSSL_TIME (*now_cb)(void *arg);
+    void *now_cb_arg;
 
     /* Asynchronous I/O reactor. */
-    QUIC_REACTOR                    rtor;
+    QUIC_REACTOR rtor;
 
     /* List of all child ports. */
-    OSSL_LIST(port)                 port_list;
+    OSSL_LIST(port)
+    port_list;
 
     /* Inhibit tick for testing purposes? */
-    unsigned int                    inhibit_tick                    : 1;
+    unsigned int inhibit_tick : 1;
 };
 
-# endif
+#endif
 
 #endif

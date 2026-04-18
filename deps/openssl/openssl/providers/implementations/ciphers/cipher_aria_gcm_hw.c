@@ -14,7 +14,7 @@
 #include "cipher_aria_gcm.h"
 
 static int aria_gcm_initkey(PROV_GCM_CTX *ctx, const unsigned char *key,
-                            size_t keylen)
+    size_t keylen)
 {
     PROV_ARIA_GCM_CTX *actx = (PROV_ARIA_GCM_CTX *)ctx;
     ARIA_KEY *ks = &actx->ks.ks;

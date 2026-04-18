@@ -31,7 +31,6 @@ npm <command>
 * [**Documentation**](https://docs.npmjs.com/) - Official docs & how-tos for all things **npm**
     * Note: you can also search docs locally with `npm help-search <query>`
 * [**Bug Tracker**](https://github.com/npm/cli/issues) - Search or submit bugs against the CLI
-* [**Roadmap**](https://github.com/orgs/github/projects/4247/views/1?filterQuery=npm) - Track & follow along with our public roadmap
 * [**Community Feedback and Discussions**](https://github.com/orgs/community/discussions/categories/npm) - Contribute ideas & discussion around the npm registry, website & CLI
 * [**RFCs**](https://github.com/npm/rfcs) - Contribute ideas & specifications for the API/design of the npm CLI
 * [**Service Status**](https://status.npmjs.org/) - Monitor the current status & see incident reports for the website & registry
@@ -51,4 +50,4 @@ npm <command>
 
 #### Is "npm" an acronym for "Node Package Manager"?
 
-Contrary to popular belief, **`npm`** **is not** in fact an acronym for "Node Package Manager"; It is a recursive bacronymic abbreviation for **"npm is not an acronym"** (if the project was named "ninaa", then it would be an acronym). The precursor to **`npm`** was actually a bash utility named **"pm"**, which was the shortform name of **"pkgmakeinst"** - a bash function that installed various things on various platforms. If **`npm`** were to ever have been considered an acronym, it would be as "node pm" or, potentially "new pm".
+Contrary to popular belief, **`npm`** **is not** an acronym for "Node Package Manager." It is a recursive backronymic abbreviation for **"npm is not an acronym"** (if the project were named "ninaa," then it would be an acronym). The precursor to **`npm`** was actually a bash utility named **"pm"**, which was the shortform name of **"pkgmakeinst"** - a bash function that installed various things on various platforms. If **`npm`** were ever considered an acronym, it would be as "node pm" or, potentially, "new pm".

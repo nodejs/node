@@ -30,7 +30,8 @@ class ConfigReader {
   ParseResult ParseConfig(const std::string_view& config_path);
 
   std::optional<std::string_view> GetDataFromArgs(
-      const std::vector<std::string>& args);
+      std::vector<std::string>* args);
+  bool HasInvalidDefaultConfigFileArgument() const;
 
   std::string GetNodeOptions();
   const std::vector<std::string>& GetNamespaceFlags() const;
@@ -46,15 +47,18 @@ class ConfigReader {
 
   // Process a single option value based on its type
   ParseResult ProcessOptionValue(
-      const std::pair<std::string, options_parser::OptionType>& option_info,
+      const std::pair<std::string, options_parser::OptionMappingDetails>&
+          option_details,
       simdjson::ondemand::value* option_value,
       std::vector<std::string>* output);
 
   std::vector<std::string> node_options_;
   std::vector<std::string> namespace_options_;
+  bool invalid_default_config_file_argument_ = false;
 
   // Cache for fast lookup of environment options
-  std::unordered_map<std::string, options_parser::OptionType> env_options_map_;
+  std::unordered_map<std::string, options_parser::OptionMappingDetails>
+      env_options_map_;
   bool env_options_initialized_ = false;
 };
 

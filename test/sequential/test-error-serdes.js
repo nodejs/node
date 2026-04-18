@@ -126,7 +126,7 @@ const data = {
   foo: 'bar',
   [inspect.custom]() {
     return 'barbaz';
-  }
+  },
 };
 assert.strictEqual(inspect(cycle(data)), 'barbaz');
 

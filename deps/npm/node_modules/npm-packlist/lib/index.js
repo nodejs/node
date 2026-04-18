@@ -170,7 +170,7 @@ class PackWalker extends IgnoreWalker {
     } else if (this.ignoreRules['.npmignore']) {
       // .npmignore means no .gitignore
       this.ignoreRules['.gitignore'] = null
-    } else if (this.ignoreRules['.gitignore'] && !this.ignoreRules['.npmignore']) {
+    } else if (this.ignoreRules['.gitignore'] && !this.ignoreRules['.npmignore'] && !this.parent) {
       log.warn(
         'gitignore-fallback',
         'No .npmignore file found, using .gitignore for file exclusion. Consider creating a .npmignore file to explicitly control published files.'

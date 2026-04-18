@@ -1,7 +1,7 @@
 ---
-title: developers
+title: Developers
 section: 7
-description: Developer Guide
+description: Developer guide
 ---
 
 ### Description

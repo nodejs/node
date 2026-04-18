@@ -8,15 +8,15 @@
  */
 
 #ifndef OPENSSL_CORE_H
-# define OPENSSL_CORE_H
-# pragma once
+#define OPENSSL_CORE_H
+#pragma once
 
-# include <stddef.h>
-# include <openssl/types.h>
+#include <stddef.h>
+#include <openssl/types.h>
 
-# ifdef __cplusplus
+#ifdef __cplusplus
 extern "C" {
-# endif
+#endif
 
 /*-
  * Base types
@@ -42,7 +42,7 @@ struct ossl_dispatch_st {
     void (*function)(void);
 };
 
-# define OSSL_DISPATCH_END \
+#define OSSL_DISPATCH_END \
     { 0, NULL }
 
 /*
@@ -70,7 +70,7 @@ struct ossl_item_st {
  * An array of these is always terminated by algorithm_names == NULL
  */
 struct ossl_algorithm_st {
-    const char *algorithm_names;     /* key */
+    const char *algorithm_names; /* key */
     const char *property_definition; /* key */
     const OSSL_DISPATCH *implementation;
     const char *algorithm_description;
@@ -83,11 +83,11 @@ struct ossl_algorithm_st {
  * An array of these is always terminated by key == NULL
  */
 struct ossl_param_st {
-    const char *key;             /* the name of the parameter */
-    unsigned int data_type;      /* declare what kind of content is in buffer */
-    void *data;                  /* value being passed in or out */
-    size_t data_size;            /* data size */
-    size_t return_size;          /* returned content size */
+    const char *key; /* the name of the parameter */
+    unsigned int data_type; /* declare what kind of content is in buffer */
+    void *data; /* value being passed in or out */
+    size_t data_size; /* data size */
+    size_t return_size; /* returned content size */
 };
 
 /* Currently supported OSSL_PARAM data types */
@@ -103,24 +103,24 @@ struct ossl_param_st {
  * buffer size is correct and the buffer itself is properly aligned (for
  * example by having the buffer field point at a C integer).
  */
-# define OSSL_PARAM_INTEGER              1
-# define OSSL_PARAM_UNSIGNED_INTEGER     2
+#define OSSL_PARAM_INTEGER 1
+#define OSSL_PARAM_UNSIGNED_INTEGER 2
 /*-
  * OSSL_PARAM_REAL
  * is a C binary floating point values in native form and alignment.
  */
-# define OSSL_PARAM_REAL                 3
+#define OSSL_PARAM_REAL 3
 /*-
  * OSSL_PARAM_UTF8_STRING
  * is a printable string.  It is expected to be printed as it is.
  */
-# define OSSL_PARAM_UTF8_STRING          4
+#define OSSL_PARAM_UTF8_STRING 4
 /*-
  * OSSL_PARAM_OCTET_STRING
  * is a string of bytes with no further specification.  It is expected to be
  * printed as a hexdump.
  */
-# define OSSL_PARAM_OCTET_STRING         5
+#define OSSL_PARAM_OCTET_STRING 5
 /*-
  * OSSL_PARAM_UTF8_PTR
  * is a pointer to a printable string.  It is expected to be printed as it is.
@@ -138,7 +138,7 @@ struct ossl_param_st {
  * EXTRA WARNING!  If you are not completely sure you most likely want
  * to use the OSSL_PARAM_UTF8_STRING type.
  */
-# define OSSL_PARAM_UTF8_PTR             6
+#define OSSL_PARAM_UTF8_PTR 6
 /*-
  * OSSL_PARAM_OCTET_PTR
  * is a pointer to a string of bytes with no further specification.  It is
@@ -157,7 +157,7 @@ struct ossl_param_st {
  * EXTRA WARNING!  If you are not completely sure you most likely want
  * to use the OSSL_PARAM_OCTET_STRING type.
  */
-# define OSSL_PARAM_OCTET_PTR            7
+#define OSSL_PARAM_OCTET_PTR 7
 
 /*
  * Typedef for the thread stop handling callback. Used both internally and by
@@ -170,7 +170,6 @@ struct ossl_param_st {
  * be the provider side context object.
  */
 typedef void (*OSSL_thread_stop_handler_fn)(void *arg);
-
 
 /*-
  * Provider entry point
@@ -190,18 +189,18 @@ typedef void (*OSSL_thread_stop_handler_fn)(void *arg);
  *              provider needs it.  This value is passed to other provider
  *              functions, notably other context constructors.
  */
-typedef int (OSSL_provider_init_fn)(const OSSL_CORE_HANDLE *handle,
-                                    const OSSL_DISPATCH *in,
-                                    const OSSL_DISPATCH **out,
-                                    void **provctx);
-# ifdef __VMS
-#  pragma names save
-#  pragma names uppercase,truncated
-# endif
+typedef int(OSSL_provider_init_fn)(const OSSL_CORE_HANDLE *handle,
+    const OSSL_DISPATCH *in,
+    const OSSL_DISPATCH **out,
+    void **provctx);
+#ifdef __VMS
+#pragma names save
+#pragma names uppercase, truncated
+#endif
 OPENSSL_EXPORT OSSL_provider_init_fn OSSL_provider_init;
-# ifdef __VMS
-#  pragma names restore
-# endif
+#ifdef __VMS
+#pragma names restore
+#endif
 
 /*
  * Generic callback function signature.
@@ -216,21 +215,21 @@ OPENSSL_EXPORT OSSL_provider_init_fn OSSL_provider_init;
  * libcrypto may use the OSSL_PARAM array to create arguments for an
  * application callback it knows about.
  */
-typedef int (OSSL_CALLBACK)(const OSSL_PARAM params[], void *arg);
-typedef int (OSSL_INOUT_CALLBACK)(const OSSL_PARAM in_params[],
-                                  OSSL_PARAM out_params[], void *arg);
+typedef int(OSSL_CALLBACK)(const OSSL_PARAM params[], void *arg);
+typedef int(OSSL_INOUT_CALLBACK)(const OSSL_PARAM in_params[],
+    OSSL_PARAM out_params[], void *arg);
 /*
  * Passphrase callback function signature
  *
  * This is similar to the generic callback function above, but adds a
  * result parameter.
  */
-typedef int (OSSL_PASSPHRASE_CALLBACK)(char *pass, size_t pass_size,
-                                       size_t *pass_len,
-                                       const OSSL_PARAM params[], void *arg);
+typedef int(OSSL_PASSPHRASE_CALLBACK)(char *pass, size_t pass_size,
+    size_t *pass_len,
+    const OSSL_PARAM params[], void *arg);
 
-# ifdef __cplusplus
+#ifdef __cplusplus
 }
-# endif
+#endif
 
 #endif

@@ -21,9 +21,9 @@ void PKCS12_PBE_add(void)
 }
 
 int PKCS12_PBE_keyivgen_ex(EVP_CIPHER_CTX *ctx, const char *pass, int passlen,
-                           ASN1_TYPE *param, const EVP_CIPHER *cipher,
-                           const EVP_MD *md, int en_de,
-                           OSSL_LIB_CTX *libctx, const char *propq)
+    ASN1_TYPE *param, const EVP_CIPHER *cipher,
+    const EVP_MD *md, int en_de,
+    OSSL_LIB_CTX *libctx, const char *propq)
 {
     PBEPARAM *pbe;
     int saltlen, iter, ret;
@@ -49,18 +49,18 @@ int PKCS12_PBE_keyivgen_ex(EVP_CIPHER_CTX *ctx, const char *pass, int passlen,
     salt = pbe->salt->data;
     saltlen = pbe->salt->length;
     if (!PKCS12_key_gen_utf8_ex(pass, passlen, salt, saltlen, PKCS12_KEY_ID,
-                                iter, EVP_CIPHER_get_key_length(cipher),
-                                key, md,
-                                libctx, propq)) {
+            iter, EVP_CIPHER_get_key_length(cipher),
+            key, md,
+            libctx, propq)) {
         ERR_raise(ERR_LIB_PKCS12, PKCS12_R_KEY_GEN_ERROR);
         PBEPARAM_free(pbe);
         return 0;
     }
     if (EVP_CIPHER_get_iv_length(cipher) > 0) {
         if (!PKCS12_key_gen_utf8_ex(pass, passlen, salt, saltlen, PKCS12_IV_ID,
-                                    iter, EVP_CIPHER_get_iv_length(cipher),
-                                    iv, md,
-                                    libctx, propq)) {
+                iter, EVP_CIPHER_get_iv_length(cipher),
+                iv, md,
+                libctx, propq)) {
             ERR_raise(ERR_LIB_PKCS12, PKCS12_R_IV_GEN_ERROR);
             PBEPARAM_free(pbe);
             return 0;
@@ -76,10 +76,9 @@ int PKCS12_PBE_keyivgen_ex(EVP_CIPHER_CTX *ctx, const char *pass, int passlen,
 }
 
 int PKCS12_PBE_keyivgen(EVP_CIPHER_CTX *ctx, const char *pass, int passlen,
-                        ASN1_TYPE *param, const EVP_CIPHER *cipher,
-                        const EVP_MD *md, int en_de)
+    ASN1_TYPE *param, const EVP_CIPHER *cipher,
+    const EVP_MD *md, int en_de)
 {
     return PKCS12_PBE_keyivgen_ex(ctx, pass, passlen, param, cipher, md, en_de,
-                                  NULL, NULL);
+        NULL, NULL);
 }
-

@@ -73,7 +73,7 @@ int UTF8_getc(const unsigned char *str, int len, unsigned long *val)
         value |= (*p++ & 0x3f) << 12;
         value |= (*p++ & 0x3f) << 6;
         value |= *p++ & 0x3f;
-        if (value < 0x10000)
+        if (value < 0x10000 || value >= UNICODE_LIMIT)
             return -4;
         ret = 4;
     } else
@@ -93,7 +93,7 @@ int UTF8_getc(const unsigned char *str, int len, unsigned long *val)
 int UTF8_putc(unsigned char *str, int len, unsigned long value)
 {
     if (!str)
-        len = 4;                /* Maximum we will need */
+        len = 4; /* Maximum we will need */
     else if (len <= 0)
         return -1;
     if (value < 0x80) {

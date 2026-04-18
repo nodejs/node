@@ -20,7 +20,7 @@ assert.deepStrictEqual(val, check);
   ['headerTableSize', 0],
   ['headerTableSize', 2 ** 32 - 1],
   ['initialWindowSize', 0],
-  ['initialWindowSize', 2 ** 32 - 1],
+  ['initialWindowSize', 2 ** 31 - 1],  // Max per HTTP/2 spec
   ['maxFrameSize', 16384],
   ['maxFrameSize', 2 ** 24 - 1],
   ['maxConcurrentStreams', 0],
@@ -42,6 +42,8 @@ http2.getPackedSettings({ enablePush: false });
   ['headerTableSize', -1],
   ['headerTableSize', 2 ** 32],
   ['initialWindowSize', -1],
+  ['initialWindowSize', 2 ** 31],  // Max per HTTP/2 spec is 2^31-1
+  ['initialWindowSize', 2 ** 32 - 1],  // Regression test for nghttp2 crash
   ['initialWindowSize', 2 ** 32],
   ['maxFrameSize', 16383],
   ['maxFrameSize', 2 ** 24],

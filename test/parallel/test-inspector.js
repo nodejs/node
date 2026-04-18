@@ -14,10 +14,10 @@ function checkListResponse(response) {
     `Expected response length ${response.length} to be ${expectedLength}.`
   );
   assert.ok(response[0].devtoolsFrontendUrl);
-  assert.ok(
-    /ws:\/\/localhost:\d+\/[0-9A-Fa-f]{8}-/
-      .test(response[0].webSocketDebuggerUrl),
-    response[0].webSocketDebuggerUrl);
+  assert.match(
+    response[0].webSocketDebuggerUrl,
+    /ws:\/\/localhost:\d+\/[0-9A-Fa-f]{8}-/,
+  );
 }
 
 function checkVersion(response) {

@@ -76,10 +76,11 @@ Node.js has two module systems: CommonJS modules and [ECMAScript modules][].
 
 By default, Node.js will treat the following as CommonJS modules:
 
-* Files with a `.cjs` extension;
+* Files with a `.cjs` extension.
 
-* Files with a `.js` extension when the nearest parent `package.json` file
-  contains a top-level field [`"type"`][] with a value of `"commonjs"`.
+* Files with a `.js` extension or without an extension, when the nearest parent
+  `package.json` file contains a top-level field [`"type"`][] with a value of
+  `"commonjs"`.
 
 * Files with a `.js` extension or without an extension, when the nearest parent
   `package.json` file doesn't contain a top-level field [`"type"`][] or there is
@@ -90,11 +91,9 @@ By default, Node.js will treat the following as CommonJS modules:
   tools and loaders to determine how the files in the package should be
   interpreted.
 
-* Files with an extension that is not `.mjs`, `.cjs`, `.json`, `.node`, or `.js`
-  (when the nearest parent `package.json` file contains a top-level field
-  [`"type"`][] with a value of `"module"`, those files will be recognized as
-  CommonJS modules only if they are being included via `require()`, not when
-  used as the command-line entry point of the program).
+* Files with an extension that is not `.mjs`, `.cjs`, `.json`, `.node`, or `.js`,
+  when the nearest parent `package.json` file contains a top-level field
+  [`"type"`][] with a value of `"module"`.
 
 See [Determining module system][] for more details.
 
@@ -176,6 +175,11 @@ added:
   - v20.17.0
 changes:
   - version:
+     - v25.4.0
+     - v24.15.0
+    pr-url: https://github.com/nodejs/node/pull/60959
+    description: This feature is no longer experimental.
+  - version:
     - v23.5.0
     - v22.13.0
     - v20.19.0
@@ -194,8 +198,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/54563
     description: Support `'module.exports'` interop export in `require(esm)`.
 -->
-
-> Stability: 1.2 - Release candidate
 
 The `.mjs` extension is reserved for [ECMAScript Modules][].
 See [Determining module system][] section for more info
@@ -324,8 +326,8 @@ If `--experimental-print-required-tla` is enabled, instead of throwing
 module, try to locate the top-level awaits, and print their location to
 help users fix them.
 
-Support for loading ES modules using `require()` is currently
-experimental and can be disabled using `--no-experimental-require-module`.
+If support for loading ES modules using `require()` results in unexpected
+breakage, it can be disabled using `--no-require-module`.
 To print where this feature is used, use [`--trace-require-module`][].
 
 This feature can be detected by checking if
@@ -422,7 +424,7 @@ LOAD_PACKAGE_IMPORTS(X, DIR)
 1. Find the closest package scope SCOPE to DIR.
 2. If no scope was found, return.
 3. If the SCOPE/package.json "imports" is null or undefined, return.
-4. If `--experimental-require-module` is enabled
+4. If `--no-require-module` is not enabled
   a. let CONDITIONS = ["node", "require", "module-sync"]
   b. Else, let CONDITIONS = ["node", "require"]
 5. let MATCH = PACKAGE_IMPORTS_RESOLVE(X, pathToFileURL(SCOPE),
@@ -436,7 +438,7 @@ LOAD_PACKAGE_EXPORTS(X, DIR)
    return.
 3. Parse DIR/NAME/package.json, and look for "exports" field.
 4. If "exports" is null or undefined, return.
-5. If `--experimental-require-module` is enabled
+5. If `--no-require-module` is not enabled
   a. let CONDITIONS = ["node", "require", "module-sync"]
   b. Else, let CONDITIONS = ["node", "require"]
 6. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(DIR/NAME), "." + SUBPATH,
@@ -530,6 +532,7 @@ When being loaded by `require()`, some built-in modules must be requested with t
 modules from having a conflict with user land packages that already have
 taken the name. Currently the built-in modules that requires the `node:` prefix are:
 
+* [`node:ffi`][]
 * [`node:sea`][]
 * [`node:sqlite`][]
 * [`node:test`][]
@@ -1281,6 +1284,7 @@ This section was moved to
 [`module.id`]: #moduleid
 [`module` core module]: module.md
 [`module` object]: #the-module-object
+[`node:ffi`]: ffi.md
 [`node:sea`]: single-executable-applications.md#single-executable-application-api
 [`node:sqlite`]: sqlite.md
 [`node:test/reporters`]: test.md#test-reporters

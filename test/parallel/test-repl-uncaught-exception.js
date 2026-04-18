@@ -6,16 +6,11 @@ const { startNewREPLServer } = require('../common/repl');
 let count = 0;
 
 function run({ command, expected, useColors = false }) {
-  const { replServer, output } = startNewREPLServer(
-    {
-      prompt: '',
-      terminal: false,
-      useColors,
-    },
-    {
-      disableDomainErrorAssert: true
-    },
-  );
+  const { replServer, output } = startNewREPLServer({
+    prompt: '',
+    terminal: false,
+    useColors,
+  });
 
   replServer.write(`${command}\n`);
 

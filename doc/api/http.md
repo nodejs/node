@@ -2319,8 +2319,8 @@ added: v0.7.5
 When true, the Date header will be automatically generated and sent in
 the response if it is not already present in the headers. Defaults to true.
 
-This should only be disabled for testing; HTTP requires the Date header
-in responses.
+This should only be disabled for testing; the Date header is required in
+most HTTP responses (see [RFC 9110 Section 6.6.1][] for details).
 
 ### `response.setHeader(name, value)`
 
@@ -2989,6 +2989,51 @@ added: v0.5.9
 
 Calls `message.socket.setTimeout(msecs, callback)`.
 
+### `message.signal`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {AbortSignal}
+
+An {AbortSignal} that is aborted when the underlying socket closes or the
+request is destroyed. The signal is created lazily on first access — no
+{AbortController} is allocated for requests that never use this property.
+
+This is useful for cancelling downstream asynchronous work such as database
+queries or `fetch` calls when a client disconnects mid-request.
+
+```mjs
+import http from 'node:http';
+
+http.createServer(async (req, res) => {
+  try {
+    const data = await fetch('https://example.com/api', { signal: req.signal });
+    res.end(JSON.stringify(await data.json()));
+  } catch (err) {
+    if (err.name === 'AbortError') return;
+    res.statusCode = 500;
+    res.end('Internal Server Error');
+  }
+}).listen(3000);
+```
+
+```cjs
+const http = require('node:http');
+
+http.createServer(async (req, res) => {
+  try {
+    const data = await fetch('https://example.com/api', { signal: req.signal });
+    res.end(JSON.stringify(await data.json()));
+  } catch (err) {
+    if (err.name === 'AbortError') return;
+    res.statusCode = 500;
+    res.end('Internal Server Error');
+  }
+}).listen(3000);
+```
+
 ### `message.socket`
 
 <!-- YAML
@@ -3589,7 +3634,9 @@ Found'`.
 <!-- YAML
 added: v0.1.13
 changes:
-  - version: v25.1.0
+  - version:
+      - v25.1.0
+      - v24.12.0
     pr-url: https://github.com/nodejs/node/pull/59778
     description: Add optimizeEmptyRequests option.
   - version:
@@ -4361,6 +4408,33 @@ added:
 
 Set the maximum number of idle HTTP parsers.
 
+## `http.setGlobalProxyFromEnv([proxyEnv])`
+
+<!-- YAML
+added:
+  - v25.4.0
+  - v24.14.0
+-->
+
+* `proxyEnv` {Object} An object containing proxy configuration. This accepts the
+  same options as the `proxyEnv` option accepted by [`Agent`][]. **Default:**
+  `process.env`.
+* Returns: {Function} A function that restores the original agent and dispatcher
+  settings to the state before this `http.setGlobalProxyFromEnv()` is invoked.
+
+Dynamically resets the global configurations to enable built-in proxy support for
+`fetch()` and `http.request()`/`https.request()` at runtime, as an alternative
+to using the `--use-env-proxy` flag or `NODE_USE_ENV_PROXY` environment variable.
+It can also be used to override settings configured from the environment variables.
+
+As this function resets the global configurations, any previously configured
+`http.globalAgent`, `https.globalAgent` or undici global dispatcher would be
+overridden after this function is invoked. It's recommended to invoke it before any
+requests are made and avoid invoking it in the middle of any requests.
+
+See [Built-in Proxy Support][] for details on proxy URL formats and `NO_PROXY`
+syntax.
+
 ## Class: `WebSocket`
 
 <!-- YAML
@@ -4383,6 +4457,9 @@ added:
 When Node.js creates the global agent, if the `NODE_USE_ENV_PROXY` environment variable is
 set to `1` or `--use-env-proxy` is enabled, the global agent will be constructed
 with `proxyEnv: process.env`, enabling proxy support based on the environment variables.
+
+To enable proxy support dynamically and globally, use [`http.setGlobalProxyFromEnv()`][].
+
 Custom agents can also be created with proxy support by passing a
 `proxyEnv` option when constructing the agent. The value can be `process.env`
 if they just want to inherit the configuration from the environment variables,
@@ -4438,6 +4515,86 @@ Or the `--use-env-proxy` flag.
 HTTP_PROXY=http://proxy.example.com:8080 NO_PROXY=localhost,127.0.0.1 node --use-env-proxy client.js
 ```
 
+To enable proxy support dynamically and globally with `process.env` (the default option of `http.setGlobalProxyFromEnv()`):
+
+```cjs
+const http = require('node:http');
+
+// Reads proxy-related environment variables from process.env
+const restore = http.setGlobalProxyFromEnv();
+
+// Subsequent requests will use the configured proxies from environment variables
+http.get('http://www.example.com', (res) => {
+  // This request will be proxied if HTTP_PROXY or http_proxy is set
+});
+
+fetch('https://www.example.com', (res) => {
+  // This request will be proxied if HTTPS_PROXY or https_proxy is set
+});
+
+// To restore the original global agent and dispatcher settings, call the returned function.
+// restore();
+```
+
+```mjs
+import http from 'node:http';
+
+// Reads proxy-related environment variables from process.env
+http.setGlobalProxyFromEnv();
+
+// Subsequent requests will use the configured proxies from environment variables
+http.get('http://www.example.com', (res) => {
+  // This request will be proxied if HTTP_PROXY or http_proxy is set
+});
+
+fetch('https://www.example.com', (res) => {
+  // This request will be proxied if HTTPS_PROXY or https_proxy is set
+});
+
+// To restore the original global agent and dispatcher settings, call the returned function.
+// restore();
+```
+
+To enable proxy support dynamically and globally with custom settings:
+
+```cjs
+const http = require('node:http');
+
+const restore = http.setGlobalProxyFromEnv({
+  http_proxy: 'http://proxy.example.com:8080',
+  https_proxy: 'https://proxy.example.com:8443',
+  no_proxy: 'localhost,127.0.0.1,.internal.example.com',
+});
+
+// Subsequent requests will use the configured proxies
+http.get('http://www.example.com', (res) => {
+  // This request will be proxied through proxy.example.com:8080
+});
+
+fetch('https://www.example.com', (res) => {
+  // This request will be proxied through proxy.example.com:8443
+});
+```
+
+```mjs
+import http from 'node:http';
+
+http.setGlobalProxyFromEnv({
+  http_proxy: 'http://proxy.example.com:8080',
+  https_proxy: 'https://proxy.example.com:8443',
+  no_proxy: 'localhost,127.0.0.1,.internal.example.com',
+});
+
+// Subsequent requests will use the configured proxies
+http.get('http://www.example.com', (res) => {
+  // This request will be proxied through proxy.example.com:8080
+});
+
+fetch('https://www.example.com', (res) => {
+  // This request will be proxied through proxy.example.com:8443
+});
+```
+
 To create a custom agent with built-in proxy support:
 
 ```cjs
@@ -4471,6 +4628,7 @@ const agent2 = new http.Agent({ proxyEnv: process.env });
 
 [Built-in Proxy Support]: #built-in-proxy-support
 [RFC 8187]: https://www.rfc-editor.org/rfc/rfc8187.txt
+[RFC 9110 Section 6.6.1]: https://www.rfc-editor.org/rfc/rfc9110#section-6.6.1
 [`'ERR_HTTP_CONTENT_LENGTH_MISMATCH'`]: errors.md#err_http_content_length_mismatch
 [`'checkContinue'`]: #event-checkcontinue
 [`'finish'`]: #event-finish
@@ -4501,6 +4659,7 @@ const agent2 = new http.Agent({ proxyEnv: process.env });
 [`http.get()`]: #httpgetoptions-callback
 [`http.globalAgent`]: #httpglobalagent
 [`http.request()`]: #httprequestoptions-callback
+[`http.setGlobalProxyFromEnv()`]: #httpsetglobalproxyfromenvproxyenv
 [`message.headers`]: #messageheaders
 [`message.rawHeaders`]: #messagerawheaders
 [`message.socket`]: #messagesocket

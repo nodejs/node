@@ -1,7 +1,7 @@
 // Test that error is thrown for dynamic source phase imports not defined
 import '../common/index.mjs';
 import { spawnSyncAndAssert } from '../common/child_process.js';
-import * as fixtures from '../common/fixtures.js';
+import * as fixtures from '../common/fixtures.mjs';
 
 spawnSyncAndAssert(
   process.execPath,

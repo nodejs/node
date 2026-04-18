@@ -35,13 +35,13 @@
 #include "ngtcp2_path.h"
 
 /* NGTCP2_SCID_FLAG_NONE indicates that no flag is set. */
-#define NGTCP2_SCID_FLAG_NONE 0x00u
+#define NGTCP2_SCID_FLAG_NONE 0x00U
 /* NGTCP2_SCID_FLAG_USED indicates that a local endpoint observed that
    a remote endpoint uses this particular Connection ID. */
-#define NGTCP2_SCID_FLAG_USED 0x01u
+#define NGTCP2_SCID_FLAG_USED 0x01U
 /* NGTCP2_SCID_FLAG_RETIRED indicates that this particular Connection
    ID is retired. */
-#define NGTCP2_SCID_FLAG_RETIRED 0x02u
+#define NGTCP2_SCID_FLAG_RETIRED 0x02U
 
 typedef struct ngtcp2_scid {
   ngtcp2_pq_entry pe;
@@ -57,13 +57,13 @@ typedef struct ngtcp2_scid {
 } ngtcp2_scid;
 
 /* NGTCP2_DCID_FLAG_NONE indicates that no flag is set. */
-#define NGTCP2_DCID_FLAG_NONE 0x00u
+#define NGTCP2_DCID_FLAG_NONE 0x00U
 /* NGTCP2_DCID_FLAG_PATH_VALIDATED indicates that an associated path
    has been validated. */
-#define NGTCP2_DCID_FLAG_PATH_VALIDATED 0x01u
+#define NGTCP2_DCID_FLAG_PATH_VALIDATED 0x01U
 /* NGTCP2_DCID_FLAG_TOKEN_PRESENT indicates that a stateless reset
    token is set in token field. */
-#define NGTCP2_DCID_FLAG_TOKEN_PRESENT 0x02u
+#define NGTCP2_DCID_FLAG_TOKEN_PRESENT 0x02U
 
 typedef struct ngtcp2_dcid {
   /* seq is the sequence number associated to the Connection ID. */
@@ -93,7 +93,7 @@ typedef struct ngtcp2_dcid {
   /* token is a stateless reset token received along with this
      Connection ID.  The stateless reset token is tied to the
      connection, not to the particular Connection ID. */
-  uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN];
+  ngtcp2_stateless_reset_token token;
 } ngtcp2_dcid;
 
 /* ngtcp2_cid_zero makes |cid| zero-length. */
@@ -123,17 +123,18 @@ void ngtcp2_scid_copy(ngtcp2_scid *dest, const ngtcp2_scid *src);
 
 /*
  * ngtcp2_dcid_init initializes |dcid| with the given parameters.  If
- * |token| is NULL, the function fills dcid->token with 0.  |token|
- * must be NGTCP2_STATELESS_RESET_TOKENLEN bytes long.
+ * |token| is not NULL, the function sets
+ * NGTCP2_DCID_FLAG_TOKEN_PRESENT flag.
  */
 void ngtcp2_dcid_init(ngtcp2_dcid *dcid, uint64_t seq, const ngtcp2_cid *cid,
-                      const uint8_t *token);
+                      const ngtcp2_stateless_reset_token *token);
 
 /*
  * ngtcp2_dcid_set_token sets |token| to |dcid|.  |token| must not be
- * NULL, and must be NGTCP2_STATELESS_RESET_TOKENLEN bytes long.
+ * NULL.
  */
-void ngtcp2_dcid_set_token(ngtcp2_dcid *dcid, const uint8_t *token);
+void ngtcp2_dcid_set_token(ngtcp2_dcid *dcid,
+                           const ngtcp2_stateless_reset_token *token);
 
 /*
  * ngtcp2_dcid_set_path sets |path| to |dcid|.  It sets
@@ -160,7 +161,8 @@ void ngtcp2_dcid_copy_cid_token(ngtcp2_dcid *dest, const ngtcp2_dcid *src);
  * |token|) tuple against |dcid|.
  */
 int ngtcp2_dcid_verify_uniqueness(const ngtcp2_dcid *dcid, uint64_t seq,
-                                  const ngtcp2_cid *cid, const uint8_t *token);
+                                  const ngtcp2_cid *cid,
+                                  const ngtcp2_stateless_reset_token *token);
 
 /*
  * ngtcp2_dcid_verify_stateless_reset_token verifies stateless reset
@@ -172,9 +174,9 @@ int ngtcp2_dcid_verify_uniqueness(const ngtcp2_dcid *dcid, uint64_t seq,
  * NGTCP2_ERR_INVALID_ARGUMENT
  *     Tokens do not match; or |dcid| does not contain a token.
  */
-int ngtcp2_dcid_verify_stateless_reset_token(const ngtcp2_dcid *dcid,
-                                             const ngtcp2_path *path,
-                                             const uint8_t *token);
+int ngtcp2_dcid_verify_stateless_reset_token(
+  const ngtcp2_dcid *dcid, const ngtcp2_path *path,
+  const ngtcp2_stateless_reset_token *token);
 
 /* TODO It might be performance win if we store congestion state in
    this entry, and restore it when migrate back to this path. */

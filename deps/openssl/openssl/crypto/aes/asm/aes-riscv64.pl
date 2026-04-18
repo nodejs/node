@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2022 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -773,11 +773,13 @@ AES_set_encrypt_key:
 ___
 $code .= save_regs();
 $code .= <<___;
-    bnez    $UKEY,1f    # if (!userKey || !key) return -1;
-    bnez    $KEYP,1f
+    beqz    $UKEY,1f    # if (!userKey || !key) return -1;
+    beqz    $KEYP,1f
+    j       2f
+1:
     li      a0,-1
     ret
-1:
+2:
     la      $RCON,AES_rcon
     la      $TBL,AES_Te0
     li      $T8,128

@@ -18,6 +18,8 @@ U_NAMESPACE_BEGIN
 
 namespace message2 {
 
+namespace data_model {
+
 // Implementation
 
 //------------------ SelectorKeys
@@ -834,13 +836,13 @@ MFDataModel::MFDataModel(const MFDataModel& other) : body(Pattern()) {
         const Variant* otherVariants = other.getVariantsInternal();
         int32_t numSelectors = other.numSelectors();
         int32_t numVariants = other.numVariants();
-        VariableName* copiedSelectors = copyArray(otherSelectors, numSelectors, localErrorCode);
-        Variant* copiedVariants = copyArray(otherVariants, numVariants, localErrorCode);
+        LocalArray<VariableName> copiedSelectors(copyArray(otherSelectors, numSelectors, localErrorCode), localErrorCode);
+        LocalArray<Variant> copiedVariants(copyArray(otherVariants, numVariants, localErrorCode), localErrorCode);
         if (U_FAILURE(localErrorCode)) {
             bogus = true;
             return;
         }
-        body = Matcher(copiedSelectors, numSelectors, copiedVariants, numVariants);
+        body = Matcher(copiedSelectors.orphan(), numSelectors, copiedVariants.orphan(), numVariants);
     }
 
     bindingsLen = other.bindingsLen;
@@ -913,6 +915,8 @@ MFDataModel::Builder::~Builder() {
         delete bindings;
     }
 }
+
+} // namespace data_model
 } // namespace message2
 
 U_NAMESPACE_END

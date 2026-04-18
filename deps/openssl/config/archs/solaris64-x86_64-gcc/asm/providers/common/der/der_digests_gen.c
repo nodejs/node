@@ -13,6 +13,7 @@
 #include "prov/der_digests.h"
 
 /* Well known OIDs precompiled */
+/* clang-format off */
 
 /*
  * sigAlgs OBJECT IDENTIFIER ::= { nistAlgorithms 3 }
@@ -158,3 +159,4 @@ const unsigned char ossl_der_oid_id_KMACWithSHAKE256[DER_OID_SZ_id_KMACWithSHAKE
     DER_OID_V_id_KMACWithSHAKE256
 };
 
+/* clang-format on */

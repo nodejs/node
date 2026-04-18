@@ -1,6 +1,6 @@
 import Client from './client'
 import TPoolStats from './pool-stats'
-import { URL } from 'url'
+import { URL } from 'node:url'
 import Dispatcher from './dispatcher'
 
 export default Pool
@@ -35,7 +35,5 @@ declare namespace Pool {
     connections?: number | null;
     /** The amount of time before a client is removed from the pool and closed. `null` if no time limit. Default `null` */
     clientTtl?: number | null;
-
-    interceptors?: { Pool?: readonly Dispatcher.DispatchInterceptor[] } & Client.Options['interceptors']
   }
 }

@@ -16,7 +16,7 @@
 #include "crypto/evp.h"
 
 EVP_PKEY *d2i_KeyParams(int type, EVP_PKEY **a, const unsigned char **pp,
-                        long length)
+    long length)
 {
     EVP_PKEY *ret = NULL;
 

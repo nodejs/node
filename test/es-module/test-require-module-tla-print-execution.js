@@ -24,6 +24,6 @@ const fixtures = require('../common/fixtures');
       assert.match(output, /Requiring .*execution\.mjs/);
       return true;
     },
-    stdout: ''
+    stdout: '',
   });
 }

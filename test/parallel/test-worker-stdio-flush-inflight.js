@@ -20,5 +20,4 @@ if (isMainThread) {
   process.stdout.write('hello');
   process.stdout.write(' ');
   process.stdout.write('world');
-  process.exit(0);
 }

@@ -10,10 +10,10 @@
 #include <internal/thread_arch.h>
 
 #if defined(OPENSSL_THREADS_POSIX)
-# define _GNU_SOURCE
-# include <errno.h>
-# include <sys/types.h>
-# include <unistd.h>
+#define _GNU_SOURCE
+#include <errno.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 static void *thread_start_thunk(void *vthread)
 {
@@ -68,7 +68,7 @@ int ossl_crypto_thread_native_perform_join(CRYPTO_THREAD *thread, CRYPTO_THREAD_
     if (thread == NULL || thread->handle == NULL)
         return 0;
 
-    handle = (pthread_t *) thread->handle;
+    handle = (pthread_t *)thread->handle;
     if (pthread_join(*handle, &thread_retval) != 0)
         return 0;
 
@@ -162,7 +162,7 @@ CRYPTO_CONDVAR *ossl_crypto_condvar_new(void)
         OPENSSL_free(cv_p);
         return NULL;
     }
-    return (CRYPTO_CONDVAR *) cv_p;
+    return (CRYPTO_CONDVAR *)cv_p;
 }
 
 void ossl_crypto_condvar_wait(CRYPTO_CONDVAR *cv, CRYPTO_MUTEX *mutex)
@@ -176,7 +176,7 @@ void ossl_crypto_condvar_wait(CRYPTO_CONDVAR *cv, CRYPTO_MUTEX *mutex)
 }
 
 void ossl_crypto_condvar_wait_timeout(CRYPTO_CONDVAR *cv, CRYPTO_MUTEX *mutex,
-                                      OSSL_TIME deadline)
+    OSSL_TIME deadline)
 {
     pthread_cond_t *cv_p = (pthread_cond_t *)cv;
     pthread_mutex_t *mutex_p = (pthread_mutex_t *)mutex;

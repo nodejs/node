@@ -13,14 +13,12 @@ class LogFiles {
   #logStream = []
 
   // We cap log files at a certain number of log events per file.
-  // Note that each log event can write more than one line to the
-  // file. Then we rotate log files once this number of events is reached
+  // Note that each log event can write more than one line to the file.
+  // Then we rotate log files once this number of events is reached
   #MAX_LOGS_PER_FILE = null
 
-  // Now that we write logs continuously we need to have a backstop
-  // here for infinite loops that still log. This is also partially handled
-  // by the config.get('max-files') option, but this is a failsafe to
-  // prevent runaway log file creation
+  // Now that we write logs continuously we need to have a backstop here for infinite loops that still log.
+  // This is also partially handled by the config.get('max-files') option, but this is a failsafe to prevent runaway log file creation
   #MAX_FILES_PER_PROCESS = null
 
   #fileLogCount = 0
@@ -53,8 +51,7 @@ class LogFiles {
       return
     }
 
-    // dir is user configurable and is required to exist so
-    // this can error if the dir is missing or not configured correctly
+    // dir is user configurable and is required to exist so this can error if the dir is missing or not configured correctly
     this.#path = path
     this.#logsMax = logsMax
     this.#timing = timing
@@ -66,8 +63,7 @@ class LogFiles {
 
     log.verbose('logfile', `logs-max:${logsMax} dir:${this.#path}`)
 
-    // Write the contents of our array buffer to our new file stream and
-    // set that as the new log logstream for future writes
+    // Write the contents of our array buffer to our new file stream and set that as the new log logstream for future writes
     // if logs max is 0 then the user does not want a log file
     if (this.#logsMax > 0) {
       const initialFile = this.#openLogFile()
@@ -106,8 +102,7 @@ class LogFiles {
   }
 
   #logHandler = (level, ...args) => {
-    // Ignore pause and resume events since we
-    // write everything to the log file
+    // Ignore pause and resume events since we write everything to the log file
     if (level === 'pause' || level === 'resume') {
       return
     }
@@ -118,8 +113,7 @@ class LogFiles {
     }
 
     if (this.#isBuffered) {
-      // Cant do anything but buffer the output if we don't
-      // have a file stream yet
+      // Cant do anything but buffer the output if we don't have a file stream yet
       this.#logStream.push([level, ...args])
       return
     }
@@ -166,43 +160,35 @@ class LogFiles {
 
     try {
       // Pad with zeros so that our log files are always sorted properly
-      // We never want to write files ending in `-9.log` and `-10.log` because
-      // log file cleaning is done by deleting the oldest so in this example
-      // `-10.log` would be deleted next
+      // We never want to write files ending in `-9.log` and `-10.log` because log file cleaning is done by deleting the oldest.
+      // So in this example `-10.log` would be deleted next.
       const f = this.#getLogFilePath(padZero(count, this.#MAX_FILES_PER_PROCESS))
-      // Some effort was made to make the async, but we need to write logs
-      // during process.on('exit') which has to be synchronous. So in order
-      // to never drop log messages, it is easiest to make it sync all the time
-      // and this was measured to be about 1.5% slower for 40k lines of output
+      // Some effort was made to make the async, but we need to write logs during process.on('exit') which has to be synchronous.
+      // So in order to never drop log messages, it is easiest to make it sync all the time and this was measured to be about 1.5% slower for 40k lines of output
       const logStream = new fsMiniPass.WriteStreamSync(f, { flags: 'a' })
       if (count > 0) {
-        // Reset file log count if we are opening
-        // after our first file
+        // Reset file log count if we are opening after our first file
         this.#fileLogCount = 0
       }
       this.#files.push(logStream.path)
       return logStream
     } catch (e) {
-      // If the user has a readonly logdir then we don't want to
-      // warn this on every command so it should be verbose
+      // If the user has a readonly logdir then we don't want to warn this on every command so it should be verbose
       log.verbose('logfile', `could not be created: ${e}`)
     }
   }
 
   async #cleanLogs () {
-    // module to clean out the old log files
-    // this is a best-effort attempt.  if a rm fails, we just
-    // log a message about it and move on.  We do return a
-    // Promise that succeeds when we've tried to delete everything,
-    // just for the benefit of testing this function properly.
+    // module to clean out the old log files this is a best-effort attempt.
+    // if a rm fails, we just log a message about it and move on.
+    // We do return a Promise that succeeds when we've tried to delete everything, just for the benefit of testing this function properly.
 
     try {
       const logPath = this.#getLogFilePath()
       const patternFileName = basename(logPath)
         // tell glob to only match digits
         .replace(/\d/g, 'd')
-        // Handle the old (prior to 8.2.0) log file names which did not have a
-        // counter suffix
+        // Handle the old (prior to 8.2.0) log file names which did not have a counter suffix
         .replace('-.log', '')
 
       let files = await fs.readdir(

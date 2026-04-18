@@ -150,6 +150,7 @@
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-js.h"
+#include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-serialization.h"
@@ -6293,6 +6294,26 @@ bool TryHandleWebAssemblyTrapWindows(EXCEPTION_POINTERS* exception) {
 #endif
 }
 #endif
+
+size_t V8::GetWasmMemoryReservationSizeInBytes(WasmMemoryType type,
+                                               size_t byte_capacity) {
+#if V8_ENABLE_WEBASSEMBLY
+  bool is_memory64 = type == WasmMemoryType::kMemory64;
+  uint64_t max_byte_capacity =
+      is_memory64 ? i::wasm::max_mem64_bytes() : i::wasm::max_mem32_bytes();
+  if (byte_capacity > max_byte_capacity) {
+    byte_capacity = static_cast<size_t>(max_byte_capacity);
+  }
+#if V8_TRAP_HANDLER_SUPPORTED
+  if (!is_memory64 || i::v8_flags.wasm_memory64_trap_handling) {
+    return i::BackingStore::GetWasmReservationSize(
+        /* has_guard_regions */ true, byte_capacity,
+        /* is_wasm_memory64 */ is_memory64);
+  }
+#endif  // V8_TRAP_HANDLER_SUPPORTED
+#endif  // V8_ENABLE_WEBASSEMBLY
+  return byte_capacity;
+}
 
 bool V8::EnableWebAssemblyTrapHandler(bool use_v8_signal_handler) {
 #if V8_ENABLE_WEBASSEMBLY

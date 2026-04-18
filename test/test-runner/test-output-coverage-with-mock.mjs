@@ -16,7 +16,6 @@ await spawnAndAssert(
     flags: [
       '--disable-warning=ExperimentalWarning',
       '--test-reporter=tap',
-      '--experimental-transform-types',
       '--experimental-test-module-mocks',
       '--experimental-test-coverage',
       '--test-coverage-exclude=!test/**',

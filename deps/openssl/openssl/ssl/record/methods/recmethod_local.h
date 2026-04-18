@@ -80,15 +80,14 @@ typedef struct tls_rl_record_st {
 
 /* Macros/functions provided by the TLS_RL_RECORD component */
 
-#define TLS_RL_RECORD_set_type(r, t)              ((r)->type = (t))
-#define TLS_RL_RECORD_set_rec_version(r, v)       ((r)->rec_version = (v))
-#define TLS_RL_RECORD_get_length(r)               ((r)->length)
-#define TLS_RL_RECORD_set_length(r, l)            ((r)->length = (l))
-#define TLS_RL_RECORD_add_length(r, l)            ((r)->length += (l))
-#define TLS_RL_RECORD_set_data(r, d)              ((r)->data = (d))
-#define TLS_RL_RECORD_set_input(r, i)             ((r)->input = (i))
-#define TLS_RL_RECORD_reset_input(r)              ((r)->input = (r)->data)
-
+#define TLS_RL_RECORD_set_type(r, t) ((r)->type = (t))
+#define TLS_RL_RECORD_set_rec_version(r, v) ((r)->rec_version = (v))
+#define TLS_RL_RECORD_get_length(r) ((r)->length)
+#define TLS_RL_RECORD_set_length(r, l) ((r)->length = (l))
+#define TLS_RL_RECORD_add_length(r, l) ((r)->length += (l))
+#define TLS_RL_RECORD_set_data(r, d) ((r)->data = (d))
+#define TLS_RL_RECORD_set_input(r, i) ((r)->input = (i))
+#define TLS_RL_RECORD_reset_input(r) ((r)->input = (r)->data)
 
 /* Protocol version specific function pointers */
 struct record_functions_st {
@@ -98,14 +97,14 @@ struct record_functions_st {
      * alternative record layer.
      */
     int (*set_crypto_state)(OSSL_RECORD_LAYER *rl, int level,
-                            unsigned char *key, size_t keylen,
-                            unsigned char *iv, size_t ivlen,
-                            unsigned char *mackey, size_t mackeylen,
-                            const EVP_CIPHER *ciph,
-                            size_t taglen,
-                            int mactype,
-                            const EVP_MD *md,
-                            COMP_METHOD *comp);
+        unsigned char *key, size_t keylen,
+        unsigned char *iv, size_t ivlen,
+        unsigned char *mackey, size_t mackeylen,
+        const EVP_CIPHER *ciph,
+        size_t taglen,
+        int mactype,
+        const EVP_MD *md,
+        COMP_METHOD *comp);
 
     /*
      * Returns:
@@ -114,10 +113,10 @@ struct record_functions_st {
      *    1: Success or MtE decryption failed (MAC will be randomised)
      */
     int (*cipher)(OSSL_RECORD_LAYER *rl, TLS_RL_RECORD *recs, size_t n_recs,
-                  int sending, SSL_MAC_BUF *macs, size_t macsize);
+        int sending, SSL_MAC_BUF *macs, size_t macsize);
     /* Returns 1 for success or 0 for error */
     int (*mac)(OSSL_RECORD_LAYER *rl, TLS_RL_RECORD *rec, unsigned char *md,
-               int sending);
+        int sending);
 
     /* Return 1 for success or 0 for error */
     int (*set_protocol_version)(OSSL_RECORD_LAYER *rl, int version);
@@ -125,7 +124,7 @@ struct record_functions_st {
     /* Read related functions */
 
     int (*read_n)(OSSL_RECORD_LAYER *rl, size_t n, size_t max, int extend,
-                  int clearold, size_t *readbytes);
+        int clearold, size_t *readbytes);
 
     int (*get_more_records)(OSSL_RECORD_LAYER *rl);
 
@@ -138,16 +137,16 @@ struct record_functions_st {
     /* Write related functions */
 
     size_t (*get_max_records)(OSSL_RECORD_LAYER *rl, uint8_t type, size_t len,
-                              size_t maxfrag, size_t *preffrag);
+        size_t maxfrag, size_t *preffrag);
 
     /* Return 1 for success or 0 for error */
     int (*write_records)(OSSL_RECORD_LAYER *rl, OSSL_RECORD_TEMPLATE *templates,
-                         size_t numtempl);
+        size_t numtempl);
 
     /* Allocate the rl->wbuf buffers. Return 1 for success or 0 for error */
     int (*allocate_write_buffers)(OSSL_RECORD_LAYER *rl,
-                                  OSSL_RECORD_TEMPLATE *templates,
-                                  size_t numtempl, size_t *prefix);
+        OSSL_RECORD_TEMPLATE *templates,
+        size_t numtempl, size_t *prefix);
 
     /*
      * Initialise the packets in the |pkt| array using the buffers in |rl->wbuf|.
@@ -158,27 +157,27 @@ struct record_functions_st {
      * initialised. This must be 0 on entry and will be filled in even on error.
      */
     int (*initialise_write_packets)(OSSL_RECORD_LAYER *rl,
-                                    OSSL_RECORD_TEMPLATE *templates,
-                                    size_t numtempl,
-                                    OSSL_RECORD_TEMPLATE *prefixtempl,
-                                    WPACKET *pkt,
-                                    TLS_BUFFER *bufs,
-                                    size_t *wpinited);
+        OSSL_RECORD_TEMPLATE *templates,
+        size_t numtempl,
+        OSSL_RECORD_TEMPLATE *prefixtempl,
+        WPACKET *pkt,
+        TLS_BUFFER *bufs,
+        size_t *wpinited);
 
     /* Get the actual record type to be used for a given template */
     uint8_t (*get_record_type)(OSSL_RECORD_LAYER *rl,
-                               OSSL_RECORD_TEMPLATE *template);
+        OSSL_RECORD_TEMPLATE *template);
 
     /* Write the record header data to the WPACKET */
     int (*prepare_record_header)(OSSL_RECORD_LAYER *rl, WPACKET *thispkt,
-                                 OSSL_RECORD_TEMPLATE *templ,
-                                 uint8_t rectype,
-                                 unsigned char **recdata);
+        OSSL_RECORD_TEMPLATE *templ,
+        uint8_t rectype,
+        unsigned char **recdata);
 
     int (*add_record_padding)(OSSL_RECORD_LAYER *rl,
-                              OSSL_RECORD_TEMPLATE *thistempl,
-                              WPACKET *thispkt,
-                              TLS_RL_RECORD *thiswr);
+        OSSL_RECORD_TEMPLATE *thistempl,
+        WPACKET *thispkt,
+        TLS_RL_RECORD *thiswr);
 
     /*
      * This applies any mac that might be necessary, ensures that we have enough
@@ -186,19 +185,19 @@ struct record_functions_st {
      * TLS_RL_RECORD ready for that encryption.
      */
     int (*prepare_for_encryption)(OSSL_RECORD_LAYER *rl,
-                                  size_t mac_size,
-                                  WPACKET *thispkt,
-                                  TLS_RL_RECORD *thiswr);
+        size_t mac_size,
+        WPACKET *thispkt,
+        TLS_RL_RECORD *thiswr);
 
     /*
      * Any updates required to the record after encryption has been applied. For
      * example, adding a MAC if using encrypt-then-mac
      */
     int (*post_encryption_processing)(OSSL_RECORD_LAYER *rl,
-                                      size_t mac_size,
-                                      OSSL_RECORD_TEMPLATE *thistempl,
-                                      WPACKET *thispkt,
-                                      TLS_RL_RECORD *thiswr);
+        size_t mac_size,
+        OSSL_RECORD_TEMPLATE *thistempl,
+        WPACKET *thispkt,
+        TLS_RL_RECORD *thiswr);
 
     /*
      * Some record layer implementations need to do some custom preparation of
@@ -335,8 +334,8 @@ struct ossl_record_layer_st {
     int tlstree;
 
     /* TLSv1.3 fields */
-    unsigned char *iv;     /* static IV */
-    unsigned char *nonce;  /* part of static IV followed by sequence number */
+    unsigned char *iv; /* static IV */
+    unsigned char *nonce; /* part of static IV followed by sequence number */
     int allow_plain_alerts;
 
     /* TLS "any" fields */
@@ -387,47 +386,47 @@ extern const struct record_functions_st dtls_1_funcs;
 extern const struct record_functions_st dtls_any_funcs;
 
 void ossl_rlayer_fatal(OSSL_RECORD_LAYER *rl, int al, int reason,
-                       const char *fmt, ...);
+    const char *fmt, ...);
 
 #define RLAYERfatal(rl, al, r) RLAYERfatal_data((rl), (al), (r), NULL)
-#define RLAYERfatal_data                                           \
-    (ERR_new(),                                                    \
-     ERR_set_debug(OPENSSL_FILE, OPENSSL_LINE, OPENSSL_FUNC),      \
-     ossl_rlayer_fatal)
+#define RLAYERfatal_data                                         \
+    (ERR_new(),                                                  \
+        ERR_set_debug(OPENSSL_FILE, OPENSSL_LINE, OPENSSL_FUNC), \
+        ossl_rlayer_fatal)
 
 #define RLAYER_USE_EXPLICIT_IV(rl) ((rl)->version == TLS1_1_VERSION \
-                                    || (rl)->version == TLS1_2_VERSION \
-                                    || (rl)->version == DTLS1_BAD_VER \
-                                    || (rl)->version == DTLS1_VERSION \
-                                    || (rl)->version == DTLS1_2_VERSION)
+    || (rl)->version == TLS1_2_VERSION                              \
+    || (rl)->version == DTLS1_BAD_VER                               \
+    || (rl)->version == DTLS1_VERSION                               \
+    || (rl)->version == DTLS1_2_VERSION)
 
 void ossl_tls_rl_record_set_seq_num(TLS_RL_RECORD *r,
-                                    const unsigned char *seq_num);
+    const unsigned char *seq_num);
 
 int ossl_set_tls_provider_parameters(OSSL_RECORD_LAYER *rl,
-                                     EVP_CIPHER_CTX *ctx,
-                                     const EVP_CIPHER *ciph,
-                                     const EVP_MD *md);
+    EVP_CIPHER_CTX *ctx,
+    const EVP_CIPHER *ciph,
+    const EVP_MD *md);
 
 int tls_increment_sequence_ctr(OSSL_RECORD_LAYER *rl);
 int tls_alloc_buffers(OSSL_RECORD_LAYER *rl);
 int tls_free_buffers(OSSL_RECORD_LAYER *rl);
 
 int tls_default_read_n(OSSL_RECORD_LAYER *rl, size_t n, size_t max, int extend,
-                       int clearold, size_t *readbytes);
+    int clearold, size_t *readbytes);
 int tls_get_more_records(OSSL_RECORD_LAYER *rl);
 int dtls_get_more_records(OSSL_RECORD_LAYER *rl);
 
 int dtls_prepare_record_header(OSSL_RECORD_LAYER *rl,
-                               WPACKET *thispkt,
-                               OSSL_RECORD_TEMPLATE *templ,
-                               uint8_t rectype,
-                               unsigned char **recdata);
+    WPACKET *thispkt,
+    OSSL_RECORD_TEMPLATE *templ,
+    uint8_t rectype,
+    unsigned char **recdata);
 int dtls_post_encryption_processing(OSSL_RECORD_LAYER *rl,
-                                    size_t mac_size,
-                                    OSSL_RECORD_TEMPLATE *thistempl,
-                                    WPACKET *thispkt,
-                                    TLS_RL_RECORD *thiswr);
+    size_t mac_size,
+    OSSL_RECORD_TEMPLATE *thistempl,
+    WPACKET *thispkt,
+    TLS_RL_RECORD *thiswr);
 
 int tls_default_set_protocol_version(OSSL_RECORD_LAYER *rl, int version);
 int tls_default_validate_record_header(OSSL_RECORD_LAYER *rl, TLS_RL_RECORD *re);
@@ -436,29 +435,28 @@ int tls_do_uncompress(OSSL_RECORD_LAYER *rl, TLS_RL_RECORD *rec);
 int tls_default_post_process_record(OSSL_RECORD_LAYER *rl, TLS_RL_RECORD *rec);
 int tls13_common_post_process_record(OSSL_RECORD_LAYER *rl, TLS_RL_RECORD *rec);
 
-int
-tls_int_new_record_layer(OSSL_LIB_CTX *libctx, const char *propq, int vers,
-                         int role, int direction, int level,
-                         const EVP_CIPHER *ciph, size_t taglen,
-                         const EVP_MD *md, COMP_METHOD *comp, BIO *prev,
-                         BIO *transport, BIO *next,
-                         const OSSL_PARAM *settings, const OSSL_PARAM *options,
-                         const OSSL_DISPATCH *fns, void *cbarg,
-                         OSSL_RECORD_LAYER **retrl);
+int tls_int_new_record_layer(OSSL_LIB_CTX *libctx, const char *propq, int vers,
+    int role, int direction, int level,
+    const EVP_CIPHER *ciph, size_t taglen,
+    const EVP_MD *md, COMP_METHOD *comp, BIO *prev,
+    BIO *transport, BIO *next,
+    const OSSL_PARAM *settings, const OSSL_PARAM *options,
+    const OSSL_DISPATCH *fns, void *cbarg,
+    OSSL_RECORD_LAYER **retrl);
 int tls_free(OSSL_RECORD_LAYER *rl);
 int tls_unprocessed_read_pending(OSSL_RECORD_LAYER *rl);
 int tls_processed_read_pending(OSSL_RECORD_LAYER *rl);
 size_t tls_app_data_pending(OSSL_RECORD_LAYER *rl);
 size_t tls_get_max_records(OSSL_RECORD_LAYER *rl, uint8_t type, size_t len,
-                           size_t maxfrag, size_t *preffrag);
+    size_t maxfrag, size_t *preffrag);
 int tls_write_records(OSSL_RECORD_LAYER *rl, OSSL_RECORD_TEMPLATE *templates,
-                      size_t numtempl);
+    size_t numtempl);
 int tls_retry_write_records(OSSL_RECORD_LAYER *rl);
 int tls_get_alert_code(OSSL_RECORD_LAYER *rl);
 int tls_set1_bio(OSSL_RECORD_LAYER *rl, BIO *bio);
 int tls_read_record(OSSL_RECORD_LAYER *rl, void **rechandle, int *rversion,
-                    uint8_t *type, const unsigned char **data, size_t *datalen,
-                    uint16_t *epoch, unsigned char *seq_num);
+    uint8_t *type, const unsigned char **data, size_t *datalen,
+    uint16_t *epoch, unsigned char *seq_num);
 int tls_release_record(OSSL_RECORD_LAYER *rl, void *rechandle, size_t length);
 int tls_default_set_protocol_version(OSSL_RECORD_LAYER *rl, int version);
 int tls_set_protocol_version(OSSL_RECORD_LAYER *rl, int version);
@@ -466,74 +464,74 @@ void tls_set_plain_alerts(OSSL_RECORD_LAYER *rl, int allow);
 void tls_set_first_handshake(OSSL_RECORD_LAYER *rl, int first);
 void tls_set_max_pipelines(OSSL_RECORD_LAYER *rl, size_t max_pipelines);
 void tls_get_state(OSSL_RECORD_LAYER *rl, const char **shortstr,
-                   const char **longstr);
+    const char **longstr);
 int tls_set_options(OSSL_RECORD_LAYER *rl, const OSSL_PARAM *options);
 const COMP_METHOD *tls_get_compression(OSSL_RECORD_LAYER *rl);
 void tls_set_max_frag_len(OSSL_RECORD_LAYER *rl, size_t max_frag_len);
 int tls_setup_read_buffer(OSSL_RECORD_LAYER *rl);
 int tls_setup_write_buffer(OSSL_RECORD_LAYER *rl, size_t numwpipes,
-                           size_t firstlen, size_t nextlen);
+    size_t firstlen, size_t nextlen);
 
 int tls_write_records_multiblock(OSSL_RECORD_LAYER *rl,
-                                 OSSL_RECORD_TEMPLATE *templates,
-                                 size_t numtempl);
+    OSSL_RECORD_TEMPLATE *templates,
+    size_t numtempl);
 
 size_t tls_get_max_records_default(OSSL_RECORD_LAYER *rl, uint8_t type,
-                                   size_t len,
-                                   size_t maxfrag, size_t *preffrag);
+    size_t len,
+    size_t maxfrag, size_t *preffrag);
 size_t tls_get_max_records_multiblock(OSSL_RECORD_LAYER *rl, uint8_t type,
-                                      size_t len, size_t maxfrag,
-                                      size_t *preffrag);
+    size_t len, size_t maxfrag,
+    size_t *preffrag);
 int tls_allocate_write_buffers_default(OSSL_RECORD_LAYER *rl,
-                                       OSSL_RECORD_TEMPLATE *templates,
-                                       size_t numtempl, size_t *prefix);
+    OSSL_RECORD_TEMPLATE *templates,
+    size_t numtempl, size_t *prefix);
 int tls_initialise_write_packets_default(OSSL_RECORD_LAYER *rl,
-                                         OSSL_RECORD_TEMPLATE *templates,
-                                         size_t numtempl,
-                                         OSSL_RECORD_TEMPLATE *prefixtempl,
-                                         WPACKET *pkt,
-                                         TLS_BUFFER *bufs,
-                                         size_t *wpinited);
+    OSSL_RECORD_TEMPLATE *templates,
+    size_t numtempl,
+    OSSL_RECORD_TEMPLATE *prefixtempl,
+    WPACKET *pkt,
+    TLS_BUFFER *bufs,
+    size_t *wpinited);
 int tls1_allocate_write_buffers(OSSL_RECORD_LAYER *rl,
-                                OSSL_RECORD_TEMPLATE *templates,
-                                size_t numtempl, size_t *prefix);
+    OSSL_RECORD_TEMPLATE *templates,
+    size_t numtempl, size_t *prefix);
 int tls1_initialise_write_packets(OSSL_RECORD_LAYER *rl,
-                                  OSSL_RECORD_TEMPLATE *templates,
-                                  size_t numtempl,
-                                  OSSL_RECORD_TEMPLATE *prefixtempl,
-                                  WPACKET *pkt,
-                                  TLS_BUFFER *bufs,
-                                  size_t *wpinited);
+    OSSL_RECORD_TEMPLATE *templates,
+    size_t numtempl,
+    OSSL_RECORD_TEMPLATE *prefixtempl,
+    WPACKET *pkt,
+    TLS_BUFFER *bufs,
+    size_t *wpinited);
 int tls_prepare_record_header_default(OSSL_RECORD_LAYER *rl,
-                                      WPACKET *thispkt,
-                                      OSSL_RECORD_TEMPLATE *templ,
-                                      uint8_t rectype,
-                                      unsigned char **recdata);
+    WPACKET *thispkt,
+    OSSL_RECORD_TEMPLATE *templ,
+    uint8_t rectype,
+    unsigned char **recdata);
 int tls_prepare_for_encryption_default(OSSL_RECORD_LAYER *rl,
-                                       size_t mac_size,
-                                       WPACKET *thispkt,
-                                       TLS_RL_RECORD *thiswr);
+    size_t mac_size,
+    WPACKET *thispkt,
+    TLS_RL_RECORD *thiswr);
 int tls_post_encryption_processing_default(OSSL_RECORD_LAYER *rl,
-                                           size_t mac_size,
-                                           OSSL_RECORD_TEMPLATE *thistempl,
-                                           WPACKET *thispkt,
-                                           TLS_RL_RECORD *thiswr);
+    size_t mac_size,
+    OSSL_RECORD_TEMPLATE *thistempl,
+    WPACKET *thispkt,
+    TLS_RL_RECORD *thiswr);
 int tls_write_records_default(OSSL_RECORD_LAYER *rl,
-                              OSSL_RECORD_TEMPLATE *templates,
-                              size_t numtempl);
+    OSSL_RECORD_TEMPLATE *templates,
+    size_t numtempl);
 
 /* Macros/functions provided by the TLS_BUFFER component */
 
-#define TLS_BUFFER_get_buf(b)              ((b)->buf)
-#define TLS_BUFFER_set_buf(b, n)           ((b)->buf = (n))
-#define TLS_BUFFER_get_len(b)              ((b)->len)
-#define TLS_BUFFER_get_left(b)             ((b)->left)
-#define TLS_BUFFER_set_left(b, l)          ((b)->left = (l))
-#define TLS_BUFFER_sub_left(b, l)          ((b)->left -= (l))
-#define TLS_BUFFER_get_offset(b)           ((b)->offset)
-#define TLS_BUFFER_set_offset(b, o)        ((b)->offset = (o))
-#define TLS_BUFFER_add_offset(b, o)        ((b)->offset += (o))
-#define TLS_BUFFER_set_app_buffer(b, l)    ((b)->app_buffer = (l))
-#define TLS_BUFFER_is_app_buffer(b)        ((b)->app_buffer)
+#define TLS_BUFFER_get_buf(b) ((b)->buf)
+#define TLS_BUFFER_set_buf(b, n) ((b)->buf = (n))
+#define TLS_BUFFER_get_len(b) ((b)->len)
+#define TLS_BUFFER_get_left(b) ((b)->left)
+#define TLS_BUFFER_set_left(b, l) ((b)->left = (l))
+#define TLS_BUFFER_sub_left(b, l) ((b)->left -= (l))
+#define TLS_BUFFER_get_offset(b) ((b)->offset)
+#define TLS_BUFFER_set_offset(b, o) ((b)->offset = (o))
+#define TLS_BUFFER_add_offset(b, o) ((b)->offset += (o))
+#define TLS_BUFFER_set_app_buffer(b, l) ((b)->app_buffer = (l))
+#define TLS_BUFFER_is_app_buffer(b) ((b)->app_buffer)
 
 void ossl_tls_buffer_release(TLS_BUFFER *b);

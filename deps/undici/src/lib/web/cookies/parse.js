@@ -1,8 +1,8 @@
 'use strict'
 
+const { collectASequenceOfCodePointsFast } = require('../infra')
 const { maxNameValuePairSize, maxAttributeValueSize } = require('./constants')
 const { isCTLExcludingHtab } = require('./util')
-const { collectASequenceOfCodePointsFast } = require('../fetch/data-url')
 const assert = require('node:assert')
 const { unescape: qsUnescape } = require('node:querystring')
 

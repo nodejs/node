@@ -169,17 +169,16 @@ const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
 
   let fd;
   fs.promises.open(filename, 'a+')
-    .then(common.mustCall((fileDescriptor) => {
+    .then((fileDescriptor) => {
       fd = fileDescriptor;
       return fs.promises.appendFile(fd, s);
-    }))
-    .then(common.mustCall(() => fd.close()))
-    .then(common.mustCall(() => fs.promises.readFile(filename)))
+    })
+    .then(() => fd.close())
+    .then(() => fs.promises.readFile(filename))
     .then(common.mustCall((buffer) => {
       assert.strictEqual(Buffer.byteLength(s) + currentFileData.length,
                          buffer.length);
-    }))
-    .catch(throwNextTick);
+    }));
 }
 
 assert.throws(

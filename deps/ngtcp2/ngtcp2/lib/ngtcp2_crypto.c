@@ -65,15 +65,21 @@ int ngtcp2_crypto_km_nocopy_new(ngtcp2_crypto_km **pckm, size_t secretlen,
   }
 
   p = (uint8_t *)(*pckm) + sizeof(ngtcp2_crypto_km);
-  (*pckm)->secret.base = p;
-  (*pckm)->secret.len = secretlen;
-  p += secretlen;
-  (*pckm)->iv.base = p;
-  (*pckm)->iv.len = ivlen;
-  (*pckm)->aead_ctx.native_handle = NULL;
-  (*pckm)->pkt_num = -1;
-  (*pckm)->use_count = 0;
-  (*pckm)->flags = NGTCP2_CRYPTO_KM_FLAG_NONE;
+
+  **pckm = (ngtcp2_crypto_km){
+    .secret =
+      {
+        .base = p,
+        .len = secretlen,
+      },
+    .iv =
+      {
+        .base = p + secretlen,
+        .len = ivlen,
+      },
+    .pkt_num = -1,
+    .flags = NGTCP2_CRYPTO_KM_FLAG_NONE,
+  };
 
   return 0;
 }

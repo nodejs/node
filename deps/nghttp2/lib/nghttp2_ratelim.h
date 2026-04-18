@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp2/nghttp2.h>
 
@@ -54,4 +54,4 @@ void nghttp2_ratelim_update(nghttp2_ratelim *rl, uint64_t tstamp);
    succeeds, or -1. */
 int nghttp2_ratelim_drain(nghttp2_ratelim *rl, uint64_t n);
 
-#endif /* NGHTTP2_RATELIM_H */
+#endif /* !defined(NGHTTP2_RATELIM_H) */

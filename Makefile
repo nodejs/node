@@ -17,7 +17,7 @@ endif
 ARCHTYPE := $(shell uname -m | tr '[:upper:]' '[:lower:]')
 COVTESTS ?= test-cov
 COV_SKIP_TESTS ?= core_line_numbers.js,testFinalizer.js,test_function/test.js
-GTEST_FILTER ?= "*"
+GTEST_FILTER ?= *
 GNUMAKEFLAGS += --no-print-directory
 GCOV ?= gcov
 PWD = $(CURDIR)
@@ -31,9 +31,9 @@ else
 endif
 
 ifdef ENABLE_V8_TAP
-	TAP_V8 := --junitout $(PWD)/v8-tap.xml
-	TAP_V8_INTL := --junitout $(PWD)/v8-intl-tap.xml
-	TAP_V8_BENCHMARKS := --junitout $(PWD)/v8-benchmarks-tap.xml
+	TAP_V8 := --junitout '$(PWD)/v8-tap.xml'
+	TAP_V8_INTL := --junitout '$(PWD)/v8-intl-tap.xml'
+	TAP_V8_BENCHMARKS := --junitout '$(PWD)/v8-benchmarks-tap.xml'
 define convert_to_junit
 	@true
 endef
@@ -47,12 +47,12 @@ ifdef ENABLE_CONVERT_V8_JSON_TO_XML
 	# By default, the V8's JSON test output only includes the tests which have
 	# failed. We use --slow-tests-cutoff to ensure that all tests are present
 	# in the output, including those which pass.
-	TAP_V8 := --json-test-results $(TAP_V8_JSON) --slow-tests-cutoff 1000000
-	TAP_V8_INTL := --json-test-results $(TAP_V8_INTL_JSON) --slow-tests-cutoff 1000000
-	TAP_V8_BENCHMARKS := --json-test-results $(TAP_V8_BENCHMARKS_JSON) --slow-tests-cutoff 1000000
+	TAP_V8 := --json-test-results '$(TAP_V8_JSON)' --slow-tests-cutoff 1000000
+	TAP_V8_INTL := --json-test-results '$(TAP_V8_INTL_JSON)' --slow-tests-cutoff 1000000
+	TAP_V8_BENCHMARKS := --json-test-results '$(TAP_V8_BENCHMARKS_JSON)' --slow-tests-cutoff 1000000
 
 define convert_to_junit
-	export PATH="$(NO_BIN_OVERRIDE_PATH)" && \
+	PATH="$(NO_BIN_OVERRIDE_PATH)" \
 		$(PYTHON) tools/v8-json-to-junit.py < $(1) > $(1:.json=.xml)
 endef
 endif
@@ -78,10 +78,16 @@ EXEEXT := $(shell $(PYTHON) -c \
 		"import sys; print('.exe' if sys.platform == 'win32' else '')")
 
 NODE_EXE = node$(EXEEXT)
-# Use $(PWD) so we can cd to anywhere before calling this
-NODE ?= "$(PWD)/$(NODE_EXE)"
 NODE_G_EXE = node_g$(EXEEXT)
 NPM ?= ./deps/npm/bin/npm-cli.js
+
+# Release build of node.
+# Use $(PWD) so we can cd to anywhere before calling this.
+NODE ?= $(PWD)/$(NODE_EXE)
+# Prefer $(OUT_NODE) when running tests. Use $(NODE)
+# when generating coverage reports or running toolings as
+# debug build is be slower.
+OUT_NODE ?= $(PWD)/out/$(BUILDTYPE)/node$(EXEEXT)
 
 # Flags for packaging.
 BUILD_DOWNLOAD_FLAGS ?= --download=all
@@ -94,8 +100,8 @@ V ?= 0
 
 # Use -e to double check in case it's a broken link
 available-node = \
-	if [ -x "$(NODE)" ] && [ -e "$(NODE)" ]; then \
-		"$(NODE)" $(1); \
+	if [ -x '$(NODE)' ] && [ -e '$(NODE)' ]; then \
+		PATH='$(PWD)/out/$(BUILDTYPE):$$PATH' '$(NODE)' $(1); \
 	elif [ -x `command -v node` ] && [ -e `command -v node` ] && [ `command -v node` ]; then \
 		`command -v node` $(1); \
 	else \
@@ -108,8 +114,10 @@ available-node = \
 # just the debug build, run `make -C out BUILDTYPE=Debug` instead.
 ifeq ($(BUILDTYPE),Release)
 all: $(NODE_EXE) ## Build node in out/Release/node (Default).
+$(OUT_NODE): $(NODE_EXE)
 else
 all: $(NODE_EXE) $(NODE_G_EXE)
+$(OUT_NODE): $(NODE_G_EXE)
 endif
 
 .PHONY: help
@@ -260,7 +268,7 @@ coverage-build: all ## Build coverage files.
 coverage-build-js: ## Build JavaScript coverage files.
 	mkdir -p node_modules
 	if [ ! -d node_modules/c8 ]; then \
-		$(NODE) ./deps/npm install c8 --no-save --no-package-lock;\
+		'$(NODE)' ./deps/npm install c8 --no-save --no-package-lock;\
 	fi
 
 .PHONY: coverage-test
@@ -287,13 +295,12 @@ coverage-test: coverage-build ## Run the tests and generate a coverage report.
 .PHONY: coverage-report-js
 coverage-report-js: ## Report JavaScript coverage results.
 	-$(MAKE) coverage-build-js
-	$(NODE) ./node_modules/.bin/c8 report
+	'$(NODE)' ./node_modules/.bin/c8 report
 
 .PHONY: cctest
 
 cctest: all ## Run the C++ tests using the built `cctest` executable.
 	@out/$(BUILDTYPE)/$@ --gtest_filter=$(GTEST_FILTER)
-	$(NODE) ./test/embedding/test-embedding.js
 
 .PHONY: list-gtests
 list-gtests: ## List all available C++ gtests.
@@ -311,7 +318,7 @@ v8: ## Build deps/v8.
 		tools/make-v8.sh $(V8_ARCH).$(BUILDTYPE_LOWER) $(V8_BUILD_OPTIONS)
 
 .PHONY: jstest
-jstest: build-addons build-js-native-api-tests build-node-api-tests build-sqlite-tests ## Run addon tests and JS tests.
+jstest: build-addons build-js-native-api-tests build-node-api-tests build-sqlite-tests build-ffi-tests ## Run addon tests and JS tests.
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) \
 		$(TEST_CI_ARGS) \
 		--skip-tests=$(CI_SKIP_TESTS) \
@@ -331,22 +338,23 @@ coverage-run-js: ## Run JavaScript tests with coverage.
 
 .PHONY: test
 # This does not run tests of third-party libraries inside deps.
-test: all ## Run default tests, linters, and build docs.
+test: all ## Run default tests and build docs.
 	$(MAKE) -s tooltest
-	$(MAKE) -s test-doc
 	$(MAKE) -s build-addons
 	$(MAKE) -s build-js-native-api-tests
 	$(MAKE) -s build-node-api-tests
 	$(MAKE) -s build-sqlite-tests
+	$(MAKE) -s build-ffi-tests
 	$(MAKE) -s cctest
 	$(MAKE) -s jstest
 
 .PHONY: test-only
-test-only: all  ## Run default tests, without linters or building the docs.
+test-only: all  ## Run default tests without building the docs.
 	$(MAKE) build-addons
 	$(MAKE) build-js-native-api-tests
 	$(MAKE) build-node-api-tests
 	$(MAKE) build-sqlite-tests
+	$(MAKE) build-ffi-tests
 	$(MAKE) cctest
 	$(MAKE) jstest
 	$(MAKE) tooltest
@@ -358,6 +366,7 @@ test-cov: all ## Run coverage tests.
 	$(MAKE) build-js-native-api-tests
 	$(MAKE) build-node-api-tests
 	$(MAKE) build-sqlite-tests
+	$(MAKE) build-ffi-tests
 	$(MAKE) cctest
 	CI_SKIP_TESTS=$(COV_SKIP_TESTS) $(MAKE) jstest
 
@@ -369,7 +378,7 @@ test-valgrind: all ## Run tests using valgrind.
 test-check-deopts: all
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) --check-deopts parallel sequential
 
-DOCBUILDSTAMP_PREREQS = tools/doc/addon-verify.mjs doc/api/addons.md
+DOCBUILDSTAMP_PREREQS = doc/api/addons.md
 
 ifeq ($(OSTYPE),aix)
 DOCBUILDSTAMP_PREREQS := $(DOCBUILDSTAMP_PREREQS) out/$(BUILDTYPE)/node.exp
@@ -378,6 +387,8 @@ ifeq ($(OSTYPE),os400)
 DOCBUILDSTAMP_PREREQS := $(DOCBUILDSTAMP_PREREQS) out/$(BUILDTYPE)/node.exp
 endif
 
+DOC_KIT ?= tools/doc/node_modules/@node-core/doc-kit/bin/cli.mjs
+
 node_use_openssl_and_icu = $(call available-node,"-p" \
 			 "process.versions.openssl != undefined && process.versions.icu != undefined")
 test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS) tools/doc/node_modules
@@ -385,7 +396,13 @@ test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS) tools/doc/node_modules
 		echo "Skipping .docbuildstamp (no crypto and/or no ICU)"; \
 	else \
 		$(RM) -r test/addons/??_*/; \
-		[ -x $(NODE) ] && $(NODE) $< || node $< ; \
+		$(call available-node, \
+			$(DOC_KIT) generate \
+			-t addon-verify \
+			-i doc/api/addons.md \
+			-o test/addons/ \
+			--type-map doc/type-map.json \
+		) \
 		[ $$? -eq 0 ] && touch $@; \
 	fi
 
@@ -528,6 +545,29 @@ else
 build-sqlite-tests:
 endif
 
+FFI_BINDING_GYPS := $(wildcard test/ffi/*/binding.gyp)
+
+FFI_BINDING_SOURCES := \
+	$(wildcard test/ffi/*/*.c) \
+	$(wildcard test/ffi/*/*.def)
+
+ifndef NOFFI
+# Depends on $(NODE_EXE) as order-only to avoid ETXTBSY on AIX when make
+# tries to execute node while it is still being linked in parallel.
+test/ffi/.buildstamp: $(ADDONS_PREREQS) \
+	$(FFI_BINDING_GYPS) $(FFI_BINDING_SOURCES) | $(NODE_EXE)
+	@$(call run_build_addons,"$$PWD/test/ffi",$@)
+else
+test/ffi/.buildstamp:
+endif
+
+.PHONY: build-ffi-tests
+ifndef NOFFI
+build-ffi-tests: | test/ffi/.buildstamp ## Build FFI tests.
+else
+build-ffi-tests:
+endif
+
 .PHONY: clear-stalled
 clear-stalled: ## Clear any stalled processes.
 	$(info Clean up any leftover processes but don't error if found.)
@@ -538,7 +578,7 @@ clear-stalled: ## Clear any stalled processes.
 	fi
 
 .PHONY: test-build
-test-build: | all build-addons build-js-native-api-tests build-node-api-tests build-sqlite-tests ## Build all tests.
+test-build: | all build-addons build-js-native-api-tests build-node-api-tests build-sqlite-tests build-ffi-tests ## Build all tests.
 
 .PHONY: test-build-js-native-api
 test-build-js-native-api: all build-js-native-api-tests ## Build JS Native-API tests.
@@ -549,6 +589,8 @@ test-build-node-api: all build-node-api-tests ## Build Node-API tests.
 .PHONY: test-build-sqlite
 test-build-sqlite: all build-sqlite-tests ## Build SQLite tests.
 
+.PHONY: test-build-ffi
+test-build-ffi: all build-ffi-tests ## Build FFI tests.
 
 .PHONY: test-all
 test-all: test-build ## Run default tests with both Debug and Release builds.
@@ -563,7 +605,7 @@ test-all-suites: | clear-stalled test-build bench-addons-build doc-only ## Run a
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) test/*
 
 JS_SUITES ?= default
-NATIVE_SUITES ?= addons js-native-api node-api
+NATIVE_SUITES ?= addons js-native-api node-api embedding
 # CI_* variables should be kept synchronized with the ones in vcbuild.bat
 CI_NATIVE_SUITES ?= $(NATIVE_SUITES) benchmark
 CI_JS_SUITES ?= $(JS_SUITES) pummel
@@ -577,7 +619,7 @@ endif
 
 # Related CI job: node-test-commit-arm-fanned
 test-ci-native: LOGLEVEL := info ## Build and test addons without building anything else.
-test-ci-native: | benchmark/napi/.buildstamp test/addons/.buildstamp test/js-native-api/.buildstamp test/node-api/.buildstamp test/sqlite/.buildstamp
+test-ci-native: | benchmark/napi/.buildstamp test/addons/.buildstamp test/js-native-api/.buildstamp test/node-api/.buildstamp test/sqlite/.buildstamp test/ffi/.buildstamp
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_NATIVE_SUITES)
@@ -600,12 +642,11 @@ test-ci-js: | clear-stalled ## Build and test JavaScript with building anything 
 .PHONY: test-ci
 # Related CI jobs: most CI tests, excluding node-test-commit-arm-fanned
 test-ci: LOGLEVEL := info ## Build and test everything (CI).
-test-ci: | clear-stalled bench-addons-build build-addons build-js-native-api-tests build-node-api-tests build-sqlite-tests doc-only
+test-ci: | clear-stalled bench-addons-build build-addons build-js-native-api-tests build-node-api-tests build-sqlite-tests build-ffi-tests doc-only
 	out/Release/cctest --gtest_output=xml:out/junit/cctest.xml
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_JS_SUITES) $(CI_NATIVE_SUITES) $(CI_DOC)
-	$(NODE) ./test/embedding/test-embedding.js
 	$(info Clean up any leftover processes, error if found.)
 	ps awwx | grep Release/node | grep -v grep | cat
 	@PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
@@ -619,6 +660,7 @@ test-ci: | clear-stalled bench-addons-build build-addons build-js-native-api-tes
 build-ci: ## Build everything (CI).
 	$(PYTHON) ./configure --verbose $(CONFIG_FLAGS)
 	$(MAKE)
+	$(MAKE) build-ffi-tests
 
 .PHONY: run-ci
 # Run by CI tests, exceptions:
@@ -647,12 +689,16 @@ test-test426: all ## Run the Web Platform Tests.
 test-wpt: all ## Run the Web Platform Tests.
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) wpt
 
+# https://github.com/nodejs/node/blob/a00d95c73dcac8fc2b316238fb978a7d5aa650c6/.github/workflows/daily-wpt-fyi.yml#L71-L97
+# This uses NODE instead of OUT_NODE and if changes are to be made they'd need to be made on all
+# non-EOL release lines' since the wpt.fyi job checks out the repository in a state of a given release
+# to ensure future changes to the WPT runner don't need to be backported.
 .PHONY: test-wpt-report
 test-wpt-report: ## Run the Web Platform Tests and generate a report.
 	$(RM) -r out/wpt
 	mkdir -p out/wpt
-	-WPT_REPORT=1 $(PYTHON) tools/test.py --shell $(NODE) $(PARALLEL_ARGS) wpt
-	$(NODE) "$$PWD/tools/merge-wpt-reports.mjs"
+	-WPT_REPORT=1 $(PYTHON) tools/test.py --shell '$(NODE)' $(PARALLEL_ARGS) wpt
+	'$(NODE)' "$$PWD/tools/merge-wpt-reports.mjs"
 
 .PHONY: test-internet
 test-internet: all ## Run internet tests.
@@ -672,7 +718,7 @@ test-doc: doc-only lint-md ## Build, lint, and verify the docs.
 
 .PHONY: test-doc-ci
 test-doc-ci: doc-only ## Build, lint, and verify the docs (CI).
-	$(PYTHON) tools/test.py --shell $(NODE) $(TEST_CI_ARGS) $(PARALLEL_ARGS) doctool
+	$(PYTHON) tools/test.py --shell '$(NODE)' $(TEST_CI_ARGS) $(PARALLEL_ARGS) doctool
 
 .PHONY: test-known-issues
 test-known-issues: all ## Run tests for known issues.
@@ -680,12 +726,12 @@ test-known-issues: all ## Run tests for known issues.
 
 # Related CI job: node-test-npm
 .PHONY: test-npm
-test-npm: $(NODE_EXE) ## Run the npm test suite on deps/npm.
-	$(NODE) tools/test-npm-package --install --logfile=test-npm.tap deps/npm test
+test-npm: $(OUT_NODE) ## Run the npm test suite on deps/npm.
+	'$(OUT_NODE)' tools/test-npm-package --install --logfile=test-npm.tap deps/npm test
 
 .PHONY: test-npm-publish
-test-npm-publish: $(NODE_EXE) ## Test the `npm publish` command.
-	npm_package_config_publishtest=true $(NODE) deps/npm/test/run.js
+test-npm-publish: $(OUT_NODE) ## Test the `npm publish` command.
+	npm_package_config_publishtest=true '$(OUT_NODE)' deps/npm/test/run.js
 
 .PHONY: test-js-native-api
 test-js-native-api: test-build-js-native-api ## Run JS Native-API tests.
@@ -716,6 +762,16 @@ test-sqlite: test-build-sqlite ## Run SQLite tests.
 test-sqlite-clean: ## Remove SQLite testing artifacts.
 	$(RM) -r test/sqlite/*/build
 	$(RM) test/sqlite/.buildstamp
+
+.PHONY: test-ffi
+test-ffi: test-build-ffi ## Run FFI tests.
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) ffi
+
+.PHONY: test-ffi-clean
+.NOTPARALLEL: test-ffi-clean
+test-ffi-clean: ## Remove FFI testing artifacts.
+	$(RM) -r test/ffi/*/build
+	$(RM) test/ffi/.buildstamp
 
 .PHONY: test-addons
 test-addons: test-build test-js-native-api test-node-api ## Run addon tests.
@@ -781,14 +837,14 @@ test-v8 test-v8-intl test-v8-benchmarks test-v8-all:
 	$(warning Use the git repo instead: $$ git clone https://github.com/nodejs/node.git)
 endif
 
-apidoc_dirs = out/doc out/doc/api out/doc/api/assets
+apidoc_dirs = out/doc out/doc/api
 skip_apidoc_files = doc/api/quic.md
 
 apidoc_sources = $(filter-out $(skip_apidoc_files), $(wildcard doc/api/*.md))
 apidocs_html = $(addprefix out/,$(apidoc_sources:.md=.html))
 apidocs_json = $(addprefix out/,$(apidoc_sources:.md=.json))
 
-apiassets = $(subst api_assets,api/assets,$(addprefix out/,$(wildcard doc/api_assets/*)))
+run-npm-ci = $(PWD)/$(NPM) ci --omit=dev
 
 tools/doc/node_modules: tools/doc/package.json
 	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
@@ -797,14 +853,12 @@ tools/doc/node_modules: tools/doc/package.json
 		cd tools/doc && $(call available-node,$(run-npm-ci)) \
 	fi
 
+RAWVER=$(shell $(PYTHON) tools/getnodeversion.py)
+VERSION=v$(RAWVER)
+
 .PHONY: doc-only
-doc-only: tools/doc/node_modules \
-	$(apidoc_dirs) $(apiassets) ## Build the docs with the local or the global Node.js binary.
-	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
-		echo "Skipping doc-only (no crypto and/or no ICU)"; \
-	else \
-		$(MAKE) out/doc/api/all.html out/doc/api/all.json out/doc/api/stability; \
-	fi
+.NOTPARALLEL: doc-only
+doc-only: $(apidoc_dirs) $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json out/doc/apilinks.json  ## Builds the docs with the local or the global Node.js binary.
 
 .PHONY: doc
 doc: $(NODE_EXE) doc-only ## Build Node.js, and then build the documentation with the new binary.
@@ -819,82 +873,64 @@ out/doc/api: doc/api
 	mkdir -p $@
 	cp -r doc/api out/doc
 
-# If it's a source tarball, assets are already in doc/api/assets
-out/doc/api/assets:
-	mkdir -p $@
-	if [ -d doc/api/assets ]; then cp -r doc/api/assets out/doc/api; fi;
-
-# If it's not a source tarball, we need to copy assets from doc/api_assets
-out/doc/api/assets/%: doc/api_assets/% | out/doc/api/assets
-	@cp $< $@ ; $(RM) out/doc/api/assets/README.md
-
-
-run-npm-ci = $(PWD)/$(NPM) ci
-
-LINK_DATA = out/doc/apilinks.json
-VERSIONS_DATA = out/previous-doc-versions.json
-gen-api = tools/doc/generate.mjs --node-version=$(FULLVERSION) \
-		--apilinks=$(LINK_DATA) $< --output-directory=out/doc/api \
-		--versions-file=$(VERSIONS_DATA)
-gen-apilink = tools/doc/apilinks.mjs $(LINK_DATA) $(wildcard lib/*.js)
-
-$(LINK_DATA): $(wildcard lib/*.js) tools/doc/apilinks.mjs | out/doc
-	$(call available-node, $(gen-apilink))
-
-# Regenerate previous versions data if the current version changes
-$(VERSIONS_DATA): CHANGELOG.md src/node_version.h tools/doc/versions.mjs
-	$(call available-node, tools/doc/versions.mjs $@)
-
-node_use_icu = $(call available-node,"-p" "typeof Intl === 'object'")
-
-out/doc/api/%.json out/doc/api/%.html: doc/api/%.md tools/doc/generate.mjs \
-	tools/doc/markdown.mjs tools/doc/html.mjs tools/doc/json.mjs \
-	tools/doc/apilinks.mjs $(VERSIONS_DATA) | $(LINK_DATA) out/doc/api
-	@if [ "$(shell $(node_use_icu))" != "true" ]; then \
-		echo "Skipping documentation generation (no ICU)"; \
+# Generate all doc files (individual and all.html/all.json) in a single doc-kit call
+# Using grouped targets (&:) so Make knows one command produces all outputs
+ifeq ($(OSTYPE),aix)
+# TODO(@nodejs/web-infra): AIX is currently hanging during HTML minification
+$(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json:
+	@echo "Skipping $@ (not currently supported by $(OSTYPE) machines)"
+else ifeq ($(OSTYPE),os400)
+# TODO(@nodejs/web-infra): IBMi is currently hanging during HTML minification
+$(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json:
+	@echo "Skipping $@ (not currently supported by $(OSTYPE) machines)"
+else
+$(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json &: $(apidoc_sources) tools/doc/node_modules | out/doc/api
+	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
+		echo "Skipping $@ (no crypto and/or no ICU)"; \
 	else \
-		$(call available-node, $(gen-api)) \
+		$(call available-node, \
+			$(DOC_KIT) generate \
+			-t legacy-html-all \
+			-t legacy-json-all \
+			-i doc/api/*.md \
+			--ignore $(skip_apidoc_files) \
+			-o out/doc/api \
+			-c ./CHANGELOG.md \
+			-v $(VERSION) \
+			--index doc/api/index.md \
+			--type-map doc/type-map.json \
+		) \
 	fi
+endif
 
-out/doc/api/all.html: $(apidocs_html) tools/doc/allhtml.mjs \
-	tools/doc/apilinks.mjs | out/doc/api
-	@if [ "$(shell $(node_use_icu))" != "true" ]; then \
-		echo "Skipping HTML single-page doc generation (no ICU)"; \
+out/doc/apilinks.json: $(wildcard lib/*.js) tools/doc/node_modules | out/doc
+	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
+		echo "Skipping $@ (no crypto and/or no ICU)"; \
 	else \
-		$(call available-node, tools/doc/allhtml.mjs) \
-	fi
-
-out/doc/api/all.json: $(apidocs_json) tools/doc/alljson.mjs | out/doc/api
-	@if [ "$(shell $(node_use_icu))" != "true" ]; then \
-		echo "Skipping JSON single-file generation (no ICU)"; \
-	else \
-		$(call available-node, tools/doc/alljson.mjs) \
-	fi
-
-.PHONY: out/doc/api/stability
-out/doc/api/stability: out/doc/api/all.json tools/doc/stability.mjs | out/doc/api
-	@if [ "$(shell $(node_use_icu))" != "true" ]; then \
-		echo "Skipping stability indicator generation (no ICU)"; \
-	else \
-		$(call available-node, tools/doc/stability.mjs) \
+		$(call available-node, \
+			$(DOC_KIT) generate \
+			-t api-links \
+			-i lib/*.js \
+			-o $(@D) \
+			-c ./CHANGELOG.md \
+			-v $(VERSION) \
+			--type-map doc/type-map.json \
+		) \
 	fi
 
 .PHONY: docopen
-docopen: out/doc/api/all.html ## Open the documentation in a web browser.
+docopen: doc-only ## Open the documentation in a web browser.
 	@$(PYTHON) -mwebbrowser file://$(abspath $<)
 
 .PHONY: docserve
-docserve: $(apidocs_html) $(apiassets) ## Serve the documentation on localhost:8000.
+docserve: doc-only ## Serve the documentation on localhost:8000.
 	@$(PYTHON) -m http.server 8000 --bind 127.0.0.1 --directory out/doc/api
 
 .PHONY: docclean
 .NOTPARALLEL: docclean
 docclean: ## Remove the generated documentation.
 	$(RM) -r out/doc
-	$(RM) "$(VERSIONS_DATA)"
 
-RAWVER=$(shell $(PYTHON) tools/getnodeversion.py)
-VERSION=v$(RAWVER)
 CHANGELOG=doc/changelogs/CHANGELOG_V$(firstword $(subst ., ,$(RAWVER))).md
 
 # For nightly builds, you must set DISTTYPE to "nightly", "next-nightly" or
@@ -1169,7 +1205,7 @@ endif
 		$(MACOSOUTDIR)/dist/npm/usr/local/lib/node_modules
 	unlink $(MACOSOUTDIR)/dist/node/usr/local/bin/npm
 	unlink $(MACOSOUTDIR)/dist/node/usr/local/bin/npx
-	$(NODE) tools/license2rtf.mjs < LICENSE > \
+	'$(NODE)' tools/license2rtf.mjs < LICENSE > \
 		$(MACOSOUTDIR)/installer/productbuild/Resources/license.rtf
 	cp doc/osx_installer_logo.png $(MACOSOUTDIR)/installer/productbuild/Resources
 	pkgbuild --version $(FULLVERSION) \
@@ -1215,6 +1251,7 @@ $(TARBALL): release-only doc-only
 	mkdir -p $(TARNAME)/doc/api
 	cp doc/node.1 $(TARNAME)/doc/node.1
 	cp -r out/doc/api/* $(TARNAME)/doc/api/
+	sed 's/fileset = fileset.intersection (fileset.gitTracked root)/fileset =/' tools/nix/v8.nix > $(TARNAME)/tools/nix/v8.nix 
 	$(RM) -r $(TARNAME)/.editorconfig
 	$(RM) -r $(TARNAME)/.git*
 	$(RM) -r $(TARNAME)/.mailmap
@@ -1224,9 +1261,16 @@ ifeq ($(SKIP_SHARED_DEPS), 1)
 	$(RM) -r $(TARNAME)/deps/ada
 	$(RM) -r $(TARNAME)/deps/brotli
 	$(RM) -r $(TARNAME)/deps/cares
+	$(RM) -r $(TARNAME)/deps/crates
+	$(RM) -r $(TARNAME)/deps/googletest
+	$(RM) -r $(TARNAME)/deps/histogram
 	$(RM) -r $(TARNAME)/deps/icu-small
 	$(RM) -r $(TARNAME)/deps/icu-tmp
+	$(RM) -r $(TARNAME)/deps/LIEF
+	$(RM) -r $(TARNAME)/deps/libffi
 	$(RM) -r $(TARNAME)/deps/llhttp
+	$(RM) -r $(TARNAME)/deps/merve
+	$(RM) -r $(TARNAME)/deps/nbytes
 	$(RM) -r $(TARNAME)/deps/nghttp2
 	$(RM) -r $(TARNAME)/deps/ngtcp2
 	find $(TARNAME)/deps/openssl -maxdepth 1 -type f ! -name 'nodejs-openssl.cnf' -exec $(RM) {} +
@@ -1498,6 +1542,7 @@ LINT_CPP_FILES = $(filter-out $(LINT_CPP_EXCLUDE), $(wildcard \
 	test/embedding/*.cc \
 	test/embedding/*.h \
 	test/sqlite/*/*.c \
+	test/ffi/*/*.c \
 	test/fixtures/*.c \
 	test/js-native-api/*/*.cc \
 	test/node-api/*/*.cc \
@@ -1522,6 +1567,7 @@ FORMAT_CPP_FILES += $(wildcard \
 	test/node-api/*/*.c \
 	test/node-api/*/*.h \
 	test/sqlite/*/*.c \
+	test/ffi/*/*.c \
 	)
 
 # Code blocks don't have newline at the end,
@@ -1667,8 +1713,8 @@ HAS_DOCKER ?= $(shell command -v docker > /dev/null 2>&1; [ $$? -eq 0 ] && echo 
 
 .PHONY: gen-openssl
 ifeq ($(HAS_DOCKER), 1)
-DOCKER_COMMAND ?= docker run --rm -u $(shell id -u) -v $(PWD):/node
-IS_IN_WORKTREE = $(shell grep '^gitdir: ' $(PWD)/.git 2>/dev/null)
+DOCKER_COMMAND ?= docker run --rm -u $(shell id -u) -v '$(PWD):/node'
+IS_IN_WORKTREE = $(shell grep '^gitdir: ' '$(PWD)/.git' 2>/dev/null)
 GIT_WORKTREE_COMMON = $(shell git rev-parse --git-common-dir)
 DOCKER_COMMAND += $(if $(IS_IN_WORKTREE), -v $(GIT_WORKTREE_COMMON):$(GIT_WORKTREE_COMMON))
 gen-openssl: ## Generate platform dependent openssl files (requires docker).

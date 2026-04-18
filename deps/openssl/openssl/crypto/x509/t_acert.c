@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2021-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -62,12 +62,15 @@ static int print_attribute(BIO *bp, X509_ATTRIBUTE *a)
         case V_ASN1_SEQUENCE:
             if (BIO_puts(bp, "\n") <= 0)
                 goto err;
-            ASN1_parse_dump(bp, at->value.sequence->data,
-                            at->value.sequence->length, i, 1);
+            if (ASN1_parse_dump(bp, at->value.sequence->data,
+                    at->value.sequence->length, i, 1)
+                <= 0)
+                goto err;
             break;
         default:
             if (BIO_printf(bp, "unable to print attribute of type 0x%X\n",
-                           type) < 0)
+                    type)
+                < 0)
                 goto err;
             break;
         }
@@ -78,7 +81,7 @@ err:
 }
 
 int X509_ACERT_print_ex(BIO *bp, X509_ACERT *x, unsigned long nmflags,
-                        unsigned long cflag)
+    unsigned long cflag)
 {
     int i;
     char mlch = ' ';
@@ -100,7 +103,8 @@ int X509_ACERT_print_ex(BIO *bp, X509_ACERT *x, unsigned long nmflags,
         l = X509_ACERT_get_version(x);
         if (l == X509_ACERT_VERSION_2) {
             if (BIO_printf(bp, "%8sVersion: %ld (0x%lx)\n", "", l + 1,
-                           (unsigned long)l) <= 0)
+                    (unsigned long)l)
+                <= 0)
                 goto err;
         } else {
             if (BIO_printf(bp, "%8sVersion: Unknown (%ld)\n", "", l) <= 0)

@@ -344,7 +344,13 @@ void BindingData::Format(const FunctionCallbackInfo<Value>& args) {
   // directly want to manipulate the url components without using the respective
   // setters. therefore we are using ada::url here.
   auto out = ada::parse<ada::url>(href.ToStringView());
-  CHECK(out);
+  if (!out) {
+    // If the href cannot be re-parsed (e.g. due to ada parser inconsistencies
+    // with certain IDN hostnames), return the original href unmodified rather
+    // than crashing.
+    args.GetReturnValue().Set(args[0]);
+    return;
+  }
 
   if (!hash) {
     out->hash = std::nullopt;

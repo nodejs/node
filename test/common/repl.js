@@ -2,9 +2,8 @@
 
 const ArrayStream = require('../common/arraystream');
 const repl = require('node:repl');
-const assert = require('node:assert');
 
-function startNewREPLServer(replOpts = {}, testingOpts = {}) {
+function startNewREPLServer(replOpts = {}) {
   const input = new ArrayStream();
   const output = new ArrayStream();
 
@@ -19,11 +18,6 @@ function startNewREPLServer(replOpts = {}, testingOpts = {}) {
     allowBlockingCompletions: true,
     ...replOpts,
   });
-
-  if (!testingOpts.disableDomainErrorAssert) {
-    // Some errors are passed to the domain, but do not callback
-    replServer._domain.on('error', assert.ifError);
-  }
 
   return { replServer, input, output };
 }

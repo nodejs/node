@@ -4,7 +4,7 @@
 const common = require('../common');
 const { aborted } = require('util');
 const assert = require('assert');
-const { getEventListeners } = require('events');
+const { listenerCount } = require('events');
 const { inspect } = require('util');
 
 const {
@@ -17,7 +17,7 @@ test('Aborted works when provided a resource', async () => {
   ac.abort();
   await promise;
   assert.strictEqual(ac.signal.aborted, true);
-  assert.strictEqual(getEventListeners(ac.signal, 'abort').length, 0);
+  assert.strictEqual(listenerCount(ac.signal, 'abort'), 0);
 });
 
 test('Aborted with gc cleanup', async () => {
@@ -31,7 +31,7 @@ test('Aborted with gc cleanup', async () => {
     globalThis.gc();
     ac.abort();
     assert.strictEqual(ac.signal.aborted, true);
-    assert.strictEqual(getEventListeners(ac.signal, 'abort').length, 0);
+    assert.strictEqual(listenerCount(ac.signal, 'abort'), 0);
     resolve();
   }));
 

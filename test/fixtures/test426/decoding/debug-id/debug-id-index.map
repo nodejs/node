@@ -1,0 +1,30 @@
+{
+  "version": 3,
+  "file": "app.js",
+  "debugId": "1aad9d9e-2b50-454f-a5f2-0dd5e95c154c",
+  "sections": [{
+    "offset": {
+      "line": 0,
+      "column": 0,
+    },
+    "map": {
+      "version": 3,
+      "file": "component1.js",
+      "sources": [],
+      "mappings": "",
+      "debugId": "a938a92f-3074-41f7-bfdb-1038430a983c"
+    }
+  }, {
+    "offset": {
+      "line": 1,
+      "column": 0,
+    },
+    "map": {
+      "version": 3,
+      "file": "component2.js",
+      "sources": [],
+      "mappings": "",
+      "debugId": "8cf3d888-fc9e-457d-a999-6ffef384b736"
+    }
+  }]
+}

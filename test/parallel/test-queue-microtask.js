@@ -32,7 +32,7 @@ queueMicrotask(common.mustCall(function() {
 
 {
   const q = [];
-  Promise.resolve().then(() => q.push('a'));
+  Promise.resolve().then(() => q.push('a')).then(common.mustCall());
   queueMicrotask(common.mustCall(() => q.push('b')));
   Promise.reject().catch(() => q.push('c'));
 

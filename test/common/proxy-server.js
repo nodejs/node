@@ -3,6 +3,8 @@
 const net = require('net');
 const http = require('http');
 const assert = require('assert');
+const { once } = require('events');
+const fixtures = require('./fixtures');
 
 function logRequest(logs, req) {
   logs.push({
@@ -14,7 +16,7 @@ function logRequest(logs, req) {
 
 // This creates a minimal proxy server that logs the requests it gets
 // to an array before performing proxying.
-exports.createProxyServer = function(options = {}) {
+function createProxyServer(options = {}) {
   const logs = [];
 
   let proxy;
@@ -107,7 +109,8 @@ exports.createProxyServer = function(options = {}) {
   });
 
   return { proxy, logs };
-};
+}
+exports.createProxyServer = createProxyServer;
 
 function spawnPromisified(...args) {
   const { spawn } = require('child_process');
@@ -148,12 +151,13 @@ function spawnPromisified(...args) {
   });
 }
 
-exports.checkProxiedFetch = async function(envExtension, expectation, cliArgsExtension = []) {
-  const fixtures = require('./fixtures');
+async function checkProxied(type, envExtension, expectation, cliArgsExtension = []) {
+  const script = type === 'fetch' ? fixtures.path('fetch-and-log.mjs') : fixtures.path('request-and-log.js');
   const { code, signal, stdout, stderr } = await spawnPromisified(
     process.execPath,
-    [...cliArgsExtension, fixtures.path('fetch-and-log.mjs')], {
+    [...cliArgsExtension, script], {
       env: {
+        NO_LOG_REQUEST: '1',
         ...process.env,
         ...envExtension,
       },
@@ -170,6 +174,14 @@ exports.checkProxiedFetch = async function(envExtension, expectation, cliArgsExt
     signal: null,
     ...expectation,
   });
+};
+
+exports.checkProxiedFetch = async function(...args) {
+  return checkProxied('fetch', ...args);
+};
+
+exports.checkProxiedRequest = async function(...args) {
+  return checkProxied('request', ...args);
 };
 
 exports.runProxiedRequest = async function(envExtension, cliArgsExtension = []) {
@@ -194,4 +206,56 @@ exports.runProxiedPOST = async function(envExtension) {
         ...envExtension,
       },
     });
+};
+
+exports.startTestServers = async function(options = {}) {
+  const { proxy, logs } = createProxyServer();
+  proxy.listen(0);
+  await once(proxy, 'listening');
+
+  let httpServer, httpsServer, httpEndpoint, httpsEndpoint;
+  if (options.httpsEndpoint) {
+    httpsServer = require('https').createServer({
+      cert: fixtures.readKey('agent8-cert.pem'),
+      key: fixtures.readKey('agent8-key.pem'),
+    }, (req, res) => {
+      res.end('Hello world');
+    });
+    httpsServer.listen(0);
+    await once(httpsServer, 'listening');
+    const { port } = httpsServer.address();
+    httpsEndpoint = {
+      serverHost: `localhost:${port}`,
+      requestUrl: `https://localhost:${port}/test`,
+    };
+  }
+
+  if (options.httpEndpoint) {
+    httpServer = http.createServer((req, res) => {
+      res.end('Hello world');
+    });
+    httpServer.listen(0);
+    await once(httpServer, 'listening');
+    const { port } = httpServer.address();
+    httpEndpoint = {
+      serverHost: `localhost:${port}`,
+      requestUrl: `http://localhost:${port}/test`,
+    };
+  }
+
+  return {
+    proxyLogs: logs,
+    shutdown() {
+      if (httpServer) {
+        httpServer.close();
+      }
+      if (httpsServer) {
+        httpsServer.close();
+      }
+      proxy.close();
+    },
+    proxyUrl: `http://localhost:${proxy.address().port}`,
+    httpEndpoint,
+    httpsEndpoint,
+  };
 };

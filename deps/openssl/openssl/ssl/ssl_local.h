@@ -10,57 +10,57 @@
  */
 
 #ifndef OSSL_SSL_LOCAL_H
-# define OSSL_SSL_LOCAL_H
+#define OSSL_SSL_LOCAL_H
 
-# include <stdlib.h>
-# include <time.h>
-# include <errno.h>
-# include "internal/common.h" /* for HAS_PREFIX */
+#include <stdlib.h>
+#include <time.h>
+#include <errno.h>
+#include "internal/common.h" /* for HAS_PREFIX */
 
-# include <openssl/buffer.h>
-# include <openssl/bio.h>
-# include <openssl/comp.h>
-# include <openssl/dsa.h>
-# include <openssl/err.h>
-# include <openssl/ssl.h>
-# include <openssl/async.h>
-# include <openssl/symhacks.h>
-# include <openssl/ct.h>
-# include "internal/recordmethod.h"
-# include "internal/statem.h"
-# include "internal/packet.h"
-# include "internal/dane.h"
-# include "internal/refcount.h"
-# include "internal/tsan_assist.h"
-# include "internal/bio.h"
-# include "internal/ktls.h"
-# include "internal/time.h"
-# include "internal/ssl.h"
-# include "internal/cryptlib.h"
-# include "internal/quic_predef.h"
-# include "record/record.h"
-# include "internal/quic_predef.h"
-# include "internal/quic_tls.h"
+#include <openssl/buffer.h>
+#include <openssl/bio.h>
+#include <openssl/comp.h>
+#include <openssl/dsa.h>
+#include <openssl/err.h>
+#include <openssl/ssl.h>
+#include <openssl/async.h>
+#include <openssl/symhacks.h>
+#include <openssl/ct.h>
+#include "internal/recordmethod.h"
+#include "internal/statem.h"
+#include "internal/packet.h"
+#include "internal/dane.h"
+#include "internal/refcount.h"
+#include "internal/tsan_assist.h"
+#include "internal/bio.h"
+#include "internal/ktls.h"
+#include "internal/time.h"
+#include "internal/ssl.h"
+#include "internal/cryptlib.h"
+#include "internal/quic_predef.h"
+#include "record/record.h"
+#include "internal/quic_predef.h"
+#include "internal/quic_tls.h"
 
-# ifdef OPENSSL_BUILD_SHLIBSSL
-#  undef OPENSSL_EXTERN
-#  define OPENSSL_EXTERN OPENSSL_EXPORT
-# endif
+#ifdef OPENSSL_BUILD_SHLIBSSL
+#undef OPENSSL_EXTERN
+#define OPENSSL_EXTERN OPENSSL_EXPORT
+#endif
 
-# define TLS_MAX_VERSION_INTERNAL TLS1_3_VERSION
-# define DTLS_MAX_VERSION_INTERNAL DTLS1_2_VERSION
+#define TLS_MAX_VERSION_INTERNAL TLS1_3_VERSION
+#define DTLS_MAX_VERSION_INTERNAL DTLS1_2_VERSION
 
 /*
  * DTLS version numbers are strange because they're inverted. Except for
  * DTLS1_BAD_VER, which should be considered "lower" than the rest.
  */
-# define dtls_ver_ordinal(v1) (((v1) == DTLS1_BAD_VER) ? 0xff00 : (v1))
-# define DTLS_VERSION_GT(v1, v2) (dtls_ver_ordinal(v1) < dtls_ver_ordinal(v2))
-# define DTLS_VERSION_GE(v1, v2) (dtls_ver_ordinal(v1) <= dtls_ver_ordinal(v2))
-# define DTLS_VERSION_LT(v1, v2) (dtls_ver_ordinal(v1) > dtls_ver_ordinal(v2))
-# define DTLS_VERSION_LE(v1, v2) (dtls_ver_ordinal(v1) >= dtls_ver_ordinal(v2))
+#define dtls_ver_ordinal(v1) (((v1) == DTLS1_BAD_VER) ? 0xff00 : (v1))
+#define DTLS_VERSION_GT(v1, v2) (dtls_ver_ordinal(v1) < dtls_ver_ordinal(v2))
+#define DTLS_VERSION_GE(v1, v2) (dtls_ver_ordinal(v1) <= dtls_ver_ordinal(v2))
+#define DTLS_VERSION_LT(v1, v2) (dtls_ver_ordinal(v1) > dtls_ver_ordinal(v2))
+#define DTLS_VERSION_LE(v1, v2) (dtls_ver_ordinal(v1) >= dtls_ver_ordinal(v2))
 
-# define SSL_AD_NO_ALERT    -1
+#define SSL_AD_NO_ALERT -1
 
 /*
  * Define the Bitmasks for SSL_CIPHER.algorithms.
@@ -78,281 +78,280 @@
 
 /* Bits for algorithm_mkey (key exchange algorithm) */
 /* RSA key exchange */
-# define SSL_kRSA                0x00000001U
+#define SSL_kRSA 0x00000001U
 /* tmp DH key no DH cert */
-# define SSL_kDHE                0x00000002U
+#define SSL_kDHE 0x00000002U
 /* ephemeral ECDH */
-# define SSL_kECDHE              0x00000004U
+#define SSL_kECDHE 0x00000004U
 /* PSK */
-# define SSL_kPSK                0x00000008U
+#define SSL_kPSK 0x00000008U
 /* GOST key exchange */
-# define SSL_kGOST               0x00000010U
+#define SSL_kGOST 0x00000010U
 /* SRP */
-# define SSL_kSRP                0x00000020U
+#define SSL_kSRP 0x00000020U
 
-# define SSL_kRSAPSK             0x00000040U
-# define SSL_kECDHEPSK           0x00000080U
-# define SSL_kDHEPSK             0x00000100U
+#define SSL_kRSAPSK 0x00000040U
+#define SSL_kECDHEPSK 0x00000080U
+#define SSL_kDHEPSK 0x00000100U
 /* GOST KDF key exchange, draft-smyshlyaev-tls12-gost-suites */
-# define SSL_kGOST18             0x00000200U
+#define SSL_kGOST18 0x00000200U
 
 /* all PSK */
 
-# define SSL_PSK     (SSL_kPSK | SSL_kRSAPSK | SSL_kECDHEPSK | SSL_kDHEPSK)
+#define SSL_PSK (SSL_kPSK | SSL_kRSAPSK | SSL_kECDHEPSK | SSL_kDHEPSK)
 
 /* Any appropriate key exchange algorithm (for TLS 1.3 ciphersuites) */
-# define SSL_kANY                0x00000000U
+#define SSL_kANY 0x00000000U
 
 /* Bits for algorithm_auth (server authentication) */
 /* RSA auth */
-# define SSL_aRSA                0x00000001U
+#define SSL_aRSA 0x00000001U
 /* DSS auth */
-# define SSL_aDSS                0x00000002U
+#define SSL_aDSS 0x00000002U
 /* no auth (i.e. use ADH or AECDH) */
-# define SSL_aNULL               0x00000004U
+#define SSL_aNULL 0x00000004U
 /* ECDSA auth*/
-# define SSL_aECDSA              0x00000008U
+#define SSL_aECDSA 0x00000008U
 /* PSK auth */
-# define SSL_aPSK                0x00000010U
+#define SSL_aPSK 0x00000010U
 /* GOST R 34.10-2001 signature auth */
-# define SSL_aGOST01             0x00000020U
+#define SSL_aGOST01 0x00000020U
 /* SRP auth */
-# define SSL_aSRP                0x00000040U
+#define SSL_aSRP 0x00000040U
 /* GOST R 34.10-2012 signature auth */
-# define SSL_aGOST12             0x00000080U
+#define SSL_aGOST12 0x00000080U
 /* Any appropriate signature auth (for TLS 1.3 ciphersuites) */
-# define SSL_aANY                0x00000000U
+#define SSL_aANY 0x00000000U
 /* All bits requiring a certificate */
 #define SSL_aCERT \
     (SSL_aRSA | SSL_aDSS | SSL_aECDSA | SSL_aGOST01 | SSL_aGOST12)
 
 /* Bits for algorithm_enc (symmetric encryption) */
-# define SSL_DES                 0x00000001U
-# define SSL_3DES                0x00000002U
-# define SSL_RC4                 0x00000004U
-# define SSL_RC2                 0x00000008U
-# define SSL_IDEA                0x00000010U
-# define SSL_eNULL               0x00000020U
-# define SSL_AES128              0x00000040U
-# define SSL_AES256              0x00000080U
-# define SSL_CAMELLIA128         0x00000100U
-# define SSL_CAMELLIA256         0x00000200U
-# define SSL_eGOST2814789CNT     0x00000400U
-# define SSL_SEED                0x00000800U
-# define SSL_AES128GCM           0x00001000U
-# define SSL_AES256GCM           0x00002000U
-# define SSL_AES128CCM           0x00004000U
-# define SSL_AES256CCM           0x00008000U
-# define SSL_AES128CCM8          0x00010000U
-# define SSL_AES256CCM8          0x00020000U
-# define SSL_eGOST2814789CNT12   0x00040000U
-# define SSL_CHACHA20POLY1305    0x00080000U
-# define SSL_ARIA128GCM          0x00100000U
-# define SSL_ARIA256GCM          0x00200000U
-# define SSL_MAGMA               0x00400000U
-# define SSL_KUZNYECHIK          0x00800000U
+#define SSL_DES 0x00000001U
+#define SSL_3DES 0x00000002U
+#define SSL_RC4 0x00000004U
+#define SSL_RC2 0x00000008U
+#define SSL_IDEA 0x00000010U
+#define SSL_eNULL 0x00000020U
+#define SSL_AES128 0x00000040U
+#define SSL_AES256 0x00000080U
+#define SSL_CAMELLIA128 0x00000100U
+#define SSL_CAMELLIA256 0x00000200U
+#define SSL_eGOST2814789CNT 0x00000400U
+#define SSL_SEED 0x00000800U
+#define SSL_AES128GCM 0x00001000U
+#define SSL_AES256GCM 0x00002000U
+#define SSL_AES128CCM 0x00004000U
+#define SSL_AES256CCM 0x00008000U
+#define SSL_AES128CCM8 0x00010000U
+#define SSL_AES256CCM8 0x00020000U
+#define SSL_eGOST2814789CNT12 0x00040000U
+#define SSL_CHACHA20POLY1305 0x00080000U
+#define SSL_ARIA128GCM 0x00100000U
+#define SSL_ARIA256GCM 0x00200000U
+#define SSL_MAGMA 0x00400000U
+#define SSL_KUZNYECHIK 0x00800000U
 
-# define SSL_AESGCM              (SSL_AES128GCM | SSL_AES256GCM)
-# define SSL_AESCCM              (SSL_AES128CCM | SSL_AES256CCM | SSL_AES128CCM8 | SSL_AES256CCM8)
-# define SSL_AES                 (SSL_AES128|SSL_AES256|SSL_AESGCM|SSL_AESCCM)
-# define SSL_CAMELLIA            (SSL_CAMELLIA128|SSL_CAMELLIA256)
-# define SSL_CHACHA20            (SSL_CHACHA20POLY1305)
-# define SSL_ARIAGCM             (SSL_ARIA128GCM | SSL_ARIA256GCM)
-# define SSL_ARIA                (SSL_ARIAGCM)
-# define SSL_CBC                 (SSL_DES | SSL_3DES | SSL_RC2 | SSL_IDEA \
-                                  | SSL_AES128 | SSL_AES256 | SSL_CAMELLIA128 \
-                                  | SSL_CAMELLIA256 | SSL_SEED)
+#define SSL_AESGCM (SSL_AES128GCM | SSL_AES256GCM)
+#define SSL_AESCCM (SSL_AES128CCM | SSL_AES256CCM | SSL_AES128CCM8 | SSL_AES256CCM8)
+#define SSL_AES (SSL_AES128 | SSL_AES256 | SSL_AESGCM | SSL_AESCCM)
+#define SSL_CAMELLIA (SSL_CAMELLIA128 | SSL_CAMELLIA256)
+#define SSL_CHACHA20 (SSL_CHACHA20POLY1305)
+#define SSL_ARIAGCM (SSL_ARIA128GCM | SSL_ARIA256GCM)
+#define SSL_ARIA (SSL_ARIAGCM)
+#define SSL_CBC (SSL_DES | SSL_3DES | SSL_RC2 | SSL_IDEA \
+    | SSL_AES128 | SSL_AES256 | SSL_CAMELLIA128          \
+    | SSL_CAMELLIA256 | SSL_SEED)
 
 /* Bits for algorithm_mac (symmetric authentication) */
 
-# define SSL_MD5                 0x00000001U
-# define SSL_SHA1                0x00000002U
-# define SSL_GOST94      0x00000004U
-# define SSL_GOST89MAC   0x00000008U
-# define SSL_SHA256              0x00000010U
-# define SSL_SHA384              0x00000020U
+#define SSL_MD5 0x00000001U
+#define SSL_SHA1 0x00000002U
+#define SSL_GOST94 0x00000004U
+#define SSL_GOST89MAC 0x00000008U
+#define SSL_SHA256 0x00000010U
+#define SSL_SHA384 0x00000020U
 /* Not a real MAC, just an indication it is part of cipher */
-# define SSL_AEAD                0x00000040U
-# define SSL_GOST12_256          0x00000080U
-# define SSL_GOST89MAC12         0x00000100U
-# define SSL_GOST12_512          0x00000200U
-# define SSL_MAGMAOMAC           0x00000400U
-# define SSL_KUZNYECHIKOMAC      0x00000800U
+#define SSL_AEAD 0x00000040U
+#define SSL_GOST12_256 0x00000080U
+#define SSL_GOST89MAC12 0x00000100U
+#define SSL_GOST12_512 0x00000200U
+#define SSL_MAGMAOMAC 0x00000400U
+#define SSL_KUZNYECHIKOMAC 0x00000800U
 
 /*
  * When adding new digest in the ssl_ciph.c and increment SSL_MD_NUM_IDX make
  * sure to update this constant too
  */
 
-# define SSL_MD_MD5_IDX  0
-# define SSL_MD_SHA1_IDX 1
-# define SSL_MD_GOST94_IDX 2
-# define SSL_MD_GOST89MAC_IDX 3
-# define SSL_MD_SHA256_IDX 4
-# define SSL_MD_SHA384_IDX 5
-# define SSL_MD_GOST12_256_IDX  6
-# define SSL_MD_GOST89MAC12_IDX 7
-# define SSL_MD_GOST12_512_IDX  8
-# define SSL_MD_MD5_SHA1_IDX 9
-# define SSL_MD_SHA224_IDX 10
-# define SSL_MD_SHA512_IDX 11
-# define SSL_MD_MAGMAOMAC_IDX 12
-# define SSL_MD_KUZNYECHIKOMAC_IDX 13
-# define SSL_MAX_DIGEST 14
+#define SSL_MD_MD5_IDX 0
+#define SSL_MD_SHA1_IDX 1
+#define SSL_MD_GOST94_IDX 2
+#define SSL_MD_GOST89MAC_IDX 3
+#define SSL_MD_SHA256_IDX 4
+#define SSL_MD_SHA384_IDX 5
+#define SSL_MD_GOST12_256_IDX 6
+#define SSL_MD_GOST89MAC12_IDX 7
+#define SSL_MD_GOST12_512_IDX 8
+#define SSL_MD_MD5_SHA1_IDX 9
+#define SSL_MD_SHA224_IDX 10
+#define SSL_MD_SHA512_IDX 11
+#define SSL_MD_MAGMAOMAC_IDX 12
+#define SSL_MD_KUZNYECHIKOMAC_IDX 13
+#define SSL_MAX_DIGEST 14
 
-#define SSL_MD_NUM_IDX  SSL_MAX_DIGEST
+#define SSL_MD_NUM_IDX SSL_MAX_DIGEST
 
 /* Bits for algorithm2 (handshake digests and other extra flags) */
 
 /* Bits 0-7 are handshake MAC */
-# define SSL_HANDSHAKE_MAC_MASK  0xFF
-# define SSL_HANDSHAKE_MAC_MD5_SHA1 SSL_MD_MD5_SHA1_IDX
-# define SSL_HANDSHAKE_MAC_SHA256   SSL_MD_SHA256_IDX
-# define SSL_HANDSHAKE_MAC_SHA384   SSL_MD_SHA384_IDX
-# define SSL_HANDSHAKE_MAC_GOST94 SSL_MD_GOST94_IDX
-# define SSL_HANDSHAKE_MAC_GOST12_256 SSL_MD_GOST12_256_IDX
-# define SSL_HANDSHAKE_MAC_GOST12_512 SSL_MD_GOST12_512_IDX
-# define SSL_HANDSHAKE_MAC_DEFAULT  SSL_HANDSHAKE_MAC_MD5_SHA1
+#define SSL_HANDSHAKE_MAC_MASK 0xFF
+#define SSL_HANDSHAKE_MAC_MD5_SHA1 SSL_MD_MD5_SHA1_IDX
+#define SSL_HANDSHAKE_MAC_SHA256 SSL_MD_SHA256_IDX
+#define SSL_HANDSHAKE_MAC_SHA384 SSL_MD_SHA384_IDX
+#define SSL_HANDSHAKE_MAC_GOST94 SSL_MD_GOST94_IDX
+#define SSL_HANDSHAKE_MAC_GOST12_256 SSL_MD_GOST12_256_IDX
+#define SSL_HANDSHAKE_MAC_GOST12_512 SSL_MD_GOST12_512_IDX
+#define SSL_HANDSHAKE_MAC_DEFAULT SSL_HANDSHAKE_MAC_MD5_SHA1
 
 /* Bits 8-15 bits are PRF */
-# define TLS1_PRF_DGST_SHIFT 8
-# define TLS1_PRF_SHA1_MD5 (SSL_MD_MD5_SHA1_IDX << TLS1_PRF_DGST_SHIFT)
-# define TLS1_PRF_SHA256 (SSL_MD_SHA256_IDX << TLS1_PRF_DGST_SHIFT)
-# define TLS1_PRF_SHA384 (SSL_MD_SHA384_IDX << TLS1_PRF_DGST_SHIFT)
-# define TLS1_PRF_GOST94 (SSL_MD_GOST94_IDX << TLS1_PRF_DGST_SHIFT)
-# define TLS1_PRF_GOST12_256 (SSL_MD_GOST12_256_IDX << TLS1_PRF_DGST_SHIFT)
-# define TLS1_PRF_GOST12_512 (SSL_MD_GOST12_512_IDX << TLS1_PRF_DGST_SHIFT)
-# define TLS1_PRF            (SSL_MD_MD5_SHA1_IDX << TLS1_PRF_DGST_SHIFT)
+#define TLS1_PRF_DGST_SHIFT 8
+#define TLS1_PRF_SHA1_MD5 (SSL_MD_MD5_SHA1_IDX << TLS1_PRF_DGST_SHIFT)
+#define TLS1_PRF_SHA256 (SSL_MD_SHA256_IDX << TLS1_PRF_DGST_SHIFT)
+#define TLS1_PRF_SHA384 (SSL_MD_SHA384_IDX << TLS1_PRF_DGST_SHIFT)
+#define TLS1_PRF_GOST94 (SSL_MD_GOST94_IDX << TLS1_PRF_DGST_SHIFT)
+#define TLS1_PRF_GOST12_256 (SSL_MD_GOST12_256_IDX << TLS1_PRF_DGST_SHIFT)
+#define TLS1_PRF_GOST12_512 (SSL_MD_GOST12_512_IDX << TLS1_PRF_DGST_SHIFT)
+#define TLS1_PRF (SSL_MD_MD5_SHA1_IDX << TLS1_PRF_DGST_SHIFT)
 
 /*
  * Stream MAC for GOST ciphersuites from cryptopro draft (currently this also
  * goes into algorithm2)
  */
-# define TLS1_STREAM_MAC 0x10000
+#define TLS1_STREAM_MAC 0x10000
 /*
  * TLSTREE cipher/mac key derivation from draft-smyshlyaev-tls12-gost-suites
  * (currently this also  goes into algorithm2)
  */
-# define TLS1_TLSTREE 0x20000
+#define TLS1_TLSTREE 0x20000
 
 /* Ciphersuite supported in QUIC */
-# define SSL_QUIC                0x00040000U
+#define SSL_QUIC 0x00040000U
 
-# define SSL_STRONG_MASK         0x0000001FU
-# define SSL_DEFAULT_MASK        0X00000020U
+#define SSL_STRONG_MASK 0x0000001FU
+#define SSL_DEFAULT_MASK 0X00000020U
 
-# define SSL_STRONG_NONE         0x00000001U
-# define SSL_LOW                 0x00000002U
-# define SSL_MEDIUM              0x00000004U
-# define SSL_HIGH                0x00000008U
-# define SSL_FIPS                0x00000010U
-# define SSL_NOT_DEFAULT         0x00000020U
+#define SSL_STRONG_NONE 0x00000001U
+#define SSL_LOW 0x00000002U
+#define SSL_MEDIUM 0x00000004U
+#define SSL_HIGH 0x00000008U
+#define SSL_FIPS 0x00000010U
+#define SSL_NOT_DEFAULT 0x00000020U
 
 /* we have used 0000003f - 26 bits left to go */
 
 /* Flag used on OpenSSL ciphersuite ids to indicate they are for SSLv3+ */
-# define SSL3_CK_CIPHERSUITE_FLAG                0x03000000
+#define SSL3_CK_CIPHERSUITE_FLAG 0x03000000
 
 /* Check if an SSL structure is using DTLS */
-# define SSL_CONNECTION_IS_DTLS(s) \
+#define SSL_CONNECTION_IS_DTLS(s) \
     (SSL_CONNECTION_GET_SSL(s)->method->ssl3_enc->enc_flags & SSL_ENC_FLAG_DTLS)
 
 /* Check if an SSL_CTX structure is using DTLS */
-# define SSL_CTX_IS_DTLS(ctx) \
+#define SSL_CTX_IS_DTLS(ctx) \
     (ctx->method->ssl3_enc->enc_flags & SSL_ENC_FLAG_DTLS)
 
 /* Check if we are using TLSv1.3 */
-# define SSL_CONNECTION_IS_TLS13(s) (!SSL_CONNECTION_IS_DTLS(s) \
+#define SSL_CONNECTION_IS_TLS13(s) (!SSL_CONNECTION_IS_DTLS(s)      \
     && SSL_CONNECTION_GET_SSL(s)->method->version >= TLS1_3_VERSION \
     && SSL_CONNECTION_GET_SSL(s)->method->version != TLS_ANY_VERSION)
 
-# define SSL_CONNECTION_TREAT_AS_TLS13(s) \
-    (SSL_CONNECTION_IS_TLS13(s) \
-     || (s)->early_data_state == SSL_EARLY_DATA_CONNECTING \
-     || (s)->early_data_state == SSL_EARLY_DATA_CONNECT_RETRY \
-     || (s)->early_data_state == SSL_EARLY_DATA_WRITING \
-     || (s)->early_data_state == SSL_EARLY_DATA_WRITE_RETRY \
-     || (s)->hello_retry_request == SSL_HRR_PENDING)
+#define SSL_CONNECTION_TREAT_AS_TLS13(s)                         \
+    (SSL_CONNECTION_IS_TLS13(s)                                  \
+        || (s)->early_data_state == SSL_EARLY_DATA_CONNECTING    \
+        || (s)->early_data_state == SSL_EARLY_DATA_CONNECT_RETRY \
+        || (s)->early_data_state == SSL_EARLY_DATA_WRITING       \
+        || (s)->early_data_state == SSL_EARLY_DATA_WRITE_RETRY   \
+        || (s)->hello_retry_request == SSL_HRR_PENDING)
 
-# define SSL_IS_FIRST_HANDSHAKE(s) ((s)->s3.tmp.finish_md_len == 0 \
-                                    || (s)->s3.tmp.peer_finish_md_len == 0)
+#define SSL_IS_FIRST_HANDSHAKE(s) ((s)->s3.tmp.finish_md_len == 0 \
+    || (s)->s3.tmp.peer_finish_md_len == 0)
 
 /*
  * See if we use signature algorithms extension and signature algorithm
  * before signatures.
  */
-# define SSL_USE_SIGALGS(s)      \
+#define SSL_USE_SIGALGS(s) \
     (SSL_CONNECTION_GET_SSL(s)->method->ssl3_enc->enc_flags & SSL_ENC_FLAG_SIGALGS)
 /*
  * Allow TLS 1.2 ciphersuites: applies to DTLS 1.2 as well as TLS 1.2: may
  * apply to others in future.
  */
-# define SSL_USE_TLS1_2_CIPHERS(s)       \
+#define SSL_USE_TLS1_2_CIPHERS(s) \
     (SSL_CONNECTION_GET_SSL(s)->method->ssl3_enc->enc_flags & SSL_ENC_FLAG_TLS1_2_CIPHERS)
 
-# define IS_MAX_FRAGMENT_LENGTH_EXT_VALID(value) \
-    (((value) >= TLSEXT_max_fragment_length_512) && \
-     ((value) <= TLSEXT_max_fragment_length_4096))
-# define USE_MAX_FRAGMENT_LENGTH_EXT(session) \
+#define IS_MAX_FRAGMENT_LENGTH_EXT_VALID(value) \
+    (((value) >= TLSEXT_max_fragment_length_512) && ((value) <= TLSEXT_max_fragment_length_4096))
+#define USE_MAX_FRAGMENT_LENGTH_EXT(session) \
     IS_MAX_FRAGMENT_LENGTH_EXT_VALID(session->ext.max_fragment_len_mode)
-# define GET_MAX_FRAGMENT_LENGTH(session) \
+#define GET_MAX_FRAGMENT_LENGTH(session) \
     (512U << (session->ext.max_fragment_len_mode - 1))
 
-# define SSL_READ_ETM(s) (s->s3.flags & TLS1_FLAGS_ENCRYPT_THEN_MAC_READ)
-# define SSL_WRITE_ETM(s) (s->s3.flags & TLS1_FLAGS_ENCRYPT_THEN_MAC_WRITE)
+#define SSL_READ_ETM(s) (s->s3.flags & TLS1_FLAGS_ENCRYPT_THEN_MAC_READ)
+#define SSL_WRITE_ETM(s) (s->s3.flags & TLS1_FLAGS_ENCRYPT_THEN_MAC_WRITE)
 
-# define SSL_IS_QUIC_HANDSHAKE(s) (((s)->s3.flags & TLS1_FLAGS_QUIC) != 0)
-# define SSL_IS_QUIC_INT_HANDSHAKE(s) (((s)->s3.flags & TLS1_FLAGS_QUIC_INTERNAL) != 0)
+#define SSL_IS_QUIC_HANDSHAKE(s) (((s)->s3.flags & TLS1_FLAGS_QUIC) != 0)
+#define SSL_IS_QUIC_INT_HANDSHAKE(s) (((s)->s3.flags & TLS1_FLAGS_QUIC_INTERNAL) != 0)
 
 /* no end of early data */
-# define SSL_NO_EOED(s) SSL_IS_QUIC_HANDSHAKE(s)
+#define SSL_NO_EOED(s) SSL_IS_QUIC_HANDSHAKE(s)
 
 /* alert_dispatch values */
 
 /* No alert pending */
-# define SSL_ALERT_DISPATCH_NONE    0
+#define SSL_ALERT_DISPATCH_NONE 0
 /* Alert pending */
-# define SSL_ALERT_DISPATCH_PENDING 1
+#define SSL_ALERT_DISPATCH_PENDING 1
 /* Pending alert write needs to be retried */
-# define SSL_ALERT_DISPATCH_RETRY   2
+#define SSL_ALERT_DISPATCH_RETRY 2
 
 /* Mostly for SSLv3 */
-# define SSL_PKEY_RSA            0
-# define SSL_PKEY_RSA_PSS_SIGN   1
-# define SSL_PKEY_DSA_SIGN       2
-# define SSL_PKEY_ECC            3
-# define SSL_PKEY_GOST01         4
-# define SSL_PKEY_GOST12_256     5
-# define SSL_PKEY_GOST12_512     6
-# define SSL_PKEY_ED25519        7
-# define SSL_PKEY_ED448          8
-# define SSL_PKEY_NUM            9
+#define SSL_PKEY_RSA 0
+#define SSL_PKEY_RSA_PSS_SIGN 1
+#define SSL_PKEY_DSA_SIGN 2
+#define SSL_PKEY_ECC 3
+#define SSL_PKEY_GOST01 4
+#define SSL_PKEY_GOST12_256 5
+#define SSL_PKEY_GOST12_512 6
+#define SSL_PKEY_ED25519 7
+#define SSL_PKEY_ED448 8
+#define SSL_PKEY_NUM 9
 
-# define SSL_ENC_DES_IDX         0
-# define SSL_ENC_3DES_IDX        1
-# define SSL_ENC_RC4_IDX         2
-# define SSL_ENC_RC2_IDX         3
-# define SSL_ENC_IDEA_IDX        4
-# define SSL_ENC_NULL_IDX        5
-# define SSL_ENC_AES128_IDX      6
-# define SSL_ENC_AES256_IDX      7
-# define SSL_ENC_CAMELLIA128_IDX 8
-# define SSL_ENC_CAMELLIA256_IDX 9
-# define SSL_ENC_GOST89_IDX      10
-# define SSL_ENC_SEED_IDX        11
-# define SSL_ENC_AES128GCM_IDX   12
-# define SSL_ENC_AES256GCM_IDX   13
-# define SSL_ENC_AES128CCM_IDX   14
-# define SSL_ENC_AES256CCM_IDX   15
-# define SSL_ENC_AES128CCM8_IDX  16
-# define SSL_ENC_AES256CCM8_IDX  17
-# define SSL_ENC_GOST8912_IDX    18
-# define SSL_ENC_CHACHA_IDX      19
-# define SSL_ENC_ARIA128GCM_IDX  20
-# define SSL_ENC_ARIA256GCM_IDX  21
-# define SSL_ENC_MAGMA_IDX       22
-# define SSL_ENC_KUZNYECHIK_IDX  23
-# define SSL_ENC_NUM_IDX         24
+#define SSL_ENC_DES_IDX 0
+#define SSL_ENC_3DES_IDX 1
+#define SSL_ENC_RC4_IDX 2
+#define SSL_ENC_RC2_IDX 3
+#define SSL_ENC_IDEA_IDX 4
+#define SSL_ENC_NULL_IDX 5
+#define SSL_ENC_AES128_IDX 6
+#define SSL_ENC_AES256_IDX 7
+#define SSL_ENC_CAMELLIA128_IDX 8
+#define SSL_ENC_CAMELLIA256_IDX 9
+#define SSL_ENC_GOST89_IDX 10
+#define SSL_ENC_SEED_IDX 11
+#define SSL_ENC_AES128GCM_IDX 12
+#define SSL_ENC_AES256GCM_IDX 13
+#define SSL_ENC_AES128CCM_IDX 14
+#define SSL_ENC_AES256CCM_IDX 15
+#define SSL_ENC_AES128CCM8_IDX 16
+#define SSL_ENC_AES256CCM8_IDX 17
+#define SSL_ENC_GOST8912_IDX 18
+#define SSL_ENC_CHACHA_IDX 19
+#define SSL_ENC_ARIA128GCM_IDX 20
+#define SSL_ENC_ARIA256GCM_IDX 21
+#define SSL_ENC_MAGMA_IDX 22
+#define SSL_ENC_KUZNYECHIK_IDX 23
+#define SSL_ENC_NUM_IDX 24
 
 /*-
  * SSL_kRSA <- RSA_ENC
@@ -363,43 +362,43 @@
  */
 
 /* Certificate Type State */
-# define OSSL_CERT_TYPE_CTOS_NONE    0
-# define OSSL_CERT_TYPE_CTOS_GOOD    1
-# define OSSL_CERT_TYPE_CTOS_ERROR   2
+#define OSSL_CERT_TYPE_CTOS_NONE 0
+#define OSSL_CERT_TYPE_CTOS_GOOD 1
+#define OSSL_CERT_TYPE_CTOS_ERROR 2
 
 /* Post-Handshake Authentication state */
 typedef enum {
     SSL_PHA_NONE = 0,
-    SSL_PHA_EXT_SENT,        /* client-side only: extension sent */
-    SSL_PHA_EXT_RECEIVED,    /* server-side only: extension received */
+    SSL_PHA_EXT_SENT, /* client-side only: extension sent */
+    SSL_PHA_EXT_RECEIVED, /* server-side only: extension received */
     SSL_PHA_REQUEST_PENDING, /* server-side only: request pending */
-    SSL_PHA_REQUESTED        /* request received by client, or sent by server */
+    SSL_PHA_REQUESTED /* request received by client, or sent by server */
 } SSL_PHA_STATE;
 
 /* CipherSuite length. SSLv3 and all TLS versions. */
-# define TLS_CIPHER_LEN 2
+#define TLS_CIPHER_LEN 2
 /* used to hold info on the particular ciphers used */
 struct ssl_cipher_st {
     uint32_t valid;
-    const char *name;           /* text name */
-    const char *stdname;        /* RFC name */
-    uint32_t id;                /* id, 4 bytes, first is version */
+    const char *name; /* text name */
+    const char *stdname; /* RFC name */
+    uint32_t id; /* id, 4 bytes, first is version */
     /*
      * changed in 1.0.0: these four used to be portions of a single value
      * 'algorithms'
      */
-    uint32_t algorithm_mkey;    /* key exchange algorithm */
-    uint32_t algorithm_auth;    /* server authentication */
-    uint32_t algorithm_enc;     /* symmetric encryption */
-    uint32_t algorithm_mac;     /* symmetric authentication */
-    int min_tls;                /* minimum SSL/TLS protocol version */
-    int max_tls;                /* maximum SSL/TLS protocol version */
-    int min_dtls;               /* minimum DTLS protocol version */
-    int max_dtls;               /* maximum DTLS protocol version */
-    uint32_t algo_strength;     /* strength and export flags */
-    uint32_t algorithm2;        /* Extra flags */
-    int32_t strength_bits;      /* Number of bits really used */
-    uint32_t alg_bits;          /* Number of bits for algorithm */
+    uint32_t algorithm_mkey; /* key exchange algorithm */
+    uint32_t algorithm_auth; /* server authentication */
+    uint32_t algorithm_enc; /* symmetric encryption */
+    uint32_t algorithm_mac; /* symmetric authentication */
+    int min_tls; /* minimum SSL/TLS protocol version */
+    int max_tls; /* maximum SSL/TLS protocol version */
+    int min_dtls; /* minimum DTLS protocol version */
+    int max_dtls; /* maximum DTLS protocol version */
+    uint32_t algo_strength; /* strength and export flags */
+    uint32_t algorithm2; /* Extra flags */
+    int32_t strength_bits; /* Number of bits really used */
+    uint32_t alg_bits; /* Number of bits for algorithm */
 };
 
 /* Used to hold SSL/TLS functions */
@@ -407,46 +406,46 @@ struct ssl_method_st {
     int version;
     unsigned flags;
     uint64_t mask;
-    SSL *(*ssl_new) (SSL_CTX *ctx);
-    void (*ssl_free) (SSL *s);
-    int (*ssl_reset) (SSL *s);
-    int (*ssl_init) (SSL *s);
-    int (*ssl_clear) (SSL *s);
-    void (*ssl_deinit) (SSL *s);
-    int (*ssl_accept) (SSL *s);
-    int (*ssl_connect) (SSL *s);
-    int (*ssl_read) (SSL *s, void *buf, size_t len, size_t *readbytes);
-    int (*ssl_peek) (SSL *s, void *buf, size_t len, size_t *readbytes);
-    int (*ssl_write) (SSL *s, const void *buf, size_t len, size_t *written);
-    int (*ssl_shutdown) (SSL *s);
-    int (*ssl_renegotiate) (SSL *s);
-    int (*ssl_renegotiate_check) (SSL *s, int);
-    int (*ssl_read_bytes) (SSL *s, uint8_t type, uint8_t *recvd_type,
-                           unsigned char *buf, size_t len, int peek,
-                           size_t *readbytes);
-    int (*ssl_write_bytes) (SSL *s, uint8_t type, const void *buf_, size_t len,
-                            size_t *written);
-    int (*ssl_dispatch_alert) (SSL *s);
-    long (*ssl_ctrl) (SSL *s, int cmd, long larg, void *parg);
-    long (*ssl_ctx_ctrl) (SSL_CTX *ctx, int cmd, long larg, void *parg);
-    const SSL_CIPHER *(*get_cipher_by_char) (const unsigned char *ptr);
-    int (*put_cipher_by_char) (const SSL_CIPHER *cipher, WPACKET *pkt,
-                               size_t *len);
-    size_t (*ssl_pending) (const SSL *s);
-    int (*num_ciphers) (void);
-    const SSL_CIPHER *(*get_cipher) (unsigned ncipher);
-    OSSL_TIME (*get_timeout) (void);
+    SSL *(*ssl_new)(SSL_CTX *ctx);
+    void (*ssl_free)(SSL *s);
+    int (*ssl_reset)(SSL *s);
+    int (*ssl_init)(SSL *s);
+    int (*ssl_clear)(SSL *s);
+    void (*ssl_deinit)(SSL *s);
+    int (*ssl_accept)(SSL *s);
+    int (*ssl_connect)(SSL *s);
+    int (*ssl_read)(SSL *s, void *buf, size_t len, size_t *readbytes);
+    int (*ssl_peek)(SSL *s, void *buf, size_t len, size_t *readbytes);
+    int (*ssl_write)(SSL *s, const void *buf, size_t len, size_t *written);
+    int (*ssl_shutdown)(SSL *s);
+    int (*ssl_renegotiate)(SSL *s);
+    int (*ssl_renegotiate_check)(SSL *s, int);
+    int (*ssl_read_bytes)(SSL *s, uint8_t type, uint8_t *recvd_type,
+        unsigned char *buf, size_t len, int peek,
+        size_t *readbytes);
+    int (*ssl_write_bytes)(SSL *s, uint8_t type, const void *buf_, size_t len,
+        size_t *written);
+    int (*ssl_dispatch_alert)(SSL *s);
+    long (*ssl_ctrl)(SSL *s, int cmd, long larg, void *parg);
+    long (*ssl_ctx_ctrl)(SSL_CTX *ctx, int cmd, long larg, void *parg);
+    const SSL_CIPHER *(*get_cipher_by_char)(const unsigned char *ptr);
+    int (*put_cipher_by_char)(const SSL_CIPHER *cipher, WPACKET *pkt,
+        size_t *len);
+    size_t (*ssl_pending)(const SSL *s);
+    int (*num_ciphers)(void);
+    const SSL_CIPHER *(*get_cipher)(unsigned ncipher);
+    OSSL_TIME (*get_timeout)(void);
     const struct ssl3_enc_method *ssl3_enc; /* Extra SSLv3/TLS stuff */
-    int (*ssl_version) (void);
-    long (*ssl_callback_ctrl) (SSL *s, int cb_id, void (*fp) (void));
-    long (*ssl_ctx_callback_ctrl) (SSL_CTX *s, int cb_id, void (*fp) (void));
+    int (*ssl_version)(void);
+    long (*ssl_callback_ctrl)(SSL *s, int cb_id, void (*fp)(void));
+    long (*ssl_ctx_callback_ctrl)(SSL_CTX *s, int cb_id, void (*fp)(void));
 };
 
 /*
  * Matches the length of PSK_MAX_PSK_LEN. We keep it the same value for
  * consistency, even in the event of OPENSSL_NO_PSK being defined.
  */
-# define TLS13_MAX_RESUMPTION_PSK_LENGTH      512
+#define TLS13_MAX_RESUMPTION_PSK_LENGTH 512
 
 /*-
  * Lets make this into an ASN.1 type structure as follows
@@ -475,8 +474,8 @@ struct ssl_method_st {
  * I'm using EXPLICIT tags so I can read the damn things using asn1parse :-).
  */
 struct ssl_session_st {
-    int ssl_version;            /* what ssl version session info is being kept
-                                 * in here? */
+    int ssl_version; /* what ssl version session info is being kept
+                      * in here? */
     size_t master_key_length;
 
     /* TLSv1.3 early_secret used for external PSKs */
@@ -496,10 +495,10 @@ struct ssl_session_st {
      */
     size_t sid_ctx_length;
     unsigned char sid_ctx[SSL_MAX_SID_CTX_LENGTH];
-# ifndef OPENSSL_NO_PSK
+#ifndef OPENSSL_NO_PSK
     char *psk_identity_hint;
     char *psk_identity;
-# endif
+#endif
     /*
      * Used to indicate that session resumption is not allowed. Applications
      * can also set this bit for a new session via not_resumable_session_cb
@@ -516,22 +515,22 @@ struct ssl_session_st {
      * when app_verify_callback accepts a session where the peer's
      * certificate is not ok, we must remember the error for session reuse:
      */
-    long verify_result;         /* only for servers */
+    long verify_result; /* only for servers */
     OSSL_TIME timeout;
     OSSL_TIME time;
     OSSL_TIME calc_timeout;
     unsigned int compress_meth; /* Need to lookup the method */
     const SSL_CIPHER *cipher;
-    unsigned long cipher_id;    /* when ASN.1 loaded, this needs to be used to
-                                 * load the 'cipher' structure */
-    unsigned int kex_group;      /* TLS group from key exchange */
-    CRYPTO_EX_DATA ex_data;     /* application specific data */
+    unsigned long cipher_id; /* when ASN.1 loaded, this needs to be used to
+                              * load the 'cipher' structure */
+    unsigned int kex_group; /* TLS group from key exchange */
+    CRYPTO_EX_DATA ex_data; /* application specific data */
 
     struct {
         char *hostname;
         /* RFC4507 info */
         unsigned char *tick; /* Session ticket */
-        size_t ticklen;      /* Session ticket length */
+        size_t ticklen; /* Session ticket length */
         /* Session lifetime hint in seconds */
         unsigned long tick_lifetime_hint;
         uint32_t tick_age_add;
@@ -548,9 +547,9 @@ struct ssl_session_st {
          */
         uint8_t max_fragment_len_mode;
     } ext;
-# ifndef OPENSSL_NO_SRP
+#ifndef OPENSSL_NO_SRP
     char *srp_username;
-# endif
+#endif
     unsigned char *ticket_appdata;
     size_t ticket_appdata_len;
     uint32_t flags;
@@ -565,19 +564,19 @@ struct ssl_session_st {
 };
 
 /* Extended master secret support */
-# define SSL_SESS_FLAG_EXTMS             0x1
+#define SSL_SESS_FLAG_EXTMS 0x1
 
-# ifndef OPENSSL_NO_SRP
+#ifndef OPENSSL_NO_SRP
 
 typedef struct srp_ctx_st {
     /* param for all the callbacks */
     void *SRP_cb_arg;
     /* set client Hello login callback */
-    int (*TLS_ext_srp_username_callback) (SSL *, int *, void *);
+    int (*TLS_ext_srp_username_callback)(SSL *, int *, void *);
     /* set SRP N/g param callback for verification */
-    int (*SRP_verify_param_callback) (SSL *, void *);
+    int (*SRP_verify_param_callback)(SSL *, void *);
     /* set SRP client passwd callback */
-    char *(*SRP_give_srp_client_pwd_callback) (SSL *, void *);
+    char *(*SRP_give_srp_client_pwd_callback)(SSL *, void *);
     char *login;
     BIGNUM *N, *g, *s, *B, *A;
     BIGNUM *a, *b, *v;
@@ -586,7 +585,7 @@ typedef struct srp_ctx_st {
     unsigned long srp_Mask;
 } SRP_CTX;
 
-# endif
+#endif
 
 typedef enum {
     SSL_EARLY_DATA_NONE = 0,
@@ -614,7 +613,7 @@ typedef enum {
  * The longest tag length we know of is EVP_GCM_TLS_TAG_LEN. We don't count the
  * content of the alert record either which is 2 bytes.
  */
-# define EARLY_DATA_CIPHERTEXT_OVERHEAD ((6 * (EVP_GCM_TLS_TAG_LEN + 1)) + 2)
+#define EARLY_DATA_CIPHERTEXT_OVERHEAD ((6 * (EVP_GCM_TLS_TAG_LEN + 1)) + 2)
 
 /*
  * The allowance we have between the client's calculated ticket age and our own.
@@ -622,10 +621,9 @@ typedef enum {
  * client's age calculation is different by more than this than our own then we
  * do not allow that ticket for early_data.
  */
-# define TICKET_AGE_ALLOWANCE   ossl_seconds2time(10)
+#define TICKET_AGE_ALLOWANCE ossl_seconds2time(10)
 
-#define MAX_COMPRESSIONS_SIZE   255
-
+#define MAX_COMPRESSIONS_SIZE 255
 
 typedef struct raw_extension_st {
     /* Raw packet data for the extension */
@@ -698,8 +696,8 @@ DEFINE_LHASH_OF_EX(SSL_SESSION);
 /* Needed in ssl_cert.c */
 DEFINE_LHASH_OF_EX(X509_NAME);
 
-# define TLSEXT_KEYNAME_LENGTH  16
-# define TLSEXT_TICK_KEY_LENGTH 32
+#define TLSEXT_KEYNAME_LENGTH 16
+#define TLSEXT_TICK_KEY_LENGTH 32
 
 typedef struct ssl_ctx_ext_secure_st {
     unsigned char tick_hmac_key[TLSEXT_TICK_KEY_LENGTH];
@@ -715,57 +713,57 @@ typedef struct ssl_ctx_ext_secure_st {
  */
 typedef struct ssl_hmac_st {
     EVP_MAC_CTX *ctx;
-# ifndef OPENSSL_NO_DEPRECATED_3_0
+#ifndef OPENSSL_NO_DEPRECATED_3_0
     HMAC_CTX *old_ctx;
-# endif
+#endif
 } SSL_HMAC;
 
 SSL_HMAC *ssl_hmac_new(const SSL_CTX *ctx);
 void ssl_hmac_free(SSL_HMAC *ctx);
-# ifndef OPENSSL_NO_DEPRECATED_3_0
+#ifndef OPENSSL_NO_DEPRECATED_3_0
 HMAC_CTX *ssl_hmac_get0_HMAC_CTX(SSL_HMAC *ctx);
-# endif
+#endif
 EVP_MAC_CTX *ssl_hmac_get0_EVP_MAC_CTX(SSL_HMAC *ctx);
 int ssl_hmac_init(SSL_HMAC *ctx, void *key, size_t len, char *md);
 int ssl_hmac_update(SSL_HMAC *ctx, const unsigned char *data, size_t len);
 int ssl_hmac_final(SSL_HMAC *ctx, unsigned char *md, size_t *len,
-                   size_t max_size);
+    size_t max_size);
 size_t ssl_hmac_size(const SSL_HMAC *ctx);
 
 int ssl_get_EC_curve_nid(const EVP_PKEY *pkey);
 __owur int tls13_set_encoded_pub_key(EVP_PKEY *pkey,
-                                     const unsigned char *enckey,
-                                     size_t enckeylen);
+    const unsigned char *enckey,
+    size_t enckeylen);
 
 typedef struct tls_group_info_st {
-    char *tlsname;           /* Curve Name as in TLS specs */
-    char *realname;          /* Curve Name according to provider */
-    char *algorithm;         /* Algorithm name to fetch */
-    unsigned int secbits;    /* Bits of security (from SP800-57) */
-    uint16_t group_id;       /* Group ID */
-    int mintls;              /* Minimum TLS version, -1 unsupported */
-    int maxtls;              /* Maximum TLS version (or 0 for undefined) */
-    int mindtls;             /* Minimum DTLS version, -1 unsupported */
-    int maxdtls;             /* Maximum DTLS version (or 0 for undefined) */
-    char is_kem;             /* Mode for this Group: 0 is KEX, 1 is KEM */
+    char *tlsname; /* Curve Name as in TLS specs */
+    char *realname; /* Curve Name according to provider */
+    char *algorithm; /* Algorithm name to fetch */
+    unsigned int secbits; /* Bits of security (from SP800-57) */
+    uint16_t group_id; /* Group ID */
+    int mintls; /* Minimum TLS version, -1 unsupported */
+    int maxtls; /* Maximum TLS version (or 0 for undefined) */
+    int mindtls; /* Minimum DTLS version, -1 unsupported */
+    int maxdtls; /* Maximum DTLS version (or 0 for undefined) */
+    char is_kem; /* Mode for this Group: 0 is KEX, 1 is KEM */
 } TLS_GROUP_INFO;
 
 typedef struct tls_sigalg_info_st {
-    char *name;              /* name as in IANA TLS specs */
-    uint16_t code_point;     /* IANA-specified code point of sigalg-name */
-    char *sigalg_name;       /* (combined) sigalg name */
-    char *sigalg_oid;        /* (combined) sigalg OID */
-    char *sig_name;          /* pure signature algorithm name */
-    char *sig_oid;           /* pure signature algorithm OID */
-    char *hash_name;         /* hash algorithm name */
-    char *hash_oid;          /* hash algorithm OID */
-    char *keytype;           /* keytype name */
-    char *keytype_oid;       /* keytype OID */
-    unsigned int secbits;    /* Bits of security (from SP800-57) */
-    int mintls;              /* Minimum TLS version, -1 unsupported */
-    int maxtls;              /* Maximum TLS version (or 0 for undefined) */
-    int mindtls;             /* Minimum DTLS version, -1 unsupported */
-    int maxdtls;             /* Maximum DTLS version (or 0 for undefined) */
+    char *name; /* name as in IANA TLS specs */
+    uint16_t code_point; /* IANA-specified code point of sigalg-name */
+    char *sigalg_name; /* (combined) sigalg name */
+    char *sigalg_oid; /* (combined) sigalg OID */
+    char *sig_name; /* pure signature algorithm name */
+    char *sig_oid; /* pure signature algorithm OID */
+    char *hash_name; /* hash algorithm name */
+    char *hash_oid; /* hash algorithm OID */
+    char *keytype; /* keytype name */
+    char *keytype_oid; /* keytype OID */
+    unsigned int secbits; /* Bits of security (from SP800-57) */
+    int mintls; /* Minimum TLS version, -1 unsupported */
+    int maxtls; /* Maximum TLS version (or 0 for undefined) */
+    int mindtls; /* Minimum DTLS version, -1 unsupported */
+    int maxdtls; /* Maximum DTLS version (or 0 for undefined) */
 } TLS_SIGALG_INFO;
 
 /*
@@ -773,24 +771,24 @@ typedef struct tls_sigalg_info_st {
  * CERT_PKEY entries
  */
 typedef struct {
-    int nid; /* NID of public key algorithm */
+    int pkey_nid; /* NID of public key algorithm */
     uint32_t amask; /* authmask corresponding to key type */
 } SSL_CERT_LOOKUP;
 
 /* flags values */
-# define TLS_GROUP_TYPE             0x0000000FU /* Mask for group type */
-# define TLS_GROUP_CURVE_PRIME      0x00000001U
-# define TLS_GROUP_CURVE_CHAR2      0x00000002U
-# define TLS_GROUP_CURVE_CUSTOM     0x00000004U
-# define TLS_GROUP_FFDHE            0x00000008U
-# define TLS_GROUP_ONLY_FOR_TLS1_3  0x00000010U
+#define TLS_GROUP_TYPE 0x0000000FU /* Mask for group type */
+#define TLS_GROUP_CURVE_PRIME 0x00000001U
+#define TLS_GROUP_CURVE_CHAR2 0x00000002U
+#define TLS_GROUP_CURVE_CUSTOM 0x00000004U
+#define TLS_GROUP_FFDHE 0x00000008U
+#define TLS_GROUP_ONLY_FOR_TLS1_3 0x00000010U
 
-# define TLS_GROUP_FFDHE_FOR_TLS1_3 (TLS_GROUP_FFDHE|TLS_GROUP_ONLY_FOR_TLS1_3)
+#define TLS_GROUP_FFDHE_FOR_TLS1_3 (TLS_GROUP_FFDHE | TLS_GROUP_ONLY_FOR_TLS1_3)
 
 /* We limit the number of key shares sent */
-# ifndef OPENSSL_CLIENT_MAX_KEY_SHARES
-#  define OPENSSL_CLIENT_MAX_KEY_SHARES 4
-# endif
+#ifndef OPENSSL_CLIENT_MAX_KEY_SHARES
+#define OPENSSL_CLIENT_MAX_KEY_SHARES 4
+#endif
 
 struct ssl_ctx_st {
     OSSL_LIB_CTX *libctx;
@@ -831,29 +829,29 @@ struct ssl_ctx_st {
      * removed from the cache.  After the call, OpenSSL will
      * SSL_SESSION_free() it.
      */
-    int (*new_session_cb) (struct ssl_st *ssl, SSL_SESSION *sess);
-    void (*remove_session_cb) (struct ssl_ctx_st *ctx, SSL_SESSION *sess);
-    SSL_SESSION *(*get_session_cb) (struct ssl_st *ssl,
-                                    const unsigned char *data, int len,
-                                    int *copy);
+    int (*new_session_cb)(struct ssl_st *ssl, SSL_SESSION *sess);
+    void (*remove_session_cb)(struct ssl_ctx_st *ctx, SSL_SESSION *sess);
+    SSL_SESSION *(*get_session_cb)(struct ssl_st *ssl,
+        const unsigned char *data, int len,
+        int *copy);
     struct {
-        TSAN_QUALIFIER int sess_connect;       /* SSL new conn - started */
+        TSAN_QUALIFIER int sess_connect; /* SSL new conn - started */
         TSAN_QUALIFIER int sess_connect_renegotiate; /* SSL reneg - requested */
-        TSAN_QUALIFIER int sess_connect_good;  /* SSL new conne/reneg - finished */
-        TSAN_QUALIFIER int sess_accept;        /* SSL new accept - started */
+        TSAN_QUALIFIER int sess_connect_good; /* SSL new conne/reneg - finished */
+        TSAN_QUALIFIER int sess_accept; /* SSL new accept - started */
         TSAN_QUALIFIER int sess_accept_renegotiate; /* SSL reneg - requested */
-        TSAN_QUALIFIER int sess_accept_good;   /* SSL accept/reneg - finished */
-        TSAN_QUALIFIER int sess_miss;          /* session lookup misses */
-        TSAN_QUALIFIER int sess_timeout;       /* reuse attempt on timeouted session */
-        TSAN_QUALIFIER int sess_cache_full;    /* session removed due to full cache */
-        TSAN_QUALIFIER int sess_hit;           /* session reuse actually done */
-        TSAN_QUALIFIER int sess_cb_hit;        /* session-id that was not in
-                                                * the cache was passed back via
-                                                * the callback. This indicates
-                                                * that the application is
-                                                * supplying session-id's from
-                                                * other processes - spooky
-                                                * :-) */
+        TSAN_QUALIFIER int sess_accept_good; /* SSL accept/reneg - finished */
+        TSAN_QUALIFIER int sess_miss; /* session lookup misses */
+        TSAN_QUALIFIER int sess_timeout; /* reuse attempt on timeouted session */
+        TSAN_QUALIFIER int sess_cache_full; /* session removed due to full cache */
+        TSAN_QUALIFIER int sess_hit; /* session reuse actually done */
+        TSAN_QUALIFIER int sess_cb_hit; /* session-id that was not in
+                                         * the cache was passed back via
+                                         * the callback. This indicates
+                                         * that the application is
+                                         * supplying session-id's from
+                                         * other processes - spooky
+                                         * :-) */
     } stats;
 #ifdef TSAN_REQUIRES_LOCKING
     CRYPTO_RWLOCK *tsan_lock;
@@ -862,7 +860,7 @@ struct ssl_ctx_st {
     CRYPTO_REF_COUNT references;
 
     /* if defined, these override the X509_verify_cert() calls */
-    int (*app_verify_callback) (X509_STORE_CTX *, void *);
+    int (*app_verify_callback)(X509_STORE_CTX *, void *);
     void *app_verify_arg;
     /*
      * before OpenSSL 0.9.7, 'app_verify_arg' was ignored
@@ -876,28 +874,28 @@ struct ssl_ctx_st {
     void *default_passwd_callback_userdata;
 
     /* get client cert callback */
-    int (*client_cert_cb) (SSL *ssl, X509 **x509, EVP_PKEY **pkey);
+    int (*client_cert_cb)(SSL *ssl, X509 **x509, EVP_PKEY **pkey);
 
     /* cookie generate callback */
-    int (*app_gen_cookie_cb) (SSL *ssl, unsigned char *cookie,
-                              unsigned int *cookie_len);
+    int (*app_gen_cookie_cb)(SSL *ssl, unsigned char *cookie,
+        unsigned int *cookie_len);
 
     /* verify cookie callback */
-    int (*app_verify_cookie_cb) (SSL *ssl, const unsigned char *cookie,
-                                 unsigned int cookie_len);
+    int (*app_verify_cookie_cb)(SSL *ssl, const unsigned char *cookie,
+        unsigned int cookie_len);
 
     /* TLS1.3 app-controlled cookie generate callback */
-    int (*gen_stateless_cookie_cb) (SSL *ssl, unsigned char *cookie,
-                                    size_t *cookie_len);
+    int (*gen_stateless_cookie_cb)(SSL *ssl, unsigned char *cookie,
+        size_t *cookie_len);
 
     /* TLS1.3 verify app-controlled cookie callback */
-    int (*verify_stateless_cookie_cb) (SSL *ssl, const unsigned char *cookie,
-                                       size_t cookie_len);
+    int (*verify_stateless_cookie_cb)(SSL *ssl, const unsigned char *cookie,
+        size_t cookie_len);
 
     CRYPTO_EX_DATA ex_data;
 
-    const EVP_MD *md5;          /* For SSLv3/TLSv1 'ssl3-md5' */
-    const EVP_MD *sha1;         /* For SSLv3/TLSv1 'ssl3-sha1' */
+    const EVP_MD *md5; /* For SSLv3/TLSv1 'ssl3-md5' */
+    const EVP_MD *sha1; /* For SSLv3/TLSv1 'ssl3-sha1' */
 
     STACK_OF(X509) *extra_certs;
     STACK_OF(SSL_COMP) *comp_methods; /* stack of SSL_COMP, SSLv3/TLSv1 */
@@ -905,7 +903,7 @@ struct ssl_ctx_st {
     /* Default values used when no per-SSL value is defined follow */
 
     /* used if SSL's info_callback is NULL */
-    void (*info_callback) (const SSL *ssl, int type, int val);
+    void (*info_callback)(const SSL *ssl, int type, int val);
 
     /*
      * What we put in certificate_authorities extension for TLS 1.3
@@ -939,7 +937,7 @@ struct ssl_ctx_st {
     size_t sid_ctx_length;
     unsigned char sid_ctx[SSL_MAX_SID_CTX_LENGTH];
     /* called 'verify_callback' in the SSL */
-    int (*default_verify_callback) (int ok, X509_STORE_CTX *ctx);
+    int (*default_verify_callback)(int ok, X509_STORE_CTX *ctx);
 
     /* Default generate session ID callback. */
     GEN_SESSION_CB generate_session_id;
@@ -948,15 +946,15 @@ struct ssl_ctx_st {
 
     int quiet_shutdown;
 
-# ifndef OPENSSL_NO_CT
-    CTLOG_STORE *ctlog_store;   /* CT Log Store */
+#ifndef OPENSSL_NO_CT
+    CTLOG_STORE *ctlog_store; /* CT Log Store */
     /*
      * Validates that the SCTs (Signed Certificate Timestamps) are sufficient.
      * If they are not, the connection should be aborted.
      */
     ssl_ct_validation_cb ct_validation_callback;
     void *ct_validation_callback_arg;
-# endif
+#endif
 
     /*
      * If we're using more than one pipeline how should we divide the data
@@ -975,12 +973,12 @@ struct ssl_ctx_st {
     /* The default read buffer length to use (0 means not set) */
     size_t default_read_buf_len;
 
-# ifndef OPENSSL_NO_ENGINE
+#ifndef OPENSSL_NO_ENGINE
     /*
      * Engine to pass requests for client certs to
      */
     ENGINE *client_cert_engine;
-# endif
+#endif
 
     /* ClientHello callback.  Mostly for extensions, but not entirely. */
     SSL_client_hello_cb_fn client_hello_cb;
@@ -993,25 +991,25 @@ struct ssl_ctx_st {
     /* TLS extensions. */
     struct {
         /* TLS extensions servername callback */
-        int (*servername_cb) (SSL *, int *, void *);
+        int (*servername_cb)(SSL *, int *, void *);
         void *servername_arg;
         /* RFC 4507 session ticket keys */
         unsigned char tick_key_name[TLSEXT_KEYNAME_LENGTH];
         SSL_CTX_EXT_SECURE *secure;
-# ifndef OPENSSL_NO_DEPRECATED_3_0
+#ifndef OPENSSL_NO_DEPRECATED_3_0
         /* Callback to support customisation of ticket key setting */
-        int (*ticket_key_cb) (SSL *ssl,
-                              unsigned char *name, unsigned char *iv,
-                              EVP_CIPHER_CTX *ectx, HMAC_CTX *hctx, int enc);
+        int (*ticket_key_cb)(SSL *ssl,
+            unsigned char *name, unsigned char *iv,
+            EVP_CIPHER_CTX *ectx, HMAC_CTX *hctx, int enc);
 #endif
-        int (*ticket_key_evp_cb) (SSL *ssl,
-                                  unsigned char *name, unsigned char *iv,
-                                  EVP_CIPHER_CTX *ectx, EVP_MAC_CTX *hctx,
-                                  int enc);
+        int (*ticket_key_evp_cb)(SSL *ssl,
+            unsigned char *name, unsigned char *iv,
+            EVP_CIPHER_CTX *ectx, EVP_MAC_CTX *hctx,
+            int enc);
 
         /* certificate status request info */
         /* Callback for status request */
-        int (*status_cb) (SSL *ssl, void *arg);
+        int (*status_cb)(SSL *ssl, void *arg);
         void *status_arg;
         /* ext status type used for CSR extension (OCSP Stapling) */
         int status_type;
@@ -1046,11 +1044,11 @@ struct ssl_ctx_st {
          *       wire-format.
          *   inlen: the length of |in|.
          */
-        int (*alpn_select_cb) (SSL *s,
-                               const unsigned char **out,
-                               unsigned char *outlen,
-                               const unsigned char *in,
-                               unsigned int inlen, void *arg);
+        int (*alpn_select_cb)(SSL *s,
+            const unsigned char **out,
+            unsigned char *outlen,
+            const unsigned char *in,
+            unsigned int inlen, void *arg);
         void *alpn_select_cb_arg;
 
         /*
@@ -1060,7 +1058,7 @@ struct ssl_ctx_st {
         unsigned char *alpn;
         size_t alpn_len;
 
-# ifndef OPENSSL_NO_NEXTPROTONEG
+#ifndef OPENSSL_NO_NEXTPROTONEG
         /* Next protocol negotiation information */
 
         /*
@@ -1075,34 +1073,34 @@ struct ssl_ctx_st {
          */
         SSL_CTX_npn_select_cb_func npn_select_cb;
         void *npn_select_cb_arg;
-# endif
+#endif
 
         unsigned char cookie_hmac_key[SHA256_DIGEST_LENGTH];
     } ext;
 
-# ifndef OPENSSL_NO_PSK
+#ifndef OPENSSL_NO_PSK
     SSL_psk_client_cb_func psk_client_callback;
     SSL_psk_server_cb_func psk_server_callback;
-# endif
+#endif
     SSL_psk_find_session_cb_func psk_find_session_cb;
     SSL_psk_use_session_cb_func psk_use_session_cb;
 
-# ifndef OPENSSL_NO_SRP
-    SRP_CTX srp_ctx;            /* ctx for SRP authentication */
-# endif
+#ifndef OPENSSL_NO_SRP
+    SRP_CTX srp_ctx; /* ctx for SRP authentication */
+#endif
 
     /* Shared DANE context */
     struct dane_ctx_st dane;
 
-# ifndef OPENSSL_NO_SRTP
+#ifndef OPENSSL_NO_SRTP
     /* SRTP profiles we are willing to do from RFC 5764 */
     STACK_OF(SRTP_PROTECTION_PROFILE) *srtp_profiles;
-# endif
+#endif
     /*
      * Callback for disabling session caching and ticket support on a session
      * basis, depending on the chosen cipher.
      */
-    int (*not_resumable_session_cb) (SSL *ssl, int is_forward_secure);
+    int (*not_resumable_session_cb)(SSL *ssl, int is_forward_secure);
 
     CRYPTO_RWLOCK *lock;
 
@@ -1115,9 +1113,9 @@ struct ssl_ctx_st {
     /*
      * Private flag for internal key logging based on SSLKEYLOG env
      */
-# ifndef OPENSSL_NO_SSLKEYLOG
+#ifndef OPENSSL_NO_SSLKEYLOG
     uint32_t do_sslkeylog;
-# endif
+#endif
 
     /*
      * The maximum number of bytes advertised in session tickets that can be
@@ -1195,40 +1193,40 @@ struct ssl_ctx_st {
     unsigned char *server_cert_type;
     size_t server_cert_type_len;
 
-# ifndef OPENSSL_NO_QUIC
+#ifndef OPENSSL_NO_QUIC
     uint64_t domain_flags;
     SSL_TOKEN_STORE *tokencache;
-# endif
+#endif
 
-# ifndef OPENSSL_NO_QLOG
+#ifndef OPENSSL_NO_QLOG
     char *qlog_title; /* Session title for qlog */
-# endif
+#endif
 };
 
 typedef struct ossl_quic_tls_callbacks_st {
     int (*crypto_send_cb)(SSL *s, const unsigned char *buf, size_t buf_len,
-                          size_t *consumed, void *arg);
+        size_t *consumed, void *arg);
     int (*crypto_recv_rcd_cb)(SSL *s, const unsigned char **buf,
-                              size_t *bytes_read, void *arg);
+        size_t *bytes_read, void *arg);
     int (*crypto_release_rcd_cb)(SSL *s, size_t bytes_read, void *arg);
     int (*yield_secret_cb)(SSL *s, uint32_t prot_level, int direction,
-                           const unsigned char *secret, size_t secret_len,
-                           void *arg);
+        const unsigned char *secret, size_t secret_len,
+        void *arg);
     int (*got_transport_params_cb)(SSL *s, const unsigned char *params,
-                                   size_t params_len,
-                                   void *arg);
+        size_t params_len,
+        void *arg);
     int (*alert_cb)(SSL *s, unsigned char alert_code, void *arg);
 } OSSL_QUIC_TLS_CALLBACKS;
 
 typedef struct cert_pkey_st CERT_PKEY;
 
-#define SSL_TYPE_SSL_CONNECTION     0
-#define SSL_TYPE_QUIC_CONNECTION    0x80
-#define SSL_TYPE_QUIC_XSO           0x81
-#define SSL_TYPE_QUIC_LISTENER      0x82
-#define SSL_TYPE_QUIC_DOMAIN        0x83
+#define SSL_TYPE_SSL_CONNECTION 0
+#define SSL_TYPE_QUIC_CONNECTION 0x80
+#define SSL_TYPE_QUIC_XSO 0x81
+#define SSL_TYPE_QUIC_LISTENER 0x82
+#define SSL_TYPE_QUIC_DOMAIN 0x83
 
-#define SSL_TYPE_IS_QUIC(x)         (((x) & 0x80) != 0)
+#define SSL_TYPE_IS_QUIC(x) (((x) & 0x80) != 0)
 
 struct ssl_st {
     int type;
@@ -1272,7 +1270,7 @@ struct ssl_connection_st {
      * request needs re-doing when in SSL_accept or SSL_connect
      */
     int rwstate;
-    int (*handshake_func) (SSL *);
+    int (*handshake_func)(SSL *);
     /*
      * Imagine that here's a boolean member "init" that is switched as soon
      * as SSL_set_{accept/connect}_state is called for the first time, so
@@ -1299,11 +1297,11 @@ struct ssl_connection_st {
     /* where we are */
     OSSL_STATEM statem;
     SSL_EARLY_DATA_STATE early_data_state;
-    BUF_MEM *init_buf;          /* buffer used during init */
-    void *init_msg;             /* pointer to handshake message body, set by
-                                 * tls_get_message_header() */
-    size_t init_num;               /* amount read/written */
-    size_t init_off;               /* amount read/written */
+    BUF_MEM *init_buf; /* buffer used during init */
+    void *init_msg; /* pointer to handshake message body, set by
+                     * tls_get_message_header() */
+    size_t init_num; /* amount read/written */
+    size_t init_off; /* amount read/written */
 
     size_t ssl_pkey_num;
 
@@ -1357,7 +1355,7 @@ struct ssl_connection_st {
             int message_type;
             /* used to hold the new cipher we are going to use */
             const SSL_CIPHER *new_cipher;
-            EVP_PKEY *pkey;         /* holds short lived key exchange key */
+            EVP_PKEY *pkey; /* holds short lived key exchange key */
             /* holds the array of short lived key exchange key (pointers) */
             EVP_PKEY *ks_pkey[OPENSSL_CLIENT_MAX_KEY_SHARES];
             uint16_t ks_group_id[OPENSSL_CLIENT_MAX_KEY_SHARES]; /* The IDs of the keyshare keys */
@@ -1375,11 +1373,11 @@ struct ssl_connection_st {
             const EVP_MD *new_hash;
             int new_mac_pkey_type;
             size_t new_mac_secret_size;
-# ifndef OPENSSL_NO_COMP
+#ifndef OPENSSL_NO_COMP
             const SSL_COMP *new_compression;
-# else
+#else
             char *new_compression;
-# endif
+#endif
             int cert_request;
             /* Raw values of the cipher list from a client */
             unsigned char *ciphers_raw;
@@ -1387,11 +1385,11 @@ struct ssl_connection_st {
             /* Temporary storage for premaster secret */
             unsigned char *pms;
             size_t pmslen;
-# ifndef OPENSSL_NO_PSK
+#ifndef OPENSSL_NO_PSK
             /* Temporary storage for PSK key */
             unsigned char *psk;
             size_t psklen;
-# endif
+#endif
             /* Signature algorithm we actually use */
             const struct sigalg_lookup_st *sigalg;
             /* Pointer to certificate we use */
@@ -1438,12 +1436,12 @@ struct ssl_connection_st {
         size_t previous_server_finished_len;
         int send_connection_binding;
 
-# ifndef OPENSSL_NO_NEXTPROTONEG
+#ifndef OPENSSL_NO_NEXTPROTONEG
         /*
          * Set if we saw the Next Protocol Negotiation extension from our peer.
          */
         int npn_seen;
-# endif
+#endif
 
         /*
          * ALPN information (we are in the process of transitioning from NPN to
@@ -1484,12 +1482,12 @@ struct ssl_connection_st {
         uint16_t group_id_candidate;
     } s3;
 
-    struct dtls1_state_st *d1;  /* DTLSv1 variables */
+    struct dtls1_state_st *d1; /* DTLSv1 variables */
     /* callback that allows applications to peek at protocol messages */
-    void (*msg_callback) (int write_p, int version, int content_type,
-                          const void *buf, size_t len, SSL *ssl, void *arg);
+    void (*msg_callback)(int write_p, int version, int content_type,
+        const void *buf, size_t len, SSL *ssl, void *arg);
     void *msg_callback_arg;
-    int hit;                    /* reusing a previous session */
+    int hit; /* reusing a previous session */
     X509_VERIFY_PARAM *param;
     /* Per connection DANE state */
     SSL_DANE dane;
@@ -1533,8 +1531,9 @@ struct ssl_connection_st {
     size_t cert_verify_hash_len;
 
     /* Flag to indicate whether we should send a HelloRetryRequest or not */
-    enum {SSL_HRR_NONE = 0, SSL_HRR_PENDING, SSL_HRR_COMPLETE}
-        hello_retry_request;
+    enum { SSL_HRR_NONE = 0,
+        SSL_HRR_PENDING,
+        SSL_HRR_COMPLETE } hello_retry_request;
 
     /*
      * the session_id_context is used to ensure sessions are only reused in
@@ -1563,17 +1562,17 @@ struct ssl_connection_st {
      */
     uint32_t verify_mode;
     /* fail if callback returns 0 */
-    int (*verify_callback) (int ok, X509_STORE_CTX *ctx);
+    int (*verify_callback)(int ok, X509_STORE_CTX *ctx);
     /* optional informational callback */
-    void (*info_callback) (const SSL *ssl, int type, int val);
+    void (*info_callback)(const SSL *ssl, int type, int val);
     /* error bytes to be written */
     int error;
     /* actual code */
     int error_code;
-# ifndef OPENSSL_NO_PSK
+#ifndef OPENSSL_NO_PSK
     SSL_psk_client_cb_func psk_client_callback;
     SSL_psk_server_cb_func psk_server_callback;
-# endif
+#endif
     SSL_psk_find_session_cb_func psk_find_session_cb;
     SSL_psk_use_session_cb_func psk_use_session_cb;
 
@@ -1619,7 +1618,7 @@ struct ssl_connection_st {
         uint8_t extflags[TLSEXT_IDX_num_builtins];
         /* TLS extension debug callback */
         void (*debug_cb)(SSL *s, int client_server, int type,
-                         const unsigned char *data, int len, void *arg);
+            const unsigned char *data, int len, void *arg);
         void *debug_arg;
         char *hostname;
         /* certificate status request info */
@@ -1750,7 +1749,7 @@ struct ssl_connection_st {
      * 2 : don't call servername callback, no ack in server hello
      */
     int servername_done;
-# ifndef OPENSSL_NO_CT
+#ifndef OPENSSL_NO_CT
     /*
      * Validates that the SCTs (Signed Certificate Timestamps) are sufficient.
      * If they are not, the connection should be aborted.
@@ -1765,14 +1764,14 @@ struct ssl_connection_st {
     STACK_OF(SCT) *scts;
     /* Have we attempted to find/parse SCTs yet? */
     int scts_parsed;
-# endif
-    SSL_CTX *session_ctx;       /* initial ctx, used to store sessions */
-# ifndef OPENSSL_NO_SRTP
+#endif
+    SSL_CTX *session_ctx; /* initial ctx, used to store sessions */
+#ifndef OPENSSL_NO_SRTP
     /* What we'll do */
     STACK_OF(SRTP_PROTECTION_PROFILE) *srtp_profiles;
     /* What's been chosen */
     SRTP_PROTECTION_PROFILE *srtp_profile;
-# endif
+#endif
     /*-
      * 1 if we are renegotiating.
      * 2 if we are a server and are inside a handshake
@@ -1784,20 +1783,20 @@ struct ssl_connection_st {
     /* Post-handshake authentication state */
     SSL_PHA_STATE post_handshake_auth;
     int pha_enabled;
-    uint8_t* pha_context;
+    uint8_t *pha_context;
     size_t pha_context_len;
     int certreqs_sent;
     EVP_MD_CTX *pha_dgst; /* this is just the digest through ClientFinished */
 
-# ifndef OPENSSL_NO_SRP
+#ifndef OPENSSL_NO_SRP
     /* ctx for SRP authentication */
     SRP_CTX srp_ctx;
-# endif
+#endif
     /*
      * Callback for disabling session caching and ticket support on a session
      * basis, depending on the chosen cipher.
      */
-    int (*not_resumable_session_cb) (SSL *ssl, int is_forward_secure);
+    int (*not_resumable_session_cb)(SSL *ssl, int is_forward_secure);
 
     /* Record layer data */
     RECORD_LAYER rlayer;
@@ -1866,7 +1865,7 @@ struct ssl_connection_st {
 /*
  * Structure containing table entry of values associated with the signature
  * algorithms (signature scheme) extension
-*/
+ */
 typedef struct sigalg_lookup_st {
     /* TLS 1.3 signature scheme name */
     const char *name;
@@ -1899,12 +1898,12 @@ typedef struct sigalg_lookup_st {
 
 /* DTLS structures */
 
-# ifndef OPENSSL_NO_SCTP
-#  define DTLS1_SCTP_AUTH_LABEL   "EXPORTER_DTLS_OVER_SCTP"
-# endif
+#ifndef OPENSSL_NO_SCTP
+#define DTLS1_SCTP_AUTH_LABEL "EXPORTER_DTLS_OVER_SCTP"
+#endif
 
 /* Max MTU overhead we know about so far is 40 for IPv6 + 8 for UDP */
-# define DTLS1_MAX_MTU_OVERHEAD                   48
+#define DTLS1_MAX_MTU_OVERHEAD 48
 
 struct dtls1_retransmit_state {
     const OSSL_RECORD_METHOD *wrlmethod;
@@ -1931,7 +1930,7 @@ typedef struct pqueue_st pqueue;
 typedef struct pitem_st pitem;
 
 struct pitem_st {
-    unsigned char priority[8];  /* 64-bit value in big-endian encoding */
+    unsigned char priority[8]; /* 64-bit value in big-endian encoding */
     void *data;
     pitem *next;
 };
@@ -1962,8 +1961,8 @@ typedef struct dtls1_state_st {
     pqueue *buffered_messages;
     /* Buffered (sent) handshake records */
     pqueue *sent_messages;
-    size_t link_mtu;      /* max on-the-wire DTLS packet size */
-    size_t mtu;           /* max DTLS packet size */
+    size_t link_mtu; /* max on-the-wire DTLS packet size */
+    size_t mtu; /* max DTLS packet size */
     struct hm_header_st w_msg_hdr;
     struct hm_header_st r_msg_hdr;
     /* Number of alerts received so far */
@@ -1976,9 +1975,9 @@ typedef struct dtls1_state_st {
     unsigned int timeout_duration_us;
 
     unsigned int retransmitting;
-# ifndef OPENSSL_NO_SCTP
+#ifndef OPENSSL_NO_SCTP
     int shutdown_received;
-# endif
+#endif
 
     DTLS_timer_cb timer_cb;
 
@@ -1987,11 +1986,11 @@ typedef struct dtls1_state_st {
 /*
  * From ECC-TLS draft, used in encoding the curve type in ECParameters
  */
-#  define EXPLICIT_PRIME_CURVE_TYPE  1
-#  define EXPLICIT_CHAR2_CURVE_TYPE  2
-#  define NAMED_CURVE_TYPE           3
+#define EXPLICIT_PRIME_CURVE_TYPE 1
+#define EXPLICIT_CHAR2_CURVE_TYPE 2
+#define NAMED_CURVE_TYPE 3
 
-# ifndef OPENSSL_NO_COMP_ALG
+#ifndef OPENSSL_NO_COMP_ALG
 struct ossl_comp_cert_st {
     unsigned char *data;
     size_t len;
@@ -2003,7 +2002,7 @@ typedef struct ossl_comp_cert_st OSSL_COMP_CERT;
 
 void OSSL_COMP_CERT_free(OSSL_COMP_CERT *c);
 int OSSL_COMP_CERT_up_ref(OSSL_COMP_CERT *c);
-# endif
+#endif
 
 struct cert_pkey_st {
     X509 *x509;
@@ -2019,24 +2018,23 @@ struct cert_pkey_st {
      */
     unsigned char *serverinfo;
     size_t serverinfo_length;
-# ifndef OPENSSL_NO_COMP_ALG
+#ifndef OPENSSL_NO_COMP_ALG
     /* Compressed certificate data - index 0 is unused */
     OSSL_COMP_CERT *comp_cert[TLSEXT_comp_cert_limit];
     int cert_comp_used;
-# endif
+#endif
 };
 /* Retrieve Suite B flags */
-# define tls1_suiteb(s)  (s->cert->cert_flags & SSL_CERT_FLAG_SUITEB_128_LOS)
+#define tls1_suiteb(s) (s->cert->cert_flags & SSL_CERT_FLAG_SUITEB_128_LOS)
 /* Uses to check strict mode: suite B modes are always strict */
-# define SSL_CERT_FLAGS_CHECK_TLS_STRICT \
-        (SSL_CERT_FLAG_SUITEB_128_LOS|SSL_CERT_FLAG_TLS_STRICT)
+#define SSL_CERT_FLAGS_CHECK_TLS_STRICT \
+    (SSL_CERT_FLAG_SUITEB_128_LOS | SSL_CERT_FLAG_TLS_STRICT)
 
 typedef enum {
     ENDPOINT_CLIENT = 0,
     ENDPOINT_SERVER,
     ENDPOINT_BOTH
 } ENDPOINT;
-
 
 typedef struct {
     unsigned short ext_type;
@@ -2061,17 +2059,17 @@ typedef struct {
  * Indicates an extension has been received. Used to check for unsolicited or
  * duplicate extensions.
  */
-# define SSL_EXT_FLAG_RECEIVED   0x1
+#define SSL_EXT_FLAG_RECEIVED 0x1
 /*
  * Indicates an extension has been sent: used to enable sending of
  * corresponding ServerHello extension.
  */
-# define SSL_EXT_FLAG_SENT       0x2
+#define SSL_EXT_FLAG_SENT 0x2
 /*
  * Indicates an extension that was set on SSL object and needs to be
  * preserved when switching SSL contexts.
  */
-# define SSL_EXT_FLAG_CONN       0x4
+#define SSL_EXT_FLAG_CONN 0x4
 
 typedef struct {
     custom_ext_method *meths;
@@ -2088,7 +2086,7 @@ typedef struct cert_st {
     CERT_PKEY *key;
 
     EVP_PKEY *dh_tmp;
-    DH *(*dh_tmp_cb) (SSL *ssl, int is_export, int keysize);
+    DH *(*dh_tmp_cb)(SSL *ssl, int is_export, int keysize);
     int dh_tmp_auto;
     /* Flags related to certificates */
     uint32_t cert_flags;
@@ -2122,7 +2120,7 @@ typedef struct cert_st {
      * allows advanced applications to select certificates on the fly: for
      * example based on supported signature algorithms or curves.
      */
-    int (*cert_cb) (SSL *ssl, void *arg);
+    int (*cert_cb)(SSL *ssl, void *arg);
     void *cert_cb_arg;
     /*
      * Optional X509_STORE for chain building or certificate validation If
@@ -2133,16 +2131,16 @@ typedef struct cert_st {
     /* Custom extensions */
     custom_ext_methods custext;
     /* Security callback */
-    int (*sec_cb) (const SSL *s, const SSL_CTX *ctx, int op, int bits, int nid,
-                   void *other, void *ex);
+    int (*sec_cb)(const SSL *s, const SSL_CTX *ctx, int op, int bits, int nid,
+        void *other, void *ex);
     /* Security level */
     int sec_level;
     void *sec_ex;
-# ifndef OPENSSL_NO_PSK
+#ifndef OPENSSL_NO_PSK
     /* If not NULL psk identity hint to use for servers */
     char *psk_identity_hint;
-# endif
-    CRYPTO_REF_COUNT references;             /* >1 only if SSL_copy_session_id is used */
+#endif
+    CRYPTO_REF_COUNT references; /* >1 only if SSL_copy_session_id is used */
 } CERT;
 
 /*
@@ -2150,50 +2148,50 @@ typedef struct cert_st {
  * of a mess of functions, but hell, think of it as an opaque structure :-)
  */
 typedef struct ssl3_enc_method {
-    int (*setup_key_block) (SSL_CONNECTION *);
-    int (*generate_master_secret) (SSL_CONNECTION *, unsigned char *,
-                                   unsigned char *, size_t, size_t *);
-    int (*change_cipher_state) (SSL_CONNECTION *, int);
-    size_t (*final_finish_mac) (SSL_CONNECTION *, const char *, size_t,
-                                unsigned char *);
+    int (*setup_key_block)(SSL_CONNECTION *);
+    int (*generate_master_secret)(SSL_CONNECTION *, unsigned char *,
+        unsigned char *, size_t, size_t *);
+    int (*change_cipher_state)(SSL_CONNECTION *, int);
+    size_t (*final_finish_mac)(SSL_CONNECTION *, const char *, size_t,
+        unsigned char *);
     const char *client_finished_label;
     size_t client_finished_label_len;
     const char *server_finished_label;
     size_t server_finished_label_len;
-    int (*alert_value) (int);
-    int (*export_keying_material) (SSL_CONNECTION *, unsigned char *, size_t,
-                                   const char *, size_t,
-                                   const unsigned char *, size_t,
-                                   int use_context);
+    int (*alert_value)(int);
+    int (*export_keying_material)(SSL_CONNECTION *, unsigned char *, size_t,
+        const char *, size_t,
+        const unsigned char *, size_t,
+        int use_context);
     /* Various flags indicating protocol version requirements */
     uint32_t enc_flags;
     /* Set the handshake header */
-    int (*set_handshake_header) (SSL_CONNECTION *s, WPACKET *pkt, int type);
+    int (*set_handshake_header)(SSL_CONNECTION *s, WPACKET *pkt, int type);
     /* Close construction of the handshake message */
-    int (*close_construct_packet) (SSL_CONNECTION *s, WPACKET *pkt, int htype);
+    int (*close_construct_packet)(SSL_CONNECTION *s, WPACKET *pkt, int htype);
     /* Write out handshake message */
-    int (*do_write) (SSL_CONNECTION *s);
+    int (*do_write)(SSL_CONNECTION *s);
 } SSL3_ENC_METHOD;
 
-# define ssl_set_handshake_header(s, pkt, htype) \
+#define ssl_set_handshake_header(s, pkt, htype) \
     SSL_CONNECTION_GET_SSL(s)->method->ssl3_enc->set_handshake_header((s), (pkt), (htype))
-# define ssl_close_construct_packet(s, pkt, htype) \
+#define ssl_close_construct_packet(s, pkt, htype) \
     SSL_CONNECTION_GET_SSL(s)->method->ssl3_enc->close_construct_packet((s), (pkt), (htype))
-# define ssl_do_write(s)  SSL_CONNECTION_GET_SSL(s)->method->ssl3_enc->do_write(s)
+#define ssl_do_write(s) SSL_CONNECTION_GET_SSL(s)->method->ssl3_enc->do_write(s)
 
 /* Values for enc_flags */
 
 /* Uses signature algorithms extension */
-# define SSL_ENC_FLAG_SIGALGS            0x2
+#define SSL_ENC_FLAG_SIGALGS 0x2
 /* Uses SHA256 default PRF */
-# define SSL_ENC_FLAG_SHA256_PRF         0x4
+#define SSL_ENC_FLAG_SHA256_PRF 0x4
 /* Is DTLS */
-# define SSL_ENC_FLAG_DTLS               0x8
+#define SSL_ENC_FLAG_DTLS 0x8
 /*
  * Allow TLS 1.2 ciphersuites: applies to DTLS 1.2 as well as TLS 1.2: may
  * apply to others in future.
  */
-# define SSL_ENC_FLAG_TLS1_2_CIPHERS     0x10
+#define SSL_ENC_FLAG_TLS1_2_CIPHERS 0x10
 
 typedef enum downgrade_en {
     DOWNGRADE_NONE,
@@ -2205,100 +2203,99 @@ typedef enum downgrade_en {
  * Dummy status type for the status_type extension. Indicates no status type
  * set
  */
-#define TLSEXT_STATUSTYPE_nothing  -1
+#define TLSEXT_STATUSTYPE_nothing -1
 
 /* Sigalgs values */
-#define TLSEXT_SIGALG_ecdsa_secp256r1_sha256                    0x0403
-#define TLSEXT_SIGALG_ecdsa_secp384r1_sha384                    0x0503
-#define TLSEXT_SIGALG_ecdsa_secp521r1_sha512                    0x0603
-#define TLSEXT_SIGALG_ecdsa_sha224                              0x0303
-#define TLSEXT_SIGALG_ecdsa_sha1                                0x0203
-#define TLSEXT_SIGALG_rsa_pss_rsae_sha256                       0x0804
-#define TLSEXT_SIGALG_rsa_pss_rsae_sha384                       0x0805
-#define TLSEXT_SIGALG_rsa_pss_rsae_sha512                       0x0806
-#define TLSEXT_SIGALG_rsa_pss_pss_sha256                        0x0809
-#define TLSEXT_SIGALG_rsa_pss_pss_sha384                        0x080a
-#define TLSEXT_SIGALG_rsa_pss_pss_sha512                        0x080b
-#define TLSEXT_SIGALG_rsa_pkcs1_sha256                          0x0401
-#define TLSEXT_SIGALG_rsa_pkcs1_sha384                          0x0501
-#define TLSEXT_SIGALG_rsa_pkcs1_sha512                          0x0601
-#define TLSEXT_SIGALG_rsa_pkcs1_sha224                          0x0301
-#define TLSEXT_SIGALG_rsa_pkcs1_sha1                            0x0201
-#define TLSEXT_SIGALG_dsa_sha256                                0x0402
-#define TLSEXT_SIGALG_dsa_sha384                                0x0502
-#define TLSEXT_SIGALG_dsa_sha512                                0x0602
-#define TLSEXT_SIGALG_dsa_sha224                                0x0302
-#define TLSEXT_SIGALG_dsa_sha1                                  0x0202
-#define TLSEXT_SIGALG_gostr34102012_256_intrinsic               0x0840
-#define TLSEXT_SIGALG_gostr34102012_512_intrinsic               0x0841
-#define TLSEXT_SIGALG_gostr34102012_256_gostr34112012_256       0xeeee
-#define TLSEXT_SIGALG_gostr34102012_512_gostr34112012_512       0xefef
-#define TLSEXT_SIGALG_gostr34102001_gostr3411                   0xeded
+#define TLSEXT_SIGALG_ecdsa_secp256r1_sha256 0x0403
+#define TLSEXT_SIGALG_ecdsa_secp384r1_sha384 0x0503
+#define TLSEXT_SIGALG_ecdsa_secp521r1_sha512 0x0603
+#define TLSEXT_SIGALG_ecdsa_sha224 0x0303
+#define TLSEXT_SIGALG_ecdsa_sha1 0x0203
+#define TLSEXT_SIGALG_rsa_pss_rsae_sha256 0x0804
+#define TLSEXT_SIGALG_rsa_pss_rsae_sha384 0x0805
+#define TLSEXT_SIGALG_rsa_pss_rsae_sha512 0x0806
+#define TLSEXT_SIGALG_rsa_pss_pss_sha256 0x0809
+#define TLSEXT_SIGALG_rsa_pss_pss_sha384 0x080a
+#define TLSEXT_SIGALG_rsa_pss_pss_sha512 0x080b
+#define TLSEXT_SIGALG_rsa_pkcs1_sha256 0x0401
+#define TLSEXT_SIGALG_rsa_pkcs1_sha384 0x0501
+#define TLSEXT_SIGALG_rsa_pkcs1_sha512 0x0601
+#define TLSEXT_SIGALG_rsa_pkcs1_sha224 0x0301
+#define TLSEXT_SIGALG_rsa_pkcs1_sha1 0x0201
+#define TLSEXT_SIGALG_dsa_sha256 0x0402
+#define TLSEXT_SIGALG_dsa_sha384 0x0502
+#define TLSEXT_SIGALG_dsa_sha512 0x0602
+#define TLSEXT_SIGALG_dsa_sha224 0x0302
+#define TLSEXT_SIGALG_dsa_sha1 0x0202
+#define TLSEXT_SIGALG_gostr34102012_256_intrinsic 0x0840
+#define TLSEXT_SIGALG_gostr34102012_512_intrinsic 0x0841
+#define TLSEXT_SIGALG_gostr34102012_256_gostr34112012_256 0xeeee
+#define TLSEXT_SIGALG_gostr34102012_512_gostr34112012_512 0xefef
+#define TLSEXT_SIGALG_gostr34102001_gostr3411 0xeded
 
-#define TLSEXT_SIGALG_ed25519                                   0x0807
-#define TLSEXT_SIGALG_ed448                                     0x0808
-#define TLSEXT_SIGALG_ecdsa_brainpoolP256r1_sha256              0x081a
-#define TLSEXT_SIGALG_ecdsa_brainpoolP384r1_sha384              0x081b
-#define TLSEXT_SIGALG_ecdsa_brainpoolP512r1_sha512              0x081c
-#define TLSEXT_SIGALG_mldsa44                                   0x0904
-#define TLSEXT_SIGALG_mldsa65                                   0x0905
-#define TLSEXT_SIGALG_mldsa87                                   0x0906
+#define TLSEXT_SIGALG_ed25519 0x0807
+#define TLSEXT_SIGALG_ed448 0x0808
+#define TLSEXT_SIGALG_ecdsa_brainpoolP256r1_sha256 0x081a
+#define TLSEXT_SIGALG_ecdsa_brainpoolP384r1_sha384 0x081b
+#define TLSEXT_SIGALG_ecdsa_brainpoolP512r1_sha512 0x081c
+#define TLSEXT_SIGALG_mldsa44 0x0904
+#define TLSEXT_SIGALG_mldsa65 0x0905
+#define TLSEXT_SIGALG_mldsa87 0x0906
 
 /* Sigalgs names */
-#define TLSEXT_SIGALG_ecdsa_secp256r1_sha256_name                    "ecdsa_secp256r1_sha256"
-#define TLSEXT_SIGALG_ecdsa_secp384r1_sha384_name                    "ecdsa_secp384r1_sha384"
-#define TLSEXT_SIGALG_ecdsa_secp521r1_sha512_name                    "ecdsa_secp521r1_sha512"
-#define TLSEXT_SIGALG_ecdsa_sha224_name                              "ecdsa_sha224"
-#define TLSEXT_SIGALG_ecdsa_sha1_name                                "ecdsa_sha1"
-#define TLSEXT_SIGALG_rsa_pss_rsae_sha256_name                       "rsa_pss_rsae_sha256"
-#define TLSEXT_SIGALG_rsa_pss_rsae_sha384_name                       "rsa_pss_rsae_sha384"
-#define TLSEXT_SIGALG_rsa_pss_rsae_sha512_name                       "rsa_pss_rsae_sha512"
-#define TLSEXT_SIGALG_rsa_pss_pss_sha256_name                        "rsa_pss_pss_sha256"
-#define TLSEXT_SIGALG_rsa_pss_pss_sha384_name                        "rsa_pss_pss_sha384"
-#define TLSEXT_SIGALG_rsa_pss_pss_sha512_name                        "rsa_pss_pss_sha512"
-#define TLSEXT_SIGALG_rsa_pkcs1_sha256_name                          "rsa_pkcs1_sha256"
-#define TLSEXT_SIGALG_rsa_pkcs1_sha384_name                          "rsa_pkcs1_sha384"
-#define TLSEXT_SIGALG_rsa_pkcs1_sha512_name                          "rsa_pkcs1_sha512"
-#define TLSEXT_SIGALG_rsa_pkcs1_sha224_name                          "rsa_pkcs1_sha224"
-#define TLSEXT_SIGALG_rsa_pkcs1_sha1_name                            "rsa_pkcs1_sha1"
-#define TLSEXT_SIGALG_dsa_sha256_name                                "dsa_sha256"
-#define TLSEXT_SIGALG_dsa_sha384_name                                "dsa_sha384"
-#define TLSEXT_SIGALG_dsa_sha512_name                                "dsa_sha512"
-#define TLSEXT_SIGALG_dsa_sha224_name                                "dsa_sha224"
-#define TLSEXT_SIGALG_dsa_sha1_name                                  "dsa_sha1"
-#define TLSEXT_SIGALG_gostr34102012_256_intrinsic_name               "gostr34102012_256"
-#define TLSEXT_SIGALG_gostr34102012_512_intrinsic_name               "gostr34102012_512"
-#define TLSEXT_SIGALG_gostr34102012_256_intrinsic_alias              "gost2012_256"
-#define TLSEXT_SIGALG_gostr34102012_512_intrinsic_alias              "gost2012_512"
-#define TLSEXT_SIGALG_gostr34102012_256_gostr34112012_256_name       "gost2012_256"
-#define TLSEXT_SIGALG_gostr34102012_512_gostr34112012_512_name       "gost2012_512"
-#define TLSEXT_SIGALG_gostr34102001_gostr3411_name                   "gost2001_gost94"
+#define TLSEXT_SIGALG_ecdsa_secp256r1_sha256_name "ecdsa_secp256r1_sha256"
+#define TLSEXT_SIGALG_ecdsa_secp384r1_sha384_name "ecdsa_secp384r1_sha384"
+#define TLSEXT_SIGALG_ecdsa_secp521r1_sha512_name "ecdsa_secp521r1_sha512"
+#define TLSEXT_SIGALG_ecdsa_sha224_name "ecdsa_sha224"
+#define TLSEXT_SIGALG_ecdsa_sha1_name "ecdsa_sha1"
+#define TLSEXT_SIGALG_rsa_pss_rsae_sha256_name "rsa_pss_rsae_sha256"
+#define TLSEXT_SIGALG_rsa_pss_rsae_sha384_name "rsa_pss_rsae_sha384"
+#define TLSEXT_SIGALG_rsa_pss_rsae_sha512_name "rsa_pss_rsae_sha512"
+#define TLSEXT_SIGALG_rsa_pss_pss_sha256_name "rsa_pss_pss_sha256"
+#define TLSEXT_SIGALG_rsa_pss_pss_sha384_name "rsa_pss_pss_sha384"
+#define TLSEXT_SIGALG_rsa_pss_pss_sha512_name "rsa_pss_pss_sha512"
+#define TLSEXT_SIGALG_rsa_pkcs1_sha256_name "rsa_pkcs1_sha256"
+#define TLSEXT_SIGALG_rsa_pkcs1_sha384_name "rsa_pkcs1_sha384"
+#define TLSEXT_SIGALG_rsa_pkcs1_sha512_name "rsa_pkcs1_sha512"
+#define TLSEXT_SIGALG_rsa_pkcs1_sha224_name "rsa_pkcs1_sha224"
+#define TLSEXT_SIGALG_rsa_pkcs1_sha1_name "rsa_pkcs1_sha1"
+#define TLSEXT_SIGALG_dsa_sha256_name "dsa_sha256"
+#define TLSEXT_SIGALG_dsa_sha384_name "dsa_sha384"
+#define TLSEXT_SIGALG_dsa_sha512_name "dsa_sha512"
+#define TLSEXT_SIGALG_dsa_sha224_name "dsa_sha224"
+#define TLSEXT_SIGALG_dsa_sha1_name "dsa_sha1"
+#define TLSEXT_SIGALG_gostr34102012_256_intrinsic_name "gostr34102012_256"
+#define TLSEXT_SIGALG_gostr34102012_512_intrinsic_name "gostr34102012_512"
+#define TLSEXT_SIGALG_gostr34102012_256_intrinsic_alias "gost2012_256"
+#define TLSEXT_SIGALG_gostr34102012_512_intrinsic_alias "gost2012_512"
+#define TLSEXT_SIGALG_gostr34102012_256_gostr34112012_256_name "gost2012_256"
+#define TLSEXT_SIGALG_gostr34102012_512_gostr34112012_512_name "gost2012_512"
+#define TLSEXT_SIGALG_gostr34102001_gostr3411_name "gost2001_gost94"
 
-#define TLSEXT_SIGALG_ed25519_name                                   "ed25519"
-#define TLSEXT_SIGALG_ed448_name                                     "ed448"
-#define TLSEXT_SIGALG_ecdsa_brainpoolP256r1_sha256_name              "ecdsa_brainpoolP256r1tls13_sha256"
-#define TLSEXT_SIGALG_ecdsa_brainpoolP384r1_sha384_name              "ecdsa_brainpoolP384r1tls13_sha384"
-#define TLSEXT_SIGALG_ecdsa_brainpoolP512r1_sha512_name              "ecdsa_brainpoolP512r1tls13_sha512"
-#define TLSEXT_SIGALG_ecdsa_brainpoolP256r1_sha256_alias             "ecdsa_brainpoolP256r1_sha256"
-#define TLSEXT_SIGALG_ecdsa_brainpoolP384r1_sha384_alias             "ecdsa_brainpoolP384r1_sha384"
-#define TLSEXT_SIGALG_ecdsa_brainpoolP512r1_sha512_alias             "ecdsa_brainpoolP512r1_sha512"
-#define TLSEXT_SIGALG_mldsa44_name                                   "mldsa44"
-#define TLSEXT_SIGALG_mldsa65_name                                   "mldsa65"
-#define TLSEXT_SIGALG_mldsa87_name                                   "mldsa87"
+#define TLSEXT_SIGALG_ed25519_name "ed25519"
+#define TLSEXT_SIGALG_ed448_name "ed448"
+#define TLSEXT_SIGALG_ecdsa_brainpoolP256r1_sha256_name "ecdsa_brainpoolP256r1tls13_sha256"
+#define TLSEXT_SIGALG_ecdsa_brainpoolP384r1_sha384_name "ecdsa_brainpoolP384r1tls13_sha384"
+#define TLSEXT_SIGALG_ecdsa_brainpoolP512r1_sha512_name "ecdsa_brainpoolP512r1tls13_sha512"
+#define TLSEXT_SIGALG_ecdsa_brainpoolP256r1_sha256_alias "ecdsa_brainpoolP256r1_sha256"
+#define TLSEXT_SIGALG_ecdsa_brainpoolP384r1_sha384_alias "ecdsa_brainpoolP384r1_sha384"
+#define TLSEXT_SIGALG_ecdsa_brainpoolP512r1_sha512_alias "ecdsa_brainpoolP512r1_sha512"
+#define TLSEXT_SIGALG_mldsa44_name "mldsa44"
+#define TLSEXT_SIGALG_mldsa65_name "mldsa65"
+#define TLSEXT_SIGALG_mldsa87_name "mldsa87"
 
 /* Known PSK key exchange modes */
-#define TLSEXT_KEX_MODE_KE                                      0x00
-#define TLSEXT_KEX_MODE_KE_DHE                                  0x01
+#define TLSEXT_KEX_MODE_KE 0x00
+#define TLSEXT_KEX_MODE_KE_DHE 0x01
 
 /*
  * Internal representations of key exchange modes
  */
-#define TLSEXT_KEX_MODE_FLAG_NONE                               0
-#define TLSEXT_KEX_MODE_FLAG_KE                                 1
-#define TLSEXT_KEX_MODE_FLAG_KE_DHE                             2
+#define TLSEXT_KEX_MODE_FLAG_NONE 0
+#define TLSEXT_KEX_MODE_FLAG_KE 1
+#define TLSEXT_KEX_MODE_FLAG_KE_DHE 2
 
-#define SSL_USE_PSS(s) (s->s3.tmp.peer_sigalg != NULL && \
-                        s->s3.tmp.peer_sigalg->sig == EVP_PKEY_RSA_PSS)
+#define SSL_USE_PSS(s) (s->s3.tmp.peer_sigalg != NULL && s->s3.tmp.peer_sigalg->sig == EVP_PKEY_RSA_PSS)
 
 /* TLSv1.3 downgrade protection sentinel values */
 extern const unsigned char tls11downgrade[8];
@@ -2340,133 +2337,133 @@ extern const SSL3_ENC_METHOD DTLSv1_2_enc_data;
 /*
  * Flags for SSL methods
  */
-# define SSL_METHOD_NO_FIPS      (1U<<0)
-# define SSL_METHOD_NO_SUITEB    (1U<<1)
+#define SSL_METHOD_NO_FIPS (1U << 0)
+#define SSL_METHOD_NO_SUITEB (1U << 1)
 
-# define IMPLEMENT_tls_meth_func(version, flags, mask, func_name, s_accept, \
-                                 s_connect, enc_data) \
-const SSL_METHOD *func_name(void)  \
-        { \
-        static const SSL_METHOD func_name##_data= { \
-                version, \
-                flags, \
-                mask, \
-                ossl_ssl_connection_new, \
-                ossl_ssl_connection_free, \
-                ossl_ssl_connection_reset, \
-                tls1_new, \
-                tls1_clear, \
-                tls1_free, \
-                s_accept, \
-                s_connect, \
-                ssl3_read, \
-                ssl3_peek, \
-                ssl3_write, \
-                ssl3_shutdown, \
-                ssl3_renegotiate, \
-                ssl3_renegotiate_check, \
-                ssl3_read_bytes, \
-                ssl3_write_bytes, \
-                ssl3_dispatch_alert, \
-                ssl3_ctrl, \
-                ssl3_ctx_ctrl, \
-                ssl3_get_cipher_by_char, \
-                ssl3_put_cipher_by_char, \
-                ssl3_pending, \
-                ssl3_num_ciphers, \
-                ssl3_get_cipher, \
-                tls1_default_timeout, \
-                &enc_data, \
-                ssl_undefined_void_function, \
-                ssl3_callback_ctrl, \
-                ssl3_ctx_callback_ctrl, \
-        }; \
-        return &func_name##_data; \
-        }
+#define IMPLEMENT_tls_meth_func(version, flags, mask, func_name, s_accept, \
+    s_connect, enc_data)                                                   \
+    const SSL_METHOD *func_name(void)                                      \
+    {                                                                      \
+        static const SSL_METHOD func_name##_data = {                       \
+            version,                                                       \
+            flags,                                                         \
+            mask,                                                          \
+            ossl_ssl_connection_new,                                       \
+            ossl_ssl_connection_free,                                      \
+            ossl_ssl_connection_reset,                                     \
+            tls1_new,                                                      \
+            tls1_clear,                                                    \
+            tls1_free,                                                     \
+            s_accept,                                                      \
+            s_connect,                                                     \
+            ssl3_read,                                                     \
+            ssl3_peek,                                                     \
+            ssl3_write,                                                    \
+            ssl3_shutdown,                                                 \
+            ssl3_renegotiate,                                              \
+            ssl3_renegotiate_check,                                        \
+            ssl3_read_bytes,                                               \
+            ssl3_write_bytes,                                              \
+            ssl3_dispatch_alert,                                           \
+            ssl3_ctrl,                                                     \
+            ssl3_ctx_ctrl,                                                 \
+            ssl3_get_cipher_by_char,                                       \
+            ssl3_put_cipher_by_char,                                       \
+            ssl3_pending,                                                  \
+            ssl3_num_ciphers,                                              \
+            ssl3_get_cipher,                                               \
+            tls1_default_timeout,                                          \
+            &enc_data,                                                     \
+            ssl_undefined_void_function,                                   \
+            ssl3_callback_ctrl,                                            \
+            ssl3_ctx_callback_ctrl,                                        \
+        };                                                                 \
+        return &func_name##_data;                                          \
+    }
 
-# define IMPLEMENT_ssl3_meth_func(func_name, s_accept, s_connect) \
-const SSL_METHOD *func_name(void)  \
-        { \
-        static const SSL_METHOD func_name##_data= { \
-                SSL3_VERSION, \
-                SSL_METHOD_NO_FIPS | SSL_METHOD_NO_SUITEB, \
-                SSL_OP_NO_SSLv3, \
-                ossl_ssl_connection_new, \
-                ossl_ssl_connection_free, \
-                ossl_ssl_connection_reset, \
-                ssl3_new, \
-                ssl3_clear, \
-                ssl3_free, \
-                s_accept, \
-                s_connect, \
-                ssl3_read, \
-                ssl3_peek, \
-                ssl3_write, \
-                ssl3_shutdown, \
-                ssl3_renegotiate, \
-                ssl3_renegotiate_check, \
-                ssl3_read_bytes, \
-                ssl3_write_bytes, \
-                ssl3_dispatch_alert, \
-                ssl3_ctrl, \
-                ssl3_ctx_ctrl, \
-                ssl3_get_cipher_by_char, \
-                ssl3_put_cipher_by_char, \
-                ssl3_pending, \
-                ssl3_num_ciphers, \
-                ssl3_get_cipher, \
-                ssl3_default_timeout, \
-                &SSLv3_enc_data, \
-                ssl_undefined_void_function, \
-                ssl3_callback_ctrl, \
-                ssl3_ctx_callback_ctrl, \
-        }; \
-        return &func_name##_data; \
-        }
+#define IMPLEMENT_ssl3_meth_func(func_name, s_accept, s_connect) \
+    const SSL_METHOD *func_name(void)                            \
+    {                                                            \
+        static const SSL_METHOD func_name##_data = {             \
+            SSL3_VERSION,                                        \
+            SSL_METHOD_NO_FIPS | SSL_METHOD_NO_SUITEB,           \
+            SSL_OP_NO_SSLv3,                                     \
+            ossl_ssl_connection_new,                             \
+            ossl_ssl_connection_free,                            \
+            ossl_ssl_connection_reset,                           \
+            ssl3_new,                                            \
+            ssl3_clear,                                          \
+            ssl3_free,                                           \
+            s_accept,                                            \
+            s_connect,                                           \
+            ssl3_read,                                           \
+            ssl3_peek,                                           \
+            ssl3_write,                                          \
+            ssl3_shutdown,                                       \
+            ssl3_renegotiate,                                    \
+            ssl3_renegotiate_check,                              \
+            ssl3_read_bytes,                                     \
+            ssl3_write_bytes,                                    \
+            ssl3_dispatch_alert,                                 \
+            ssl3_ctrl,                                           \
+            ssl3_ctx_ctrl,                                       \
+            ssl3_get_cipher_by_char,                             \
+            ssl3_put_cipher_by_char,                             \
+            ssl3_pending,                                        \
+            ssl3_num_ciphers,                                    \
+            ssl3_get_cipher,                                     \
+            ssl3_default_timeout,                                \
+            &SSLv3_enc_data,                                     \
+            ssl_undefined_void_function,                         \
+            ssl3_callback_ctrl,                                  \
+            ssl3_ctx_callback_ctrl,                              \
+        };                                                       \
+        return &func_name##_data;                                \
+    }
 
-# define IMPLEMENT_dtls1_meth_func(version, flags, mask, func_name, s_accept, \
-                                        s_connect, enc_data) \
-const SSL_METHOD *func_name(void)  \
-        { \
-        static const SSL_METHOD func_name##_data= { \
-                version, \
-                flags, \
-                mask, \
-                ossl_ssl_connection_new, \
-                ossl_ssl_connection_free, \
-                ossl_ssl_connection_reset, \
-                dtls1_new, \
-                dtls1_clear, \
-                dtls1_free, \
-                s_accept, \
-                s_connect, \
-                ssl3_read, \
-                ssl3_peek, \
-                ssl3_write, \
-                dtls1_shutdown, \
-                ssl3_renegotiate, \
-                ssl3_renegotiate_check, \
-                dtls1_read_bytes, \
-                dtls1_write_app_data_bytes, \
-                dtls1_dispatch_alert, \
-                dtls1_ctrl, \
-                ssl3_ctx_ctrl, \
-                ssl3_get_cipher_by_char, \
-                ssl3_put_cipher_by_char, \
-                ssl3_pending, \
-                ssl3_num_ciphers, \
-                ssl3_get_cipher, \
-                dtls1_default_timeout, \
-                &enc_data, \
-                ssl_undefined_void_function, \
-                ssl3_callback_ctrl, \
-                ssl3_ctx_callback_ctrl, \
-        }; \
-        return &func_name##_data; \
-        }
+#define IMPLEMENT_dtls1_meth_func(version, flags, mask, func_name, s_accept, \
+    s_connect, enc_data)                                                     \
+    const SSL_METHOD *func_name(void)                                        \
+    {                                                                        \
+        static const SSL_METHOD func_name##_data = {                         \
+            version,                                                         \
+            flags,                                                           \
+            mask,                                                            \
+            ossl_ssl_connection_new,                                         \
+            ossl_ssl_connection_free,                                        \
+            ossl_ssl_connection_reset,                                       \
+            dtls1_new,                                                       \
+            dtls1_clear,                                                     \
+            dtls1_free,                                                      \
+            s_accept,                                                        \
+            s_connect,                                                       \
+            ssl3_read,                                                       \
+            ssl3_peek,                                                       \
+            ssl3_write,                                                      \
+            dtls1_shutdown,                                                  \
+            ssl3_renegotiate,                                                \
+            ssl3_renegotiate_check,                                          \
+            dtls1_read_bytes,                                                \
+            dtls1_write_app_data_bytes,                                      \
+            dtls1_dispatch_alert,                                            \
+            dtls1_ctrl,                                                      \
+            ssl3_ctx_ctrl,                                                   \
+            ssl3_get_cipher_by_char,                                         \
+            ssl3_put_cipher_by_char,                                         \
+            ssl3_pending,                                                    \
+            ssl3_num_ciphers,                                                \
+            ssl3_get_cipher,                                                 \
+            dtls1_default_timeout,                                           \
+            &enc_data,                                                       \
+            ssl_undefined_void_function,                                     \
+            ssl3_callback_ctrl,                                              \
+            ssl3_ctx_callback_ctrl,                                          \
+        };                                                                   \
+        return &func_name##_data;                                            \
+    }
 
 struct openssl_ssl_test_functions {
-    int (*p_ssl_init_wbio_buffer) (SSL_CONNECTION *s);
+    int (*p_ssl_init_wbio_buffer)(SSL_CONNECTION *s);
 };
 
 const char *ssl_protocol_to_string(int version);
@@ -2478,7 +2475,7 @@ static ossl_inline int tls12_rpk_and_privkey(const SSL_CONNECTION *sc, int idx)
      * a private key, and NO CERTIFICATE
      */
     return ((sc->server && sc->ext.server_cert_type == TLSEXT_cert_type_rpk)
-            || (!sc->server && sc->ext.client_cert_type == TLSEXT_cert_type_rpk))
+               || (!sc->server && sc->ext.client_cert_type == TLSEXT_cert_type_rpk))
         && sc->cert->pkeys[idx].privatekey != NULL
         && sc->cert->pkeys[idx].x509 == NULL;
 }
@@ -2517,26 +2514,26 @@ static ossl_inline int ssl_has_cert(const SSL_CONNECTION *s, int idx)
 }
 
 static ossl_inline void tls1_get_peer_groups(SSL_CONNECTION *s,
-                                             const uint16_t **pgroups,
-                                             size_t *pgroupslen)
+    const uint16_t **pgroups,
+    size_t *pgroupslen)
 {
     *pgroups = s->ext.peer_supportedgroups;
     *pgroupslen = s->ext.peer_supportedgroups_len;
 }
 
-# ifndef OPENSSL_UNIT_TEST
+#ifndef OPENSSL_UNIT_TEST
 
 __owur int ossl_ssl_init(SSL *ssl, SSL_CTX *ctx, const SSL_METHOD *method,
-                         int type);
+    int type);
 __owur SSL *ossl_ssl_connection_new_int(SSL_CTX *ctx, SSL *user_ssl,
-                                        const SSL_METHOD *method);
+    const SSL_METHOD *method);
 __owur SSL *ossl_ssl_connection_new(SSL_CTX *ctx);
 void ossl_ssl_connection_free(SSL *ssl);
 __owur int ossl_ssl_connection_reset(SSL *ssl);
 
 __owur int ssl_read_internal(SSL *s, void *buf, size_t num, size_t *readbytes);
 __owur int ssl_write_internal(SSL *s, const void *buf, size_t num,
-                              uint64_t flags, size_t *written);
+    uint64_t flags, size_t *written);
 int ssl_clear_bad_session(SSL_CONNECTION *s);
 __owur CERT *ssl_cert_new(size_t ssl_pkey_num);
 __owur CERT *ssl_cert_dup(CERT *cert);
@@ -2545,77 +2542,77 @@ void ssl_cert_free(CERT *c);
 __owur int ssl_generate_session_id(SSL_CONNECTION *s, SSL_SESSION *ss);
 __owur int ssl_get_new_session(SSL_CONNECTION *s, int session);
 __owur SSL_SESSION *lookup_sess_in_cache(SSL_CONNECTION *s,
-                                         const unsigned char *sess_id,
-                                         size_t sess_id_len);
+    const unsigned char *sess_id,
+    size_t sess_id_len);
 __owur int ssl_get_prev_session(SSL_CONNECTION *s, CLIENTHELLO_MSG *hello);
 __owur SSL_SESSION *ssl_session_dup(const SSL_SESSION *src, int ticket);
 __owur int ssl_cipher_id_cmp(const SSL_CIPHER *a, const SSL_CIPHER *b);
 DECLARE_OBJ_BSEARCH_GLOBAL_CMP_FN(SSL_CIPHER, SSL_CIPHER, ssl_cipher_id);
 __owur int ssl_cipher_ptr_id_cmp(const SSL_CIPHER *const *ap,
-                                 const SSL_CIPHER *const *bp);
+    const SSL_CIPHER *const *bp);
 __owur STACK_OF(SSL_CIPHER) *ssl_create_cipher_list(SSL_CTX *ctx,
-                                                    STACK_OF(SSL_CIPHER) *tls13_ciphersuites,
-                                                    STACK_OF(SSL_CIPHER) **cipher_list,
-                                                    STACK_OF(SSL_CIPHER) **cipher_list_by_id,
-                                                    const char *rule_str,
-                                                    CERT *c);
+    STACK_OF(SSL_CIPHER) *tls13_ciphersuites,
+    STACK_OF(SSL_CIPHER) **cipher_list,
+    STACK_OF(SSL_CIPHER) **cipher_list_by_id,
+    const char *rule_str,
+    CERT *c);
 __owur int ssl_cache_cipherlist(SSL_CONNECTION *s, PACKET *cipher_suites,
-                                int sslv2format);
+    int sslv2format);
 __owur int ossl_bytes_to_cipher_list(SSL_CONNECTION *s, PACKET *cipher_suites,
-                                     STACK_OF(SSL_CIPHER) **skp,
-                                     STACK_OF(SSL_CIPHER) **scsvs, int sslv2format,
-                                     int fatal);
+    STACK_OF(SSL_CIPHER) **skp,
+    STACK_OF(SSL_CIPHER) **scsvs, int sslv2format,
+    int fatal);
 void ssl_update_cache(SSL_CONNECTION *s, int mode);
 __owur int ssl_cipher_get_evp_cipher(SSL_CTX *ctx, const SSL_CIPHER *sslc,
-                                     const EVP_CIPHER **enc);
+    const EVP_CIPHER **enc);
 __owur int ssl_cipher_get_evp_md_mac(SSL_CTX *ctx, const SSL_CIPHER *sslc,
-                                     const EVP_MD **md,
-                                     int *mac_pkey_type, size_t *mac_secret_size);
+    const EVP_MD **md,
+    int *mac_pkey_type, size_t *mac_secret_size);
 __owur int ssl_cipher_get_evp(SSL_CTX *ctxc, const SSL_SESSION *s,
-                              const EVP_CIPHER **enc, const EVP_MD **md,
-                              int *mac_pkey_type, size_t *mac_secret_size,
-                              SSL_COMP **comp, int use_etm);
+    const EVP_CIPHER **enc, const EVP_MD **md,
+    int *mac_pkey_type, size_t *mac_secret_size,
+    SSL_COMP **comp, int use_etm);
 __owur int ssl_cipher_get_overhead(const SSL_CIPHER *c, size_t *mac_overhead,
-                                   size_t *int_overhead, size_t *blocksize,
-                                   size_t *ext_overhead);
+    size_t *int_overhead, size_t *blocksize,
+    size_t *ext_overhead);
 __owur int ssl_cert_is_disabled(SSL_CTX *ctx, size_t idx);
 __owur const SSL_CIPHER *ssl_get_cipher_by_char(SSL_CONNECTION *ssl,
-                                                const unsigned char *ptr,
-                                                int all);
+    const unsigned char *ptr,
+    int all);
 __owur int ssl_cert_set0_chain(SSL_CONNECTION *s, SSL_CTX *ctx,
-                               STACK_OF(X509) *chain);
+    STACK_OF(X509) *chain);
 __owur int ssl_cert_set1_chain(SSL_CONNECTION *s, SSL_CTX *ctx,
-                               STACK_OF(X509) *chain);
+    STACK_OF(X509) *chain);
 __owur int ssl_cert_add0_chain_cert(SSL_CONNECTION *s, SSL_CTX *ctx, X509 *x);
 __owur int ssl_cert_add1_chain_cert(SSL_CONNECTION *s, SSL_CTX *ctx, X509 *x);
 __owur int ssl_cert_select_current(CERT *c, X509 *x);
 __owur int ssl_cert_set_current(CERT *c, long arg);
-void ssl_cert_set_cert_cb(CERT *c, int (*cb) (SSL *ssl, void *arg), void *arg);
+void ssl_cert_set_cert_cb(CERT *c, int (*cb)(SSL *ssl, void *arg), void *arg);
 
 __owur int ssl_verify_cert_chain(SSL_CONNECTION *s, STACK_OF(X509) *sk);
 __owur int ssl_verify_rpk(SSL_CONNECTION *s, EVP_PKEY *rpk);
 __owur int ssl_build_cert_chain(SSL_CONNECTION *s, SSL_CTX *ctx, int flags);
 __owur int ssl_cert_set_cert_store(CERT *c, X509_STORE *store, int chain,
-                                   int ref);
+    int ref);
 __owur int ssl_cert_get_cert_store(CERT *c, X509_STORE **pstore, int chain);
 
 __owur int ssl_security(const SSL_CONNECTION *s, int op, int bits, int nid,
-                        void *other);
+    void *other);
 __owur int ssl_ctx_security(const SSL_CTX *ctx, int op, int bits, int nid,
-                            void *other);
+    void *other);
 int ssl_get_security_level_bits(const SSL *s, const SSL_CTX *ctx, int *levelp);
 
 __owur int ssl_cert_lookup_by_nid(int nid, size_t *pidx, SSL_CTX *ctx);
 __owur const SSL_CERT_LOOKUP *ssl_cert_lookup_by_pkey(const EVP_PKEY *pk,
-                                                      size_t *pidx,
-                                                      SSL_CTX *ctx);
+    size_t *pidx,
+    SSL_CTX *ctx);
 __owur const SSL_CERT_LOOKUP *ssl_cert_lookup_by_idx(size_t idx, SSL_CTX *ctx);
 
 int ssl_undefined_function(SSL *s);
 __owur int ssl_undefined_void_function(void);
 __owur int ssl_get_server_cert_serverinfo(SSL_CONNECTION *s,
-                                          const unsigned char **serverinfo,
-                                          size_t *serverinfo_length);
+    const unsigned char **serverinfo,
+    size_t *serverinfo_length);
 void ssl_set_masks(SSL_CONNECTION *s);
 __owur STACK_OF(SSL_CIPHER) *ssl_get_ciphers_by_id(SSL_CONNECTION *sc);
 __owur int ssl_x509err2alert(int type);
@@ -2625,25 +2622,25 @@ __owur int ssl_setup_sigalgs(SSL_CTX *ctx);
 int ssl_load_groups(SSL_CTX *ctx);
 int ssl_load_sigalgs(SSL_CTX *ctx);
 __owur int ssl_fill_hello_random(SSL_CONNECTION *s, int server,
-                                 unsigned char *field, size_t len,
-                                 DOWNGRADE dgrd);
+    unsigned char *field, size_t len,
+    DOWNGRADE dgrd);
 __owur int ssl_generate_master_secret(SSL_CONNECTION *s, unsigned char *pms,
-                                      size_t pmslen, int free_pms);
+    size_t pmslen, int free_pms);
 __owur EVP_PKEY *ssl_generate_pkey(SSL_CONNECTION *s, EVP_PKEY *pm);
 __owur int ssl_gensecret(SSL_CONNECTION *s, unsigned char *pms, size_t pmslen);
 __owur int ssl_derive(SSL_CONNECTION *s, EVP_PKEY *privkey, EVP_PKEY *pubkey,
-                      int genmaster);
+    int genmaster);
 __owur int ssl_decapsulate(SSL_CONNECTION *s, EVP_PKEY *privkey,
-                           const unsigned char *ct, size_t ctlen,
-                           int gensecret);
+    const unsigned char *ct, size_t ctlen,
+    int gensecret);
 __owur int ssl_encapsulate(SSL_CONNECTION *s, EVP_PKEY *pubkey,
-                           unsigned char **ctp, size_t *ctlenp,
-                           int gensecret);
+    unsigned char **ctp, size_t *ctlenp,
+    int gensecret);
 __owur EVP_PKEY *ssl_dh_to_pkey(DH *dh);
 __owur int ssl_set_tmp_ecdh_groups(uint16_t **pext, size_t *pextlen,
-                                   uint16_t **ksext, size_t *ksextlen,
-                                   size_t **tplext, size_t *tplextlen,
-                                   void *key);
+    uint16_t **ksext, size_t *ksextlen,
+    size_t **tplext, size_t *tplextlen,
+    void *key);
 __owur unsigned int ssl_get_max_send_fragment(const SSL_CONNECTION *sc);
 __owur unsigned int ssl_get_split_send_fragment(const SSL_CONNECTION *sc);
 
@@ -2651,7 +2648,7 @@ __owur const SSL_CIPHER *ssl3_get_cipher_by_id(uint32_t id);
 __owur const SSL_CIPHER *ssl3_get_cipher_by_std_name(const char *stdname);
 __owur const SSL_CIPHER *ssl3_get_cipher_by_char(const unsigned char *p);
 __owur int ssl3_put_cipher_by_char(const SSL_CIPHER *c, WPACKET *pkt,
-                                   size_t *len);
+    size_t *len);
 int ssl3_init_finished_mac(SSL_CONNECTION *s);
 __owur int ssl3_setup_key_block(SSL_CONNECTION *s);
 __owur int ssl3_change_cipher_state(SSL_CONNECTION *s, int which);
@@ -2659,26 +2656,26 @@ void ssl3_cleanup_key_block(SSL_CONNECTION *s);
 __owur int ssl3_do_write(SSL_CONNECTION *s, uint8_t type);
 int ssl3_send_alert(SSL_CONNECTION *s, int level, int desc);
 __owur int ssl3_generate_master_secret(SSL_CONNECTION *s, unsigned char *out,
-                                       unsigned char *p, size_t len,
-                                       size_t *secret_size);
+    unsigned char *p, size_t len,
+    size_t *secret_size);
 __owur int ssl3_get_req_cert_type(SSL_CONNECTION *s, WPACKET *pkt);
 __owur int ssl3_num_ciphers(void);
 __owur const SSL_CIPHER *ssl3_get_cipher(unsigned int u);
 int ssl3_renegotiate(SSL *ssl);
 int ssl3_renegotiate_check(SSL *ssl, int initok);
 void ssl3_digest_master_key_set_params(const SSL_SESSION *session,
-                                       OSSL_PARAM params[]);
+    OSSL_PARAM params[]);
 __owur int ssl3_dispatch_alert(SSL *s);
 __owur size_t ssl3_final_finish_mac(SSL_CONNECTION *s, const char *sender,
-                                    size_t slen, unsigned char *p);
+    size_t slen, unsigned char *p);
 __owur int ssl3_finish_mac(SSL_CONNECTION *s, const unsigned char *buf,
-                           size_t len);
+    size_t len);
 void ssl3_free_digest_list(SSL_CONNECTION *s);
 __owur unsigned long ssl3_output_cert_chain(SSL_CONNECTION *s, WPACKET *pkt,
-                                            CERT_PKEY *cpk, int for_comp);
+    CERT_PKEY *cpk, int for_comp);
 __owur const SSL_CIPHER *ssl3_choose_cipher(SSL_CONNECTION *s,
-                                            STACK_OF(SSL_CIPHER) *clnt,
-                                            STACK_OF(SSL_CIPHER) *srvr);
+    STACK_OF(SSL_CIPHER) *clnt,
+    STACK_OF(SSL_CIPHER) *srvr);
 __owur int ssl3_digest_cached_records(SSL_CONNECTION *s, int keep);
 __owur int ssl3_new(SSL *s);
 void ssl3_free(SSL *s);
@@ -2689,14 +2686,14 @@ __owur int ssl3_shutdown(SSL *s);
 int ssl3_clear(SSL *s);
 __owur long ssl3_ctrl(SSL *s, int cmd, long larg, void *parg);
 __owur long ssl3_ctx_ctrl(SSL_CTX *s, int cmd, long larg, void *parg);
-__owur long ssl3_callback_ctrl(SSL *s, int cmd, void (*fp) (void));
-__owur long ssl3_ctx_callback_ctrl(SSL_CTX *s, int cmd, void (*fp) (void));
+__owur long ssl3_callback_ctrl(SSL *s, int cmd, void (*fp)(void));
+__owur long ssl3_ctx_callback_ctrl(SSL_CTX *s, int cmd, void (*fp)(void));
 
 __owur int ssl3_do_change_cipher_spec(SSL_CONNECTION *s);
 __owur OSSL_TIME ssl3_default_timeout(void);
 
 __owur int ssl3_set_handshake_header(SSL_CONNECTION *s, WPACKET *pkt,
-                                     int htype);
+    int htype);
 __owur int tls_close_construct_packet(SSL_CONNECTION *s, WPACKET *pkt, int htype);
 __owur int tls_setup_handshake(SSL_CONNECTION *s);
 __owur int dtls1_set_handshake_header(SSL_CONNECTION *s, WPACKET *pkt, int htype);
@@ -2707,38 +2704,38 @@ __owur int ssl_allow_compression(SSL_CONNECTION *s);
 
 __owur int ssl_version_cmp(const SSL_CONNECTION *s, int versiona, int versionb);
 __owur int ssl_version_supported(const SSL_CONNECTION *s, int version,
-                                 const SSL_METHOD **meth);
+    const SSL_METHOD **meth);
 
 __owur int ssl_set_client_hello_version(SSL_CONNECTION *s);
 __owur int ssl_check_version_downgrade(SSL_CONNECTION *s);
 __owur int ssl_set_version_bound(int method_version, int version, int *bound);
 __owur int ssl_choose_server_version(SSL_CONNECTION *s, CLIENTHELLO_MSG *hello,
-                                     DOWNGRADE *dgrd);
+    DOWNGRADE *dgrd);
 __owur int ssl_choose_client_version(SSL_CONNECTION *s, int version,
-                                     RAW_EXTENSION *extensions);
+    RAW_EXTENSION *extensions);
 __owur int ssl_get_min_max_version(const SSL_CONNECTION *s, int *min_version,
-                                   int *max_version, int *real_max);
+    int *max_version, int *real_max);
 
 __owur OSSL_TIME tls1_default_timeout(void);
 __owur int dtls1_do_write(SSL_CONNECTION *s, uint8_t type);
 void dtls1_set_message_header(SSL_CONNECTION *s,
-                              unsigned char mt,
-                              size_t len,
-                              size_t frag_off, size_t frag_len);
+    unsigned char mt,
+    size_t len,
+    size_t frag_off, size_t frag_len);
 
 int dtls1_write_app_data_bytes(SSL *s, uint8_t type, const void *buf_,
-                               size_t len, size_t *written);
+    size_t len, size_t *written);
 
 __owur int dtls1_read_failed(SSL_CONNECTION *s, int code);
 __owur int dtls1_buffer_message(SSL_CONNECTION *s, int ccs);
 __owur int dtls1_retransmit_message(SSL_CONNECTION *s, unsigned short seq,
-                                    int *found);
+    int *found);
 __owur int dtls1_get_queue_priority(unsigned short seq, int is_ccs);
 int dtls1_retransmit_buffered_messages(SSL_CONNECTION *s);
 void dtls1_clear_received_buffer(SSL_CONNECTION *s);
 void dtls1_clear_sent_buffer(SSL_CONNECTION *s);
 void dtls1_get_message_header(const unsigned char *data,
-                              struct hm_header_st *msg_hdr);
+    struct hm_header_st *msg_hdr);
 __owur OSSL_TIME dtls1_default_timeout(void);
 __owur int dtls1_get_timeout(const SSL_CONNECTION *s, OSSL_TIME *timeleft);
 __owur int dtls1_check_timeout_num(SSL_CONNECTION *s);
@@ -2747,7 +2744,7 @@ void dtls1_start_timer(SSL_CONNECTION *s);
 void dtls1_stop_timer(SSL_CONNECTION *s);
 __owur int dtls1_is_timer_expired(SSL_CONNECTION *s);
 __owur int dtls_raw_hello_verify_request(WPACKET *pkt, unsigned char *cookie,
-                                         size_t cookie_len);
+    size_t cookie_len);
 __owur size_t dtls1_min_mtu(SSL_CONNECTION *s);
 void dtls1_hm_fragment_free(hm_fragment *frag);
 __owur int dtls1_query_mtu(SSL_CONNECTION *s);
@@ -2770,65 +2767,65 @@ int ssl_free_wbio_buffer(SSL_CONNECTION *s);
 __owur int tls1_change_cipher_state(SSL_CONNECTION *s, int which);
 __owur int tls1_setup_key_block(SSL_CONNECTION *s);
 __owur size_t tls1_final_finish_mac(SSL_CONNECTION *s, const char *str,
-                                    size_t slen, unsigned char *p);
+    size_t slen, unsigned char *p);
 __owur int tls1_generate_master_secret(SSL_CONNECTION *s, unsigned char *out,
-                                       unsigned char *p, size_t len,
-                                       size_t *secret_size);
+    unsigned char *p, size_t len,
+    size_t *secret_size);
 __owur int tls13_setup_key_block(SSL_CONNECTION *s);
 __owur size_t tls13_final_finish_mac(SSL_CONNECTION *s, const char *str, size_t slen,
-                                     unsigned char *p);
+    unsigned char *p);
 __owur int tls13_store_handshake_traffic_hash(SSL_CONNECTION *s);
 __owur int tls13_store_server_finished_hash(SSL_CONNECTION *s);
 __owur int tls13_change_cipher_state(SSL_CONNECTION *s, int which);
 __owur int tls13_update_key(SSL_CONNECTION *s, int send);
 __owur int tls13_hkdf_expand(SSL_CONNECTION *s,
-                             const EVP_MD *md,
-                             const unsigned char *secret,
-                             const unsigned char *label, size_t labellen,
-                             const unsigned char *data, size_t datalen,
-                             unsigned char *out, size_t outlen, int fatal);
+    const EVP_MD *md,
+    const unsigned char *secret,
+    const unsigned char *label, size_t labellen,
+    const unsigned char *data, size_t datalen,
+    unsigned char *out, size_t outlen, int fatal);
 __owur int tls13_hkdf_expand_ex(OSSL_LIB_CTX *libctx, const char *propq,
-                                const EVP_MD *md,
-                                const unsigned char *secret,
-                                const unsigned char *label, size_t labellen,
-                                const unsigned char *data, size_t datalen,
-                                unsigned char *out, size_t outlen,
-                                int raise_error);
+    const EVP_MD *md,
+    const unsigned char *secret,
+    const unsigned char *label, size_t labellen,
+    const unsigned char *data, size_t datalen,
+    unsigned char *out, size_t outlen,
+    int raise_error);
 __owur int tls13_derive_key(SSL_CONNECTION *s, const EVP_MD *md,
-                            const unsigned char *secret, unsigned char *key,
-                            size_t keylen);
+    const unsigned char *secret, unsigned char *key,
+    size_t keylen);
 __owur int tls13_derive_iv(SSL_CONNECTION *s, const EVP_MD *md,
-                           const unsigned char *secret, unsigned char *iv,
-                           size_t ivlen);
+    const unsigned char *secret, unsigned char *iv,
+    size_t ivlen);
 __owur int tls13_derive_finishedkey(SSL_CONNECTION *s, const EVP_MD *md,
-                                    const unsigned char *secret,
-                                    unsigned char *fin, size_t finlen);
+    const unsigned char *secret,
+    unsigned char *fin, size_t finlen);
 int tls13_generate_secret(SSL_CONNECTION *s, const EVP_MD *md,
-                          const unsigned char *prevsecret,
-                          const unsigned char *insecret,
-                          size_t insecretlen,
-                          unsigned char *outsecret);
+    const unsigned char *prevsecret,
+    const unsigned char *insecret,
+    size_t insecretlen,
+    unsigned char *outsecret);
 __owur int tls13_generate_handshake_secret(SSL_CONNECTION *s,
-                                           const unsigned char *insecret,
-                                           size_t insecretlen);
+    const unsigned char *insecret,
+    size_t insecretlen);
 __owur int tls13_generate_master_secret(SSL_CONNECTION *s, unsigned char *out,
-                                        unsigned char *prev, size_t prevlen,
-                                        size_t *secret_size);
+    unsigned char *prev, size_t prevlen,
+    size_t *secret_size);
 __owur int tls1_export_keying_material(SSL_CONNECTION *s,
-                                       unsigned char *out, size_t olen,
-                                       const char *label, size_t llen,
-                                       const unsigned char *p, size_t plen,
-                                       int use_context);
+    unsigned char *out, size_t olen,
+    const char *label, size_t llen,
+    const unsigned char *p, size_t plen,
+    int use_context);
 __owur int tls13_export_keying_material(SSL_CONNECTION *s,
-                                        unsigned char *out, size_t olen,
-                                        const char *label, size_t llen,
-                                        const unsigned char *context,
-                                        size_t contextlen, int use_context);
+    unsigned char *out, size_t olen,
+    const char *label, size_t llen,
+    const unsigned char *context,
+    size_t contextlen, int use_context);
 __owur int tls13_export_keying_material_early(SSL_CONNECTION *s,
-                                              unsigned char *out, size_t olen,
-                                              const char *label, size_t llen,
-                                              const unsigned char *context,
-                                              size_t contextlen);
+    unsigned char *out, size_t olen,
+    const char *label, size_t llen,
+    const unsigned char *context,
+    size_t contextlen);
 __owur int tls1_alert_code(int code);
 __owur int tls13_alert_code(int code);
 __owur int ssl3_alert_code(int code);
@@ -2842,48 +2839,48 @@ __owur const char *tls1_group_id2name(SSL_CTX *ctx, uint16_t group_id);
 __owur int tls1_group_id2nid(uint16_t group_id, int include_unknown);
 __owur uint16_t tls1_nid2group_id(int nid);
 __owur int tls1_check_group_id(SSL_CONNECTION *s, uint16_t group_id,
-                               int check_own_curves);
+    int check_own_curves);
 __owur int tls1_get0_implemented_groups(int min_proto_version,
-                                        int max_proto_version,
-                                        TLS_GROUP_INFO *grps,
-                                        size_t num, long all,
-                                        STACK_OF(OPENSSL_CSTRING) *out);
+    int max_proto_version,
+    TLS_GROUP_INFO *grps,
+    size_t num, long all,
+    STACK_OF(OPENSSL_CSTRING) *out);
 __owur uint16_t tls1_shared_group(SSL_CONNECTION *s, int nmatch);
 __owur int tls1_set_groups(uint16_t **grpext, size_t *grpextlen,
-                           uint16_t **ksext, size_t *ksextlen,
-                           size_t **tplext, size_t *tplextlen,
-                           int *curves, size_t ncurves);
+    uint16_t **ksext, size_t *ksextlen,
+    size_t **tplext, size_t *tplextlen,
+    int *curves, size_t ncurves);
 __owur int tls1_set_groups_list(SSL_CTX *ctx,
-                                uint16_t **grpext, size_t *grpextlen,
-                                uint16_t **ksext, size_t *ksextlen,
-                                size_t **tplext, size_t *tplextlen,
-                                const char *str);
+    uint16_t **grpext, size_t *grpextlen,
+    uint16_t **ksext, size_t *ksextlen,
+    size_t **tplext, size_t *tplextlen,
+    const char *str);
 __owur EVP_PKEY *ssl_generate_pkey_group(SSL_CONNECTION *s, uint16_t id);
 __owur int tls_valid_group(SSL_CONNECTION *s, uint16_t group_id, int minversion,
-                           int maxversion, int isec, int *okfortls13);
+    int maxversion, int isec, int *okfortls13);
 __owur EVP_PKEY *ssl_generate_param_group(SSL_CONNECTION *s, uint16_t id);
 void tls1_get_formatlist(SSL_CONNECTION *s, const unsigned char **pformats,
-                         size_t *num_formats);
+    size_t *num_formats);
 __owur int tls1_check_ec_tmp_key(SSL_CONNECTION *s, unsigned long id);
 
 __owur int tls_group_allowed(SSL_CONNECTION *s, uint16_t curve, int op);
 void tls1_get_supported_groups(SSL_CONNECTION *s, const uint16_t **pgroups,
-                               size_t *pgroupslen);
+    size_t *pgroupslen);
 void tls1_get_requested_keyshare_groups(SSL_CONNECTION *s, const uint16_t **pgroups,
-                                        size_t *pgroupslen);
+    size_t *pgroupslen);
 void tls1_get_group_tuples(SSL_CONNECTION *s, const size_t **ptuples,
-                           size_t *ptupleslen);
+    size_t *ptupleslen);
 
 __owur int tls1_set_server_sigalgs(SSL_CONNECTION *s);
 
 __owur SSL_TICKET_STATUS tls_get_ticket_from_client(SSL_CONNECTION *s,
-                                                    CLIENTHELLO_MSG *hello,
-                                                    SSL_SESSION **ret);
+    CLIENTHELLO_MSG *hello,
+    SSL_SESSION **ret);
 __owur SSL_TICKET_STATUS tls_decrypt_ticket(SSL_CONNECTION *s,
-                                            const unsigned char *etick,
-                                            size_t eticklen,
-                                            const unsigned char *sess_id,
-                                            size_t sesslen, SSL_SESSION **psess);
+    const unsigned char *etick,
+    size_t eticklen,
+    const unsigned char *sess_id,
+    size_t sesslen, SSL_SESSION **psess);
 
 __owur int tls_use_ticket(SSL_CONNECTION *s);
 
@@ -2891,53 +2888,53 @@ void ssl_set_sig_mask(uint32_t *pmask_a, SSL_CONNECTION *s, int op);
 
 __owur int tls1_set_sigalgs_list(SSL_CTX *ctx, CERT *c, const char *str, int client);
 __owur int tls1_set_raw_sigalgs(CERT *c, const uint16_t *psigs, size_t salglen,
-                                int client);
+    int client);
 __owur int tls1_set_sigalgs(CERT *c, const int *salg, size_t salglen,
-                            int client);
+    int client);
 int tls1_check_chain(SSL_CONNECTION *s, X509 *x, EVP_PKEY *pk,
-                     STACK_OF(X509) *chain, int idx);
+    STACK_OF(X509) *chain, int idx);
 void tls1_set_cert_validity(SSL_CONNECTION *s);
 
-#  ifndef OPENSSL_NO_CT
+#ifndef OPENSSL_NO_CT
 __owur int ssl_validate_ct(SSL_CONNECTION *s);
-#  endif
+#endif
 
 __owur EVP_PKEY *ssl_get_auto_dh(SSL_CONNECTION *s);
 
 __owur int ssl_security_cert(SSL_CONNECTION *s, SSL_CTX *ctx, X509 *x, int vfy,
-                             int is_ee);
+    int is_ee);
 __owur int ssl_security_cert_chain(SSL_CONNECTION *s, STACK_OF(X509) *sk,
-                                   X509 *ex, int vfy);
+    X509 *ex, int vfy);
 
 int tls_choose_sigalg(SSL_CONNECTION *s, int fatalerrs);
 
 __owur long ssl_get_algorithm2(SSL_CONNECTION *s);
 __owur int tls12_copy_sigalgs(SSL_CONNECTION *s, WPACKET *pkt,
-                              const uint16_t *psig, size_t psiglen);
+    const uint16_t *psig, size_t psiglen);
 __owur int tls1_save_u16(PACKET *pkt, uint16_t **pdest, size_t *pdestlen);
 __owur int tls1_save_sigalgs(SSL_CONNECTION *s, PACKET *pkt, int cert);
 __owur int tls1_process_sigalgs(SSL_CONNECTION *s);
 __owur int tls1_set_peer_legacy_sigalg(SSL_CONNECTION *s, const EVP_PKEY *pkey);
 __owur int tls1_lookup_md(SSL_CTX *ctx, const SIGALG_LOOKUP *lu,
-                          const EVP_MD **pmd);
+    const EVP_MD **pmd);
 __owur size_t tls12_get_psigalgs(SSL_CONNECTION *s, int sent,
-                                 const uint16_t **psigs);
+    const uint16_t **psigs);
 __owur int tls_check_sigalg_curve(const SSL_CONNECTION *s, int curve);
 __owur int tls12_check_peer_sigalg(SSL_CONNECTION *s, uint16_t, EVP_PKEY *pkey);
 __owur int ssl_set_client_disabled(SSL_CONNECTION *s);
 __owur int ssl_cipher_disabled(const SSL_CONNECTION *s, const SSL_CIPHER *c,
-                               int op, int echde);
+    int op, int echde);
 
 __owur int ssl_handshake_hash(SSL_CONNECTION *s,
-                              unsigned char *out, size_t outlen,
-                              size_t *hashlen);
+    unsigned char *out, size_t outlen,
+    size_t *hashlen);
 __owur const EVP_MD *ssl_md(SSL_CTX *ctx, int idx);
 int ssl_get_md_idx(int md_nid);
 __owur const EVP_MD *ssl_handshake_md(SSL_CONNECTION *s);
 __owur const EVP_MD *ssl_prf_md(SSL_CONNECTION *s);
 
 __owur int ossl_adjust_domain_flags(uint64_t domain_flags,
-                                    uint64_t *p_domain_flags);
+    uint64_t *p_domain_flags);
 
 /*
  * ssl_log_rsa_client_key_exchange logs |premaster| to the SSL_CTX associated
@@ -2946,10 +2943,10 @@ __owur int ossl_adjust_domain_flags(uint64_t domain_flags,
  * |encrypted_premaster|.
  */
 __owur int ssl_log_rsa_client_key_exchange(SSL_CONNECTION *s,
-                                           const uint8_t *encrypted_premaster,
-                                           size_t encrypted_premaster_len,
-                                           const uint8_t *premaster,
-                                           size_t premaster_len);
+    const uint8_t *encrypted_premaster,
+    size_t encrypted_premaster_len,
+    const uint8_t *premaster,
+    size_t premaster_len);
 
 /*
  * ssl_log_secret logs |secret| to the SSL_CTX associated with |ssl|, if
@@ -2957,7 +2954,7 @@ __owur int ssl_log_rsa_client_key_exchange(SSL_CONNECTION *s,
  * the entry with |label|.
  */
 __owur int ssl_log_secret(SSL_CONNECTION *s, const char *label,
-                          const uint8_t *secret, size_t secret_len);
+    const uint8_t *secret, size_t secret_len);
 
 #define MASTER_SECRET_LABEL "CLIENT_RANDOM"
 #define CLIENT_EARLY_LABEL "CLIENT_EARLY_TRAFFIC_SECRET"
@@ -2981,45 +2978,45 @@ __owur int send_certificate_request(SSL_CONNECTION *s);
 /* statem/extensions_cust.c */
 
 custom_ext_method *custom_ext_find(const custom_ext_methods *exts,
-                                   ENDPOINT role, unsigned int ext_type,
-                                   size_t *idx);
+    ENDPOINT role, unsigned int ext_type,
+    size_t *idx);
 
 void custom_ext_init(custom_ext_methods *meths);
 
 int ossl_tls_add_custom_ext_intern(SSL_CTX *ctx, custom_ext_methods *exts,
-                                   ENDPOINT role, unsigned int ext_type,
-                                   unsigned int context,
-                                   SSL_custom_ext_add_cb_ex add_cb,
-                                   SSL_custom_ext_free_cb_ex free_cb,
-                                   void *add_arg,
-                                   SSL_custom_ext_parse_cb_ex parse_cb,
-                                   void *parse_arg);
+    ENDPOINT role, unsigned int ext_type,
+    unsigned int context,
+    SSL_custom_ext_add_cb_ex add_cb,
+    SSL_custom_ext_free_cb_ex free_cb,
+    void *add_arg,
+    SSL_custom_ext_parse_cb_ex parse_cb,
+    void *parse_arg);
 __owur int custom_ext_parse(SSL_CONNECTION *s, unsigned int context,
-                            unsigned int ext_type,
-                            const unsigned char *ext_data, size_t ext_size,
-                            X509 *x, size_t chainidx);
+    unsigned int ext_type,
+    const unsigned char *ext_data, size_t ext_size,
+    X509 *x, size_t chainidx);
 __owur int custom_ext_add(SSL_CONNECTION *s, int context, WPACKET *pkt, X509 *x,
-                          size_t chainidx, int maxversion);
+    size_t chainidx, int maxversion);
 
 __owur int custom_exts_copy(custom_ext_methods *dst,
-                            const custom_ext_methods *src);
+    const custom_ext_methods *src);
 __owur int custom_exts_copy_conn(custom_ext_methods *dst,
-                                 const custom_ext_methods *src);
+    const custom_ext_methods *src);
 __owur int custom_exts_copy_flags(custom_ext_methods *dst,
-                                  const custom_ext_methods *src);
+    const custom_ext_methods *src);
 void custom_exts_free(custom_ext_methods *exts);
 
 /* ssl_mcnf.c */
 int ssl_ctx_system_config(SSL_CTX *ctx);
 
 const EVP_CIPHER *ssl_evp_cipher_fetch(OSSL_LIB_CTX *libctx,
-                                       int nid,
-                                       const char *properties);
+    int nid,
+    const char *properties);
 int ssl_evp_cipher_up_ref(const EVP_CIPHER *cipher);
 void ssl_evp_cipher_free(const EVP_CIPHER *cipher);
 const EVP_MD *ssl_evp_md_fetch(OSSL_LIB_CTX *libctx,
-                               int nid,
-                               const char *properties);
+    int nid,
+    const char *properties);
 int ssl_evp_md_up_ref(const EVP_MD *md);
 void ssl_evp_md_free(const EVP_MD *md);
 
@@ -3027,7 +3024,7 @@ void tls_engine_finish(ENGINE *e);
 const EVP_CIPHER *tls_get_cipher_from_engine(int nid);
 const EVP_MD *tls_get_digest_from_engine(int nid);
 int tls_engine_load_ssl_client_cert(SSL_CONNECTION *s, X509 **px509,
-                                    EVP_PKEY **ppkey);
+    EVP_PKEY **ppkey);
 int ssl_hmac_old_new(SSL_HMAC *ret);
 void ssl_hmac_old_free(SSL_HMAC *ctx);
 int ssl_hmac_old_init(SSL_HMAC *ctx, void *key, size_t len, char *md);
@@ -3045,11 +3042,11 @@ int ssl_srp_server_param_with_username_intern(SSL_CONNECTION *s, int *ad);
 
 void ssl_session_calculate_timeout(SSL_SESSION *ss);
 
-# else /* OPENSSL_UNIT_TEST */
+#else /* OPENSSL_UNIT_TEST */
 
-#  define ssl_init_wbio_buffer SSL_test_functions()->p_ssl_init_wbio_buffer
+#define ssl_init_wbio_buffer SSL_test_functions()->p_ssl_init_wbio_buffer
 
-# endif
+#endif
 
 /* Some helper routines to support TSAN operations safely */
 static ossl_unused ossl_inline int ssl_tsan_lock(const SSL_CTX *ctx)
@@ -3069,7 +3066,7 @@ static ossl_unused ossl_inline void ssl_tsan_unlock(const SSL_CTX *ctx)
 }
 
 static ossl_unused ossl_inline void ssl_tsan_counter(const SSL_CTX *ctx,
-                                                     TSAN_QUALIFIER int *stat)
+    TSAN_QUALIFIER int *stat)
 {
     if (ssl_tsan_lock(ctx)) {
         tsan_counter(stat);
@@ -3081,8 +3078,8 @@ int ossl_comp_has_alg(int a);
 size_t ossl_calculate_comp_expansion(int alg, size_t length);
 
 void ossl_ssl_set_custom_record_layer(SSL_CONNECTION *s,
-                                      const OSSL_RECORD_METHOD *meth,
-                                      void *rlarg);
+    const OSSL_RECORD_METHOD *meth,
+    void *rlarg);
 
 long ossl_ctrl_internal(SSL *s, int cmd, long larg, void *parg, int no_quic);
 
@@ -3090,81 +3087,34 @@ long ossl_ctrl_internal(SSL *s, int cmd, long larg, void *parg, int no_quic);
  * Options which no longer have any effect, but which can be implemented
  * as no-ops for QUIC.
  */
-#define OSSL_LEGACY_SSL_OPTIONS                 \
-    (SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG  | \
-     SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER        | \
-     SSL_OP_SSLEAY_080_CLIENT_DH_BUG          | \
-     SSL_OP_TLS_D5_BUG                        | \
-     SSL_OP_TLS_BLOCK_PADDING_BUG             | \
-     SSL_OP_MSIE_SSLV2_RSA_PADDING            | \
-     SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG       | \
-     SSL_OP_MICROSOFT_SESS_ID_BUG             | \
-     SSL_OP_NETSCAPE_CHALLENGE_BUG            | \
-     SSL_OP_PKCS1_CHECK_1                     | \
-     SSL_OP_PKCS1_CHECK_2                     | \
-     SSL_OP_SINGLE_DH_USE                     | \
-     SSL_OP_SINGLE_ECDH_USE                   | \
-     SSL_OP_EPHEMERAL_RSA                     )
+#define OSSL_LEGACY_SSL_OPTIONS \
+    (SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG | SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER | SSL_OP_SSLEAY_080_CLIENT_DH_BUG | SSL_OP_TLS_D5_BUG | SSL_OP_TLS_BLOCK_PADDING_BUG | SSL_OP_MSIE_SSLV2_RSA_PADDING | SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG | SSL_OP_MICROSOFT_SESS_ID_BUG | SSL_OP_NETSCAPE_CHALLENGE_BUG | SSL_OP_PKCS1_CHECK_1 | SSL_OP_PKCS1_CHECK_2 | SSL_OP_SINGLE_DH_USE | SSL_OP_SINGLE_ECDH_USE | SSL_OP_EPHEMERAL_RSA)
 
 /* This option is undefined in public headers with no-dtls1-method. */
 #ifndef SSL_OP_CISCO_ANYCONNECT
-# define SSL_OP_CISCO_ANYCONNECT 0
+#define SSL_OP_CISCO_ANYCONNECT 0
 #endif
 /*
  * Options which are no-ops under QUIC or TLSv1.3 and which are therefore
  * allowed but ignored under QUIC.
  */
-#define OSSL_TLS1_2_OPTIONS                     \
-    (SSL_OP_CRYPTOPRO_TLSEXT_BUG              | \
-     SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS       | \
-     SSL_OP_ALLOW_CLIENT_RENEGOTIATION        | \
-     SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION | \
-     SSL_OP_NO_COMPRESSION                    | \
-     SSL_OP_NO_SSLv3                          | \
-     SSL_OP_NO_TLSv1                          | \
-     SSL_OP_NO_TLSv1_1                        | \
-     SSL_OP_NO_TLSv1_2                        | \
-     SSL_OP_NO_DTLSv1                         | \
-     SSL_OP_NO_DTLSv1_2                       | \
-     SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION | \
-     SSL_OP_CISCO_ANYCONNECT                  | \
-     SSL_OP_NO_RENEGOTIATION                  | \
-     SSL_OP_NO_EXTENDED_MASTER_SECRET         | \
-     SSL_OP_NO_ENCRYPT_THEN_MAC               | \
-     SSL_OP_COOKIE_EXCHANGE                   | \
-     SSL_OP_LEGACY_SERVER_CONNECT             | \
-     SSL_OP_IGNORE_UNEXPECTED_EOF             )
+#define OSSL_TLS1_2_OPTIONS \
+    (SSL_OP_CRYPTOPRO_TLSEXT_BUG | SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS | SSL_OP_ALLOW_CLIENT_RENEGOTIATION | SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION | SSL_OP_NO_COMPRESSION | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2 | SSL_OP_NO_DTLSv1 | SSL_OP_NO_DTLSv1_2 | SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION | SSL_OP_CISCO_ANYCONNECT | SSL_OP_NO_RENEGOTIATION | SSL_OP_NO_EXTENDED_MASTER_SECRET | SSL_OP_NO_ENCRYPT_THEN_MAC | SSL_OP_COOKIE_EXCHANGE | SSL_OP_LEGACY_SERVER_CONNECT | SSL_OP_IGNORE_UNEXPECTED_EOF)
 
 /* Total mask of connection-level options permitted or ignored under QUIC. */
-#define OSSL_QUIC_PERMITTED_OPTIONS_CONN        \
-    (OSSL_LEGACY_SSL_OPTIONS                  | \
-     OSSL_TLS1_2_OPTIONS                      | \
-     SSL_OP_CIPHER_SERVER_PREFERENCE          | \
-     SSL_OP_DISABLE_TLSEXT_CA_NAMES           | \
-     SSL_OP_NO_TX_CERTIFICATE_COMPRESSION     | \
-     SSL_OP_NO_RX_CERTIFICATE_COMPRESSION     | \
-     SSL_OP_PRIORITIZE_CHACHA                 | \
-     SSL_OP_NO_QUERY_MTU                      | \
-     SSL_OP_NO_TICKET                         | \
-     SSL_OP_NO_ANTI_REPLAY                    )
+#define OSSL_QUIC_PERMITTED_OPTIONS_CONN \
+    (OSSL_LEGACY_SSL_OPTIONS | OSSL_TLS1_2_OPTIONS | SSL_OP_CIPHER_SERVER_PREFERENCE | SSL_OP_DISABLE_TLSEXT_CA_NAMES | SSL_OP_NO_TX_CERTIFICATE_COMPRESSION | SSL_OP_NO_RX_CERTIFICATE_COMPRESSION | SSL_OP_PRIORITIZE_CHACHA | SSL_OP_NO_QUERY_MTU | SSL_OP_NO_TICKET | SSL_OP_NO_ANTI_REPLAY)
 
 /* Total mask of stream-level options permitted or ignored under QUIC. */
-#define OSSL_QUIC_PERMITTED_OPTIONS_STREAM      \
-    (OSSL_LEGACY_SSL_OPTIONS                  | \
-     OSSL_TLS1_2_OPTIONS                      | \
-     SSL_OP_CLEANSE_PLAINTEXT                 )
+#define OSSL_QUIC_PERMITTED_OPTIONS_STREAM \
+    (OSSL_LEGACY_SSL_OPTIONS | OSSL_TLS1_2_OPTIONS | SSL_OP_CLEANSE_PLAINTEXT)
 
 /* Total mask of options permitted on either connections or streams. */
-#define OSSL_QUIC_PERMITTED_OPTIONS             \
-    (OSSL_QUIC_PERMITTED_OPTIONS_CONN |         \
-     OSSL_QUIC_PERMITTED_OPTIONS_STREAM)
+#define OSSL_QUIC_PERMITTED_OPTIONS \
+    (OSSL_QUIC_PERMITTED_OPTIONS_CONN | OSSL_QUIC_PERMITTED_OPTIONS_STREAM)
 
 /* Total mask of domain flags supported on a QUIC SSL_CTX. */
-#define OSSL_QUIC_SUPPORTED_DOMAIN_FLAGS        \
-    (SSL_DOMAIN_FLAG_SINGLE_THREAD |            \
-     SSL_DOMAIN_FLAG_MULTI_THREAD |             \
-     SSL_DOMAIN_FLAG_THREAD_ASSISTED |          \
-     SSL_DOMAIN_FLAG_BLOCKING |                 \
-     SSL_DOMAIN_FLAG_LEGACY_BLOCKING)
+#define OSSL_QUIC_SUPPORTED_DOMAIN_FLAGS \
+    (SSL_DOMAIN_FLAG_SINGLE_THREAD | SSL_DOMAIN_FLAG_MULTI_THREAD | SSL_DOMAIN_FLAG_THREAD_ASSISTED | SSL_DOMAIN_FLAG_BLOCKING | SSL_DOMAIN_FLAG_LEGACY_BLOCKING)
 
 #endif

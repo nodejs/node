@@ -23,6 +23,8 @@ async function assertSpawnedProcess(args, options = {}, expected = {}) {
 // Common expectation for experimental feature warning in stderr
 const experimentalFeatureWarning = { stderr: /--entry-url is an experimental feature/ };
 
+const onlyWithAmaro = { skip: !process.config.variables.node_use_amaro };
+
 describe('--entry-url', { concurrency: true }, () => {
   it('should reject loading a path that contains %', async () => {
     await assertSpawnedProcess(
@@ -76,7 +78,7 @@ describe('--entry-url', { concurrency: true }, () => {
     );
   });
 
-  it('should support loading TypeScript URLs', { skip: !process.config.variables.node_use_amaro }, async () => {
+  it('should support loading TypeScript URLs', onlyWithAmaro, async () => {
     const typescriptUrls = [
       'typescript/cts/test-require-ts-file.cts',
       'typescript/mts/test-import-ts-file.mts',

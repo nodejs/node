@@ -33,14 +33,14 @@ using namespace ngtcp2;
 using namespace std::literals;
 
 TLSSessionBase::TLSSessionBase() {
-  ngtcp2_crypto_ossl_ctx_new(&ossl_ctx_, NULL);
+  ngtcp2_crypto_ossl_ctx_new(&ossl_ctx_, nullptr);
 }
 
 TLSSessionBase::~TLSSessionBase() {
   auto ssl = ngtcp2_crypto_ossl_ctx_get_ssl(ossl_ctx_);
 
   if (ssl) {
-    SSL_set_app_data(ssl, NULL);
+    SSL_set_app_data(ssl, nullptr);
     SSL_free(ssl);
   }
 

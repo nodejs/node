@@ -77,12 +77,10 @@ function lazyllhttp () {
   if (useWasmSIMD) {
     try {
       mod = new WebAssembly.Module(require('../llhttp/llhttp_simd-wasm.js'))
-      /* istanbul ignore next */
     } catch {
     }
   }
 
-  /* istanbul ignore next */
   if (!mod) {
     // We could check if the error was caused by the simd option not
     // being enabled, but the occurring of this other error
@@ -100,7 +98,6 @@ function lazyllhttp () {
        * @returns {number}
        */
       wasm_on_url: (p, at, len) => {
-        /* istanbul ignore next */
         return 0
       },
       /**
@@ -265,7 +262,6 @@ class Parser {
 
       this.timeoutValue = delay
     } else if (this.timeout) {
-      // istanbul ignore else: only for jest
       if (this.timeout.refresh) {
         this.timeout.refresh()
       }
@@ -286,7 +282,6 @@ class Parser {
 
     assert(this.timeoutType === TIMEOUT_BODY)
     if (this.timeout) {
-      // istanbul ignore else: only for jest
       if (this.timeout.refresh) {
         this.timeout.refresh()
       }
@@ -356,7 +351,6 @@ class Parser {
         } else {
           const ptr = llhttp.llhttp_get_error_reason(this.ptr)
           let message = ''
-          /* istanbul ignore else: difficult to make a test case for */
           if (ptr) {
             const len = new Uint8Array(llhttp.memory.buffer, ptr).indexOf(0)
             message =
@@ -402,7 +396,6 @@ class Parser {
   onMessageBegin () {
     const { socket, client } = this
 
-    /* istanbul ignore next: difficult to make a test case for */
     if (socket.destroyed) {
       return -1
     }
@@ -514,7 +507,7 @@ class Parser {
     client.emit('disconnect', client[kUrl], [client], new InformationalError('upgrade'))
 
     try {
-      request.onUpgrade(statusCode, headers, socket)
+      request.onRequestUpgrade(statusCode, headers, socket)
     } catch (err) {
       util.destroy(socket, err)
     }
@@ -531,14 +524,12 @@ class Parser {
   onHeadersComplete (statusCode, upgrade, shouldKeepAlive) {
     const { client, socket, headers, statusText } = this
 
-    /* istanbul ignore next: difficult to make a test case for */
     if (socket.destroyed) {
       return -1
     }
 
     const request = client[kQueue][client[kRunningIdx]]
 
-    /* istanbul ignore next: difficult to make a test case for */
     if (!request) {
       return -1
     }
@@ -572,7 +563,6 @@ class Parser {
         : client[kBodyTimeout]
       this.setTimeout(bodyTimeout, TIMEOUT_BODY)
     } else if (this.timeout) {
-      // istanbul ignore else: only for jest
       if (this.timeout.refresh) {
         this.timeout.refresh()
       }
@@ -615,7 +605,7 @@ class Parser {
       socket[kReset] = true
     }
 
-    const pause = request.onHeaders(statusCode, headers, this.resume, statusText) === false
+    const pause = request.onResponseStart(statusCode, headers, this.resume, statusText) === false
 
     if (request.aborted) {
       return -1
@@ -653,7 +643,6 @@ class Parser {
 
     assert(this.timeoutType === TIMEOUT_BODY)
     if (this.timeout) {
-      // istanbul ignore else: only for jest
       if (this.timeout.refresh) {
         this.timeout.refresh()
       }
@@ -668,7 +657,7 @@ class Parser {
 
     this.bytesRead += buf.length
 
-    if (request.onData(buf) === false) {
+    if (request.onResponseData(buf) === false) {
       return constants.ERROR.PAUSED
     }
 
@@ -709,13 +698,12 @@ class Parser {
       return 0
     }
 
-    /* istanbul ignore next: should be handled by llhttp? */
     if (request.method !== 'HEAD' && contentLength && bytesRead !== parseInt(contentLength, 10)) {
       util.destroy(socket, new ResponseContentLengthMismatchError())
       return -1
     }
 
-    request.onComplete(headers)
+    request.onResponseEnd(headers)
 
     client[kQueue][client[kRunningIdx]++] = null
 
@@ -747,10 +735,14 @@ class Parser {
   }
 }
 
-function onParserTimeout (parser) {
-  const { socket, timeoutType, client, paused } = parser.deref()
+function onParserTimeout (parserWeakRef) {
+  const parser = parserWeakRef.deref()
+  if (!parser) {
+    return
+  }
 
-  /* istanbul ignore else */
+  const { socket, timeoutType, client, paused } = parser
+
   if (timeoutType === TIMEOUT_HEADERS) {
     if (!socket[kWriting] || socket.writableNeedDrain || client[kRunning] > 1) {
       assert(!paused, 'cannot be paused while waiting for headers')
@@ -1086,7 +1078,7 @@ function writeH1 (client, request) {
   }
 
   try {
-    request.onConnect(abort)
+    request.onRequestStart(abort, null)
   } catch (err) {
     util.errorRequest(client, request, err)
   }
@@ -1120,6 +1112,10 @@ function writeH1 (client, request) {
 
   if (blocking) {
     socket[kBlocking] = true
+  }
+
+  if (socket.setTypeOfService) {
+    socket.setTypeOfService(request.typeOfService)
   }
 
   let header = `${method} ${path} HTTP/1.1\r\n`
@@ -1157,7 +1153,6 @@ function writeH1 (client, request) {
     channels.sendHeaders.publish({ request, headers: header, socket })
   }
 
-  /* istanbul ignore else: assertion */
   if (!body || bodyLength === 0) {
     writeBuffer(abort, null, client, request, socket, contentLength, header, expectsPayload)
   } else if (util.isBuffer(body)) {
@@ -1538,7 +1533,6 @@ class AsyncWriter {
 
     if (!ret) {
       if (socket[kParser].timeout && socket[kParser].timeoutType === TIMEOUT_HEADERS) {
-        // istanbul ignore else: only for jest
         if (socket[kParser].timeout.refresh) {
           socket[kParser].timeout.refresh()
         }
@@ -1589,7 +1583,6 @@ class AsyncWriter {
     }
 
     if (socket[kParser].timeout && socket[kParser].timeoutType === TIMEOUT_HEADERS) {
-      // istanbul ignore else: only for jest
       if (socket[kParser].timeout.refresh) {
         socket[kParser].timeout.refresh()
       }

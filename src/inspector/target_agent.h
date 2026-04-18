@@ -1,9 +1,9 @@
 #ifndef SRC_INSPECTOR_TARGET_AGENT_H_
 #define SRC_INSPECTOR_TARGET_AGENT_H_
 
+#include <memory>
 #include <string_view>
-#include <unordered_map>
-#include <vector>
+#include "inspector/target_manager.h"
 #include "inspector/worker_inspector.h"
 #include "node/inspector/protocol/Target.h"
 
@@ -14,15 +14,6 @@ class TargetInspector;
 
 namespace protocol {
 
-struct TargetInfo {
-  std::string target_id;
-  std::string type;
-  std::string title;
-  std::string url;
-  std::shared_ptr<MainThreadHandle> worker;
-  bool attached;
-};
-
 class TargetAgent : public Target::Backend,
                     public std::enable_shared_from_this<TargetAgent> {
  public:
@@ -32,15 +23,14 @@ class TargetAgent : public Target::Backend,
                                   const std::string& title,
                                   const std::string& url);
 
+  DispatchResponse getTargets(
+      std::unique_ptr<protocol::Array<Target::TargetInfo>>* out_targetInfos)
+      override;
   DispatchResponse setAutoAttach(bool auto_attach,
                                  bool wait_for_debugger_on_start) override;
 
   void listenWorker(std::weak_ptr<WorkerManager> worker_manager);
   void reset();
-  static std::unordered_map<int, std::shared_ptr<MainThreadHandle>>
-      target_session_id_worker_map_;
-
-  bool isThisThread(MainThreadHandle* worker) { return worker == main_thread_; }
 
  private:
   int getNextTargetId();
@@ -57,15 +47,9 @@ class TargetAgent : public Target::Backend,
 
   std::shared_ptr<Target::Frontend> frontend_;
   std::weak_ptr<WorkerManager> worker_manager_;
-  static int next_session_id_;
-  int next_target_id_ = 1;
   std::unique_ptr<WorkerManagerEventHandle> worker_event_handle_ = nullptr;
-  bool auto_attach_ = false;
-  // TODO(islandryu): If false, implement it so that each thread does not wait
-  // for the worker to execute.
-  bool wait_for_debugger_on_start_ = true;
-  std::vector<TargetInfo> targets_;
-  MainThreadHandle* main_thread_;
+  std::unique_ptr<TargetManager> target_manager_ =
+      std::make_unique<TargetManager>();
 };
 
 }  // namespace protocol

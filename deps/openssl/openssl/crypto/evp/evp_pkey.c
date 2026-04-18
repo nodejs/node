@@ -23,7 +23,7 @@
 /* Extract a private key from a PKCS8 structure */
 
 EVP_PKEY *evp_pkcs82pkey_legacy(const PKCS8_PRIV_KEY_INFO *p8, OSSL_LIB_CTX *libctx,
-                                const char *propq)
+    const char *propq)
 {
     EVP_PKEY *pkey = NULL;
     const ASN1_OBJECT *algoid;
@@ -40,7 +40,7 @@ EVP_PKEY *evp_pkcs82pkey_legacy(const PKCS8_PRIV_KEY_INFO *p8, OSSL_LIB_CTX *lib
     if (!EVP_PKEY_set_type(pkey, OBJ_obj2nid(algoid))) {
         i2t_ASN1_OBJECT(obj_tmp, 80, algoid);
         ERR_raise_data(ERR_LIB_EVP, EVP_R_UNSUPPORTED_PRIVATE_KEY_ALGORITHM,
-                       "TYPE=%s", obj_tmp);
+            "TYPE=%s", obj_tmp);
         goto error;
     }
 
@@ -59,13 +59,13 @@ EVP_PKEY *evp_pkcs82pkey_legacy(const PKCS8_PRIV_KEY_INFO *p8, OSSL_LIB_CTX *lib
 
     return pkey;
 
- error:
+error:
     EVP_PKEY_free(pkey);
     return NULL;
 }
 
 EVP_PKEY *EVP_PKCS82PKEY_ex(const PKCS8_PRIV_KEY_INFO *p8, OSSL_LIB_CTX *libctx,
-                            const char *propq)
+    const char *propq)
 {
     EVP_PKEY *pkey = NULL;
     const unsigned char *p8_data = NULL;
@@ -78,19 +78,19 @@ EVP_PKEY *EVP_PKCS82PKEY_ex(const PKCS8_PRIV_KEY_INFO *p8, OSSL_LIB_CTX *libctx,
     char keytype[OSSL_MAX_NAME_SIZE];
 
     if (p8 == NULL
-            || !PKCS8_pkey_get0(&algoid, NULL, NULL, NULL, p8)
-            || !OBJ_obj2txt(keytype, sizeof(keytype), algoid, 0))
+        || !PKCS8_pkey_get0(&algoid, NULL, NULL, NULL, p8)
+        || !OBJ_obj2txt(keytype, sizeof(keytype), algoid, 0))
         return NULL;
 
     if ((encoded_len = i2d_PKCS8_PRIV_KEY_INFO(p8, &encoded_data)) <= 0
-            || encoded_data == NULL)
+        || encoded_data == NULL)
         return NULL;
 
     p8_data = encoded_data;
     len = encoded_len;
     selection = EVP_PKEY_KEYPAIR | EVP_PKEY_KEY_PARAMETERS;
     dctx = OSSL_DECODER_CTX_new_for_pkey(&pkey, "DER", "PrivateKeyInfo",
-                                         keytype, selection, libctx, propq);
+        keytype, selection, libctx, propq);
 
     if (dctx != NULL && OSSL_DECODER_CTX_get_num_decoders(dctx) == 0) {
         OSSL_DECODER_CTX_free(dctx);
@@ -101,7 +101,7 @@ EVP_PKEY *EVP_PKCS82PKEY_ex(const PKCS8_PRIV_KEY_INFO *p8, OSSL_LIB_CTX *libctx,
          * keytype
          */
         dctx = OSSL_DECODER_CTX_new_for_pkey(&pkey, "DER", "PrivateKeyInfo",
-                                             NULL, selection, libctx, propq);
+            NULL, selection, libctx, propq);
     }
 
     if (dctx == NULL
@@ -138,8 +138,9 @@ PKCS8_PRIV_KEY_INFO *EVP_PKEY2PKCS8(const EVP_PKEY *pkey)
         const unsigned char *pp;
 
         if ((ctx = OSSL_ENCODER_CTX_new_for_pkey(pkey, selection,
-                                                 "DER", "PrivateKeyInfo",
-                                                 NULL)) == NULL
+                 "DER", "PrivateKeyInfo",
+                 NULL))
+                == NULL
             || !OSSL_ENCODER_to_data(ctx, &der, &derlen))
             goto error;
 
@@ -150,7 +151,7 @@ PKCS8_PRIV_KEY_INFO *EVP_PKEY2PKCS8(const EVP_PKEY *pkey)
             goto error;
     } else {
         p8 = PKCS8_PRIV_KEY_INFO_new();
-        if (p8  == NULL) {
+        if (p8 == NULL) {
             ERR_raise(ERR_LIB_EVP, ERR_R_ASN1_LIB);
             return NULL;
         }
@@ -171,13 +172,12 @@ PKCS8_PRIV_KEY_INFO *EVP_PKEY2PKCS8(const EVP_PKEY *pkey)
         }
     }
     goto end;
- error:
+error:
     PKCS8_PRIV_KEY_INFO_free(p8);
     p8 = NULL;
- end:
+end:
     OSSL_ENCODER_CTX_free(ctx);
     return p8;
-
 }
 
 /* EVP_PKEY attribute functions */
@@ -193,7 +193,7 @@ int EVP_PKEY_get_attr_by_NID(const EVP_PKEY *key, int nid, int lastpos)
 }
 
 int EVP_PKEY_get_attr_by_OBJ(const EVP_PKEY *key, const ASN1_OBJECT *obj,
-                             int lastpos)
+    int lastpos)
 {
     return X509at_get_attr_by_OBJ(key->attributes, obj, lastpos);
 }
@@ -216,8 +216,8 @@ int EVP_PKEY_add1_attr(EVP_PKEY *key, X509_ATTRIBUTE *attr)
 }
 
 int EVP_PKEY_add1_attr_by_OBJ(EVP_PKEY *key,
-                              const ASN1_OBJECT *obj, int type,
-                              const unsigned char *bytes, int len)
+    const ASN1_OBJECT *obj, int type,
+    const unsigned char *bytes, int len)
 {
     if (X509at_add1_attr_by_OBJ(&key->attributes, obj, type, bytes, len))
         return 1;
@@ -225,8 +225,8 @@ int EVP_PKEY_add1_attr_by_OBJ(EVP_PKEY *key,
 }
 
 int EVP_PKEY_add1_attr_by_NID(EVP_PKEY *key,
-                              int nid, int type,
-                              const unsigned char *bytes, int len)
+    int nid, int type,
+    const unsigned char *bytes, int len)
 {
     if (X509at_add1_attr_by_NID(&key->attributes, nid, type, bytes, len))
         return 1;
@@ -234,8 +234,8 @@ int EVP_PKEY_add1_attr_by_NID(EVP_PKEY *key,
 }
 
 int EVP_PKEY_add1_attr_by_txt(EVP_PKEY *key,
-                              const char *attrname, int type,
-                              const unsigned char *bytes, int len)
+    const char *attrname, int type,
+    const unsigned char *bytes, int len)
 {
     if (X509at_add1_attr_by_txt(&key->attributes, attrname, type, bytes, len))
         return 1;
@@ -254,7 +254,7 @@ const char *EVP_PKEY_get0_type_name(const EVP_PKEY *key)
     ameth = EVP_PKEY_get0_asn1(key);
     if (ameth != NULL)
         EVP_PKEY_asn1_get0_info(NULL, NULL,
-                                NULL, NULL, &name, ameth);
+            NULL, NULL, &name, ameth);
 
     return name;
 }

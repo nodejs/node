@@ -7,26 +7,22 @@ const { Worker, isMainThread, workerData } = require('worker_threads');
 
 const variant = process.argv[process.argv.length - 1];
 switch (true) {
-  case variant === 'main-thread': {
-    return;
-  }
-  case variant === 'main-thread-exit': {
+  case isMainThread ? variant === 'main-thread-exit' : workerData === 'worker-thread-exit':
     return process.exit(0);
-  }
   case variant.startsWith('worker-thread'): {
     const worker = new Worker(__filename, { workerData: variant });
     worker.on('error', common.mustNotCall());
     worker.on('exit', common.mustCall((code) => {
       assert.strictEqual(code, 0);
     }));
-    return;
   }
-  case !isMainThread: {
-    if (workerData === 'worker-thread-exit') {
-      process.exit(0);
-    }
+  // eslint-disable-next-line no-fallthrough
+  case variant === 'main-thread':
+  // eslint-disable-next-line no-fallthrough
+  case variant === 'main-thread-exit':
+  // eslint-disable-next-line no-fallthrough
+  case !isMainThread:
     return;
-  }
 }
 
 (async function() {

@@ -167,7 +167,19 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
   // For strings which are array indexes the hash value has the string length
   // mixed into the hash, mainly to avoid a hash value of zero which would be
   // the case for the string '0'. 24 bits are used for the array index value.
-  static const int kArrayIndexValueBits = 24;
+  static constexpr int kArrayIndexValueBits = 24;
+  // Mask for extracting the lower kArrayIndexValueBits of a value.
+  static constexpr uint32_t kArrayIndexValueMask =
+      (1u << kArrayIndexValueBits) - 1;
+#ifdef V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
+  // Half-width shift used by the seeded xorshift-multiply mixing.
+  static constexpr int kArrayIndexHashShift = kArrayIndexValueBits / 2;
+  // The shift must be at least the half width for the xorshift to be an
+  // involution.
+  static_assert(kArrayIndexHashShift * 2 >= kArrayIndexValueBits,
+                "kArrayIndexHashShift must be at least half of "
+                "kArrayIndexValueBits");
+#endif  // V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
   static const int kArrayIndexLengthBits =
       kBitsPerInt - kArrayIndexValueBits - HashFieldTypeBits::kSize;
 

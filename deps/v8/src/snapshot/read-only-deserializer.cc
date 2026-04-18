@@ -8,6 +8,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/logging/counters-scopes.h"
+#include "src/numbers/hash-seed.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/embedded/embedded-data-inl.h"
@@ -174,7 +175,7 @@ void ReadOnlyDeserializer::DeserializeIntoIsolate() {
 #endif
 
   if (should_rehash()) {
-    isolate()->heap()->InitializeHashSeed();
+    HashSeed::InitializeRoots(isolate());
     Rehash();
   }
 

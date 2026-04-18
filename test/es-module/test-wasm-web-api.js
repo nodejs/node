@@ -74,7 +74,7 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
       return assert.rejects(() => WebAssembly.compileStreaming(arg), {
         name: 'TypeError',
         code: 'ERR_INVALID_ARG_TYPE',
-        message: /^The "source" argument .*$/
+        message: /^The "source" argument .*$/,
       });
     }, 2));
   }
@@ -98,7 +98,7 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
   await testCompileStreamingSuccess(() => {
     return Promise.resolve(new Response(simpleWasmBytes, {
       status: 200,
-      headers: { 'Content-Type': 'application/wasm' }
+      headers: { 'Content-Type': 'application/wasm' },
     }));
   });
 
@@ -111,7 +111,7 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
     const stream = handle.readableWebStream({ autoClose: true });
     return Promise.resolve(new Response(stream, {
       status: 200,
-      headers: { 'Content-Type': 'application/wasm' }
+      headers: { 'Content-Type': 'application/wasm' },
     }));
   });
 
@@ -161,7 +161,7 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
     name: 'TypeError',
     code: 'ERR_WEBASSEMBLY_RESPONSE',
     message: 'WebAssembly response has unsupported MIME type ' +
-             "'application/wasm;'"
+             "'application/wasm;'",
   });
 
   // A valid WebAssembly file with an invalid MIME type.
@@ -172,7 +172,7 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
     name: 'TypeError',
     code: 'ERR_WEBASSEMBLY_RESPONSE',
     message: 'WebAssembly response has unsupported MIME type ' +
-             "'application/octet-stream'"
+             "'application/octet-stream'",
   });
 
   // HTTP status code indicating an error.
@@ -183,7 +183,7 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
   }, {
     name: 'TypeError',
     code: 'ERR_WEBASSEMBLY_RESPONSE',
-    message: /^WebAssembly response has status code 418$/
+    message: /^WebAssembly response has status code 418$/,
   });
 
   // HTTP status code indicating an error, but using a Response whose body is
@@ -191,7 +191,7 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
   await testCompileStreamingSuccess(() => {
     return Promise.resolve(new Response(simpleWasmBytes, {
       status: 200,
-      headers: { 'Content-Type': 'application/wasm' }
+      headers: { 'Content-Type': 'application/wasm' },
     }));
   });
 
@@ -201,7 +201,7 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
     res.end(Buffer.concat([simpleWasmBytes, Buffer.from('foo')]));
   }, {
     name: 'CompileError',
-    message: /^WebAssembly\.compileStreaming\(\): .*$/
+    message: /^WebAssembly\.compileStreaming\(\): .*$/,
   });
 
   // Missing bytes at the end of the WebAssembly file.
@@ -210,7 +210,7 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
     res.end(simpleWasmBytes.subarray(0, simpleWasmBytes.length - 3));
   }, {
     name: 'CompileError',
-    message: /^WebAssembly\.compileStreaming\(\): .*$/
+    message: /^WebAssembly\.compileStreaming\(\): .*$/,
   });
 
   // Incomplete HTTP response body. The TypeError might come as a surprise, but
@@ -223,7 +223,7 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
     }));
   }, {
     name: 'TypeError',
-    message: /terminated/
+    message: /terminated/,
   });
 
   // Test "Developer-Facing Display Conventions" described in the WebAssembly

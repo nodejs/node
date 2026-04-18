@@ -25,7 +25,7 @@
 #define ks3 tks.ks[2].ks[0].cblock
 
 static int cipher_hw_desx_cbc_initkey(PROV_CIPHER_CTX *ctx,
-                                      const unsigned char *key, size_t keylen)
+    const unsigned char *key, size_t keylen)
 {
     PROV_TDES_CTX *tctx = (PROV_TDES_CTX *)ctx;
     DES_cblock *deskey = (DES_cblock *)key;
@@ -38,7 +38,7 @@ static int cipher_hw_desx_cbc_initkey(PROV_CIPHER_CTX *ctx,
 }
 
 static void cipher_hw_desx_copyctx(PROV_CIPHER_CTX *dst,
-                                   const PROV_CIPHER_CTX *src)
+    const PROV_CIPHER_CTX *src)
 {
     PROV_TDES_CTX *sctx = (PROV_TDES_CTX *)src;
     PROV_TDES_CTX *dctx = (PROV_TDES_CTX *)dst;
@@ -48,22 +48,22 @@ static void cipher_hw_desx_copyctx(PROV_CIPHER_CTX *dst,
 }
 
 static int cipher_hw_desx_cbc(PROV_CIPHER_CTX *ctx, unsigned char *out,
-                              const unsigned char *in, size_t inl)
+    const unsigned char *in, size_t inl)
 {
     PROV_TDES_CTX *tctx = (PROV_TDES_CTX *)ctx;
 
     while (inl >= MAXCHUNK) {
         DES_xcbc_encrypt(in, out, (long)MAXCHUNK, &tctx->ks1,
-                         (DES_cblock *)ctx->iv, &tctx->ks2, &tctx->ks3,
-                         ctx->enc);
+            (DES_cblock *)ctx->iv, &tctx->ks2, &tctx->ks3,
+            ctx->enc);
         inl -= MAXCHUNK;
         in += MAXCHUNK;
         out += MAXCHUNK;
     }
     if (inl > 0)
         DES_xcbc_encrypt(in, out, (long)inl, &tctx->ks1,
-                         (DES_cblock *)ctx->iv, &tctx->ks2, &tctx->ks3,
-                         ctx->enc);
+            (DES_cblock *)ctx->iv, &tctx->ks2, &tctx->ks3,
+            ctx->enc);
     return 1;
 }
 

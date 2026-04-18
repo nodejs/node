@@ -3,48 +3,22 @@
 require('../common');
 
 const {
-  generateSEA,
-  skipIfSingleExecutableIsNotSupported,
+  buildSEA,
+  skipIfBuildSEAIsNotSupported,
 } = require('../common/sea');
 
-skipIfSingleExecutableIsNotSupported();
+skipIfBuildSEAIsNotSupported();
 
 // This tests the execArgvExtension "cli" mode in single executable applications.
 
-const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
-const { copyFileSync, writeFileSync, existsSync } = require('fs');
-const { spawnSyncAndAssert, spawnSyncAndExitWithoutError } = require('../common/child_process');
+const { spawnSyncAndAssert } = require('../common/child_process');
 const { join } = require('path');
-const assert = require('assert');
-
-const configFile = tmpdir.resolve('sea-config.json');
-const seaPrepBlob = tmpdir.resolve('sea-prep.blob');
-const outputFile = tmpdir.resolve(process.platform === 'win32' ? 'sea.exe' : 'sea');
+const fixtures = require('../common/fixtures');
 
 tmpdir.refresh();
 
-// Copy test fixture to working directory
-copyFileSync(fixtures.path('sea-exec-argv-extension-cli.js'), tmpdir.resolve('sea.js'));
-
-writeFileSync(configFile, `
-{
-  "main": "sea.js",
-  "output": "sea-prep.blob",
-  "disableExperimentalSEAWarning": true,
-  "execArgv": ["--no-warnings"],
-  "execArgvExtension": "cli"
-}
-`);
-
-spawnSyncAndExitWithoutError(
-  process.execPath,
-  ['--experimental-sea-config', 'sea-config.json'],
-  { cwd: tmpdir.path });
-
-assert(existsSync(seaPrepBlob));
-
-generateSEA(outputFile, process.execPath, seaPrepBlob);
+const outputFile = buildSEA(fixtures.path('sea', 'exec-argv-extension-cli'));
 
 // Test that --node-options works with execArgvExtension: "cli"
 spawnSyncAndAssert(

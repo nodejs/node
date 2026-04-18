@@ -24,8 +24,7 @@ assert.throws(() => {
   code: 'ERR_INVALID_ARG_VALUE',
 });
 
-rmdirPromise('nonexistent', {
-  recursive: true,
-}).then(common.mustNotCall(), common.mustCall((err) => {
-  assert.strictEqual(err.code, 'ERR_INVALID_ARG_VALUE');
-}));
+assert.rejects(
+  rmdirPromise('nonexistent', { recursive: true }),
+  { code: 'ERR_INVALID_ARG_VALUE' },
+).then(common.mustCall());

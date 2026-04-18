@@ -181,10 +181,6 @@ assert.throws(() => {
   assert.ok(stream.write('hello world 👀\n'));
   assert.ok(stream.write('another line 👀\n'));
 
-  // Check internal buffer length (may not be available in Utf8Stream)
-  // This is implementation-specific, so we just verify writes succeeded
-  assert.ok(true, 'writes completed successfully');
-
   stream.end();
 }
 
@@ -200,7 +196,6 @@ assert.throws(() => {
   }
 
   // Check internal buffer length (implementation-specific)
-  assert.ok(true, 'writes completed successfully');
   readFile(dest, 'utf8', common.mustSucceed((data) => {
     assert.strictEqual(data, str);
   }));

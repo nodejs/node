@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Legacy platform objects [[Set]] method</title>
+<link rel="help" href="https://webidl.spec.whatwg.org/#legacy-platform-object-set">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+    test(function() {
+        var element = document.createElement("div");
+        element.appendChild(document.createElement("div"));
+        element.childNodes["5"] = "foo";
+        assert_equals(element.childNodes["5"], undefined);
+    }, "must not set the property value when assigning to a numeric property on an object which implements an indexed property getter but not a setter when not in strict mode");
+
+    test(function() {
+        "use strict";
+        var element = document.createElement("div");
+        element.appendChild(document.createElement("div"));
+        assert_throws_js(TypeError, function() { element.childNodes["5"] = "foo"; });
+    }, "must throw when assigning to a numeric property on an object which implements a indexed property getter but not a setter in strict mode");
+
+    test(function() {
+        var element = document.createElement("div");
+        element.attributes.foo = "foo";
+        assert_equals(element.attributes.foo, "foo");
+    }, "must allow assigning to a named property on an object which implements a named property getter but not a setter when not in strict mode");
+
+    test(function() {
+        "use strict";
+        var element = document.createElement("div");
+        element.attributes.foo = "foo";
+        assert_equals(element.attributes.foo, "foo");
+    }, "must allow assigning to a named property on an object which implements a named property getter but not a setter in strict mode");
+
+    test(function() {
+        "use strict";
+        var form = document.createElement("form");
+        assert_equals(form.method, "get");
+        var input = document.createElement("input");
+        input.name = "method";
+        input.id = "method";
+        form.appendChild(input);
+        assert_equals(form.method, input);
+        form.method = "post";
+        assert_equals(form.method, input);
+        input.remove();
+        assert_equals(form.method, "post");
+    }, "must allow setting built-in property on a [LegacyOverrideBuiltIns] object even if a named property shadows it");
+
+    var symbol = Symbol();
+
+    test(function() {
+        var element = document.createElement("div");
+        element.appendChild(document.createElement("div"));
+        element.childNodes[symbol] = "foo";
+        assert_equals(element.childNodes[symbol], "foo");
+    }, "must allow assigning to a symbol property on an object which implements an indexed property getter but not a setter when not in strict mode");
+
+    test(function() {
+        "use strict";
+        var element = document.createElement("div");
+        element.appendChild(document.createElement("div"));
+        element.childNodes[symbol] = "foo";
+        assert_equals(element.childNodes[symbol], "foo");
+    }, "must allow assigning to a symbol property on an object which implements an indexed property getter but not a setter in strict mode");
+
+    test(function() {
+        var element = document.createElement("div");
+        element.attributes[symbol] = "foo";
+        assert_equals(element.attributes[symbol], "foo");
+    }, "must allow assigning to a symbol property on an object which implements indexed and named property getters but no setters when not in strict mode");
+
+    test(function() {
+        "use strict";
+        var element = document.createElement("div");
+        element.attributes[symbol] = "foo";
+        assert_equals(element.attributes[symbol], "foo");
+    }, "must allow assigning to a symbol property on an object which implements indexed and named property getters but no setters in strict mode");
+
+    test(function() {
+        sessionStorage.clear();
+        this.add_cleanup(function() { sessionStorage.clear(); });
+        sessionStorage[symbol] = "foo";
+        assert_equals(sessionStorage[symbol], "foo");
+    }, "must allow assigning to a symbol property on an object which implements indexed and named property getters and setters when not in strict mode");
+
+    test(function() {
+        "use strict";
+        sessionStorage.clear();
+        this.add_cleanup(function() { sessionStorage.clear(); });
+        sessionStorage[symbol] = "foo";
+        assert_equals(sessionStorage[symbol], "foo");
+    }, "must allow assigning to a symbol property on an object which implements indexed and named property getters and setters in strict mode");
+</script>

@@ -19,7 +19,7 @@ async function testVerify({ algorithm,
                             key,
                             data,
                             customization,
-                            length,
+                            outputLength,
                             expected }) {
   const [
     verifyKey,
@@ -46,7 +46,7 @@ async function testVerify({ algorithm,
 
   const signParams = {
     name: algorithm,
-    length,
+    outputLength,
     customization,
   };
 
@@ -69,7 +69,7 @@ async function testVerify({ algorithm,
   // Test failure when using the wrong algorithms
   await assert.rejects(
     subtle.verify(signParams, keyPair.publicKey, expected, data), {
-      message: /Unable to use this key to verify/
+      message: /Key algorithm mismatch/
     });
 
   // Test failure when signature is altered
@@ -112,7 +112,7 @@ async function testVerify({ algorithm,
   {
     assert(!(await subtle.verify({
       ...signParams,
-      length: length === 256 ? 512 : 256,
+      outputLength: outputLength === 256 ? 512 : 256,
     }, verifyKey, expected, data)));
   }
 }
@@ -121,7 +121,7 @@ async function testSign({ algorithm,
                           key,
                           data,
                           customization,
-                          length,
+                          outputLength,
                           expected }) {
   const [
     signKey,
@@ -148,7 +148,7 @@ async function testSign({ algorithm,
 
   const signParams = {
     name: algorithm,
-    length,
+    outputLength,
     customization,
   };
 
@@ -177,7 +177,7 @@ async function testSign({ algorithm,
   // Test failure when using the wrong algorithms
   await assert.rejects(
     subtle.sign(signParams, keyPair.privateKey, data), {
-      message: /Unable to use this key to sign/
+      message: /Key algorithm mismatch/
     });
 }
 

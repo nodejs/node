@@ -1,7 +1,7 @@
 'use strict';
 const { mustCall } = require('../common');
 const { Readable, Duplex } = require('stream');
-const { strictEqual } = require('assert');
+const assert = require('assert');
 
 function start(controller) {
   controller.enqueue(new Uint8Array(1));
@@ -10,7 +10,7 @@ function start(controller) {
 
 Readable.fromWeb(new ReadableStream({ start }))
 .on('data', mustCall((d) => {
-  strictEqual(d.length, 1);
+  assert.strictEqual(d.length, 1);
 }))
 .on('end', mustCall())
 .resume();
@@ -20,7 +20,7 @@ Duplex.fromWeb({
   writable: new WritableStream({ write(chunk) {} })
 })
 .on('data', mustCall((d) => {
-  strictEqual(d.length, 1);
+  assert.strictEqual(d.length, 1);
 }))
 .on('end', mustCall())
 .resume();

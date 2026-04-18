@@ -17,9 +17,9 @@
 #include "crypto/asn1.h"
 
 #ifndef NO_OLD_ASN1
-# ifndef OPENSSL_NO_STDIO
+#ifndef OPENSSL_NO_STDIO
 
-void *ASN1_d2i_fp(void *(*xnew) (void), d2i_of_void *d2i, FILE *in, void **x)
+void *ASN1_d2i_fp(void *(*xnew)(void), d2i_of_void *d2i, FILE *in, void **x)
 {
     BIO *b;
     void *ret;
@@ -33,9 +33,9 @@ void *ASN1_d2i_fp(void *(*xnew) (void), d2i_of_void *d2i, FILE *in, void **x)
     BIO_free(b);
     return ret;
 }
-# endif
+#endif
 
-void *ASN1_d2i_bio(void *(*xnew) (void), d2i_of_void *d2i, BIO *in, void **x)
+void *ASN1_d2i_bio(void *(*xnew)(void), d2i_of_void *d2i, BIO *in, void **x)
 {
     BUF_MEM *b = NULL;
     const unsigned char *p;
@@ -48,7 +48,7 @@ void *ASN1_d2i_bio(void *(*xnew) (void), d2i_of_void *d2i, BIO *in, void **x)
 
     p = (unsigned char *)b->data;
     ret = d2i(x, &p, len);
- err:
+err:
     BUF_MEM_free(b);
     return ret;
 }
@@ -56,7 +56,7 @@ void *ASN1_d2i_bio(void *(*xnew) (void), d2i_of_void *d2i, BIO *in, void **x)
 #endif
 
 void *ASN1_item_d2i_bio_ex(const ASN1_ITEM *it, BIO *in, void *x,
-                           OSSL_LIB_CTX *libctx, const char *propq)
+    OSSL_LIB_CTX *libctx, const char *propq)
 {
     BUF_MEM *b = NULL;
     const unsigned char *p;
@@ -71,7 +71,7 @@ void *ASN1_item_d2i_bio_ex(const ASN1_ITEM *it, BIO *in, void *x,
 
     p = (const unsigned char *)b->data;
     ret = ASN1_item_d2i_ex(x, &p, len, it, libctx, propq);
- err:
+err:
     BUF_MEM_free(b);
     return ret;
 }
@@ -83,7 +83,7 @@ void *ASN1_item_d2i_bio(const ASN1_ITEM *it, BIO *in, void *x)
 
 #ifndef OPENSSL_NO_STDIO
 void *ASN1_item_d2i_fp_ex(const ASN1_ITEM *it, FILE *in, void *x,
-                          OSSL_LIB_CTX *libctx, const char *propq)
+    OSSL_LIB_CTX *libctx, const char *propq)
 {
     BIO *b;
     char *ret;
@@ -104,7 +104,7 @@ void *ASN1_item_d2i_fp(const ASN1_ITEM *it, FILE *in, void *x)
 }
 #endif
 
-#define HEADER_SIZE   8
+#define HEADER_SIZE 8
 #define ASN1_CHUNK_INITIAL_SIZE (16 * 1024)
 int asn1_d2i_read_bio(BIO *in, BUF_MEM **pb)
 {
@@ -150,7 +150,6 @@ int asn1_d2i_read_bio(BIO *in, BUF_MEM **pb)
                 len += i;
                 if ((size_t)i < want)
                     continue;
-
             }
         }
         /* else data already loaded */
@@ -168,9 +167,10 @@ int asn1_d2i_read_bio(BIO *in, BUF_MEM **pb)
             if (e != ASN1_R_TOO_LONG)
                 goto err;
             ERR_pop_to_mark();
+            ERR_set_mark();
         }
-        i = q - p;            /* header length */
-        off += i;               /* end of data */
+        i = q - p; /* header length */
+        off += i; /* end of data */
 
         if (inf & 1) {
             /* no data body so go round again */
@@ -194,8 +194,7 @@ int asn1_d2i_read_bio(BIO *in, BUF_MEM **pb)
                 size_t chunk_max = ASN1_CHUNK_INITIAL_SIZE;
 
                 want -= (len - off);
-                if (want > INT_MAX /* BIO_read takes an int length */  ||
-                    len + want < len) {
+                if (want > INT_MAX /* BIO_read takes an int length */ || len + want < len) {
                     ERR_raise(ERR_LIB_ASN1, ASN1_R_TOO_LONG);
                     goto err;
                 }
@@ -219,14 +218,14 @@ int asn1_d2i_read_bio(BIO *in, BUF_MEM **pb)
                             ERR_raise(ERR_LIB_ASN1, ASN1_R_NOT_ENOUGH_DATA);
                             goto err;
                         }
-                    /*
-                     * This can't overflow because |len+want| didn't
-                     * overflow.
-                     */
+                        /*
+                         * This can't overflow because |len+want| didn't
+                         * overflow.
+                         */
                         len += i;
                         chunk -= i;
                     }
-                    if (chunk_max < INT_MAX/2)
+                    if (chunk_max < INT_MAX / 2)
                         chunk_max *= 2;
                 }
             }
@@ -248,8 +247,9 @@ int asn1_d2i_read_bio(BIO *in, BUF_MEM **pb)
     }
 
     *pb = b;
+    ERR_clear_last_mark();
     return off;
- err:
+err:
     ERR_clear_last_mark();
     BUF_MEM_free(b);
     return -1;

@@ -45,7 +45,6 @@
 
 U_NAMESPACE_BEGIN
 
-class CharString;
 /**
  * Base class for all formats.  This is an abstract base class which
  * specifies the protocol for classes which convert other objects or
@@ -85,7 +84,7 @@ class CharString;
  * <P>
  * If formatting is unsuccessful, a failing UErrorCode is returned when
  * the Format cannot format the type of object, otherwise if there is
- * something illformed about the the Unicode replacement character
+ * something illformed about the Unicode replacement character
  * 0xFFFD is returned.
  * <P>
  * If there is no match when parsing, a parse failure UErrorCode is
@@ -96,13 +95,13 @@ class CharString;
  * subclasses, such code will not necessarily work and will not be
  * guaranteed to work stably from release to release.
  */
-class U_I18N_API Format : public UObject {
+class U_I18N_API_CLASS Format : public UObject {
 public:
 
     /** Destructor
      * @stable ICU 2.4
      */
-    virtual ~Format();
+    U_I18N_API virtual ~Format();
 
     /**
      * Return true if the given Format objects are semantically equal.
@@ -112,7 +111,7 @@ public:
      *                 Objects of different subclasses are considered unequal.
      * @stable ICU 2.0
      */
-    virtual bool operator==(const Format& other) const = 0;
+    U_I18N_API virtual bool operator==(const Format& other) const = 0;
 
     /**
      * Return true if the given Format objects are not semantically
@@ -121,7 +120,7 @@ public:
      * @return         Return true if the given Format objects are not semantically.
      * @stable ICU 2.0
      */
-    bool operator!=(const Format& other) const { return !operator==(other); }
+    U_I18N_API bool operator!=(const Format& other) const { return !operator==(other); }
 
     /**
      * Clone this object polymorphically.  The caller is responsible
@@ -129,7 +128,7 @@ public:
      * @return    A copy of the object
      * @stable ICU 2.0
      */
-    virtual Format* clone() const = 0;
+    U_I18N_API virtual Format* clone() const = 0;
 
     /**
      * Formats an object to produce a string.
@@ -141,9 +140,9 @@ public:
      * @return          Reference to 'appendTo' parameter.
      * @stable ICU 2.0
      */
-    UnicodeString& format(const Formattable& obj,
-                          UnicodeString& appendTo,
-                          UErrorCode& status) const;
+    U_I18N_API UnicodeString& format(const Formattable& obj,
+                                     UnicodeString& appendTo,
+                                     UErrorCode& status) const;
 
     /**
      * Format an object to produce a string.  This is a pure virtual method which
@@ -161,10 +160,11 @@ public:
      * @return          Reference to 'appendTo' parameter.
      * @stable ICU 2.0
      */
-    virtual UnicodeString& format(const Formattable& obj,
-                                  UnicodeString& appendTo,
-                                  FieldPosition& pos,
-                                  UErrorCode& status) const = 0;
+    U_I18N_API virtual UnicodeString& format(const Formattable& obj,
+                                             UnicodeString& appendTo,
+                                             FieldPosition& pos,
+                                             UErrorCode& status) const = 0;
+
     /**
      * Format an object to produce a string.  Subclasses should override this
      * method. This method allows polymorphic formatting of Formattable objects.
@@ -181,10 +181,10 @@ public:
      * @return          Reference to 'appendTo' parameter.
      * @stable ICU 4.4
      */
-    virtual UnicodeString& format(const Formattable& obj,
-                                  UnicodeString& appendTo,
-                                  FieldPositionIterator* posIter,
-                                  UErrorCode& status) const;
+    U_I18N_API virtual UnicodeString& format(const Formattable& obj,
+                                             UnicodeString& appendTo,
+                                             FieldPositionIterator* posIter,
+                                             UErrorCode& status) const;
 
     /**
      * Parse a string to produce an object.  This is a pure virtual
@@ -225,9 +225,9 @@ public:
      *                  will remain unchanged.
      * @stable ICU 2.0
      */
-    virtual void parseObject(const UnicodeString& source,
-                             Formattable& result,
-                             ParsePosition& parse_pos) const = 0;
+    U_I18N_API virtual void parseObject(const UnicodeString& source,
+                                        Formattable& result,
+                                        ParsePosition& parse_pos) const = 0;
 
     /**
      * Parses a string to produce an object. This is a convenience method
@@ -241,9 +241,9 @@ public:
      *                  result code.
      * @stable ICU 2.0
      */
-    void parseObject(const UnicodeString& source,
-                     Formattable& result,
-                     UErrorCode& status) const;
+    U_I18N_API void parseObject(const UnicodeString& source,
+                                Formattable& result,
+                                UErrorCode& status) const;
 
     /** Get the locale for this format object. You can choose between valid and actual locale.
      *  @param type type of the locale we're looking for (valid or actual) 
@@ -251,7 +251,7 @@ public:
      *  @return the locale
      *  @stable ICU 2.8
      */
-    Locale getLocale(ULocDataLocaleType type, UErrorCode& status) const;
+    U_I18N_API Locale getLocale(ULocDataLocaleType type, UErrorCode& status) const;
 
 #ifndef U_HIDE_INTERNAL_API
     /** Get the locale for this format object. You can choose between valid and actual locale.
@@ -260,31 +260,30 @@ public:
      *  @return the locale
      *  @internal
      */
-    const char* getLocaleID(ULocDataLocaleType type, UErrorCode &status) const;
+    U_I18N_API const char* getLocaleID(ULocDataLocaleType type, UErrorCode& status) const;
 #endif  /* U_HIDE_INTERNAL_API */
 
  protected:
     /** @stable ICU 2.8 */
-    void setLocaleIDs(const char* valid, const char* actual);
+    U_I18N_API void setLocaleIDs(const char* valid, const char* actual);
 
 protected:
     /**
      * Default constructor for subclass use only.  Does nothing.
      * @stable ICU 2.0
      */
-    Format();
+    U_I18N_API Format();
 
     /**
      * @stable ICU 2.0
      */
-    Format(const Format&); // Does nothing; for subclasses only
+    U_I18N_API Format(const Format&); // Does nothing; for subclasses only
 
     /**
      * @stable ICU 2.0
      */
-    Format& operator=(const Format&); // Does nothing; for subclasses
+    U_I18N_API Format& operator=(const Format&); // Does nothing; for subclasses
 
-       
     /**
      * Simple function for initializing a UParseError from a UnicodeString.
      *
@@ -293,13 +292,13 @@ protected:
      * @param parseError The UParseError object to fill in
      * @stable ICU 2.4
      */
-    static void syntaxError(const UnicodeString& pattern,
-                            int32_t pos,
-                            UParseError& parseError);
+    U_I18N_API static void syntaxError(const UnicodeString& pattern,
+                                       int32_t pos,
+                                       UParseError& parseError);
 
  private:
-    CharString* actualLocale = nullptr;
-    CharString* validLocale = nullptr;
+    Locale actualLocale;
+    Locale validLocale;
 };
 
 U_NAMESPACE_END

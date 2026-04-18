@@ -655,6 +655,20 @@ CollationDataBuilder::addCE32(const UnicodeString &prefix, const UnicodeString &
                     return;
                 }
             }
+            int32_t sCount = s.countChar32();
+            UChar32 sUtf32[32];
+            int32_t sLen = s.toUTF32(sUtf32, 32, errorCode);
+            if (sLen != sCount) {
+                // If this error is ever reached, just increase the buffer
+                // size above.
+                errorCode = U_UNSUPPORTED_ERROR;
+                return;
+            }
+            for (int32_t i = 1; i < sLen - 1; ++i) {
+                if (u_getCombiningClass(sUtf32[i]) == 0) {
+                    contractionMiddleStarter.add(sUtf32[i]);
+                }
+            }
         }
     }
 
@@ -697,6 +711,20 @@ CollationDataBuilder::addCE32(const UnicodeString &prefix, const UnicodeString &
         UnicodeString suffix(s, cLength);
         UnicodeString context(static_cast<char16_t>(prefix.length()));
         context.append(prefix).append(suffix);
+        if (icu4xMode && !suffix.isEmpty() && !prefix.isEmpty()) {
+            // ICU4X does not support the combination of prefix and contraction.
+            // This combination is supported by LDML but does not occur in the
+            // root or any tailorings in CLDR as of February 2025.
+            // If support for this case becomes necessary, a practical change
+            // would be allocating a flag on prefix ce32 and setting the
+            // flag on a prefix ce32 if any ce32 that can be found under
+            // the prefix ce32 (either the default or any UCharsTrie value) is
+            // a contraction ce32 or if the prefix ce32 is the utrie2 value
+            // for a character that is a starter that occurs in a middle
+            // (neither first nor last) position in a contraction.
+            errorCode = U_UNSUPPORTED_ERROR;
+            return;
+        }
         unsafeBackwardSet.addAll(suffix);
         for(;;) {
             // invariant: context > cond->context
@@ -1391,7 +1419,69 @@ CollationDataBuilder::buildMappings(CollationData &data, UErrorCode &errorCode) 
     setDigitTags(errorCode);
     setLeadSurrogates(errorCode);
 
-    if (!icu4xMode) {
+    if (icu4xMode) {
+        // Make sure that starters that occur is the middle of a
+        // contraction have contraction ce32 with the
+        // `CONTRACT_HAS_STARTER` flag set so that starters that
+        // can occur in a non-final position in a contraction can
+        // be easily recognized from having a contraction ce32
+        // that has the `CONTRACT_HAS_STARTER` flag set.
+
+        UCharsTrieBuilder contractionBuilder(errorCode);
+        // Intentionally unpaired low surrogate to make it never
+        // match well-formed UTF-16 which ICU4X feeds to the
+        // matcher.
+        UnicodeString placeholder(0xDC00);
+
+        for (UChar32 c : contractionMiddleStarter.codePoints()) {
+            uint32_t ce32 = utrie2_get32(trie, c);
+            UBool fromBase = false;
+            if(ce32 == Collation::FALLBACK_CE32) {
+                fromBase = true;
+                ce32 = base->getCE32(c);
+            }
+            if (!(Collation::hasCE32Tag(ce32, Collation::CONTRACTION_TAG) && (ce32 & Collation::CONTRACT_HAS_STARTER))) {
+                if (fromBase) {
+                    // This case does not actually happen as of February 2025.
+                    ce32 = copyFromBaseCE32(c, ce32, true, errorCode);
+                }
+                if (Collation::hasCE32Tag(ce32, Collation::CONTRACTION_TAG)) {
+                    // This middle starter is also the first character of another
+                    // contraction, but that contraction does not have the
+                    // CONTRACT_HAS_STARTER flag. Let's add the flag to
+                    // mark this at the expense of pessimizing the matching
+                    // of this contraction.
+                    // As of February 2025, this case does not actually occur
+                    // in CLDR.
+                    ce32 |= Collation::CONTRACT_HAS_STARTER;
+                } else {
+                    // This middle starter is not also the first character
+                    // in another contraction.
+
+                    // The UCharsTrie needs to contain some placeholder
+                    // because it cannot be empty. We build a trie
+                    // that never actually matches anything that ICU4X can try to
+                    // match, since ICU4X always passes well-formed UTF-16 to the
+                    // matcher and we put an unpaired low surrogate into the trie.
+                    // This pessimizes the character to CE mapping of the `c`,
+                    // since useless trie matching will be attempted but as of
+                    // February 2025, only two relatively rare characters are affected.
+                    contractionBuilder.clear();
+                    contractionBuilder.add(placeholder, static_cast<int32_t>(ce32), errorCode);
+
+                    int32_t index = addContextTrie(ce32, contractionBuilder, errorCode);
+                    if(U_FAILURE(errorCode)) { return; }
+                    if(index > Collation::MAX_INDEX) {
+                        errorCode = U_BUFFER_OVERFLOW_ERROR;
+                        return;
+                    }
+                    // Set CONTRACT_HAS_STARTER to make identical prefix matching able to catch this.
+                    ce32 = Collation::makeCE32FromTagAndIndex(Collation::CONTRACTION_TAG, index) | Collation::CONTRACT_HAS_STARTER;
+                }
+                utrie2_set32(trie, c, ce32, &errorCode);
+            }
+        }
+    } else {
         // For U+0000, move its normal ce32 into CE32s[0] and set U0000_TAG.
         ce32s.setElementAt(static_cast<int32_t>(utrie2_get32(trie, 0)), 0);
         utrie2_set32(trie, 0, Collation::makeCE32FromTagAndIndex(Collation::U0000_TAG, 0), &errorCode);

@@ -370,7 +370,7 @@
     }
     function trailingWs(string) {
         // Yes, this looks overcomplicated and dumb - why not replace the whole function with
-        //     return string match(/\s*$/)[0]
+        //     return string.match(/\s*$/)[0]
         // you ask? Because:
         // 1. the trap described at https://markamery.com/blog/quadratic-time-regexes/ would mean doing
         //    this would cause this function to take O(n²) time in the worst case (specifically when
@@ -396,27 +396,29 @@
 
     // Based on https://en.wikipedia.org/wiki/Latin_script_in_Unicode
     //
-    // Ranges and exceptions:
-    // Latin-1 Supplement, 0080–00FF
-    //  - U+00D7  × Multiplication sign
-    //  - U+00F7  ÷ Division sign
-    // Latin Extended-A, 0100–017F
-    // Latin Extended-B, 0180–024F
-    // IPA Extensions, 0250–02AF
-    // Spacing Modifier Letters, 02B0–02FF
-    //  - U+02C7  ˇ &#711;  Caron
-    //  - U+02D8  ˘ &#728;  Breve
-    //  - U+02D9  ˙ &#729;  Dot Above
-    //  - U+02DA  ˚ &#730;  Ring Above
-    //  - U+02DB  ˛ &#731;  Ogonek
-    //  - U+02DC  ˜ &#732;  Small Tilde
-    //  - U+02DD  ˝ &#733;  Double Acute Accent
-    // Latin Extended Additional, 1E00–1EFF
-    const extendedWordChars = 'a-zA-Z0-9_\\u{C0}-\\u{FF}\\u{D8}-\\u{F6}\\u{F8}-\\u{2C6}\\u{2C8}-\\u{2D7}\\u{2DE}-\\u{2FF}\\u{1E00}-\\u{1EFF}';
+    // Chars/ranges counted as "word" characters by this regex are as follows:
+    //
+    // + U+00AD  Soft hyphen
+    // + 00C0–00FF (letters with diacritics from the Latin-1 Supplement), except:
+    //   - U+00D7  × Multiplication sign
+    //   - U+00F7  ÷ Division sign
+    // + Latin Extended-A, 0100–017F
+    // + Latin Extended-B, 0180–024F
+    // + IPA Extensions, 0250–02AF
+    // + Spacing Modifier Letters, 02B0–02FF, except:
+    //   - U+02C7  ˇ &#711;  Caron
+    //   - U+02D8  ˘ &#728;  Breve
+    //   - U+02D9  ˙ &#729;  Dot Above
+    //   - U+02DA  ˚ &#730;  Ring Above
+    //   - U+02DB  ˛ &#731;  Ogonek
+    //   - U+02DC  ˜ &#732;  Small Tilde
+    //   - U+02DD  ˝ &#733;  Double Acute Accent
+    // + Latin Extended Additional, 1E00–1EFF
+    const extendedWordChars = 'a-zA-Z0-9_\\u{AD}\\u{C0}-\\u{D6}\\u{D8}-\\u{F6}\\u{F8}-\\u{2C6}\\u{2C8}-\\u{2D7}\\u{2DE}-\\u{2FF}\\u{1E00}-\\u{1EFF}';
     // Each token is one of the following:
     // - A punctuation mark plus the surrounding whitespace
     // - A word plus the surrounding whitespace
-    // - Pure whitespace (but only in the special case where this the entire text
+    // - Pure whitespace (but only in the special case where the entire text
     //   is just whitespace)
     //
     // We have to include surrounding whitespace in the tokens because the two
@@ -453,7 +455,25 @@
                 if (segmenter.resolvedOptions().granularity != 'word') {
                     throw new Error('The segmenter passed must have a granularity of "word"');
                 }
-                parts = Array.from(segmenter.segment(value), segment => segment.segment);
+                // We want `parts` to be an array whose elements alternate between being
+                // pure whitespace and being pure non-whitespace. This is ALMOST what the
+                // segments returned by a word-based Intl.Segmenter already look like,
+                // and therefore we can ALMOST get what we want by simply doing...
+                //     parts = Array.from(segmenter.segment(value), segment => segment.segment);
+                // ... but not QUITE, because there's of one annoying special case: every
+                // newline character gets its own segment, instead of sharing a segment
+                // with other surrounding whitespace. We therefore need to manually merge
+                // consecutive segments of whitespace into a single part:
+                parts = [];
+                for (const segmentObj of Array.from(segmenter.segment(value))) {
+                    const segment = segmentObj.segment;
+                    if (parts.length && (/\s/).test(parts[parts.length - 1]) && (/\s/).test(segment)) {
+                        parts[parts.length - 1] += segment;
+                    }
+                    else {
+                        parts.push(segment);
+                    }
+                }
             }
             else {
                 parts = value.match(tokenizeIncludingWhitespace) || [];
@@ -656,7 +676,7 @@
     class WordsWithSpaceDiff extends Diff {
         tokenize(value) {
             // Slightly different to the tokenizeIncludingWhitespace regex used above in
-            // that this one treats each individual newline as a distinct tokens, rather
+            // that this one treats each individual newline as a distinct token, rather
             // than merging them into other surrounding whitespace. This was requested
             // in https://github.com/kpdecker/jsdiff/issues/180 &
             //    https://github.com/kpdecker/jsdiff/issues/211
@@ -957,10 +977,27 @@
                 if ((/^(---|\+\+\+|@@)\s/).test(line)) {
                     break;
                 }
-                // Diff index
-                const header = (/^(?:Index:|diff(?: -r \w+)+)\s+(.+?)\s*$/).exec(line);
-                if (header) {
-                    index.index = header[1];
+                // Try to parse the line as a diff header, like
+                //     Index: README.md
+                // or
+                //     diff -r 9117c6561b0b -r 273ce12ad8f1 .hgignore
+                // or
+                //     Index: something with multiple words
+                // and extract the filename (or whatever else is used as an index name)
+                // from the end (i.e. 'README.md', '.hgignore', or
+                // 'something with multiple words' in the examples above).
+                //
+                // TODO: It seems awkward that we indiscriminately trim off trailing
+                //       whitespace here. Theoretically, couldn't that be meaningful -
+                //       e.g. if the patch represents a diff of a file whose name ends
+                //       with a space? Seems wrong to nuke it.
+                //       But this behaviour has been around since v2.2.1 in 2015, so if
+                //       it's going to change, it should be done cautiously and in a new
+                //       major release, for backwards-compat reasons.
+                //       -- ExplodingCabbage
+                const headerMatch = (/^(?:Index:|diff(?: -r \w+)+)\s+/).exec(line);
+                if (headerMatch) {
+                    index.index = line.substring(headerMatch[0].length).trim();
                 }
                 i++;
             }
@@ -989,14 +1026,14 @@
         // Parses the --- and +++ headers, if none are found, no lines
         // are consumed.
         function parseFileHeader(index) {
-            const fileHeader = (/^(---|\+\+\+)\s+(.*)\r?$/).exec(diffstr[i]);
-            if (fileHeader) {
-                const data = fileHeader[2].split('\t', 2), header = (data[1] || '').trim();
+            const fileHeaderMatch = (/^(---|\+\+\+)\s+/).exec(diffstr[i]);
+            if (fileHeaderMatch) {
+                const prefix = fileHeaderMatch[1], data = diffstr[i].substring(3).trim().split('\t', 2), header = (data[1] || '').trim();
                 let fileName = data[0].replace(/\\\\/g, '\\');
-                if ((/^".*"$/).test(fileName)) {
+                if (fileName.startsWith('"') && fileName.endsWith('"')) {
                     fileName = fileName.substr(1, fileName.length - 2);
                 }
-                if (fileHeader[1] === '---') {
+                if (prefix === '---') {
                     index.oldFileName = fileName;
                     index.oldHeader = header;
                 }
@@ -1386,6 +1423,21 @@
             }) });
     }
 
+    const INCLUDE_HEADERS = {
+        includeIndex: true,
+        includeUnderline: true,
+        includeFileHeaders: true
+    };
+    const FILE_HEADERS_ONLY = {
+        includeIndex: false,
+        includeUnderline: false,
+        includeFileHeaders: true
+    };
+    const OMIT_HEADERS = {
+        includeIndex: false,
+        includeUnderline: false,
+        includeFileHeaders: false
+    };
     function structuredPatch(oldFileName, newFileName, oldStr, newStr, oldHeader, newHeader, options) {
         let optionsObj;
         if (!options) {
@@ -1515,17 +1567,29 @@
      * creates a unified diff patch.
      * @param patch either a single structured patch object (as returned by `structuredPatch`) or an array of them (as returned by `parsePatch`)
      */
-    function formatPatch(patch) {
+    function formatPatch(patch, headerOptions) {
+        if (!headerOptions) {
+            headerOptions = INCLUDE_HEADERS;
+        }
         if (Array.isArray(patch)) {
-            return patch.map(formatPatch).join('\n');
+            if (patch.length > 1 && !headerOptions.includeFileHeaders) {
+                throw new Error('Cannot omit file headers on a multi-file patch. '
+                    + '(The result would be unparseable; how would a tool trying to apply '
+                    + 'the patch know which changes are to which file?)');
+            }
+            return patch.map(p => formatPatch(p, headerOptions)).join('\n');
         }
         const ret = [];
-        if (patch.oldFileName == patch.newFileName) {
+        if (headerOptions.includeIndex && patch.oldFileName == patch.newFileName) {
             ret.push('Index: ' + patch.oldFileName);
         }
-        ret.push('===================================================================');
-        ret.push('--- ' + patch.oldFileName + (typeof patch.oldHeader === 'undefined' ? '' : '\t' + patch.oldHeader));
-        ret.push('+++ ' + patch.newFileName + (typeof patch.newHeader === 'undefined' ? '' : '\t' + patch.newHeader));
+        if (headerOptions.includeUnderline) {
+            ret.push('===================================================================');
+        }
+        if (headerOptions.includeFileHeaders) {
+            ret.push('--- ' + patch.oldFileName + (typeof patch.oldHeader === 'undefined' ? '' : '\t' + patch.oldHeader));
+            ret.push('+++ ' + patch.newFileName + (typeof patch.newHeader === 'undefined' ? '' : '\t' + patch.newHeader));
+        }
         for (let i = 0; i < patch.hunks.length; i++) {
             const hunk = patch.hunks[i];
             // Unified Diff Format quirk: If the chunk size is 0,
@@ -1555,7 +1619,7 @@
             if (!patchObj) {
                 return;
             }
-            return formatPatch(patchObj);
+            return formatPatch(patchObj, options === null || options === void 0 ? void 0 : options.headerOptions);
         }
         else {
             const { callback } = options;
@@ -1564,7 +1628,7 @@
                         callback(undefined);
                     }
                     else {
-                        callback(formatPatch(patchObj));
+                        callback(formatPatch(patchObj, options.headerOptions));
                     }
                 } }));
         }
@@ -1642,6 +1706,9 @@
     }
 
     exports.Diff = Diff;
+    exports.FILE_HEADERS_ONLY = FILE_HEADERS_ONLY;
+    exports.INCLUDE_HEADERS = INCLUDE_HEADERS;
+    exports.OMIT_HEADERS = OMIT_HEADERS;
     exports.applyPatch = applyPatch;
     exports.applyPatches = applyPatches;
     exports.arrayDiff = arrayDiff;

@@ -22,6 +22,7 @@
 
 #include "internal/o_dir.h"
 
+/* clang-format off */
 #define LPDIR_H
 #if defined OPENSSL_SYS_UNIX || defined DJGPP \
     || (defined __VMS_VER && __VMS_VER >= 70000000)
@@ -35,3 +36,4 @@
 #else
 # include "LPdir_nyi.c"
 #endif
+/* clang-format on */

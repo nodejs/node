@@ -5,7 +5,7 @@ const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
   n: [1e5],
-  modifyPrototype: [1, 0],
+  modifyPrototype: [true, false],
   emitWarningSync: [1, 0],
 }, {
   flags: ['--expose-internals'],
@@ -23,7 +23,7 @@ function main({ n, modifyPrototype, emitWarningSync }) {
     'This function is deprecated',
     'DEP0000',
     emitWarningSync,
-    !!modifyPrototype,
+    modifyPrototype,
   );
 
   let sum = 0;

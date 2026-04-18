@@ -5,6 +5,8 @@
 
 typedef napi_value(NAPI_CDECL* napi_addon_register_func)(napi_env env,
                                                          napi_value exports);
+// False positive: https://github.com/cpplint/cpplint/issues/409
+// NOLINTNEXTLINE (readability/casting)
 typedef int32_t(NAPI_CDECL* node_api_addon_get_api_version_func)(void);
 
 typedef struct napi_callback_scope__* napi_callback_scope;

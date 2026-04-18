@@ -49,7 +49,7 @@ static void PrintSourceLocation(const v8::SourceLocation& location) {
 }
 
 static void PlatformWorkerThread(void* data) {
-  uv_thread_setname("V8Worker");
+  uv_thread_setname("node-V8Worker");
   std::unique_ptr<PlatformWorkerData>
       worker_data(static_cast<PlatformWorkerData*>(data));
 

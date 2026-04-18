@@ -91,6 +91,35 @@ API
 
     .. versionchanged:: 1.49.0 If `delay` is less than 1 then ``UV_EINVAL``` is returned.
 
+.. c:function:: int uv_tcp_keepalive_ex(uv_tcp_t* handle, int on, unsigned int idle, unsigned int intvl, unsigned int cnt)
+
+    Enable / disable TCP keep-alive with all socket options: `TCP_KEEPIDLE`, `TCP_KEEPINTVL` and `TCP_KEEPCNT`.
+    `idle` is the value for `TCP_KEEPIDLE`, `intvl` is the value for `TCP_KEEPINTVL`,
+    `cnt` is the value for `TCP_KEEPCNT`, ignored when `on` is zero.
+
+    With TCP keep-alive enabled, `idle` is the time (in seconds) the connection needs to remain idle before
+    TCP starts sending keep-alive probes. `intvl` is the time (in seconds) between individual keep-alive probes.
+    TCP will drop the connection after sending `cnt` probes without getting any replies from the peer, then the
+    handle is destroyed with a ``UV_ETIMEDOUT`` error passed to the corresponding callback.
+
+    If one of `idle`, `intvl`, or `cnt` is less than 1, ``UV_EINVAL`` is returned.
+
+    .. versionchanged:: 1.52.0 added support of setting `TCP_KEEPINTVL` and `TCP_KEEPCNT` socket options.
+
+    .. note::
+        Ensure that the socket options are supported by the underlying operating system.
+        Currently supported platforms:
+          - AIX
+          - DragonFlyBSD
+          - FreeBSD
+          - HP-UX
+          - illumos
+          - Linux
+          - macOS
+          - NetBSD
+          - Solaris
+          - Windows
+
 .. c:function:: int uv_tcp_simultaneous_accepts(uv_tcp_t* handle, int enable)
 
     Enable / disable simultaneous asynchronous accept requests that are

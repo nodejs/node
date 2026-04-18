@@ -3,7 +3,7 @@
 
 const common = require('../common');
 const { isMainThread } = require('worker_threads');
-const { strictEqual } = require('assert');
+const assert = require('assert');
 
 if (!isMainThread) {
   common.skip('This test only works on a main thread');
@@ -19,4 +19,4 @@ const fixtures = require('../common/fixtures');
 const blockedFile = fixtures.path('permission', 'deny', 'protected-file.md');
 const internalFsBinding = internalBinding('fs');
 
-strictEqual(internalFsBinding.internalModuleStat(blockedFile), 0);
+assert.strictEqual(internalFsBinding.internalModuleStat(blockedFile), 0);

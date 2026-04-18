@@ -3,18 +3,16 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const assert = require('assert');
 const { createDecipheriv, randomBytes } = require('crypto');
-
-common.expectWarning({
-  DeprecationWarning: [
-    ['Using AES-GCM authentication tags of less than 128 bits without ' +
-     'specifying the authTagLength option when initializing decryption is ' +
-     'deprecated.',
-     'DEP0182'],
-  ]
-});
 
 const key = randomBytes(32);
 const iv = randomBytes(16);
-const tag = randomBytes(12);
-createDecipheriv('aes-256-gcm', key, iv).setAuthTag(tag);
+for (let tagLength = 0; tagLength < 16; tagLength++) {
+  const tag = randomBytes(tagLength);
+  assert.throws(() => {
+    createDecipheriv('aes-256-gcm', key, iv).setAuthTag(tag);
+  }, {
+    message: `Invalid authentication tag length: ${tagLength}`,
+  });
+}

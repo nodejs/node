@@ -19,13 +19,13 @@
 
 static int newpass_p12(PKCS12 *p12, const char *oldpass, const char *newpass);
 static int newpass_bags(STACK_OF(PKCS12_SAFEBAG) *bags, const char *oldpass,
-                        const char *newpass,
-                        OSSL_LIB_CTX *libctx, const char *propq);
+    const char *newpass,
+    OSSL_LIB_CTX *libctx, const char *propq);
 static int newpass_bag(PKCS12_SAFEBAG *bag, const char *oldpass,
-                        const char *newpass,
-                        OSSL_LIB_CTX *libctx, const char *propq);
+    const char *newpass,
+    OSSL_LIB_CTX *libctx, const char *propq);
 static int alg_get(const X509_ALGOR *alg, int *pnid, int *piter,
-                   int *psaltlen, int *cipherid);
+    int *psaltlen, int *cipherid);
 
 /*
  * Change the password on a PKCS#12 structure.
@@ -81,8 +81,8 @@ static int newpass_p12(PKCS12 *p12, const char *oldpass, const char *newpass)
         } else if (bagnid == NID_pkcs7_encrypted) {
             bags = PKCS12_unpack_p7encdata(p7, oldpass, -1);
             if (p7->d.encrypted == NULL
-                    || !alg_get(p7->d.encrypted->enc_data->algorithm,
-                                &pbe_nid, &pbe_iter, &pbe_saltlen, &cipherid))
+                || !alg_get(p7->d.encrypted->enc_data->algorithm,
+                    &pbe_nid, &pbe_iter, &pbe_saltlen, &cipherid))
                 goto err;
         } else {
             continue;
@@ -90,15 +90,15 @@ static int newpass_p12(PKCS12 *p12, const char *oldpass, const char *newpass)
         if (bags == NULL)
             goto err;
         if (!newpass_bags(bags, oldpass, newpass,
-                          p7->ctx.libctx, p7->ctx.propq))
+                p7->ctx.libctx, p7->ctx.propq))
             goto err;
         /* Repack bag in same form with new password */
         if (bagnid == NID_pkcs7_data)
             p7new = PKCS12_pack_p7data(bags);
         else
             p7new = PKCS12_pack_p7encdata_ex(pbe_nid, newpass, -1, NULL,
-                                             pbe_saltlen, pbe_iter, bags,
-                                             p7->ctx.libctx, p7->ctx.propq);
+                pbe_saltlen, pbe_iter, bags,
+                p7->ctx.libctx, p7->ctx.propq);
         if (p7new == NULL || !sk_PKCS7_push(newsafes, p7new))
             goto err;
         sk_PKCS12_SAFEBAG_pop_free(bags, PKCS12_SAFEBAG_free);
@@ -138,13 +138,13 @@ err:
 }
 
 static int newpass_bags(STACK_OF(PKCS12_SAFEBAG) *bags, const char *oldpass,
-                        const char *newpass,
-                        OSSL_LIB_CTX *libctx, const char *propq)
+    const char *newpass,
+    OSSL_LIB_CTX *libctx, const char *propq)
 {
     int i;
     for (i = 0; i < sk_PKCS12_SAFEBAG_num(bags); i++) {
         if (!newpass_bag(sk_PKCS12_SAFEBAG_value(bags, i), oldpass, newpass,
-                         libctx, propq))
+                libctx, propq))
             return 0;
     }
     return 1;
@@ -153,8 +153,8 @@ static int newpass_bags(STACK_OF(PKCS12_SAFEBAG) *bags, const char *oldpass,
 /* Change password of safebag: only needs handle shrouded keybags */
 
 static int newpass_bag(PKCS12_SAFEBAG *bag, const char *oldpass,
-                       const char *newpass,
-                       OSSL_LIB_CTX *libctx, const char *propq)
+    const char *newpass,
+    OSSL_LIB_CTX *libctx, const char *propq)
 {
     EVP_CIPHER *cipher = NULL;
     PKCS8_PRIV_KEY_INFO *p8;
@@ -166,7 +166,8 @@ static int newpass_bag(PKCS12_SAFEBAG *bag, const char *oldpass,
         return 1;
 
     if ((p8 = PKCS8_decrypt_ex(bag->value.shkeybag, oldpass, -1,
-                               libctx, propq)) == NULL)
+             libctx, propq))
+        == NULL)
         return 0;
     X509_SIG_get0(bag->value.shkeybag, &shalg, NULL);
     if (!alg_get(shalg, &p8_nid, &p8_iter, &p8_saltlen, &cipherid)) {
@@ -181,7 +182,7 @@ static int newpass_bag(PKCS12_SAFEBAG *bag, const char *oldpass,
         }
     }
     p8new = PKCS8_encrypt_ex(p8_nid, cipher, newpass, -1, NULL, p8_saltlen,
-                             p8_iter, p8, libctx, propq);
+        p8_iter, p8, libctx, propq);
     PKCS8_PRIV_KEY_INFO_free(p8);
     EVP_CIPHER_free(cipher);
     if (p8new == NULL)
@@ -192,7 +193,7 @@ static int newpass_bag(PKCS12_SAFEBAG *bag, const char *oldpass,
 }
 
 static int alg_get(const X509_ALGOR *alg, int *pnid, int *piter,
-                   int *psaltlen, int *cipherid)
+    int *psaltlen, int *cipherid)
 {
     int ret = 0, pbenid, aparamtype;
     int encnid, prfnid;

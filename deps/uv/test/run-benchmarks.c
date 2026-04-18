@@ -31,7 +31,7 @@
 #ifdef __MVS__
 #include "zos-base.h"
 /* Initialize environment and zoslib */
-__attribute__((constructor)) void init() {
+__attribute__((constructor)) void init(void) {
   zoslib_config_t config;
   init_zoslib_config(&config);
   init_zoslib(config);

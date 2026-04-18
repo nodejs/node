@@ -119,7 +119,7 @@ TEST_IMPL(getaddrinfo_fail_sync) {
   uv_getaddrinfo_t req;
 
   /* Use a FQDN by ending in a period */
-  ASSERT_GT(0, uv_getaddrinfo(uv_default_loop(),
+  ASSERT_GT(0, uv_getaddrinfo(NULL,
                               &req,
                               NULL,
                               "example.invalid.",
@@ -165,15 +165,13 @@ TEST_IMPL(getaddrinfo_basic_sync) {
 #endif
   uv_getaddrinfo_t req;
 
-  ASSERT_OK(uv_getaddrinfo(uv_default_loop(),
+  ASSERT_OK(uv_getaddrinfo(NULL,
                            &req,
                            NULL,
                            name,
                            NULL,
                            NULL));
   uv_freeaddrinfo(req.addrinfo);
-
-  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 

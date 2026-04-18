@@ -16,9 +16,9 @@ void ENGINE_load_builtin_engines(void)
 }
 
 #ifndef OPENSSL_NO_DEPRECATED_1_1_0
-# if (defined(__OpenBSD__) || defined(__FreeBSD__) || defined(__DragonFly__))
+#if (defined(__OpenBSD__) || defined(__FreeBSD__) || defined(__DragonFly__))
 void ENGINE_setup_bsd_cryptodev(void)
 {
 }
-# endif
+#endif
 #endif

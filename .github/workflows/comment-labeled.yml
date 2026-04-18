@@ -24,7 +24,7 @@ jobs:
       issues: write
       pull-requests: write
     if: github.repository == 'nodejs/node' && github.event.label.name == 'stalled'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - name: Post stalled comment
         env:
@@ -36,7 +36,7 @@ jobs:
     permissions:
       pull-requests: write
     if: github.repository == 'nodejs/node' && github.event_name == 'pull_request_target' && github.event.label.name == 'fast-track'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - name: Request Fast-Track
         env:
@@ -47,7 +47,7 @@ jobs:
     permissions:
       pull-requests: write
     if: github.repository == 'nodejs/node' && github.event_name == 'pull_request_target' && github.event.label.name == 'notable-change'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - name: Add notable change description
         env:

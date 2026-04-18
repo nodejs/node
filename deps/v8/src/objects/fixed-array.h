@@ -445,7 +445,8 @@ class PrimitiveArrayBase : public detail::ArrayHeaderBase<Super, true> {
   static Handle<Derived> Allocate(
       IsolateT* isolate, int length,
       std::optional<DisallowGarbageCollection>* no_gc_out,
-      AllocationType allocation = AllocationType::kYoung);
+      AllocationType allocation = AllocationType::kYoung,
+      AllocationAlignment alignment = kTaggedAligned);
 
   inline bool IsInBounds(int index) const;
 
@@ -782,7 +783,8 @@ V8_OBJECT class ByteArray
   template <class IsolateT>
   static inline Handle<ByteArray> New(
       IsolateT* isolate, int capacity,
-      AllocationType allocation = AllocationType::kYoung);
+      AllocationType allocation = AllocationType::kYoung,
+      AllocationAlignment alignment = kTaggedAligned);
 
   inline uint32_t get_int(int offset) const;
   inline void set_int(int offset, uint32_t value);

@@ -224,37 +224,4 @@ function define_tests(algorithmName) {
              .then(function(results) {return {privateKeys: privateKeys, publicKeys: publicKeys, noDeriveBitsKeys: noDeriveBitsKeys, ecdhKeys: ecdhPublicKeys}});
   }
 
-  // Compares two ArrayBuffer or ArrayBufferView objects. If bitCount is
-  // omitted, the two values must be the same length and have the same contents
-  // in every byte. If bitCount is included, only that leading number of bits
-  // have to match.
-  function equalBuffers(a, b, bitCount) {
-      var remainder;
-
-      if (typeof bitCount === "undefined" && a.byteLength !== b.byteLength) {
-          return false;
-      }
-
-      var aBytes = new Uint8Array(a);
-      var bBytes = new Uint8Array(b);
-
-      var length = a.byteLength;
-      if (typeof bitCount !== "undefined") {
-          length = Math.floor(bitCount / 8);
-      }
-
-      for (var i=0; i<length; i++) {
-          if (aBytes[i] !== bBytes[i]) {
-              return false;
-          }
-      }
-
-      if (typeof bitCount !== "undefined") {
-          remainder = bitCount % 8;
-          return aBytes[length] >> (8 - remainder) === bBytes[length] >> (8 - remainder);
-      }
-
-      return true;
-  }
-
 }

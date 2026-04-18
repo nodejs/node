@@ -4,6 +4,12 @@ const mockNpm = require('../../fixtures/mock-npm')
 const { join } = require('node:path')
 const { cleanNewlines } = require('../../fixtures/clean-snapshot')
 
+t.test('completion', async t => {
+  const { set } = await mockNpm(t, { command: 'set' })
+  const res = await set.completion({ conf: { argv: { remain: ['npm', 'set'] } } })
+  t.type(res, Array)
+})
+
 t.test('no args', async t => {
   const { npm } = await mockNpm(t)
   t.rejects(npm.exec('set', []), /Usage:/, 'prints usage')

@@ -281,6 +281,17 @@ t.test('eotp/e401', async t => {
     t.end()
   })
 
+  t.test('one-time pass webauth challenge', t => {
+    t.matchSnapshot(errorMessage(Object.assign(new Error('nope'), {
+      code: 'EOTP',
+      body: {
+        authUrl: 'https://registry.npmjs.org/-/auth/login/abc123',
+        doneUrl: 'https://registry.npmjs.org/-/auth/done/abc123',
+      },
+    })))
+    t.end()
+  })
+
   t.test('www-authenticate challenges', t => {
     const auths = [
       'Bearer realm=do, charset="UTF-8", challenge="yourself"',

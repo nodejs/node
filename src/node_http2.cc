@@ -251,7 +251,7 @@ size_t Http2Settings::Init(
     for (uint32_t i = 0; i < numAddSettings; i++) {
       uint32_t key = buffer[offset + i * 2 + 0];
       uint32_t val = buffer[offset + i * 2 + 1];
-      entries[count++] = nghttp2_settings_entry{(int32_t)key, val};
+      entries[count++] = nghttp2_settings_entry{static_cast<int32_t>(key), val};
     }
   }
 
@@ -331,8 +331,8 @@ void Http2Settings::Update(Http2Session* session, get_setting fn, bool local) {
   for (size_t i = 0; i < imax; i++) {
     // We flag unset the settings with a bit above the allowed range
     if (!(custom_settings.entries[i].settings_id & (~0xffff))) {
-      uint32_t settings_id =
-          (uint32_t)(custom_settings.entries[i].settings_id & 0xffff);
+      uint32_t settings_id = static_cast<uint32_t>(
+          custom_settings.entries[i].settings_id & 0xffff);
       size_t j = 0;
       while (j < count) {
         if ((buffer[IDX_SETTINGS_COUNT + 1 + j * 2 + 1] & 0xffff) ==
@@ -647,7 +647,7 @@ void Http2Session::FetchAllowedRemoteCustomSettings() {
           (buffer[offset + i * 2 + 0] & 0xffff) |
           (1
            << 16);  // setting the bit 16 indicates, that no values has been set
-      entries[count++] = nghttp2_settings_entry{(int32_t)key, 0};
+      entries[count++] = nghttp2_settings_entry{static_cast<int32_t>(key), 0};
     }
     remote_custom_settings_.number = count;
   }
@@ -1154,8 +1154,14 @@ int Http2Session::OnInvalidFrame(nghttp2_session* handle,
   // The GOAWAY frame includes an error code that indicates the type of error"
   // The GOAWAY frame is already sent by nghttp2. We emit the error
   // to liberate the Http2Session to destroy.
+  //
+  // ERR_FLOW_CONTROL: A WINDOW_UPDATE on stream 0 pushed the connection-level
+  // flow control window past 2^31-1. nghttp2 sends GOAWAY internally but
+  // without propagating this error the Http2Session would never be destroyed,
+  // causing a memory leak.
   if (nghttp2_is_fatal(lib_error_code) ||
       lib_error_code == NGHTTP2_ERR_STREAM_CLOSED ||
+      lib_error_code == NGHTTP2_ERR_FLOW_CONTROL ||
       lib_error_code == NGHTTP2_ERR_PROTO) {
     Environment* env = session->env();
     Isolate* isolate = env->isolate();
@@ -3476,7 +3482,7 @@ void Initialize(Local<Object> target,
   Local<FunctionTemplate> setting = FunctionTemplate::New(env->isolate());
   setting->Inherit(AsyncWrap::GetConstructorTemplate(env));
   Local<ObjectTemplate> settingt = setting->InstanceTemplate();
-  settingt->SetInternalFieldCount(AsyncWrap::kInternalFieldCount);
+  settingt->SetInternalFieldCount(Http2Settings::kInternalFieldCount);
   env->set_http2settings_constructor_template(settingt);
 
   Local<FunctionTemplate> stream = FunctionTemplate::New(env->isolate());
@@ -3492,7 +3498,7 @@ void Initialize(Local<Object> target,
   stream->Inherit(AsyncWrap::GetConstructorTemplate(env));
   StreamBase::AddMethods(env, stream);
   Local<ObjectTemplate> streamt = stream->InstanceTemplate();
-  streamt->SetInternalFieldCount(StreamBase::kInternalFieldCount);
+  streamt->SetInternalFieldCount(Http2Stream::kInternalFieldCount);
   env->set_http2stream_constructor_template(streamt);
   SetConstructorFunction(context, target, "Http2Stream", stream);
 

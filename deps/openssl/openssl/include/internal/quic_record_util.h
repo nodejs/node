@@ -8,12 +8,12 @@
  */
 
 #ifndef OSSL_QUIC_RECORD_UTIL_H
-# define OSSL_QUIC_RECORD_UTIL_H
+#define OSSL_QUIC_RECORD_UTIL_H
 
-# include <openssl/ssl.h>
-# include "internal/quic_types.h"
+#include <openssl/ssl.h>
+#include "internal/quic_types.h"
 
-# ifndef OPENSSL_NO_QUIC
+#ifndef OPENSSL_NO_QUIC
 
 struct ossl_qrx_st;
 struct ossl_qtx_st;
@@ -25,11 +25,11 @@ struct ossl_qtx_st;
 
 /* HKDF-Extract(salt, IKM) (RFC 5869) */
 int ossl_quic_hkdf_extract(OSSL_LIB_CTX *libctx,
-                           const char *propq,
-                           const EVP_MD *md,
-                           const unsigned char *salt, size_t salt_len,
-                           const unsigned char *ikm, size_t ikm_len,
-                           unsigned char *out, size_t out_len);
+    const char *propq,
+    const EVP_MD *md,
+    const unsigned char *salt, size_t salt_len,
+    const unsigned char *ikm, size_t ikm_len,
+    unsigned char *out, size_t out_len);
 
 /*
  * A QUIC client sends its first INITIAL packet with a random DCID, which
@@ -59,11 +59,11 @@ int ossl_quic_hkdf_extract(OSSL_LIB_CTX *libctx,
  * Returns 1 on success or 0 on error.
  */
 int ossl_quic_provide_initial_secret(OSSL_LIB_CTX *libctx,
-                                     const char *propq,
-                                     const QUIC_CONN_ID *dst_conn_id,
-                                     int is_server,
-                                     struct ossl_qrx_st *qrx,
-                                     struct ossl_qtx_st *qtx);
+    const char *propq,
+    const QUIC_CONN_ID *dst_conn_id,
+    int is_server,
+    struct ossl_qrx_st *qrx,
+    struct ossl_qtx_st *qtx);
 
 /*
  * QUIC Record Layer Ciphersuite Info
@@ -71,9 +71,9 @@ int ossl_quic_provide_initial_secret(OSSL_LIB_CTX *libctx,
  */
 
 /* Available QUIC Record Layer (QRL) ciphersuites. */
-# define QRL_SUITE_AES128GCM            1 /* SHA256 */
-# define QRL_SUITE_AES256GCM            2 /* SHA384 */
-# define QRL_SUITE_CHACHA20POLY1305     3 /* SHA256 */
+#define QRL_SUITE_AES128GCM 1 /* SHA256 */
+#define QRL_SUITE_AES256GCM 2 /* SHA384 */
+#define QRL_SUITE_CHACHA20POLY1305 3 /* SHA256 */
 
 /* Returns cipher name in bytes or NULL if suite ID is invalid. */
 const char *ossl_qrl_get_suite_cipher_name(uint32_t suite_id);
@@ -111,6 +111,6 @@ uint64_t ossl_qrl_get_suite_max_pkt(uint32_t suite_id);
  */
 uint64_t ossl_qrl_get_suite_max_forged_pkt(uint32_t suite_id);
 
-# endif
+#endif
 
 #endif

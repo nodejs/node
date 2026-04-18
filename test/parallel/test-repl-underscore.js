@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const repl = require('repl');
 const { startNewREPLServer } = require('../common/repl');
@@ -9,7 +9,6 @@ const testingReplPrompt = '_REPL_TESTING_PROMPT_>';
 
 testSloppyMode();
 testStrictMode();
-testMagicMode();
 testResetContext();
 testResetContextGlobal();
 testError();
@@ -86,46 +85,9 @@ function testStrictMode() {
   ]);
 }
 
-function testMagicMode() {
-  const { replServer, output } = startNewREPLServer({
-    prompt: testingReplPrompt,
-    mode: repl.REPL_MODE_MAGIC,
-  });
-
-  replServer.write(`_;          // initial value undefined
-          x = 10;      //
-          _;           // last eval - 10
-          let _ = 20;  // undefined
-          _;           // 20 from user input
-          _ = 30;      // make sure we can set it twice and no prompt
-          _;           // 30 from user input
-          var y = 40;  // make sure eval doesn't change _
-          _;           // remains 30 from user input
-          function f() { let _ = 50; return _; } // undefined
-          f();         // 50
-          _;           // remains 30 from user input
-          `);
-
-  assertOutput(output, [
-    'undefined',
-    '10',
-    '10',
-    'undefined',
-    '20',
-    '30',
-    '30',
-    'undefined',
-    '30',
-    'undefined',
-    '50',
-    '30',
-  ]);
-}
-
 function testResetContext() {
   const { replServer, output } = startNewREPLServer({
     prompt: testingReplPrompt,
-    mode: repl.REPL_MODE_MAGIC,
   });
 
   replServer.write(`_ = 10;     // explicitly set to 10
@@ -176,8 +138,6 @@ function testError() {
     prompt: testingReplPrompt,
     replMode: repl.REPL_MODE_STRICT,
     preview: false,
-  }, {
-    disableDomainErrorAssert: true
   });
 
   replServer.write(`_error;                                // initial value undefined
@@ -190,7 +150,7 @@ function testError() {
                                                   // throws error, async
            `);
 
-  setImmediate(() => {
+  setImmediate(common.mustCall(() => {
     const lines = output.accumulator.trim().split('\n').filter(
       (line) => !line.includes(testingReplPrompt) || line.includes('Uncaught Error')
     );
@@ -243,7 +203,7 @@ function testError() {
       'Uncaught Error: quux',
       '0',
     ]);
-  });
+  }));
 }
 
 function assertOutput(output, expected) {

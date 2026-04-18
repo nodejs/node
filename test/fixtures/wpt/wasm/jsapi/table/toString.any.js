@@ -1,4 +1,4 @@
-// META: global=window,dedicatedworker,jsshell
+// META: global=window,dedicatedworker,jsshell,shadowrealm
 
 test(() => {
   const argument = { "element": "anyfunc", "initial": 0 };

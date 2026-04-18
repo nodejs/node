@@ -39,7 +39,7 @@
 void ngtcp2_window_filter_init(ngtcp2_window_filter *wf,
                                uint64_t window_length) {
   wf->window_length = window_length;
-  memset(wf->estimates, 0xff, sizeof(wf->estimates));
+  memset(wf->estimates, 0xFF, sizeof(wf->estimates));
 }
 
 void ngtcp2_window_filter_update(ngtcp2_window_filter *wf, uint64_t new_sample,

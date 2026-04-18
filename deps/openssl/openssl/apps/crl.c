@@ -20,58 +20,81 @@
 
 typedef enum OPTION_choice {
     OPT_COMMON,
-    OPT_INFORM, OPT_IN, OPT_OUTFORM, OPT_OUT, OPT_KEYFORM, OPT_KEY,
-    OPT_ISSUER, OPT_LASTUPDATE, OPT_NEXTUPDATE, OPT_FINGERPRINT,
-    OPT_CRLNUMBER, OPT_BADSIG, OPT_GENDELTA, OPT_CAPATH, OPT_CAFILE, OPT_CASTORE,
-    OPT_NOCAPATH, OPT_NOCAFILE, OPT_NOCASTORE, OPT_VERIFY, OPT_DATEOPT, OPT_TEXT, OPT_HASH,
-    OPT_HASH_OLD, OPT_NOOUT, OPT_NAMEOPT, OPT_MD, OPT_PROV_ENUM
+    OPT_INFORM,
+    OPT_IN,
+    OPT_OUTFORM,
+    OPT_OUT,
+    OPT_KEYFORM,
+    OPT_KEY,
+    OPT_ISSUER,
+    OPT_LASTUPDATE,
+    OPT_NEXTUPDATE,
+    OPT_FINGERPRINT,
+    OPT_CRLNUMBER,
+    OPT_BADSIG,
+    OPT_GENDELTA,
+    OPT_CAPATH,
+    OPT_CAFILE,
+    OPT_CASTORE,
+    OPT_NOCAPATH,
+    OPT_NOCAFILE,
+    OPT_NOCASTORE,
+    OPT_VERIFY,
+    OPT_DATEOPT,
+    OPT_TEXT,
+    OPT_HASH,
+    OPT_HASH_OLD,
+    OPT_NOOUT,
+    OPT_NAMEOPT,
+    OPT_MD,
+    OPT_PROV_ENUM
 } OPTION_CHOICE;
 
 const OPTIONS crl_options[] = {
     OPT_SECTION("General"),
-    {"help", OPT_HELP, '-', "Display this summary"},
-    {"verify", OPT_VERIFY, '-', "Verify CRL signature"},
+    { "help", OPT_HELP, '-', "Display this summary" },
+    { "verify", OPT_VERIFY, '-', "Verify CRL signature" },
 
     OPT_SECTION("Input"),
-    {"in", OPT_IN, '<', "Input file - default stdin"},
-    {"inform", OPT_INFORM, 'F', "CRL input format (DER or PEM); has no effect"},
-    {"key", OPT_KEY, '<', "CRL signing Private key to use"},
-    {"keyform", OPT_KEYFORM, 'F', "Private key file format (DER/PEM/P12); has no effect"},
+    { "in", OPT_IN, '<', "Input file - default stdin" },
+    { "inform", OPT_INFORM, 'F', "CRL input format (DER or PEM); has no effect" },
+    { "key", OPT_KEY, '<', "CRL signing Private key to use" },
+    { "keyform", OPT_KEYFORM, 'F', "Private key file format (DER/PEM/P12); has no effect" },
 
     OPT_SECTION("Output"),
-    {"out", OPT_OUT, '>', "output file - default stdout"},
-    {"outform", OPT_OUTFORM, 'F', "Output format - default PEM"},
-    {"dateopt", OPT_DATEOPT, 's', "Datetime format used for printing. (rfc_822/iso_8601). Default is rfc_822."},
-    {"text", OPT_TEXT, '-', "Print out a text format version"},
-    {"hash", OPT_HASH, '-', "Print hash value"},
+    { "out", OPT_OUT, '>', "output file - default stdout" },
+    { "outform", OPT_OUTFORM, 'F', "Output format - default PEM" },
+    { "dateopt", OPT_DATEOPT, 's', "Datetime format used for printing. (rfc_822/iso_8601). Default is rfc_822." },
+    { "text", OPT_TEXT, '-', "Print out a text format version" },
+    { "hash", OPT_HASH, '-', "Print hash value" },
 #ifndef OPENSSL_NO_MD5
-    {"hash_old", OPT_HASH_OLD, '-', "Print old-style (MD5) hash value"},
+    { "hash_old", OPT_HASH_OLD, '-', "Print old-style (MD5) hash value" },
 #endif
-    {"nameopt", OPT_NAMEOPT, 's', "Certificate subject/issuer name printing options"},
-    {"", OPT_MD, '-', "Any supported digest"},
+    { "nameopt", OPT_NAMEOPT, 's', "Certificate subject/issuer name printing options" },
+    { "", OPT_MD, '-', "Any supported digest" },
 
     OPT_SECTION("CRL"),
-    {"issuer", OPT_ISSUER, '-', "Print issuer DN"},
-    {"lastupdate", OPT_LASTUPDATE, '-', "Set lastUpdate field"},
-    {"nextupdate", OPT_NEXTUPDATE, '-', "Set nextUpdate field"},
-    {"noout", OPT_NOOUT, '-', "No CRL output"},
-    {"fingerprint", OPT_FINGERPRINT, '-', "Print the crl fingerprint"},
-    {"crlnumber", OPT_CRLNUMBER, '-', "Print CRL number"},
-    {"badsig", OPT_BADSIG, '-', "Corrupt last byte of loaded CRL signature (for test)" },
-    {"gendelta", OPT_GENDELTA, '<', "Other CRL to compare/diff to the Input one"},
+    { "issuer", OPT_ISSUER, '-', "Print issuer DN" },
+    { "lastupdate", OPT_LASTUPDATE, '-', "Set lastUpdate field" },
+    { "nextupdate", OPT_NEXTUPDATE, '-', "Set nextUpdate field" },
+    { "noout", OPT_NOOUT, '-', "No CRL output" },
+    { "fingerprint", OPT_FINGERPRINT, '-', "Print the crl fingerprint" },
+    { "crlnumber", OPT_CRLNUMBER, '-', "Print CRL number" },
+    { "badsig", OPT_BADSIG, '-', "Corrupt last byte of loaded CRL signature (for test)" },
+    { "gendelta", OPT_GENDELTA, '<', "Other CRL to compare/diff to the Input one" },
 
     OPT_SECTION("Certificate"),
-    {"CApath", OPT_CAPATH, '/', "Verify CRL using certificates in dir"},
-    {"CAfile", OPT_CAFILE, '<', "Verify CRL using certificates in file name"},
-    {"CAstore", OPT_CASTORE, ':', "Verify CRL using certificates in store URI"},
-    {"no-CAfile", OPT_NOCAFILE, '-',
-     "Do not load the default certificates file"},
-    {"no-CApath", OPT_NOCAPATH, '-',
-     "Do not load certificates from the default certificates directory"},
-    {"no-CAstore", OPT_NOCASTORE, '-',
-     "Do not load certificates from the default certificates store"},
+    { "CApath", OPT_CAPATH, '/', "Verify CRL using certificates in dir" },
+    { "CAfile", OPT_CAFILE, '<', "Verify CRL using certificates in file name" },
+    { "CAstore", OPT_CASTORE, ':', "Verify CRL using certificates in store URI" },
+    { "no-CAfile", OPT_NOCAFILE, '-',
+        "Do not load the default certificates file" },
+    { "no-CApath", OPT_NOCAPATH, '-',
+        "Do not load certificates from the default certificates directory" },
+    { "no-CAstore", OPT_NOCASTORE, '-',
+        "Do not load certificates from the default certificates store" },
     OPT_PROV_OPTIONS,
-    {NULL}
+    { NULL }
 };
 
 int crl_main(int argc, char **argv)
@@ -104,7 +127,7 @@ int crl_main(int argc, char **argv)
         switch (o) {
         case OPT_EOF:
         case OPT_ERR:
- opthelp:
+        opthelp:
             BIO_printf(bio_err, "%s: Use -help for summary.\n", prog);
             goto end;
         case OPT_HELP:
@@ -148,13 +171,13 @@ int crl_main(int argc, char **argv)
             do_ver = 1;
             break;
         case OPT_NOCAPATH:
-            noCApath =  1;
+            noCApath = 1;
             break;
         case OPT_NOCAFILE:
-            noCAfile =  1;
+            noCAfile = 1;
             break;
         case OPT_NOCASTORE:
-            noCAstore =  1;
+            noCAstore = 1;
             break;
         case OPT_HASH_OLD:
 #ifndef OPENSSL_NO_MD5
@@ -221,7 +244,8 @@ int crl_main(int argc, char **argv)
 
     if (do_ver) {
         if ((store = setup_verify(CAfile, noCAfile, CApath, noCApath,
-                                  CAstore, noCAstore)) == NULL)
+                 CAstore, noCAstore))
+            == NULL)
             goto end;
         lookup = X509_STORE_add_lookup(store, X509_LOOKUP_file());
         if (lookup == NULL)
@@ -233,7 +257,7 @@ int crl_main(int argc, char **argv)
         }
 
         xobj = X509_STORE_CTX_get_obj_by_subject(ctx, X509_LU_X509,
-                                                 X509_CRL_get_issuer(x));
+            X509_CRL_get_issuer(x));
         if (xobj == NULL) {
             BIO_printf(bio_err, "Error getting CRL issuer certificate\n");
             goto end;
@@ -250,7 +274,7 @@ int crl_main(int argc, char **argv)
             goto end;
         if (i == 0) {
             BIO_printf(bio_err, "verify failure\n");
-	    goto end;
+            goto end;
         } else
             BIO_printf(bio_err, "verify OK\n");
     }
@@ -309,9 +333,8 @@ int crl_main(int argc, char **argv)
             }
             if (hash == i) {
                 int ok;
-                unsigned long hash_value =
-                    X509_NAME_hash_ex(X509_CRL_get_issuer(x), app_get0_libctx(),
-                                      app_get0_propq(), &ok);
+                unsigned long hash_value = X509_NAME_hash_ex(X509_CRL_get_issuer(x), app_get0_libctx(),
+                    app_get0_propq(), &ok);
 
                 if (num > 1)
                     BIO_printf(bio_out, "issuer name hash=");
@@ -327,7 +350,7 @@ int crl_main(int argc, char **argv)
                 if (num > 1)
                     BIO_printf(bio_out, "issuer name old hash=");
                 BIO_printf(bio_out, "%08lx\n",
-                           X509_NAME_hash_old(X509_CRL_get_issuer(x)));
+                    X509_NAME_hash_old(X509_CRL_get_issuer(x)));
             }
 #endif
             if (lastupdate == i) {
@@ -353,10 +376,9 @@ int crl_main(int argc, char **argv)
                     goto end;
                 }
                 BIO_printf(bio_out, "%s Fingerprint=",
-                           EVP_MD_get0_name(digest));
+                    EVP_MD_get0_name(digest));
                 for (j = 0; j < (int)n; j++) {
-                    BIO_printf(bio_out, "%02X%c", md[j], (j + 1 == (int)n)
-                               ? '\n' : ':');
+                    BIO_printf(bio_out, "%02X%c", md[j], (j + 1 == (int)n) ? '\n' : ':');
                 }
             }
         }
@@ -383,7 +405,7 @@ int crl_main(int argc, char **argv)
     }
     ret = 0;
 
- end:
+end:
     if (ret != 0)
         ERR_print_errors(bio_err);
     BIO_free_all(out);

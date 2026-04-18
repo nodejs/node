@@ -4,8 +4,6 @@
 
 <!-- type=misc -->
 
-> Stability: 2 - Stable
-
 <!-- name=report -->
 
 <!-- YAML
@@ -21,6 +19,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/51645
     description: Added `--report-exclude-network` option for excluding networking operations that can slow down report generation in some cases.
 -->
+
+> Stability: 2 - Stable
 
 Delivers a JSON-formatted diagnostic summary, written to a file.
 

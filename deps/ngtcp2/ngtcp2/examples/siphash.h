@@ -40,6 +40,7 @@
 #ifndef SIPHASH_H
 #define SIPHASH_H
 
+#include <array>
 #include <bit>
 #include <concepts>
 #include <algorithm>

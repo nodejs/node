@@ -43,7 +43,7 @@ for (let i = 0; i < data.length; i++) {
 
 let pos = 0;
 let pushedNull = false;
-r._read = function(n) {
+r._read = common.mustCallAtLeast(function(n) {
   assert(!pushedNull, '_read after null push');
 
   // Every third chunk is fast
@@ -65,7 +65,7 @@ r._read = function(n) {
       }, 1);
     }
   }
-};
+});
 
 function pushError() {
   r.unshift(Buffer.allocUnsafe(1));

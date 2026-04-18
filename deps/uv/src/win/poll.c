@@ -211,14 +211,10 @@ static SOCKET uv__fast_poll_create_peer_socket(HANDLE iocp,
                     protocol_info->iProtocol,
                     protocol_info,
                     0,
-                    WSA_FLAG_OVERLAPPED);
+                    WSA_FLAG_OVERLAPPED | WSA_FLAG_NO_HANDLE_INHERIT);
   if (sock == INVALID_SOCKET) {
     return INVALID_SOCKET;
   }
-
-  if (!SetHandleInformation((HANDLE) sock, HANDLE_FLAG_INHERIT, 0)) {
-    goto error;
-  };
 
   if (CreateIoCompletionPort((HANDLE) sock,
                              iocp,

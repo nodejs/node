@@ -63,7 +63,7 @@ line_loop: while (<>) {
         $state_name =~ s/://;        # strip off the colon from the state name.
 
         if ($states{$state_name} != 0) {
-            print "  rbbicst: at line $line-num duplicate definition of state $state_name\n";
+            print "  regexcst: at line $line-num duplicate definition of state $state_name\n";
         }
         $states{$state_name} = $num_states;
         $stateNames[$num_states] = $state_name;
@@ -100,7 +100,7 @@ line_loop: while (<>) {
         # We've got the name of a character class.
         $state_char_class[$num_states] = $fields[0];
         if ($fields[0] =~ /[\W]/) {
-            print "  rbbicsts:  at line $line_num, bad character literal or character class name.\n";
+            print "  regexcst:  at line $line_num, bad character literal or character class name.\n";
             print "     scanning $fields[0]\n";
             exit(-1);
         }
@@ -121,7 +121,7 @@ line_loop: while (<>) {
     #
     $state_dest_state[$num_states] = $fields[0];
     if ($fields[0] eq "") {
-        print "  rbbicsts:  at line $line_num, destination state missing.\n";
+        print "  regexcst:  at line $line_num, destination state missing.\n";
         exit(-1);
     }
     shift @fields;
@@ -133,7 +133,7 @@ line_loop: while (<>) {
         $fields[0] =~ s/^\^//;
         $state_push_state[$num_states] = $fields[0];
         if ($fields[0] eq "" ) {
-            print "  rbbicsts:  at line $line_num, expected state after ^ (no spaces).\n";
+            print "  regexcst:  at line $line_num, expected state after ^ (no spaces).\n";
             exit(-1);
         }
         shift @fields;
@@ -151,7 +151,7 @@ line_loop: while (<>) {
     #  There should be no fields left on the line at this point.
     #
     if (@fields > 0) {
-       print "  rbbicsts:  at line $line_num, unexpected extra stuff on input line.\n";
+       print "  regexcst:  at line $line_num, unexpected extra stuff on input line.\n";
        print "     scanning $fields[0]\n";
    }
    $num_states++;
@@ -214,8 +214,8 @@ print "//   Copyright (C) 2002-2016 International Business Machines Corporation 
 print "//   and others. All rights reserved.  \n";
 print "//\n";
 print "//---------------------------------------------------------------------------------\n";
-print "#ifndef RBBIRPT_H\n";
-print "#define RBBIRPT_H\n";
+print "#ifndef REGEXCST_H\n";
+print "#define REGEXCST_H\n";
 print "\n";
 print "#include \"unicode/utypes.h\"\n";
 print "\n";
@@ -234,7 +234,7 @@ $i = 128;                   # State Table values for Unicode char sets range fro
                             #  They have no corresponding UnicodeSet object in the state machine,
                             #    but are handled by special case code.  So we emit no reference
                             #    to a UnicodeSet object to them here.
-foreach $setName (keys %charClasses) {
+foreach my $setName (sort keys %charClasses) {
     if ($setName eq "default") {
         $charClasses{$setName} = 255;}
     elsif ($setName eq "quoted") {
@@ -255,10 +255,10 @@ print "\n\n";
 # Emit the enum for the actions to be performed.
 #
 print "enum Regex_PatternParseAction {\n";
-foreach $act (keys %actions) {
+foreach my $act (sort keys %actions) {
     print "    $act,\n";
 }
-print "    rbbiLastAction};\n\n";
+print "    regexLastAction};\n\n";
 
 #
 # Emit the struct definition for transition table elements.
@@ -321,15 +321,13 @@ print " };\n";
 print "static const char * const RegexStateNames[] = {";
 for ($state=0; $state<$num_states; $state++) {
     if ($stateNames[$state] ne "") {
-        print "     \"$stateNames[$state]\",\n";
+        print "    \"$stateNames[$state]\",\n";
     } else {
-        print "    0,\n";
+        print "    nullptr,\n";
     }
 }
-print "    0};\n\n";
+print "    nullptr};\n\n";
 
 print "U_NAMESPACE_END\n";
 print "#endif\n";
-
-
 

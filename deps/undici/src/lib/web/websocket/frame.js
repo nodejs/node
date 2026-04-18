@@ -1,33 +1,27 @@
 'use strict'
 
+const { runtimeFeatures } = require('../../util/runtime-features')
 const { maxUnsigned16Bit, opcodes } = require('./constants')
 
 const BUFFER_SIZE = 8 * 1024
 
-/** @type {import('crypto')} */
-let crypto
 let buffer = null
 let bufIdx = BUFFER_SIZE
 
-try {
-  crypto = require('node:crypto')
-/* c8 ignore next 3 */
-} catch {
-  crypto = {
-    // not full compatibility, but minimum.
-    randomFillSync: function randomFillSync (buffer, _offset, _size) {
-      for (let i = 0; i < buffer.length; ++i) {
-        buffer[i] = Math.random() * 255 | 0
-      }
-      return buffer
+const randomFillSync = runtimeFeatures.has('crypto')
+  ? require('node:crypto').randomFillSync
+  // not full compatibility, but minimum.
+  : function randomFillSync (buffer, _offset, _size) {
+    for (let i = 0; i < buffer.length; ++i) {
+      buffer[i] = Math.random() * 255 | 0
     }
+    return buffer
   }
-}
 
 function generateMask () {
   if (bufIdx === BUFFER_SIZE) {
     bufIdx = 0
-    crypto.randomFillSync((buffer ??= Buffer.allocUnsafeSlow(BUFFER_SIZE)), 0, BUFFER_SIZE)
+    randomFillSync((buffer ??= Buffer.allocUnsafeSlow(BUFFER_SIZE)), 0, BUFFER_SIZE)
   }
   return [buffer[bufIdx++], buffer[bufIdx++], buffer[bufIdx++], buffer[bufIdx++]]
 }

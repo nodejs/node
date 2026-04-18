@@ -235,6 +235,12 @@ static void notifywrite_cb(void *data)
   ares_event_thread_wake(e);
 }
 
+static void notifyenqueue_cb(void *data)
+{
+  ares_event_thread_t *e = data;
+  ares_event_thread_wake(e);
+}
+
 static void ares_event_process_updates(ares_event_thread_t *e)
 {
   ares_llist_node_t *node;
@@ -415,6 +421,7 @@ void ares_event_thread_destroy(ares_channel_t *channel)
   channel->sock_state_cb                = NULL;
   channel->notify_pending_write_cb      = NULL;
   channel->notify_pending_write_cb_data = NULL;
+  ares_set_query_enqueue_cb(channel, NULL, NULL);
 }
 
 static const ares_event_sys_t *ares_event_fetch_sys(ares_evsys_t evsys)
@@ -521,6 +528,7 @@ ares_status_t ares_event_thread_init(ares_channel_t *channel)
   channel->sock_state_cb_data           = e;
   channel->notify_pending_write_cb      = notifywrite_cb;
   channel->notify_pending_write_cb_data = e;
+  ares_set_query_enqueue_cb(channel, notifyenqueue_cb, e);
 
   if (!e->ev_sys->init(e)) {
     /* LCOV_EXCL_START: UntestablePath */

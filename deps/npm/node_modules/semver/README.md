@@ -110,8 +110,9 @@ Options:
 -l --loose
         Interpret versions and ranges loosely
 
--n <0|1>
-        This is the base to be used for the prerelease identifier.
+-n <0|1|false>
+        Base number for prerelease identifier (default: 0).
+        Use false to omit the number altogether.
 
 -p --include-prerelease
         Always include prerelease versions in range matching

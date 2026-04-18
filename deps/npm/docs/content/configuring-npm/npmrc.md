@@ -1,5 +1,5 @@
 ---
-title: npmrc
+title: .npmrc
 section: 5
 description: The npm config files
 ---
@@ -105,6 +105,39 @@ If the credential is meant for any request to a registry on a single host, the s
 If it must be scoped to a specific path on the host that path may also be provided, such as
 `//my-custom-registry.org/unique/path:`.
 
+### Unsupported Custom Configuration Keys
+
+Starting in npm v11.2.0, npm warns when unknown configuration keys are defined in `.npmrc`. In a future major version of npm, these unknown keys may no longer be accepted.
+
+Only configuration keys that npm officially supports are recognized. Custom keys intended for third-party tools (for example, `electron-builder`) should not be placed in `.npmrc`.
+
+If you need package-level configuration for use in scripts, use the `config` field in your `package.json` instead:
+
+```json
+{
+  "name": "my-package",
+  "config": {
+    "mirror": "https://example.com/"
+  }
+}
+
+```
+
+Values defined in `package.json#config` are exposed to scripts as environment variables prefixed with `npm_package_config_`. For example:
+
+```
+npm_package_config_mirror
+```
+
+If you need to pass arguments to a script command, use `--` to separate npm arguments from script arguments:
+
+```
+npm run build -- --customFlag
+```
+
+Using environment variables is also recommended for cross-platform configuration instead of defining unsupported keys in `.npmrc`.
+
+
 ```
 ; bad config
 _authToken=MYTOKEN
@@ -123,6 +156,33 @@ _authToken=MYTOKEN
 ; would apply only to @another
 //somewhere-else.com/another/:_authToken=MYTOKEN2
 ```
+
+### Custom / third-party config keys
+
+npm only recognizes its own [configuration options](/using-npm/config).
+If your `.npmrc` contains keys that are not part of npm's config definitions
+(for example, `electron_mirror` or `sass_binary_site`), npm will emit a
+warning:
+
+```
+warn Unknown user config "electron_mirror".
+This will stop working in the next major version of npm.
+```
+
+These keys were historically tolerated but are not officially supported.
+A future major version of npm will treat unknown top-level keys as errors.
+
+Some tools (such as `@electron/get` or `node-sass`) read their own
+configuration from environment variables or from `.npmrc` by convention.
+You can set these values as environment variables instead:
+
+```bash
+export ELECTRON_MIRROR="https://mirrorexample.npmjs.org/mirrors/electron/"
+export ELECTRON_CUSTOM_DIR="{{ version }}"
+```
+
+Environment variables are the most portable approach and work regardless
+of `.npmrc` format.
 
 ### See also
 

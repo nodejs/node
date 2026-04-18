@@ -64,7 +64,7 @@ int DH_check_params(const DH *dh, int *ret)
      * validity tests.
      */
     return ossl_ffc_params_FIPS186_4_validate(dh->libctx, &dh->params,
-                                              FFC_PARAM_TYPE_DH, ret, NULL);
+        FFC_PARAM_TYPE_DH, ret, NULL);
 }
 #else
 int DH_check_params(const DH *dh, int *ret)
@@ -98,7 +98,7 @@ int DH_check_params(const DH *dh, int *ret)
         *ret |= DH_MODULUS_TOO_LARGE;
 
     ok = 1;
- err:
+err:
     BN_CTX_end(ctx);
     BN_CTX_free(ctx);
     return ok;
@@ -221,7 +221,7 @@ int DH_check(const DH *dh, int *ret)
             *ret |= DH_CHECK_P_NOT_SAFE_PRIME;
     }
     ok = 1;
- err:
+err:
     BN_CTX_end(ctx);
     BN_CTX_free(ctx);
     return ok;
@@ -273,7 +273,7 @@ int DH_check_pub_key(const DH *dh, const BIGNUM *pub_key, int *ret)
 int ossl_dh_check_pub_key_partial(const DH *dh, const BIGNUM *pub_key, int *ret)
 {
     return ossl_ffc_validate_public_key_partial(&dh->params, pub_key, ret)
-           && *ret == 0;
+        && *ret == 0;
 }
 
 int ossl_dh_check_priv_key(const DH *dh, const BIGNUM *priv_key, int *ret)
@@ -350,7 +350,7 @@ int ossl_dh_check_pairwise(const DH *dh, int return_on_null_numbers)
     if (st == NULL)
         goto err;
     OSSL_SELF_TEST_onbegin(st, OSSL_SELF_TEST_TYPE_PCT,
-                           OSSL_SELF_TEST_DESC_PCT_DH);
+        OSSL_SELF_TEST_DESC_PCT_DH);
 
     ctx = BN_CTX_new_ex(dh->libctx);
     if (ctx == NULL)
@@ -366,7 +366,7 @@ int ossl_dh_check_pairwise(const DH *dh, int return_on_null_numbers)
 #ifdef FIPS_MODULE
     {
         int len;
-        unsigned char bytes[1024] = {0};    /* Max key size of 8192 bits */
+        unsigned char bytes[1024] = { 0 }; /* Max key size of 8192 bits */
 
         if (BN_num_bytes(pub_key) > (int)sizeof(bytes))
             goto err;
@@ -378,7 +378,7 @@ int ossl_dh_check_pairwise(const DH *dh, int return_on_null_numbers)
 #endif
     /* check it matches the existing public_key */
     ret = BN_cmp(pub_key, dh->pub_key) == 0;
- err:
+err:
     BN_free(pub_key);
     BN_CTX_free(ctx);
 

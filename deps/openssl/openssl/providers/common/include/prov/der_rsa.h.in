@@ -13,21 +13,23 @@
 #include "internal/der.h"
 
 /* Well known OIDs precompiled */
+/* clang-format off */
 {-
     $OUT = oids_to_c::process_leaves('providers/common/der/NIST.asn1',
                                      'providers/common/der/RSA.asn1',
                                      { dir => $config{sourcedir},
                                        filter => \&oids_to_c::filter_to_H });
 -}
+/* clang-format on */
 
 /* PSS parameters */
 int ossl_DER_w_RSASSA_PSS_params(WPACKET *pkt, int tag,
-                                 const RSA_PSS_PARAMS_30 *pss);
+    const RSA_PSS_PARAMS_30 *pss);
 /* Subject Public Key Info */
 int ossl_DER_w_algorithmIdentifier_RSA(WPACKET *pkt, int tag, RSA *rsa);
 int ossl_DER_w_algorithmIdentifier_RSA_PSS(WPACKET *pkt, int tag,
-                                           int rsa_type,
-                                           const RSA_PSS_PARAMS_30 *pss);
+    int rsa_type,
+    const RSA_PSS_PARAMS_30 *pss);
 /* Signature */
 int ossl_DER_w_algorithmIdentifier_MDWithRSAEncryption(WPACKET *pkt, int tag,
-                                                       int mdnid);
+    int mdnid);

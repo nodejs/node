@@ -28,8 +28,8 @@ struct lhash_st {
     unsigned int num_alloc_nodes;
     unsigned int p;
     unsigned int pmax;
-    unsigned long up_load;      /* load times 256 */
-    unsigned long down_load;    /* load times 256 */
+    unsigned long up_load; /* load times 256 */
+    unsigned long down_load; /* load times 256 */
     unsigned long num_items;
     int error;
 };

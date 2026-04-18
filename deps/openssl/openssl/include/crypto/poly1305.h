@@ -8,27 +8,27 @@
  */
 
 #ifndef OSSL_CRYPTO_POLY1305_H
-# define OSSL_CRYPTO_POLY1305_H
-# pragma once
+#define OSSL_CRYPTO_POLY1305_H
+#pragma once
 
 #include <stddef.h>
 
-#define POLY1305_BLOCK_SIZE  16
+#define POLY1305_BLOCK_SIZE 16
 #define POLY1305_DIGEST_SIZE 16
-#define POLY1305_KEY_SIZE    32
+#define POLY1305_KEY_SIZE 32
 
 typedef struct poly1305_context POLY1305;
 
-typedef void (*poly1305_blocks_f) (void *ctx, const unsigned char *inp,
-                                   size_t len, unsigned int padbit);
-typedef void (*poly1305_emit_f) (void *ctx, unsigned char mac[16],
-                                 const unsigned int nonce[4]);
+typedef void (*poly1305_blocks_f)(void *ctx, const unsigned char *inp,
+    size_t len, unsigned int padbit);
+typedef void (*poly1305_emit_f)(void *ctx, unsigned char mac[16],
+    const unsigned int nonce[4]);
 
 struct poly1305_context {
-    double opaque[24];  /* large enough to hold internal state, declared
-                         * 'double' to ensure at least 64-bit invariant
-                         * alignment across all platforms and
-                         * configurations */
+    double opaque[24]; /* large enough to hold internal state, declared
+                        * 'double' to ensure at least 64-bit invariant
+                        * alignment across all platforms and
+                        * configurations */
     unsigned int nonce[4];
     unsigned char data[POLY1305_BLOCK_SIZE];
     size_t num;

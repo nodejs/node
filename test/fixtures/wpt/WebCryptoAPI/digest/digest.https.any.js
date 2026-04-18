@@ -1,4 +1,5 @@
 // META: title=WebCryptoAPI: digest()
+// META: script=../util/helpers.js
 // META: timeout=long
 
     var subtle = crypto.subtle; // Change to test prefixed implementations
@@ -83,19 +84,61 @@
                 return promise;
             }, mixedCase + " with " + size + " source data");
 
-            promise_test(function(test) {
-                var copiedBuffer = copyBuffer(sourceData[size]);
-                var promise = subtle.digest({name: upCase}, copiedBuffer)
-                .then(function(result) {
-                    assert_true(equalBuffers(result, digestedData[alg][size]), "digest() yielded expected result for " + alg + ":" + size);
-                }, function(err) {
-                    assert_unreached("digest() threw an error for " + alg + ":" + size + " - " + err.message);
-                });
+            if (sourceData[size].length > 0) {
+                promise_test(function(test) {
+                    var copiedBuffer = copyBuffer(sourceData[size]);
+                    copiedBuffer[0] = 255 - copiedBuffer[0];
+                    var promise = subtle.digest({
+                        get name() {
+                            copiedBuffer[0] = sourceData[size][0];
+                            return upCase;
+                        }
+                    }, copiedBuffer)
+                    .then(function(result) {
+                        assert_true(equalBuffers(result, digestedData[alg][size]), "digest() yielded expected result for " + alg + ":" + size);
+                    }, function(err) {
+                        assert_unreached("digest() threw an error for " + alg + ":" + size + " - " + err.message);
+                    });
+                    return promise;
+                }, upCase + " with " + size + " source data and altered buffer during call");
 
-                copiedBuffer[0] = 255 - copiedBuffer;
-                return promise;
-            }, upCase + " with " + size + " source data and altered buffer after call");
+                promise_test(function(test) {
+                    var copiedBuffer = copyBuffer(sourceData[size]);
+                    var promise = subtle.digest({name: upCase}, copiedBuffer)
+                    .then(function(result) {
+                        assert_true(equalBuffers(result, digestedData[alg][size]), "digest() yielded expected result for " + alg + ":" + size);
+                    }, function(err) {
+                        assert_unreached("digest() threw an error for " + alg + ":" + size + " - " + err.message);
+                    });
 
+                    copiedBuffer[0] = 255 - copiedBuffer[0];
+                    return promise;
+                }, upCase + " with " + size + " source data and altered buffer after call");
+
+                promise_test(function(test) {
+                    var copiedBuffer = copyBuffer(sourceData[size]);
+                    copiedBuffer.buffer.transfer();
+                    return subtle.digest({name: upCase}, copiedBuffer)
+                    .then(function(result) {
+                        assert_true(equalBuffers(result, digestedData[alg].empty), "digest() on transferred buffer should yield result for empty buffer for " + alg + ":" + size);
+                    }, function(err) {
+                        assert_unreached("digest() threw an error for transferred buffer for " + alg + ":" + size + ": " + err.message);
+                    });
+                }, upCase + " with " + size + " source data and transferred buffer during call");
+
+                promise_test(function(test) {
+                    var copiedBuffer = copyBuffer(sourceData[size]);
+                    var promise = subtle.digest({name: upCase}, copiedBuffer)
+                    .then(function(result) {
+                        assert_true(equalBuffers(result, digestedData[alg][size]), "digest() yielded expected result for " + alg + ":" + size);
+                    }, function(err) {
+                        assert_unreached("digest() threw an error for " + alg + ":" + size + " - " + err.message);
+                    });
+
+                    copiedBuffer.buffer.transfer();
+                    return promise;
+                }, upCase + " with " + size + " source data and transferred buffer after call");
+            }
         });
     });
 
@@ -134,33 +177,3 @@
 
 
     done();
-
-
-    // Returns a copy of the sourceBuffer it is sent.
-    function copyBuffer(sourceBuffer) {
-        var source = new Uint8Array(sourceBuffer);
-        var copy = new Uint8Array(sourceBuffer.byteLength)
-
-        for (var i=0; i<source.byteLength; i++) {
-            copy[i] = source[i];
-        }
-
-        return copy;
-    }
-
-    function equalBuffers(a, b) {
-        if (a.byteLength !== b.byteLength) {
-            return false;
-        }
-
-        var aBytes = new Uint8Array(a);
-        var bBytes = new Uint8Array(b);
-
-        for (var i=0; i<a.byteLength; i++) {
-            if (aBytes[i] !== bBytes[i]) {
-                return false;
-            }
-        }
-
-        return true;
-    }

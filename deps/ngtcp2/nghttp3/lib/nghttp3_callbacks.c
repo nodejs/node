@@ -66,6 +66,8 @@ size_t nghttp3_callbackslen_version(int callbacks_version) {
   switch (callbacks_version) {
   case NGHTTP3_CALLBACKS_VERSION:
     return sizeof(callbacks);
+  case NGHTTP3_CALLBACKS_V2:
+    return offsetof(nghttp3_callbacks, rand) + sizeof(callbacks.rand);
   case NGHTTP3_CALLBACKS_V1:
     return offsetof(nghttp3_callbacks, recv_settings) +
            sizeof(callbacks.recv_settings);

@@ -92,22 +92,22 @@ int ossl_rsa_acvp_test_set_params(RSA *r, const OSSL_PARAM params[])
 
     /* Set the input parameters */
     if ((p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_RSA_TEST_XP1)) != NULL
-         && !OSSL_PARAM_get_BN(p, &t->Xp1))
+        && !OSSL_PARAM_get_BN(p, &t->Xp1))
         goto err;
     if ((p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_RSA_TEST_XP2)) != NULL
-         && !OSSL_PARAM_get_BN(p, &t->Xp2))
+        && !OSSL_PARAM_get_BN(p, &t->Xp2))
         goto err;
     if ((p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_RSA_TEST_XP)) != NULL
-         && !OSSL_PARAM_get_BN(p, &t->Xp))
+        && !OSSL_PARAM_get_BN(p, &t->Xp))
         goto err;
     if ((p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_RSA_TEST_XQ1)) != NULL
-         && !OSSL_PARAM_get_BN(p, &t->Xq1))
+        && !OSSL_PARAM_get_BN(p, &t->Xq1))
         goto err;
     if ((p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_RSA_TEST_XQ2)) != NULL
-         && !OSSL_PARAM_get_BN(p, &t->Xq2))
+        && !OSSL_PARAM_get_BN(p, &t->Xq2))
         goto err;
     if ((p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_RSA_TEST_XQ)) != NULL
-         && !OSSL_PARAM_get_BN(p, &t->Xq))
+        && !OSSL_PARAM_get_BN(p, &t->Xq))
         goto err;
 
     /* Setup the output parameters */
@@ -133,17 +133,17 @@ int ossl_rsa_acvp_test_get_params(RSA *r, OSSL_PARAM params[])
     t = r->acvp_test;
     if (t != NULL) {
         if ((p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_RSA_TEST_P1)) != NULL
-             && !OSSL_PARAM_set_BN(p, t->p1))
-                    return 0;
+            && !OSSL_PARAM_set_BN(p, t->p1))
+            return 0;
         if ((p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_RSA_TEST_P2)) != NULL
-             && !OSSL_PARAM_set_BN(p, t->p2))
-                    return 0;
+            && !OSSL_PARAM_set_BN(p, t->p2))
+            return 0;
         if ((p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_RSA_TEST_Q1)) != NULL
-             && !OSSL_PARAM_set_BN(p, t->q1))
-                    return 0;
+            && !OSSL_PARAM_set_BN(p, t->q1))
+            return 0;
         if ((p = OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_RSA_TEST_Q2)) != NULL
-             && !OSSL_PARAM_set_BN(p, t->q2))
-                    return 0;
+            && !OSSL_PARAM_set_BN(p, t->q2))
+            return 0;
     }
     return 1;
 }
@@ -164,4 +164,3 @@ void ossl_rsa_acvp_test_free(RSA_ACVP_TEST *t)
         OPENSSL_free(t);
     }
 }
-

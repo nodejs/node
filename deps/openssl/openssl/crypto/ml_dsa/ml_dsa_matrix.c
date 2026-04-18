@@ -21,7 +21,7 @@
  * @param t 1 * k vector of polynomial results in NTT form
  */
 void ossl_ml_dsa_matrix_mult_vector(const MATRIX *a, const VECTOR *s,
-                                    VECTOR *t)
+    VECTOR *t)
 {
     size_t i, j;
     POLY *poly = a->m_poly;

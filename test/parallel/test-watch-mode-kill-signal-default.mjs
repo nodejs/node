@@ -63,5 +63,5 @@ child.on('message', (msg) => {
 
 await once(child, 'exit');
 
-assert.match(stdout, new RegExp(`__SIGTERM received__ ${firstGrandchildPid}`));
-assert.doesNotMatch(stdout, new RegExp(`__SIGINT received__ ${firstGrandchildPid}`));
+assert.match(stdout, new RegExp(`__SIGTERM received__ ${RegExp.escape(firstGrandchildPid)}`));
+assert.doesNotMatch(stdout, new RegExp(`__SIGINT received__ ${RegExp.escape(firstGrandchildPid)}`));

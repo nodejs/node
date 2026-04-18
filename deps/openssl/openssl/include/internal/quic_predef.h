@@ -8,9 +8,9 @@
  */
 
 #ifndef OSSL_QUIC_PREDEF_H
-# define OSSL_QUIC_PREDEF_H
+#define OSSL_QUIC_PREDEF_H
 
-# ifndef OPENSSL_NO_QUIC
+#ifndef OPENSSL_NO_QUIC
 
 typedef struct ssl_token_store_st SSL_TOKEN_STORE;
 typedef struct quic_port_st QUIC_PORT;
@@ -45,6 +45,6 @@ typedef struct quic_xso_st QUIC_XSO;
 typedef struct quic_listener_st QUIC_LISTENER;
 typedef struct quic_domain_st QUIC_DOMAIN;
 
-# endif
+#endif
 
 #endif

@@ -1,0 +1,17 @@
+---
+source: core/src/hir/type_context.rs
+expression: output
+---
+Lowering error in BadStructFields: Found FFI-unsafe type Option<u8> in struct field BadStructFields.field1, consider using DiplomatOption<u8>
+Lowering error in BadStructFields: Found Option<T> for primitive T in a struct field, please use DiplomatOption<T>
+Lowering error in BadStructFields: Found FFI-unsafe type Result<u8, u8> in struct field BadStructFields.field2, consider using Result<u8, u8>
+Lowering error in BadStructFields: Results can only appear as the top-level return type of methods
+Lowering error in InStructWithOutField: found Box<T> in input where T is an opaque, but owned opaques aren't allowed in inputs. try &T instead? T = OtherOpaque
+Lowering error in InStructWithOutField: found struct in input that is marked with #[diplomat::out]: OutStruct in OutStruct
+Lowering error in Opaque::use_foo_ref: found &T in input where T is a struct. The backend must support struct_refs.
+Lowering error in Opaque::return_foo_box: found Box<T> in output where T is a custom type but not opaque. non-opaques can't be behind pointers. T = Foo
+Lowering error in Opaque::use_self: Method `Opaque_use_self` takes an opaque by value as the self parameter, but opaques as inputs must be behind refs
+Lowering error in Opaque::return_self: Method `Opaque_return_self` takes an opaque by value as the self parameter, but opaques as inputs must be behind refs
+Lowering error in Opaque::use_opaque_owned: Opaque passed by value: OtherOpaque
+Lowering error in Opaque::return_opaque_owned: Opaque passed by value in input: OtherOpaque
+Lowering error in Opaque::use_out_as_in: found struct in input that is marked with #[diplomat::out]: OutStruct in OutStruct

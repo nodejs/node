@@ -27,5 +27,6 @@ module.exports = {
   kMockAgentAddCallHistoryLog: Symbol('mock agent add call history log'),
   kMockAgentIsCallHistoryEnabled: Symbol('mock agent is call history enabled'),
   kMockAgentAcceptsNonStandardSearchParameters: Symbol('mock agent accepts non standard search parameters'),
-  kMockCallHistoryAddLog: Symbol('mock call history add log')
+  kMockCallHistoryAddLog: Symbol('mock call history add log'),
+  kTotalDispatchCount: Symbol('total dispatch count')
 }

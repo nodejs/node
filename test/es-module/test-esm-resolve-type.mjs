@@ -25,7 +25,7 @@ if (!isMainThread) {
 import assert from 'assert';
 import internalResolve from 'node:internal/modules/esm/resolve';
 const {
-  defaultResolve: resolve
+  defaultResolve: resolve,
 } = internalResolve;
 
 const rel = (file) => tmpdir.resolve(file);
@@ -82,7 +82,7 @@ try {
     createDir(subDir);
     const pkgJsonContent = {
       ...(moduleType !== undefined) && { type: moduleType },
-      main: `subdir/mainfile.${moduleExtension}`
+      main: `subdir/mainfile.${moduleExtension}`,
     };
     fs.writeFileSync(pkg, JSON.stringify(pkgJsonContent));
     fs.writeFileSync(script,
@@ -150,13 +150,13 @@ try {
         '.': {
           'require': './lib/index.js',
           'import': './es/index.js',
-          'default': './lib/index.js'
+          'default': './lib/index.js',
         },
         './package.json': './package.json',
-      }
+      },
     };
     const esmPkgJsonContent = {
-      type: 'module'
+      type: 'module',
     };
 
     fs.writeFileSync(pkg, JSON.stringify(mainPkgJsonContent));
@@ -198,6 +198,10 @@ try {
       subdirPackageType,
       expectedResolvedFormat,
       mainSuffix = '' ] = testVariant;
+    const skip = mainImportScript.endsWith('.ts') && !process.config.variables.node_use_amaro;
+    if (skip) {
+      return;
+    }
 
     const mDir = rel(`node_modules/${moduleName}`);
     const subDir = rel(`node_modules/${moduleName}/subdir`);
@@ -216,13 +220,13 @@ try {
         '.': {
           'require': `./subdir/${mainRequireScript}${mainSuffix}`,
           'import': `./subdir/${mainImportScript}${mainSuffix}`,
-          'default': `./subdir/${mainRequireScript}${mainSuffix}`
+          'default': `./subdir/${mainRequireScript}${mainSuffix}`,
         },
         './package.json': './package.json',
-      }
+      },
     };
     const subdirPkgJsonContent = {
-      type: `${subdirPackageType}`
+      type: `${subdirPackageType}`,
     };
 
     fs.writeFileSync(pkg, JSON.stringify(mainPkgJsonContent));

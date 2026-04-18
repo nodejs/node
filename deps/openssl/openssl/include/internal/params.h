@@ -20,7 +20,7 @@
  * doesn't return success.
  */
 int ossl_param_get1_octet_string(const OSSL_PARAM *params, const char *name,
-                                 unsigned char **out, size_t *out_len);
+    unsigned char **out, size_t *out_len);
 /*
  * Concatenate all of the matching params together.
  * *out will point to an allocated buffer on successful return.
@@ -34,5 +34,5 @@ int ossl_param_get1_octet_string(const OSSL_PARAM *params, const char *name,
  * doesn't return success.
  */
 int ossl_param_get1_concat_octet_string(const OSSL_PARAM *params, const char *name,
-                                        unsigned char **out, size_t *out_len,
-                                        size_t maxsize);
+    unsigned char **out, size_t *out_len,
+    size_t maxsize);
