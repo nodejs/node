@@ -684,6 +684,7 @@ describe('JSON Schema validation', () => {
       '-p', '"Hello"',
     ]);
     assert.match(result.stderr, /Invalid configuration/);
+    assert.match(result.stderr, /\/nodeOptions\/addons/);
     assert.strictEqual(result.code, 9);
   });
 
@@ -694,6 +695,7 @@ describe('JSON Schema validation', () => {
       '-p', '"Hello"',
     ]);
     assert.match(result.stderr, /Invalid configuration/);
+    assert.match(result.stderr, /\/nodeOptions\/max-http-header-size/);
     assert.strictEqual(result.code, 9);
   });
 
@@ -704,6 +706,7 @@ describe('JSON Schema validation', () => {
       '-p', '"Hello"',
     ]);
     assert.match(result.stderr, /Invalid configuration/);
+    assert.match(result.stderr, /\/nodeOptions\/import/);
     assert.strictEqual(result.code, 9);
   });
 
@@ -714,6 +717,19 @@ describe('JSON Schema validation', () => {
       '-p', '"Hello"',
     ]);
     assert.match(result.stderr, /Invalid configuration/);
+    assert.match(result.stderr, /\/nodeOptions\/import/);
+    assert.strictEqual(result.code, 9);
+  });
+
+  test('reports every error when multiple properties fail', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--experimental-config-file',
+      fixtures.path('rc/invalid-schema-multiple-errors.json'),
+      '-p', '"Hello"',
+    ]);
+    assert.match(result.stderr, /Invalid configuration/);
+    assert.match(result.stderr, /\/nodeOptions\/addons/);
+    assert.match(result.stderr, /\/nodeOptions\/max-http-header-size/);
     assert.strictEqual(result.code, 9);
   });
 

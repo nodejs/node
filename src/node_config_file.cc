@@ -258,30 +258,25 @@ ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
     return ParseResult::InvalidContent;
   }
 
-  // Validate against JSON Schema after basic parsing succeeds.
-  // This catches type errors in properties before the option
-  // parsing loop, which would otherwise produce less clear messages.
+  // Validate against JSON Schema after basic parsing succeeds. This catches
+  // unknown namespaces and type errors in properties before the option parsing
+  // loop, which would otherwise produce less clear messages (or silently skip
+  // unknown top-level keys). kNodeConfigSchema is a compile-time constant, so
+  // compile it once on first call.
   {
-    auto schema = ata::compile(kNodeConfigSchema);
-    if (schema) {
-      auto result = ata::validate(schema, file_content);
-      if (!result.valid) {
-        for (const auto& err : result.errors) {
-          if (err.code != ata::error_code::additional_property_not_allowed) {
-            FPrintF(
-                stderr, "Invalid configuration in %s:\n", config_path.data());
-            for (const auto& e : result.errors) {
-              if (e.code != ata::error_code::additional_property_not_allowed) {
-                FPrintF(stderr,
-                        "  %s: %s\n",
-                        e.path.empty() ? "/" : e.path,
-                        e.message);
-              }
-            }
-            return ParseResult::InvalidContent;
-          }
-        }
+    static const ata::schema_ref compiled_schema =
+        ata::compile(kNodeConfigSchema);
+    CHECK(compiled_schema);
+    auto result = ata::validate(compiled_schema, file_content);
+    if (!result.valid) {
+      FPrintF(stderr, "Invalid configuration in %s:\n", config_path.data());
+      for (const auto& err : result.errors) {
+        FPrintF(stderr,
+                "  %s: %s\n",
+                err.path.empty() ? "/" : err.path,
+                err.message);
       }
+      return ParseResult::InvalidContent;
     }
   }
 
