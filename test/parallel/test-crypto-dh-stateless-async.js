@@ -7,6 +7,28 @@ const assert = require('assert');
 const crypto = require('crypto');
 const { hasOpenSSL } = require('../common/crypto');
 
+// Error code for a key-type mismatch during (EC)DH. The underlying OpenSSL
+// error code varies by version, and in OpenSSL 4.0 by platform: some builds
+// report a generic internal error instead of a typed key-type mismatch.
+// https://github.com/openssl/openssl/issues/30895
+// TODO(panva): Tighten this check once/if fixed.
+let keyTypeMismatchCode;
+if (hasOpenSSL(4, 0)) {
+  keyTypeMismatchCode =
+    /^ERR_OSSL_EVP_(OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE|INTERNAL_ERROR)$/;
+} else if (hasOpenSSL(3)) {
+  keyTypeMismatchCode = 'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE';
+} else {
+  keyTypeMismatchCode = 'ERR_OSSL_EVP_DIFFERENT_KEY_TYPES';
+}
+
+function assertErrorCode(actual, expected) {
+  if (expected instanceof RegExp)
+    assert.match(actual, expected);
+  else
+    assert.strictEqual(actual, expected);
+}
+
 assert.throws(() => crypto.diffieHellman(crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' }), null), {
   name: 'TypeError',
   code: 'ERR_INVALID_ARG_TYPE',
@@ -341,9 +363,7 @@ for (const { privateKey: alicePriv, publicKey: bobPub } of [
     privateKey: ec256.privateKey.export({ type: 'pkcs8', format: 'pem' }),
     publicKey: x25519.publicKey.export({ type: 'spki', format: 'pem' }),
   }, common.mustCall((err) => {
-    assert.strictEqual(err.code,
-                       hasOpenSSL(3) ? 'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE' :
-                         'ERR_OSSL_EVP_DIFFERENT_KEY_TYPES');
+    assertErrorCode(err.code, keyTypeMismatchCode);
   }));
 
   // Unsupported key type (ed25519)
@@ -351,6 +371,8 @@ for (const { privateKey: alicePriv, publicKey: bobPub } of [
     privateKey: ed25519.privateKey.export({ type: 'pkcs8', format: 'pem' }),
     publicKey: ed25519.publicKey.export({ type: 'spki', format: 'pem' }),
   }, common.mustCall((err) => {
-    assert.strictEqual(err.code, 'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE');
+    assertErrorCode(err.code, hasOpenSSL(4, 0) ?
+      /^ERR_OSSL_EVP_(OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE|INTERNAL_ERROR)$/ :
+      'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE');
   }));
 }
