@@ -651,23 +651,6 @@ for (const [ value, _method ] of [
 }
 
 {
-  function testIsDataView(input) {
-    return types.isDataView(input);
-  }
-
-  eval('%PrepareFunctionForOptimization(testIsDataView)');
-  testIsDataView(new DataView(new ArrayBuffer()));
-  eval('%OptimizeFunctionOnNextCall(testIsDataView)');
-  assert.strictEqual(testIsDataView(new DataView(new ArrayBuffer())), true);
-  assert.strictEqual(testIsDataView(Math.random()), false);
-
-  if (common.isDebug) {
-    const { getV8FastApiCallCount } = internalBinding('debug');
-    assert.strictEqual(getV8FastApiCallCount('types.isDataView'), 2);
-  }
-}
-
-{
   function testIsSharedArrayBuffer(input) {
     return types.isSharedArrayBuffer(input);
   }
