@@ -1,0 +1,123 @@
+# Throwaway workflow used solely to gather test results for Node.js
+# linked against OpenSSL 3.5, 3.6, and 4.0.
+name: TEMP - Test Shared libraries (OpenSSL)
+
+on:
+  pull_request:
+  push:
+    branches:
+      - tmp-openssl4
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  FLAKY_TESTS: keep_retrying
+
+permissions:
+  contents: read
+
+jobs:
+  build-tarball:
+    name: Build slim tarball
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Make tarball
+        run: |
+          export DATESTRING=$(date "+%Y-%m-%d")
+          export COMMIT=$(git rev-parse --short=10 "$GITHUB_SHA")
+          ./configure && make tar -j4 SKIP_XZ=1 SKIP_SHARED_DEPS=1
+        env:
+          DISTTYPE: nightly
+
+      - name: Upload tarball artifact
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
+        with:
+          name: tarballs
+          path: '*.tar.gz'
+          compression-level: 0
+
+  build:
+    needs: build-tarball
+    strategy:
+      fail-fast: false
+      matrix:
+        opensslPkg:
+          - openssl_1_1
+          - openssl_3
+          - openssl_3_5
+          - openssl_3_6
+          - openssl_4_0
+        system:
+          - x86_64-linux
+          - aarch64-linux
+          - x86_64-darwin
+          - aarch64-darwin
+        include:
+          - system: x86_64-linux
+            runner: ubuntu-24.04
+          - system: aarch64-linux
+            runner: ubuntu-24.04-arm
+          - system: x86_64-darwin
+            runner: macos-15-intel
+          - system: aarch64-darwin
+            runner: macos-latest
+    name: '${{ matrix.system }}: with shared libraries (${{ matrix.opensslPkg }})'
+    runs-on: ${{ matrix.runner }}
+    # We only care about the test results here, not about gating anything.
+    continue-on-error: true
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: tarballs
+          path: tarballs
+
+      - name: Extract tarball
+        run: |
+          tar xzf tarballs/*.tar.gz -C "$RUNNER_TEMP"
+          echo "TAR_DIR=$RUNNER_TEMP/$(basename tarballs/*.tar.gz .tar.gz)" >> "$GITHUB_ENV"
+
+      - uses: cachix/install-nix-action@96951a368ba55167b55f1c916f7d416bac6505fe  # v31.10.3
+        with:
+          extra_nix_config: sandbox = true
+
+      - uses: cachix/cachix-action@1eb2ef646ac0255473d23a5907ad7b04ce94065c  # v17
+        with:
+          name: nodejs
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Configure sccache
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd  # v8.0.0
+        with:
+          script: |
+            core.exportVariable('SCCACHE_GHA_ENABLED', 'on');
+            core.exportVariable('ACTIONS_CACHE_SERVICE_V2', 'on');
+            core.exportVariable('ACTIONS_RESULTS_URL', process.env.ACTIONS_RESULTS_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+            core.exportVariable('NIX_SCCACHE', '(import <nixpkgs> {}).sccache');
+
+      - name: Build Node.js and run tests
+        env:
+          # Allow evaluating packages marked insecure in nixpkgs (e.g. openssl_1_1).
+          NIXPKGS_ALLOW_INSECURE: '1'
+        run: |
+          nix-shell \
+            -I "nixpkgs=$TAR_DIR/tools/nix/pkgs.nix" \
+            --impure \
+            --pure --keep TAR_DIR --keep FLAKY_TESTS --keep NIXPKGS_ALLOW_INSECURE \
+            --keep SCCACHE_GHA_ENABLED --keep ACTIONS_CACHE_SERVICE_V2 --keep ACTIONS_RESULTS_URL --keep ACTIONS_RUNTIME_TOKEN \
+            --arg loadJSBuiltinsDynamically false \
+            --arg useSeparateDerivationForV8 true \
+            --arg ccache "${NIX_SCCACHE:-null}" \
+            --arg devTools '[]' \
+            --arg benchmarkTools '[]' \
+            --arg opensslPkg '(import <nixpkgs> {}).${{ matrix.opensslPkg }}' \
+            ${{ endsWith(matrix.system, '-darwin') && '--arg withAmaro false --arg withLief false --arg withSQLite false --arg withFFI false --arg extraConfigFlags ''["--without-inspector" "--without-node-options"]'' \' || '\' }}
+            --run '
+                make -C "$TAR_DIR" run-ci -j4 V=1 TEST_CI_ARGS="-p actions --measure-flakiness 9 --skip-tests=$CI_SKIP_TESTS"
+            ' "$TAR_DIR/shell.nix"

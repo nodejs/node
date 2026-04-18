@@ -6,6 +6,7 @@
   withSSL ? true,
   withFFI ? true,
   withTemporal ? false,
+  opensslPkg ? pkgs.openssl_3_5,
 }:
 {
   inherit (pkgs)
@@ -51,7 +52,7 @@
   ffi = pkgs.libffiReal;
 })
 // (pkgs.lib.optionalAttrs withSSL ({
-  openssl = pkgs.openssl_3_5;
+  openssl = opensslPkg;
 }))
 // (pkgs.lib.optionalAttrs withTemporal {
   inherit (pkgs) temporal_capi;

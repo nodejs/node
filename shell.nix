@@ -19,6 +19,7 @@
   withFFI ? true,
   withSSL ? true,
   withTemporal ? false,
+  opensslPkg ? pkgs.openssl_3_5,
   sharedLibDeps ? (
     import ./tools/nix/sharedLibDeps.nix {
       inherit
@@ -29,6 +30,7 @@
         withFFI
         withSSL
         withTemporal
+        opensslPkg
         ;
     }
   ),
