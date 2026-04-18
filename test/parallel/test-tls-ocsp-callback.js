@@ -29,6 +29,7 @@ if (!common.hasCrypto) {
 const crypto = require('crypto');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
+const { hasOpenSSL } = require('../common/crypto');
 
 const assert = require('assert');
 
@@ -90,7 +91,10 @@ function test(testOptions, cb) {
 
     client.on('OCSPResponse', common.mustCall((resp) => {
       if (testOptions.response) {
-        assert.strictEqual(resp.toString(), testOptions.response);
+        if (Buffer.isBuffer(testOptions.response))
+          assert.deepStrictEqual(resp, testOptions.response);
+        else
+          assert.strictEqual(resp.toString(), testOptions.response);
         client.destroy();
       } else {
         assert.strictEqual(resp, null);
@@ -103,10 +107,27 @@ function test(testOptions, cb) {
   }));
 }
 
+// OpenSSL 3.6+ validates that the value passed to
+// SSL_set_tlsext_status_ocsp_resp parses as DER, so the test responses need
+// to be valid DER-encoded OCSPResponse values.
+// Minimal OCSPResponse is SEQUENCE { ENUMERATED responseStatus } where
+// 0 = successful and 1 = malformedRequest.
+const response1 = Buffer.from([0x30, 0x03, 0x0a, 0x01, 0x00]);
+const response2 = Buffer.from([0x30, 0x03, 0x0a, 0x01, 0x01]);
+
 test({ ocsp: true, response: false });
-test({ ocsp: true, response: 'hello world' });
+test({ ocsp: true, response: response1 });
 test({ ocsp: false });
 
 if (!crypto.getFips()) {
-  test({ ocsp: true, response: 'hello pfx', pfx: pfx, passphrase: 'sample' });
+  test({ ocsp: true, response: response2, pfx: pfx, passphrase: 'sample' });
+}
+
+// Older OpenSSL versions accept arbitrary bytes (not just DER) as the OCSP
+// response, so additionally exercise the string path there.
+if (!hasOpenSSL(3, 6)) {
+  test({ ocsp: true, response: 'hello world' });
+  if (!crypto.getFips()) {
+    test({ ocsp: true, response: 'hello pfx', pfx: pfx, passphrase: 'sample' });
+  }
 }
