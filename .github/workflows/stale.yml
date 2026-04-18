@@ -1,0 +1,50 @@
+name: Close stale
+on:
+  workflow_dispatch:
+  schedule:
+    # Run every day at 1:00 AM UTC.
+    - cron: 0 1 * * *
+
+# yamllint disable rule:empty-lines
+env:
+  CLOSE_MESSAGE: >
+    This {0} has been automatically closed after 30 days of inactivity
+    following its stale status (no activity for a total of 240 days).
+
+    If this is still relevant, feel free to reopen it or leave a comment
+    with additional details so we can continue the discussion.
+
+  WARN_MESSAGE: >
+    This {0} has been marked as stale due to 210 days of inactivity.
+
+    It will be automatically closed in 30 days if no further activity occurs.
+    If this is still relevant, please leave a comment or update it to keep it open.
+# yamllint enable
+
+permissions:
+  contents: read
+
+jobs:
+  stale:
+    permissions:
+      issues: write  # for actions/stale to close stale issues
+      pull-requests: write  # for actions/stale to close stale PRs
+    if: github.repository == 'nodejs/node'
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/stale@b5d41d4e1d5dceea10e7104786b73624c18a190f  # v10.2.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          days-before-stale: 210
+          days-before-close: 30
+          stale-issue-label: stale
+          exempt-issue-labels: never-stale, confirmed-bug
+          close-issue-message: ${{ format(env.CLOSE_MESSAGE, 'issue') }}
+          stale-issue-message: ${{ format(env.WARN_MESSAGE, 'issue') }}
+          stale-pr-label: stale
+          exempt-pr-labels: never-stale
+          close-pr-message: ${{ format(env.CLOSE_MESSAGE, 'pull request') }}
+          stale-pr-message: ${{ format(env.WARN_MESSAGE, 'pull request') }}
+          # max requests it will send per run to the GitHub API before it deliberately exits to avoid hitting API rate limits
+          operations-per-run: 500
+          remove-stale-when-updated: true
