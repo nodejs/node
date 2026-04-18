@@ -160,9 +160,7 @@ static std::string GetErrorSource(Isolate* isolate,
   CHECK_GT(buf.size(), 0);
   *added_exception_line = true;
 
-  if (start > end ||
-      start < 0 ||
-      end < 0 ||
+  if (start > end || start < 0 || end < 0 ||
       static_cast<size_t>(end) > sourceline.size()) {
     return buf;
   }
