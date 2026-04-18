@@ -97,11 +97,11 @@ function sendBADTLSRecord() {
     // Different OpenSSL versions send different TLS alerts when the peer
     // receives an invalid record on an established connection.
     assert.match(err.code,
-                 /ERR_SSL_(TLSV1_ALERT_PROTOCOL_VERSION|TLSV1_ALERT_RECORD_OVERFLOW|SSL\/TLS_ALERT_UNEXPECTED_MESSAGE)/);
+                 /ERR_SSL_(TLSV1_ALERT_PROTOCOL_VERSION|TLSV1_ALERT_RECORD_OVERFLOW|(SSL\/)?TLS_ALERT_UNEXPECTED_MESSAGE)/);
     assert.strictEqual(err.library, 'SSL routines');
     if (!hasOpenSSL3 && !process.features.openssl_is_boringssl)
       assert.strictEqual(err.function, 'ssl3_read_bytes');
     assert.match(err.reason,
-                 /tlsv1[\s_]alert[\s_]protocol[\s_]version|tlsv1[\s_]alert[\s_]record[\s_]overflow|ssl\/tls[\s_]alert[\s_]unexpected[\s_]message/i);
+                 /tlsv1[\s_]alert[\s_]protocol[\s_]version|tlsv1[\s_]alert[\s_]record[\s_]overflow|(ssl\/)?tls[\s_]alert[\s_]unexpected[\s_]message/i);
   }));
 }
