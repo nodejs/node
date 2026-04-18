@@ -1,4 +1,4 @@
-/* auto-generated on 2026-04-12 17:45:05 +0300. Do not edit! */
+/* auto-generated on 2026-04-18 10:54:35 +0100. Do not edit! */
 /* begin file src/ata.cpp */
 #include "ata.h"
 
