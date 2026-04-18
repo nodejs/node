@@ -250,7 +250,7 @@ void DynamicLibrary::New(const FunctionCallbackInfo<Value>& args) {
   }
 #endif
 
-  char* library_path = nullptr;
+  const char* library_path = nullptr;
   DynamicLibrary* lib = new DynamicLibrary(env, args.This());
 
   if (args[0]->IsString()) {
@@ -258,8 +258,8 @@ void DynamicLibrary::New(const FunctionCallbackInfo<Value>& args) {
     if (ThrowIfContainsNullBytes(env, filename, "Library path")) {
       return;
     }
-    library_path = *filename;
-    lib->path_ = std::string(*filename);
+    lib->path_ = filename.ToString();
+    library_path = lib->path_.c_str();
   }
 
   // Open the library
