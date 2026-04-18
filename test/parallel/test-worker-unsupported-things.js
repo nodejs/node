@@ -34,7 +34,7 @@ if (!process.env.HAS_STARTED_WORKER) {
     });
   }
 
-  const stubs = ['abort', 'chdir', 'send', 'disconnect'];
+  const stubs = ['abort', 'chdir', 'setTitle', 'send', 'disconnect'];
 
   if (!common.isWindows) {
     stubs.push('setuid', 'seteuid', 'setgid',
