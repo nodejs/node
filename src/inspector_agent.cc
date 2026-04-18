@@ -677,7 +677,7 @@ class NodeInspectorClient : public V8InspectorClient {
         ToInspectorString(isolate, message->Get())->string(),
         ToInspectorString(isolate, message->GetScriptResourceName())->string(),
         message->GetLineNumber(context).FromMaybe(0),
-        message->GetStartColumn(context).FromMaybe(0),
+        message->GetStartColumn(),
         client_->createStackTrace(stack_trace),
         script_id);
   }
