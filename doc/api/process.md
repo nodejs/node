@@ -4360,8 +4360,6 @@ const { setTitle } = require('node:process');
 setTitle('my-service');
 ```
 
-This function is not supported in [`Worker`][] threads.
-
 ## `process.traceDeprecation`
 
 <!-- YAML

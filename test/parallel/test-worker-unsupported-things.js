@@ -17,6 +17,9 @@ if (!process.env.HAS_STARTED_WORKER) {
     const after = before + ' in worker';
     process.title = after;
     assert.strictEqual(process.title, after);
+
+    process.setTitle(`${after} via function`);
+    assert.strictEqual(process.title, `${after} via function`);
   }
 
   {
@@ -34,7 +37,7 @@ if (!process.env.HAS_STARTED_WORKER) {
     });
   }
 
-  const stubs = ['abort', 'chdir', 'setTitle', 'send', 'disconnect'];
+  const stubs = ['abort', 'chdir', 'send', 'disconnect'];
 
   if (!common.isWindows) {
     stubs.push('setuid', 'seteuid', 'setgid',
