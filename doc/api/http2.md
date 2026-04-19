@@ -3203,6 +3203,8 @@ changes:
     This is similar to [`server.maxHeadersCount`][] or
     [`request.maxHeadersCount`][] in the `node:http` module. The minimum value
     is `1`. **Default:** `128`.
+  * `maxOriginSetSize` {number} Sets the maximum number of uniq origin the sever
+    can send via ORIGIN frames. **Default:** `128`.
   * `maxOutstandingPings` {number} Sets the maximum number of outstanding,
     unacknowledged pings. **Default:** `10`.
   * `maxReservedRemoteStreams` {number} Sets the maximum number of reserved push
