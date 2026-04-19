@@ -4,6 +4,7 @@
 #include "node_external_reference.h"
 #include "node_i18n.h"
 #include "node_process-inl.h"
+#include "permission/permission.h"
 #include "util.h"
 
 #include <time.h>  // tzset(), _tzset()
@@ -435,6 +436,14 @@ static Intercepted EnvGetter(Local<Name> property,
     return Intercepted::kYes;
   }
   CHECK(property->IsString());
+
+  Utf8Value key(env->isolate(), property);
+  if (env->permission()->enabled() &&
+      !env->permission()->is_granted(
+          env, permission::PermissionScope::kEnvVar, key.ToStringView())) {
+    return Intercepted::kNo;
+  }
+
   MaybeLocal<String> value_string =
       env->env_vars()->Get(env->isolate(), property.As<String>());
 
@@ -453,6 +462,16 @@ static Intercepted EnvSetter(Local<Name> property,
                              const PropertyCallbackInfo<void>& info) {
   Environment* env = Environment::GetCurrent(info);
   CHECK(env->has_run_bootstrapping_code());
+
+  if (property->IsString()) {
+    Utf8Value key(env->isolate(), property);
+    THROW_IF_INSUFFICIENT_PERMISSIONS(
+        env,
+        permission::PermissionScope::kEnvVar,
+        key.ToStringView(),
+        Intercepted::kYes);
+  }
+
   // calling env->EmitProcessEnvWarning() sets a variable indicating that
   // warnings have been emitted. It should be called last after other
   // conditions leading to a warning have been met.
@@ -489,6 +508,13 @@ static Intercepted EnvQuery(Local<Name> property,
   Environment* env = Environment::GetCurrent(info);
   CHECK(env->has_run_bootstrapping_code());
   if (property->IsString()) {
+    Utf8Value key(env->isolate(), property);
+    if (env->permission()->enabled() &&
+        !env->permission()->is_granted(
+            env, permission::PermissionScope::kEnvVar, key.ToStringView())) {
+      return Intercepted::kNo;
+    }
+
     int32_t rc = env->env_vars()->Query(env->isolate(), property.As<String>());
     bool has_env = (rc != -1);
     TraceEnvVar(env, "query", property.As<String>());
@@ -506,6 +532,13 @@ static Intercepted EnvDeleter(Local<Name> property,
   Environment* env = Environment::GetCurrent(info);
   CHECK(env->has_run_bootstrapping_code());
   if (property->IsString()) {
+    Utf8Value key(env->isolate(), property);
+    THROW_IF_INSUFFICIENT_PERMISSIONS(
+        env,
+        permission::PermissionScope::kEnvVar,
+        key.ToStringView(),
+        Intercepted::kYes);
+
     env->env_vars()->Delete(env->isolate(), property.As<String>());
 
     TraceEnvVar(env, "delete", property.As<String>());
@@ -525,7 +558,24 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
 
   Local<Array> ret;
   if (env->env_vars()->Enumerate(env->isolate()).ToLocal(&ret)) {
-    info.GetReturnValue().Set(ret);
+    if (env->permission()->enabled()) {
+      LocalVector<Value> filtered(env->isolate());
+      for (uint32_t i = 0; i < ret->Length(); i++) {
+        Local<Value> elem;
+        if (!ret->Get(env->context(), i).ToLocal(&elem)) continue;
+        Utf8Value key(env->isolate(), elem);
+        if (env->permission()->is_granted(
+                env,
+                permission::PermissionScope::kEnvVar,
+                key.ToStringView())) {
+          filtered.push_back(elem);
+        }
+      }
+      info.GetReturnValue().Set(
+          Array::New(env->isolate(), filtered.data(), filtered.size()));
+    } else {
+      info.GetReturnValue().Set(ret);
+    }
   }
 }
 

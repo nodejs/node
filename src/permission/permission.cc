@@ -48,6 +48,8 @@ constexpr std::string_view GetDiagnosticsChannelName(PermissionScope scope) {
       return "node:permission-model:addon";
     case PermissionScope::kFFI:
       return "node:permission-model:ffi";
+    case PermissionScope::kEnvVar:
+      return "node:permission-model:env";
     default:
       return {};
   }
@@ -108,6 +110,8 @@ Permission::Permission() : enabled_(false), warning_only_(false) {
   std::shared_ptr<PermissionBase> net = std::make_shared<NetPermission>();
   std::shared_ptr<PermissionBase> addon = std::make_shared<AddonPermission>();
   std::shared_ptr<FFIPermission> ffi = std::make_shared<FFIPermission>();
+  std::shared_ptr<PermissionBase> env_var =
+      std::make_shared<EnvVarPermission>();
 #define V(Name, _, __, ___)                                                    \
   nodes_.insert(std::make_pair(PermissionScope::k##Name, fs));
   FILESYSTEM_PERMISSIONS(V)
@@ -139,6 +143,8 @@ Permission::Permission() : enabled_(false), warning_only_(false) {
 #define V(Name, _, __, ___)                                                    \
   nodes_.insert(std::make_pair(PermissionScope::k##Name, ffi));
   FFI_PERMISSIONS(V)
+  nodes_.insert(std::make_pair(PermissionScope::k##Name, env_var));
+  ENV_VAR_PERMISSIONS(V)
 #undef V
 }
 

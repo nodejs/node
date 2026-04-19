@@ -151,6 +151,7 @@ class EnvironmentOptions : public Options {
   bool allow_wasi = false;
   bool allow_ffi = false;
   bool allow_worker_threads = false;
+  std::vector<std::string> allow_env;
   bool experimental_repl_await = true;
   bool experimental_vm_modules = EXPERIMENTALS_DEFAULT_VALUE;
   bool async_context_frame = true;

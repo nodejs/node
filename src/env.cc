@@ -949,6 +949,13 @@ Environment::Environment(IsolateData* isolate_data,
       permission()->Apply(this, {"*"}, permission::PermissionScope::kWASI);
     }
 
+    if (!options_->allow_env.empty()) {
+      permission()->Apply(
+          this, options_->allow_env, permission::PermissionScope::kEnvVar);
+    } else {
+      permission()->Apply(this, {}, permission::PermissionScope::kEnvVar);
+    }
+
     // Implicit allow entrypoint to kFileSystemRead
     if (!options_->has_eval_string && !options_->force_repl) {
       std::string first_argv;
