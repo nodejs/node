@@ -30,12 +30,7 @@ export class Client extends Dispatcher {
 }
 
 export declare namespace Client {
-  export interface OptionsInterceptors {
-    Client: readonly Dispatcher.DispatchInterceptor[];
-  }
   export interface Options {
-    /** TODO */
-    interceptors?: OptionsInterceptors;
     /** The maximum length of request headers in bytes. Default: Node.js' `--max-http-header-size` or `16384` (16KiB). */
     maxHeaderSize?: number;
     /** The amount of time, in milliseconds, the parser will wait to receive the complete HTTP headers (Node 14 and above only). Default: `300e3` milliseconds (300s). */
@@ -44,7 +39,7 @@ export declare namespace Client {
     socketTimeout?: never;
     /** @deprecated unsupported requestTimeout, use headersTimeout & bodyTimeout instead */
     requestTimeout?: never;
-    /** TODO */
+    /** The timeout for establishing a socket connection, in milliseconds. Use `0` to disable it entirely. Default: `10e3` milliseconds (10s). */
     connectTimeout?: number;
     /** The timeout after which a request will time out, in milliseconds. Monitors time between receiving body data. Use `0` to disable it entirely. Default: `300e3` milliseconds (300s). */
     bodyTimeout?: number;
@@ -60,7 +55,7 @@ export declare namespace Client {
     keepAliveMaxTimeout?: number;
     /** A number of milliseconds subtracted from server *keep-alive* hints when overriding `idleTimeout` to account for timing inaccuracies caused by e.g. transport latency. Default: `1e3` milliseconds (1s). */
     keepAliveTimeoutThreshold?: number;
-    /** TODO */
+    /** An IPC endpoint, either a Unix domain socket or Windows named pipe. Default: `null`. */
     socketPath?: string;
     /** The amount of concurrent requests to be sent over the single TCP/TLS connection according to [RFC7230](https://tools.ietf.org/html/rfc7230#section-6.3.2). Default: `1`. */
     pipelining?: number;
@@ -68,23 +63,25 @@ export declare namespace Client {
     tls?: never;
     /** If `true`, an error is thrown when the request content-length header doesn't match the length of the request body. Default: `true`. */
     strictContentLength?: boolean;
-    /** TODO */
+    /** Maximum number of TLS cached sessions used by the built-in connector. Use `0` to disable TLS session caching. Default: `100`. */
     maxCachedSessions?: number;
-    /** TODO */
+    /** Connector options passed to `buildConnector`, or a custom connector function. Default: `null`. */
     connect?: Partial<buildConnector.BuildOptions> | buildConnector.connector;
-    /** TODO */
+    /** The maximum number of requests to send over a single connection before it is reset. Use `0` to disable this limit. Default: `null`. */
     maxRequestsPerClient?: number;
-    /** TODO */
+    /** Local IP address the socket should connect from. */
     localAddress?: string;
     /** Max response body size in bytes, -1 is disabled */
     maxResponseSize?: number;
+    /** WebSocket-specific options */
+    webSocket?: Client.WebSocketOptions;
     /** Enables a family autodetection algorithm that loosely implements section 5 of RFC 8305. */
     autoSelectFamily?: boolean;
     /** The amount of time in milliseconds to wait for a connection attempt to finish before trying the next address when using the `autoSelectFamily` option. */
     autoSelectFamilyAttemptTimeout?: number;
     /**
      * @description Enables support for H2 if the server has assigned bigger priority to it through ALPN negotiation.
-     * @default false
+     * @default true
      */
     allowH2?: boolean;
     /**
@@ -117,6 +114,15 @@ export declare namespace Client {
     timeout?: number
     bytesWritten?: number
     bytesRead?: number
+  }
+  export interface WebSocketOptions {
+    /**
+     * Maximum allowed payload size in bytes for WebSocket messages.
+     * Applied to uncompressed messages, compressed frame payloads, and decompressed (permessage-deflate) messages.
+     * Set to 0 to disable the limit.
+     * @default 134217728 (128 MB)
+     */
+    maxPayloadSize?: number;
   }
 }
 

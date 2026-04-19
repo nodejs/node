@@ -79,25 +79,27 @@ class Socks5ProxyAgent extends DispatcherBase {
     debug('creating SOCKS5 connection to', proxyHost, proxyPort)
 
     // Connect to the SOCKS5 proxy
-    const socket = await new Promise((resolve, reject) => {
-      const onConnect = () => {
-        socket.removeListener('error', onError)
-        resolve(socket)
-      }
+    const socketReady = Promise.withResolvers()
 
-      const onError = (err) => {
-        socket.removeListener('connect', onConnect)
-        reject(err)
-      }
+    const onSocketConnect = () => {
+      socket.removeListener('error', onSocketError)
+      socketReady.resolve(socket)
+    }
 
-      const socket = net.connect({
-        host: proxyHost,
-        port: proxyPort
-      })
+    const onSocketError = (err) => {
+      socket.removeListener('connect', onSocketConnect)
+      socketReady.reject(err)
+    }
 
-      socket.once('connect', onConnect)
-      socket.once('error', onError)
+    const socket = net.connect({
+      host: proxyHost,
+      port: proxyPort
     })
+
+    socket.once('connect', onSocketConnect)
+    socket.once('error', onSocketError)
+
+    await socketReady.promise
 
     // Create SOCKS5 client
     const socks5Client = new Socks5Client(socket, this[kProxyAuth])
@@ -112,58 +114,62 @@ class Socks5ProxyAgent extends DispatcherBase {
     await socks5Client.handshake()
 
     // Wait for authentication (if required)
-    await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error('SOCKS5 authentication timeout'))
-      }, 5000)
+    const authenticationReady = Promise.withResolvers()
 
-      const onAuthenticated = () => {
-        clearTimeout(timeout)
-        socks5Client.removeListener('error', onError)
-        resolve()
-      }
+    const authenticationTimeout = setTimeout(() => {
+      authenticationReady.reject(new Error('SOCKS5 authentication timeout'))
+    }, 5000)
 
-      const onError = (err) => {
-        clearTimeout(timeout)
-        socks5Client.removeListener('authenticated', onAuthenticated)
-        reject(err)
-      }
+    const onAuthenticated = () => {
+      clearTimeout(authenticationTimeout)
+      socks5Client.removeListener('error', onAuthenticationError)
+      authenticationReady.resolve()
+    }
 
-      // Check if already authenticated (for NO_AUTH method)
-      if (socks5Client.state === 'authenticated') {
-        clearTimeout(timeout)
-        resolve()
-      } else {
-        socks5Client.once('authenticated', onAuthenticated)
-        socks5Client.once('error', onError)
-      }
-    })
+    const onAuthenticationError = (err) => {
+      clearTimeout(authenticationTimeout)
+      socks5Client.removeListener('authenticated', onAuthenticated)
+      authenticationReady.reject(err)
+    }
+
+    // Check if already authenticated (for NO_AUTH method)
+    if (socks5Client.state === 'authenticated') {
+      clearTimeout(authenticationTimeout)
+      authenticationReady.resolve()
+    } else {
+      socks5Client.once('authenticated', onAuthenticated)
+      socks5Client.once('error', onAuthenticationError)
+    }
+
+    await authenticationReady.promise
 
     // Send CONNECT command
     await socks5Client.connect(targetHost, targetPort)
 
     // Wait for connection
-    await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error('SOCKS5 connection timeout'))
-      }, 5000)
+    const connectionReady = Promise.withResolvers()
 
-      const onConnected = (info) => {
-        debug('SOCKS5 tunnel established to', targetHost, targetPort, 'via', info)
-        clearTimeout(timeout)
-        socks5Client.removeListener('error', onError)
-        resolve()
-      }
+    const connectionTimeout = setTimeout(() => {
+      connectionReady.reject(new Error('SOCKS5 connection timeout'))
+    }, 5000)
 
-      const onError = (err) => {
-        clearTimeout(timeout)
-        socks5Client.removeListener('connected', onConnected)
-        reject(err)
-      }
+    const onConnected = (info) => {
+      debug('SOCKS5 tunnel established to', targetHost, targetPort, 'via', info)
+      clearTimeout(connectionTimeout)
+      socks5Client.removeListener('error', onConnectionError)
+      connectionReady.resolve()
+    }
 
-      socks5Client.once('connected', onConnected)
-      socks5Client.once('error', onError)
-    })
+    const onConnectionError = (err) => {
+      clearTimeout(connectionTimeout)
+      socks5Client.removeListener('connected', onConnected)
+      connectionReady.reject(err)
+    }
+
+    socks5Client.once('connected', onConnected)
+    socks5Client.once('error', onConnectionError)
+
+    await connectionReady.promise
 
     return socket
   }
@@ -206,10 +212,10 @@ class Socks5ProxyAgent extends DispatcherBase {
                   ...connectOpts.tls || {}
                 })
 
-                await new Promise((resolve, reject) => {
-                  finalSocket.once('secureConnect', resolve)
-                  finalSocket.once('error', reject)
-                })
+                const tlsReady = Promise.withResolvers()
+                finalSocket.once('secureConnect', tlsReady.resolve)
+                finalSocket.once('error', tlsReady.reject)
+                await tlsReady.promise
               }
 
               callback(null, finalSocket)

@@ -374,9 +374,11 @@ function assertCacheMethods (methods, name = 'CacheMethods') {
  * @returns {string}
  */
 function makeDeduplicationKey (cacheKey, excludeHeaders) {
-  // Create a deterministic string key from the cache key
-  // Include origin, method, path, and sorted headers
-  let key = `${cacheKey.origin}:${cacheKey.method}:${cacheKey.path}`
+  // Use JSON.stringify to produce a collision-resistant key.
+  // Previous format used `:` and `=` delimiters without escaping, which
+  // allowed different header sets to produce identical keys (e.g.
+  // {a:"x:b=y"} vs {a:"x", b:"y"}). See: https://github.com/nodejs/undici/issues/5012
+  const headers = {}
 
   if (cacheKey.headers) {
     const sortedHeaders = Object.keys(cacheKey.headers).sort()
@@ -385,12 +387,11 @@ function makeDeduplicationKey (cacheKey, excludeHeaders) {
       if (excludeHeaders?.has(header.toLowerCase())) {
         continue
       }
-      const value = cacheKey.headers[header]
-      key += `:${header}=${Array.isArray(value) ? value.join(',') : value}`
+      headers[header] = cacheKey.headers[header]
     }
   }
 
-  return key
+  return JSON.stringify([cacheKey.origin, cacheKey.method, cacheKey.path, headers])
 }
 
 module.exports = {

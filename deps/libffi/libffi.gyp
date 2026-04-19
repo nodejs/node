@@ -96,6 +96,7 @@
     {
       'target_name': 'libffi',
       'type': 'static_library',
+      'hard_dependency': 1,
       'cflags': ['-fvisibility=hidden'],
       'xcode_settings': {
         'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES',
@@ -106,7 +107,7 @@
       ],
       'include_dirs': [
         'include',
-        '<(INTERMEDIATE_DIR)',
+        '<(SHARED_INTERMEDIATE_DIR)/libffi',
       ],
       'sources': [
         '<@(libffi_sources)',
@@ -123,15 +124,15 @@
             'src/x86/ffitarget.h',
           ],
           'outputs': [
-            '<(INTERMEDIATE_DIR)/ffi.h',
-            '<(INTERMEDIATE_DIR)/fficonfig.h',
-            '<(INTERMEDIATE_DIR)/ffitarget.h',
+            '<(SHARED_INTERMEDIATE_DIR)/libffi/ffi.h',
+            '<(SHARED_INTERMEDIATE_DIR)/libffi/fficonfig.h',
+            '<(SHARED_INTERMEDIATE_DIR)/libffi/ffitarget.h',
           ],
           'action': [
             '<(python)',
             'generate-headers.py',
             '--output-dir',
-            '<(INTERMEDIATE_DIR)',
+            '<(SHARED_INTERMEDIATE_DIR)/libffi',
           ],
         },
       ],
@@ -146,8 +147,8 @@
                 'include/ffi_cfi.h',
                 'src/x86/asmnames.h',
                 'src/x86/win64_intel.S',
-                '<(INTERMEDIATE_DIR)/ffi.h',
-                '<(INTERMEDIATE_DIR)/fficonfig.h',
+                '<(SHARED_INTERMEDIATE_DIR)/libffi/ffi.h',
+                '<(SHARED_INTERMEDIATE_DIR)/libffi/fficonfig.h',
               ],
               'outputs': [
                 '<(INTERMEDIATE_DIR)/win64_intel.asm',
@@ -163,6 +164,8 @@
                 'include',
                 '--include-dir',
                 'src/x86',
+                '--include-dir',
+                '<(SHARED_INTERMEDIATE_DIR)/libffi',
                 '--define',
                 'FFI_STATIC_BUILD',
               ],
@@ -183,8 +186,8 @@
                 'include/ffi_cfi.h',
                 'src/aarch64/internal.h',
                 'src/aarch64/win64_armasm.S',
-                '<(INTERMEDIATE_DIR)/ffi.h',
-                '<(INTERMEDIATE_DIR)/fficonfig.h',
+                '<(SHARED_INTERMEDIATE_DIR)/libffi/ffi.h',
+                '<(SHARED_INTERMEDIATE_DIR)/libffi/fficonfig.h',
               ],
               'outputs': [
                 '<(INTERMEDIATE_DIR)/win64_armasm.obj',
@@ -200,6 +203,8 @@
                 'include',
                 '--include-dir',
                 'src/aarch64',
+                '--include-dir',
+                '<(SHARED_INTERMEDIATE_DIR)/libffi',
                 '--define',
                 'FFI_STATIC_BUILD',
                 '--assemble',
@@ -212,7 +217,7 @@
       'direct_dependent_settings': {
         'include_dirs': [
           'include',
-          '<(INTERMEDIATE_DIR)',
+          '<(SHARED_INTERMEDIATE_DIR)/libffi',
         ],
         'defines': [
           'FFI_STATIC_BUILD',

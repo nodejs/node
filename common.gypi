@@ -38,7 +38,7 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.17',
+    'v8_embedder_string': '-node.18',
 
     ##### V8 defaults for Node.js #####
 
@@ -591,6 +591,18 @@
           '-maix64',
         ],
         'conditions': [
+          [ 'clang==1', {
+            'cflags': [
+              '-fno-integrated-as',
+              '-fno-xl-pragma-pack',
+              '-mcpu=power9',
+            ],
+            'cflags_cc': [
+              '-fno-integrated-as',
+              '-fno-xl-pragma-pack',
+              '-mcpu=power9',
+            ],
+          }],
           [ '"<(aix_variant_name)"=="OS400"', {            # a.k.a. `IBM i`
             'ldflags': [
               '-Wl,-blibpath:/QOpenSys/pkgs/lib:/QOpenSys/usr/lib',

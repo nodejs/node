@@ -124,10 +124,9 @@ class EnvironmentOptions : public Options {
   bool enable_source_maps = false;
   bool experimental_addon_modules = false;
   bool experimental_eventsource = false;
-  bool experimental_fetch = true;
   bool experimental_ffi = false;
   bool experimental_websocket = true;
-  bool experimental_sqlite = true;
+  bool experimental_sqlite = HAVE_SQLITE;
   bool experimental_stream_iter = false;
   bool experimental_logger = false;
   bool webstorage = HAVE_SQLITE;
@@ -274,7 +273,6 @@ class EnvironmentOptions : public Options {
   bool report_exclude_env = false;
   bool report_exclude_network = false;
   std::string experimental_config_file_path;
-  bool experimental_default_config_file = false;
 
   inline DebugOptions* get_debug_options() { return &debug_options_; }
   inline const DebugOptions& debug_options() const { return debug_options_; }

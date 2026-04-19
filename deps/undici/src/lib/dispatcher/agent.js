@@ -35,7 +35,7 @@ class Agent extends DispatcherBase {
       throw new InvalidArgumentError('maxOrigins must be a number greater than 0')
     }
 
-    super()
+    super(options)
 
     if (connect && typeof connect !== 'function') {
       connect = { ...connect }
