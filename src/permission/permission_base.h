@@ -37,6 +37,7 @@ namespace permission {
 
 #define ENV_VAR_PERMISSIONS(V)                                                 \
   V(EnvVar, "env", PermissionsRoot, "--allow-env")
+#define FFI_PERMISSIONS(V) V(FFI, "ffi", PermissionsRoot, "--allow-ffi")
 
 #define PERMISSIONS(V)                                                         \
   FILESYSTEM_PERMISSIONS(V)                                                    \
@@ -47,6 +48,7 @@ namespace permission {
   NET_PERMISSIONS(V)                                                           \
   ADDON_PERMISSIONS(V)                                                         \
   ENV_VAR_PERMISSIONS(V)
+  FFI_PERMISSIONS(V)
 
 #define V(name, _, __, ___) k##name,
 enum class PermissionScope {
