@@ -679,8 +679,7 @@ describe('namespace-scoped options', () => {
 describe('JSON Schema validation', () => {
   test('rejects boolean option with string value', async () => {
     const result = await spawnPromisified(process.execPath, [
-      '--experimental-config-file',
-      fixtures.path('rc/invalid-schema-type.json'),
+      `--experimental-config-file=${fixtures.path('rc/invalid-schema-type.json')}`,
       '-p', '"Hello"',
     ]);
     assert.match(result.stderr, /Invalid configuration/);
@@ -690,8 +689,7 @@ describe('JSON Schema validation', () => {
 
   test('rejects number option with string value', async () => {
     const result = await spawnPromisified(process.execPath, [
-      '--experimental-config-file',
-      fixtures.path('rc/invalid-schema-number-as-string.json'),
+      `--experimental-config-file=${fixtures.path('rc/invalid-schema-number-as-string.json')}`,
       '-p', '"Hello"',
     ]);
     assert.match(result.stderr, /Invalid configuration/);
@@ -701,8 +699,7 @@ describe('JSON Schema validation', () => {
 
   test('rejects array option with boolean value', async () => {
     const result = await spawnPromisified(process.execPath, [
-      '--experimental-config-file',
-      fixtures.path('rc/invalid-schema-array-as-bool.json'),
+      `--experimental-config-file=${fixtures.path('rc/invalid-schema-array-as-bool.json')}`,
       '-p', '"Hello"',
     ]);
     assert.match(result.stderr, /Invalid configuration/);
@@ -712,8 +709,7 @@ describe('JSON Schema validation', () => {
 
   test('rejects array with wrong item type', async () => {
     const result = await spawnPromisified(process.execPath, [
-      '--experimental-config-file',
-      fixtures.path('rc/invalid-schema-nested-type.json'),
+      `--experimental-config-file=${fixtures.path('rc/invalid-schema-nested-type.json')}`,
       '-p', '"Hello"',
     ]);
     assert.match(result.stderr, /Invalid configuration/);
@@ -723,8 +719,7 @@ describe('JSON Schema validation', () => {
 
   test('reports every error when multiple properties fail', async () => {
     const result = await spawnPromisified(process.execPath, [
-      '--experimental-config-file',
-      fixtures.path('rc/invalid-schema-multiple-errors.json'),
+      `--experimental-config-file=${fixtures.path('rc/invalid-schema-multiple-errors.json')}`,
       '-p', '"Hello"',
     ]);
     assert.match(result.stderr, /Invalid configuration/);
@@ -735,8 +730,7 @@ describe('JSON Schema validation', () => {
 
   test('accepts valid config with mixed types', async () => {
     const result = await spawnPromisified(process.execPath, [
-      '--experimental-config-file',
-      fixtures.path('rc/valid-schema-all-types.json'),
+      `--experimental-config-file=${fixtures.path('rc/valid-schema-all-types.json')}`,
       '-e', 'process.exit(0)',
     ]);
     assert.strictEqual(result.code, 0);
@@ -744,8 +738,7 @@ describe('JSON Schema validation', () => {
 
   test('accepts empty object config', async () => {
     const result = await spawnPromisified(process.execPath, [
-      '--experimental-config-file',
-      fixtures.path('rc/empty-object.json'),
+      `--experimental-config-file=${fixtures.path('rc/empty-object.json')}`,
       '-e', 'process.exit(0)',
     ]);
     assert.strictEqual(result.code, 0);
