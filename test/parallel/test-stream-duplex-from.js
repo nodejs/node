@@ -401,3 +401,20 @@ function makeATestWritableStream(writeFunc) {
     assert.strictEqual(d.writable, false);
   }));
 }
+
+// When the readable side errors, the error must propagate to the writable side.
+{
+  const expectedErr = new Error('readable error');
+  const r = new Readable({ read() {} });
+  const w = new Writable({
+    write(chunk, encoding, callback) { callback(); },
+  });
+  const d = Duplex.from({ readable: r, writable: w });
+  d.on('error', common.mustCall((err) => {
+    assert.strictEqual(err, expectedErr);
+  }));
+  w.on('error', common.mustCall((err) => {
+    assert.strictEqual(err, expectedErr);
+  }));
+  r.destroy(expectedErr);
+}
