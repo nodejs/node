@@ -3431,6 +3431,9 @@ Emitted when code coverage is enabled and all tests have completed.
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
+  * `testId` {number} A numeric identifier for this test instance, unique
+    within the test file's process. Consistent across all events for the same
+    test instance, enabling reliable correlation in custom reporters.
   * `testNumber` {number} The ordinal number of the test.
   * `todo` {string|boolean|undefined} Present if [`context.todo`][] is called
   * `skip` {string|boolean|undefined} Present if [`context.skip`][] is called
@@ -3451,6 +3454,9 @@ The corresponding declaration ordered events are `'test:pass'` and `'test:fail'`
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
+  * `testId` {number} A numeric identifier for this test instance, unique
+    within the test file's process. Consistent across all events for the same
+    test instance, enabling reliable correlation in custom reporters.
   * `type` {string} The test type. Either `'suite'` or `'test'`.
 
 Emitted when a test is dequeued, right before it is executed.
@@ -3489,6 +3495,9 @@ defined.
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
+  * `testId` {number} A numeric identifier for this test instance, unique
+    within the test file's process. Consistent across all events for the same
+    test instance, enabling reliable correlation in custom reporters.
   * `type` {string} The test type. Either `'suite'` or `'test'`.
 
 Emitted when a test is enqueued for execution.
@@ -3512,6 +3521,9 @@ Emitted when a test is enqueued for execution.
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
+  * `testId` {number} A numeric identifier for this test instance, unique
+    within the test file's process. Consistent across all events for the same
+    test instance, enabling reliable correlation in custom reporters.
   * `testNumber` {number} The ordinal number of the test.
   * `todo` {string|boolean|undefined} Present if [`context.todo`][] is called
   * `skip` {string|boolean|undefined} Present if [`context.skip`][] is called
@@ -3524,7 +3536,9 @@ The corresponding execution ordered event is `'test:complete'`.
 ### Event: `'test:interrupted'`
 
 <!-- YAML
-added: v25.7.0
+added:
+ - v25.7.0
+ - v24.15.0
 -->
 
 * `data` {Object}
@@ -3566,6 +3580,9 @@ since the parent runner only knows about file-level tests. When using
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
+  * `testId` {number} A numeric identifier for this test instance, unique
+    within the test file's process. Consistent across all events for the same
+    test instance, enabling reliable correlation in custom reporters.
   * `testNumber` {number} The ordinal number of the test.
   * `todo` {string|boolean|undefined} Present if [`context.todo`][] is called
   * `skip` {string|boolean|undefined} Present if [`context.skip`][] is called
@@ -3602,6 +3619,9 @@ defined.
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
+  * `testId` {number} A numeric identifier for this test instance, unique
+    within the test file's process. Consistent across all events for the same
+    test instance, enabling reliable correlation in custom reporters.
 
 Emitted when a test starts reporting its own and its subtests status.
 This event is guaranteed to be emitted in the same order as the tests are
@@ -3700,6 +3720,91 @@ a setTimeout callback after execution has completed), this function returns
 When called from within a hook (before, beforeEach, after, afterEach), this
 function returns the context of the test or suite that the hook is associated
 with.
+
+## Test instrumentation and OpenTelemetry
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The test runner publishes test execution events through the Node.js
+[`diagnostics_channel`][] module, enabling integration with observability tools
+like OpenTelemetry without requiring changes to the test runner itself.
+
+### Tracing events
+
+The test runner publishes events to the `'node.test'` tracing channel. Subscribers
+can use the [`TracingChannel`][] API to bind context or perform custom
+instrumentation.
+
+#### Channel: `'tracing:node.test:start'`
+
+* `data` {Object}
+  * `name` {string} The name of the test.
+  * `nesting` {number} The nesting level of the test.
+  * `file` {string|undefined} The path to the test file, or `undefined` when
+    running in the REPL.
+  * `type` {string} The type of test. Either `'test'` or `'suite'`.
+
+Emitted when a test or suite starts execution. The test's span encompasses all
+of its before, beforeEach, and afterEach hooks, as well as the test body.
+
+#### Channel: `'tracing:node.test:end'`
+
+* `data` {Object}
+  * `name` {string} The name of the test.
+  * `nesting` {number} The nesting level of the test.
+  * `file` {string|undefined} The path to the test file, or `undefined` when
+    running in the REPL.
+  * `type` {string} The type of test. Either `'test'` or `'suite'`.
+
+Emitted when a test or suite finishes execution.
+
+#### Channel: `'tracing:node.test:error'`
+
+* `data` {Object}
+  * `name` {string} The name of the test.
+  * `nesting` {number} The nesting level of the test.
+  * `file` {string|undefined} The path to the test file, or `undefined` when
+    running in the REPL.
+  * `type` {string} The type of test. Either `'test'` or `'suite'`.
+  * `error` {Error} The error that was thrown.
+
+Emitted when a test or suite throws an error.
+
+### Context propagation with `bindStore()`
+
+The tracing channel can be used to propagate context through test execution by
+binding an `AsyncLocalStorage` instance. This allows context to be automatically
+available in the test function and all async operations within the test.
+
+```mjs
+import dc from 'node:diagnostics_channel';
+import { AsyncLocalStorage } from 'node:async_hooks';
+
+const testStorage = new AsyncLocalStorage();
+const testChannel = dc.tracingChannel('node.test');
+
+// Bind context to test execution — the returned value becomes the store
+testChannel.start.bindStore(testStorage, (data) => {
+  return { testName: data.name, startTime: Date.now() };
+});
+
+// Optionally handle errors and cleanup
+testChannel.error.subscribe((data) => {
+  const store = testStorage.getStore();
+  console.log(`Test "${data.name}" failed after ${Date.now() - store.startTime}ms`);
+});
+
+testChannel.end.subscribe((data) => {
+  const store = testStorage.getStore();
+  console.log(`Test "${data.name}" completed in ${Date.now() - store.startTime}ms`);
+});
+```
+
+When using `bindStore()`, the context provided will be automatically propagated
+to the test function and all async operations within the test, without requiring
+any additional instrumentation in the test code.
 
 ## Class: `TestContext`
 
@@ -4020,7 +4125,9 @@ the second attempt is `1`, and so on. This property is useful in conjunction wit
 ### `context.workerId`
 
 <!-- YAML
-added: v25.8.0
+added:
+ - v25.8.0
+ - v24.15.0
 -->
 
 * Type: {number|undefined}
@@ -4433,18 +4540,20 @@ test.describe('my suite', (suite) => {
 [`NODE_V8_COVERAGE`]: cli.md#node_v8_coveragedir
 [`SuiteContext`]: #class-suitecontext
 [`TestContext`]: #class-testcontext
+[`TracingChannel`]: diagnostics_channel.md#class-tracingchannel
 [`assert.throws`]: assert.md#assertthrowsfn-error-message
 [`context.diagnostic`]: #contextdiagnosticmessage
 [`context.skip`]: #contextskipmessage
 [`context.todo`]: #contexttodomessage
 [`describe()`]: #describename-options-fn
+[`diagnostics_channel`]: diagnostics_channel.md
 [`glob(7)`]: https://man7.org/linux/man-pages/man7/glob.7.html
 [`it()`]: #itname-options-fn
 [`run()`]: #runoptions
 [`suite()`]: #suitename-options-fn
 [`test()`]: #testname-options-fn
 [code coverage]: #collecting-code-coverage
-[configuration files]: cli.md#--experimental-config-fileconfig
+[configuration files]: cli.md#--experimental-config-filepath---experimental-config-file
 [describe options]: #describename-options-fn
 [it options]: #testname-options-fn
 [module customization hooks]: module.md#customization-hooks

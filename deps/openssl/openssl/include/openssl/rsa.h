@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -334,13 +334,13 @@ struct rsa_pss_params_st {
 DECLARE_ASN1_FUNCTIONS(RSA_PSS_PARAMS)
 DECLARE_ASN1_DUP_FUNCTION(RSA_PSS_PARAMS)
 
-typedef struct rsa_oaep_params_st {
+struct rsa_oaep_params_st {
     X509_ALGOR *hashFunc;
     X509_ALGOR *maskGenFunc;
     X509_ALGOR *pSourceFunc;
     /* Decoded hash algorithm from maskGenFunc */
     X509_ALGOR *maskHash;
-} RSA_OAEP_PARAMS;
+};
 
 DECLARE_ASN1_FUNCTIONS(RSA_OAEP_PARAMS)
 

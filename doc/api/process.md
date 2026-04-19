@@ -3189,6 +3189,7 @@ The available scopes are:
 * `fs.write` - File System write operations
 * `child` - Child process spawning operations
 * `worker` - Worker thread spawning operation
+* `ffi` - Foreign function interface operations
 
 ```js
 // Check if the process has permission to read the README file

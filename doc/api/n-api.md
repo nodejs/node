@@ -2575,6 +2575,41 @@ object just created has been garbage collected.
 JavaScript `ArrayBuffer`s are described in
 [Section ArrayBuffer objects][] of the ECMAScript Language Specification.
 
+#### `node_api_create_external_sharedarraybuffer`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+```c
+napi_status
+node_api_create_external_sharedarraybuffer(napi_env env,
+                                           void* external_data,
+                                           size_t byte_length,
+                                           node_api_noenv_finalize finalize_cb,
+                                           void* finalize_hint,
+                                           napi_value* result)
+```
+
+* `[in] env`: The environment that the API is invoked under.
+* `[in] external_data`: Pointer to the underlying byte buffer of the
+  `SharedArrayBuffer`.
+* `[in] byte_length`: The length in bytes of the underlying buffer.
+* `[in] finalize_cb`: Optional callback to call when the `SharedArrayBuffer` is
+  being collected. Called on an arbitrary thread. Because a `SharedArrayBuffer`
+  can outlive the environment it's created in, the callback does not receive a
+  reference to `env`.
+* `[in] finalize_hint`: Optional hint to pass to the finalize callback during
+  collection.
+* `[out] result`: A `napi_value` representing a JavaScript `SharedArrayBuffer`.
+
+Returns `napi_ok` if the API succeeded.
+
+Create a `SharedArrayBuffer` with externally managed memory.
+
+See the entry on [`napi_create_external_arraybuffer`][] for runtime
+compatibility.
+
 #### `napi_create_external_buffer`
 
 <!-- YAML

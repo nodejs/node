@@ -175,7 +175,8 @@ added:
   - v20.17.0
 changes:
   - version:
-    - v25.4.0
+     - v25.4.0
+     - v24.15.0
     pr-url: https://github.com/nodejs/node/pull/60959
     description: This feature is no longer experimental.
   - version:
@@ -531,6 +532,7 @@ When being loaded by `require()`, some built-in modules must be requested with t
 modules from having a conflict with user land packages that already have
 taken the name. Currently the built-in modules that requires the `node:` prefix are:
 
+* [`node:ffi`][]
 * [`node:sea`][]
 * [`node:sqlite`][]
 * [`node:test`][]
@@ -1282,6 +1284,7 @@ This section was moved to
 [`module.id`]: #moduleid
 [`module` core module]: module.md
 [`module` object]: #the-module-object
+[`node:ffi`]: ffi.md
 [`node:sea`]: single-executable-applications.md#single-executable-application-api
 [`node:sqlite`]: sqlite.md
 [`node:test/reporters`]: test.md#test-reporters

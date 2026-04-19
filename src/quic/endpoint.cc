@@ -24,6 +24,7 @@
 
 namespace node {
 
+using v8::Array;
 using v8::ArrayBufferView;
 using v8::BackingStore;
 using v8::HandleScope;
@@ -504,12 +505,12 @@ JS_CONSTRUCTOR_IMPL(Endpoint, endpoint_constructor_template, {
   SetProtoMethod(isolate, tmpl, "connect", DoConnect);
   SetProtoMethod(isolate, tmpl, "markBusy", MarkBusy);
   SetProtoMethod(isolate, tmpl, "ref", Ref);
+  SetProtoMethod(isolate, tmpl, "setSNIContexts", DoSetSNIContexts);
   SetProtoMethodNoSideEffect(isolate, tmpl, "address", LocalAddress);
 })
 
 void Endpoint::InitPerIsolate(IsolateData* data, Local<ObjectTemplate> target) {
   // TODO(@jasnell): Implement the per-isolate state
-  Http3Application::InitPerIsolate(data, target);
 }
 
 void Endpoint::InitPerContext(Realm* realm, Local<Object> target) {
@@ -565,8 +566,6 @@ void Endpoint::InitPerContext(Realm* realm, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, CLOSECONTEXT_SEND_FAILURE);
   NODE_DEFINE_CONSTANT(target, CLOSECONTEXT_START_FAILURE);
 
-  Http3Application::InitPerContext(realm, target);
-
   SetConstructorFunction(realm->context(),
                          target,
                          "Endpoint",
@@ -578,6 +577,7 @@ void Endpoint::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(DoConnect);
   registry->Register(DoListen);
   registry->Register(DoCloseGracefully);
+  registry->Register(DoSetSNIContexts);
   registry->Register(LocalAddress);
   registry->Register(Ref);
   registry->Register(MarkBusy);
@@ -912,6 +912,15 @@ void Endpoint::Listen(const Session::Options& options) {
     THROW_ERR_INVALID_STATE(
         env(), "Failed to create TLS context: %s", context->validation_error());
     return;
+  }
+
+  // Create additional TLS contexts for SNI entries (virtual hosts).
+  for (const auto& [hostname, sni_options] : options.sni) {
+    if (!context->AddSNIContext(env(), hostname, sni_options)) {
+      THROW_ERR_INVALID_STATE(
+          env(), "Failed to create TLS context for SNI host '%s'", hostname);
+      return;
+    }
   }
 
   server_state_ = {
@@ -1750,6 +1759,75 @@ JS_METHOD_IMPL(Endpoint::Ref) {
     endpoint->udp_.Ref();
   } else {
     endpoint->udp_.Unref();
+  }
+}
+
+JS_METHOD_IMPL(Endpoint::DoSetSNIContexts) {
+  auto env = Environment::GetCurrent(args);
+  Endpoint* endpoint;
+  ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.This());
+
+  if (!endpoint->server_state_.has_value()) {
+    THROW_ERR_INVALID_STATE(env, "Endpoint is not listening");
+    return;
+  }
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    THROW_ERR_INVALID_ARG_TYPE(env, "entries must be an object");
+    return;
+  }
+
+  bool replace = args.Length() > 1 && args[1]->IsTrue();
+
+  auto entries_obj = args[0].As<Object>();
+  Local<Array> hostnames;
+  if (!entries_obj->GetOwnPropertyNames(env->context()).ToLocal(&hostnames)) {
+    return;
+  }
+
+  if (replace) {
+    std::unordered_map<std::string, TLSContext::Options> entries;
+    for (uint32_t i = 0; i < hostnames->Length(); i++) {
+      Local<Value> key;
+      Local<Value> entry_val;
+      if (!hostnames->Get(env->context(), i).ToLocal(&key) ||
+          !key->IsString() ||
+          !entries_obj->Get(env->context(), key).ToLocal(&entry_val)) {
+        return;
+      }
+      Utf8Value hostname(env->isolate(), key);
+      auto entry_options = TLSContext::Options::From(env, entry_val);
+      if (entry_options.IsNothing()) return;
+      entries[std::string(*hostname, hostname.length())] =
+          entry_options.FromJust();
+    }
+
+    if (!endpoint->server_state_->tls_context->SetSNIContexts(env, entries)) {
+      THROW_ERR_INVALID_STATE(env, "Failed to set SNI contexts");
+      return;
+    }
+  } else {
+    for (uint32_t i = 0; i < hostnames->Length(); i++) {
+      Local<Value> key;
+      Local<Value> entry_val;
+      if (!hostnames->Get(env->context(), i).ToLocal(&key) ||
+          !key->IsString() ||
+          !entries_obj->Get(env->context(), key).ToLocal(&entry_val)) {
+        return;
+      }
+      Utf8Value hostname(env->isolate(), key);
+      auto entry_options = TLSContext::Options::From(env, entry_val);
+      if (entry_options.IsNothing()) return;
+
+      if (!endpoint->server_state_->tls_context->AddSNIContext(
+              env,
+              std::string(*hostname, hostname.length()),
+              entry_options.FromJust())) {
+        THROW_ERR_INVALID_STATE(
+            env, "Failed to add SNI context for '%s'", *hostname);
+        return;
+      }
+    }
   }
 }
 

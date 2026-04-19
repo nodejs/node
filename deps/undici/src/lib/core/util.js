@@ -12,8 +12,6 @@ const { InvalidArgumentError, ConnectTimeoutError } = require('./errors')
 const { headerNameLowerCasedRecord } = require('./constants')
 const { tree } = require('./tree')
 
-const [nodeMajor, nodeMinor] = process.versions.node.split('.', 2).map(v => Number(v))
-
 class BodyAsyncIterable {
   constructor (body) {
     this[kBody] = body
@@ -323,7 +321,7 @@ function isIterable (obj) {
  */
 function hasSafeIterator (obj) {
   const prototype = Object.getPrototypeOf(obj)
-  const ownIterator = Object.prototype.hasOwnProperty.call(obj, Symbol.iterator)
+  const ownIterator = Object.hasOwn(obj, Symbol.iterator)
   return ownIterator || (prototype != null && prototype !== Object.prototype && typeof obj[Symbol.iterator] === 'function')
 }
 
@@ -989,8 +987,6 @@ module.exports = {
   normalizedMethodRecords,
   isValidPort,
   isHttpOrHttpsPrefixed,
-  nodeMajor,
-  nodeMinor,
   safeHTTPMethods: Object.freeze(['GET', 'HEAD', 'OPTIONS', 'TRACE']),
   wrapRequestBody,
   setupConnectTimeout,

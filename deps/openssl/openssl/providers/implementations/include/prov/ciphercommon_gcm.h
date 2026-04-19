@@ -1,6 +1,6 @@
 
 /*
- * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -81,12 +81,12 @@ typedef struct prov_gcm_ctx_st {
     ctr128_f ctr;
 } PROV_GCM_CTX;
 
-PROV_CIPHER_FUNC(int, GCM_setkey, (PROV_GCM_CTX * ctx, const unsigned char *key, size_t keylen));
-PROV_CIPHER_FUNC(int, GCM_setiv, (PROV_GCM_CTX * dat, const unsigned char *iv, size_t ivlen));
-PROV_CIPHER_FUNC(int, GCM_aadupdate, (PROV_GCM_CTX * ctx, const unsigned char *aad, size_t aadlen));
-PROV_CIPHER_FUNC(int, GCM_cipherupdate, (PROV_GCM_CTX * ctx, const unsigned char *in, size_t len, unsigned char *out));
-PROV_CIPHER_FUNC(int, GCM_cipherfinal, (PROV_GCM_CTX * ctx, unsigned char *tag));
-PROV_CIPHER_FUNC(int, GCM_oneshot, (PROV_GCM_CTX * ctx, unsigned char *aad, size_t aad_len, const unsigned char *in, size_t in_len, unsigned char *out, unsigned char *tag, size_t taglen));
+PROV_CIPHER_FUNC(int, GCM_setkey, (PROV_GCM_CTX *ctx, const unsigned char *key, size_t keylen));
+PROV_CIPHER_FUNC(int, GCM_setiv, (PROV_GCM_CTX *dat, const unsigned char *iv, size_t ivlen));
+PROV_CIPHER_FUNC(int, GCM_aadupdate, (PROV_GCM_CTX *ctx, const unsigned char *aad, size_t aadlen));
+PROV_CIPHER_FUNC(int, GCM_cipherupdate, (PROV_GCM_CTX *ctx, const unsigned char *in, size_t len, unsigned char *out));
+PROV_CIPHER_FUNC(int, GCM_cipherfinal, (PROV_GCM_CTX *ctx, unsigned char *tag));
+PROV_CIPHER_FUNC(int, GCM_oneshot, (PROV_GCM_CTX *ctx, unsigned char *aad, size_t aad_len, const unsigned char *in, size_t in_len, unsigned char *out, unsigned char *tag, size_t taglen));
 struct prov_gcm_hw_st {
     OSSL_GCM_setkey_fn setkey;
     OSSL_GCM_setiv_fn setiv;

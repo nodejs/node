@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -214,6 +214,12 @@ static int sm2sig_digest_signverify_init(void *vpsm2ctx, const char *mdname,
     int ret = 0;
     unsigned char *aid = NULL;
 
+    /*
+     * Each EVP_Digest{Sign,Verify}Init_ex(3) starts with fresh content, that
+     * needs to recompute the "Z" digest.
+     */
+    ctx->flag_compute_z_digest = 1;
+
     if (!sm2sig_signature_init(vpsm2ctx, ec, params)
         || !sm2sig_set_mdname(ctx, mdname))
         return ret;
@@ -246,8 +252,6 @@ static int sm2sig_digest_signverify_init(void *vpsm2ctx, const char *mdname,
 
     if (!EVP_DigestInit_ex2(ctx->mdctx, ctx->md, params))
         goto error;
-
-    ctx->flag_compute_z_digest = 1;
 
     ret = 1;
 

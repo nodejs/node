@@ -4,6 +4,7 @@
   withQuic ? false,
   withSQLite ? true,
   withSSL ? true,
+  withFFI ? true,
   withTemporal ? false,
 }:
 {
@@ -46,30 +47,12 @@
 // (pkgs.lib.optionalAttrs withSQLite {
   inherit (pkgs) sqlite;
 })
-// (pkgs.lib.optionalAttrs withSSL (
-  let
-    version = "3.5.5";
-  in
-  {
-    openssl = pkgs.openssl_3_6.overrideAttrs (old: {
-      inherit version;
-      src = pkgs.fetchurl {
-        url = builtins.replaceStrings [ old.version ] [ version ] old.src.url;
-        hash = "sha256-soyRUyqLZaH5g7TCi3SIF05KAQCOKc6Oab14nyi8Kok=";
-      };
-      doCheck = false;
-      configureFlags = (old.configureFlags or [ ]) ++ [
-        "no-docs"
-        "no-tests"
-      ];
-      outputs = [
-        "bin"
-        "out"
-        "dev"
-      ];
-    });
-  }
-))
+// (pkgs.lib.optionalAttrs withFFI {
+  ffi = pkgs.libffiReal;
+})
+// (pkgs.lib.optionalAttrs withSSL ({
+  openssl = pkgs.openssl_3_5;
+}))
 // (pkgs.lib.optionalAttrs withTemporal {
   inherit (pkgs) temporal_capi;
 })

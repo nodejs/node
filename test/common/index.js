@@ -69,6 +69,7 @@ const hasCrypto = Boolean(process.versions.openssl) &&
 
 const hasInspector = Boolean(process.features.inspector);
 const hasSQLite = Boolean(process.versions.sqlite);
+const hasFFI = Boolean(process.config.variables.node_use_ffi);
 
 const hasQuic = hasCrypto && !!process.features.quic;
 
@@ -760,6 +761,12 @@ function skipIfSQLiteMissing() {
   }
 }
 
+function skipIfFFIMissing() {
+  if (!hasFFI) {
+    skip('missing FFI');
+  }
+}
+
 function getArrayBufferViews(buf) {
   const { buffer, byteOffset, byteLength } = buf;
 
@@ -978,6 +985,7 @@ const common = {
   hasQuic,
   hasInspector,
   hasSQLite,
+  hasFFI,
   hasLocalStorage,
   invalidArgTypeHelper,
   isAlive,
@@ -1009,6 +1017,7 @@ const common = {
   skipIf32Bits,
   skipIfEslintMissing,
   skipIfInspectorDisabled,
+  skipIfFFIMissing,
   skipIfSQLiteMissing,
   spawnPromisified,
   sleepSync,

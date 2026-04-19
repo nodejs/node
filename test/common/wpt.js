@@ -93,8 +93,9 @@ class ReportResult {
 // Checkout https://github.com/web-platform-tests/wpt.fyi/tree/main/api#results-creation
 // for more details.
 class WPTReport {
-  constructor(path) {
-    this.filename = `report-${path.replaceAll('/', '-')}.json`;
+  constructor(testPath) {
+    this.filename = `report-${testPath.replaceAll('/', '-')}.json`;
+    this.filepath = path.join(__dirname, `../../out/wpt/${this.filename}`);
     /** @type {Map<string, ReportResult>} */
     this.results = new Map();
     this.time_start = Date.now();
@@ -139,7 +140,7 @@ class WPTReport {
       os: getOs(),
     };
 
-    fs.writeFileSync(`out/wpt/${this.filename}`, JSON.stringify({
+    fs.writeFileSync(this.filepath, JSON.stringify({
       time_start: this.time_start,
       time_end: this.time_end,
       run_info: this.run_info,
@@ -500,14 +501,16 @@ class StatusLoader {
 
   load() {
     const dir = path.join(__dirname, '..', 'wpt');
-    let statusFile = path.join(dir, 'status', `${this.path}.json`);
     let result;
 
-    if (fs.existsSync(statusFile)) {
-      result = JSON.parse(fs.readFileSync(statusFile, 'utf8'));
-    } else {
-      statusFile = path.join(dir, 'status', `${this.path}.cjs`);
-      result = require(statusFile);
+    try {
+      this.statusFile = `${this.path}.json`;
+      const jsonFile = path.join(dir, 'status', this.statusFile);
+      result = JSON.parse(fs.readFileSync(jsonFile, 'utf8'));
+    } catch (err) {
+      if (err?.code !== 'ENOENT') throw err;
+      this.statusFile = `${this.path}.cjs`;
+      result = require(path.join(dir, 'status', this.statusFile));
     }
 
     this.rules.addRules(result);
@@ -573,12 +576,15 @@ class WPTRunner {
 
     this.status = new StatusLoader(path);
     this.status.load();
+    this.statusFile = this.status.statusFile;
     this.specs = new Set(this.status.specs);
 
     this.results = {};
     this.inProgress = new Set();
     this.workers = new Map();
     this.unexpectedFailures = [];
+
+    this.subtestCounts = { passed: 0, failed: 0, expectedFailures: 0, skipped: 0, unexpectedPasses: 0 };
 
     if (process.env.WPT_REPORT != null) {
       this.report = new WPTReport(path);
@@ -775,7 +781,6 @@ class WPTRunner {
       const failures = [];
       let expectedFailures = 0;
       let skipped = 0;
-      let skippedTests = 0;
       for (const [key, item] of Object.entries(this.results)) {
         if (item.fail?.unexpected) {
           failures.push(key);
@@ -785,9 +790,6 @@ class WPTRunner {
         }
         if (item.skip) {
           skipped++;
-        }
-        if (item.skipTests) {
-          skippedTests += item.skipTests.length;
         }
       }
 
@@ -823,23 +825,28 @@ class WPTRunner {
       // so that results survive if the process is killed.
       this.report?.write();
 
+      const p = (n, word, suffix = 's') => `${n} ${word}${n === 1 ? '' : suffix}`;
       const ran = queue.length;
       const total = ran + skipped;
       const passed = ran - expectedFailures - failures.length;
+      const { subtestCounts } = this;
       console.log('');
-      console.log(`Ran ${ran}/${total} tests, ${skipped} skipped,`,
-                  `${passed} passed, ${expectedFailures} expected failures,`,
-                  `${failures.length} unexpected failures,`,
-                  `${unexpectedPasses.length} unexpected passes` +
-                  (skippedTests ? `, ${skippedTests} subtests skipped` : ''));
+      console.log(`Files: ${ran}/${total} ran, ${passed} passed,`,
+                  `${skipped} skipped, ${p(expectedFailures, 'expected failure')},`,
+                  `${p(failures.length, 'unexpected failure')},`,
+                  `${p(unexpectedPasses.length, 'unexpected pass', 'es')}`);
+      console.log(`Subtests: ${subtestCounts.passed} passed,`,
+                  `${subtestCounts.skipped} skipped, ${p(subtestCounts.expectedFailures, 'expected failure')},`,
+                  `${p(subtestCounts.failed, 'unexpected failure')},`,
+                  `${p(subtestCounts.unexpectedPasses, 'unexpected pass', 'es')}`);
       if (failures.length > 0) {
-        const file = path.join('test', 'wpt', 'status', `${this.path}.json`);
+        const file = path.join('test', 'wpt', 'status', this.statusFile);
         throw new Error(
           `Found ${failures.length} unexpected failures. ` +
           `Consider updating ${file} for these files:\n${failures.join('\n')}`);
       }
       if (unexpectedPasses.length > 0) {
-        const file = path.join('test', 'wpt', 'status', `${this.path}.json`);
+        const file = path.join('test', 'wpt', 'status', this.statusFile);
         throw new Error(
           `Found ${unexpectedPasses.length} unexpected passes. ` +
           `Consider updating ${file} for these files:\n${unexpectedPasses.join('\n')}`);
@@ -875,7 +882,7 @@ class WPTRunner {
     if (status !== kPass) {
       this.fail(spec, test, status, reportResult);
     } else {
-      this.succeed(test, status, reportResult);
+      this.succeed(spec, test, status, reportResult);
     }
   }
 
@@ -943,14 +950,22 @@ class WPTRunner {
     }
   }
 
-  succeed(test, status, reportResult) {
-    console.log(`[${status.toUpperCase()}] ${test.name}`);
+  succeed(spec, test, status, reportResult) {
+    const unexpectedPass = spec.failedTests.includes(test.name);
+    if (unexpectedPass) {
+      console.log(`[UNEXPECTED_PASS][${status.toUpperCase()}] ${test.name}`);
+      this.subtestCounts.unexpectedPasses++;
+    } else {
+      console.log(`[${status.toUpperCase()}] ${test.name}`);
+      this.subtestCounts.passed++;
+    }
     reportResult?.addSubtest(test.name, 'PASS');
   }
 
   skipTest(spec, test, reportResult) {
     console.log(`[SKIP] ${test.name}`);
     reportResult?.addSubtest(test.name, 'NOTRUN');
+    this.subtestCounts.skipped++;
     this.addTestResult(spec, {
       name: test.name,
       status: kSkip,
@@ -973,6 +988,11 @@ class WPTRunner {
     console.log(`Command: ${command}\n`);
 
     reportResult?.addSubtest(test.name, 'FAIL', test.message);
+    if (expected) {
+      this.subtestCounts.expectedFailures++;
+    } else {
+      this.subtestCounts.failed++;
+    }
 
     this.addTestResult(spec, {
       name: test.name,

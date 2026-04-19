@@ -24,7 +24,6 @@ class Packet;
 // The FunctionTemplates the BindingData will store for us.
 #define QUIC_CONSTRUCTORS(V)                                                   \
   V(endpoint)                                                                  \
-  V(http3application)                                                          \
   V(logstream)                                                                 \
   V(session)                                                                   \
   V(stream)                                                                    \
@@ -59,7 +58,7 @@ class Packet;
   V(ack_delay_exponent, "ackDelayExponent")                                    \
   V(active_connection_id_limit, "activeConnectionIDLimit")                     \
   V(address_lru_size, "addressLRUSize")                                        \
-  V(application_provider, "provider")                                          \
+  V(application, "application")                                                \
   V(bbr, "bbr")                                                                \
   V(ca, "ca")                                                                  \
   V(cc_algorithm, "cc")                                                        \
@@ -78,7 +77,6 @@ class Packet;
   V(groups, "groups")                                                          \
   V(handshake_timeout, "handshakeTimeout")                                     \
   V(http3_alpn, &NGHTTP3_ALPN_H3[1])                                           \
-  V(http3application, "Http3Application")                                      \
   V(initial_max_data, "initialMaxData")                                        \
   V(initial_max_stream_data_bidi_local, "initialMaxStreamDataBidiLocal")       \
   V(initial_max_stream_data_bidi_remote, "initialMaxStreamDataBidiRemote")     \
@@ -105,7 +103,7 @@ class Packet;
   V(max_window, "maxWindow")                                                   \
   V(min_version, "minVersion")                                                 \
   V(preferred_address_strategy, "preferredAddressPolicy")                      \
-  V(protocol, "protocol")                                                      \
+  V(alpn, "alpn")                                                              \
   V(qlog, "qlog")                                                              \
   V(qpack_blocked_streams, "qpackBlockedStreams")                              \
   V(qpack_encoder_max_dtable_capacity, "qpackEncoderMaxDTableCapacity")        \
@@ -117,6 +115,7 @@ class Packet;
   V(rx_loss, "rxDiagnosticLoss")                                               \
   V(servername, "servername")                                                  \
   V(session, "Session")                                                        \
+  V(sni, "sni")                                                                \
   V(stream, "Stream")                                                          \
   V(success, "success")                                                        \
   V(tls_options, "tls")                                                        \

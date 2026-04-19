@@ -35,7 +35,5 @@ declare namespace Pool {
     connections?: number | null;
     /** The amount of time before a client is removed from the pool and closed. `null` if no time limit. Default `null` */
     clientTtl?: number | null;
-
-    interceptors?: { Pool?: readonly Dispatcher.DispatchInterceptor[] } & Client.Options['interceptors']
   }
 }

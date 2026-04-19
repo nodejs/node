@@ -69,7 +69,7 @@ async function testVerify({ algorithm,
   // Test failure when using the wrong algorithms
   await assert.rejects(
     subtle.verify(signParams, keyPair.publicKey, expected, data), {
-      message: /Unable to use this key to verify/
+      message: /Key algorithm mismatch/
     });
 
   // Test failure when signature is altered
@@ -177,7 +177,7 @@ async function testSign({ algorithm,
   // Test failure when using the wrong algorithms
   await assert.rejects(
     subtle.sign(signParams, keyPair.privateKey, data), {
-      message: /Unable to use this key to sign/
+      message: /Key algorithm mismatch/
     });
 }
 

@@ -76,6 +76,12 @@ void ossl_quic_reactor_cleanup(QUIC_REACTOR *rtor)
 }
 
 #if defined(OPENSSL_SYS_WINDOWS)
+
+/* Work around for MinGW builds. */
+#if defined(__MINGW32__) && !defined(SIO_UDP_NETRESET)
+#define SIO_UDP_NETRESET _WSAIOW(IOC_VENDOR, 15)
+#endif
+
 /*
  * On Windows recvfrom() may return WSAECONNRESET when destination port
  * used in preceding call to sendto() is no longer reachable. The reset

@@ -71,6 +71,7 @@ namespace quic {
   V(STREAM_OPEN_ALLOWED, stream_open_allowed, uint8_t)                         \
   V(PRIORITY_SUPPORTED, priority_supported, uint8_t)                           \
   V(WRAPPED, wrapped, uint8_t)                                                 \
+  V(APPLICATION_TYPE, application_type, uint8_t)                               \
   V(LAST_DATAGRAM_ID, last_datagram_id, datagram_id)
 
 #define SESSION_STATS(V)                                                       \
@@ -249,33 +250,6 @@ bool SetOption(Environment* env,
     return false;
   }
   options->*member = opts;
-  return true;
-}
-
-template <typename Opt,
-          BaseObjectPtr<Session::ApplicationProvider> Opt::*member>
-bool SetOption(Environment* env,
-               Opt* options,
-               const Local<Object>& object,
-               const Local<String>& name) {
-  Local<Value> value;
-  if (!object->Get(env->context(), name).ToLocal(&value)) {
-    return false;
-  }
-  if (!value->IsUndefined()) {
-    // We currently only support Http3Application for this option.
-    if (!Http3Application::HasInstance(env, value)) {
-      THROW_ERR_INVALID_ARG_TYPE(env,
-                                 "Application must be an Http3Application");
-      return false;
-    }
-    Http3Application* app;
-    ASSIGN_OR_RETURN_UNWRAP(&app, value.As<Object>(), false);
-    CHECK_NOT_NULL(app);
-    auto& assigned = options->*member =
-                         BaseObjectPtr<Session::ApplicationProvider>(app);
-    assigned->Detach();
-  }
   return true;
 }
 
@@ -462,13 +436,62 @@ Maybe<Session::Options> Session::Options::From(Environment* env,
 
   if (!SET(version) || !SET(min_version) || !SET(preferred_address_strategy) ||
       !SET(transport_params) || !SET(tls_options) || !SET(qlog) ||
-      !SET(application_provider) || !SET(handshake_timeout) ||
-      !SET(max_stream_window) || !SET(max_window) || !SET(max_payload_size) ||
-      !SET(unacknowledged_packet_threshold) || !SET(cc_algorithm)) {
+      !SET(handshake_timeout) || !SET(max_stream_window) || !SET(max_window) ||
+      !SET(max_payload_size) || !SET(unacknowledged_packet_threshold) ||
+      !SET(cc_algorithm)) {
     return Nothing<Options>();
   }
 
 #undef SET
+
+  // Parse the application-specific options (HTTP/3 qpack settings, etc.).
+  // These are used if the negotiated ALPN selects Http3ApplicationImpl.
+  {
+    Local<Value> app_val;
+    if (params->Get(env->context(), state.application_string())
+            .ToLocal(&app_val) &&
+        !app_val->IsUndefined()) {
+      if (!Application_Options::From(env, app_val)
+               .To(&options.application_options)) {
+        return Nothing<Options>();
+      }
+    }
+  }
+
+  // Parse the SNI map from the tls options.
+  {
+    Local<Value> tls_val;
+    if (params->Get(env->context(), state.tls_options_string())
+            .ToLocal(&tls_val) &&
+        tls_val->IsObject()) {
+      Local<Value> sni_val;
+      if (tls_val.As<Object>()
+              ->Get(env->context(), state.sni_string())
+              .ToLocal(&sni_val) &&
+          sni_val->IsObject()) {
+        auto sni_obj = sni_val.As<Object>();
+        Local<Array> hostnames;
+        if (sni_obj->GetOwnPropertyNames(env->context()).ToLocal(&hostnames)) {
+          for (uint32_t i = 0; i < hostnames->Length(); i++) {
+            Local<Value> key;
+            Local<Value> entry_val;
+            if (!hostnames->Get(env->context(), i).ToLocal(&key) ||
+                !key->IsString() ||
+                !sni_obj->Get(env->context(), key).ToLocal(&entry_val)) {
+              continue;
+            }
+            Utf8Value hostname(env->isolate(), key);
+            auto entry_options = TLSContext::Options::From(env, entry_val);
+            if (entry_options.IsNothing()) {
+              return Nothing<Options>();
+            }
+            options.sni[std::string(*hostname, hostname.length())] =
+                entry_options.FromJust();
+          }
+        }
+      }
+    }
+  }
 
   // TODO(@jasnell): Later we will also support setting the CID::Factory.
   // For now, we're just using the default random factory.
@@ -559,7 +582,6 @@ struct Session::Impl final : public MemoryRetainer {
         config_(config),
         local_address_(config.local_address),
         remote_address_(config.remote_address),
-        application_(SelectApplication(session, config_)),
         timer_(session_->env(), [this] { session_->OnTimeout(); }) {
     timer_.Unref();
   }
@@ -1295,7 +1317,8 @@ Session::SendPendingDataScope::SendPendingDataScope(
 Session::SendPendingDataScope::~SendPendingDataScope() {
   if (session->is_destroyed()) return;
   DCHECK_GE(session->impl_->send_scope_depth_, 1);
-  if (--session->impl_->send_scope_depth_ == 0) {
+  if (--session->impl_->send_scope_depth_ == 0 &&
+      session->impl_->application_) {
     session->application().SendPendingData();
   }
 }
@@ -1323,6 +1346,16 @@ Session::Session(Endpoint* endpoint,
       connection_(InitConnection()),
       tls_session_(tls_context->NewSession(this, session_ticket)) {
   DCHECK(impl_);
+
+  // For clients, select the Application immediately — the ALPN is
+  // known upfront from the options. For servers, application_ stays
+  // null until OnSelectAlpn fires during the TLS handshake.
+  if (config.side == Side::CLIENT) {
+    auto app =
+        SelectApplicationFromAlpn(DecodeAlpn(config.options.tls_options.alpn));
+    if (app) SetApplication(std::move(app));
+  }
+
   MakeWeak();
   Debug(this, "Session created.");
   auto& binding = BindingData::Get(env());
@@ -1536,7 +1569,35 @@ TLSSession& Session::tls_session() const {
 
 Session::Application& Session::application() const {
   DCHECK(!is_destroyed());
+  DCHECK(impl_->application_);
   return *impl_->application_;
+}
+
+std::string_view Session::DecodeAlpn(std::string_view wire) {
+  // ALPN wire format is length-prefixed: [len][name]. Extract the first entry.
+  if (wire.size() >= 2) {
+    uint8_t len = static_cast<uint8_t>(wire[0]);
+    if (len > 0 && static_cast<size_t>(len + 1) <= wire.size()) {
+      return wire.substr(1, len);
+    }
+  }
+  return {};
+}
+
+std::unique_ptr<Session::Application> Session::SelectApplicationFromAlpn(
+    std::string_view alpn) {
+  // h3 and h3-XX variants use Http3ApplicationImpl.
+  // Everything else uses DefaultApplication.
+  if (alpn == "h3" || (alpn.size() > 3 && alpn.substr(0, 3) == "h3-")) {
+    return CreateHttp3Application(this, config().options.application_options);
+  }
+  return CreateDefaultApplication(this, config().options.application_options);
+}
+
+void Session::SetApplication(std::unique_ptr<Application> app) {
+  DCHECK(!impl_->application_);
+  impl_->state_->application_type = static_cast<uint8_t>(app->type());
+  impl_->application_ = std::move(app);
 }
 
 const SocketAddress& Session::remote_address() const {
@@ -2419,7 +2480,9 @@ bool Session::HandshakeCompleted() {
 
   // If early data was attempted but rejected by the server,
   // tell ngtcp2 so it can retransmit the data as 1-RTT.
-  if (!is_server() && !tls_session().early_data_was_accepted())
+  // The status of early data will only be rejected if an
+  // attempt was actually made to send early data.
+  if (!is_server() && tls_session().early_data_was_rejected())
     ngtcp2_conn_tls_early_data_rejected(*this);
 
   // When in a server session, handshake completed == handshake confirmed.
@@ -2648,6 +2711,7 @@ void Session::EmitHandshakeComplete() {
       Undefined(isolate),  // Cipher version
       Undefined(isolate),  // Validation error reason
       Undefined(isolate),  // Validation error code
+      Boolean::New(isolate, tls_session().early_data_was_attempted()),
       Boolean::New(isolate, tls_session().early_data_was_accepted())};
 
   auto& tls = tls_session();

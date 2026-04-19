@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2023-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -74,15 +74,21 @@ static unsigned long lcid_hash(const QUIC_LCID *lcid_obj)
         0,
     };
     unsigned long hashval = 0;
+    unsigned char digest[SIPHASH_MIN_DIGEST_SIZE];
 
-    if (!SipHash_set_hash_size(&siphash, sizeof(unsigned long)))
+    /* Use a supported SipHash digest size (8 or 16); 8 is sufficient here. */
+    if (!SipHash_set_hash_size(&siphash, SIPHASH_MIN_DIGEST_SIZE))
         goto out;
     if (!SipHash_Init(&siphash, (uint8_t *)lcid_obj->hash_key, 0, 0))
         goto out;
     SipHash_Update(&siphash, lcid_obj->cid.id, lcid_obj->cid.id_len);
-    if (!SipHash_Final(&siphash, (unsigned char *)&hashval,
-            sizeof(unsigned long)))
+    if (!SipHash_Final(&siphash, digest, SIPHASH_MIN_DIGEST_SIZE))
         goto out;
+
+    /*
+     * Truncate the 64-bit SipHash digest into an unsigned long.
+     */
+    memcpy(&hashval, digest, sizeof(hashval) < sizeof(digest) ? sizeof(hashval) : sizeof(digest));
 out:
     return hashval;
 }

@@ -2398,14 +2398,14 @@ type, value, and parameters. This method is not
 added: v11.6.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/62240
-    description: Added support for `'raw-public'`, `'raw-private'`,
-                 and `'raw-seed'` formats.
-  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/62178
     description: ML-KEM and ML-DSA private key `'pkcs8'` export now
                  uses seed-only format by default when a seed is
                  available.
+  - version: v24.15.0
+    pr-url: https://github.com/nodejs/node/pull/62240
+    description: Added support for `'raw-public'`, `'raw-private'`,
+                 and `'raw-seed'` formats.
   - version: v15.9.0
     pr-url: https://github.com/nodejs/node/pull/37081
     description: Added support for `'jwk'` format.
@@ -2743,14 +2743,14 @@ encoding of `'utf8'` is enforced. If `data` is a [`Buffer`][], `TypedArray`, or
 
 This can be called many times with new data as it is streamed.
 
-### `verify.verify(object, signature[, signatureEncoding])`
+### `verify.verify(key, signature[, signatureEncoding])`
 
 <!-- YAML
 added: v0.1.92
 changes:
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35093
-    description: The object can also be an ArrayBuffer and CryptoKey.
+    description: The key can also be an ArrayBuffer and CryptoKey.
   - version:
      - v13.2.0
      - v12.16.0
@@ -2769,7 +2769,7 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `object` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
+* `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
   * `dsaEncoding` {string}
   * `padding` {integer}
   * `saltLength` {integer}
@@ -2780,10 +2780,10 @@ changes:
 
 <!--lint enable maximum-line-length remark-lint-->
 
-Verifies the provided data using the given `object` and `signature`.
+Verifies the provided data using the given `key` and `signature`.
 
-If `object` is not a [`KeyObject`][], this function behaves as if
-`object` had been passed to [`crypto.createPublicKey()`][]. If it is an
+If `key` is not a [`KeyObject`][], this function behaves as if
+`key` had been passed to [`crypto.createPublicKey()`][]. If it is an
 object, the following additional properties can be passed:
 
 * `dsaEncoding` {string} For DSA and ECDSA, this option specifies the
@@ -3929,7 +3929,7 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/62453
     description: Passing a CryptoKey as `key` is deprecated.
-  - version: REPLACEME
+  - version: v24.15.0
     pr-url: https://github.com/nodejs/node/pull/62240
     description: Added support for `'raw-private'` and `'raw-seed'`
                  formats.
@@ -3980,7 +3980,7 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/62453
     description: Passing a CryptoKey as `key` is deprecated.
-  - version: REPLACEME
+  - version: v24.15.0
     pr-url: https://github.com/nodejs/node/pull/62240
     description: Added support for `'raw-public'` format.
   - version: v24.6.0
@@ -4142,22 +4142,31 @@ added:
  - v13.9.0
  - v12.17.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62527
+    description: Accept key data in addition to KeyObject instances.
   - version: v23.11.0
     pr-url: https://github.com/nodejs/node/pull/57274
     description: Optional callback argument added.
 -->
 
 * `options` {Object}
-  * `privateKey` {KeyObject}
-  * `publicKey` {KeyObject}
+  * `privateKey` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject}
+  * `publicKey` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject}
 * `callback` {Function}
   * `err` {Error}
   * `secret` {Buffer}
 * Returns: {Buffer} if the `callback` function is not provided.
 
 Computes the Diffie-Hellman shared secret based on a `privateKey` and a `publicKey`.
-Both keys must have the same `asymmetricKeyType` and must support either the DH or
+Both keys must represent the same asymmetric key type and must support either the DH or
 ECDH operation.
+
+If `options.privateKey` is not a [`KeyObject`][], this function behaves as if
+`options.privateKey` had been passed to [`crypto.createPrivateKey()`][].
+
+If `options.publicKey` is not a [`KeyObject`][], this function behaves as if
+`options.publicKey` had been passed to [`crypto.createPublicKey()`][].
 
 If the `callback` function is provided this function uses libuv's threadpool.
 
@@ -6943,7 +6952,7 @@ See the [list of SSL OP Flags][] for details.
 [`stream.transform` options]: stream.md#new-streamtransformoptions
 [`util.promisify()`]: util.md#utilpromisifyoriginal
 [`verify.update()`]: #verifyupdatedata-inputencoding
-[`verify.verify()`]: #verifyverifyobject-signature-signatureencoding
+[`verify.verify()`]: #verifyverifykey-signature-signatureencoding
 [`x509.fingerprint256`]: #x509fingerprint256
 [`x509.verify(publicKey)`]: #x509verifypublickey
 [argon2]: https://www.rfc-editor.org/rfc/rfc9106.html

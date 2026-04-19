@@ -196,7 +196,7 @@ jobs:
             --arg ccache "${NIX_SCCACHE:-null}" \
             --arg devTools '[]' \
             --arg benchmarkTools '[]' \
-            ${{ endsWith(matrix.system, '-darwin') && '--arg withAmaro false --arg withLief false --arg withSQLite false --arg extraConfigFlags ''["--without-inspector" "--without-node-options"]'' \' || '\' }}
+            ${{ endsWith(matrix.system, '-darwin') && '--arg withAmaro false --arg withLief false --arg withSQLite false --arg withFFI false --arg extraConfigFlags ''["--without-inspector" "--without-node-options"]'' \' || '\' }}
             --run '
                 make -C "$TAR_DIR" run-ci -j4 V=1 TEST_CI_ARGS="-p actions --measure-flakiness 9 --skip-tests=$CI_SKIP_TESTS"
             ' "$TAR_DIR/shell.nix"

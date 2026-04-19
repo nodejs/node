@@ -9,6 +9,7 @@
 #include <ncrypto.h>
 #include <ngtcp2/ngtcp2_crypto.h>
 #include <ngtcp2/ngtcp2_crypto_ossl.h>
+#include <unordered_map>
 #include "bindingdata.h"
 #include "data.h"
 #include "defs.h"
@@ -54,6 +55,8 @@ class OSSLContext final {
   bool set_transport_params(const ngtcp2_vec& tp) const;
 
   bool get_early_data_accepted() const;
+  bool get_early_data_rejected() const;
+  bool get_early_data_attempted() const;
 
   // Sets the session ticket for 0-RTT resumption. Returns true if the
   // ticket was set successfully and the ticket supports early data.
@@ -96,7 +99,8 @@ class TLSSession final : public MemoryRetainer {
              const std::optional<SessionTicket>& maybeSessionTicket);
   DISALLOW_COPY_AND_MOVE(TLSSession)
 
-  inline operator bool() const { return ossl_context_; }
+  inline bool is_valid() const { return ossl_context_; }
+  inline operator bool() const { return is_valid(); }
   inline Session& session() const { return *session_; }
   inline TLSContext& context() const { return *context_; }
 
@@ -104,6 +108,8 @@ class TLSSession final : public MemoryRetainer {
   // accepted by the TLS session. This will assert if the handshake has
   // not been completed.
   bool early_data_was_accepted() const;
+  bool early_data_was_rejected() const;
+  bool early_data_was_attempted() const;
 
   v8::MaybeLocal<v8::Object> cert(Environment* env) const;
   v8::MaybeLocal<v8::Object> peer_cert(Environment* env) const;
@@ -154,7 +160,6 @@ class TLSSession final : public MemoryRetainer {
   Session* session_;
   ncrypto::BIOPointer bio_trace_;
   std::string validation_error_ = "";
-  bool in_key_update_ = false;
 };
 
 // The TLSContext is used to create a TLSSession. For the client, there is
@@ -175,9 +180,10 @@ class TLSContext final : public MemoryRetainer,
     // the client.
     std::string servername = "localhost";
 
-    // The ALPN (protocol name) to use for this session. This option is only
-    // used by the client.
-    std::string protocol = NGHTTP3_ALPN_H3;
+    // The ALPN protocol identifier(s) in wire format (length-prefixed,
+    // concatenated). For clients this is a single entry. For servers
+    // this may contain multiple entries in preference order.
+    std::string alpn = NGHTTP3_ALPN_H3;
 
     // The list of TLS ciphers to use for this session.
     std::string ciphers = DEFAULT_CIPHERS;
@@ -261,6 +267,13 @@ class TLSContext final : public MemoryRetainer,
   std::unique_ptr<TLSSession> NewSession(
       Session* session, const std::optional<SessionTicket>& maybeSessionTicket);
 
+  bool AddSNIContext(Environment* env,
+                     const std::string& hostname,
+                     const Options& options);
+
+  bool SetSNIContexts(Environment* env,
+                      const std::unordered_map<std::string, Options>& entries);
+
   inline Side side() const { return side_; }
   inline const Options& options() const { return options_; }
   inline operator bool() const { return ctx_ != nullptr; }
@@ -287,6 +300,7 @@ class TLSContext final : public MemoryRetainer,
                           unsigned int inlen,
                           void* arg);
   static int OnVerifyClientCertificate(int preverify_ok, X509_STORE_CTX* ctx);
+  static int OnSNI(SSL* ssl, int* ad, void* arg);
 
   Side side_;
   Options options_;
@@ -294,6 +308,7 @@ class TLSContext final : public MemoryRetainer,
   ncrypto::X509Pointer issuer_;
   std::string validation_error_ = "";
   ncrypto::SSLCtxPointer ctx_;
+  std::unordered_map<std::string, std::shared_ptr<TLSContext>> sni_contexts_;
 
   friend class TLSSession;
 };

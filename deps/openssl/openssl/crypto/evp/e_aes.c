@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -2403,14 +2403,14 @@ static int s390x_aes_ocb_ctrl(EVP_CIPHER_CTX *, int type, int arg, void *ptr);
 
 #endif
 
-#define BLOCK_CIPHER_generic_pack(nid, keylen, flags)                                                          \
-    BLOCK_CIPHER_generic(nid, keylen, 16, 16, cbc, cbc, CBC, flags | EVP_CIPH_FLAG_DEFAULT_ASN1)               \
-        BLOCK_CIPHER_generic(nid, keylen, 16, 0, ecb, ecb, ECB, flags | EVP_CIPH_FLAG_DEFAULT_ASN1)            \
-            BLOCK_CIPHER_generic(nid, keylen, 1, 16, ofb128, ofb, OFB, flags | EVP_CIPH_FLAG_DEFAULT_ASN1)     \
-                BLOCK_CIPHER_generic(nid, keylen, 1, 16, cfb128, cfb, CFB, flags | EVP_CIPH_FLAG_DEFAULT_ASN1) \
-                    BLOCK_CIPHER_generic(nid, keylen, 1, 16, cfb1, cfb1, CFB, flags)                           \
-                        BLOCK_CIPHER_generic(nid, keylen, 1, 16, cfb8, cfb8, CFB, flags)                       \
-                            BLOCK_CIPHER_generic(nid, keylen, 1, 16, ctr, ctr, CTR, flags)
+#define BLOCK_CIPHER_generic_pack(nid, keylen, flags)                                              \
+    BLOCK_CIPHER_generic(nid, keylen, 16, 16, cbc, cbc, CBC, flags | EVP_CIPH_FLAG_DEFAULT_ASN1)   \
+    BLOCK_CIPHER_generic(nid, keylen, 16, 0, ecb, ecb, ECB, flags | EVP_CIPH_FLAG_DEFAULT_ASN1)    \
+    BLOCK_CIPHER_generic(nid, keylen, 1, 16, ofb128, ofb, OFB, flags | EVP_CIPH_FLAG_DEFAULT_ASN1) \
+    BLOCK_CIPHER_generic(nid, keylen, 1, 16, cfb128, cfb, CFB, flags | EVP_CIPH_FLAG_DEFAULT_ASN1) \
+    BLOCK_CIPHER_generic(nid, keylen, 1, 16, cfb1, cfb1, CFB, flags)                               \
+    BLOCK_CIPHER_generic(nid, keylen, 1, 16, cfb8, cfb8, CFB, flags)                               \
+    BLOCK_CIPHER_generic(nid, keylen, 1, 16, ctr, ctr, CTR, flags)
 
 static int aes_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
     const unsigned char *iv, int enc)
@@ -2641,10 +2641,10 @@ static int aes_ctr_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 }
 
 BLOCK_CIPHER_generic_pack(NID_aes, 128, 0)
-    BLOCK_CIPHER_generic_pack(NID_aes, 192, 0)
-        BLOCK_CIPHER_generic_pack(NID_aes, 256, 0)
+BLOCK_CIPHER_generic_pack(NID_aes, 192, 0)
+BLOCK_CIPHER_generic_pack(NID_aes, 256, 0)
 
-            static int aes_gcm_cleanup(EVP_CIPHER_CTX *c)
+static int aes_gcm_cleanup(EVP_CIPHER_CTX *c)
 {
     EVP_AES_GCM_CTX *gctx = EVP_C_DATA(EVP_AES_GCM_CTX, c);
     if (gctx == NULL)
@@ -3189,12 +3189,12 @@ static int aes_gcm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 
 BLOCK_CIPHER_custom(NID_aes, 128, 1, 12, gcm, GCM,
     EVP_CIPH_FLAG_AEAD_CIPHER | CUSTOM_FLAGS)
-    BLOCK_CIPHER_custom(NID_aes, 192, 1, 12, gcm, GCM,
-        EVP_CIPH_FLAG_AEAD_CIPHER | CUSTOM_FLAGS)
-        BLOCK_CIPHER_custom(NID_aes, 256, 1, 12, gcm, GCM,
-            EVP_CIPH_FLAG_AEAD_CIPHER | CUSTOM_FLAGS)
+BLOCK_CIPHER_custom(NID_aes, 192, 1, 12, gcm, GCM,
+    EVP_CIPH_FLAG_AEAD_CIPHER | CUSTOM_FLAGS)
+BLOCK_CIPHER_custom(NID_aes, 256, 1, 12, gcm, GCM,
+    EVP_CIPH_FLAG_AEAD_CIPHER | CUSTOM_FLAGS)
 
-            static int aes_xts_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
+static int aes_xts_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
 {
     EVP_AES_XTS_CTX *xctx = EVP_C_DATA(EVP_AES_XTS_CTX, c);
 
@@ -3378,9 +3378,9 @@ static int aes_xts_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
     | EVP_CIPH_CUSTOM_COPY)
 
 BLOCK_CIPHER_custom(NID_aes, 128, 1, 16, xts, XTS, XTS_FLAGS)
-    BLOCK_CIPHER_custom(NID_aes, 256, 1, 16, xts, XTS, XTS_FLAGS)
+BLOCK_CIPHER_custom(NID_aes, 256, 1, 16, xts, XTS, XTS_FLAGS)
 
-        static int aes_ccm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
+static int aes_ccm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
 {
     EVP_AES_CCM_CTX *cctx = EVP_C_DATA(EVP_AES_CCM_CTX, c);
     switch (type) {
@@ -3654,12 +3654,12 @@ static int aes_ccm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 
 BLOCK_CIPHER_custom(NID_aes, 128, 1, 12, ccm, CCM,
     EVP_CIPH_FLAG_AEAD_CIPHER | CUSTOM_FLAGS)
-    BLOCK_CIPHER_custom(NID_aes, 192, 1, 12, ccm, CCM,
-        EVP_CIPH_FLAG_AEAD_CIPHER | CUSTOM_FLAGS)
-        BLOCK_CIPHER_custom(NID_aes, 256, 1, 12, ccm, CCM,
-            EVP_CIPH_FLAG_AEAD_CIPHER | CUSTOM_FLAGS)
+BLOCK_CIPHER_custom(NID_aes, 192, 1, 12, ccm, CCM,
+    EVP_CIPH_FLAG_AEAD_CIPHER | CUSTOM_FLAGS)
+BLOCK_CIPHER_custom(NID_aes, 256, 1, 12, ccm, CCM,
+    EVP_CIPH_FLAG_AEAD_CIPHER | CUSTOM_FLAGS)
 
-            typedef struct {
+typedef struct {
     union {
         OSSL_UNION_ALIGN;
         AES_KEY ks;
@@ -4146,8 +4146,8 @@ static int aes_ocb_cleanup(EVP_CIPHER_CTX *c)
 
 BLOCK_CIPHER_custom(NID_aes, 128, 16, 12, ocb, OCB,
     EVP_CIPH_FLAG_AEAD_CIPHER | CUSTOM_FLAGS)
-    BLOCK_CIPHER_custom(NID_aes, 192, 16, 12, ocb, OCB,
-        EVP_CIPH_FLAG_AEAD_CIPHER | CUSTOM_FLAGS)
-        BLOCK_CIPHER_custom(NID_aes, 256, 16, 12, ocb, OCB,
-            EVP_CIPH_FLAG_AEAD_CIPHER | CUSTOM_FLAGS)
+BLOCK_CIPHER_custom(NID_aes, 192, 16, 12, ocb, OCB,
+    EVP_CIPH_FLAG_AEAD_CIPHER | CUSTOM_FLAGS)
+BLOCK_CIPHER_custom(NID_aes, 256, 16, 12, ocb, OCB,
+    EVP_CIPH_FLAG_AEAD_CIPHER | CUSTOM_FLAGS)
 #endif /* OPENSSL_NO_OCB */

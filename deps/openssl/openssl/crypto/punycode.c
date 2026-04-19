@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -268,7 +268,7 @@ int ossl_a2ulabel(const char *in, char *out, size_t outlen)
         return -1;
 
     while (1) {
-        char *tmpptr = strchr(inptr, '.');
+        const char *tmpptr = strchr(inptr, '.');
         size_t delta = tmpptr != NULL ? (size_t)(tmpptr - inptr) : strlen(inptr);
 
         if (!HAS_PREFIX(inptr, "xn--")) {

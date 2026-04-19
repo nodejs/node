@@ -9,6 +9,7 @@
 #include "permission/addon_permission.h"
 #include "permission/child_process_permission.h"
 #include "permission/env_var_permission.h"
+#include "permission/ffi_permission.h"
 #include "permission/fs_permission.h"
 #include "permission/inspector_permission.h"
 #include "permission/net_permission.h"

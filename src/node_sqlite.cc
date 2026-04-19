@@ -8,6 +8,7 @@
 #include "node_errors.h"
 #include "node_mem-inl.h"
 #include "node_url.h"
+#include "simdutf.h"
 #include "sqlite3.h"
 #include "threadpoolwork-inl.h"
 #include "util-inl.h"
@@ -23,6 +24,7 @@ namespace sqlite {
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::BackingStoreInitializationMode;
+using v8::BackingStoreOnFailureMode;
 using v8::BigInt;
 using v8::Boolean;
 using v8::ConstructorBehavior;
@@ -62,6 +64,20 @@ using v8::String;
 using v8::TryCatch;
 using v8::Uint8Array;
 using v8::Value;
+
+inline MaybeLocal<String> Utf8StringMaybeOneByte(Isolate* isolate,
+                                                 std::string_view input) {
+  const int len = static_cast<int>(input.size());
+  if (simdutf::validate_ascii(input.data(), input.size())) {
+    return String::NewFromOneByte(
+        isolate,
+        reinterpret_cast<const uint8_t*>(input.data()),
+        NewStringType::kNormal,
+        len);
+  }
+  return String::NewFromUtf8(
+      isolate, input.data(), NewStringType::kNormal, len);
+}
 
 #define CHECK_ERROR_OR_THROW(isolate, db, expr, expected, ret)                 \
   do {                                                                         \
@@ -105,7 +121,10 @@ using v8::Value;
       case SQLITE_TEXT: {                                                      \
         const char* v =                                                        \
             reinterpret_cast<const char*>(sqlite3_##from##_text(__VA_ARGS__)); \
-        (result) = String::NewFromUtf8((isolate), v).As<Value>();              \
+        const int v_len = sqlite3_##from##_bytes(__VA_ARGS__);                 \
+        (result) =                                                             \
+            Utf8StringMaybeOneByte((isolate), std::string_view(v, v_len))      \
+                .As<Value>();                                                  \
         break;                                                                 \
       }                                                                        \
       case SQLITE_NULL: {                                                      \
@@ -1719,6 +1738,136 @@ void DatabaseSync::Location(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+void DatabaseSync::Serialize(const FunctionCallbackInfo<Value>& args) {
+  DatabaseSync* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+
+  std::string db_name = "main";
+  if (!args[0]->IsUndefined()) {
+    if (!args[0]->IsString()) {
+      THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                                 "The \"dbName\" argument must be a string.");
+      return;
+    }
+    db_name = Utf8Value(env->isolate(), args[0].As<String>()).ToString();
+  }
+
+  sqlite3_int64 size = 0;
+  unsigned char* data =
+      sqlite3_serialize(db->connection_, db_name.c_str(), &size, 0);
+
+  if (data == nullptr) {
+    if (size == 0) {
+      Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), 0);
+      args.GetReturnValue().Set(Uint8Array::New(ab, 0, 0));
+      return;
+    }
+    THROW_ERR_SQLITE_ERROR(env->isolate(), db);
+    return;
+  }
+
+  // V8 sandbox forbids external backing stores so allocate inside the
+  // sandbox and copy. Without sandbox wrap the output directly using
+  // sqlite3_free as the destructor to avoid the copy.
+#ifdef V8_ENABLE_SANDBOX
+  auto free_data = OnScopeLeave([&] { sqlite3_free(data); });
+  auto store = ArrayBuffer::NewBackingStore(
+      env->isolate(),
+      size,
+      BackingStoreInitializationMode::kUninitialized,
+      BackingStoreOnFailureMode::kReturnNull);
+  if (!store) {
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+    return;
+  }
+  memcpy(store->Data(), data, size);
+  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(store));
+#else
+  auto store = ArrayBuffer::NewBackingStore(
+      data, size, [](void* ptr, size_t, void*) { sqlite3_free(ptr); }, nullptr);
+  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(store));
+#endif
+
+  args.GetReturnValue().Set(Uint8Array::New(ab, 0, size));
+}
+
+void DatabaseSync::Deserialize(const FunctionCallbackInfo<Value>& args) {
+  DatabaseSync* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+
+  if (!args[0]->IsUint8Array()) {
+    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                               "The \"buffer\" argument must be a Uint8Array.");
+    return;
+  }
+
+  Local<Uint8Array> input = args[0].As<Uint8Array>();
+  size_t byte_length = input->ByteLength();
+
+  if (byte_length == 0) {
+    THROW_ERR_INVALID_ARG_VALUE(env,
+                                "The \"buffer\" argument must not be empty.");
+    return;
+  }
+
+  std::string db_name = "main";
+  if (args.Length() > 1 && !args[1]->IsUndefined()) {
+    if (!args[1]->IsObject()) {
+      THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                                 "The \"options\" argument must be an object.");
+      return;
+    }
+
+    Local<Object> options = args[1].As<Object>();
+    Local<String> db_name_key = FIXED_ONE_BYTE_STRING(env->isolate(), "dbName");
+    Local<Value> db_name_value;
+    if (!options->Get(env->context(), db_name_key).ToLocal(&db_name_value)) {
+      return;
+    }
+
+    if (!db_name_value->IsUndefined()) {
+      if (!db_name_value->IsString()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.dbName\" argument must be a string.");
+        return;
+      }
+      db_name =
+          Utf8Value(env->isolate(), db_name_value.As<String>()).ToString();
+    }
+  }
+
+  // sqlite3_malloc64 is required because SQLITE_DESERIALIZE_FREEONCLOSE
+  // transfers ownership to SQLite, which calls sqlite3_free() on close.
+  // See: https://www.sqlite.org/c3ref/deserialize.html
+  unsigned char* buf =
+      static_cast<unsigned char*>(sqlite3_malloc64(byte_length));
+  if (buf == nullptr) {
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+    return;
+  }
+
+  input->CopyContents(buf, byte_length);
+
+  db->FinalizeStatements();
+
+  int r = sqlite3_deserialize(
+      db->connection_,
+      db_name.c_str(),
+      buf,
+      byte_length,
+      byte_length,
+      SQLITE_DESERIALIZE_FREEONCLOSE | SQLITE_DESERIALIZE_RESIZEABLE);
+  if (r != SQLITE_OK) {
+    THROW_ERR_SQLITE_ERROR(env->isolate(), db);
+    return;
+  }
+}
+
 void DatabaseSync::AggregateFunction(const FunctionCallbackInfo<Value>& args) {
   DatabaseSync* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
@@ -2416,6 +2565,11 @@ StatementSync::~StatementSync() {
 void StatementSync::Finalize() {
   sqlite3_finalize(statement_);
   statement_ = nullptr;
+  InvalidateColumnNameCache();
+}
+
+void StatementSync::InvalidateColumnNameCache() {
+  cached_column_names_.clear();
 }
 
 inline bool StatementSync::IsFinalized() {
@@ -2599,7 +2753,42 @@ MaybeLocal<Name> StatementSync::ColumnNameToName(const int column) {
     return MaybeLocal<Name>();
   }
 
-  return String::NewFromUtf8(env()->isolate(), col_name).As<Name>();
+  return String::NewFromUtf8(
+             env()->isolate(), col_name, NewStringType::kInternalized)
+      .As<Name>();
+}
+
+// Populates `keys` with cached column names, rebuilding the cache if the
+// statement was re-prepared.
+bool StatementSync::GetCachedColumnNames(LocalVector<Name>* keys) {
+  Isolate* isolate = env()->isolate();
+
+  const int reprepare_count =
+      sqlite3_stmt_status(statement_, SQLITE_STMTSTATUS_REPREPARE, false);
+  if (reprepare_count != cached_column_names_reprepare_count_) {
+    cached_column_names_.clear();
+    const int num_cols = sqlite3_column_count(statement_);
+    if (num_cols == 0) {
+      cached_column_names_reprepare_count_ = reprepare_count;
+      return true;
+    }
+    cached_column_names_.reserve(num_cols);
+    for (int i = 0; i < num_cols; ++i) {
+      Local<Name> key;
+      if (!ColumnNameToName(i).ToLocal(&key)) {
+        InvalidateColumnNameCache();
+        return false;
+      }
+      cached_column_names_.emplace_back(Global<Name>(isolate, key));
+    }
+    cached_column_names_reprepare_count_ = reprepare_count;
+  }
+
+  keys->reserve(cached_column_names_.size());
+  for (const auto& name : cached_column_names_) {
+    keys->emplace_back(name.Get(isolate));
+  }
+  return true;
 }
 
 MaybeLocal<Value> StatementExecutionHelper::ColumnToValue(Environment* env,
@@ -2621,7 +2810,9 @@ MaybeLocal<Name> StatementExecutionHelper::ColumnNameToName(Environment* env,
     return MaybeLocal<Name>();
   }
 
-  return String::NewFromUtf8(env->isolate(), col_name).As<Name>();
+  return String::NewFromUtf8(
+             env->isolate(), col_name, NewStringType::kInternalized)
+      .As<Name>();
 }
 
 void StatementSync::MemoryInfo(MemoryTracker* tracker) const {}
@@ -3531,12 +3722,9 @@ void StatementSyncIterator::Next(const FunctionCallbackInfo<Value>& args) {
   if (iter->stmt_->return_arrays_) {
     row_value = Array::New(isolate, row_values.data(), row_values.size());
   } else {
-    row_keys.reserve(num_cols);
-    for (int i = 0; i < num_cols; ++i) {
-      Local<Name> key;
-      if (!iter->stmt_->ColumnNameToName(i).ToLocal(&key)) return;
-      row_keys.emplace_back(key);
-    }
+    // Use cached internalized column names to avoid repeated V8 string
+    // creation and enable hidden class sharing across row objects.
+    if (!iter->stmt_->GetCachedColumnNames(&row_keys)) return;
 
     DCHECK_EQ(row_keys.size(), row_values.size());
     row_value = Object::New(
@@ -3766,6 +3954,8 @@ static void Initialize(Local<Object> target,
       isolate, db_tmpl, "enableDefensive", DatabaseSync::EnableDefensive);
   SetProtoMethod(
       isolate, db_tmpl, "loadExtension", DatabaseSync::LoadExtension);
+  SetProtoMethod(isolate, db_tmpl, "serialize", DatabaseSync::Serialize);
+  SetProtoMethod(isolate, db_tmpl, "deserialize", DatabaseSync::Deserialize);
   SetProtoMethod(
       isolate, db_tmpl, "setAuthorizer", DatabaseSync::SetAuthorizer);
   SetSideEffectFreeGetter(isolate,

@@ -464,6 +464,10 @@ class DefaultApplication final : public Session::Application {
   // of the namespace.
   using Application::Application;  // NOLINT
 
+  Session::Application::Type type() const override {
+    return Session::Application::Type::DEFAULT;
+  }
+
   error_code GetNoErrorCode() const override { return 0; }
 
   bool ReceiveStreamData(int64_t stream_id,
@@ -511,13 +515,6 @@ class DefaultApplication final : public Session::Application {
     // there is no point in pulling stream data.
     if (!session().max_data_left()) return 0;
     if (stream_queue_.IsEmpty()) return 0;
-
-    const auto get_length = [](auto vec, size_t count) {
-      CHECK_NOT_NULL(vec);
-      size_t len = 0;
-      for (size_t n = 0; n < count; n++) len += vec[n].len;
-      return len;
-    };
 
     Stream* stream = stream_queue_.PopFront();
     CHECK_NOT_NULL(stream);
@@ -601,14 +598,9 @@ class DefaultApplication final : public Session::Application {
   Stream::Queue stream_queue_;
 };
 
-std::unique_ptr<Session::Application> Session::SelectApplication(
-    Session* session, const Config& config) {
-  if (config.options.application_provider) {
-    return config.options.application_provider->Create(session);
-  }
-
-  return std::make_unique<DefaultApplication>(session,
-                                              Application_Options::kDefault);
+std::unique_ptr<Session::Application> CreateDefaultApplication(
+    Session* session, const Session::Application_Options& options) {
+  return std::make_unique<DefaultApplication>(session, options);
 }
 
 }  // namespace quic

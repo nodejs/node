@@ -8,8 +8,6 @@ import { FormData } from './formdata'
 import Errors from './errors'
 import { Autocomplete } from './utility'
 
-type AbortSignal = unknown
-
 export default Dispatcher
 
 export type UndiciHeaders = Record<string, string | string[]> | IncomingHttpHeaders | string[] | Iterable<[string, string | string[] | undefined]> | null

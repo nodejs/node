@@ -588,6 +588,13 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             false);
   AddOption("--experimental-fetch", "", NoOp{}, kAllowedInEnvvar);
+#if HAVE_FFI
+  AddOption("--experimental-ffi",
+            "experimental node:ffi module",
+            &EnvironmentOptions::experimental_ffi,
+            kAllowedInEnvvar,
+            false);
+#endif  // HAVE_FFI
   AddOption("--experimental-websocket",
             "experimental WebSocket API",
             &EnvironmentOptions::experimental_websocket,
@@ -598,7 +605,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental node:sqlite module",
             &EnvironmentOptions::experimental_sqlite,
             kAllowedInEnvvar,
-            true);
+            HAVE_SQLITE);
   AddOption("--experimental-stream-iter",
             "experimental iterable streams API (node:stream/iter)",
             &EnvironmentOptions::experimental_stream_iter,
@@ -673,6 +680,14 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             false,
             OptionNamespaces::kPermissionNamespace);
+#if HAVE_FFI
+  AddOption("--allow-ffi",
+            "allow use of FFI when any permissions are set",
+            &EnvironmentOptions::allow_ffi,
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kPermissionNamespace);
+#endif  // HAVE_FFI
   AddOption("--allow-inspector",
             "allow use of inspector when any permissions are set",
             &EnvironmentOptions::allow_inspector,
@@ -891,11 +906,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::optional_env_file);
   Implies("--env-file-if-exists", "[has_env_file_string]");
   AddOption("--experimental-config-file",
-            "set config file from supplied file",
-            &EnvironmentOptions::experimental_config_file_path);
-  AddOption("--experimental-default-config-file",
-            "set config file from default config file",
-            &EnvironmentOptions::experimental_default_config_file);
+            "set config file path",
+            &EnvironmentOptions::experimental_config_file_path,
+            kDisallowedInEnvvar);
+  AddAlias("--experimental-default-config-file", "--experimental-config-file");
   AddOption("--test",
             "launch test runner on startup",
             &EnvironmentOptions::test_runner,
