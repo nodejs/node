@@ -4336,6 +4336,8 @@ Assigning a value to `process.title` might not result in an accurate label
 within process manager applications such as macOS Activity Monitor or Windows
 Services Manager.
 
+As an alternative to direct assignment, use [`process.setTitle()`][].
+
 ## `process.setTitle(title)`
 
 <!-- YAML
@@ -4680,6 +4682,7 @@ cases:
 [`process.hrtime.bigint()`]: #processhrtimebigint
 [`process.kill()`]: #processkillpid-signal
 [`process.permission.has()`]: #processpermissionhasscope-reference
+[`process.setTitle()`]: #processsettitletitle
 [`process.setUncaughtExceptionCaptureCallback()`]: #processsetuncaughtexceptioncapturecallbackfn
 [`process.title`]: #processtitle
 [`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
