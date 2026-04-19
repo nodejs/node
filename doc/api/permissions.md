@@ -71,7 +71,8 @@ using the [`--allow-child-process`][] and [`--allow-worker`][] respectively.
 To allow network access, use [`--allow-net`][] and for allowing native addons
 when using permission model, use the [`--allow-addons`][]
 flag. For WASI, use the [`--allow-wasi`][] flag. For FFI, use the
-[`--allow-ffi`][] flag. The [`node:ffi`](ffi.md) module also requires the
+[`--allow-ffi`][] flag. For environment variables, use the
+[`--allow-env`][] flag. The [`node:ffi`](ffi.md) module also requires the
 `--experimental-ffi` flag and is only available in builds with FFI support.
 
 #### Runtime API
@@ -283,6 +284,7 @@ Developers relying on --permission to sandbox untrusted code should be aware tha
 [Security Policy]: https://github.com/nodejs/node/blob/main/SECURITY.md
 [`--allow-addons`]: cli.md#--allow-addons
 [`--allow-child-process`]: cli.md#--allow-child-process
+[`--allow-env`]: cli.md#--allow-env
 [`--allow-ffi`]: cli.md#--allow-ffi
 [`--allow-fs-read`]: cli.md#--allow-fs-read
 [`--allow-fs-write`]: cli.md#--allow-fs-write
