@@ -59,6 +59,18 @@ test('permission model blocks ffi memory and helper APIs', () => {
   }, denied);
 
   assert.throws(() => {
+    ffi.exportArrayBuffer(new ArrayBuffer(0), 1n, 0);
+  }, denied);
+
+  assert.throws(() => {
+    ffi.exportArrayBufferView(new Uint8Array(0), 1n, 0);
+  }, denied);
+
+  assert.throws(() => {
+    ffi.getRawPointer(Buffer.alloc(0));
+  }, denied);
+
+  assert.throws(() => {
     ffi.dlclose({ close() {} });
   }, denied);
 });

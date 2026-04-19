@@ -21,6 +21,21 @@ test('dlopen without definitions returns empty function map', () => {
   }
 });
 
+test('dlopen resolves symbols from the current process with null path', {
+  skip: common.isWindows,
+}, () => {
+  const { lib, functions } = ffi.dlopen(null, {
+    uv_os_getpid: { result: 'i32', parameters: [] },
+  });
+
+  try {
+    assert.ok(lib instanceof ffi.DynamicLibrary);
+    assert.strictEqual(functions.uv_os_getpid(), process.pid);
+  } finally {
+    lib.close();
+  }
+});
+
 test('dlopen resolves functions from definitions', () => {
   const { lib, functions } = ffi.dlopen(libraryPath, {
     add_i32: fixtureSymbols.add_i32,
