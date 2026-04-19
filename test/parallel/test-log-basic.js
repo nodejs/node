@@ -562,3 +562,193 @@ describe('JSONConsumer flush and end', () => {
     consumer.end();
   });
 });
+
+describe('LogConsumer attach/detach', () => {
+  it('should be idempotent when attach() is called twice', () => {
+    const stream = new TestStream();
+    const consumer = new JSONConsumer({ stream, level: 'info' });
+    const logger = new Logger({ level: 'info' });
+
+    consumer.attach();
+    consumer.attach();
+    try {
+      logger.info('once');
+      consumer.flushSync();
+      assert.strictEqual(stream.logs.length, 1);
+    } finally {
+      consumer.detach();
+    }
+  });
+
+  it('should fully detach after a double-attach', () => {
+    const stream = new TestStream();
+    const consumer = new JSONConsumer({ stream, level: 'info' });
+    const logger = new Logger({ level: 'info' });
+
+    consumer.attach();
+    consumer.attach();
+    consumer.detach();
+
+    logger.info('should not be captured');
+    consumer.flushSync();
+    assert.strictEqual(stream.logs.length, 0);
+  });
+
+  it('should no-op on detach() without prior attach()', () => {
+    const stream = new TestStream();
+    const consumer = new JSONConsumer({ stream, level: 'info' });
+    consumer.detach();
+  });
+});
+
+describe('JSONConsumer undefined handling', () => {
+  it('should skip undefined consumer fields to keep JSON valid', () => {
+    const stream = new TestStream();
+    const consumer = new JSONConsumer({
+      stream,
+      level: 'info',
+      fields: { service: 'api', region: undefined },
+    });
+    consumer.attach();
+    const logger = new Logger({ level: 'info' });
+    try {
+      logger.info('ok');
+      consumer.flushSync();
+      assert.strictEqual(stream.logs.length, 1);
+      assert.strictEqual(stream.logs[0].service, 'api');
+      assert.ok(!('region' in stream.logs[0]));
+    } finally {
+      consumer.detach();
+    }
+  });
+
+  it('should skip undefined bindings to keep JSON valid', () => {
+    const stream = new TestStream();
+    const consumer = new JSONConsumer({ stream, level: 'info' });
+    consumer.attach();
+    const logger = new Logger({
+      level: 'info',
+      bindings: { requestId: 'abc', traceId: undefined },
+    });
+    try {
+      logger.info('ok');
+      consumer.flushSync();
+      assert.strictEqual(stream.logs.length, 1);
+      assert.strictEqual(stream.logs[0].requestId, 'abc');
+      assert.ok(!('traceId' in stream.logs[0]));
+    } finally {
+      consumer.detach();
+    }
+  });
+
+  it('should skip undefined log fields to keep JSON valid', () => {
+    const stream = new TestStream();
+    const consumer = new JSONConsumer({ stream, level: 'info' });
+    consumer.attach();
+    const logger = new Logger({ level: 'info' });
+    try {
+      logger.info('ok', { userId: 1, nickname: undefined });
+      consumer.flushSync();
+      assert.strictEqual(stream.logs.length, 1);
+      assert.strictEqual(stream.logs[0].userId, 1);
+      assert.ok(!('nickname' in stream.logs[0]));
+    } finally {
+      consumer.detach();
+    }
+  });
+});
+
+describe('JSONConsumer reserved keys', () => {
+  it('should not let consumer fields override level/time/msg', () => {
+    const stream = new TestStream();
+    const consumer = new JSONConsumer({
+      stream,
+      level: 'info',
+      fields: { level: 'fake', time: 0, msg: 'fake', service: 'api' },
+    });
+    consumer.attach();
+    const logger = new Logger({ level: 'info' });
+    try {
+      logger.info('real');
+      consumer.flushSync();
+      const log = stream.logs[0];
+      assert.strictEqual(log.level, 'info');
+      assert.strictEqual(log.msg, 'real');
+      assert.strictEqual(typeof log.time, 'number');
+      assert.notStrictEqual(log.time, 0);
+      assert.strictEqual(log.service, 'api');
+    } finally {
+      consumer.detach();
+    }
+  });
+
+  it('should not let bindings override level/time/msg', () => {
+    const stream = new TestStream();
+    const consumer = new JSONConsumer({ stream, level: 'info' });
+    consumer.attach();
+    const logger = new Logger({
+      level: 'info',
+      bindings: { level: 'fake', time: 0, msg: 'fake', requestId: 'r1' },
+    });
+    try {
+      logger.info('real');
+      consumer.flushSync();
+      const log = stream.logs[0];
+      assert.strictEqual(log.level, 'info');
+      assert.strictEqual(log.msg, 'real');
+      assert.notStrictEqual(log.time, 0);
+      assert.strictEqual(log.requestId, 'r1');
+    } finally {
+      consumer.detach();
+    }
+  });
+
+  it('should not let log fields override level/time/msg', () => {
+    const stream = new TestStream();
+    const consumer = new JSONConsumer({ stream, level: 'info' });
+    consumer.attach();
+    const logger = new Logger({ level: 'info' });
+    try {
+      logger.info('real', { level: 'fake', time: 0, msg: 'fake', k: 1 });
+      consumer.flushSync();
+      const log = stream.logs[0];
+      assert.strictEqual(log.level, 'info');
+      assert.strictEqual(log.msg, 'real');
+      assert.notStrictEqual(log.time, 0);
+      assert.strictEqual(log.k, 1);
+    } finally {
+      consumer.detach();
+    }
+  });
+});
+
+describe('Logger Error-branch fields validation', () => {
+  it('should throw when fields is not an object for Error input', () => {
+    const stream = new TestStream();
+    const consumer = new JSONConsumer({ stream, level: 'info' });
+    consumer.attach();
+    const logger = new Logger({ level: 'info' });
+    try {
+      assert.throws(() => {
+        logger.error(new Error('boom'), 'not-an-object');
+      }, { code: 'ERR_INVALID_ARG_TYPE' });
+    } finally {
+      consumer.detach();
+    }
+  });
+});
+
+describe('JSONConsumer stream interface', () => {
+  it('should throw when object stream is missing flush/flushSync/end', () => {
+    const badStream = { write() {}, end() {} };
+    assert.throws(() => {
+      new JSONConsumer({ stream: badStream, level: 'info' });
+    }, { code: 'ERR_INVALID_ARG_TYPE' });
+  });
+
+  it('should accept object stream implementing full interface', () => {
+    const stream = new TestStream();
+    const consumer = new JSONConsumer({ stream, level: 'info' });
+    assert.ok(consumer);
+  });
+});
