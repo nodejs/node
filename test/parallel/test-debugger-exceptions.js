@@ -28,9 +28,9 @@ const path = require('path');
 
       // Next run: With `breakOnException` it pauses in both places.
       await cli.command('r');
-      await cli.waitFor(/Debugger attached\./);
-      await cli.waitForPrompt();
+      await cli.waitFor(/ ok\n/);
       await cli.waitForInitialBreak();
+      await cli.waitForPrompt();
       assert.deepStrictEqual(cli.breakInfo, { filename: script, line: 1 });
       await cli.command('breakOnException');
       await cli.stepCommand('c');
@@ -41,9 +41,9 @@ const path = require('path');
       // Next run: With `breakOnUncaught` it only pauses on the 2nd exception.
       await cli.command('breakOnUncaught');
       await cli.command('r'); // Also, the setting survives the restart.
-      await cli.waitFor(/Debugger attached\./);
-      await cli.waitForPrompt();
+      await cli.waitFor(/ ok\n/);
       await cli.waitForInitialBreak();
+      await cli.waitForPrompt();
       assert.deepStrictEqual(cli.breakInfo, { filename: script, line: 1 });
       await cli.stepCommand('c');
       assert.ok(cli.output.includes(`exception in ${script}:9`));
@@ -51,9 +51,9 @@ const path = require('path');
       // Next run: Back to the initial state! It should die again.
       await cli.command('breakOnNone');
       await cli.command('r');
-      await cli.waitFor(/Debugger attached\./);
-      await cli.waitForPrompt();
+      await cli.waitFor(/ ok\n/);
       await cli.waitForInitialBreak();
+      await cli.waitForPrompt();
       assert.deepStrictEqual(cli.breakInfo, { filename: script, line: 1 });
       await cli.command('c');
       await cli.waitFor(/disconnect/);
