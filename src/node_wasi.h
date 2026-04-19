@@ -31,7 +31,7 @@ class WASI : public BaseObject,
   static uint32_t ArgsGet(WASI&, WasmMemory, uint32_t, uint32_t);
   static uint32_t ArgsSizesGet(WASI&, WasmMemory, uint32_t, uint32_t);
   static uint32_t ClockResGet(WASI&, WasmMemory, uint32_t, uint32_t);
-  static uint32_t ClockTimeGet(WASI&, WasmMemory, uint32_t, uint64_t, uint32_t);
+  static uint32_t ClockTimeGet(WASI&, WasmMemory, uint32_t, uint64_t, int32_t);
   static uint32_t EnvironGet(WASI&, WasmMemory, uint32_t, uint32_t);
   static uint32_t EnvironSizesGet(WASI&, WasmMemory, uint32_t, uint32_t);
   static uint32_t FdAdvise(
