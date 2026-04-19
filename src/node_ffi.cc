@@ -99,7 +99,7 @@ bool DynamicLibrary::ResolveSymbol(Environment* env,
   } else {
     if (uv_dlsym(&lib_, name.c_str(), &ptr) != 0) {
       std::string msg = std::string("dlsym failed: ") + uv_dlerror(&lib_);
-      THROW_ERR_FFI_SYSCALL_FAILED(env, msg.c_str());
+      THROW_ERR_FFI_CALL_FAILED(env, msg.c_str());
       return false;
     }
   }
@@ -160,7 +160,7 @@ bool DynamicLibrary::PrepareFunction(Environment* env,
           break;
       }
 
-      THROW_ERR_FFI_SYSCALL_FAILED(env, msg);
+      THROW_ERR_FFI_CALL_FAILED(env, msg);
       return false;
     }
 
@@ -265,7 +265,7 @@ void DynamicLibrary::New(const FunctionCallbackInfo<Value>& args) {
   // Open the library
   if (uv_dlopen(library_path, &lib->lib_) != 0) {
     std::string msg = std::string("dlopen failed: ") + uv_dlerror(&lib->lib_);
-    THROW_ERR_FFI_SYSCALL_FAILED(env, msg.c_str());
+    THROW_ERR_FFI_CALL_FAILED(env, msg.c_str());
     return;
   }
 
@@ -751,7 +751,7 @@ void DynamicLibrary::RegisterCallback(const FunctionCallbackInfo<Value>& args) {
       ffi_closure_alloc(sizeof(ffi_closure), &callback->ptr));
 
   if (callback->closure == nullptr) {
-    THROW_ERR_FFI_SYSCALL_FAILED(env, "ffi_closure_alloc failed");
+    THROW_ERR_FFI_CALL_FAILED(env, "ffi_closure_alloc failed");
     delete callback;
     return;
   }
@@ -776,7 +776,7 @@ void DynamicLibrary::RegisterCallback(const FunctionCallbackInfo<Value>& args) {
         break;
     }
 
-    THROW_ERR_FFI_SYSCALL_FAILED(env, msg);
+    THROW_ERR_FFI_CALL_FAILED(env, msg);
     delete callback;
     return;
   }
@@ -800,7 +800,7 @@ void DynamicLibrary::RegisterCallback(const FunctionCallbackInfo<Value>& args) {
         break;
     }
 
-    THROW_ERR_FFI_SYSCALL_FAILED(env, msg);
+    THROW_ERR_FFI_CALL_FAILED(env, msg);
     delete callback;
     return;
   }

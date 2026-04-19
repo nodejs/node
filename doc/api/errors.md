@@ -1332,6 +1332,12 @@ added: v14.0.0
 Used when a feature that is not available
 to the current platform which is running Node.js is used.
 
+<a id="ERR_FFI_CALL_FAILED"></a>
+
+### `ERR_FFI_CALL_FAILED`
+
+A low-level FFI call failed.
+
 <a id="ERR_FFI_INVALID_POINTER"></a>
 
 ### `ERR_FFI_INVALID_POINTER`
@@ -1343,12 +1349,6 @@ An invalid pointer was passed to an FFI operation.
 ### `ERR_FFI_LIBRARY_CLOSED`
 
 An operation was attempted on an FFI dynamic library after it was closed.
-
-<a id="ERR_FFI_SYSCALL_FAILED"></a>
-
-### `ERR_FFI_SYSCALL_FAILED`
-
-A low-level FFI call failed.
 
 <a id="ERR_FS_CP_DIR_TO_NON_DIR"></a>
 

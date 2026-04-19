@@ -675,7 +675,7 @@ void ExportBytes(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  uint8_t* source_data = nullptr;
+  const uint8_t* source_data = nullptr;
   size_t source_len = 0;
 
   if (args[0]->IsArrayBuffer()) {
@@ -685,7 +685,7 @@ void ExportBytes(const FunctionCallbackInfo<Value>& args) {
       THROW_ERR_INVALID_ARG_VALUE(env, "Invalid ArrayBuffer backing store");
       return;
     }
-    source_data = static_cast<uint8_t*>(store->Data());
+    source_data = static_cast<const uint8_t*>(store->Data());
     source_len = array_buffer->ByteLength();
   } else if (args[0]->IsArrayBufferView()) {
     ArrayBufferViewContents<uint8_t> view(args[0]);
@@ -693,7 +693,7 @@ void ExportBytes(const FunctionCallbackInfo<Value>& args) {
       THROW_ERR_INVALID_ARG_VALUE(env, "Invalid ArrayBufferView backing store");
       return;
     }
-    source_data = const_cast<uint8_t*>(view.data());
+    source_data = view.data();
     source_len = view.length();
   } else {
     THROW_ERR_INVALID_ARG_TYPE(

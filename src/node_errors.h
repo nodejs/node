@@ -79,9 +79,9 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_DLOPEN_FAILED, Error)                                                  \
   V(ERR_ENCODING_INVALID_ENCODED_DATA, TypeError)                              \
   V(ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE, Error)                            \
+  V(ERR_FFI_CALL_FAILED, Error)                                                \
   V(ERR_FFI_INVALID_POINTER, Error)                                            \
   V(ERR_FFI_LIBRARY_CLOSED, Error)                                             \
-  V(ERR_FFI_SYSCALL_FAILED, Error)                                             \
   V(ERR_FS_CP_EINVAL, Error)                                                   \
   V(ERR_FS_CP_DIR_TO_NON_DIR, Error)                                           \
   V(ERR_FS_CP_NON_DIR_TO_DIR, Error)                                           \
