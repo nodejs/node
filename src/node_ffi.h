@@ -144,6 +144,8 @@ void SetFloat64(const v8::FunctionCallbackInfo<v8::Value>& args);
 void ToString(const v8::FunctionCallbackInfo<v8::Value>& args);
 void ToBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
 void ToArrayBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
+void ExportBytes(const v8::FunctionCallbackInfo<v8::Value>& args);
+void GetRawPointer(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 }  // namespace node::ffi
 

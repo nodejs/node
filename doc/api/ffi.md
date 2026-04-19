@@ -165,11 +165,14 @@ const path = `libsqlite3.${suffix}`;
 added: REPLACEME
 -->
 
-* `path` {string} Path to a dynamic library.
+* `path` {string|null} Path to a dynamic library, or `null` to resolve symbols
+  from the current process image.
 * `definitions` {Object} Symbol definitions to resolve immediately.
 * Returns: {Object}
 
 Loads a dynamic library and resolves the requested function definitions.
+
+On Windows passing `null` is not supported.
 
 When `definitions` is omitted, `functions` is returned as an empty object until
 symbols are resolved explicitly.
@@ -237,9 +240,12 @@ Represents a loaded dynamic library.
 
 ### `new DynamicLibrary(path)`
 
-* `path` {string} Path to a dynamic library.
+* `path` {string|null} Path to a dynamic library, or `null` to resolve symbols
+  from the current process image.
 
 Loads the dynamic library without resolving any functions eagerly.
+
+On Windows passing `null` is not supported.
 
 ```cjs
 const { DynamicLibrary } = require('node:ffi');
@@ -602,6 +608,55 @@ Copies bytes from a `Buffer` into native memory.
 available storage. This function does not allocate memory on its own.
 
 `buffer` must be a Node.js `Buffer`.
+
+## `ffi.exportArrayBuffer(arrayBuffer, pointer, length)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `arrayBuffer` {ArrayBuffer}
+* `pointer` {bigint}
+* `length` {number}
+
+Copies bytes from an `ArrayBuffer` into native memory.
+
+`length` must be at least `arrayBuffer.byteLength`.
+
+`pointer` must refer to writable native memory with at least `length` bytes of
+available storage. This function does not allocate memory on its own.
+
+## `ffi.exportArrayBufferView(arrayBufferView, pointer, length)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `arrayBufferView` {ArrayBufferView}
+* `pointer` {bigint}
+* `length` {number}
+
+Copies bytes from an `ArrayBufferView` into native memory.
+
+`length` must be at least `arrayBufferView.byteLength`.
+
+`pointer` must refer to writable native memory with at least `length` bytes of
+available storage. This function does not allocate memory on its own.
+
+## `ffi.getRawPointer(source)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `source` {Buffer|ArrayBuffer|ArrayBufferView}
+* Returns: {bigint}
+
+Returns the raw memory address of JavaScript-managed byte storage.
+
+This is unsafe and dangerous. The returned pointer can become invalid if the
+underlying memory is detached, resized, transferred, or otherwise invalidated.
+Using stale pointers can cause memory corruption or process crashes.
 
 ## Safety notes
 

@@ -87,7 +87,7 @@ bool DynamicLibrary::ResolveSymbol(Environment* env,
                                    const std::string& name,
                                    void** ret) {
   if (handle_ == nullptr) {
-    env->ThrowError("Library is closed");
+    THROW_ERR_FFI_LIBRARY_CLOSED(env);
     return false;
   }
 
@@ -99,7 +99,7 @@ bool DynamicLibrary::ResolveSymbol(Environment* env,
   } else {
     if (uv_dlsym(&lib_, name.c_str(), &ptr) != 0) {
       std::string msg = std::string("dlsym failed: ") + uv_dlerror(&lib_);
-      env->ThrowError(msg.c_str());
+      THROW_ERR_FFI_CALL_FAILED(env, msg.c_str());
       return false;
     }
   }
@@ -160,7 +160,7 @@ bool DynamicLibrary::PrepareFunction(Environment* env,
           break;
       }
 
-      env->ThrowError(msg);
+      THROW_ERR_FFI_CALL_FAILED(env, msg);
       return false;
     }
 
@@ -171,7 +171,7 @@ bool DynamicLibrary::PrepareFunction(Environment* env,
     if (!SignaturesMatch(*fn, return_type, args)) {
       std::string msg = "Function " + name +
                         " was already requested with a different signature";
-      env->ThrowError(msg.c_str());
+      THROW_ERR_INVALID_ARG_VALUE(env, msg.c_str());
       return false;
     }
   }
@@ -238,22 +238,34 @@ void DynamicLibrary::New(const FunctionCallbackInfo<Value>& args) {
 
   THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kFFI, "");
 
+#ifndef _WIN32
+  if (args.Length() < 1 || (!args[0]->IsString() && !args[0]->IsNull())) {
+    THROW_ERR_INVALID_ARG_TYPE(env, "Library path must be a string or null");
+    return;
+  }
+#else
   if (args.Length() < 1 || !args[0]->IsString()) {
-    env->ThrowTypeError("Library path must be a string");
+    THROW_ERR_INVALID_ARG_TYPE(env, "Library path must be a string");
     return;
   }
+#endif
 
+  const char* library_path = nullptr;
   DynamicLibrary* lib = new DynamicLibrary(env, args.This());
-  Utf8Value filename(env->isolate(), args[0]);
-  if (ThrowIfContainsNullBytes(env, filename, "Library path")) {
-    return;
+
+  if (args[0]->IsString()) {
+    Utf8Value filename(env->isolate(), args[0]);
+    if (ThrowIfContainsNullBytes(env, filename, "Library path")) {
+      return;
+    }
+    lib->path_ = filename.ToString();
+    library_path = lib->path_.c_str();
   }
-  lib->path_ = std::string(*filename);
 
   // Open the library
-  if (uv_dlopen(*filename, &lib->lib_) != 0) {
+  if (uv_dlopen(library_path, &lib->lib_) != 0) {
     std::string msg = std::string("dlopen failed: ") + uv_dlerror(&lib->lib_);
-    env->ThrowError(msg.c_str());
+    THROW_ERR_FFI_CALL_FAILED(env, msg.c_str());
     return;
   }
 
@@ -274,7 +286,7 @@ void DynamicLibrary::InvokeFunction(const FunctionCallbackInfo<Value>& args) {
   FFIFunction* fn = info->fn.get();
 
   if (fn == nullptr || fn->closed || fn->ptr == nullptr) {
-    env->ThrowError("Library is closed");
+    THROW_ERR_FFI_LIBRARY_CLOSED(env);
     return;
   }
 
@@ -286,7 +298,7 @@ void DynamicLibrary::InvokeFunction(const FunctionCallbackInfo<Value>& args) {
     std::string msg = "Invalid argument count: expected " +
                       std::to_string(expected_args) + ", got " +
                       std::to_string(provided_args);
-    env->ThrowError(msg.c_str());
+    THROW_ERR_INVALID_ARG_VALUE(env, msg.c_str());
     return;
   }
 
@@ -307,7 +319,8 @@ void DynamicLibrary::InvokeFunction(const FunctionCallbackInfo<Value>& args) {
       Utf8Value str(env->isolate(), args[i]);
 
       if (*str == nullptr) {
-        env->ThrowTypeError(
+        THROW_ERR_INVALID_ARG_TYPE(
+            env,
             ("Argument " + std::to_string(i) + " must be a string").c_str());
         return;
       }
@@ -337,6 +350,14 @@ void DynamicLibrary::InvokeFunction(const FunctionCallbackInfo<Value>& args) {
   free(result);
 }
 
+// This is the function that will be called by libffi when a callback
+// is invoked from a dlopen library. It converts the arguments to JavaScript
+// values and calls the original JavaScript callback function.
+// It also handles the return value and exceptions properly.
+// Note that since this function is called from native code, it must not throw
+// exceptions or return promises, as there is no defined way to propagate them
+// back to the caller.
+// If such cases occur, the process will be aborted to avoid undefined behavior.
 void DynamicLibrary::InvokeCallback(ffi_cif* cif,
                                     void* ret,
                                     void** args,
@@ -434,12 +455,12 @@ void DynamicLibrary::GetFunction(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
 
   if (args.Length() < 1 || !args[0]->IsString()) {
-    env->ThrowTypeError("Function name must be a string");
+    THROW_ERR_INVALID_ARG_TYPE(env, "Function name must be a string");
     return;
   }
 
   if (args.Length() < 2 || !args[1]->IsObject() || args[1]->IsArray()) {
-    env->ThrowTypeError("Function signature must be an object");
+    THROW_ERR_INVALID_ARG_TYPE(env, "Function signature must be an object");
     return;
   }
 
@@ -484,7 +505,7 @@ void DynamicLibrary::GetFunctions(const FunctionCallbackInfo<Value>& args) {
   DynamicLibrary* lib = Unwrap<DynamicLibrary>(args.This());
 
   if (lib->handle_ == nullptr) {
-    env->ThrowError("Library is closed");
+    THROW_ERR_FFI_LIBRARY_CLOSED(env);
     return;
   }
 
@@ -495,7 +516,7 @@ void DynamicLibrary::GetFunctions(const FunctionCallbackInfo<Value>& args) {
 
   if (args.Length() > 0) {
     if (!args[0]->IsObject() || args[0]->IsArray()) {
-      env->ThrowTypeError("Functions signatures must be an object");
+      THROW_ERR_INVALID_ARG_TYPE(env, "Functions signatures must be an object");
       return;
     }
 
@@ -528,7 +549,7 @@ void DynamicLibrary::GetFunctions(const FunctionCallbackInfo<Value>& args) {
       if (!signature->IsObject() || signature->IsArray()) {
         std::string msg = std::string("Signature of function ") + name.out() +
                           " must be an object";
-        env->ThrowTypeError(msg.c_str());
+        THROW_ERR_INVALID_ARG_TYPE(env, msg.c_str());
         return;
       }
 
@@ -612,7 +633,7 @@ void DynamicLibrary::GetSymbol(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
 
   if (args.Length() < 1 || !args[0]->IsString()) {
-    env->ThrowTypeError("Symbol name must be a string");
+    THROW_ERR_INVALID_ARG_TYPE(env, "Symbol name must be a string");
     return;
   }
 
@@ -640,7 +661,7 @@ void DynamicLibrary::GetSymbols(const FunctionCallbackInfo<Value>& args) {
   DynamicLibrary* lib = Unwrap<DynamicLibrary>(args.This());
 
   if (lib->handle_ == nullptr) {
-    env->ThrowError("Library is closed");
+    THROW_ERR_FFI_LIBRARY_CLOSED(env);
     return;
   }
 
@@ -680,8 +701,8 @@ void DynamicLibrary::RegisterCallback(const FunctionCallbackInfo<Value>& args) {
   Local<Function> fn;
 
   if (args.Length() < 1) {
-    env->ThrowTypeError(
-        "First argument must be a function or a signature object");
+    THROW_ERR_INVALID_ARG_TYPE(
+        env, "First argument must be a function or a signature object");
     return;
   }
 
@@ -689,13 +710,13 @@ void DynamicLibrary::RegisterCallback(const FunctionCallbackInfo<Value>& args) {
     fn = args[0].As<Function>();
   } else {
     if (!args[0]->IsObject() || args[0]->IsArray()) {
-      env->ThrowTypeError(
-          "First argument must be a function or a signature object");
+      THROW_ERR_INVALID_ARG_TYPE(
+          env, "First argument must be a function or a signature object");
       return;
     }
 
     if (args.Length() < 2 || !args[1]->IsFunction()) {
-      env->ThrowTypeError("Second argument must be a function");
+      THROW_ERR_INVALID_ARG_TYPE(env, "Second argument must be a function");
       return;
     }
 
@@ -712,7 +733,7 @@ void DynamicLibrary::RegisterCallback(const FunctionCallbackInfo<Value>& args) {
 
   DynamicLibrary* lib = Unwrap<DynamicLibrary>(args.This());
   if (lib->handle_ == nullptr) {
-    env->ThrowError("Library is closed");
+    THROW_ERR_FFI_LIBRARY_CLOSED(env);
     return;
   }
 
@@ -730,7 +751,7 @@ void DynamicLibrary::RegisterCallback(const FunctionCallbackInfo<Value>& args) {
       ffi_closure_alloc(sizeof(ffi_closure), &callback->ptr));
 
   if (callback->closure == nullptr) {
-    env->ThrowError("ffi_closure_alloc failed");
+    THROW_ERR_FFI_CALL_FAILED(env, "ffi_closure_alloc failed");
     delete callback;
     return;
   }
@@ -755,7 +776,7 @@ void DynamicLibrary::RegisterCallback(const FunctionCallbackInfo<Value>& args) {
         break;
     }
 
-    env->ThrowError(msg);
+    THROW_ERR_FFI_CALL_FAILED(env, msg);
     delete callback;
     return;
   }
@@ -779,7 +800,7 @@ void DynamicLibrary::RegisterCallback(const FunctionCallbackInfo<Value>& args) {
         break;
     }
 
-    env->ThrowError(msg);
+    THROW_ERR_FFI_CALL_FAILED(env, msg);
     delete callback;
     return;
   }
@@ -796,12 +817,12 @@ void DynamicLibrary::UnregisterCallback(
   DynamicLibrary* lib = Unwrap<DynamicLibrary>(args.This());
 
   if (lib->handle_ == nullptr) {
-    env->ThrowError("Library is closed");
+    THROW_ERR_FFI_LIBRARY_CLOSED(env);
     return;
   }
 
   if (args.Length() < 1 || !args[0]->IsBigInt()) {
-    env->ThrowTypeError("The first argument must be a bigint");
+    THROW_ERR_INVALID_ARG_TYPE(env, "The first argument must be a bigint");
     return;
   }
 
@@ -814,7 +835,7 @@ void DynamicLibrary::UnregisterCallback(
   auto existing = lib->callbacks_.find(ptr);
 
   if (existing == lib->callbacks_.end()) {
-    env->ThrowError("Callback not found");
+    THROW_ERR_INVALID_ARG_VALUE(env, "Callback not found");
     return;
   }
 
@@ -831,12 +852,12 @@ void DynamicLibrary::RefCallback(const FunctionCallbackInfo<Value>& args) {
   DynamicLibrary* lib = Unwrap<DynamicLibrary>(args.This());
 
   if (lib->handle_ == nullptr) {
-    env->ThrowError("Library is closed");
+    THROW_ERR_FFI_LIBRARY_CLOSED(env);
     return;
   }
 
   if (args.Length() < 1 || !args[0]->IsBigInt()) {
-    env->ThrowTypeError("The first argument must be a bigint");
+    THROW_ERR_INVALID_ARG_TYPE(env, "The first argument must be a bigint");
     return;
   }
 
@@ -849,7 +870,7 @@ void DynamicLibrary::RefCallback(const FunctionCallbackInfo<Value>& args) {
   auto existing = lib->callbacks_.find(ptr);
 
   if (existing == lib->callbacks_.end()) {
-    env->ThrowError("Callback not found");
+    THROW_ERR_INVALID_ARG_VALUE(env, "Callback not found");
     return;
   }
 
@@ -861,12 +882,12 @@ void DynamicLibrary::UnrefCallback(const FunctionCallbackInfo<Value>& args) {
   DynamicLibrary* lib = Unwrap<DynamicLibrary>(args.This());
 
   if (lib->handle_ == nullptr) {
-    env->ThrowError("Library is closed");
+    THROW_ERR_FFI_LIBRARY_CLOSED(env);
     return;
   }
 
   if (args.Length() < 1 || !args[0]->IsBigInt()) {
-    env->ThrowTypeError("The first argument must be a bigint");
+    THROW_ERR_INVALID_ARG_TYPE(env, "The first argument must be a bigint");
     return;
   }
 
@@ -879,7 +900,7 @@ void DynamicLibrary::UnrefCallback(const FunctionCallbackInfo<Value>& args) {
   auto existing = lib->callbacks_.find(ptr);
 
   if (existing == lib->callbacks_.end()) {
-    env->ThrowError("Callback not found");
+    THROW_ERR_INVALID_ARG_VALUE(env, "Callback not found");
     return;
   }
 
@@ -952,6 +973,8 @@ static void Initialize(Local<Object> target,
   SetMethod(context, target, "toString", ToString);
   SetMethod(context, target, "toBuffer", ToBuffer);
   SetMethod(context, target, "toArrayBuffer", ToArrayBuffer);
+  SetMethod(context, target, "exportBytes", ExportBytes);
+  SetMethod(context, target, "getRawPointer", GetRawPointer);
 
   SetMethod(context, target, "getInt8", GetInt8);
   SetMethod(context, target, "getUint8", GetUint8);

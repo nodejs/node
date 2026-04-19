@@ -83,6 +83,8 @@ test('ffi exports expected API surface', () => {
     'dlclose',
     'dlopen',
     'dlsym',
+    'exportArrayBuffer',
+    'exportArrayBufferView',
     'exportBuffer',
     'exportString',
     'getFloat32',
@@ -91,6 +93,7 @@ test('ffi exports expected API surface', () => {
     'getInt32',
     'getInt64',
     'getInt8',
+    'getRawPointer',
     'getUint16',
     'getUint32',
     'getUint64',
@@ -117,8 +120,11 @@ test('ffi exports expected API surface', () => {
   assert.strictEqual(typeof ffi.dlopen, 'function');
   assert.strictEqual(typeof ffi.dlclose, 'function');
   assert.strictEqual(typeof ffi.dlsym, 'function');
+  assert.strictEqual(typeof ffi.exportArrayBuffer, 'function');
+  assert.strictEqual(typeof ffi.exportArrayBufferView, 'function');
   assert.strictEqual(typeof ffi.exportString, 'function');
   assert.strictEqual(typeof ffi.exportBuffer, 'function');
+  assert.strictEqual(typeof ffi.getRawPointer, 'function');
   assert.strictEqual(typeof ffi.getInt8, 'function');
   assert.strictEqual(typeof ffi.getUint8, 'function');
   assert.strictEqual(typeof ffi.getInt16, 'function');
