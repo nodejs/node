@@ -518,8 +518,19 @@ added: REPLACEME
 
 * `options` {Object}
   * `level` {string} Minimum log level to consume. **Default:** `'info'`.
-  * `stream` {number|string|Object} Output destination. Can be a file
-    descriptor (number), file path (string), or a writable stream object.
+  * `stream` {number|string|Object} Output destination. One of:
+
+    * A file descriptor (number).
+    * A file path (string).
+    * A stream-like object implementing all of the following methods:
+      * `write(chunk)`
+      * `flush(callback)`
+      * `flushSync()`
+      * `end()`
+
+    A plain `stream.Writable` (e.g. from `fs.createWriteStream()`) does not
+    satisfy this contract because it lacks `flush()`/`flushSync()`; wrap it
+    or use a stream that implements the required methods.
     **Default:** `stdout` (fd 1).
   * `fields` {Object} Additional fields to include in every log record.
     **Default:** `{}`.
