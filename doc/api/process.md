@@ -4617,8 +4617,8 @@ cases:
 [`'exit'`]: #event-exit
 [`'message'`]: child_process.md#event-message
 [`'uncaughtException'`]: #event-uncaughtexception
-[`--no-deprecation`]: cli.md#--no-deprecation
 [`--allow-env`]: cli.md#--allow-env
+[`--no-deprecation`]: cli.md#--no-deprecation
 [`--permission`]: cli.md#--permission
 [`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode
 [`Buffer`]: buffer.md
