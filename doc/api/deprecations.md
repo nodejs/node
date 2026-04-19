@@ -4434,7 +4434,9 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/62173
     description: Runtime deprecation.
-  - version: v25.7.0
+  - version:
+     - v25.7.0
+     - v24.15.0
     pr-url: https://github.com/nodejs/node/pull/61632
     description: Documentation-only deprecation.
 -->
@@ -4449,7 +4451,9 @@ type of the readable half of the constructed readable-writable pair, use the
 
 <!-- YAML
 changes:
-  - version: v25.7.0
+  - version:
+     - v25.7.0
+     - v24.15.0
     pr-url: https://github.com/nodejs/node/pull/61713
     description: Documentation-only deprecation.
 -->
@@ -4488,7 +4492,9 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/62453
     description: Runtime deprecation.
-  - version: v25.9.0
+  - version:
+     - v25.9.0
+     - v24.15.0
     pr-url: https://github.com/nodejs/node/pull/62321
     description: Documentation-only deprecation.
 -->
@@ -4513,7 +4519,9 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/62453
     description: Runtime deprecation.
-  - version: v25.9.0
+  - version:
+     - v25.9.0
+     - v24.15.0
     pr-url: https://github.com/nodejs/node/pull/62321
     description: Documentation-only deprecation.
 -->
@@ -4530,7 +4538,9 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/62401
     description: Runtime deprecation.
-  - version: v25.9.0
+  - version:
+     - v25.9.0
+     - v24.15.0
     pr-url: https://github.com/nodejs/node/pull/62395
     description: Documentation-only deprecation.
 -->

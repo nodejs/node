@@ -65,7 +65,7 @@ static std::string GetSourceMapErrorSource(Isolate* isolate,
   // the source texts.
   Local<Value> script_resource_name = message->GetScriptResourceName();
   int linenum = message->GetLineNumber(context).FromJust();
-  int columnum = message->GetStartColumn(context).FromJust();
+  int columnum = message->GetStartColumn();
 
   Local<Value> argv[] = {script_resource_name,
                          v8::Int32::New(isolate, linenum),
@@ -148,8 +148,8 @@ static std::string GetErrorSource(Isolate* isolate,
   int script_start = (linenum - origin.LineOffset()) == 1
                          ? origin.ColumnOffset()
                          : 0;
-  int start = message->GetStartColumn(context).FromMaybe(0);
-  int end = message->GetEndColumn(context).FromMaybe(0);
+  int start = message->GetStartColumn();
+  int end = message->GetEndColumn();
   if (start >= script_start) {
     CHECK_GE(end, start);
     start -= script_start;

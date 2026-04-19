@@ -2707,6 +2707,19 @@ This error has been deprecated since `require()` now supports loading synchronou
 ES modules. When `require()` encounters an ES module that contains top-level
 `await`, it will throw [`ERR_REQUIRE_ASYNC_MODULE`][] instead.
 
+<a id="ERR_REQUIRE_ESM_RACE_CONDITION"></a>
+
+### `ERR_REQUIRE_ESM_RACE_CONDITION`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental.
+
+An attempt was made to `require()` an [ES Module][] while another `import()` call
+was already in progress to load it asynchronously.
+
 <a id="ERR_SCRIPT_EXECUTION_INTERRUPTED"></a>
 
 ### `ERR_SCRIPT_EXECUTION_INTERRUPTED`

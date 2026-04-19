@@ -86,6 +86,12 @@ class Dispatcher1Wrapper extends Dispatcher {
   }
 
   dispatch (opts, handler) {
+    // Legacy (v1) consumers do not support HTTP/2, so force HTTP/1.1.
+    // See https://github.com/nodejs/undici/issues/4989
+    if (opts.allowH2 !== false) {
+      opts = { ...opts, allowH2: false }
+    }
+
     return this.#dispatcher.dispatch(opts, Dispatcher1Wrapper.wrapHandler(handler))
   }
 

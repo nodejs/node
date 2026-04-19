@@ -449,10 +449,10 @@ Maybe<void> TurboShakeTraits::AdditionalConfig(
 
   // args[offset + 1] = domain separation byte (uint32)
   CHECK(args[offset + 1]->IsUint32());
-  params->domain_separation =
-      static_cast<uint8_t>(args[offset + 1].As<Uint32>()->Value());
-  CHECK_GE(params->domain_separation, 0x01);
-  CHECK_LE(params->domain_separation, 0x7F);
+  uint32_t domain_separation_u32 = args[offset + 1].As<Uint32>()->Value();
+  CHECK_GE(domain_separation_u32, 0x01);
+  CHECK_LE(domain_separation_u32, 0x7F);
+  params->domain_separation = static_cast<uint8_t>(domain_separation_u32);
 
   // args[offset + 2] = output length in bytes (uint32)
   CHECK(args[offset + 2]->IsUint32());

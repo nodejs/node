@@ -468,7 +468,12 @@ class WebSocket extends EventTarget {
     // once this happens, the connection is open
     this.#handler.socket = response.socket
 
-    const parser = new ByteParser(this.#handler, parsedExtensions)
+    // Get maxPayloadSize from dispatcher options
+    const maxPayloadSize = this.#handler.controller.dispatcher?.webSocketOptions?.maxPayloadSize
+
+    const parser = new ByteParser(this.#handler, parsedExtensions, {
+      maxPayloadSize
+    })
     parser.on('drain', () => this.#handler.onParserDrain())
     parser.on('error', (err) => this.#handler.onParserError(err))
 

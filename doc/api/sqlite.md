@@ -5,7 +5,9 @@
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: v25.7.0
+  - version:
+     - v25.7.0
+     - v24.15.0
     pr-url: https://github.com/nodejs/node/pull/61262
     description: SQLite is now a release candidate.
   - version:
@@ -494,7 +496,9 @@ added:
 ### `database.limits`
 
 <!-- YAML
-added: v25.8.0
+added:
+ - v25.8.0
+ - v24.15.0
 -->
 
 * Type: {Object}

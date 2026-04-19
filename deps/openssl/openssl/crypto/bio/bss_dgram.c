@@ -68,8 +68,8 @@
 #undef NO_RECVMMSG
 #define NO_RECVMMSG
 #endif
-#if defined(_AIX) && !defined(_AIX72)
-/* AIX >= 7.2 provides sendmmsg() and recvmmsg(). */
+#if defined(_AIX)
+/* Force fallback to sndmsg and recvmsg */
 #undef NO_RECVMMSG
 #define NO_RECVMMSG
 #endif

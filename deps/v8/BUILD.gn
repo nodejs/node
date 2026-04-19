@@ -1583,7 +1583,7 @@ config("toolchain") {
   if (v8_current_cpu == "ppc64") {
     defines += [ "V8_TARGET_ARCH_PPC64" ]
     cflags += [ "-ffp-contract=off" ]
-    if (current_os == "aix") {
+    if (current_os == "aix" and !is_clang) {
       cflags += [
         # Work around AIX ceil, trunc and round oddities.
         "-mcpu=power5+",
