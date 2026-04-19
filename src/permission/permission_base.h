@@ -36,8 +36,7 @@ namespace permission {
   V(Addon, "addon", PermissionsRoot, "--allow-addons")
 
 #define FFI_PERMISSIONS(V) V(FFI, "ffi", PermissionsRoot, "--allow-ffi")
-#define ENV_VAR_PERMISSIONS(V)                                                 \
-  V(EnvVar, "env", PermissionsRoot, "--allow-env")
+#define ENV_VAR_PERMISSIONS(V) V(EnvVar, "env", PermissionsRoot, "--allow-env")
 
 #define PERMISSIONS(V)                                                         \
   FILESYSTEM_PERMISSIONS(V)                                                    \
@@ -47,7 +46,10 @@ namespace permission {
   INSPECTOR_PERMISSIONS(V)                                                     \
   NET_PERMISSIONS(V)                                                           \
   ADDON_PERMISSIONS(V)                                                         \
-  FFI_PERMISSIONS(V)
+  FFI_PERMISSIONS(V)                                                           \
+  ENV_VAR_PERMISSIONS(V)
+
+enum class PermissionScope {
 #define V(name, _, __, ___) k##name,
   kPermissionsRoot = -1,
   PERMISSIONS(V) kPermissionsCount

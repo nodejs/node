@@ -465,11 +465,10 @@ static Intercepted EnvSetter(Local<Name> property,
 
   if (property->IsString()) {
     Utf8Value key(env->isolate(), property);
-    THROW_IF_INSUFFICIENT_PERMISSIONS(
-        env,
-        permission::PermissionScope::kEnvVar,
-        key.ToStringView(),
-        Intercepted::kYes);
+    THROW_IF_INSUFFICIENT_PERMISSIONS(env,
+                                      permission::PermissionScope::kEnvVar,
+                                      key.ToStringView(),
+                                      Intercepted::kYes);
   }
 
   // calling env->EmitProcessEnvWarning() sets a variable indicating that
@@ -533,11 +532,10 @@ static Intercepted EnvDeleter(Local<Name> property,
   CHECK(env->has_run_bootstrapping_code());
   if (property->IsString()) {
     Utf8Value key(env->isolate(), property);
-    THROW_IF_INSUFFICIENT_PERMISSIONS(
-        env,
-        permission::PermissionScope::kEnvVar,
-        key.ToStringView(),
-        Intercepted::kYes);
+    THROW_IF_INSUFFICIENT_PERMISSIONS(env,
+                                      permission::PermissionScope::kEnvVar,
+                                      key.ToStringView(),
+                                      Intercepted::kYes);
 
     env->env_vars()->Delete(env->isolate(), property.As<String>());
 
@@ -564,10 +562,9 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
         Local<Value> elem;
         if (!ret->Get(env->context(), i).ToLocal(&elem)) continue;
         Utf8Value key(env->isolate(), elem);
-        if (env->permission()->is_granted(
-                env,
-                permission::PermissionScope::kEnvVar,
-                key.ToStringView())) {
+        if (env->permission()->is_granted(env,
+                                          permission::PermissionScope::kEnvVar,
+                                          key.ToStringView())) {
           filtered.push_back(elem);
         }
       }

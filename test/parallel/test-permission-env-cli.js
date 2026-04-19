@@ -15,8 +15,8 @@ const assert = require('assert');
 }
 
 {
-  const home = process.env.HOME;
-  const path = process.env.PATH;
+  assert.ok(process.env.HOME !== undefined);
+  assert.ok(process.env.PATH !== undefined);
   assert.ok(process.permission.has('env', 'HOME'));
   assert.ok(process.permission.has('env', 'PATH'));
 }

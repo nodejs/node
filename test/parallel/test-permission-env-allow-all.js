@@ -14,8 +14,8 @@ const assert = require('assert');
 {
   assert.ok(process.permission.has('env'));
   // Should not throw for any env var
-  const home = process.env.HOME;
-  const path = process.env.PATH;
+  assert.ok(process.env.HOME !== undefined);
+  assert.ok(process.env.PATH !== undefined);
   process.env.TEST_PERMISSION_VAR = 'test';
   assert.strictEqual(process.env.TEST_PERMISSION_VAR, 'test');
   delete process.env.TEST_PERMISSION_VAR;
