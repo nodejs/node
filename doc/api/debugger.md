@@ -90,6 +90,157 @@ steps to the next line. Type `help` to see what other commands are available.
 Pressing `enter` without typing a command will repeat the previous debugger
 command.
 
+## Probe mode
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+`node inspect` supports a non-interactive probe mode for inspecting runtime values
+in an application via the flag `--probe`. Probe mode launches the application,
+sets one or more source breakpoints, evaluates one expression whenever a
+matching breakpoint is hit, and prints one final report when the session ends
+(either on normal completion or timeout). This allows developers to perform
+printf-style debugging without having to modify the application code and
+clean up afterwards, and it supports structured output for tool use.
+
+```console
+$ node inspect [--json] [--preview] [--timeout=<ms>] [--port=<port>] \
+    --probe app.js:10 --expr 'x' \
+    [--probe app.js:20 --expr 'y' ...] \
+    [--] [<node-option> ...] <script.js> [args...]
+```
+
+* `--probe <file>:<line>[:<col>]`: Source location to probe. Line and column number
+  are 1-based.
+* `--timeout=<ms>`: A global wall-clock deadline for the entire probe session.
+  The default is `30000`. This can be used to probe a long-running application
+  that can be terminated externally.
+* `--json`: If used, prints a structured JSON report instead of the default text report.
+* `--preview`: If used, non-primitive values will include CDP property previews for
+  object-like JSON probe values.
+* `--port=<port>`: Selects the local inspector port used for the `--inspect-brk`
+  launch path. Probe mode defaults to `0`, which requests a random port.
+* `--` is optional unless the child needs its own Node.js flags.
+
+Additional rules about the `--probe` and `--expr` arguments:
+
+* `--probe <file>:<line>[:<col>]` and `--expr <expr>` are strict pairs. Each
+  `--probe` must be followed immediately by exactly one `--expr`.
+* `--timeout`, `--json`, `--preview`, and `--port` are global probe options
+  for the whole probe session. They may appear before or between probe pairs,
+  but not between a `--probe` and its matching `--expr`.
+
+If a single probe needs to evaluate more than one value,
+evaluate a structured value in `--expr`, for example `--expr "{ foo, bar }"`
+or `--expr "[foo, bar]"`, and use `--preview` to include property previews for
+any object-like values in the output.
+
+Probe mode only prints the final probe report to stdout, and otherwise silences
+stdout/stderr from the child process. If the child exits with an error after the
+probe session starts, the final report records a terminal `error` event with the
+exit code and captured child stderr. Invalid arguments and fatal launch or
+connect failures may still print diagnostics to stderr without a final probe
+result.
+
+Consider this script:
+
+```js
+// cli.js
+let maxRSS = 0;
+for (let i = 0; i < 2; i++) {
+  const { rss } = process.memoryUsage();
+  maxRSS = Math.max(maxRSS, rss);
+}
+```
+
+If `--json` is not used, the output is printed in a human-readable text format:
+
+```console
+$ node inspect --probe cli.js:5 --expr 'rss' cli.js
+Hit 1 at cli.js:5
+  rss = 54935552
+Hit 2 at cli.js:5
+  rss = 55083008
+Completed
+```
+
+Primitive results are printed directly, while objects and arrays use Chrome
+DevTools Protocol preview data when available. Other non-primitive values
+fall back to the Chrome DevTools Protocol `description` string.
+Expression failures are recorded as `[error] ...` lines and do not fail
+the overall session. If richer text formatting is needed, wrap the expression
+in `JSON.stringify(...)` or `util.inspect(...)`.
+
+When `--json` is used, the output shape looks like this:
+
+```console
+$ node inspect --json --probe cli.js:5 --expr 'rss' cli.js
+{"v":1,"probes":[{"expr":"rss","target":["cli.js",5]}],"results":[{"probe":0,"event":"hit","hit":1,"result":{"type":"number","value":55443456,"description":"55443456"}},{"probe":0,"event":"hit","hit":2,"result":{"type":"number","value":55574528,"description":"55574528"}},{"event":"completed"}]}
+```
+
+```json
+{
+  "v": 1, // Probe JSON schema version.
+  "probes": [
+    {
+      "expr": "rss", // The expression paired with --probe.
+      "target": ["cli.js", 5] // [file, line] or [file, line, col].
+    }
+  ],
+  "results": [
+    {
+      "probe": 0, // Index into probes[].
+      "event": "hit", // Hit events are recorded in observation order.
+      "hit": 1, // 1-based hit count for this probe.
+      "result": {
+        "type": "number",
+        "value": 55443456,
+        "description": "55443456"
+      }
+      // If the expression throws, "error" is present instead of "result".
+    },
+    {
+      "probe": 0,
+      "event": "hit",
+      "hit": 2,
+      "result": {
+        "type": "number",
+        "value": 55574528,
+        "description": "55574528"
+      }
+    },
+    {
+      "event": "completed"
+      // The final entry is always a terminal event, for example:
+      // 1. { "event": "completed" }
+      // 2. { "event": "miss", "pending": [0, 1] }
+      // 3. {
+      //      "event": "timeout",
+      //      "pending": [0],
+      //      "error": {
+      //       "code": "probe_timeout",
+      //       "message": "Timed out after 30000ms waiting for probes: app.js:10"
+      //      }
+      //    }
+      // 4. {
+      //      "event": "error",
+      //      "pending": [0],
+      //      "error": {
+      //       "code": "probe_target_exit",
+      //       "exitCode": 1,
+      //       "stderr": "[Error: boom]",
+      //       "message": "Target exited with code 1 before probes: app.js:10"
+      //      }
+      //    }
+    }
+  ]
+}
+```
+
 ## Watchers
 
 It is possible to watch expression and variable values while debugging. On
