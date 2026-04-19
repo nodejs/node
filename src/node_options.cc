@@ -697,6 +697,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             false,
             OptionNamespaces::kPermissionNamespace);
+  AddOption("--allow-env",
+            "allow access to environment variables when any permissions are "
+            "set",
+            &EnvironmentOptions::allow_env,
+            kAllowedInEnvvar,
+            OptionNamespaces::kPermissionNamespace);
   AddOption("--experimental-repl-await",
             "experimental await keyword support in REPL",
             &EnvironmentOptions::experimental_repl_await,
