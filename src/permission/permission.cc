@@ -143,6 +143,8 @@ Permission::Permission() : enabled_(false), warning_only_(false) {
 #define V(Name, _, __, ___)                                                    \
   nodes_.insert(std::make_pair(PermissionScope::k##Name, ffi));
   FFI_PERMISSIONS(V)
+#undef V
+#define V(Name, _, __, ___)                                                    \
   nodes_.insert(std::make_pair(PermissionScope::k##Name, env_var));
   ENV_VAR_PERMISSIONS(V)
 #undef V

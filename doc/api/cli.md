@@ -218,7 +218,7 @@ process.env.FOO = 'bar';       // ERR_ACCESS_DENIED (throws)
 ```
 
 ```console
-$ node --permission --allow-fs-read=* index.js
+$ node --permission index.js
 node:internal/process/per_thread:12
   throw new ERR_ACCESS_DENIED('EnvVar', name);
   ^

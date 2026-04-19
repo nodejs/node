@@ -10,26 +10,21 @@ if (!isMainThread) {
 
 const assert = require('assert');
 
-// Guarantee the initial state
 {
   assert.ok(!process.permission.has('env'));
 }
 
-// Allowed env vars should be accessible
 {
-  // Reading allowed env vars should not throw
   const home = process.env.HOME;
   const path = process.env.PATH;
   assert.ok(process.permission.has('env', 'HOME'));
   assert.ok(process.permission.has('env', 'PATH'));
 }
 
-// Disallowed env vars should return undefined (silently denied)
 {
   assert.strictEqual(process.env.SECRET_KEY, undefined);
 }
 
-// Setting a disallowed env var should throw
 {
   assert.throws(() => {
     process.env.NEW_VAR = 'value';
@@ -40,7 +35,6 @@ const assert = require('assert');
   }));
 }
 
-// Deleting a disallowed env var should throw
 {
   assert.throws(() => {
     delete process.env.SECRET_KEY;
@@ -51,18 +45,51 @@ const assert = require('assert');
   }));
 }
 
-// Querying a disallowed env var should return false (not found)
 {
   assert.strictEqual('SECRET_KEY' in process.env, false);
 }
 
-// Enumerating should only return allowed env vars
 {
   const keys = Object.keys(process.env);
   for (const key of keys) {
     assert.ok(
       key === 'HOME' || key === 'PATH',
       `Unexpected env var in enumeration: ${key}`
+    );
+  }
+}
+
+{
+  const keys = [];
+  for (const key in process.env) {
+    keys.push(key);
+  }
+  for (const key of keys) {
+    assert.ok(
+      key === 'HOME' || key === 'PATH',
+      `Unexpected env var in for...in: ${key}`
+    );
+  }
+}
+
+{
+  const copy = Object.assign({}, process.env);
+  const keys = Object.keys(copy);
+  for (const key of keys) {
+    assert.ok(
+      key === 'HOME' || key === 'PATH',
+      `Unexpected env var in Object.assign: ${key}`
+    );
+  }
+}
+
+{
+  const parsed = JSON.parse(JSON.stringify(process.env));
+  const keys = Object.keys(parsed);
+  for (const key of keys) {
+    assert.ok(
+      key === 'HOME' || key === 'PATH',
+      `Unexpected env var in JSON.stringify: ${key}`
     );
   }
 }
