@@ -1,3 +1,5 @@
+// Flags: --expose-internals --no-warnings
+
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -23,7 +25,7 @@
 const { mustCall, mustNotCall, mustCallAtLeast } = require('../common');
 const assert = require('assert');
 
-const { methods, HTTPParser } = require('_http_common');
+const { methods, HTTPParser } = require('internal/http/common');
 const { REQUEST, RESPONSE } = HTTPParser;
 
 const kOnHeaders = HTTPParser.kOnHeaders | 0;

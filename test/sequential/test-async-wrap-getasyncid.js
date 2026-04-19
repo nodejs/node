@@ -177,7 +177,7 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
 
 
 {
-  const { HTTPParser } = require('_http_common');
+  const { HTTPParser } = require('internal/http/common');
   const parser = new HTTPParser();
   testUninitialized(parser, 'HTTPParser');
   parser.initialize(HTTPParser.REQUEST, {});
