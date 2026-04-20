@@ -243,3 +243,11 @@
 # dev container
 /.devcontainer/* @nodejs/devcontainer
 /doc/contributing/using-devcontainer.md @nodejs/devcontainer
+
+# FFI
+/deps/libffi/ @nodejs/ffi
+/doc/api/ffi.md @nodejs/ffi
+/lib/ffi.js @nodejs/ffi
+/src/ffi/ @nodejs/ffi
+/src/node_ffi.* @nodejs/ffi
+/test/ffi/ @nodejs/ffi
