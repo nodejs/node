@@ -13,6 +13,13 @@ assert.strictEqual(evenRound(3.4), 3);
 assert.strictEqual(evenRound(4.6), 5);
 assert.strictEqual(evenRound(5), 5);
 assert.strictEqual(evenRound(6), 6);
+// Fractional values in (-1, 0) ∪ (0, 1) whose truncated integer part is 0.
+assert.strictEqual(evenRound(0.7), 1);
+assert.strictEqual(evenRound(-0.7), -1);
+assert.strictEqual(evenRound(0.3), 0);
+assert.strictEqual(evenRound(-0.3), 0);
+assert.strictEqual(convertToInt('x', -0.9999999, 64, { signed: true, clamp: true }), -1);
+assert.strictEqual(convertToInt('x', 0.9999999, 64, { clamp: true }), 1);
 
 // https://webidl.spec.whatwg.org/#abstract-opdef-converttoint
 assert.strictEqual(convertToInt('x', 0, 64), 0);
