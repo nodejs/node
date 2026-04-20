@@ -29,7 +29,6 @@ using v8::NewStringType;
 using v8::Nothing;
 using v8::Number;
 using v8::Object;
-using v8::SharedArrayBuffer;
 using v8::String;
 using v8::Value;
 
