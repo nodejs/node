@@ -77,7 +77,6 @@ const fixtureSymbols = {
   array_set_i32: { parameters: ['pointer', 'u64', 'i32'], result: 'void' },
   array_get_f64: { parameters: ['pointer', 'u64'], result: 'f64' },
   array_set_f64: { parameters: ['pointer', 'u64', 'f64'], result: 'void' },
-  readonly_memory: { parameters: [], result: 'pointer' },
 };
 
 if (!common.isWindows) {
