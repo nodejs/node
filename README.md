@@ -777,6 +777,8 @@ maintaining the Node.js project.
   **Preveen Padmanabhan** <<wide4head@gmail.com>> (he/him)
 * [RaisinTen](https://github.com/RaisinTen) -
   **Darshan Sen** <<raisinten@gmail.com>> (he/him)
+* [vassudanagunta](https://github.com/vassudanagunta) -
+  **Vas Sudanagunta** <<vas@commonkarma.org>> (he/him)
 * [VoltrexKeyva](https://github.com/VoltrexKeyva) -
   **Mohammed Keyvanzadeh** <<mohammadkeyvanzade94@gmail.com>> (he/him)
 
