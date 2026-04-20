@@ -797,6 +797,12 @@ parser.add_argument('--enable-trace-maps',
     default=None,
     help='Enable the --trace-maps flag in V8 (use at your own risk)')
 
+parser.add_argument('--enable-all-experimentals',
+    action='store_true',
+    dest='enable_all_experimentals',
+    default=None,
+    help='Enable all experimental features by default')
+
 parser.add_argument('--experimental-enable-pointer-compression',
     action='store_true',
     dest='enable_pointer_compression',
@@ -1803,6 +1809,7 @@ def configure_node_cctest_sources(o):
 def configure_node(o):
   if options.dest_os == 'android':
     o['variables']['OS'] = 'android'
+  o['variables']['node_enable_experimentals'] = b(options.enable_all_experimentals)
   o['variables']['node_prefix'] = options.prefix
   o['variables']['node_install_npm'] = b(not options.without_npm)
   o['variables']['node_install_corepack'] = b(options.with_corepack)

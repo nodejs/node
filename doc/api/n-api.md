@@ -6569,11 +6569,13 @@ NAPI_EXTERN napi_status napi_get_uv_event_loop(node_api_basic_env env,
 * `[in] env`: The environment that the API is invoked under.
 * `[out] loop`: The current libuv loop instance.
 
-Note: While libuv has been relatively stable over time, it does
-not provide an ABI stability guarantee. Use of this function should be avoided.
-Its use may result in an addon that does not work across Node.js versions.
-[asynchronous-thread-safe-function-calls](https://nodejs.org/docs/latest/api/n-api.html#asynchronous-thread-safe-function-calls)
-are an alternative for many use cases.
+Note: While libuv only [guarantees ABI stability](https://github.com/libuv/libuv?tab=readme-ov-file#versioning)
+in a major version, its use may result in an addon that does not work across
+Node.js major versions.
+
+[ThreadSafeFunction](#asynchronous-thread-safe-function-calls)
+is an ABI-stable alternative for many use cases to calling into the
+JavaScript thread from another thread.
 
 ## Asynchronous thread-safe function calls
 
