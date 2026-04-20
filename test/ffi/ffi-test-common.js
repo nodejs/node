@@ -80,6 +80,10 @@ const fixtureSymbols = {
   readonly_memory: { parameters: [], result: 'pointer' },
 };
 
+if (!common.isWindows) {
+  fixtureSymbols.readonly_memory = { parameters: [], result: 'pointer' };
+}
+
 function cString(value) {
   return Buffer.from(`${value}\0`);
 }

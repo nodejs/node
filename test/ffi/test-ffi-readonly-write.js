@@ -11,14 +11,15 @@ if (isWindows) {
   skip('This test currently relies on POSIX APIs');
 }
 
-test('writing to readonly memory via buffer results in SIGBUS', () => {
+test('writing to readonly memory via buffer fails', () => {
   const symbols = JSON.stringify(fixtureSymbols);
-  const { stdout, status, signal } = spawnSync(process.execPath, [
+  const libPath = JSON.stringify(libraryPath);
+  const { stdout, status } = spawnSync(process.execPath, [
     '--experimental-ffi',
     '-p',
     `
     const ffi = require('node:ffi');
-    const { functions } = ffi.dlopen('${libraryPath}', ${symbols})
+    const { functions } = ffi.dlopen(${libPath}, ${symbols})
     const p = functions.readonly_memory();
     const b = ffi.toBuffer(p, 4096, false);
     b[0] = 42;
