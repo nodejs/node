@@ -1398,6 +1398,19 @@ int TLSWrap::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
       !Set(env, p->GetOwner(), env->servername_string(), servername.value()))
     return SSL_TLSEXT_ERR_NOACK;
 
+#ifndef OPENSSL_IS_BORINGSSL
+  // OpenSSL only persists the hostname in the session when this callback
+  // returns SSL_TLSEXT_ERR_OK (i.e. when an SNI context switch occurs).
+  // Explicitly store it so that SSL_SESSION_get0_hostname() works on resumed
+  // sessions regardless of the callback return value.
+  {
+    SSL_SESSION* sess = SSL_get_session(s);
+    const char* sni = SSL_get_servername(s, TLSEXT_NAMETYPE_host_name);
+    if (sess != nullptr && sni != nullptr)
+      SSL_SESSION_set1_hostname(sess, sni);
+  }
+#endif
+
   Local<Value> ctx = p->object()->Get(env->context(), env->sni_context_string())
       .FromMaybe(Local<Value>());
 

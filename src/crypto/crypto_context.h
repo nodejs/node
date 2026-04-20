@@ -53,7 +53,6 @@ class SecureContext final : public BaseObject {
   void SetKeylogCallback(KeylogCb cb);
   void SetNewSessionCallback(NewSessionCb cb);
   void SetSelectSNIContextCallback(SelectSNIContextCb cb);
-
   inline const ncrypto::X509Pointer& issuer() const { return issuer_; }
   inline const ncrypto::X509Pointer& cert() const { return cert_; }
 
