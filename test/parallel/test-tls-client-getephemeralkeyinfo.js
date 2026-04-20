@@ -70,7 +70,10 @@ function test(size, type, name, cipher) {
 
 test(undefined, undefined, undefined, 'AES256-SHA256');
 test('auto', 'DH', undefined, 'DHE-RSA-AES256-GCM-SHA384');
-if (!hasOpenSSL(3, 2)) {
+if (hasOpenSSL(4, 0)) {
+  // OpenSSL 4.0 implements RFC 7919 FFDHE negotiation for TLS 1.2 and
+  // always selects FFDHE-2048 regardless of the server-supplied dhparam.
+} else if (!hasOpenSSL(3, 2)) {
   test(1024, 'DH', undefined, 'DHE-RSA-AES256-GCM-SHA384');
 } else {
   test(3072, 'DH', undefined, 'DHE-RSA-AES256-GCM-SHA384');

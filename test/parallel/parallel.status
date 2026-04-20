@@ -19,6 +19,9 @@ test-fs-read-stream-concurrent-reads: PASS, FLAKY
 # https://github.com/nodejs/build/issues/3043
 test-snapshot-incompatible: SKIP
 
+# https://github.com/nodejs/node/issues/53579
+test-snapshot-reproducible: SKIP
+
 [$system==win32]
 # https://github.com/nodejs/node/issues/59090
 test-inspector-network-fetch: PASS, FLAKY

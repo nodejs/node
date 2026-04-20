@@ -13,6 +13,7 @@
 #include <type_traits>
 
 using v8::ArrayBuffer;
+using v8::ArrayBufferView;
 using v8::BackingStore;
 using v8::BigInt;
 using v8::Context;
@@ -36,23 +37,19 @@ bool GetValidatedSize(Environment* env,
                       const char* label,
                       size_t* out) {
   if (!value->IsNumber()) {
-    THROW_ERR_INVALID_ARG_VALUE(
-        env, (std::string("The ") + label + " must be a number").c_str());
+    THROW_ERR_INVALID_ARG_VALUE(env, "The %s must be a number", label);
     return false;
   }
 
   double length = value.As<Number>()->Value();
   if (!std::isfinite(length) || length < 0 || std::floor(length) != length) {
     THROW_ERR_INVALID_ARG_VALUE(
-        env,
-        (std::string("The ") + label + " must be a non-negative integer")
-            .c_str());
+        env, "The %s must be a non-negative integer", label);
     return false;
   }
 
   if (length > static_cast<double>(std::numeric_limits<size_t>::max())) {
-    env->ThrowRangeError(
-        (std::string("The ") + label + " is too large").c_str());
+    THROW_ERR_OUT_OF_RANGE(env, "The %s is too large", label);
     return false;
   }
 
@@ -65,8 +62,7 @@ bool GetValidatedPointerAddress(Environment* env,
                                 const char* label,
                                 uintptr_t* out) {
   if (!value->IsBigInt()) {
-    THROW_ERR_INVALID_ARG_VALUE(
-        env, (std::string("The ") + label + " must be a bigint").c_str());
+    THROW_ERR_INVALID_ARG_VALUE(env, "The %s must be a bigint", label);
     return false;
   }
 
@@ -74,16 +70,13 @@ bool GetValidatedPointerAddress(Environment* env,
   uint64_t address = value.As<BigInt>()->Uint64Value(&lossless);
   if (!lossless) {
     THROW_ERR_INVALID_ARG_VALUE(
-        env,
-        (std::string("The ") + label + " must be a non-negative bigint")
-            .c_str());
+        env, "The %s must be a non-negative bigint", label);
     return false;
   }
 
   if (address > static_cast<uint64_t>(std::numeric_limits<uintptr_t>::max())) {
-    env->ThrowRangeError(
-        (std::string("The ") + label + " exceeds the platform pointer range")
-            .c_str());
+    THROW_ERR_INVALID_ARG_VALUE(
+        env, "The %s exceeds the platform pointer range", label);
     return false;
   }
 
@@ -145,14 +138,14 @@ bool ValidatePointerSpan(Environment* env,
                          size_t length,
                          const char* error_message) {
   if (offset > std::numeric_limits<uintptr_t>::max() - raw_ptr) {
-    env->ThrowRangeError(error_message);
+    THROW_ERR_INVALID_ARG_VALUE(env, error_message);
     return false;
   }
 
   uintptr_t start = raw_ptr + offset;
   if (length > 0 &&
       length - 1 > std::numeric_limits<uintptr_t>::max() - start) {
-    env->ThrowRangeError(error_message);
+    THROW_ERR_INVALID_ARG_VALUE(env, error_message);
     return false;
   }
 
@@ -188,7 +181,7 @@ bool GetValidatedPointerAndOffset(Environment* env,
   }
 
   if (raw_ptr == 0) {
-    env->ThrowError("Cannot dereference a null pointer");
+    THROW_ERR_FFI_INVALID_POINTER(env, "Cannot dereference a null pointer");
     return false;
   }
 
@@ -224,7 +217,7 @@ bool GetValidatedPointerValueAndOffset(Environment* env,
   }
 
   if (raw_ptr == 0) {
-    env->ThrowError("Cannot dereference a null pointer");
+    THROW_ERR_FFI_INVALID_POINTER(env, "Cannot dereference a null pointer");
     return false;
   }
 
@@ -570,7 +563,8 @@ void ToBuffer(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (ptr == 0 && len > 0) {
-    env->ThrowError("Cannot create a buffer from a null pointer");
+    THROW_ERR_FFI_INVALID_POINTER(env,
+                                  "Cannot create a buffer from a null pointer");
     return;
   }
 
@@ -630,7 +624,8 @@ void ToArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (ptr == 0 && len > 0) {
-    env->ThrowError("Cannot create an ArrayBuffer from a null pointer");
+    THROW_ERR_FFI_INVALID_POINTER(
+        env, "Cannot create an ArrayBuffer from a null pointer");
     return;
   }
 
@@ -666,6 +661,122 @@ void ToArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   }
 
   args.GetReturnValue().Set(ab);
+}
+
+void ExportBytes(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kFFI, "");
+
+  if (args.Length() < 1) {
+    THROW_ERR_INVALID_ARG_TYPE(
+        env,
+        "The first argument must be a Buffer, ArrayBuffer, or ArrayBufferView");
+    return;
+  }
+
+  const uint8_t* source_data = nullptr;
+  size_t source_len = 0;
+
+  if (args[0]->IsArrayBuffer()) {
+    Local<ArrayBuffer> array_buffer = args[0].As<ArrayBuffer>();
+    std::shared_ptr<BackingStore> store = array_buffer->GetBackingStore();
+    if (!store) {
+      THROW_ERR_INVALID_ARG_VALUE(env, "Invalid ArrayBuffer backing store");
+      return;
+    }
+    source_data = static_cast<const uint8_t*>(store->Data());
+    source_len = array_buffer->ByteLength();
+  } else if (args[0]->IsArrayBufferView()) {
+    ArrayBufferViewContents<uint8_t> view(args[0]);
+    if (view.WasDetached()) {
+      THROW_ERR_INVALID_ARG_VALUE(env, "Invalid ArrayBufferView backing store");
+      return;
+    }
+    source_data = view.data();
+    source_len = view.length();
+  } else {
+    THROW_ERR_INVALID_ARG_TYPE(
+        env,
+        "The first argument must be a Buffer, ArrayBuffer, or ArrayBufferView");
+    return;
+  }
+
+  uintptr_t ptr;
+  if (args.Length() < 2 ||
+      !GetValidatedPointerAddress(env, args[1], "pointer", &ptr)) {
+    return;
+  }
+
+  size_t len;
+  if (args.Length() < 3 || !GetValidatedSize(env, args[2], "length", &len)) {
+    return;
+  }
+
+  if (len < source_len) {
+    THROW_ERR_OUT_OF_RANGE(env, "The length must be >= source byte length");
+    return;
+  }
+
+  if (ptr == 0 && source_len > 0) {
+    THROW_ERR_FFI_INVALID_POINTER(env,
+                                  "Cannot create a buffer from a null pointer");
+    return;
+  }
+
+  if (!ValidatePointerSpan(
+          env,
+          ptr,
+          0,
+          len,
+          "The pointer and length exceed the platform address range")) {
+    return;
+  }
+
+  if (source_len > 0) {
+    std::memcpy(reinterpret_cast<void*>(ptr), source_data, source_len);
+  }
+}
+
+void GetRawPointer(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kFFI, "");
+
+  if (args.Length() < 1) {
+    THROW_ERR_INVALID_ARG_TYPE(
+        env,
+        "The first argument must be a Buffer, ArrayBuffer, or ArrayBufferView");
+    return;
+  }
+
+  uintptr_t ptr = 0;
+
+  if (args[0]->IsArrayBuffer()) {
+    Local<ArrayBuffer> array_buffer = args[0].As<ArrayBuffer>();
+    std::shared_ptr<BackingStore> store = array_buffer->GetBackingStore();
+    if (!store) {
+      THROW_ERR_INVALID_ARG_VALUE(env, "Invalid ArrayBuffer backing store");
+      return;
+    }
+    ptr = reinterpret_cast<uintptr_t>(store->Data());
+  } else if (args[0]->IsArrayBufferView()) {
+    ArrayBufferViewContents<uint8_t> view(args[0]);
+    if (view.WasDetached()) {
+      THROW_ERR_INVALID_ARG_VALUE(env, "Invalid ArrayBufferView backing store");
+      return;
+    }
+    ptr = reinterpret_cast<uintptr_t>(view.data());
+  } else {
+    THROW_ERR_INVALID_ARG_TYPE(
+        env,
+        "The first argument must be a Buffer, ArrayBuffer, or ArrayBufferView");
+    return;
+  }
+
+  args.GetReturnValue().Set(
+      BigInt::NewFromUnsigned(isolate, static_cast<uint64_t>(ptr)));
 }
 
 }  // namespace ffi
