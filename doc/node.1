@@ -135,6 +135,25 @@ This behavior also applies to \fBchild_process.spawn()\fR, but in that case, the
 flags are propagated via the \fBNODE_OPTIONS\fR environment variable rather than
 directly through the process arguments.
 .
+.It Fl -allow-env
+When using the Permission Model, the process will be able to access all
+environment variables by default.
+When the \fB--allow-env\fR flag is used, the process will only be able to access
+the specified environment variables.
+.Pp
+The valid arguments for the \fB--allow-env\fR flag are:
+.Bl -bullet
+.It
+\fB*\fR - To allow access to all environment variables.
+.It
+Multiple environment variable names can be allowed using multiple
+\fB--allow-env\fR flags.
+Example \fB--allow-env=HOME --allow-env=PATH\fR
+.El
+.Bd -literal
+$ node --permission --allow-env=HOME --allow-fs-read=* index.js
+.Ed
+.
 .It Fl -allow-ffi
 When using the Permission Model, the process will not be able to use
 \fBnode:ffi\fR by default.
@@ -1146,6 +1165,8 @@ WASI - manageable through \fB--allow-wasi\fR flag
 Addons - manageable through \fB--allow-addons\fR flag
 .It
 FFI - manageable through \fB--allow-ffi\fR flag
+.It
+Environment Variables - manageable through \fB--allow-env\fR flag
 .El
 .
 .It Fl -permission-audit
@@ -1859,6 +1880,8 @@ one is included in the list below.
 \fB--allow-addons\fR
 .It
 \fB--allow-child-process\fR
+.It
+\fB--allow-env\fR
 .It
 \fB--allow-ffi\fR
 .It

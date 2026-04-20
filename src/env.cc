@@ -952,8 +952,6 @@ Environment::Environment(IsolateData* isolate_data,
     if (!options_->allow_env.empty()) {
       permission()->Apply(
           this, options_->allow_env, permission::PermissionScope::kEnvVar);
-    } else {
-      permission()->Apply(this, {}, permission::PermissionScope::kEnvVar);
     }
 
     // Implicit allow entrypoint to kFileSystemRead
