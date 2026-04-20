@@ -97,13 +97,15 @@ class DynamicLibrary : public BaseObject {
 
  private:
   void Close();
-  bool ResolveSymbol(Environment* env, const std::string& name, void** ptr);
-  bool PrepareFunction(Environment* env,
-                       const std::string& name,
-                       v8::Local<v8::Object> signature,
-                       std::shared_ptr<FFIFunction>* ret,
-                       bool* should_cache_symbol,
-                       bool* should_cache_function);
+  v8::Maybe<void*> ResolveSymbol(Environment* env, const std::string& name);
+  struct PreparedFunction {
+    std::shared_ptr<FFIFunction> fn;
+    bool should_cache_symbol;
+    bool should_cache_function;
+  };
+  v8::Maybe<PreparedFunction> PrepareFunction(Environment* env,
+                                              const std::string& name,
+                                              v8::Local<v8::Object> signature);
   v8::MaybeLocal<v8::Function> CreateFunction(
       Environment* env,
       const std::string& name,
