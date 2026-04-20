@@ -43,7 +43,7 @@
 
 <a id="26.0.0"></a>
 
-## 2025-04-22, Version 26.0.0 (Current), @RafaelGSS
+## 2026-04-22, Version 26.0.0 (Current), @RafaelGSS
 
 TBD
 
