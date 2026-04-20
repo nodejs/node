@@ -747,8 +747,6 @@ maintaining the Node.js project.
   **Sangchul Lee** <<1ilsang.dev@gmail.com>> (he/him)
 * [atlowChemi](https://github.com/atlowChemi) -
   **Chemi Atlow** <<chemi@atlow.co.il>> (he/him)
-* [Ayase-252](https://github.com/Ayase-252) -
-  **Qingyu Deng** <<i@ayase-lab.com>>
 * [bjohansebas](https://github.com/bjohansebas) -
   **Sebastian Beltran** <<bjohansebas@gmail.com>>
 * [bmuenzenmeyer](https://github.com/bmuenzenmeyer) -
@@ -773,8 +771,6 @@ maintaining the Node.js project.
   **Kevin Eady** <<kevin.c.eady@gmail.com>> (he/him)
 * [marsonya](https://github.com/marsonya) -
   **Akhil Marsonya** <<akhil.marsonya27@gmail.com>> (he/him)
-* [meixg](https://github.com/meixg) -
-  **Xuguang Mei** <<meixuguang@gmail.com>> (he/him)
 * [milesguicent](https://github.com/milesguicent) -
   **Miles Guicent** <<guicent@pm.me>> (he/him)
 * [preveen-stack](https://github.com/preveen-stack) -
