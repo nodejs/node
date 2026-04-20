@@ -756,11 +756,6 @@ struct NamedPropertyHandlerConfiguration {
       NamedPropertySetterCallbackV2 value) {
     return value;
   }
-  V8_DEPRECATE_SOON("Use NamedPropertySetterCallbackV2 setter instead")
-  static NamedPropertySetterCallbackV2 ConvertSetter(
-      NamedPropertySetterCallback value) {
-    return NamedPropertySetterCallbackV2(value);
-  }
 
   static NamedPropertyDefinerCallbackV2 ConvertDefiner(std::nullptr_t) {
     return nullptr;
@@ -768,11 +763,6 @@ struct NamedPropertyHandlerConfiguration {
   static NamedPropertyDefinerCallbackV2 ConvertDefiner(
       NamedPropertyDefinerCallbackV2 value) {
     return value;
-  }
-  V8_DEPRECATE_SOON("Use NamedPropertyDefinerCallbackV2 definer instead")
-  static NamedPropertyDefinerCallbackV2 ConvertDefiner(
-      NamedPropertyDefinerCallback value) {
-    return NamedPropertyDefinerCallbackV2(value);
   }
 
  public:
@@ -887,11 +877,6 @@ struct IndexedPropertyHandlerConfiguration {
       IndexedPropertySetterCallback value) {
     return value;
   }
-  V8_DEPRECATE_SOON("Use IndexedPropertySetterCallback setter instead")
-  static IndexedPropertySetterCallback ConvertSetter(
-      IndexedPropertySetterCallbackV2 value) {
-    return IndexedPropertySetterCallback(value);
-  }
 
   static IndexedPropertyDefinerCallback ConvertDefiner(std::nullptr_t) {
     return nullptr;
@@ -899,11 +884,6 @@ struct IndexedPropertyHandlerConfiguration {
   static IndexedPropertyDefinerCallback ConvertDefiner(
       IndexedPropertyDefinerCallback value) {
     return value;
-  }
-  V8_DEPRECATE_SOON("Use IndexedPropertyDefinerCallback definer instead")
-  static IndexedPropertyDefinerCallback ConvertDefiner(
-      IndexedPropertyDefinerCallbackV2 value) {
-    return IndexedPropertyDefinerCallback(value);
   }
 
  public:
