@@ -161,8 +161,7 @@ T Store::convert() const {
   // We can only safely convert to T if we have a valid store.
   CHECK(store_);
   T buf;
-  buf.base =
-      store_ != nullptr ? static_cast<N*>(store_->Data()) + offset_ : nullptr;
+  buf.base = static_cast<N*>(store_->Data()) + offset_;
   buf.len = length_;
   return buf;
 }
@@ -222,6 +221,45 @@ QuicError::QuicError(const ngtcp2_ccerr& error)
     : reason_(reinterpret_cast<const char*>(error.reason), error.reasonlen),
       error_(error),
       ptr_(&error_) {}
+
+QuicError::QuicError(QuicError&& other) noexcept
+    : reason_(std::move(other.reason_)),
+      error_(other.error_),
+      ptr_(other.ptr_ == &other.error_ ? &error_ : other.ptr_) {
+  // Fix up the internal reason pointer after moving.
+  error_.reason = reason_c_str();
+  error_.reasonlen = reason_.length();
+}
+
+QuicError& QuicError::operator=(QuicError&& other) noexcept {
+  if (this != &other) {
+    reason_ = std::move(other.reason_);
+    error_ = other.error_;
+    ptr_ = (other.ptr_ == &other.error_) ? &error_ : other.ptr_;
+    error_.reason = reason_c_str();
+    error_.reasonlen = reason_.length();
+  }
+  return *this;
+}
+
+QuicError::QuicError(const QuicError& other)
+    : reason_(other.reason_),
+      error_(other.error_),
+      ptr_(other.ptr_ == &other.error_ ? &error_ : other.ptr_) {
+  error_.reason = reason_c_str();
+  error_.reasonlen = reason_.length();
+}
+
+QuicError& QuicError::operator=(const QuicError& other) {
+  if (this != &other) {
+    reason_ = other.reason_;
+    error_ = other.error_;
+    ptr_ = (other.ptr_ == &other.error_) ? &error_ : other.ptr_;
+    error_.reason = reason_c_str();
+    error_.reasonlen = reason_.length();
+  }
+  return *this;
+}
 
 const uint8_t* QuicError::reason_c_str() const {
   return reinterpret_cast<const uint8_t*>(reason_.c_str());
@@ -296,11 +334,13 @@ std::optional<int> QuicError::get_crypto_error() const {
 
 MaybeLocal<Value> QuicError::ToV8Value(Environment* env) const {
   if ((type() == Type::TRANSPORT && code() == NGTCP2_NO_ERROR) ||
-      (type() == Type::APPLICATION && code() == NGHTTP3_H3_NO_ERROR)) {
+      (type() == Type::APPLICATION && code() == NGHTTP3_H3_NO_ERROR) ||
+      type() == Type::IDLE_CLOSE) {
     // Note that we only return undefined for *known* no-error application
     // codes. It is possible that other application types use other specific
     // no-error codes, but since we don't know which application is being used,
     // we'll just return the error code value for those below.
+    // Idle close is always clean — the session timed out normally.
     return Undefined(env->isolate());
   }
 

@@ -208,6 +208,16 @@ class QuicError final : public MemoryRetainer {
   explicit QuicError(const ngtcp2_ccerr* ptr);
   explicit QuicError(const ngtcp2_ccerr& error);
 
+  // Move constructor and assignment must fix up ptr_ when it points
+  // to the internal error_ member (as set by the default constructor
+  // and the ForTransport/ForApplication factory methods).
+  QuicError(QuicError&& other) noexcept;
+  QuicError& operator=(QuicError&& other) noexcept;
+
+  // Copy constructor and assignment must also fix up ptr_.
+  QuicError(const QuicError& other);
+  QuicError& operator=(const QuicError& other);
+
   Type type() const;
   error_code code() const;
   const std::string_view reason() const;
