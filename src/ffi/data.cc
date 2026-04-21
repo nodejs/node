@@ -194,13 +194,13 @@ Maybe<std::pair<uint8_t*, size_t>> GetValidatedPointerAndOffset(
   return Just(std::make_pair(reinterpret_cast<uint8_t*>(raw_ptr), offset));
 }
 
-struct PointerValueAndOffset {
+struct PointerOffsetAndValue {
   uint8_t* ptr;
   size_t offset;
   Local<Value> value;
 };
 
-Maybe<PointerValueAndOffset> GetValidatedPointerValueAndOffset(
+Maybe<PointerOffsetAndValue> GetValidatedPointerOffsetAndValue(
     Environment* env, const FunctionCallbackInfo<Value>& args) {
   size_t offset;
   Local<Value> value;
@@ -242,7 +242,7 @@ Maybe<PointerValueAndOffset> GetValidatedPointerValueAndOffset(
   value = args[2];
 
   uint8_t* ptr = reinterpret_cast<uint8_t*>(static_cast<uintptr_t>(raw_ptr));
-  return Just(PointerValueAndOffset{ptr, offset, value});
+  return Just(PointerOffsetAndValue{ptr, offset, value});
 }
 
 template <typename T>
@@ -292,9 +292,9 @@ template <typename T>
 void SetValue(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kFFI, "");
-  PointerValueAndOffset data;
+  PointerOffsetAndValue data;
 
-  if (!GetValidatedPointerValueAndOffset(env, args).To(&data)) {
+  if (!GetValidatedPointerOffsetAndValue(env, args).To(&data)) {
     return;
   }
   auto [ptr, offset, value] = data;
