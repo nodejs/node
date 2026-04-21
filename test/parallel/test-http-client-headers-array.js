@@ -7,7 +7,7 @@ const http = require('http');
 
 function execute(options) {
   http.createServer(common.mustCall(function(req, res) {
-    const expectHeaders = {
+    const expectHeaders = { __proto__: null,
       'x-foo': 'boom',
       'cookie': 'a=1; b=2; c=3',
       'connection': 'keep-alive',

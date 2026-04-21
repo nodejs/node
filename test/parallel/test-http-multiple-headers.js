@@ -19,7 +19,7 @@ const server = createServer(
       'Host', host,
       'Transfer-Encoding', 'chunked',
     ]);
-    assert.deepStrictEqual(req.headers, {
+    assert.deepStrictEqual(req.headers, { __proto__: null,
       'connection': 'close',
       'x-req-a': 'eee, fff, ggg, hhh',
       'x-req-b': 'iii; jjj; kkk; lll',
@@ -41,7 +41,7 @@ const server = createServer(
         'X-req-Y', 'zzz; www',
       ]);
       assert.deepStrictEqual(
-        req.trailers, { 'x-req-x': 'xxx, yyy', 'x-req-y': 'zzz; www' }
+        req.trailers, { __proto__: null, 'x-req-x': 'xxx, yyy', 'x-req-y': 'zzz; www' }
       );
       assert.deepStrictEqual(
         req.trailersDistinct,
@@ -124,7 +124,7 @@ server.listen(0, common.mustCall(() => {
       'x-res-d', 'JJJ; KKK; LLL',
       'Transfer-Encoding', 'chunked',
     ]);
-    assert.deepStrictEqual(res.headers, {
+    assert.deepStrictEqual(res.headers, { __proto__: null,
       'x-res-a': 'AAA, BBB, CCC',
       'x-res-b': 'DDD; EEE; FFF; GGG',
       'connection': 'close',
@@ -149,7 +149,7 @@ server.listen(0, common.mustCall(() => {
       ]);
       assert.deepStrictEqual(
         res.trailers,
-        { 'x-res-x': 'XXX, YYY', 'x-res-y': 'ZZZ; WWW' }
+        { __proto__: null, 'x-res-x': 'XXX, YYY', 'x-res-y': 'ZZZ; WWW' }
       );
       assert.deepStrictEqual(
         res.trailersDistinct,

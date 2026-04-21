@@ -36,7 +36,7 @@ http.createServer(common.mustCall(function(req, res) {
     'Connection',
     'keep-alive',
   ];
-  const expectHeaders = {
+  const expectHeaders = { __proto__: null,
     'host': `localhost:${this.address().port}`,
     'transfer-encoding': 'CHUNKED',
     'x-bar': 'yoyoyo',
@@ -52,7 +52,7 @@ http.createServer(common.mustCall(function(req, res) {
     'X-baR',
     'OyOyOyO',
   ];
-  const expectTrailers = { 'x-bar': 'yOyOyOy, OyOyOyO, yOyOyOy, OyOyOyO' };
+  const expectTrailers = { __proto__: null, 'x-bar': 'yOyOyOy, OyOyOyO, yOyOyOy, OyOyOyO' };
 
   this.close();
 
@@ -98,7 +98,7 @@ http.createServer(common.mustCall(function(req, res) {
       'Transfer-Encoding',
       'chunked',
     ];
-    const expectHeaders = {
+    const expectHeaders = { __proto__: null,
       'keep-alive': 'timeout=1',
       'trailer': 'x-foo',
       'date': null,
@@ -120,7 +120,7 @@ http.createServer(common.mustCall(function(req, res) {
         'X-foO',
         'OxOxOxO',
       ];
-      const expectTrailers = { 'x-foo': 'xOxOxOx, OxOxOxO, xOxOxOx, OxOxOxO' };
+      const expectTrailers = { __proto__: null, 'x-foo': 'xOxOxOx, OxOxOxO, xOxOxOx, OxOxOxO' };
 
       assert.deepStrictEqual(res.rawTrailers, expectRawTrailers);
       assert.deepStrictEqual(res.trailers, expectTrailers);
