@@ -7,12 +7,12 @@
     "@babel/eslint-parser": "^8.0.0-rc.3",
     "@babel/plugin-syntax-import-source": "^8.0.0-rc.3",
     "@eslint/js": "^10.0.1",
-    "@eslint/markdown": "^8.0.0",
+    "@eslint/markdown": "^8.0.1",
     "@stylistic/eslint-plugin": "^5.10.0",
-    "eslint": "^10.1.0",
+    "eslint": "^10.2.0",
     "eslint-formatter-tap": "^9.0.1",
-    "eslint-plugin-jsdoc": "^62.8.1",
+    "eslint-plugin-jsdoc": "^62.9.0",
     "eslint-plugin-regexp": "^3.1.0",
-    "globals": "^17.4.0"
+    "globals": "^17.5.0"
   }
 }
