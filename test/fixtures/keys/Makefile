@@ -2,6 +2,7 @@ all: \
   ca1-cert.pem \
   ca2-cert.pem \
   ca2-crl.pem \
+  ca2-crl-agent3.pem \
   ca3-cert.pem \
   ca4-cert.pem \
   ca5-cert.pem \
@@ -510,6 +511,28 @@ ca2-crl.pem: ca2-key.pem ca2-cert.pem ca2.cnf agent4-cert.pem
 		-gencrl \
 		-out ca2-crl.pem \
 		-passin 'pass:password'
+
+#
+# Make CRL with agent3 being rejected
+# Uses a separate temporary database so the ca2-crl.pem revocation of agent4
+# does not contaminate this CRL.
+#
+ca2-crl-agent3.pem: ca2-key.pem ca2-cert.pem ca2.cnf agent3-cert.pem
+	@> ca2-crl-agent3-database.txt
+	@sed 's/ca2-database/ca2-crl-agent3-database/' ca2.cnf > ca2-crl-agent3.cnf
+	openssl ca -revoke agent3-cert.pem \
+		-keyfile ca2-key.pem \
+		-cert ca2-cert.pem \
+		-config ca2-crl-agent3.cnf \
+		-passin 'pass:password'
+	openssl ca \
+		-keyfile ca2-key.pem \
+		-cert ca2-cert.pem \
+		-config ca2-crl-agent3.cnf \
+		-gencrl \
+		-out ca2-crl-agent3.pem \
+		-passin 'pass:password'
+	@rm -f ca2-crl-agent3.cnf ca2-crl-agent3-database.txt*
 
 #
 # agent5 is signed by ca2 (client cert)
@@ -1110,7 +1133,7 @@ irrelevant_san_correct_subject-key.pem:
 	openssl ecparam -name prime256v1 -genkey -noout -out irrelevant_san_correct_subject-key.pem
 
 clean:
-	rm -f *.pfx *.pem *.srl ca2-database.txt ca2-serial fake-startcom-root-serial *.print *.old fake-startcom-root-issued-certs/*.pem
+	rm -f *.pfx *.pem *.srl ca2-database.txt ca2-crl-agent3-database.txt* ca2-crl-agent3.cnf ca2-serial fake-startcom-root-serial *.print *.old fake-startcom-root-issued-certs/*.pem
 	@> fake-startcom-root-database.txt
 
 test: agent1-verify agent2-verify agent3-verify agent4-verify agent5-verify agent6-verify agent7-verify agent8-verify agent10-verify ec10-verify
