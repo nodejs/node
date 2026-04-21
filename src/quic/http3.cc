@@ -1,3 +1,4 @@
+#include "nghttp3/lib/nghttp3_conn.h"
 #if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
@@ -11,6 +12,7 @@
 #include <node_http_common-inl.h>
 #include <node_sockaddr-inl.h>
 #include <util-inl.h>
+#include <zlib.h>
 #include "application.h"
 #include "bindingdata.h"
 #include "defs.h"
@@ -24,6 +26,63 @@ using v8::Array;
 using v8::Local;
 
 namespace quic {
+
+namespace {
+constexpr uint8_t kSessionTicketAppDataVersion = 1;
+// Layout: [type(1)][version(1)][crc(4)][payload(34)] = 40 bytes
+constexpr size_t kSessionTicketAppDataSize = 40;
+constexpr size_t kSessionTicketAppDataHeaderSize = 6;  // type + version + crc
+constexpr size_t kSessionTicketAppDataPayloadSize =
+    kSessionTicketAppDataSize - kSessionTicketAppDataHeaderSize;
+
+inline void WriteBE32(uint8_t* buf, uint32_t val) {
+  buf[0] = static_cast<uint8_t>((val >> 24) & 0xff);
+  buf[1] = static_cast<uint8_t>((val >> 16) & 0xff);
+  buf[2] = static_cast<uint8_t>((val >> 8) & 0xff);
+  buf[3] = static_cast<uint8_t>(val & 0xff);
+}
+
+inline uint32_t ReadBE32(const uint8_t* buf) {
+  return (static_cast<uint32_t>(buf[0]) << 24) |
+         (static_cast<uint32_t>(buf[1]) << 16) |
+         (static_cast<uint32_t>(buf[2]) << 8) | static_cast<uint32_t>(buf[3]);
+}
+
+inline void WriteBE64(uint8_t* buf, uint64_t val) {
+  buf[0] = static_cast<uint8_t>((val >> 56) & 0xff);
+  buf[1] = static_cast<uint8_t>((val >> 48) & 0xff);
+  buf[2] = static_cast<uint8_t>((val >> 40) & 0xff);
+  buf[3] = static_cast<uint8_t>((val >> 32) & 0xff);
+  buf[4] = static_cast<uint8_t>((val >> 24) & 0xff);
+  buf[5] = static_cast<uint8_t>((val >> 16) & 0xff);
+  buf[6] = static_cast<uint8_t>((val >> 8) & 0xff);
+  buf[7] = static_cast<uint8_t>(val & 0xff);
+}
+
+inline uint64_t ReadBE64(const uint8_t* buf) {
+  return (static_cast<uint64_t>(buf[0]) << 56) |
+         (static_cast<uint64_t>(buf[1]) << 48) |
+         (static_cast<uint64_t>(buf[2]) << 40) |
+         (static_cast<uint64_t>(buf[3]) << 32) |
+         (static_cast<uint64_t>(buf[4]) << 24) |
+         (static_cast<uint64_t>(buf[5]) << 16) |
+         (static_cast<uint64_t>(buf[6]) << 8) | static_cast<uint64_t>(buf[7]);
+}
+
+// Serialize an nghttp3_pri into an RFC 9218 priority field value
+// (e.g., "u=3" or "u=0, i"). Returns the number of bytes written.
+// This is used only for setting the priority field of HTTP/3 streams on
+// the client side.
+inline size_t FormatPriority(char* buf, size_t buflen, const nghttp3_pri& pri) {
+  int len;
+  if (pri.inc) {
+    len = snprintf(buf, buflen, "u=%d, i", pri.urgency);
+  } else {
+    len = snprintf(buf, buflen, "u=%d", pri.urgency);
+  }
+  return static_cast<size_t>(len);
+}
+}  // namespace
 
 struct Http3HeadersTraits {
   using nv_t = nghttp3_nv;
@@ -85,9 +144,16 @@ class Http3ApplicationImpl final : public Session::Application {
  public:
   Http3ApplicationImpl(Session* session, const Options& options)
       : Application(session, options),
-        allocator_(BindingData::Get(env())),
+        allocator_(BindingData::Get(env()).nghttp3_allocator()),
         options_(options),
-        conn_(InitializeConnection()) {
+        conn_(nullptr) {
+    // Build the ORIGIN frame payload from the SNI configuration before
+    // creating the nghttp3 connection, since InitializeConnection needs
+    // the origin_vec_ to be ready for settings.origin_list.
+    if (session->is_server()) {
+      BuildOriginPayload();
+    }
+    conn_ = InitializeConnection();
     session->set_priority_supported();
   }
 
@@ -97,8 +163,45 @@ class Http3ApplicationImpl final : public Session::Application {
 
   error_code GetNoErrorCode() const override { return NGHTTP3_H3_NO_ERROR; }
 
+  // HTTP/3 defines H3_INTERNAL_ERROR (0x102) for non-specific failures
+  // initiated by the implementation; this is the right code to send
+  // on RESET_STREAM when a stream is being aborted without an
+  // application-supplied code.
+  error_code GetInternalErrorCode() const override {
+    return NGHTTP3_H3_INTERNAL_ERROR;
+  }
+
+  void EarlyDataRejected() override {
+    // When 0-RTT is rejected, destroy the nghttp3 connection and all
+    // open streams — ngtcp2 has discarded their internal state.
+    // Reset started_ so Start() is called again via on_receive_rx_key
+    // at 1RTT to recreate the nghttp3 connection.
+    conn_.reset();
+    started_ = false;
+    session().DestroyAllStreams(QuicError::ForApplication(0));
+    if (!session().is_destroyed()) {
+      session().EmitEarlyDataRejected();
+    }
+  }
+
+  bool ReceiveStreamOpen(stream_id id) override {
+    // In HTTP/3, only create Stream objects for bidirectional streams.
+    // Unidirectional streams (control, QPACK encoder/decoder) are
+    // managed internally by nghttp3 and should not be exposed to JS.
+    if (!ngtcp2_is_bidi_stream(id)) return true;
+    auto stream = session().CreateStream(id);
+    if (!stream || session().is_destroyed()) [[unlikely]] {
+      return !session().is_destroyed();
+    }
+    return true;
+  }
+
+  bool SupportsHeaders() const override { return true; }
+
+  bool is_started() const override { return started_; }
+
   bool Start() override {
-    CHECK(!started_);
+    if (started_) return true;
     started_ = true;
     Debug(&session(), "Starting HTTP/3 application.");
 
@@ -158,20 +261,29 @@ class Http3ApplicationImpl final : public Session::Application {
     return ret;
   }
 
-  bool ReceiveStreamData(int64_t stream_id,
+  void BeginShutdown() override {
+    if (conn_) nghttp3_conn_submit_shutdown_notice(*this);
+  }
+
+  void CompleteShutdown() override {
+    if (conn_) nghttp3_conn_shutdown(*this);
+  }
+
+  bool ReceiveStreamData(stream_id id,
                          const uint8_t* data,
                          size_t datalen,
                          const Stream::ReceiveDataFlags& flags,
                          void* unused) override {
     Debug(&session(),
           "HTTP/3 application received %zu bytes of data "
-          "on stream %" PRIi64 ". Is final? %d",
+          "on stream %" PRIi64 ". Is final? %d. Is early? %d",
           datalen,
-          stream_id,
-          flags.fin);
+          id,
+          flags.fin,
+          flags.early);
 
-    ssize_t nread = nghttp3_conn_read_stream(
-        *this, stream_id, data, datalen, flags.fin ? 1 : 0);
+    auto nread = nghttp3_conn_read_stream2(
+        *this, id, data, datalen, flags.fin ? 1 : 0, uv_hrtime());
 
     if (nread < 0) {
       Debug(&session(),
@@ -184,20 +296,29 @@ class Http3ApplicationImpl final : public Session::Application {
       Debug(&session(),
             "Extending stream and connection offset by %zd bytes",
             nread);
-      session().ExtendStreamOffset(stream_id, nread);
+      session().ExtendStreamOffset(id, nread);
       session().ExtendOffset(nread);
+    }
+
+    // If this data arrived as 0-RTT, mark the stream. We set it after
+    // nghttp3_conn_read_stream2 because the stream may not exist until
+    // nghttp3 processes the headers (via on_begin_headers).
+    if (flags.early) {
+      if (auto stream = session().FindStream(id)) {
+        stream->set_early();
+      }
     }
 
     return true;
   }
 
-  bool AcknowledgeStreamData(int64_t stream_id, size_t datalen) override {
+  bool AcknowledgeStreamData(stream_id id, size_t datalen) override {
     Debug(&session(),
           "HTTP/3 application received acknowledgement for %zu bytes of data "
           "on stream %" PRIi64,
           datalen,
-          stream_id);
-    return nghttp3_conn_add_ack_offset(*this, stream_id, datalen) == 0;
+          id);
+    return nghttp3_conn_add_ack_offset(*this, id, datalen) == 0;
   }
 
   bool CanAddHeader(size_t current_count,
@@ -205,18 +326,26 @@ class Http3ApplicationImpl final : public Session::Application {
                     size_t this_header_length) override {
     // We cannot add the header if we've either reached
     // * the max number of header pairs or
-    // * the max number of header bytes
-    return (current_count < options_.max_header_pairs) &&
+    // * the max number of header bytes (name + value combined)
+    // current_count is the number of entries in the headers vector
+    // (each pair = name entry + value entry = 2 entries).
+    return (current_count / 2 < options_.max_header_pairs) &&
            (current_headers_length + this_header_length) <=
                options_.max_header_length;
   }
 
-  void BlockStream(int64_t id) override {
+  bool stream_fin_managed_by_application() const override { return true; }
+
+  void StreamWriteShut(stream_id id) override {
+    nghttp3_conn_shutdown_stream_write(*this, id);
+  }
+
+  void BlockStream(stream_id id) override {
     nghttp3_conn_block_stream(*this, id);
     Application::BlockStream(id);
   }
 
-  void ResumeStream(int64_t id) override {
+  void ResumeStream(stream_id id) override {
     nghttp3_conn_resume_stream(*this, id);
     Application::ResumeStream(id);
   }
@@ -259,31 +388,126 @@ class Http3ApplicationImpl final : public Session::Application {
 
   void CollectSessionTicketAppData(
       SessionTicket::AppData* app_data) const override {
-    // TODO(@jasnell): When HTTP/3 settings become dynamic or
-    // configurable per-connection, store them here so they can be
-    // validated on 0-RTT resumption. Candidates include:
-    // max_field_section_size, qpack_max_dtable_capacity,
-    // qpack_encoder_max_dtable_capacity, qpack_blocked_streams,
-    // enable_connect_protocol, and enable_datagrams. On extraction,
-    // compare stored values against current settings and return
-    // TICKET_IGNORE_RENEW if incompatible.
+    uint8_t buf[kSessionTicketAppDataSize];
+    buf[0] = static_cast<uint8_t>(Type::HTTP3);
+    buf[1] = kSessionTicketAppDataVersion;
+
+    uint8_t* payload = buf + kSessionTicketAppDataHeaderSize;
+    WriteBE64(payload, options_.max_field_section_size);
+    WriteBE64(payload + 8, options_.qpack_max_dtable_capacity);
+    WriteBE64(payload + 16, options_.qpack_encoder_max_dtable_capacity);
+    WriteBE64(payload + 24, options_.qpack_blocked_streams);
+    payload[32] = options_.enable_connect_protocol ? 1 : 0;
+    payload[33] = options_.enable_datagrams ? 1 : 0;
+
+    uLong crc = crc32(0L, Z_NULL, 0);
+    crc = crc32(crc, payload, kSessionTicketAppDataPayloadSize);
+    WriteBE32(buf + 2, static_cast<uint32_t>(crc));
+
+    app_data->Set(
+        uv_buf_init(reinterpret_cast<char*>(buf), kSessionTicketAppDataSize));
   }
 
   SessionTicket::AppData::Status ExtractSessionTicketAppData(
       const SessionTicket::AppData& app_data,
       SessionTicket::AppData::Source::Flag flag) override {
-    // See CollectSessionTicketAppData above.
+    auto data = app_data.Get();
+    if (!data || data->len != kSessionTicketAppDataSize) {
+      return SessionTicket::AppData::Status::TICKET_IGNORE_RENEW;
+    }
+
+    const uint8_t* buf = reinterpret_cast<const uint8_t*>(data->base);
+
+    // buf[0] is the application type byte, buf[1] is the version.
+    if (buf[0] != static_cast<uint8_t>(Type::HTTP3) ||
+        buf[1] != kSessionTicketAppDataVersion) {
+      Debug(&session(),
+            "Ticket app data rejected: type=%d version=%d "
+            "(expected type=%d version=%d)",
+            buf[0],
+            buf[1],
+            static_cast<uint8_t>(Type::HTTP3),
+            kSessionTicketAppDataVersion);
+      return SessionTicket::AppData::Status::TICKET_IGNORE_RENEW;
+    }
+
+    const uint8_t* payload = buf + kSessionTicketAppDataHeaderSize;
+    uint32_t stored_crc = ReadBE32(buf + 2);
+    uLong computed_crc = crc32(0L, Z_NULL, 0);
+    computed_crc =
+        crc32(computed_crc, payload, kSessionTicketAppDataPayloadSize);
+    if (stored_crc != static_cast<uint32_t>(computed_crc)) {
+      Debug(&session(),
+            "Ticket app data rejected: CRC mismatch "
+            "(stored=%u computed=%u)",
+            stored_crc,
+            static_cast<uint32_t>(computed_crc));
+      return SessionTicket::AppData::Status::TICKET_IGNORE_RENEW;
+    }
+
+    uint64_t stored_max_field_section_size = ReadBE64(payload);
+    uint64_t stored_qpack_max_dtable_capacity = ReadBE64(payload + 8);
+    uint64_t stored_qpack_encoder_max_dtable_capacity = ReadBE64(payload + 16);
+    uint64_t stored_qpack_blocked_streams = ReadBE64(payload + 24);
+    bool stored_enable_connect_protocol = payload[32] != 0;
+    bool stored_enable_datagrams = payload[33] != 0;
+
+    Debug(&session(),
+          "Ticket app data: stored mfss=%" PRIu64 " qmdc=%" PRIu64
+          " qemdc=%" PRIu64 " qbs=%" PRIu64 " ecp=%d ed=%d",
+          stored_max_field_section_size,
+          stored_qpack_max_dtable_capacity,
+          stored_qpack_encoder_max_dtable_capacity,
+          stored_qpack_blocked_streams,
+          stored_enable_connect_protocol,
+          stored_enable_datagrams);
+    Debug(&session(),
+          "Current opts: mfss=%" PRIu64 " qmdc=%" PRIu64 " qemdc=%" PRIu64
+          " qbs=%" PRIu64 " ecp=%d ed=%d",
+          options_.max_field_section_size,
+          options_.qpack_max_dtable_capacity,
+          options_.qpack_encoder_max_dtable_capacity,
+          options_.qpack_blocked_streams,
+          options_.enable_connect_protocol,
+          options_.enable_datagrams);
+    if (options_.max_field_section_size < stored_max_field_section_size ||
+        options_.qpack_max_dtable_capacity < stored_qpack_max_dtable_capacity ||
+        options_.qpack_encoder_max_dtable_capacity <
+            stored_qpack_encoder_max_dtable_capacity ||
+        options_.qpack_blocked_streams < stored_qpack_blocked_streams ||
+        (stored_enable_connect_protocol && !options_.enable_connect_protocol) ||
+        (stored_enable_datagrams && !options_.enable_datagrams)) {
+      Debug(&session(), "Ticket app data REJECTED");
+      return SessionTicket::AppData::Status::TICKET_IGNORE_RENEW;
+    }
+    Debug(&session(), "Ticket app data ACCEPTED");
+
     return flag == SessionTicket::AppData::Source::Flag::STATUS_RENEW
                ? SessionTicket::AppData::Status::TICKET_USE_RENEW
                : SessionTicket::AppData::Status::TICKET_USE;
   }
 
-  void StreamClose(Stream* stream, QuicError&& error = QuicError()) override {
+  bool ApplySessionTicketData(const PendingTicketAppData& data) override {
+    if (!std::holds_alternative<Http3TicketData>(data)) return false;
+    const auto& ticket = std::get<Http3TicketData>(data);
+    // Validate that current settings are >= stored settings.
+    return options_.max_field_section_size >= ticket.max_field_section_size &&
+           options_.qpack_max_dtable_capacity >=
+               ticket.qpack_max_dtable_capacity &&
+           options_.qpack_encoder_max_dtable_capacity >=
+               ticket.qpack_encoder_max_dtable_capacity &&
+           options_.qpack_blocked_streams >= ticket.qpack_blocked_streams &&
+           (!ticket.enable_connect_protocol ||
+            options_.enable_connect_protocol) &&
+           (!ticket.enable_datagrams || options_.enable_datagrams);
+  }
+
+  void ReceiveStreamClose(Stream* stream,
+                          QuicError&& error = QuicError()) override {
     Debug(
         &session(), "HTTP/3 application closing stream %" PRIi64, stream->id());
-    uint64_t code = NGHTTP3_H3_NO_ERROR;
-    if (error) {
-      CHECK_EQ(error.type(), QuicError::Type::APPLICATION);
+    error_code code = NGHTTP3_H3_NO_ERROR;
+    if (error.type() == QuicError::Type::APPLICATION) {
       code = error.code();
     }
 
@@ -303,9 +527,9 @@ class Http3ApplicationImpl final : public Session::Application {
     session().Close();
   }
 
-  void StreamReset(Stream* stream,
-                   uint64_t final_size,
-                   QuicError&& error = QuicError()) override {
+  void ReceiveStreamReset(Stream* stream,
+                          uint64_t final_size,
+                          QuicError&& error = QuicError()) override {
     // We are shutting down the readable side of the local stream here.
     Debug(&session(),
           "HTTP/3 application resetting stream %" PRIi64,
@@ -321,9 +545,9 @@ class Http3ApplicationImpl final : public Session::Application {
     session().Close();
   }
 
-  void StreamStopSending(Stream* stream,
-                         QuicError&& error = QuicError()) override {
-    Application::StreamStopSending(stream, std::move(error));
+  void ReceiveStreamStopSending(Stream* stream,
+                                QuicError&& error = QuicError()) override {
+    Application::ReceiveStreamStopSending(stream, std::move(error));
   }
 
   bool SendHeaders(const Stream& stream,
@@ -363,8 +587,11 @@ class Http3ApplicationImpl final : public Session::Application {
                 "Submitting %" PRIu64 " response headers for stream %" PRIu64,
                 nva.length(),
                 stream.id());
-          return nghttp3_conn_submit_response(
-              *this, stream.id(), nva.data(), nva.length(), reader_ptr);
+          return nghttp3_conn_submit_response(*this,
+                                              stream.id(),
+                                              nva.data(),
+                                              nva.length(),
+                                              reader_ptr) == 0;
         } else {
           // Otherwise we're submitting a request...
           Debug(&session(),
@@ -398,7 +625,7 @@ class Http3ApplicationImpl final : public Session::Application {
                          StreamPriority priority,
                          StreamPriorityFlags flags) override {
     nghttp3_pri pri;
-    pri.inc = (flags == StreamPriorityFlags::NON_INCREMENTAL) ? 0 : 1;
+    pri.inc = (flags == StreamPriorityFlags::INCREMENTAL) ? 1 : 0;
     switch (priority) {
       case StreamPriority::HIGH:
         pri.urgency = NGHTTP3_URGENCY_HIGH;
@@ -412,33 +639,44 @@ class Http3ApplicationImpl final : public Session::Application {
     }
     if (session().is_server()) {
       nghttp3_conn_set_server_stream_priority(*this, stream.id(), &pri);
+    } else {
+      // The client API takes a serialized RFC 9218 priority field value
+      // (e.g., "u=0, i") rather than an nghttp3_pri struct.
+      char buf[8];
+      size_t len = FormatPriority(buf, sizeof(buf), pri);
+      nghttp3_conn_set_client_stream_priority(
+          *this, stream.id(), reinterpret_cast<const uint8_t*>(buf), len);
     }
-    // Client-side priority is set at request submission time via
-    // nghttp3_conn_submit_request and is not typically changed
-    // after the fact. The client API takes a serialized RFC 9218
-    // field value rather than an nghttp3_pri struct.
   }
 
-  StreamPriority GetStreamPriority(const Stream& stream) override {
+  StreamPriorityResult GetStreamPriority(const Stream& stream) override {
+    // nghttp3_conn_get_stream_priority is only available on the server
+    // side, where it reflects the peer's requested priority (e.g., from
+    // PRIORITY_UPDATE frames). Client-side priority is tracked by the
+    // Stream itself and returned directly from GetPriority in streams.cc.
+    if (!session().is_server()) {
+      auto& stored = stream.stored_priority();
+      return {stored.priority, stored.flags};
+    }
     nghttp3_pri pri;
     if (nghttp3_conn_get_stream_priority(*this, &pri, stream.id()) == 0) {
-      // TODO(@jasnell): The nghttp3_pri.inc (incremental) flag is
-      // not yet exposed. When priority-based stream scheduling is
-      // implemented, GetStreamPriority should return both urgency
-      // and the incremental flag (making get/set symmetrical).
-      // The inc flag determines whether the server should interleave
-      // data from this stream with others of the same urgency
-      // (inc=1) or complete it first (inc=0).
+      StreamPriority level;
       switch (pri.urgency) {
         case NGHTTP3_URGENCY_HIGH:
-          return StreamPriority::HIGH;
+          level = StreamPriority::HIGH;
+          break;
         case NGHTTP3_URGENCY_LOW:
-          return StreamPriority::LOW;
+          level = StreamPriority::LOW;
+          break;
         default:
-          return StreamPriority::DEFAULT;
+          level = StreamPriority::DEFAULT;
+          break;
       }
+      return {level,
+              pri.inc ? StreamPriorityFlags::INCREMENTAL
+                      : StreamPriorityFlags::NON_INCREMENTAL};
     }
-    return StreamPriority::DEFAULT;
+    return {StreamPriority::DEFAULT, StreamPriorityFlags::NON_INCREMENTAL};
   }
 
   int GetStreamData(StreamData* data) override {
@@ -454,7 +692,7 @@ class Http3ApplicationImpl final : public Session::Application {
       }
 
       data->count = static_cast<size_t>(ret);
-      if (data->id > 0 && data->id != control_stream_id_ &&
+      if (data->id >= 0 && data->id != control_stream_id_ &&
           data->id != qpack_dec_stream_id_ &&
           data->id != qpack_enc_stream_id_) {
         data->stream = session().FindStream(data->id);
@@ -469,13 +707,32 @@ class Http3ApplicationImpl final : public Session::Application {
           "HTTP/3 application committing stream %" PRIi64 " data %zu",
           data->id,
           datalen);
+    // datalen is the total framed bytes consumed by ngtcp2, which includes
+    // H3 frame overhead (HEADERS frame bytes, DATA frame type/length).
+    // nghttp3 tracks its own offset via add_write_offset.
     int err = nghttp3_conn_add_write_offset(*this, data->id, datalen);
     if (err != 0) {
       session().SetLastError(QuicError::ForApplication(
           nghttp3_err_infer_quic_app_error_code(err)));
       return false;
     }
-    if (data->stream) data->stream->Commit(datalen, data->fin);
+    // Raw application bytes are committed to the stream's outbound
+    // immediately in on_read_data_callback (so that re-entrant
+    // fill_outq calls see the advanced position). We only need to
+    // propagate the fin flag here.
+    if (data->stream && data->fin) {
+      data->stream->Commit(0, true);
+    }
+    // After body data is committed, if on_read_data_callback signaled
+    // EOF+NO_END_STREAM (trailers pending), emit the want-trailers
+    // event to JS. This runs outside the NgHttp3CallbackScope so it's
+    // safe to call into JS. The JS handler calls sendTrailers() which
+    // calls nghttp3_conn_submit_trailers, queuing the TRAILERS frame
+    // for the next writev_stream in the send loop.
+    if (pending_trailers_stream_ == data->id) {
+      pending_trailers_stream_ = -1;
+      if (data->stream) data->stream->EmitWantTrailers();
+    }
     return true;
   }
 
@@ -489,27 +746,56 @@ class Http3ApplicationImpl final : public Session::Application {
     return conn_.get();
   }
 
-  inline bool is_control_stream(int64_t id) const {
+  inline bool is_control_stream(stream_id id) const {
     return id == control_stream_id_ || id == qpack_dec_stream_id_ ||
            id == qpack_enc_stream_id_;
+  }
+
+  void BuildOriginPayload() {
+    // Build the serialized ORIGIN frame payload from the SNI configuration.
+    // Each origin entry is: 2-byte BE length + origin string.
+    // Wildcard ('*') entries and entries with authoritative=false are skipped.
+    auto& sni = session().config().options.sni;
+    for (auto& [hostname, opts] : sni) {
+      if (hostname == "*" || !opts.authoritative) continue;
+      std::string origin = "https://";
+      origin += hostname;
+      if (opts.port != 443) {
+        origin += ":";
+        origin += std::to_string(opts.port);
+      }
+      // 2-byte BE length prefix
+      uint16_t len = static_cast<uint16_t>(origin.size());
+      origin_payload_.push_back(static_cast<uint8_t>((len >> 8) & 0xff));
+      origin_payload_.push_back(static_cast<uint8_t>(len & 0xff));
+      // Origin string bytes
+      origin_payload_.insert(
+          origin_payload_.end(), origin.begin(), origin.end());
+    }
+    if (!origin_payload_.empty()) {
+      origin_vec_ = {origin_payload_.data(), origin_payload_.size()};
+    }
   }
 
   Http3ConnectionPointer InitializeConnection() {
     nghttp3_conn* conn = nullptr;
     nghttp3_settings settings = options_;
+    if (!origin_payload_.empty()) {
+      settings.origin_list = &origin_vec_;
+    }
     if (session().is_server()) {
       CHECK_EQ(nghttp3_conn_server_new(
-                   &conn, &kCallbacks, &settings, &allocator_, this),
+                   &conn, &kCallbacks, &settings, allocator_, this),
                0);
     } else {
       CHECK_EQ(nghttp3_conn_client_new(
-                   &conn, &kCallbacks, &settings, &allocator_, this),
+                   &conn, &kCallbacks, &settings, allocator_, this),
                0);
     }
     return Http3ConnectionPointer(conn);
   }
 
-  void OnStreamClose(Stream* stream, uint64_t app_error_code) {
+  void OnStreamClose(Stream* stream, error_code app_error_code) {
     if (app_error_code != NGHTTP3_H3_NO_ERROR) {
       Debug(&session(),
             "HTTP/3 application received stream close for stream %" PRIi64
@@ -522,20 +808,19 @@ class Http3ApplicationImpl final : public Session::Application {
     ExtendMaxStreams(EndpointLabel::REMOTE, direction, 1);
   }
 
-  void OnBeginHeaders(int64_t stream_id) {
-    auto stream = session().FindStream(stream_id);
-    // If the stream does not exist or is destroyed, ignore!
+  void OnBeginHeaders(stream_id id) {
+    auto stream = FindOrCreateStream(conn_.get(), &session(), id);
     if (!stream) [[unlikely]]
       return;
     Debug(&session(),
           "HTTP/3 application beginning initial block of headers for stream "
           "%" PRIi64,
-          stream_id);
+          id);
     stream->BeginHeaders(HeadersKind::INITIAL);
   }
 
-  void OnReceiveHeader(int64_t stream_id, Http3Header&& header) {
-    auto stream = session().FindStream(stream_id);
+  void OnReceiveHeader(stream_id id, Http3Header&& header) {
+    auto stream = session().FindStream(id);
 
     if (!stream) [[unlikely]]
       return;
@@ -554,17 +839,17 @@ class Http3ApplicationImpl final : public Session::Application {
     stream->AddHeader(std::move(header));
   }
 
-  void OnEndHeaders(int64_t stream_id, int fin) {
-    auto stream = session().FindStream(stream_id);
+  void OnEndHeaders(stream_id id, int fin) {
+    auto stream = session().FindStream(id);
     if (!stream) [[unlikely]]
       return;
     Debug(&session(),
           "HTTP/3 application received end of headers for stream %" PRIi64,
-          stream_id);
+          id);
     stream->EmitHeaders();
     if (fin) {
       // The stream is done. There's no more data to receive!
-      Debug(&session(), "Headers are final for stream %" PRIi64, stream_id);
+      Debug(&session(), "Headers are final for stream %" PRIi64, id);
       Stream::ReceiveDataFlags flags{
           .fin = true,
           .early = false,
@@ -573,18 +858,18 @@ class Http3ApplicationImpl final : public Session::Application {
     }
   }
 
-  void OnBeginTrailers(int64_t stream_id) {
-    auto stream = session().FindStream(stream_id);
+  void OnBeginTrailers(stream_id id) {
+    auto stream = FindOrCreateStream(conn_.get(), &session(), id);
     if (!stream) [[unlikely]]
       return;
     Debug(&session(),
           "HTTP/3 application beginning block of trailers for stream %" PRIi64,
-          stream_id);
+          id);
     stream->BeginHeaders(HeadersKind::TRAILING);
   }
 
-  void OnReceiveTrailer(int64_t stream_id, Http3Header&& header) {
-    auto stream = session().FindStream(stream_id);
+  void OnReceiveTrailer(stream_id id, Http3Header&& header) {
+    auto stream = session().FindStream(id);
     if (!stream) [[unlikely]]
       return;
     IF_QUIC_DEBUG(env()) {
@@ -593,19 +878,19 @@ class Http3ApplicationImpl final : public Session::Application {
             header.name(),
             header.value());
     }
-    stream->AddHeader(header);
+    stream->AddHeader(std::move(header));
   }
 
-  void OnEndTrailers(int64_t stream_id, int fin) {
-    auto stream = session().FindStream(stream_id);
+  void OnEndTrailers(stream_id id, int fin) {
+    auto stream = session().FindStream(id);
     if (!stream) [[unlikely]]
       return;
     Debug(&session(),
           "HTTP/3 application received end of trailers for stream %" PRIi64,
-          stream_id);
+          id);
     stream->EmitHeaders();
     if (fin) {
-      Debug(&session(), "Trailers are final for stream %" PRIi64, stream_id);
+      Debug(&session(), "Trailers are final for stream %" PRIi64, id);
       Stream::ReceiveDataFlags flags{
           .fin = true,
           .early = false,
@@ -614,13 +899,13 @@ class Http3ApplicationImpl final : public Session::Application {
     }
   }
 
-  void OnEndStream(int64_t stream_id) {
-    auto stream = session().FindStream(stream_id);
+  void OnEndStream(stream_id id) {
+    auto stream = session().FindStream(id);
     if (!stream) [[unlikely]]
       return;
     Debug(&session(),
           "HTTP/3 application received end of stream for stream %" PRIi64,
-          stream_id);
+          id);
     Stream::ReceiveDataFlags flags{
         .fin = true,
         .early = false,
@@ -628,63 +913,126 @@ class Http3ApplicationImpl final : public Session::Application {
     stream->ReceiveData(nullptr, 0, flags);
   }
 
-  void OnStopSending(int64_t stream_id, uint64_t app_error_code) {
-    auto stream = session().FindStream(stream_id);
+  void OnStopSending(stream_id id, error_code app_error_code) {
+    auto stream = session().FindStream(id);
     if (!stream) [[unlikely]]
       return;
     Debug(&session(),
           "HTTP/3 application received stop sending for stream %" PRIi64,
-          stream_id);
+          id);
     stream->ReceiveStopSending(QuicError::ForApplication(app_error_code));
   }
 
-  void OnResetStream(int64_t stream_id, uint64_t app_error_code) {
-    auto stream = session().FindStream(stream_id);
+  void OnResetStream(stream_id id, error_code app_error_code) {
+    auto stream = session().FindStream(id);
     if (!stream) [[unlikely]]
       return;
     Debug(&session(),
           "HTTP/3 application received reset stream for stream %" PRIi64,
-          stream_id);
+          id);
     stream->ReceiveStreamReset(0, QuicError::ForApplication(app_error_code));
   }
 
-  void OnShutdown(int64_t id) {
-    // The peer has sent a GOAWAY frame initiating a graceful shutdown.
-    // For a client, id is the stream ID beyond which the server will
-    // not process requests. For a server, id is a push ID (server
-    // push is not implemented). Streams/pushes with IDs >= id will
-    // not be processed by the peer.
+  void OnShutdown(stream_id id) {
+    // The peer has sent a GOAWAY frame. This callback fires inside
+    // NgHttp3CallbackScope, so we cannot call into JS, destroy streams,
+    // or enter Close(GRACEFUL) here (which could trigger FinishClose and
+    // deferred destroy, preventing PostReceive from running).
     //
-    // When id equals NGHTTP3_SHUTDOWN_NOTICE_STREAM_ID (client) or
-    // NGHTTP3_SHUTDOWN_NOTICE_PUSH_ID (server), this is a notice of
-    // intent to shut down rather than an immediate refusal.
-    //
-    // This can be called multiple times with a decreasing id as the
-    // peer progressively reduces the set of streams it will process.
+    // Store the GOAWAY stream ID — PostReceive() handles everything
+    // outside all callback scopes. For the shutdown notice (first phase,
+    // sentinel ID), we still store it so PostReceive knows to enter
+    // graceful close mode. For the final GOAWAY (real stream ID), we
+    // overwrite with the lower value.
     Debug(&session(), "HTTP/3 received GOAWAY (id=%" PRIi64 ")", id);
-    session().Close(Session::CloseMethod::GRACEFUL);
+    pending_goaway_id_ = id;
   }
 
-  void OnReceiveSettings(const nghttp3_settings* settings) {
+  void PostReceive() override {
+    if (pending_goaway_id_ < 0) return;
+    stream_id goaway_id = pending_goaway_id_;
+    pending_goaway_id_ = -1;
+
+    bool is_notice =
+        static_cast<uint64_t>(goaway_id) >= NGHTTP3_SHUTDOWN_NOTICE_STREAM_ID;
+
+    // For the shutdown notice, replace the sentinel stream ID with -1
+    // so JS sees a clean marker instead of a huge implementation detail.
+    stream_id emit_id = is_notice ? -1 : goaway_id;
+
+    if (!is_notice) {
+      // Final GOAWAY: destroy client-initiated bidi streams with
+      // IDs > goaway_id. These were not processed by the peer and
+      // can be retried. Copy the map because Destroy modifies it.
+      auto streams = session().streams();
+      for (auto& [id, stream] : streams) {
+        if (session().is_destroyed()) return;
+        if (ngtcp2_is_bidi_stream(id) && id > goaway_id) {
+          stream->Destroy(
+              QuicError::ForApplication(NGHTTP3_H3_REQUEST_REJECTED));
+        }
+      }
+      if (session().is_destroyed()) return;
+    }
+
+    // Notify JS for both notice and final GOAWAY. The notice uses
+    // -1 to signal "server is shutting down, stop new requests" without
+    // implying any specific stream boundary. The final GOAWAY (if it
+    // arrives separately) provides the exact stream ID for retry decisions.
+    //
+    // We do NOT call Close(GRACEFUL) here. The JS ongoaway handler sets
+    // isPendingClose (preventing new streams). The session closes naturally
+    // when the peer sends CONNECTION_CLOSE after all streams finish.
+    // Calling Close(GRACEFUL) would send a GOAWAY back and trigger
+    // BeginShutdown, which can interfere with in-progress streams.
+    session().EmitGoaway(emit_id);
+  }
+
+  void OnReceiveSettings(const nghttp3_proto_settings* settings) {
     options_.enable_connect_protocol = settings->enable_connect_protocol;
     options_.enable_datagrams = settings->h3_datagram;
     options_.max_field_section_size = settings->max_field_section_size;
     options_.qpack_blocked_streams = settings->qpack_blocked_streams;
-    options_.qpack_encoder_max_dtable_capacity =
-        settings->qpack_encoder_max_dtable_capacity;
     options_.qpack_max_dtable_capacity = settings->qpack_max_dtable_capacity;
+
+    // Per RFC 9297 §3, an H3 endpoint MUST NOT send HTTP Datagrams
+    // unless the peer indicated support via SETTINGS_H3_DATAGRAM=1.
+    // If the peer disabled it, set the session's max datagram size to 0
+    // which blocks sends at the existing JS/C++ check.
+    if (!settings->h3_datagram) {
+      session().set_max_datagram_size(0);
+    }
+
     Debug(&session(),
           "HTTP/3 application received updated settings: %s",
           options_);
   }
 
   bool started_ = false;
-  nghttp3_mem allocator_;
+  nghttp3_mem* allocator_;
   Options options_;
   Http3ConnectionPointer conn_;
-  int64_t control_stream_id_ = -1;
-  int64_t qpack_dec_stream_id_ = -1;
-  int64_t qpack_enc_stream_id_ = -1;
+  stream_id control_stream_id_ = -1;
+  stream_id qpack_dec_stream_id_ = -1;
+  stream_id qpack_enc_stream_id_ = -1;
+
+  // Set by on_read_data_callback when EOF+NO_END_STREAM (trailers pending).
+  // Consumed by StreamCommit to trigger EmitWantTrailers outside the
+  // nghttp3 callback scope.
+  stream_id pending_trailers_stream_ = -1;
+
+  // Set by OnShutdown when the peer sends a final GOAWAY. Consumed by
+  // PostReceive() outside all callback scopes to destroy rejected
+  // streams and notify JS.
+  stream_id pending_goaway_id_ = -1;
+
+  // ORIGIN frame support (RFC 9412).
+  // origin_payload_ holds the serialized ORIGIN frame payload for sending.
+  // origin_vec_ points into origin_payload_ for nghttp3_settings.origin_list.
+  // received_origins_ accumulates origins from received ORIGIN frames.
+  std::vector<uint8_t> origin_payload_;
+  nghttp3_vec origin_vec_{nullptr, 0};
+  std::vector<std::string> received_origins_;
 
   // ==========================================================================
   // Static callbacks
@@ -698,11 +1046,11 @@ class Http3ApplicationImpl final : public Session::Application {
 
   static BaseObjectWeakPtr<Stream> FindOrCreateStream(nghttp3_conn* conn,
                                                       Session* session,
-                                                      int64_t stream_id) {
-    if (auto stream = session->FindStream(stream_id)) {
+                                                      stream_id id) {
+    if (auto stream = session->FindStream(id)) {
       return stream;
     }
-    if (auto stream = session->CreateStream(stream_id)) {
+    if (auto stream = session->CreateStream(id)) {
       return stream;
     }
     return {};
@@ -712,10 +1060,10 @@ class Http3ApplicationImpl final : public Session::Application {
   auto ptr = From(conn, conn_user_data);                                       \
   CHECK_NOT_NULL(ptr);                                                         \
   auto& name = *ptr;                                                           \
-  NgHttp3CallbackScope scope(name.env());
+  NgHttp3CallbackScope scope(&name.session());
 
   static nghttp3_ssize on_read_data_callback(nghttp3_conn* conn,
-                                             int64_t stream_id,
+                                             stream_id id,
                                              nghttp3_vec* vec,
                                              size_t veccnt,
                                              uint32_t* pflags,
@@ -724,13 +1072,17 @@ class Http3ApplicationImpl final : public Session::Application {
     auto ptr = From(conn, conn_user_data);
     CHECK_NOT_NULL(ptr);
     auto& app = *ptr;
-    NgHttp3CallbackScope scope(app.env());
+    NgHttp3CallbackScope scope(&app.session());
 
-    auto stream = app.session().FindStream(stream_id);
+    auto stream = app.session().FindStream(id);
     if (!stream) return NGHTTP3_ERR_CALLBACK_FAILURE;
 
     if (stream->is_eos()) {
       *pflags |= NGHTTP3_DATA_FLAG_EOF;
+      if (stream->wants_trailers()) {
+        *pflags |= NGHTTP3_DATA_FLAG_NO_END_STREAM;
+        app.pending_trailers_stream_ = id;
+      }
       return 0;
     }
 
@@ -746,12 +1098,35 @@ class Http3ApplicationImpl final : public Session::Application {
               return;
             case bob::Status::STATUS_EOS:
               *pflags |= NGHTTP3_DATA_FLAG_EOF;
+              if (stream->wants_trailers()) {
+                *pflags |= NGHTTP3_DATA_FLAG_NO_END_STREAM;
+                app.pending_trailers_stream_ = id;
+              }
               break;
           }
           count = std::min(count, max_count);
+          // nghttp3 requires read_data to return either data (count > 0),
+          // EOF, or WOULDBLOCK. A STATUS_CONTINUE with 0 vecs means the
+          // outbound has no uncommitted data right now (e.g., all data was
+          // already committed on a previous call, or the DataQueue is empty
+          // but not yet capped). Map this to WOULDBLOCK so nghttp3 sets
+          // READ_DATA_BLOCKED and waits for ResumeStream.
+          if (count == 0 && !((*pflags) & NGHTTP3_DATA_FLAG_EOF)) {
+            result = NGHTTP3_ERR_WOULDBLOCK;
+            return;
+          }
+          size_t raw_bytes = 0;
           for (size_t n = 0; n < count; n++) {
             vec[n].base = data[n].base;
             vec[n].len = data[n].len;
+            raw_bytes += data[n].len;
+          }
+          // Commit the raw application bytes immediately so that the
+          // next Pull (if fill_outq re-enters read_data) sees the
+          // advanced position. Commit only moves the offset — the
+          // underlying buffers stay valid until Acknowledge.
+          if (raw_bytes > 0) {
+            stream->Commit(raw_bytes);
           }
           result = static_cast<nghttp3_ssize>(count);
         };
@@ -767,30 +1142,40 @@ class Http3ApplicationImpl final : public Session::Application {
   }
 
   static int on_acked_stream_data(nghttp3_conn* conn,
-                                  int64_t stream_id,
+                                  stream_id id,
                                   uint64_t datalen,
                                   void* conn_user_data,
                                   void* stream_user_data) {
-    NGHTTP3_CALLBACK_SCOPE(app);
-    return app.AcknowledgeStreamData(stream_id, static_cast<size_t>(datalen))
-               ? NGTCP2_SUCCESS
-               : NGHTTP3_ERR_CALLBACK_FAILURE;
+    // This callback is invoked by nghttp3_conn_add_ack_offset() (called
+    // from Http3ApplicationImpl::AcknowledgeStreamData). We must NOT call
+    // AcknowledgeStreamData here — that would re-enter nghttp3 via
+    // nghttp3_conn_add_ack_offset, triggering the NgHttp3CallbackScope
+    // re-entrancy assertion. Instead, directly notify the stream that data
+    // was acknowledged, which is what the base Application implementation
+    // does.
+    auto ptr = From(conn, conn_user_data);
+    CHECK_NOT_NULL(ptr);
+    auto& app = *ptr;
+    if (auto stream = app.session().FindStream(id)) {
+      stream->Acknowledge(static_cast<size_t>(datalen));
+    }
+    return NGTCP2_SUCCESS;
   }
 
   static int on_stream_close(nghttp3_conn* conn,
-                             int64_t stream_id,
-                             uint64_t app_error_code,
+                             stream_id id,
+                             error_code app_error_code,
                              void* conn_user_data,
                              void* stream_user_data) {
     NGHTTP3_CALLBACK_SCOPE(app);
-    if (auto stream = app.session().FindStream(stream_id)) {
+    if (auto stream = app.session().FindStream(id)) {
       app.OnStreamClose(stream.get(), app_error_code);
     }
     return NGTCP2_SUCCESS;
   }
 
   static int on_receive_data(nghttp3_conn* conn,
-                             int64_t stream_id,
+                             stream_id id,
                              const uint8_t* data,
                              size_t datalen,
                              void* conn_user_data,
@@ -799,12 +1184,11 @@ class Http3ApplicationImpl final : public Session::Application {
     // The on_receive_data callback will never be called for control streams,
     // so we know that if we get here, the data received is for a stream that
     // we know is for an HTTP payload.
-    if (app.is_control_stream(stream_id)) [[unlikely]] {
+    if (app.is_control_stream(id)) [[unlikely]] {
       return NGHTTP3_ERR_CALLBACK_FAILURE;
     }
     auto& session = app.session();
-    if (auto stream = FindOrCreateStream(conn, &session, stream_id))
-        [[likely]] {
+    if (auto stream = FindOrCreateStream(conn, &session, id)) [[likely]] {
       stream->ReceiveData(data, datalen, Stream::ReceiveDataFlags{});
       return NGTCP2_SUCCESS;
     }
@@ -812,32 +1196,32 @@ class Http3ApplicationImpl final : public Session::Application {
   }
 
   static int on_deferred_consume(nghttp3_conn* conn,
-                                 int64_t stream_id,
+                                 stream_id id,
                                  size_t consumed,
                                  void* conn_user_data,
                                  void* stream_user_data) {
     NGHTTP3_CALLBACK_SCOPE(app);
     auto& session = app.session();
     Debug(&session, "HTTP/3 application deferred consume %zu bytes", consumed);
-    session.ExtendStreamOffset(stream_id, consumed);
+    session.ExtendStreamOffset(id, consumed);
     session.ExtendOffset(consumed);
     return NGTCP2_SUCCESS;
   }
 
   static int on_begin_headers(nghttp3_conn* conn,
-                              int64_t stream_id,
+                              stream_id id,
                               void* conn_user_data,
                               void* stream_user_data) {
     NGHTTP3_CALLBACK_SCOPE(app);
-    if (app.is_control_stream(stream_id)) [[unlikely]] {
+    if (app.is_control_stream(id)) [[unlikely]] {
       return NGHTTP3_ERR_CALLBACK_FAILURE;
     }
-    app.OnBeginHeaders(stream_id);
+    app.OnBeginHeaders(id);
     return NGTCP2_SUCCESS;
   }
 
   static int on_receive_header(nghttp3_conn* conn,
-                               int64_t stream_id,
+                               stream_id id,
                                int32_t token,
                                nghttp3_rcbuf* name,
                                nghttp3_rcbuf* value,
@@ -845,42 +1229,41 @@ class Http3ApplicationImpl final : public Session::Application {
                                void* conn_user_data,
                                void* stream_user_data) {
     NGHTTP3_CALLBACK_SCOPE(app);
-    if (app.is_control_stream(stream_id)) [[unlikely]] {
+    if (app.is_control_stream(id)) [[unlikely]] {
       return NGHTTP3_ERR_CALLBACK_FAILURE;
     }
     if (Http3Header::IsZeroLength(token, name, value)) return NGTCP2_SUCCESS;
-    app.OnReceiveHeader(stream_id,
-                        Http3Header(app.env(), token, name, value, flags));
+    app.OnReceiveHeader(id, Http3Header(app.env(), token, name, value, flags));
     return NGTCP2_SUCCESS;
   }
 
   static int on_end_headers(nghttp3_conn* conn,
-                            int64_t stream_id,
+                            stream_id id,
                             int fin,
                             void* conn_user_data,
                             void* stream_user_data) {
     NGHTTP3_CALLBACK_SCOPE(app);
-    if (app.is_control_stream(stream_id)) [[unlikely]] {
+    if (app.is_control_stream(id)) [[unlikely]] {
       return NGHTTP3_ERR_CALLBACK_FAILURE;
     }
-    app.OnEndHeaders(stream_id, fin);
+    app.OnEndHeaders(id, fin);
     return NGTCP2_SUCCESS;
   }
 
   static int on_begin_trailers(nghttp3_conn* conn,
-                               int64_t stream_id,
+                               stream_id id,
                                void* conn_user_data,
                                void* stream_user_data) {
     NGHTTP3_CALLBACK_SCOPE(app);
-    if (app.is_control_stream(stream_id)) [[unlikely]] {
+    if (app.is_control_stream(id)) [[unlikely]] {
       return NGHTTP3_ERR_CALLBACK_FAILURE;
     }
-    app.OnBeginTrailers(stream_id);
+    app.OnBeginTrailers(id);
     return NGTCP2_SUCCESS;
   }
 
   static int on_receive_trailer(nghttp3_conn* conn,
-                                int64_t stream_id,
+                                stream_id id,
                                 int32_t token,
                                 nghttp3_rcbuf* name,
                                 nghttp3_rcbuf* value,
@@ -888,74 +1271,75 @@ class Http3ApplicationImpl final : public Session::Application {
                                 void* conn_user_data,
                                 void* stream_user_data) {
     NGHTTP3_CALLBACK_SCOPE(app);
-    if (app.is_control_stream(stream_id)) [[unlikely]] {
+    if (app.is_control_stream(id)) [[unlikely]] {
       return NGHTTP3_ERR_CALLBACK_FAILURE;
     }
     if (Http3Header::IsZeroLength(token, name, value)) return NGTCP2_SUCCESS;
-    app.OnReceiveTrailer(stream_id,
-                         Http3Header(app.env(), token, name, value, flags));
+    app.OnReceiveTrailer(id, Http3Header(app.env(), token, name, value, flags));
     return NGTCP2_SUCCESS;
   }
 
   static int on_end_trailers(nghttp3_conn* conn,
-                             int64_t stream_id,
+                             stream_id id,
                              int fin,
                              void* conn_user_data,
                              void* stream_user_data) {
     NGHTTP3_CALLBACK_SCOPE(app);
-    if (app.is_control_stream(stream_id)) [[unlikely]] {
+    if (app.is_control_stream(id)) [[unlikely]] {
       return NGHTTP3_ERR_CALLBACK_FAILURE;
     }
-    app.OnEndTrailers(stream_id, fin);
+    app.OnEndTrailers(id, fin);
     return NGTCP2_SUCCESS;
   }
 
   static int on_end_stream(nghttp3_conn* conn,
-                           int64_t stream_id,
+                           stream_id id,
                            void* conn_user_data,
                            void* stream_user_data) {
     NGHTTP3_CALLBACK_SCOPE(app);
-    if (app.is_control_stream(stream_id)) [[unlikely]] {
+    if (app.is_control_stream(id)) [[unlikely]] {
       return NGHTTP3_ERR_CALLBACK_FAILURE;
     }
-    app.OnEndStream(stream_id);
+    app.OnEndStream(id);
     return NGTCP2_SUCCESS;
   }
 
   static int on_stop_sending(nghttp3_conn* conn,
-                             int64_t stream_id,
-                             uint64_t app_error_code,
+                             stream_id id,
+                             error_code app_error_code,
                              void* conn_user_data,
                              void* stream_user_data) {
     NGHTTP3_CALLBACK_SCOPE(app);
-    if (app.is_control_stream(stream_id)) [[unlikely]] {
+    if (app.is_control_stream(id)) [[unlikely]] {
       return NGHTTP3_ERR_CALLBACK_FAILURE;
     }
-    app.OnStopSending(stream_id, app_error_code);
+    app.OnStopSending(id, app_error_code);
     return NGTCP2_SUCCESS;
   }
 
   static int on_reset_stream(nghttp3_conn* conn,
-                             int64_t stream_id,
-                             uint64_t app_error_code,
+                             stream_id id,
+                             error_code app_error_code,
                              void* conn_user_data,
                              void* stream_user_data) {
     NGHTTP3_CALLBACK_SCOPE(app);
-    if (app.is_control_stream(stream_id)) [[unlikely]] {
+    if (app.is_control_stream(id)) [[unlikely]] {
       return NGHTTP3_ERR_CALLBACK_FAILURE;
     }
-    app.OnResetStream(stream_id, app_error_code);
+    app.OnResetStream(id, app_error_code);
     return NGTCP2_SUCCESS;
   }
 
-  static int on_shutdown(nghttp3_conn* conn, int64_t id, void* conn_user_data) {
+  static int on_shutdown(nghttp3_conn* conn,
+                         stream_id id,
+                         void* conn_user_data) {
     NGHTTP3_CALLBACK_SCOPE(app);
     app.OnShutdown(id);
     return NGTCP2_SUCCESS;
   }
 
   static int on_receive_settings(nghttp3_conn* conn,
-                                 const nghttp3_settings* settings,
+                                 const nghttp3_proto_settings* settings,
                                  void* conn_user_data) {
     NGHTTP3_CALLBACK_SCOPE(app);
     app.OnReceiveSettings(settings);
@@ -966,14 +1350,18 @@ class Http3ApplicationImpl final : public Session::Application {
                                const uint8_t* origin,
                                size_t originlen,
                                void* conn_user_data) {
-    // ORIGIN frames (RFC 8336) are used for connection coalescing
-    // across multiple origins. Not yet implemented u2014 requires
-    // connection pooling and multi-origin reuse support.
+    NGHTTP3_CALLBACK_SCOPE(app);
+    app.received_origins_.emplace_back(reinterpret_cast<const char*>(origin),
+                                       originlen);
     return NGTCP2_SUCCESS;
   }
 
   static int on_end_origin(nghttp3_conn* conn, void* conn_user_data) {
-    // See on_receive_origin above.
+    NGHTTP3_CALLBACK_SCOPE(app);
+    if (!app.received_origins_.empty()) {
+      app.session().EmitOrigins(std::move(app.received_origins_));
+      app.received_origins_.clear();
+    }
     return NGTCP2_SUCCESS;
   }
 
@@ -981,26 +1369,51 @@ class Http3ApplicationImpl final : public Session::Application {
     CHECK(ncrypto::CSPRNG(dest, destlen));
   }
 
-  static constexpr nghttp3_callbacks kCallbacks = {on_acked_stream_data,
-                                                   on_stream_close,
-                                                   on_receive_data,
-                                                   on_deferred_consume,
-                                                   on_begin_headers,
-                                                   on_receive_header,
-                                                   on_end_headers,
-                                                   on_begin_trailers,
-                                                   on_receive_trailer,
-                                                   on_end_trailers,
-                                                   on_stop_sending,
-                                                   on_end_stream,
-                                                   on_reset_stream,
-                                                   on_shutdown,
-                                                   on_receive_settings,
-                                                   on_receive_origin,
-                                                   on_end_origin,
-                                                   on_rand,
-                                                   nullptr};
+  static constexpr nghttp3_callbacks kCallbacks = {
+      on_acked_stream_data,
+      on_stream_close,
+      on_receive_data,
+      on_deferred_consume,
+      on_begin_headers,
+      on_receive_header,
+      on_end_headers,
+      on_begin_trailers,
+      on_receive_trailer,
+      on_end_trailers,
+      on_stop_sending,
+      on_end_stream,
+      on_reset_stream,
+      on_shutdown,
+      nullptr,  // recv_settings (deprecated)
+      on_receive_origin,
+      on_end_origin,
+      on_rand,
+      on_receive_settings};
 };
+
+std::optional<PendingTicketAppData> ParseHttp3TicketData(const uv_buf_t& data) {
+  if (data.len != kSessionTicketAppDataSize) return std::nullopt;
+
+  const uint8_t* buf = reinterpret_cast<const uint8_t*>(data.base);
+
+  // buf[0] is the type byte (already checked by caller), buf[1] is version.
+  if (buf[1] != kSessionTicketAppDataVersion) return std::nullopt;
+
+  const uint8_t* payload = buf + kSessionTicketAppDataHeaderSize;
+  uint32_t stored_crc = ReadBE32(buf + 2);
+  uLong computed_crc = crc32(0L, Z_NULL, 0);
+  computed_crc = crc32(computed_crc, payload, kSessionTicketAppDataPayloadSize);
+  if (stored_crc != static_cast<uint32_t>(computed_crc)) return std::nullopt;
+
+  return Http3TicketData{
+      ReadBE64(payload),
+      ReadBE64(payload + 8),
+      ReadBE64(payload + 16),
+      ReadBE64(payload + 24),
+      payload[32] != 0,
+      payload[33] != 0,
+  };
+}
 
 std::unique_ptr<Session::Application> CreateHttp3Application(
     Session* session, const Session::Application_Options& options) {

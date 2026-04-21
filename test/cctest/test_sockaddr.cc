@@ -1,5 +1,5 @@
-#include "node_sockaddr-inl.h"
 #include "gtest/gtest.h"
+#include "node_sockaddr-inl.h"
 
 using node::SocketAddress;
 using node::SocketAddressBlockList;
@@ -43,6 +43,85 @@ TEST(SocketAddress, SocketAddress) {
   CHECK_EQ(map[addr], 2);
 }
 
+TEST(SocketAddress, IpHashAndIpEqual) {
+  sockaddr_storage s1, s2, s3, s4;
+  // Same IP, different ports.
+  SocketAddress::ToSockAddr(AF_INET, "10.0.0.1", 443, &s1);
+  SocketAddress::ToSockAddr(AF_INET, "10.0.0.1", 8080, &s2);
+  // Different IP.
+  SocketAddress::ToSockAddr(AF_INET, "10.0.0.2", 443, &s3);
+
+  SocketAddress addr1(reinterpret_cast<const sockaddr*>(&s1));
+  SocketAddress addr2(reinterpret_cast<const sockaddr*>(&s2));
+  SocketAddress addr3(reinterpret_cast<const sockaddr*>(&s3));
+
+  SocketAddress::IpHash ip_hash;
+  SocketAddress::IpEqual ip_equal;
+
+  // Same IP, different port: should hash equal and compare equal.
+  CHECK_EQ(ip_hash(addr1), ip_hash(addr2));
+  CHECK(ip_equal(addr1, addr2));
+
+  // Different IP: should not compare equal.
+  CHECK(!ip_equal(addr1, addr3));
+
+  // Full Hash (includes port) should differ for same IP, different port.
+  CHECK_NE(SocketAddress::Hash()(addr1), SocketAddress::Hash()(addr2));
+
+  // IpMap should treat same-IP-different-port as the same key.
+  SocketAddress::IpMap<uint16_t> map;
+  map[addr1] = 1;
+  map[addr2]++;  // Same IP as addr1, should increment the same entry.
+  CHECK_EQ(map[addr1], 2);
+  CHECK_EQ(map.size(), 1);
+
+  map[addr3] = 10;
+  CHECK_EQ(map.size(), 2);
+  CHECK_EQ(map[addr3], 10);
+}
+
+TEST(SocketAddress, IpHashIPv6) {
+  sockaddr_storage s1, s2, s3;
+  SocketAddress::ToSockAddr(AF_INET6, "::1", 443, &s1);
+  SocketAddress::ToSockAddr(AF_INET6, "::1", 8080, &s2);
+  SocketAddress::ToSockAddr(AF_INET6, "::2", 443, &s3);
+
+  SocketAddress addr1(reinterpret_cast<const sockaddr*>(&s1));
+  SocketAddress addr2(reinterpret_cast<const sockaddr*>(&s2));
+  SocketAddress addr3(reinterpret_cast<const sockaddr*>(&s3));
+
+  SocketAddress::IpHash ip_hash;
+  SocketAddress::IpEqual ip_equal;
+
+  // Same IPv6, different port: equal.
+  CHECK_EQ(ip_hash(addr1), ip_hash(addr2));
+  CHECK(ip_equal(addr1, addr2));
+
+  // Different IPv6: not equal.
+  CHECK(!ip_equal(addr1, addr3));
+
+  // IpMap with IPv6 keys.
+  SocketAddress::IpMap<uint16_t> map;
+  map[addr1] = 5;
+  map[addr2]++;
+  CHECK_EQ(map[addr1], 6);
+  CHECK_EQ(map.size(), 1);
+}
+
+TEST(SocketAddress, IpEqualCrossFamily) {
+  sockaddr_storage s1, s2;
+  SocketAddress::ToSockAddr(AF_INET, "127.0.0.1", 443, &s1);
+  SocketAddress::ToSockAddr(AF_INET6, "::1", 443, &s2);
+
+  SocketAddress addr1(reinterpret_cast<const sockaddr*>(&s1));
+  SocketAddress addr2(reinterpret_cast<const sockaddr*>(&s2));
+
+  SocketAddress::IpEqual ip_equal;
+
+  // Different address families should never be equal.
+  CHECK(!ip_equal(addr1, addr2));
+}
+
 TEST(SocketAddress, SocketAddressIPv6) {
   sockaddr_storage storage;
   SocketAddress::ToSockAddr(AF_INET6, "::1", 443, &storage);
@@ -84,7 +163,6 @@ TEST(SocketAddressLRU, SocketAddressLRU) {
   SocketAddress::ToSockAddr(AF_INET, "123.123.123.124", 443, &storage[1]);
   SocketAddress::ToSockAddr(AF_INET, "123.123.123.125", 443, &storage[2]);
   SocketAddress::ToSockAddr(AF_INET, "123.123.123.123", 443, &storage[3]);
-
 
   SocketAddress addr1(reinterpret_cast<const sockaddr*>(&storage[0]));
   SocketAddress addr2(reinterpret_cast<const sockaddr*>(&storage[1]));
@@ -197,12 +275,10 @@ TEST(SocketAddressBlockList, Simple) {
   sockaddr_storage storage[2];
   SocketAddress::ToSockAddr(AF_INET, "10.0.0.1", 0, &storage[0]);
   SocketAddress::ToSockAddr(AF_INET, "10.0.0.2", 0, &storage[1]);
-  std::shared_ptr<SocketAddress> addr1 =
-      std::make_shared<SocketAddress>(
-          reinterpret_cast<const sockaddr*>(&storage[0]));
-  std::shared_ptr<SocketAddress> addr2 =
-      std::make_shared<SocketAddress>(
-          reinterpret_cast<const sockaddr*>(&storage[1]));
+  std::shared_ptr<SocketAddress> addr1 = std::make_shared<SocketAddress>(
+      reinterpret_cast<const sockaddr*>(&storage[0]));
+  std::shared_ptr<SocketAddress> addr2 = std::make_shared<SocketAddress>(
+      reinterpret_cast<const sockaddr*>(&storage[1]));
 
   bl.AddSocketAddress(addr1);
   bl.AddSocketAddress(addr2);
