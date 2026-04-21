@@ -88,6 +88,10 @@ test(() => {
 }, 'WritableStream should be constructible with no arguments');
 
 test(() => {
+  assert_throws_js(RangeError, () => new WritableStream({ type: 'bytes' }), 'constructor should throw');
+}, `WritableStream can't be constructed with a defined type`);
+
+test(() => {
   const underlyingSink = { get start() { throw error1; } };
   const queuingStrategy = { highWaterMark: 0, get size() { throw error2; } };
 
