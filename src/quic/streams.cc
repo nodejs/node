@@ -1,7 +1,7 @@
+#include "ngtcp2/ngtcp2.h"
 #if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
-#include "streams.h"
 #include <aliased_struct-inl.h>
 #include <async_wrap-inl.h>
 #include <base_object-inl.h>
@@ -9,18 +9,22 @@
 #include <memory_tracker-inl.h>
 #include <node_blob.h>
 #include <node_bob-inl.h>
+#include <node_file.h>
 #include <node_sockaddr-inl.h>
 #include "application.h"
 #include "bindingdata.h"
 #include "defs.h"
 #include "session.h"
+#include "streams.h"
 
 namespace node {
 
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::ArrayBufferView;
+using v8::BackingStore;
 using v8::BigInt;
+using v8::FunctionCallbackInfo;
 using v8::Global;
 using v8::Integer;
 using v8::Just;
@@ -30,6 +34,7 @@ using v8::Nothing;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::SharedArrayBuffer;
+using v8::Uint32;
 using v8::Uint8Array;
 using v8::Value;
 
@@ -43,6 +48,7 @@ namespace quic {
   V(READ_ENDED, read_ended, uint8_t)                                           \
   V(WRITE_ENDED, write_ended, uint8_t)                                         \
   V(RESET, reset, uint8_t)                                                     \
+  V(RESET_CODE, reset_code, uint64_t)                                          \
   V(HAS_OUTBOUND, has_outbound, uint8_t)                                       \
   V(HAS_READER, has_reader, uint8_t)                                           \
   /* Set when the stream has a block event handler */                          \
@@ -52,7 +58,11 @@ namespace quic {
   /* Set when the stream has a reset event handler */                          \
   V(WANTS_RESET, wants_reset, uint8_t)                                         \
   /* Set when the stream has a trailers event handler */                       \
-  V(WANTS_TRAILERS, wants_trailers, uint8_t)
+  V(WANTS_TRAILERS, wants_trailers, uint8_t)                                   \
+  /* True when 0-RTT early data was received */                                \
+  V(RECEIVED_EARLY_DATA, received_early_data, uint8_t)                         \
+  V(WRITE_DESIRED_SIZE, write_desired_size, uint32_t)                          \
+  V(HIGH_WATER_MARK, high_water_mark, uint32_t)
 
 #define STREAM_STATS(V)                                                        \
   /* Marks the timestamp when the stream object was created. */                \
@@ -144,31 +154,23 @@ STAT_STRUCT(Stream, STREAM)
 // ============================================================================
 
 namespace {
-// Creates an in-memory DataQueue entry from an ArrayBuffer by either
-// detaching it (zero-copy) or copying its contents if detach is not
-// possible (e.g., SharedArrayBuffer-backed or non-detachable).
-// Returns nullptr on failure (error already thrown if allocation failed).
+// Creates an in-memory DataQueue entry by copying the requested range of
+// the given ArrayBuffer into a fresh BackingStore. The caller's buffer is
+// not detached or otherwise modified, so callers can safely reuse or
+// mutate it after the call returns. Callers that want to ensure their
+// buffer cannot be mutated after handing it off can call
+// `ArrayBuffer.prototype.transfer()` themselves before calling into the
+// QUIC API.
+// Returns nullptr on zero length or allocation failure.
 std::unique_ptr<DataQueue::Entry> CreateEntryFromBuffer(
     Environment* env, Local<ArrayBuffer> buffer, size_t offset, size_t length) {
   if (length == 0) return nullptr;
-  std::shared_ptr<v8::BackingStore> backing;
-  if (buffer->IsDetachable()) {
-    backing = buffer->GetBackingStore();
-    if (buffer->Detach(Local<Value>()).IsNothing()) {
-      backing.reset();
-    }
-  }
-  if (!backing) {
-    // Buffer is not detachable or detach failed. Copy the data.
-    JS_TRY_ALLOCATE_BACKING_OR_RETURN(env, copy, length, nullptr);
-    memcpy(copy->Data(),
-           static_cast<const uint8_t*>(buffer->Data()) + offset,
-           length);
-    offset = 0;
-    backing = std::move(copy);
-  }
+  JS_TRY_ALLOCATE_BACKING_OR_RETURN(env, copy, length, nullptr);
+  memcpy(copy->Data(),
+         static_cast<const uint8_t*>(buffer->Data()) + offset,
+         length);
   return DataQueue::CreateInMemoryEntryFromBackingStore(
-      std::move(backing), offset, length);
+      std::move(copy), 0, length);
 }
 }  // namespace
 
@@ -226,9 +228,42 @@ Maybe<std::shared_ptr<DataQueue>> Stream::GetDataQueueFromSource(
     JS_TRY_ALLOCATE_BACKING_OR_RETURN(
         env, backing, str.length(), Nothing<std::shared_ptr<DataQueue>>());
     memcpy(backing->Data(), *str, str.length());
+    auto len = backing->ByteLength();
     entries.push_back(DataQueue::CreateInMemoryEntryFromBackingStore(
-        std::move(backing), 0, backing->ByteLength()));
+        std::move(backing), 0, len));
     return Just(DataQueue::CreateIdempotent(std::move(entries)));
+  }
+  // FileHandle — create an fd-backed DataQueue from the file path.
+  // The JS side validates and locks the FileHandle before passing
+  // the C++ handle here. We detect FileHandle by checking if the
+  // object's constructor name is "FileHandle".
+  if (value->IsObject()) {
+    auto obj = value.As<Object>();
+    Local<v8::String> ctor_name;
+    auto maybe_name = obj->GetConstructorName();
+    if (!maybe_name.IsEmpty()) {
+      ctor_name = maybe_name;
+      Utf8Value name(env->isolate(), ctor_name);
+      if (strcmp(*name, "FileHandle") == 0) {
+        fs::FileHandle* file_handle;
+        ASSIGN_OR_RETURN_UNWRAP(
+            &file_handle, value, Nothing<std::shared_ptr<DataQueue>>());
+        Local<Value> path;
+        if (!v8::String::NewFromUtf8(env->isolate(),
+                                     file_handle->original_name().c_str())
+                 .ToLocal(&path)) {
+          return Nothing<std::shared_ptr<DataQueue>>();
+        }
+        auto entry = DataQueue::CreateFdEntry(env, path);
+        if (!entry) return Nothing<std::shared_ptr<DataQueue>>();
+        size_t size = entry->size().value_or(0);
+        auto queue = DataQueue::Create();
+        if (!queue) return Nothing<std::shared_ptr<DataQueue>>();
+        queue->append(std::move(entry));
+        queue->cap(size);
+        return Just(std::move(queue));
+      }
+    }
   }
   // TODO(jasnell): Add streaming sources...
   THROW_ERR_INVALID_ARG_TYPE(env, "Invalid data source type");
@@ -247,6 +282,14 @@ struct Stream::Impl {
     std::shared_ptr<DataQueue> dataqueue;
     if (GetDataQueueFromSource(env, args[0]).To(&dataqueue)) {
       stream->set_outbound(std::move(dataqueue));
+      // set_outbound does not call ResumeStream because during
+      // construction the stream is not yet registered with the session.
+      // When attaching a source after creation (via setBody), the
+      // stream is already registered and must be resumed to enter the
+      // send queue.
+      if (!stream->is_pending()) {
+        stream->session().ResumeStream(stream->id());
+      }
     }
   }
 
@@ -254,7 +297,7 @@ struct Stream::Impl {
   JS_METHOD(Destroy) {
     Stream* stream;
     ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
-    if (args.Length() > 1) {
+    if (args.Length() >= 1) {
       CHECK(args[0]->IsBigInt());
       bool lossless = false;
       uint64_t code = args[0].As<BigInt>()->Uint64Value(&lossless);
@@ -272,8 +315,7 @@ struct Stream::Impl {
 
   // Sends a block of headers to the peer. If the stream is not yet open,
   // the headers will be queued and sent immediately when the stream is
-  // opened. If the application does not support sending headers on streams,
-  // they will be ignored and dropped on the floor.
+  // opened. Returns false if the application does not support headers.
   JS_METHOD(SendHeaders) {
     Stream* stream;
     ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
@@ -287,8 +329,13 @@ struct Stream::Impl {
 
     // If the stream is pending, the headers will be queued until the
     // stream is opened, at which time the queued header block will be
-    // immediately sent when the stream is opened.
+    // immediately sent when the stream is opened. If we already know
+    // that the application does not support headers, return false
+    // immediately so the JS side can throw an appropriate error.
     if (stream->is_pending()) {
+      if (!stream->session().application().SupportsHeaders()) {
+        return args.GetReturnValue().Set(false);
+      }
       stream->EnqueuePendingHeaders(kind, headers, flags);
       return args.GetReturnValue().Set(true);
     }
@@ -355,18 +402,22 @@ struct Stream::Impl {
   JS_METHOD(SetPriority) {
     Stream* stream;
     ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
-    CHECK(args[0]->IsUint32());  // Priority
-    CHECK(args[1]->IsUint32());  // Priority flag
+    CHECK(args[0]->IsUint32());  // Packed: (urgency << 1) | incremental
 
-    StreamPriority priority = FromV8Value<StreamPriority>(args[0]);
-    StreamPriorityFlags flags = FromV8Value<StreamPriorityFlags>(args[1]);
+    uint32_t packed = args[0].As<Uint32>()->Value();
+    StreamPriority priority = static_cast<StreamPriority>(packed >> 1);
+    StreamPriorityFlags flags = (packed & 1)
+                                    ? StreamPriorityFlags::INCREMENTAL
+                                    : StreamPriorityFlags::NON_INCREMENTAL;
 
-    if (stream->is_pending()) {
-      stream->pending_priority_ = PendingPriority{
-          .priority = priority,
-          .flags = flags,
-      };
-    } else {
+    // Always update the stored priority on the stream.
+    stream->priority_ = StoredPriority{
+        .priority = priority,
+        .flags = flags,
+        .pending = stream->is_pending(),
+    };
+
+    if (!stream->is_pending()) {
       stream->session().application().SetStreamPriority(
           *stream, priority, flags);
     }
@@ -376,13 +427,23 @@ struct Stream::Impl {
     Stream* stream;
     ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
 
-    if (stream->is_pending()) {
-      return args.GetReturnValue().Set(
-          static_cast<uint32_t>(StreamPriority::DEFAULT));
+    // On the client side, priority is always read from the stream's
+    // stored value since the client is the one setting it. On the
+    // server side, we delegate to the application which can read
+    // the peer's requested priority (e.g., from PRIORITY_UPDATE
+    // frames in HTTP/3).
+    if (!stream->session().is_server()) {
+      auto& pri = stream->priority_;
+      uint32_t packed = (static_cast<uint32_t>(pri.priority) << 1) |
+                        (pri.flags == StreamPriorityFlags::INCREMENTAL ? 1 : 0);
+      return args.GetReturnValue().Set(packed);
     }
 
-    auto priority = stream->session().application().GetStreamPriority(*stream);
-    args.GetReturnValue().Set(static_cast<uint32_t>(priority));
+    auto result = stream->session().application().GetStreamPriority(*stream);
+    uint32_t packed =
+        (static_cast<uint32_t>(result.priority) << 1) |
+        (result.flags == StreamPriorityFlags::INCREMENTAL ? 1 : 0);
+    args.GetReturnValue().Set(packed);
   }
 
   // Returns a Blob::Reader that can be used to read data that has been
@@ -391,9 +452,9 @@ struct Stream::Impl {
     Stream* stream;
     ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
     BaseObjectPtr<Blob::Reader> reader = stream->get_reader();
-    if (reader) return args.GetReturnValue().Set(reader->object());
-    THROW_ERR_INVALID_STATE(Environment::GetCurrent(args),
-                            "Unable to get a reader for the stream");
+    if (reader) args.GetReturnValue().Set(reader->object());
+    // Returns undefined when the stream is not readable (e.g. a local
+    // unidirectional stream). The JS side checks for this.
   }
 
   JS_METHOD(InitStreamingSource) {
@@ -505,13 +566,24 @@ class Stream::Outbound final : public MemoryRetainer {
 
   bool is_streaming() const { return streaming_; }
   size_t total() const { return total_; }
+  size_t uncommitted() const { return uncommitted_; }
+
+  // Total bytes in the pipeline: data appended to the DataQueue that
+  // hasn't been pulled yet, plus data pulled but not yet acknowledged.
+  // This is the number to compare against highWaterMark for backpressure.
+  size_t queued_bytes() const { return queued_ + total_; }
 
   // Appends an entry to the underlying DataQueue. Only valid when
   // the Outbound was created in streaming mode.
   bool AppendEntry(std::unique_ptr<DataQueue::Entry> entry) {
     if (!streaming_ || !queue_) return false;
+    auto size = entry->size();
     auto result = queue_->append(std::move(entry));
-    return result.has_value() && result.value();
+    if (result.has_value() && result.value()) {
+      if (size.has_value()) queued_ += size.value();
+      return true;
+    }
+    return false;
   }
 
   int Pull(bob::Next<ngtcp2_vec> next,
@@ -520,6 +592,14 @@ class Stream::Outbound final : public MemoryRetainer {
            size_t count,
            size_t max_count_hint) {
     if (next_pending_) {
+      // An async read is in flight, but there may be uncommitted bytes
+      // from a previous read that ngtcp2 didn't accept (nwrite=0 due
+      // to pacing/congestion). Return those bytes so the send loop can
+      // retry rather than blocking until the async read completes.
+      if (uncommitted_ > 0) {
+        PullUncommitted(std::move(next));
+        return bob::Status::STATUS_CONTINUE;
+      }
       std::move(next)(bob::Status::STATUS_BLOCK, nullptr, 0, [](int) {});
       return bob::Status::STATUS_BLOCK;
     }
@@ -557,9 +637,6 @@ class Stream::Outbound final : public MemoryRetainer {
     // that the pull is sync but allow for it to be async.
     int ret = reader_->Pull(
         [this](auto status, auto vecs, auto count, auto done) {
-          // Always make sure next_pending_ is false when we're done.
-          auto on_exit = OnScopeLeave([this] { next_pending_ = false; });
-
           // The status should never be wait here.
           DCHECK_NE(status, bob::Status::STATUS_WAIT);
 
@@ -568,6 +645,7 @@ class Stream::Outbound final : public MemoryRetainer {
             // being asynchronous, our stream is blocking waiting for the data,
             // but we have an error! oh no! We need to error the stream.
             if (next_pending_) {
+              next_pending_ = false;
               stream_->Destroy(
                   QuicError::ForNgtcp2Error(NGTCP2_INTERNAL_ERROR));
               // We do not need to worry about calling MarkErrored in this case
@@ -586,7 +664,10 @@ class Stream::Outbound final : public MemoryRetainer {
             // Here, there is no more data to read, but we will might have data
             // in the uncommitted queue. We'll resume the stream so that the
             // session will try to read from it again.
+            // We must clear next_pending_ before calling ResumeStream because
+            // ResumeStream can synchronously re-enter Outbound::Pull.
             if (next_pending_) {
+              next_pending_ = false;
               stream_->session().ResumeStream(stream_->id());
             }
             return;
@@ -610,7 +691,10 @@ class Stream::Outbound final : public MemoryRetainer {
           // being asynchronous, our stream is blocking waiting for the data.
           // Now that we have data, let's resume the stream so the session will
           // pull from it again.
+          // We must clear next_pending_ before calling ResumeStream because
+          // ResumeStream can synchronously re-enter Outbound::Pull.
           if (next_pending_) {
+            next_pending_ = false;
             stream_->session().ResumeStream(stream_->id());
           }
         },
@@ -667,9 +751,17 @@ class Stream::Outbound final : public MemoryRetainer {
 
     // Reads here are generally expected to be synchronous. If we have a reader
     // that insists on providing data asynchronously, then we'll have to block
-    // until the data is actually available.
+    // until the data is actually available. However, if there are uncommitted
+    // bytes already buffered (from a previous async read), return those now
+    // rather than blocking — the async callback will resume the stream when
+    // more data arrives.
     if (ret == bob::Status::STATUS_WAIT) {
       next_pending_ = true;
+      if (uncommitted_ > 0) {
+        PullUncommitted(std::move(next));
+        return bob::Status::STATUS_CONTINUE;
+      }
+
       std::move(next)(bob::Status::STATUS_BLOCK, nullptr, 0, [](int) {});
       return bob::Status::STATUS_BLOCK;
     }
@@ -751,6 +843,11 @@ class Stream::Outbound final : public MemoryRetainer {
       count_++;
       total_ += vectors[n].len;
       uncommitted_ += vectors[n].len;
+      if (queued_ >= vectors[n].len) {
+        queued_ -= vectors[n].len;
+      } else {
+        queued_ = 0;
+      }
     }
   }
 
@@ -797,6 +894,10 @@ class Stream::Outbound final : public MemoryRetainer {
   // waiting to be acknowledged. When we receive acknowledgement, we will
   // automatically free held bytes from the buffer.
   size_t uncommitted_ = 0;
+
+  // Bytes appended to the DataQueue that haven't been pulled yet.
+  // Decremented in Pull() when data moves from the queue to the buffer.
+  size_t queued_ = 0;
 };
 
 // ============================================================================
@@ -865,7 +966,6 @@ void Stream::InitPerContext(Realm* realm, Local<Object> target) {
 }
 
 Stream* Stream::From(void* stream_user_data) {
-  DCHECK_NOT_NULL(stream_user_data);
   return static_cast<Stream*>(stream_user_data);
 }
 
@@ -913,6 +1013,7 @@ Stream::Stream(BaseObjectWeakPtr<Session> session,
 
   set_outbound(std::move(source));
 
+  STAT_RECORD_TIMESTAMP(Stats, created_at);
   auto params = ngtcp2_conn_get_local_transport_params(this->session());
   STAT_SET(Stats, max_offset, params->initial_max_data);
   STAT_SET(Stats, opened_at, stats_->created_at);
@@ -945,6 +1046,7 @@ Stream::Stream(BaseObjectWeakPtr<Session> session,
 
   set_outbound(std::move(source));
 
+  STAT_RECORD_TIMESTAMP(Stats, created_at);
   auto params = ngtcp2_conn_get_local_transport_params(this->session());
   STAT_SET(Stats, max_offset, params->initial_max_data);
 }
@@ -969,27 +1071,36 @@ void Stream::NotifyStreamOpened(stream_id id) {
   CHECK_EQ(ngtcp2_conn_set_stream_user_data(this->session(), id, this), 0);
   maybe_pending_stream_.reset();
 
-  if (pending_priority_) {
-    auto& priority = pending_priority_.value();
+  if (priority_.pending) {
     session().application().SetStreamPriority(
-        *this, priority.priority, priority.flags);
-    pending_priority_ = std::nullopt;
+        *this, priority_.priority, priority_.flags);
+    priority_.pending = false;
   }
-  decltype(pending_headers_queue_) queue;
-  pending_headers_queue_.swap(queue);
-  for (auto& headers : queue) {
-    // TODO(@jasnell): What if the application does not support headers?
-    session().application().SendHeaders(*this,
-                                        headers->kind,
-                                        headers->headers.Get(env()->isolate()),
-                                        headers->flags);
+  if (!pending_headers_queue_.empty()) {
+    if (!session().application().SupportsHeaders()) {
+      // Headers were enqueued while the application was not yet known
+      // (headers_supported == 0), and the negotiated application does
+      // not support headers. This is a fatal mismatch.
+      Destroy(QuicError::ForApplication(0));
+      return;
+    }
+    decltype(pending_headers_queue_) queue;
+    pending_headers_queue_.swap(queue);
+    for (auto& headers : queue) {
+      session().application().SendHeaders(
+          *this,
+          headers->kind,
+          headers->headers.Get(env()->isolate()),
+          headers->flags);
+    }
   }
   // If the stream is not a local undirectional stream and is_readable is
   // false, then we should shutdown the streams readable side now.
   if (!is_local_unidirectional() && !is_readable()) {
     NotifyReadableEnded(pending_close_read_code_);
   }
-  if (!is_remote_unidirectional() && !is_writable()) {
+  if (!is_remote_unidirectional() && !is_writable() &&
+      !session_->application().stream_fin_managed_by_application()) {
     NotifyWritableEnded(pending_close_write_code_);
   }
 
@@ -1003,7 +1114,7 @@ void Stream::NotifyStreamOpened(stream_id id) {
 void Stream::NotifyReadableEnded(error_code code) {
   CHECK(!is_pending());
   Session::SendPendingDataScope send_scope(&session());
-  ngtcp2_conn_shutdown_stream_read(session(), 0, id(), code);
+  CHECK_EQ(ngtcp2_conn_shutdown_stream_read(session(), 0, id(), code), 0);
 }
 
 void Stream::NotifyWritableEnded(error_code code) {
@@ -1061,6 +1172,14 @@ bool Stream::is_eos() const {
   return state_->fin_sent;
 }
 
+bool Stream::wants_trailers() const {
+  return state_->wants_trailers;
+}
+
+void Stream::set_early() {
+  state_->received_early_data = 1;
+}
+
 bool Stream::is_writable() const {
   // Remote unidirectional streams are never writable, and remote streams can
   // never be pending.
@@ -1069,6 +1188,18 @@ bool Stream::is_writable() const {
     return false;
   }
   return state_->write_ended == 0;
+}
+
+bool Stream::has_outbound() const {
+  return outbound_ != nullptr;
+}
+
+bool Stream::has_reader() const {
+  return reader_ != nullptr;
+}
+
+Blob::Reader* Stream::reader() const {
+  return reader_.get();
 }
 
 bool Stream::is_readable() const {
@@ -1102,7 +1233,11 @@ void Stream::set_outbound(std::shared_ptr<DataQueue> source) {
   DCHECK_NULL(outbound_);
   outbound_ = std::make_unique<Outbound>(this, std::move(source));
   state_->has_outbound = 1;
-  if (!is_pending()) session_->ResumeStream(id());
+  // Note: We intentionally do NOT call ResumeStream here. During
+  // construction, the stream has not yet been added to the session's
+  // streams map, so FindStream would fail. The caller (CreateStream /
+  // AddStream) is responsible for calling ResumeStream after the
+  // stream is registered.
 }
 
 void Stream::InitStreaming() {
@@ -1120,7 +1255,7 @@ void Stream::InitStreaming() {
   if (!is_pending()) session_->ResumeStream(id());
 }
 
-void Stream::WriteStreamData(const v8::FunctionCallbackInfo<v8::Value>& args) {
+void Stream::WriteStreamData(const FunctionCallbackInfo<Value>& args) {
   auto env = this->env();
   if (outbound_ == nullptr || !outbound_->is_streaming()) {
     return THROW_ERR_INVALID_STATE(env, "Streaming source is not initialized");
@@ -1161,6 +1296,7 @@ void Stream::WriteStreamData(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   if (!is_pending()) session_->ResumeStream(id());
 
+  UpdateWriteDesiredSize();
   args.GetReturnValue().Set(static_cast<double>(outbound_->total()));
 }
 
@@ -1179,9 +1315,8 @@ void Stream::EndWriting() {
 }
 
 void Stream::EntryRead(size_t amount) {
-  // Tells us that amount bytes we're reading from inbound_
-  // We use this as a signal to extend the flow control
-  // window to receive more bytes.
+  // Called when the JS consumer reads data from the inbound DataQueue.
+  // Extend the flow control window so the sender can transmit more.
   session().ExtendStreamOffset(id(), amount);
   session().ExtendOffset(amount);
 }
@@ -1250,12 +1385,12 @@ void Stream::Acknowledge(size_t datalen) {
 
   // ngtcp2 guarantees that offset must always be greater than the previously
   // received offset.
-  DCHECK_GE(datalen, STAT_GET(Stats, max_offset_ack));
-  STAT_SET(Stats, max_offset_ack, datalen);
+  STAT_INCREMENT_N(Stats, max_offset_ack, datalen);
 
   // Consumes the given number of bytes in the buffer.
   outbound_->Acknowledge(datalen);
   STAT_RECORD_TIMESTAMP(Stats, acked_at);
+  UpdateWriteDesiredSize();
 }
 
 void Stream::Commit(size_t datalen, bool fin) {
@@ -1280,8 +1415,10 @@ void Stream::EndReadable(std::optional<uint64_t> maybe_final_size) {
   state_->read_ended = 1;
   set_final_size(maybe_final_size.value_or(STAT_GET(Stats, bytes_received)));
   inbound_->cap(STAT_GET(Stats, final_size));
-  // Notify the JS reader so it can see EOS.
-  if (reader_) reader_->NotifyPull();
+  // Notify the JS reader so it can see EOS. Pass fin=true so the
+  // wakeup promise resolves with a value the iterator can check to
+  // avoid waiting for another wakeup that will never come.
+  if (reader_) reader_->NotifyPull(true);
 }
 
 void Stream::Destroy(QuicError error) {
@@ -1327,7 +1464,9 @@ void Stream::Destroy(QuicError error) {
 
   auto session = session_;
   session_.reset();
-  session->RemoveStream(id());
+  // EmitClose above triggers MakeCallback which can destroy the session
+  // via JS re-entrancy. The weak pointer may now be null.
+  if (session) session->RemoveStream(id());
 
   // Critically, make sure that the RemoveStream call is the last thing
   // trying to use this stream object. Once that call is made, the stream
@@ -1342,14 +1481,13 @@ void Stream::ReceiveData(const uint8_t* data,
                          ReceiveDataFlags flags) {
   // If reading has ended, or there is no data, there's nothing to do but maybe
   // end the readable side if this is the last bit of data we've received.
-
   Debug(this, "Receiving %zu bytes of data", len);
-
   if (state_->read_ended == 1 || len == 0) {
     if (flags.fin) EndReadable();
     return;
   }
 
+  if (flags.early) state_->received_early_data = 1;
   STAT_INCREMENT_N(Stats, bytes_received, len);
   STAT_SET(Stats, max_offset_received, STAT_GET(Stats, bytes_received));
   STAT_RECORD_TIMESTAMP(Stats, received_at);
@@ -1365,12 +1503,19 @@ void Stream::ReceiveData(const uint8_t* data,
 }
 
 void Stream::ReceiveStopSending(QuicError error) {
-  // Note that this comes from *this* endpoint, not the other side. We handle it
-  // if we haven't already shutdown our *receiving* side of the stream.
-  if (state_->read_ended) return;
+  // STOP_SENDING from the peer asks us to stop sending. Per RFC 9000
+  // §3.5 the receiver SHOULD respond with RESET_STREAM, which is what
+  // ngtcp2_conn_shutdown_stream_write below schedules. If our
+  // writable side has already been shut down (e.g. we already sent
+  // RESET_STREAM ourselves or finished sending with FIN) there is
+  // nothing more to do here. The previous guard checked
+  // `state_->read_ended` which is unrelated to the writable side and
+  // suppressed STOP_SENDING handling whenever a sibling RESET_STREAM
+  // frame had been processed first within the same packet.
+  if (state_->write_ended) return;
   Debug(this, "Received stop sending with error %s", error);
-  ngtcp2_conn_shutdown_stream_read(session(), 0, id(), error.code());
-  EndReadable();
+  ngtcp2_conn_shutdown_stream_write(session(), 0, id(), error.code());
+  EndWritable();
 }
 
 void Stream::ReceiveStreamReset(uint64_t final_size, QuicError error) {
@@ -1383,6 +1528,7 @@ void Stream::ReceiveStreamReset(uint64_t final_size, QuicError error) {
         "Received stream reset with final size %" PRIu64 " and error %s",
         final_size,
         error);
+  state_->reset_code = error.code();
   EndReadable(final_size);
   EmitReset(error);
 }
@@ -1398,6 +1544,58 @@ void Stream::EmitBlocked() {
   }
   CallbackScope<Stream> cb_scope(this);
   MakeCallback(BindingData::Get(env()).stream_blocked_callback(), 0, nullptr);
+}
+
+void Stream::EmitDrain() {
+  if (!env()->can_call_into_js()) return;
+  CallbackScope<Stream> cb_scope(this);
+  MakeCallback(BindingData::Get(env()).stream_drain_callback(), 0, nullptr);
+}
+
+void Stream::UpdateWriteDesiredSize() {
+  if (!outbound_ || !outbound_->is_streaming()) return;
+
+  uint64_t available;
+  uint64_t hwm = state_->high_water_mark;
+
+  if (is_pending()) {
+    // Pending streams don't have a stream ID yet, so ngtcp2 can't
+    // report their flow control window. Use the high water mark as
+    // the available capacity so writes can proceed while pending.
+    available = hwm > 0 ? hwm : std::numeric_limits<uint32_t>::max();
+  } else {
+    // Calculate available capacity based on QUIC flow control.
+    // The effective limit is the minimum of stream-level and
+    // connection-level flow control remaining.
+    ngtcp2_conn* conn = session();
+    uint64_t stream_left = ngtcp2_conn_get_max_stream_data_left(conn, id());
+    uint64_t conn_left = ngtcp2_conn_get_max_data_left(conn);
+    available = std::min(stream_left, conn_left);
+
+    // Apply the high water mark as an additional ceiling.
+    if (hwm > 0) {
+      available = std::min(available, hwm);
+    }
+  }
+
+  // Total bytes in the pipeline: data in the DataQueue (not yet pulled by
+  // ngtcp2) plus data pulled but not yet acknowledged. Using queued_bytes()
+  // ensures that data appended via writeSync is accounted for in
+  // backpressure even before ngtcp2 pulls it.
+  uint64_t buffered = outbound_->queued_bytes();
+  uint64_t desired = (available > buffered) ? (available - buffered) : 0;
+
+  // Clamp to uint32 range since write_desired_size is uint32_t.
+  uint32_t clamped = static_cast<uint32_t>(
+      std::min<uint64_t>(desired, std::numeric_limits<uint32_t>::max()));
+
+  uint32_t old_size = state_->write_desired_size;
+  state_->write_desired_size = clamped;
+
+  // Fire drain when transitioning from 0 to non-zero
+  if (old_size == 0 && desired > 0) {
+    EmitDrain();
+  }
 }
 
 void Stream::EmitClose(const QuicError& error) {
@@ -1456,6 +1654,13 @@ void Stream::Schedule(Queue* queue) {
   // If this stream is not already in the queue to send data, add it.
   Debug(this, "Scheduled");
   if (outbound_ && stream_queue_.IsEmpty()) queue->PushBack(this);
+}
+
+void Stream::Unschedule() {
+  // Remove this stream from the send queue. Used when the stream becomes
+  // flow-control blocked so that SendPendingData does not spin retrying it.
+  Debug(this, "Unscheduled");
+  stream_queue_.Remove();
 }
 
 }  // namespace quic

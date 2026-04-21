@@ -1,6 +1,8 @@
 #if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
+#include <async_wrap-inl.h>
+#include <base_object-inl.h>
 #include <env-inl.h>
 #include <memory_tracker-inl.h>
 #include <node_sockaddr-inl.h>
@@ -10,6 +12,7 @@
 #include "defs.h"
 #include "endpoint.h"
 #include "session.h"
+#include "session_manager.h"
 #include "tokens.h"
 #include "transportparams.h"
 
@@ -69,10 +72,49 @@ Maybe<TransportParams::Options> TransportParams::Options::From(
 
 #undef SET
 
-  // TODO(@jasnell): We are not yet exposing the ability to set the preferred
-  // adddress via the options, tho the underlying support is here in the class.
-  options.preferred_address_ipv4 = std::nullopt;
-  options.preferred_address_ipv6 = std::nullopt;
+  // Parse the preferred address options. These are SocketAddress objects
+  // (or undefined to skip). Only meaningful for server sessions.
+  Local<Value> preferred_ipv4;
+  if (!params->Get(env->context(), state.preferred_address_ipv4_string())
+           .ToLocal(&preferred_ipv4)) {
+    return Nothing<Options>();
+  }
+  if (!preferred_ipv4->IsUndefined()) {
+    if (!SocketAddressBase::HasInstance(env, preferred_ipv4)) {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env, "transportParams.preferredAddressIpv4 must be a SocketAddress");
+      return Nothing<Options>();
+    }
+    auto* addr = BaseObject::FromJSObject<SocketAddressBase>(
+        preferred_ipv4.As<Object>());
+    if (addr->address()->family() != AF_INET) {
+      THROW_ERR_INVALID_ARG_VALUE(
+          env, "transportParams.preferredAddressIpv4 must be an IPv4 address");
+      return Nothing<Options>();
+    }
+    options.preferred_address_ipv4 = *addr->address();
+  }
+
+  Local<Value> preferred_ipv6;
+  if (!params->Get(env->context(), state.preferred_address_ipv6_string())
+           .ToLocal(&preferred_ipv6)) {
+    return Nothing<Options>();
+  }
+  if (!preferred_ipv6->IsUndefined()) {
+    if (!SocketAddressBase::HasInstance(env, preferred_ipv6)) {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env, "transportParams.preferredAddressIpv6 must be a SocketAddress");
+      return Nothing<Options>();
+    }
+    auto* addr = BaseObject::FromJSObject<SocketAddressBase>(
+        preferred_ipv6.As<Object>());
+    if (addr->address()->family() != AF_INET6) {
+      THROW_ERR_INVALID_ARG_VALUE(
+          env, "transportParams.preferredAddressIpv6 must be an IPv6 address");
+      return Nothing<Options>();
+    }
+    options.preferred_address_ipv6 = *addr->address();
+  }
 
   return Just<Options>(options);
 }
@@ -113,8 +155,6 @@ std::string TransportParams::Options::ToString() const {
   res += prefix + "max ack delay: " + std::to_string(max_ack_delay);
   res += prefix +
          "max datagram frame size: " + std::to_string(max_datagram_frame_size);
-  res += prefix + "disable active migration: " +
-         (disable_active_migration ? std::string("yes") : std::string("no"));
   res += indent.Close();
   return res;
 }
@@ -151,8 +191,8 @@ TransportParams::TransportParams(const Config& config, const Options& options)
   SET_PARAM(ack_delay_exponent);
   SET_PARAM(max_datagram_frame_size);
   SET_PARAM_V(max_idle_timeout, options.max_idle_timeout * NGTCP2_SECONDS);
-  SET_PARAM_V(disable_active_migration,
-              options.disable_active_migration ? 1 : 0);
+  SET_PARAM_V(disable_active_migration, 0);
+  SET_PARAM_V(grease_quic_bit, 1);
   SET_PARAM_V(preferred_addr_present, 0);
   SET_PARAM_V(stateless_reset_token_present, 0);
   SET_PARAM_V(retry_scid_present, 0);
@@ -172,11 +212,13 @@ TransportParams::TransportParams(const Config& config, const Options& options)
 #undef SET_PARAM
 #undef SET_PARAM_V
 
-  if (options.preferred_address_ipv4.has_value())
+  if (options.preferred_address_ipv4.has_value()) {
     SetPreferredAddress(options.preferred_address_ipv4.value());
+  }
 
-  if (options.preferred_address_ipv6.has_value())
+  if (options.preferred_address_ipv6.has_value()) {
     SetPreferredAddress(options.preferred_address_ipv6.value());
+  }
 }
 
 TransportParams::TransportParams(const ngtcp2_vec& vec, Version version)
@@ -288,6 +330,12 @@ void TransportParams::GeneratePreferredAddressToken(Session* session) {
             params_.preferred_addr.stateless_reset_token,
             config.preferred_address_cid),
         session);
+    // Register the preferred address CID with SessionManager for
+    // cross-endpoint routing. This is a locally-generated CID that needs
+    // to be routable from the preferred address endpoint (which may be
+    // different from the primary endpoint).
+    auto& mgr = BindingData::Get(session->env()).session_manager();
+    mgr.AssociateCID(config.preferred_address_cid, config.scid);
   }
 }
 

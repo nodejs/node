@@ -70,7 +70,8 @@ class TokenSecret final : public MemoryRetainer {
 //
 // StatlessResetTokens are always kStatelessTokenLen bytes,
 // as are the secrets used to generate the token.
-class StatelessResetToken final : public MemoryRetainer {
+class StatelessResetToken final : public ngtcp2_stateless_reset_token,
+                                  public MemoryRetainer {
  public:
   static constexpr int kStatelessTokenLen = NGTCP2_STATELESS_RESET_TOKENLEN;
 
@@ -78,23 +79,27 @@ class StatelessResetToken final : public MemoryRetainer {
 
   // Generates a stateless reset token using HKDF with the cid and token secret
   // as input. The token secret is either provided by user code when an Endpoint
-  // is created or is generated randomly.
+  // is created or is generated randomly. The token is stored in the inherited
+  // ngtcp2_stateless_reset_token::data and ptr_ is set to this.
   StatelessResetToken(const TokenSecret& secret, const CID& cid);
 
-  // Generates a stateless reset token using the given token storage.
+  // Generates a stateless reset token into the given external storage.
   // The StatelessResetToken wraps the token and does not take ownership.
-  // The token storage must be at least kStatelessTokenLen bytes in length.
-  // The length is not verified so care must be taken when using this
-  // constructor.
   StatelessResetToken(uint8_t* token,
                       const TokenSecret& secret,
                       const CID& cid);
 
+  // Generates a stateless reset token into the given external storage.
+  // The StatelessResetToken wraps the token and does not take ownership.
+  StatelessResetToken(ngtcp2_stateless_reset_token* token,
+                      const TokenSecret& secret,
+                      const CID& cid);
+
   // Wraps the given token. Does not take over ownership of the token storage.
-  // The token must be at least kStatelessTokenLen bytes in length.
-  // The length is not verified so care must be taken when using this
-  // constructor.
   explicit StatelessResetToken(const uint8_t* token);
+
+  // Wraps the given token. Does not take over ownership of the token storage.
+  explicit StatelessResetToken(const ngtcp2_stateless_reset_token* token);
 
   StatelessResetToken(const StatelessResetToken& other);
   DISALLOW_MOVE(StatelessResetToken)
@@ -102,6 +107,7 @@ class StatelessResetToken final : public MemoryRetainer {
   std::string ToString() const;
 
   operator const uint8_t*() const;
+  operator const ngtcp2_stateless_reset_token*() const;
   operator bool() const;
 
   bool operator==(const StatelessResetToken& other) const;
@@ -124,8 +130,7 @@ class StatelessResetToken final : public MemoryRetainer {
  private:
   operator const char*() const;
 
-  const uint8_t* ptr_;
-  uint8_t buf_[NGTCP2_STATELESS_RESET_TOKENLEN];
+  const ngtcp2_stateless_reset_token* ptr_;
 };
 
 // A RETRY packet communicates a retry token to the client. Retry tokens are

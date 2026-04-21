@@ -32,15 +32,14 @@ const check = {
 // The opened promise should resolve when the handshake is complete.
 
 const serverOpened = Promise.withResolvers();
-const clientOpened = Promise.withResolvers();
 
-const serverEndpoint = await listen(mustCall((serverSession) => {
+const serverEndpoint = await listen(mustCall((serverSession) =>
   serverSession.opened.then((info) => {
     assert.partialDeepStrictEqual(info, check);
     serverOpened.resolve();
-    serverSession.close();
-  }).then(mustCall());
-}), {
+    return serverSession.close();
+  }).then(mustCall())
+), {
   sni: { '*': { keys: [key], certs: [cert] } },
   alpn: ['quic-test'],
   endpoint: {
@@ -66,10 +65,9 @@ const clientSession = await connect(serverEndpoint.address, {
     },
   },
 });
-clientSession.opened.then((info) => {
-  assert.partialDeepStrictEqual(info, check);
-  clientOpened.resolve();
-}).then(mustCall());
 
-await Promise.all([serverOpened.promise, clientOpened.promise]);
+const info = await clientSession.opened;
+assert.partialDeepStrictEqual(info, check);
+
+await serverOpened.promise;
 clientSession.close();

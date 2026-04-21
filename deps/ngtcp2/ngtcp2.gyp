@@ -207,6 +207,7 @@
       'defines': [
         'BUILDING_NGHTTP3',
         'NGHTTP3_STATICLIB',
+        'DEBUGBUILD',
       ],
       'dependencies': [
         'ngtcp2'
@@ -248,7 +249,10 @@
     },
     {
       'target_name': 'ngtcp2_test_server',
-      'type': 'executable',
+      # Disabled: ngtcp2 examples now require C++23 (<print>, <expected>,
+      # std::println, std::expected) which is not yet supported on all
+      # Node.js platforms. Re-enable when C++23 is available.
+      'type': 'none',
       'cflags': [ '-Wno-everything' ],
       'include_dirs': [
         '',
@@ -306,7 +310,10 @@
     },
     {
       'target_name': 'ngtcp2_test_client',
-      'type': 'executable',
+      # Disabled: ngtcp2 examples now require C++23 (<print>, <expected>,
+      # std::println, std::expected) which is not yet supported on all
+      # Node.js platforms. Re-enable when C++23 is available.
+      'type': 'none',
       'cflags': [ '-Wno-everything' ],
       'include_dirs': [
         '',
