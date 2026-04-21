@@ -331,6 +331,10 @@ FFI_EXPORT double sum_five_f64(
   return a + b + c + d + e;
 }
 
+FFI_EXPORT int32_t sum_6_i32(int32_t a, int32_t b, int32_t c, int32_t d, int32_t e, int32_t f) {
+  return a + b + c + d + e + f;
+}
+
 // Mixed parameter types.
 
 FFI_EXPORT double mixed_operation(int32_t i, float f, double d, uint32_t u) {
