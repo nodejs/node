@@ -215,6 +215,7 @@ FFI_EXPORT int32_t logical_not(int32_t a) {
 // Void operations (side effects).
 
 static int32_t global_counter = 0;
+static int32_t global_scratch = 0;
 
 FFI_EXPORT void increment_counter(void) {
   global_counter++;
@@ -226,6 +227,19 @@ FFI_EXPORT int32_t get_counter(void) {
 
 FFI_EXPORT void reset_counter(void) {
   global_counter = 0;
+}
+
+FFI_EXPORT void store_sum_2_i32(int32_t a, int32_t b) {
+  global_scratch = a + b;
+}
+
+FFI_EXPORT void store_sum_6_i32(
+    int32_t a, int32_t b, int32_t c, int32_t d, int32_t e, int32_t f) {
+  global_scratch = a + b + c + d + e + f;
+}
+
+FFI_EXPORT int32_t get_scratch(void) {
+  return global_scratch;
 }
 
 // Callback operations.
@@ -331,8 +345,27 @@ FFI_EXPORT double sum_five_f64(
   return a + b + c + d + e;
 }
 
-FFI_EXPORT int32_t sum_6_i32(int32_t a, int32_t b, int32_t c, int32_t d, int32_t e, int32_t f) {
+FFI_EXPORT int32_t sum_3_i32(int32_t a, int32_t b, int32_t c) {
+  return a + b + c;
+}
+
+FFI_EXPORT int32_t sum_4_i32(int32_t a, int32_t b, int32_t c, int32_t d) {
+  return a + b + c + d;
+}
+
+FFI_EXPORT int32_t
+sum_6_i32(int32_t a, int32_t b, int32_t c, int32_t d, int32_t e, int32_t f) {
   return a + b + c + d + e + f;
+}
+
+FFI_EXPORT int32_t sum_7_i32(int32_t a,
+                             int32_t b,
+                             int32_t c,
+                             int32_t d,
+                             int32_t e,
+                             int32_t f,
+                             int32_t g) {
+  return a + b + c + d + e + f + g;
 }
 
 // Mixed parameter types.
