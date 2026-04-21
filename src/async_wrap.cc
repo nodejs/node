@@ -25,9 +25,6 @@
 #include "env-inl.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
-#ifdef DEBUG
-#include <node_process-inl.h>
-#endif
 #include "tracing/traced_value.h"
 #include "util-inl.h"
 
@@ -677,13 +674,8 @@ MaybeLocal<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
                                           Local<Value>* argv) {
   EmitTraceEventBefore();
 
-#ifdef DEBUG
-  if (context_frame().IsEmpty()) {
-    ProcessEmitWarning(env(),
-                       "MakeCallback() called without context_frame, "
-                       "likely use after destroy of AsyncWrap.");
-  }
-#endif
+  // If this check fails it indicates an use after-free.
+  DCHECK(!context_frame().IsEmpty());
 
   ProviderType provider = provider_type();
   async_context context { get_async_id(), get_trigger_async_id() };
