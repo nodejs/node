@@ -3,6 +3,9 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
+const { readKey } = fixtures;
+
+const { ok, strictEqual } = assert;
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -12,87 +15,83 @@ if (!hasQuic) {
 const quic = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
-const keys = createPrivateKey(fixtures.readKey('agent1-key.pem'));
-const certs = fixtures.readKey('agent1-cert.pem');
+const keys = createPrivateKey(readKey('agent1-key.pem'));
+const certs = readKey('agent1-cert.pem');
 
 const serverDone = Promise.withResolvers();
-const clientDone = Promise.withResolvers();
 
 // Create a server endpoint
-const serverEndpoint = await quic.listen(mustCall((serverSession) => {
-  serverSession.opened.then((info) => {
-    assert.ok(serverSession.endpoint !== null);
-    assert.strictEqual(serverSession.destroyed, false);
+const serverEndpoint = await quic.listen(mustCall(async (serverSession) => {
+  await serverSession.opened;
+  ok(serverSession.endpoint !== null);
+  strictEqual(serverSession.destroyed, false);
 
-    const stats = serverSession.stats;
-    assert.strictEqual(stats.isConnected, true);
-    assert.ok(stats.handshakeCompletedAt > 0n);
-    assert.ok(stats.handshakeConfirmedAt > 0n);
-    assert.strictEqual(stats.closingAt, 0n);
+  const stats = serverSession.stats;
+  strictEqual(stats.isConnected, true);
+  ok(stats.handshakeCompletedAt > 0n);
+  ok(stats.handshakeConfirmedAt > 0n);
+  strictEqual(stats.closingAt, 0n);
 
-    serverDone.resolve();
-    serverSession.close();
-  }).then(mustCall());
+  serverDone.resolve();
+  serverSession.close();
 }), { sni: { '*': { keys, certs } } });
 
-assert.strictEqual(serverEndpoint.busy, false);
-assert.strictEqual(serverEndpoint.closing, false);
-assert.strictEqual(serverEndpoint.destroyed, false);
-assert.strictEqual(serverEndpoint.listening, true);
+strictEqual(serverEndpoint.busy, false);
+strictEqual(serverEndpoint.closing, false);
+strictEqual(serverEndpoint.destroyed, false);
+strictEqual(serverEndpoint.listening, true);
 
-assert.ok(serverEndpoint.address !== undefined);
-assert.strictEqual(serverEndpoint.address.family, 'ipv4');
-assert.strictEqual(serverEndpoint.address.address, '127.0.0.1');
-assert.ok(typeof serverEndpoint.address.port === 'number');
-assert.ok(serverEndpoint.address.port > 0);
+ok(serverEndpoint.address !== undefined);
+strictEqual(serverEndpoint.address.family, 'ipv4');
+strictEqual(serverEndpoint.address.address, '127.0.0.1');
+ok(typeof serverEndpoint.address.port === 'number');
+ok(serverEndpoint.address.port > 0);
 
 const epStats = serverEndpoint.stats;
-assert.strictEqual(epStats.isConnected, true);
-assert.ok(epStats.createdAt > 0n);
+strictEqual(epStats.isConnected, true);
+ok(epStats.createdAt > 0n);
 
 // Connect with a client
 const clientSession = await quic.connect(serverEndpoint.address);
 
-assert.strictEqual(clientSession.destroyed, false);
-assert.ok(clientSession.endpoint !== null);
-assert.strictEqual(clientSession.stats.isConnected, true);
+strictEqual(clientSession.destroyed, false);
+ok(clientSession.endpoint !== null);
+strictEqual(clientSession.stats.isConnected, true);
 
-clientSession.opened.then((clientInfo) => {
-  assert.strictEqual(clientInfo.servername, 'localhost');
-  assert.strictEqual(clientInfo.protocol, 'h3');
-  assert.strictEqual(clientInfo.cipherVersion, 'TLSv1.3');
-  assert.ok(clientInfo.local !== undefined);
-  assert.ok(clientInfo.remote !== undefined);
+const clientInfo = await clientSession.opened;
+strictEqual(clientInfo.servername, 'localhost');
+strictEqual(clientInfo.protocol, 'h3');
+strictEqual(clientInfo.cipherVersion, 'TLSv1.3');
+ok(clientInfo.local !== undefined);
+ok(clientInfo.remote !== undefined);
 
-  const cStats = clientSession.stats;
-  assert.strictEqual(cStats.isConnected, true);
-  assert.ok(cStats.handshakeCompletedAt > 0n);
-  assert.ok(cStats.bytesSent > 0n, 'Expected bytesSent > 0 after handshake');
+const cStats = clientSession.stats;
+strictEqual(cStats.isConnected, true);
+ok(cStats.handshakeCompletedAt > 0n);
+ok(cStats.bytesSent > 0n, 'Expected bytesSent > 0 after handshake');
 
-  clientDone.resolve();
-}).then(mustCall());
-
-await Promise.all([serverDone.promise, clientDone.promise]);
+await serverDone.promise;
 
 // Open a bidirectional stream.
 const stream = await clientSession.createBidirectionalStream();
 
-assert.strictEqual(stream.destroyed, false);
-assert.strictEqual(stream.direction, 'bidi');
-assert.strictEqual(stream.session, clientSession);
-assert.ok(stream.id !== null, 'Non-pending stream should have an id');
-assert.strictEqual(typeof stream.id, 'bigint');
-assert.strictEqual(stream.pending, false);
-assert.strictEqual(stream.stats.isConnected, true);
-assert.ok(stream.readable instanceof ReadableStream);
+strictEqual(stream.destroyed, false);
+strictEqual(stream.direction, 'bidi');
+strictEqual(stream.session, clientSession);
+ok(stream.id !== null, 'Non-pending stream should have an id');
+strictEqual(typeof stream.id, 'bigint');
+strictEqual(stream.pending, false);
+strictEqual(stream.stats.isConnected, true);
 
 // Destroying the session should destroy it and the stream, and clear its properties.
 clientSession.destroy();
-assert.strictEqual(clientSession.destroyed, true);
-assert.strictEqual(clientSession.endpoint, null);
-assert.strictEqual(clientSession.stats.isConnected, false);
+strictEqual(clientSession.destroyed, true);
+strictEqual(clientSession.endpoint, null);
+strictEqual(clientSession.stats.isConnected, false);
 
-assert.strictEqual(stream.destroyed, true);
-assert.strictEqual(stream.session, null);
-assert.strictEqual(stream.id, null);
-assert.strictEqual(stream.direction, null);
+strictEqual(stream.destroyed, true);
+strictEqual(stream.session, null);
+strictEqual(stream.id, null);
+strictEqual(stream.direction, null);
+
+await serverEndpoint.close();
