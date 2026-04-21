@@ -54,9 +54,6 @@ const bench = common.createBenchmark(main, {
     // assess whether mutexes over the key material impact the operation
     if (p.keyFormat === 'keyObject.unique')
       return p.mode === 'async-parallel';
-    // JWK is not supported for ml-kem for now
-    if (p.keyFormat === 'jwk')
-      return !p.keyType.startsWith('ml-');
     // raw-public is only supported for encapsulate, not rsa
     if (p.keyFormat === 'raw-public')
       return p.keyType !== 'rsa' && p.op === 'encapsulate';

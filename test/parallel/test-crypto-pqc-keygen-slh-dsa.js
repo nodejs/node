@@ -28,6 +28,26 @@ if (!hasOpenSSL(3, 5)) {
     'slh-dsa-sha2-256f', 'slh-dsa-sha2-256s', 'slh-dsa-shake-128f', 'slh-dsa-shake-128s',
     'slh-dsa-shake-192f', 'slh-dsa-shake-192s', 'slh-dsa-shake-256f', 'slh-dsa-shake-256s',
   ]) {
+
+    function assertJwk(jwk) {
+      assert.strictEqual(jwk.kty, 'AKP');
+      // SLH-DSA algorithm names keep the last character (f/s) lowercase.
+      const expectedAlg = asymmetricKeyType.slice(0, -1).toUpperCase() +
+                          asymmetricKeyType.slice(-1);
+      assert.strictEqual(jwk.alg, expectedAlg);
+      assert.ok(jwk.pub);
+    }
+
+    function assertPublicJwk(jwk) {
+      assertJwk(jwk);
+      assert.ok(!jwk.priv);
+    }
+
+    function assertPrivateJwk(jwk) {
+      assertJwk(jwk);
+      assert.ok(jwk.priv);
+    }
+
     for (const [publicKeyEncoding, validate] of [
       /* eslint-disable node-core/must-call-assert */
       [undefined, (publicKey) => {
@@ -35,6 +55,7 @@ if (!hasOpenSSL(3, 5)) {
         assert.strictEqual(publicKey.asymmetricKeyType, asymmetricKeyType);
         assert.deepStrictEqual(publicKey.asymmetricKeyDetails, {});
       }],
+      [{ format: 'jwk' }, (publicKey) => assertPublicJwk(publicKey)],
       [{ format: 'pem', type: 'spki' }, (publicKey) => assert.strictEqual(typeof publicKey, 'string')],
       [{ format: 'der', type: 'spki' }, (publicKey) => assert.strictEqual(Buffer.isBuffer(publicKey), true)],
     ]) {
@@ -46,6 +67,7 @@ if (!hasOpenSSL(3, 5)) {
         assert.strictEqual(privateKey.asymmetricKeyType, asymmetricKeyType);
         assert.deepStrictEqual(privateKey.asymmetricKeyDetails, {});
       }],
+      [{ format: 'jwk' }, (_, privateKey) => assertPrivateJwk(privateKey)],
       [{ format: 'pem', type: 'pkcs8' }, (_, privateKey) => assert.strictEqual(typeof privateKey, 'string')],
       [{ format: 'der', type: 'pkcs8' }, (_, privateKey) => assert.strictEqual(Buffer.isBuffer(privateKey), true)],
       /* eslint-enable node-core/must-call-assert */
