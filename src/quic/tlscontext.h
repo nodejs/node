@@ -241,6 +241,15 @@ class TLSContext final : public MemoryRetainer,
     // JavaScript option name "crl"
     std::vector<Store> crl;
 
+    // The port to advertise in ORIGIN frames for this hostname.
+    // Defaults to 443 (the standard HTTPS port). Only relevant for
+    // server-side SNI entries used with HTTP/3.
+    uint16_t port = 443;
+
+    // Whether this hostname should be included in ORIGIN frames.
+    // Only relevant for server-side SNI entries.
+    bool authoritative = true;
+
     void MemoryInfo(MemoryTracker* tracker) const override;
     SET_MEMORY_INFO_NAME(TLSContext::Options)
     SET_SELF_SIZE(Options)

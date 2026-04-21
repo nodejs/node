@@ -2651,6 +2651,32 @@ added:
 
 Opening a QUIC stream failed.
 
+<a id="ERR_QUIC_STREAM_ABORTED"></a>
+
+### `ERR_QUIC_STREAM_ABORTED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+The Node.js error code for a [`QuicError`][] thrown to abort a QUIC stream
+or session with an explicit application or transport error code.
+
+<a id="ERR_QUIC_STREAM_RESET"></a>
+
+### `ERR_QUIC_STREAM_RESET`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+A QUIC stream was reset by the peer. The error includes the reset code
+provided by the peer.
+
 <a id="ERR_QUIC_TRANSPORT_ERROR"></a>
 
 ### `ERR_QUIC_TRANSPORT_ERROR`
@@ -4436,6 +4462,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`MessagePort`]: worker_threads.md#class-messageport
 [`Object.getPrototypeOf`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/getPrototypeOf
 [`Object.setPrototypeOf`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/setPrototypeOf
+[`QuicError`]: quic.md#class-quicerror
 [`REPL`]: repl.md
 [`ServerResponse`]: http.md#class-httpserverresponse
 [`Writable`]: stream.md#class-streamwritable

@@ -11,6 +11,7 @@
 #include <node.h>
 #include <node_mem.h>
 #include <v8.h>
+#include <memory>
 #include <unordered_map>
 #include "defs.h"
 
@@ -18,13 +19,14 @@ namespace node::quic {
 
 class Endpoint;
 class Packet;
+class Session;
+class SessionManager;
 
 // ============================================================================
 
 // The FunctionTemplates the BindingData will store for us.
 #define QUIC_CONSTRUCTORS(V)                                                   \
   V(endpoint)                                                                  \
-  V(logstream)                                                                 \
   V(session)                                                                   \
   V(stream)                                                                    \
   V(udp)
@@ -36,37 +38,48 @@ class Packet;
 #define QUIC_JS_CALLBACKS(V)                                                   \
   V(endpoint_close, EndpointClose)                                             \
   V(session_close, SessionClose)                                               \
+  V(session_early_data_rejected, SessionEarlyDataRejected)                     \
+  V(session_goaway, SessionGoaway)                                             \
   V(session_datagram, SessionDatagram)                                         \
   V(session_datagram_status, SessionDatagramStatus)                            \
   V(session_handshake, SessionHandshake)                                       \
+  V(session_keylog, SessionKeyLog)                                             \
+  V(session_qlog, SessionQlog)                                                 \
   V(session_new, SessionNew)                                                   \
   V(session_new_token, SessionNewToken)                                        \
+  V(session_origin, SessionOrigin)                                             \
   V(session_path_validation, SessionPathValidation)                            \
   V(session_ticket, SessionTicket)                                             \
   V(session_version_negotiation, SessionVersionNegotiation)                    \
   V(stream_blocked, StreamBlocked)                                             \
   V(stream_close, StreamClose)                                                 \
   V(stream_created, StreamCreated)                                             \
+  V(stream_drain, StreamDrain)                                                 \
   V(stream_headers, StreamHeaders)                                             \
   V(stream_reset, StreamReset)                                                 \
   V(stream_trailers, StreamTrailers)
 
 // The various JS strings the implementation uses.
 #define QUIC_STRINGS(V)                                                        \
+  V(abandoned, "abandoned")                                                    \
   V(aborted, "aborted")                                                        \
   V(acknowledged, "acknowledged")                                              \
   V(ack_delay_exponent, "ackDelayExponent")                                    \
   V(active_connection_id_limit, "activeConnectionIDLimit")                     \
   V(address_lru_size, "addressLRUSize")                                        \
   V(application, "application")                                                \
+  V(authoritative, "authoritative")                                            \
   V(bbr, "bbr")                                                                \
   V(ca, "ca")                                                                  \
   V(cc_algorithm, "cc")                                                        \
   V(certs, "certs")                                                            \
+  V(code, "code")                                                              \
   V(ciphers, "ciphers")                                                        \
   V(crl, "crl")                                                                \
   V(cubic, "cubic")                                                            \
+  V(datagram_drop_policy, "datagramDropPolicy")                                \
   V(disable_stateless_reset, "disableStatelessReset")                          \
+  V(draining_period_multiplier, "drainingPeriodMultiplier")                    \
   V(enable_connect_protocol, "enableConnectProtocol")                          \
   V(enable_early_data, "enableEarlyData")                                      \
   V(enable_datagrams, "enableDatagrams")                                       \
@@ -77,6 +90,7 @@ class Packet;
   V(groups, "groups")                                                          \
   V(handshake_timeout, "handshakeTimeout")                                     \
   V(http3_alpn, &NGHTTP3_ALPN_H3[1])                                           \
+  V(keep_alive_timeout, "keepAlive")                                           \
   V(initial_max_data, "initialMaxData")                                        \
   V(initial_max_stream_data_bidi_local, "initialMaxStreamDataBidiLocal")       \
   V(initial_max_stream_data_bidi_remote, "initialMaxStreamDataBidiRemote")     \
@@ -86,15 +100,16 @@ class Packet;
   V(ipv6_only, "ipv6Only")                                                     \
   V(keylog, "keylog")                                                          \
   V(keys, "keys")                                                              \
-  V(logstream, "LogStream")                                                    \
   V(lost, "lost")                                                              \
   V(max_ack_delay, "maxAckDelay")                                              \
   V(max_connections_per_host, "maxConnectionsPerHost")                         \
   V(max_connections_total, "maxConnectionsTotal")                              \
   V(max_datagram_frame_size, "maxDatagramFrameSize")                           \
+  V(max_datagram_send_attempts, "maxDatagramSendAttempts")                     \
   V(max_field_section_size, "maxFieldSectionSize")                             \
   V(max_header_length, "maxHeaderLength")                                      \
   V(max_header_pairs, "maxHeaderPairs")                                        \
+  V(idle_timeout, "idleTimeout")                                               \
   V(max_idle_timeout, "maxIdleTimeout")                                        \
   V(max_payload_size, "maxPayloadSize")                                        \
   V(max_retries, "maxRetries")                                                 \
@@ -102,12 +117,16 @@ class Packet;
   V(max_stream_window, "maxStreamWindow")                                      \
   V(max_window, "maxWindow")                                                   \
   V(min_version, "minVersion")                                                 \
+  V(port, "port")                                                              \
+  V(preferred_address_ipv4, "preferredAddressIpv4")                            \
+  V(preferred_address_ipv6, "preferredAddressIpv6")                            \
   V(preferred_address_strategy, "preferredAddressPolicy")                      \
   V(alpn, "alpn")                                                              \
   V(qlog, "qlog")                                                              \
   V(qpack_blocked_streams, "qpackBlockedStreams")                              \
   V(qpack_encoder_max_dtable_capacity, "qpackEncoderMaxDTableCapacity")        \
   V(qpack_max_dtable_capacity, "qpackMaxDTableCapacity")                       \
+  V(reason, "reason")                                                          \
   V(reject_unauthorized, "rejectUnauthorized")                                 \
   V(reno, "reno")                                                              \
   V(reset_token_secret, "resetTokenSecret")                                    \
@@ -122,7 +141,9 @@ class Packet;
   V(token, "token")                                                            \
   V(token_expiration, "tokenExpiration")                                       \
   V(token_secret, "tokenSecret")                                               \
+  V(transport, "transport")                                                    \
   V(transport_params, "transportParams")                                       \
+  V(type, "type")                                                              \
   V(tx_loss, "txDiagnosticLoss")                                               \
   V(udp_receive_buffer_size, "udpReceiveBufferSize")                           \
   V(udp_send_buffer_size, "udpSendBufferSize")                                 \
@@ -151,27 +172,37 @@ class BindingData final
   static inline BindingData& Get(Realm* realm) { return Get(realm->env()); }
 
   BindingData(Realm* realm, v8::Local<v8::Object> object);
+  ~BindingData() override;
   DISALLOW_COPY_AND_MOVE(BindingData)
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(BindingData)
   SET_SELF_SIZE(BindingData)
 
-  // NgLibMemoryManager
-  operator ngtcp2_mem();
-  operator nghttp3_mem();
+  // NgLibMemoryManager — the base class provides CheckAllocatedSize,
+  // IncreaseAllocatedSize, DecreaseAllocatedSize, and StopTrackingMemory.
+  // Actual allocations go through the thread-local allocators below.
   void CheckAllocatedSize(size_t previous_size) const;
   void IncreaseAllocatedSize(size_t size);
   void DecreaseAllocatedSize(size_t size);
+
+  // Thread-local allocators that outlive BindingData destruction.
+  // Both ngtcp2 and nghttp3 store the allocator pointer inside every
+  // object they allocate; some of those objects (e.g., nghttp3 rcbufs
+  // backing V8 external strings) can be freed after BindingData is gone.
+  ngtcp2_mem* ngtcp2_allocator();
+  nghttp3_mem* nghttp3_allocator();
 
   // Installs the set of JavaScript callback functions that are used to
   // bridge out to the JS API.
   JS_METHOD(SetCallbacks);
 
+  // Lazily-created per-Realm SessionManager. Centralizes CID -> Session
+  // routing so that any endpoint can route packets to any session.
+  SessionManager& session_manager();
+
   std::unordered_map<Endpoint*, BaseObjectPtr<BaseObject>> listening_endpoints;
 
-  bool in_ngtcp2_callback_scope = false;
-  bool in_nghttp3_callback_scope = false;
   size_t current_ngtcp2_memory_ = 0;
 
   // The following set up various storage and accessors for common strings,
@@ -214,6 +245,8 @@ class BindingData final
 #define V(name, _) mutable v8::Eternal<v8::String> on_##name##_string_;
   QUIC_JS_CALLBACKS(V)
 #undef V
+
+  std::unique_ptr<SessionManager> session_manager_;
 };
 
 JS_METHOD_IMPL(IllegalConstructor);
@@ -221,20 +254,22 @@ JS_METHOD_IMPL(IllegalConstructor);
 // The ngtcp2 and nghttp3 callbacks have certain restrictions
 // that forbid re-entry. We provide the following scopes for
 // use in those to help protect against it.
+// These callback scopes are per-session, not per-environment. This ensures
+// that one session's ngtcp2/nghttp3 callback does not block an unrelated
+// session from sending packets. A BaseObjectPtr prevents the Session from
+// being prematurely freed while the scope is alive on the stack.
 struct NgTcp2CallbackScope final {
-  Environment* env;
-  explicit NgTcp2CallbackScope(Environment* env);
+  BaseObjectPtr<Session> session;
+  explicit NgTcp2CallbackScope(Session* session);
   DISALLOW_COPY_AND_MOVE(NgTcp2CallbackScope)
   ~NgTcp2CallbackScope();
-  static bool in_ngtcp2_callback(Environment* env);
 };
 
 struct NgHttp3CallbackScope final {
-  Environment* env;
-  explicit NgHttp3CallbackScope(Environment* env);
+  BaseObjectPtr<Session> session;
+  explicit NgHttp3CallbackScope(Session* session);
   DISALLOW_COPY_AND_MOVE(NgHttp3CallbackScope)
   ~NgHttp3CallbackScope();
-  static bool in_nghttp3_callback(Environment* env);
 };
 
 struct CallbackScopeBase {

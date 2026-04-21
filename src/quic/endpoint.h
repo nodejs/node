@@ -6,6 +6,7 @@
 #include <async_wrap.h>
 #include <env.h>
 #include <node_sockaddr.h>
+#include <timer_wrap.h>
 #include <uv.h>
 #include <v8.h>
 #include <algorithm>
@@ -14,6 +15,7 @@
 #include "bindingdata.h"
 #include "packet.h"
 #include "session.h"
+#include "session_manager.h"
 #include "sessionticket.h"
 #include "tokens.h"
 
@@ -24,12 +26,25 @@ namespace node::quic {
 // client and server simultaneously.
 class Endpoint final : public AsyncWrap, public Packet::Listener {
  public:
-  static constexpr uint64_t DEFAULT_MAX_CONNECTIONS =
-      std::min<uint64_t>(kMaxSizeT, kMaxSafeJsInteger);
-  static constexpr uint64_t DEFAULT_MAX_CONNECTIONS_PER_HOST = 100;
-  static constexpr uint64_t DEFAULT_MAX_SOCKETADDRESS_LRU_SIZE =
-      (DEFAULT_MAX_CONNECTIONS_PER_HOST * 10);
+  // The socket address LRU is used for tracking validated remote addresses.
+  static constexpr uint64_t DEFAULT_MAX_SOCKETADDRESS_LRU_SIZE = 1024;
+
+  // The max stateless resets is the maximum number of stateless reset packets
+  // that the Endpoint will generate for a given remote host within a window of
+  // time (while tracking that host in the socket address LRU). This is not
+  // mandated by QUIC, and the limit is arbitrary. We can set it to whatever
+  // we'd like. The purpose is to prevent a malicious peer from intentionally
+  // triggering generation of a large number of stateless resets. Once the
+  // limit is reached, packets that would have otherwise triggered generation
+  // of a stateless reset will simply be dropped instead.
   static constexpr uint64_t DEFAULT_MAX_STATELESS_RESETS = 10;
+
+  // Similar to stateless resets, the max retry limit is the maximum number of
+  // retry packets that the Endpoint will generate for a given remote host
+  // within a window of time (while tracking that host in the socket address
+  // LRU). This is not mandated by QUIC, and the limit is arbitrary. We can set
+  // it to whatever we'd like. The purpose is to prevent a malicious peer from
+  // intentionally triggering generation of a large number of retries.
   static constexpr uint64_t DEFAULT_MAX_RETRY_LIMIT = 10;
 
   // Endpoint configuration options
@@ -50,16 +65,9 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
         RetryToken::QUIC_DEFAULT_RETRYTOKEN_EXPIRATION / NGTCP2_SECONDS;
 
     // Tokens issued using NEW_TOKEN are time-limited. By default, tokens expire
-    // after DEFAULT_TOKEN_EXPIRATION *seconds*.
+    // after QUIC_DEFAULT_REGULARTOKEN_EXPIRATION *seconds*.
     uint64_t token_expiration =
         RegularToken::QUIC_DEFAULT_REGULARTOKEN_EXPIRATION / NGTCP2_SECONDS;
-
-    // Each Endpoint places limits on the number of concurrent connections from
-    // a single host, and the total number of concurrent connections allowed as
-    // a whole. These are set to fairly modest, and arbitrary defaults. We can
-    // set these to whatever we'd like.
-    uint64_t max_connections_per_host = DEFAULT_MAX_CONNECTIONS_PER_HOST;
-    uint64_t max_connections_total = DEFAULT_MAX_CONNECTIONS;
 
     // A stateless reset in QUIC is a discrete mechanism that one endpoint can
     // use to communicate to a peer that it has lost whatever state it
@@ -133,6 +141,14 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
     // forwarded through. The default is 64. The value is in the range 1 to 255.
     // Setting to 0 uses the default.
     uint8_t udp_ttl = 0;
+
+    // When an endpoint becomes idle (not listening and no primary sessions),
+    // it will be destroyed after this many seconds. A value of 0 means
+    // destroy immediately when idle (default, preserves pre-SessionManager
+    // behavior). A positive value keeps the endpoint alive for potential
+    // reuse by future connect() or listen() calls.
+    static constexpr uint64_t DEFAULT_IDLE_TIMEOUT = 0;
+    uint64_t idle_timeout = DEFAULT_IDLE_TIMEOUT;
 
     void MemoryInfo(MemoryTracker* tracker) const override;
     SET_MEMORY_INFO_NAME(Endpoint::Config)
@@ -324,9 +340,6 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   void EmitNewSession(const BaseObjectPtr<Session>& session);
   void EmitClose(CloseContext context, int status);
 
-  void IncrementSocketAddressCounter(const SocketAddress& address);
-  void DecrementSocketAddressCounter(const SocketAddress& address);
-
   // JavaScript API
 
   // Create a new Endpoint.
@@ -376,6 +389,11 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   ArenaPool<Packet> packet_pool_;
   UDP udp_;
 
+  // Idle timer: started when the endpoint becomes idle (not listening,
+  // no primary sessions). When it fires, the endpoint is destroyed.
+  // Stopped when a new session is added or listening begins.
+  TimerWrapHandle idle_timer_;
+
   struct ServerState {
     Session::Options options;
     std::shared_ptr<TLSContext> tls_context;
@@ -383,18 +401,29 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   // Set if/when the endpoint is configured to listen.
   std::optional<ServerState> server_state_ = std::nullopt;
 
-  // A Session is generally identified by one or more CIDs. We use two
-  // maps for this rather than one to avoid creating a whole bunch of
-  // BaseObjectPtr references. The primary map (sessions_) just maps
-  // the original CID to the Session, the second map (dcid_to_scid_)
-  // maps the additional CIDs to the primary.
-  CID::Map<BaseObjectPtr<Session>> sessions_;
+  // Count of sessions for which this endpoint is the primary endpoint.
+  // Drives ref/unref and idle timer logic. The actual session-to-endpoint
+  // mapping is maintained by the SessionManager.
+  size_t primary_session_count_ = 0;
+
+  // Per-endpoint CID -> SCID mapping for peer-chosen CIDs from connection
+  // establishment (config.dcid, config.ocid). These are kept per-endpoint
+  // because peer-chosen values can collide across endpoints (e.g., a
+  // client's random outgoing DCID matching an incoming DCID on the server
+  // endpoint). Locally-generated CIDs that need cross-endpoint routing
+  // (preferred address, multipath) go in SessionManager::dcid_to_scid_.
+  //
+  // Endpoint::FindSession does a three-tier lookup:
+  //   1. SessionManager::sessions_[cid]          (direct SCID match)
+  //   2. SessionManager::dcid_to_scid_[cid]      (cross-endpoint CID)
+  //   3. Endpoint::dcid_to_scid_[cid]            (peer-chosen CID)
+  // Each tier resolves to an SCID and looks up SessionManager::sessions_.
   CID::Map<CID> dcid_to_scid_;
-  StatelessResetToken::Map<Session*> token_map_;
+
+  SessionManager& session_manager() const;
 
   struct SocketAddressInfoTraits final {
     struct Type final {
-      size_t active_connections;
       size_t reset_count;
       size_t retry_count;
       uint64_t timestamp;
@@ -405,7 +434,14 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
     static void Touch(const SocketAddress& address, Type* type);
   };
 
-  SocketAddressLRU<SocketAddressInfoTraits> addrLRU_;
+  SocketAddressLRU<SocketAddressInfoTraits> addr_validation_lru_;
+
+  // Per-IP connection counts for maxConnectionsPerHost enforcement.
+  // Only populated when max_connections_per_host > 0. Entries are
+  // added in AddSession and removed when the count reaches 0 in
+  // RemoveSession. The map size is bounded by the number of active
+  // sessions (each entry has count >= 1).
+  SocketAddress::IpMap<uint16_t> conn_counts_per_host_;
 
   CloseContext close_context_ = CloseContext::CLOSE;
   int close_status_ = 0;
