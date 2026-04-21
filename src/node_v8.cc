@@ -117,10 +117,16 @@ static bool HeapProfileLabelsCallback(
 // C++ binding: store the AsyncLocalStorage instance used for heap profile
 // labels. V8 uses this key at allocation time to extract the ALS value from
 // the CPED (AsyncContextFrame) via OrderedHashMap::FindEntry.
+//
+// Propagates to the V8 HeapProfiler immediately so that callers who set the
+// store after StartSamplingHeapProfiler() (the common JS path:
+// withHeapProfileLabels lazily creates the ALS on first use) still have
+// labels captured by SampleObject().
 void SetHeapProfileLabelsStore(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   BindingData* binding_data = Realm::GetBindingData<BindingData>(args);
   binding_data->heap_profile_labels_als_key.Reset(isolate, args[0]);
+  isolate->GetHeapProfiler()->SetHeapProfileSampleLabelsKey(args[0]);
 }
 #endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
 
@@ -210,6 +216,60 @@ BindingData::BindingData(Realm* realm,
   heap_statistics_buffer.MakeWeak();
   heap_space_statistics_buffer.MakeWeak();
   heap_code_statistics_buffer.MakeWeak();
+}
+
+// Data captured when heap profiling starts, used by the cleanup hook to
+// safely tear down profiler state if the Environment is destroyed while
+// profiling is still active (e.g. worker thread termination).
+//
+// Raw pointers are safe here because Environment cleanup hooks are
+// guaranteed to run before the Isolate is disposed: FreeEnvironment()
+// calls env->RunCleanup() (which drains the cleanup queue) while still
+// inside Isolate::Scope, and the ArrayBufferAllocator that owns
+// ProfilingArrayBufferAllocator outlives the Isolate.
+//
+// We intentionally do NOT store a BindingData* here — Realm::RunCleanup()
+// destroys BindingData (via binding_data_store_.reset()) before the
+// environment cleanup queue is drained, so any BindingData* would be
+// dangling by the time this hook fires.
+//
+// Defined before BindingData::~BindingData() because the destructor calls
+// DoCleanup() and deletes this struct, which requires the complete type.
+struct HeapProfilingCleanup {
+  Isolate* isolate;
+  NodeArrayBufferAllocator* node_allocator;
+  ProfilingArrayBufferAllocator* profiling_allocator;
+  bool cleaned_up = false;
+
+  // Idempotent: stops the sampling profiler, clears the labels callback,
+  // and disables the allocator tracker.  Safe to call multiple times —
+  // only the first call has effect.
+  void DoCleanup() {
+    if (cleaned_up) return;
+    cleaned_up = true;
+
+    HeapProfiler* profiler = isolate->GetHeapProfiler();
+    profiler->StopSamplingHeapProfiler();
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+    profiler->SetHeapProfileSampleLabelsCallback(nullptr, nullptr);
+    profiler->SetHeapProfileSampleLabelsKey(Local<Value>());
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
+    if (node_allocator != nullptr) {
+      node_allocator->ClearProfilingAllocator();
+    }
+    if (profiling_allocator != nullptr) {
+      profiling_allocator->Disable();
+    }
+    isolate = nullptr;
+    node_allocator = nullptr;
+    profiling_allocator = nullptr;
+  }
+};
+
+static void CleanupHeapProfiling(void* data) {
+  auto* ctx = static_cast<HeapProfilingCleanup*>(data);
+  ctx->DoCleanup();
+  delete ctx;
 }
 
 BindingData::~BindingData() {
@@ -761,57 +821,6 @@ void GCProfiler::Stop(const FunctionCallbackInfo<v8::Value>& args) {
   if (ToV8Value(env->context(), string, env->isolate()).ToLocal(&ret)) {
     args.GetReturnValue().Set(ret);
   }
-}
-
-// Data captured when heap profiling starts, used by the cleanup hook to
-// safely tear down profiler state if the Environment is destroyed while
-// profiling is still active (e.g. worker thread termination).
-//
-// Raw pointers are safe here because Environment cleanup hooks are
-// guaranteed to run before the Isolate is disposed: FreeEnvironment()
-// calls env->RunCleanup() (which drains the cleanup queue) while still
-// inside Isolate::Scope, and the ArrayBufferAllocator that owns
-// ProfilingArrayBufferAllocator outlives the Isolate.
-//
-// We intentionally do NOT store a BindingData* here — Realm::RunCleanup()
-// destroys BindingData (via binding_data_store_.reset()) before the
-// environment cleanup queue is drained, so any BindingData* would be
-// dangling by the time this hook fires.
-struct HeapProfilingCleanup {
-  Isolate* isolate;
-  NodeArrayBufferAllocator* node_allocator;
-  ProfilingArrayBufferAllocator* profiling_allocator;
-  bool cleaned_up = false;
-
-  // Idempotent: stops the sampling profiler, clears the labels callback,
-  // and disables the allocator tracker.  Safe to call multiple times —
-  // only the first call has effect.
-  void DoCleanup() {
-    if (cleaned_up) return;
-    cleaned_up = true;
-
-    HeapProfiler* profiler = isolate->GetHeapProfiler();
-    profiler->StopSamplingHeapProfiler();
-#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
-    profiler->SetHeapProfileSampleLabelsCallback(nullptr, nullptr);
-    profiler->SetHeapProfileSampleLabelsKey(Local<Value>());
-#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
-    if (node_allocator != nullptr) {
-      node_allocator->ClearProfilingAllocator();
-    }
-    if (profiling_allocator != nullptr) {
-      profiling_allocator->Disable();
-    }
-    isolate = nullptr;
-    node_allocator = nullptr;
-    profiling_allocator = nullptr;
-  }
-};
-
-static void CleanupHeapProfiling(void* data) {
-  auto* ctx = static_cast<HeapProfilingCleanup*>(data);
-  ctx->DoCleanup();
-  delete ctx;
 }
 
 void StartSamplingHeapProfiler(const FunctionCallbackInfo<Value>& args) {
