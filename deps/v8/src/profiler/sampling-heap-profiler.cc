@@ -390,12 +390,32 @@ v8::AllocationProfile* SamplingHeapProfiler::GetAllocationProfile() {
       // Phase 2: resolve labels via callback (GC allowed).
       // The callback receives the ALS value (flat label array) directly —
       // the CPED Map lookup was already done at allocation time.
+      //
+      // Per-call cache: samples sharing the same ALS value (e.g. all
+      // allocations under one withHeapProfileLabels scope) resolve to the
+      // same labels, so we dedup callback invocations within this call.
+      // Key: raw object Address (cheap identity check). If GC moves the
+      // object between iterations we get a cache miss and re-call the
+      // callback — correctness preserved, just less optimal. Negative
+      // results (callback returned false or empty labels) are also cached
+      // so we don't re-call for ALS values that resolve to nothing.
+      std::unordered_map<Address,
+                         std::vector<std::pair<std::string, std::string>>>
+          label_cache;
       for (auto& entry : snapshot) {
         HandleScope scope(isolate_);
         v8::Local<v8::Value> value_local = entry.label_value.Get(v8_isolate);
-        std::vector<std::pair<std::string, std::string>> labels;
-        if (callback(callback_data, value_local, &labels) && !labels.empty()) {
-          resolved_labels[entry.sample_id] = std::move(labels);
+        Address key = (*Utils::OpenDirectHandle(*value_local)).ptr();
+        auto [cache_it, inserted] = label_cache.try_emplace(key);
+        if (inserted) {
+          std::vector<std::pair<std::string, std::string>> labels;
+          if (callback(callback_data, value_local, &labels) &&
+              !labels.empty()) {
+            cache_it->second = std::move(labels);
+          }
+        }
+        if (!cache_it->second.empty()) {
+          resolved_labels[entry.sample_id] = cache_it->second;
         }
       }
     }
