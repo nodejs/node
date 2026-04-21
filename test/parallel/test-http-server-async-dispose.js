@@ -1,8 +1,10 @@
+// Flags: --expose-internals --no-warnings
+
 'use strict';
 const common = require('../common');
 const assert = require('assert');
 const { createServer } = require('http');
-const { kConnectionsCheckingInterval } = require('_http_server');
+const { kConnectionsCheckingInterval } = require('internal/http/server');
 
 const server = createServer();
 
