@@ -129,6 +129,16 @@ assert.throws(() => {
   message: 'Invalid character in trailer content ["404"]'
 });
 
+assert.throws(() => {
+  const outgoingMessage = new OutgoingMessage();
+  outgoingMessage.finished = true;
+  outgoingMessage.addTrailers({ 'x-foo': 'bar' });
+}, {
+  code: 'ERR_HTTP_HEADERS_SENT',
+  name: 'Error',
+  message: 'Cannot set trailing headers after they are sent to the client'
+});
+
 {
   const outgoingMessage = new OutgoingMessage();
   assert.strictEqual(outgoingMessage.destroyed, false);
