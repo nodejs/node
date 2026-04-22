@@ -853,8 +853,8 @@ if (hasOpenSSL(3, 5)) {
   const kTests = ['ML-KEM-512', 'ML-KEM-768', 'ML-KEM-1024'];
 
   const tests = kTests.map((name) => test(name,
-                                          ['decapsulateBits', 'decapsulateKey'],
-                                          ['encapsulateBits', 'encapsulateKey']));
+                                          ['decapsulateKey', 'decapsulateBits'],
+                                          ['encapsulateKey', 'encapsulateBits']));
 
   Promise.all(tests).then(common.mustCall());
 }
