@@ -447,8 +447,10 @@ bool CipherBase::InitAuthenticated(const char* cipher_type,
     // Other modes (CCM, OCB) require an explicit tag length.
     if (ctx_.isGcmMode()) {
       auth_tag_len = EVP_GCM_TLS_TAG_LEN;
+#ifdef EVP_CHACHAPOLY_TLS_TAG_LEN
     } else if (ctx_.isChaCha20Poly1305()) {
       auth_tag_len = EVP_CHACHAPOLY_TLS_TAG_LEN;
+#endif
     } else {
       THROW_ERR_CRYPTO_INVALID_AUTH_TAG(
           env(), "authTagLength required for %s", cipher_type);

@@ -1928,8 +1928,13 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
   // true to this function instead of the original string. Any other string
   // value will be interpreted as custom DH parameters below.
   if (args[0]->IsTrue()) {
+#ifdef SSL_CTX_set_dh_auto
     CHECK(SSL_CTX_set_dh_auto(sc->ctx_.get(), true));
     return;
+#else
+    return THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(
+        env, "Automatic DH parameter selection is not supported");
+#endif
   }
 
   DHPointer dh;
