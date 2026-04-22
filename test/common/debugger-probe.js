@@ -25,8 +25,7 @@ function assertProbeJson(output, expected) {
     lastResult.error?.signal === probeTargetExitSignal) {
     // Log to facilitate debugging if this normalization is occurring.
     console.log('Normalizing trailing SIGSEGV in JSON probe output');
-    normalized.results[normalized.results.length - 1] =
-      expected.results[expected.results.length - 1];
+    normalized.results.at(-1) = expected.results.at(-1);
   }
 
   assert.deepStrictEqual(normalized, expected);
