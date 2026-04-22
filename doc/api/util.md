@@ -76,7 +76,24 @@ wrapped function rejects a `Promise` with a falsy value as a reason, the value
 is wrapped in an `Error` with the original value stored in a field named
 `reason`.
 
-```js
+```mjs
+import util from 'node:util';
+
+function fn() {
+  return Promise.reject(null);
+}
+const callbackFunction = util.callbackify(fn);
+
+callbackFunction((err, ret) => {
+  // When the Promise was rejected with `null` it is wrapped with an Error and
+  // the original value is stored in `reason`.
+  err && Object.hasOwn(err, 'reason') && err.reason === null;  // true
+});
+```
+
+```cjs
+const util = require('node:util');
+
 function fn() {
   return Promise.reject(null);
 }
