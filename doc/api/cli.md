@@ -193,18 +193,16 @@ directly through the process arguments.
 
 ### `--allow-env`
 
+<!-- YAML
+added: REPLACEME
+-->
+
 > Stability: 1.1 - Active development
 
 When using the [Permission Model][], access to environment variables is
-unrestricted by default. To restrict access, the `--allow-env` flag must be
-explicitly passed when starting Node.js. Once `--allow-env` is specified,
-only the listed environment variables are accessible.
-
-* Reading a restricted variable (`process.env.HOME`) silently returns
-  `undefined`.
-* Writing (`process.env.FOO = 'bar'`) or deleting (`delete process.env.FOO`)
-  a restricted variable throws `ERR_ACCESS_DENIED`.
-* Enumerating (`Object.keys(process.env)`) only returns allowed variables.
+restricted by default. Reading a restricted variable silently returns
+`undefined`, while writing or deleting throws `ERR_ACCESS_DENIED`.
+Enumerating (`Object.keys(process.env)`) only returns allowed variables.
 
 The valid arguments for the `--allow-env` flag are:
 
@@ -216,17 +214,24 @@ Examples:
 
 ```console
 $ node --permission --allow-fs-read=* -p 'process.env.HOME'
-/Users/user
-$ node --permission --allow-env=PATH --allow-fs-read=* -p 'process.env.HOME'
 undefined
 $ node --permission --allow-env=HOME --allow-fs-read=* -p 'process.env.HOME'
 /Users/user
+$ node --permission --allow-env=* --allow-fs-read=* -p 'process.env.HOME'
+/Users/user
+```
+
+Environment variable permissions can be checked programmatically:
+
+```js
+process.permission.has('env'); // true if any env access is allowed
+process.permission.has('env', 'HOME'); // true if HOME is allowed
 ```
 
 Attempting to write a restricted variable throws:
 
 ```console
-$ node --permission --allow-env=HOME --allow-fs-read=* -e "process.env.FOO = 'bar'"
+$ node --permission --allow-fs-read=* -e "process.env.FOO = 'bar'"
 node:internal/process/per_thread:12
   throw new ERR_ACCESS_DENIED('EnvVar', name);
   ^

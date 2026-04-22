@@ -22,6 +22,7 @@ const server = net.createServer().listen(0, common.mustCall(() => {
     [
       '--permission',
       '--allow-fs-read=*',
+      '--allow-env=*',
       file,
     ],
     {

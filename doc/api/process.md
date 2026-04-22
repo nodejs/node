@@ -1560,12 +1560,11 @@ The `process.env` property returns an object containing the user environment.
 See environ(7).
 
 When the [Permission Model][] is enabled, access to environment variables is
-unrestricted by default. To restrict access, the `--allow-env` flag must be
-explicitly passed. Once `--allow-env` is specified, reading a restricted
-variable silently returns `undefined`, while writing or deleting throws
-`ERR_ACCESS_DENIED`. Use `--allow-env=*` to grant access to all variables or
-`--allow-env=HOME,PATH` to grant access to specific ones. See the
-[`--allow-env`][] documentation for more details.
+restricted by default. Reading a restricted variable silently returns
+`undefined`, while writing or deleting throws `ERR_ACCESS_DENIED`. Use
+`--allow-env=*` to grant access to all variables or `--allow-env=HOME,PATH`
+to grant access to specific ones. See the [`--allow-env`][] documentation
+for more details.
 
 An example of this object looks like:
 
@@ -3213,6 +3212,7 @@ The available scopes are:
 * `fs.write` - File System write operations
 * `child` - Child process spawning operations
 * `worker` - Worker thread spawning operation
+* `env` - Environment variable operations
 * `ffi` - Foreign function interface operations
 
 ```js

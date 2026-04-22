@@ -1,4 +1,4 @@
-// Flags: --permission --allow-fs-read=* --allow-child-process
+// Flags: --permission --allow-fs-read=*
 'use strict';
 
 const common = require('../common');
@@ -10,46 +10,31 @@ if (!isMainThread) {
 
 const assert = require('assert');
 
-// When --permission is used without --allow-env, env vars should be
-// freely accessible (backward compatible behavior).
+// When --permission is used without --allow-env, all env vars should be denied
+// (deny-by-default, consistent with other permission flags).
 {
-  assert.ok(process.permission.has('env'));
+  assert.ok(!process.permission.has('env'));
 }
 
 {
-  // Environment variables should be readable
-  assert.ok(typeof process.env.HOME === 'string' || process.env.HOME === undefined);
+  // Reading a denied variable should silently return undefined
+  assert.strictEqual(process.env.HOME, undefined);
+  assert.strictEqual(process.env.PATH, undefined);
 }
 
 {
-  // Setting env vars should work
-  process.env.__TEST_PERMISSION_ENV = 'test';
-  assert.strictEqual(process.env.__TEST_PERMISSION_ENV, 'test');
-  delete process.env.__TEST_PERMISSION_ENV;
+  // Writing a denied variable should throw
+  assert.throws(() => { process.env.__TEST_PERMISSION_ENV = 'test'; },
+                { code: 'ERR_ACCESS_DENIED' });
 }
 
 {
-  // Object.keys should return env vars
-  const keys = Object.keys(process.env);
-  assert.ok(keys.length > 0);
+  // Deleting a denied variable should throw
+  assert.throws(() => { delete process.env.__TEST_PERMISSION_ENV; },
+                { code: 'ERR_ACCESS_DENIED' });
 }
 
-// Test that restriction activates when --allow-env is explicitly used
 {
-  const { spawnSync } = require('child_process');
-  const { status, stderr } = spawnSync(process.execPath, [
-    '--permission',
-    '--allow-fs-read=*',
-    '--allow-env=__NONEXISTENT_VAR__',
-    '-e',
-    `
-    const assert = require('assert');
-    assert.ok(!process.permission.has('env'));
-    assert.strictEqual(process.env.HOME, undefined);
-    assert.strictEqual(process.env.PATH, undefined);
-    assert.throws(() => { process.env.X = '1'; }, { code: 'ERR_ACCESS_DENIED' });
-    assert.strictEqual(Object.keys(process.env).length, 0);
-    `,
-  ]);
-  assert.strictEqual(status, 0, `child stderr: ${stderr}`);
+  // Enumerating should return empty
+  assert.strictEqual(Object.keys(process.env).length, 0);
 }

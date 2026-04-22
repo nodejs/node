@@ -1,4 +1,4 @@
-// Flags: --permission --allow-child-process --allow-fs-read=* --allow-worker
+// Flags: --permission --allow-child-process --allow-fs-read=* --allow-worker --allow-env=*
 'use strict';
 
 const common = require('../common');

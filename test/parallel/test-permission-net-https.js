@@ -33,6 +33,7 @@ const server = https.createServer(options, (req, res) => {
     [
       '--permission',
       '--allow-fs-read=*',
+      '--allow-env=*',
       file,
     ],
     {

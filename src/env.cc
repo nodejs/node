@@ -949,7 +949,9 @@ Environment::Environment(IsolateData* isolate_data,
       permission()->Apply(this, {"*"}, permission::PermissionScope::kWASI);
     }
 
-    if (!options_->allow_env.empty()) {
+    if (options_->allow_env.empty()) {
+      permission()->Apply(this, {}, permission::PermissionScope::kEnvVar);
+    } else {
       permission()->Apply(
           this, options_->allow_env, permission::PermissionScope::kEnvVar);
     }
