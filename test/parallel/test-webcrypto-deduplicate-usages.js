@@ -42,17 +42,10 @@ function assertSameSet(actual, expected, msg) {
     { algorithm: { name: 'AES-GCM', length: 128 },
       usages: ['decrypt', 'encrypt', 'decrypt'],
       expected: ['encrypt', 'decrypt'] },
-  ];
-
-  if (!process.features.openssl_is_boringssl) {
-    symmetric.push({
-      algorithm: { name: 'AES-KW', length: 128 },
+    { algorithm: { name: 'AES-KW', length: 128 },
       usages: ['wrapKey', 'unwrapKey', 'wrapKey', 'unwrapKey'],
-      expected: ['wrapKey', 'unwrapKey'],
-    });
-  } else {
-    common.printSkipMessage('AES-KW is not supported in BoringSSL');
-  }
+      expected: ['wrapKey', 'unwrapKey'] },
+  ];
 
   if (hasOpenSSL(3)) {
     symmetric.push({
@@ -172,17 +165,10 @@ function assertSameSet(actual, expected, msg) {
     { algorithm: { name: 'HMAC', hash: 'SHA-256' }, keyData: new Uint8Array(32),
       usages: ['verify', 'sign', 'verify', 'sign'],
       expected: ['sign', 'verify'] },
-  ];
-
-  if (!process.features.openssl_is_boringssl) {
-    rawSymmetric.push({
-      algorithm: { name: 'AES-KW' }, keyData: new Uint8Array(16),
+    { algorithm: { name: 'AES-KW' }, keyData: new Uint8Array(16),
       usages: ['wrapKey', 'unwrapKey', 'wrapKey'],
-      expected: ['wrapKey', 'unwrapKey'],
-    });
-  } else {
-    common.printSkipMessage('AES-KW is not supported in BoringSSL');
-  }
+      expected: ['wrapKey', 'unwrapKey'] },
+  ];
 
   if (hasOpenSSL(3)) {
     // KMAC does not support `raw` format, only `raw-secret` and `jwk`.
@@ -455,17 +441,10 @@ function assertSameSet(actual, expected, msg) {
     { algorithm: { name: 'AES-GCM', length: 128 },
       usages: ['decrypt', 'encrypt', 'decrypt'],
       expected: ['encrypt', 'decrypt'] },
-  ];
-
-  if (!process.features.openssl_is_boringssl) {
-    jwkVectors.push({
-      algorithm: { name: 'AES-KW', length: 128 },
+    { algorithm: { name: 'AES-KW', length: 128 },
       usages: ['wrapKey', 'unwrapKey', 'wrapKey', 'unwrapKey'],
-      expected: ['wrapKey', 'unwrapKey'],
-    });
-  } else {
-    common.printSkipMessage('AES-KW is not supported in BoringSSL');
-  }
+      expected: ['wrapKey', 'unwrapKey'] },
+  ];
 
   if (hasOpenSSL(3)) {
     jwkVectors.push({
