@@ -131,7 +131,6 @@ class EnvironmentOptions : public Options {
   bool experimental_ffi = EXPERIMENTALS_DEFAULT_VALUE;
   bool experimental_websocket = true;
   bool experimental_sqlite = HAVE_SQLITE;
-  bool experimental_stream_iter = false;
   bool experimental_logger = false;
   bool experimental_stream_iter = EXPERIMENTALS_DEFAULT_VALUE;
   bool webstorage = HAVE_SQLITE;
