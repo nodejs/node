@@ -6,7 +6,6 @@ const pqc = hasOpenSSL(3, 5);
 const argon2 = hasOpenSSL(3, 2);
 const shake128 = crypto.getHashes().includes('shake128');
 const shake256 = crypto.getHashes().includes('shake256');
-const chacha = crypto.getCiphers().includes('chacha20-poly1305');
 const ocb = hasOpenSSL(3);
 const kmac = hasOpenSSL(3);
 const boringSSL = process.features.openssl_is_boringssl;
@@ -78,7 +77,7 @@ export const vectors = {
     [pqc, 'ML-KEM-512'],
     [pqc, 'ML-KEM-768'],
     [pqc, 'ML-KEM-1024'],
-    [chacha, 'ChaCha20-Poly1305'],
+    [true, 'ChaCha20-Poly1305'],
     [ocb, { name: 'AES-OCB', length: 128 }],
     [false, 'Argon2d'],
     [false, 'Argon2i'],
@@ -99,7 +98,7 @@ export const vectors = {
     [pqc, 'ML-KEM-512'],
     [pqc, 'ML-KEM-768'],
     [pqc, 'ML-KEM-1024'],
-    [chacha, 'ChaCha20-Poly1305'],
+    [true, 'ChaCha20-Poly1305'],
     [ocb, { name: 'AES-OCB', length: 128 }],
     [argon2, 'Argon2d'],
     [argon2, 'Argon2i'],
@@ -120,7 +119,7 @@ export const vectors = {
     [pqc, 'ML-KEM-512'],
     [pqc, 'ML-KEM-768'],
     [pqc, 'ML-KEM-1024'],
-    [chacha, 'ChaCha20-Poly1305'],
+    [true, 'ChaCha20-Poly1305'],
     [ocb, 'AES-OCB'],
     [false, 'Argon2d'],
     [false, 'Argon2i'],
@@ -186,9 +185,9 @@ export const vectors = {
     [false, { name: 'Argon2d', nonce: Buffer.alloc(8), parallelism: 16777215, memory: 8, passes: 1 }, 32],
   ],
   'encrypt': [
-    [chacha, { name: 'ChaCha20-Poly1305', iv: Buffer.alloc(12) }],
+    [true, { name: 'ChaCha20-Poly1305', iv: Buffer.alloc(12) }],
     [false, { name: 'ChaCha20-Poly1305', iv: Buffer.alloc(16) }],
-    [chacha, { name: 'ChaCha20-Poly1305', iv: Buffer.alloc(12), tagLength: 128 }],
+    [true, { name: 'ChaCha20-Poly1305', iv: Buffer.alloc(12), tagLength: 128 }],
     [false, { name: 'ChaCha20-Poly1305', iv: Buffer.alloc(12), tagLength: 64 }],
     [false, 'ChaCha20-Poly1305'],
     [ocb, { name: 'AES-OCB', iv: Buffer.alloc(15) }],

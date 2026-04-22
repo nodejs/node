@@ -67,23 +67,16 @@ if (process.features.openssl_is_boringssl) {
     'derive_bits_keys/cfrg_curves_keys_curve448.tentative.https.any.js',
     'digest/cshake.tentative.https.any.js',
     'digest/sha3.tentative.https.any.js',
-    'encrypt_decrypt/chacha20_poly1305.tentative.https.any.js',
     'generateKey/failures_Ed448.tentative.https.any.js',
     'generateKey/failures_X448.tentative.https.any.js',
-    'generateKey/failures_chacha20_poly1305.tentative.https.any.js',
     'generateKey/successes_Ed448.tentative.https.any.js',
     'generateKey/successes_X448.tentative.https.any.js',
-    'generateKey/successes_chacha20_poly1305.tentative.https.any.js',
-    'import_export/ChaCha20-Poly1305_importKey.tentative.https.any.js',
     'import_export/okp_importKey_Ed448.tentative.https.any.js',
     'import_export/okp_importKey_failures_Ed448.tentative.https.any.js',
     'import_export/okp_importKey_failures_X448.tentative.https.any.js',
     'import_export/okp_importKey_X448.tentative.https.any.js',
     'sign_verify/eddsa_curve448.tentative.https.any.js');
 
-  skipSubtests(
-    ['supports-modern.tentative.https.any.js', /ChaCha20-Poly1305/],
-    ['supports-modern.tentative.https.any.js', /^supports returns true for algorithm objects with valid parameters$/]);
 }
 
 function assertNoOverlap(fileSkips, subtestSkips) {

@@ -142,7 +142,16 @@ const vectors = {
       'wrapKey',
       'unwrapKey',
     ],
-  }
+  },
+  'ChaCha20-Poly1305': {
+    result: 'CryptoKey',
+    usages: [
+      'encrypt',
+      'decrypt',
+      'wrapKey',
+      'unwrapKey',
+    ],
+  },
 };
 
 if (!process.features.openssl_is_boringssl) {
@@ -158,15 +167,6 @@ if (!process.features.openssl_is_boringssl) {
     usages: [
       'deriveKey',
       'deriveBits',
-    ],
-  };
-  vectors['ChaCha20-Poly1305'] = {
-    result: 'CryptoKey',
-    usages: [
-      'encrypt',
-      'decrypt',
-      'wrapKey',
-      'unwrapKey',
     ],
   };
 } else {
