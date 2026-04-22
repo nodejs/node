@@ -44,21 +44,15 @@ const kWrappingData = {
     wrap: { },
     pair: false
   },
-};
-
-
-if (!process.features.openssl_is_boringssl) {
-  kWrappingData['ChaCha20-Poly1305'] = {
+  'ChaCha20-Poly1305': {
     wrap: {
       iv: new Uint8Array(12),
       additionalData: new Uint8Array(16),
       tagLength: 128
     },
     pair: false
-  };
-} else {
-  common.printSkipMessage('Skipping unsupported ChaCha20-Poly1305 test case');
-}
+  }
+};
 
 if (hasOpenSSL(3)) {
   kWrappingData['AES-OCB'] = {
@@ -197,19 +191,14 @@ async function generateKeysToWrap() {
       usages: ['wrapKey', 'unwrapKey'],
       pair: false,
     },
-  ];
-
-  if (!process.features.openssl_is_boringssl) {
-    parameters.push({
+    {
       algorithm: {
         name: 'ChaCha20-Poly1305'
       },
       usages: ['encrypt', 'decrypt'],
       pair: false,
-    });
-  } else {
-    common.printSkipMessage('Skipping unsupported ChaCha20-Poly1305 test case');
-  }
+    },
+  ];
 
   if (hasOpenSSL(3, 5)) {
     for (const name of ['ML-DSA-44', 'ML-DSA-65', 'ML-DSA-87']) {
