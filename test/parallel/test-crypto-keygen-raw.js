@@ -158,12 +158,14 @@ const { hasOpenSSL } = require('../common/crypto');
 }
 
 // Test error: raw with DSA.
-{
+if (!process.features.openssl_is_boringssl) {
   assert.throws(() => generateKeyPairSync('dsa', {
     modulusLength: 2048,
     publicKeyEncoding: { format: 'raw-public' },
     privateKeyEncoding: { format: 'raw-private' },
   }), { code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS' });
+} else {
+  common.printSkipMessage(`Skipping unsupported dsa test case`);
 }
 
 // Test error: raw-private in publicKeyEncoding.

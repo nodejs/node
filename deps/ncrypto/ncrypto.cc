@@ -3103,9 +3103,13 @@ const Cipher Cipher::AES_256_GCM = Cipher::FromNid(NID_aes_256_gcm);
 const Cipher Cipher::AES_128_KW = Cipher::FromNid(NID_id_aes128_wrap);
 const Cipher Cipher::AES_192_KW = Cipher::FromNid(NID_id_aes192_wrap);
 const Cipher Cipher::AES_256_KW = Cipher::FromNid(NID_id_aes256_wrap);
+
+#ifndef OPENSSL_IS_BORINGSSL
 const Cipher Cipher::AES_128_OCB = Cipher::FromNid(NID_aes_128_ocb);
 const Cipher Cipher::AES_192_OCB = Cipher::FromNid(NID_aes_192_ocb);
 const Cipher Cipher::AES_256_OCB = Cipher::FromNid(NID_aes_256_ocb);
+#endif
+
 const Cipher Cipher::CHACHA20_POLY1305 = Cipher::FromNid(NID_chacha20_poly1305);
 
 bool Cipher::isGcmMode() const {

@@ -8,8 +8,10 @@ common.expectWarning({
   DeprecationWarning: [
     ['crypto.Hash constructor is deprecated.',
      'DEP0179'],
-    ['Creating SHAKE128/256 digests without an explicit options.outputLength is deprecated.',
-     'DEP0198'],
+    ...(process.features.openssl_is_boringssl ? [] : [[
+      'Creating SHAKE128/256 digests without an explicit options.outputLength is deprecated.',
+      'DEP0198',
+    ]]),
   ]
 });
 
@@ -269,6 +271,8 @@ if (!process.features.openssl_is_boringssl) {
     assert.throws(() => crypto.createHash('sha256', { outputLength }),
                   { code: 'ERR_OUT_OF_RANGE' });
   }
+} else {
+  common.printSkipMessage('Skipping unsupported XOF hash test cases');
 }
 
 {

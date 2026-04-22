@@ -59,17 +59,21 @@ await subtle.deriveKey(
   true,
   ['encrypt', 'decrypt']);
 
-const wrappingKey = await subtle.generateKey(
-  { name: 'AES-KW', length: 256 }, true, ['wrapKey', 'unwrapKey']);
+if (!process.features.openssl_is_boringssl) {
+  const wrappingKey = await subtle.generateKey(
+    { name: 'AES-KW', length: 256 }, true, ['wrapKey', 'unwrapKey']);
 
-const keyToWrap = await subtle.generateKey(
-  { name: 'AES-CBC', length: 256 }, true, ['encrypt', 'decrypt']);
+  const keyToWrap = await subtle.generateKey(
+    { name: 'AES-CBC', length: 256 }, true, ['encrypt', 'decrypt']);
 
-const wrapped = await subtle.wrapKey('raw', keyToWrap, wrappingKey, 'AES-KW');
+  const wrapped = await subtle.wrapKey('raw', keyToWrap, wrappingKey, 'AES-KW');
 
-await subtle.unwrapKey(
-  'raw', wrapped, wrappingKey, 'AES-KW',
-  { name: 'AES-CBC', length: 256 }, true, ['encrypt', 'decrypt']);
+  await subtle.unwrapKey(
+    'raw', wrapped, wrappingKey, 'AES-KW',
+    { name: 'AES-CBC', length: 256 }, true, ['encrypt', 'decrypt']);
+} else {
+  common.printSkipMessage('Skipping unsupported AES-KW test case');
+}
 
 const { privateKey } = await subtle.generateKey(
   { name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);

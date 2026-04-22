@@ -34,10 +34,15 @@ const { hasOpenSSL } = require('../common/crypto');
 
 // Key types that don't support raw-* formats
 {
-  for (const [type, pub, priv] of [
+  const unsupportedKeyTypes = [
     ['rsa', 'rsa_public_2048.pem', 'rsa_private_2048.pem'],
-    ['dsa', 'dsa_public.pem', 'dsa_private.pem'],
-  ]) {
+  ];
+  if (!process.features.openssl_is_boringssl) {
+    unsupportedKeyTypes.push(['dsa', 'dsa_public.pem', 'dsa_private.pem']);
+  } else {
+    common.printSkipMessage('Skipping unsupported dsa test case');
+  }
+  for (const [type, pub, priv] of unsupportedKeyTypes) {
     const pubKeyObj = crypto.createPublicKey(
       fixtures.readKey(pub, 'ascii'));
     const privKeyObj = crypto.createPrivateKey(
@@ -58,7 +63,7 @@ const { hasOpenSSL } = require('../common/crypto');
   }
 
   // DH keys also don't support raw formats
-  {
+  if (!process.features.openssl_is_boringssl) {
     const privKeyObj = crypto.createPrivateKey(
       fixtures.readKey('dh_private.pem', 'ascii'));
     assert.throws(() => privKeyObj.export({ format: 'raw-private' }),
@@ -69,6 +74,8 @@ const { hasOpenSSL } = require('../common/crypto');
         key: Buffer.alloc(32), format, asymmetricKeyType: 'dh',
       }), { code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS' });
     }
+  } else {
+    common.printSkipMessage('Skipping unsupported dh test case');
   }
 }
 
@@ -224,7 +231,12 @@ if (hasOpenSSL(3, 5)) {
   assert.throws(() => ecPriv.export({ format: 'raw-seed' }),
                 { code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS' });
 
-  for (const type of ['ed25519', 'ed448', 'x25519', 'x448']) {
+  if (process.features.openssl_is_boringssl) {
+    common.printSkipMessage('Skipping unsupported ed448/x448 test cases');
+  }
+  for (const type of process.features.openssl_is_boringssl ?
+    ['ed25519', 'x25519'] :
+    ['ed25519', 'ed448', 'x25519', 'x448']) {
     const priv = crypto.createPrivateKey(
       fixtures.readKey(`${type}_private.pem`, 'ascii'));
     assert.throws(() => priv.export({ format: 'raw-seed' }),
@@ -392,7 +404,12 @@ if (hasOpenSSL(3, 5)) {
 
 // x25519, ed25519, x448, and ed448 cannot be used as 'ec' namedCurve values
 {
-  for (const type of ['ed25519', 'x25519', 'ed448', 'x448']) {
+  if (process.features.openssl_is_boringssl) {
+    common.printSkipMessage('Skipping unsupported ed448/x448 test cases');
+  }
+  for (const type of process.features.openssl_is_boringssl ?
+    ['ed25519', 'x25519'] :
+    ['ed25519', 'x25519', 'ed448', 'x448']) {
     const priv = crypto.createPrivateKey(
       fixtures.readKey(`${type}_private.pem`, 'ascii'));
     const pub = crypto.createPublicKey(

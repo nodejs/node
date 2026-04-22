@@ -4,6 +4,9 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+if (process.features.openssl_is_boringssl)
+  common.skip('BoringSSL does not support FIPS');
+
 const assert = require('assert');
 const spawnSync = require('child_process').spawnSync;
 const path = require('path');
