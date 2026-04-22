@@ -135,6 +135,14 @@ const vectors = {
       'deriveBits',
     ],
   },
+  'AES-KW': {
+    algorithm: { length: 256 },
+    result: 'CryptoKey',
+    usages: [
+      'wrapKey',
+      'unwrapKey',
+    ],
+  }
 };
 
 if (!process.features.openssl_is_boringssl) {
@@ -150,14 +158,6 @@ if (!process.features.openssl_is_boringssl) {
     usages: [
       'deriveKey',
       'deriveBits',
-    ],
-  };
-  vectors['AES-KW'] = {
-    algorithm: { length: 256 },
-    result: 'CryptoKey',
-    usages: [
-      'wrapKey',
-      'unwrapKey',
     ],
   };
   vectors['ChaCha20-Poly1305'] = {
@@ -606,16 +606,9 @@ if (hasOpenSSL(3, 5)) {
     [ 'AES-CBC', 256, ['encrypt', 'decrypt']],
     [ 'AES-GCM', 128, ['encrypt', 'decrypt']],
     [ 'AES-GCM', 256, ['encrypt', 'decrypt']],
+    [ 'AES-KW', 128, ['wrapKey', 'unwrapKey']],
+    [ 'AES-KW', 256, ['wrapKey', 'unwrapKey']],
   ];
-
-  if (!process.features.openssl_is_boringssl) {
-    kTests.push(
-      [ 'AES-KW', 128, ['wrapKey', 'unwrapKey']],
-      [ 'AES-KW', 256, ['wrapKey', 'unwrapKey']],
-    );
-  } else {
-    common.printSkipMessage('Skipping unsupported AES-KW test cases');
-  }
 
   const tests = Promise.all(kTests.map((args) => test(...args)));
 

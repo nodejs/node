@@ -39,14 +39,15 @@ const kWrappingData = {
     },
     pair: false
   },
-};
-
-if (!process.features.openssl_is_boringssl) {
-  kWrappingData['AES-KW'] = {
+  'AES-KW': {
     generate: { length: 128 },
     wrap: { },
     pair: false
-  };
+  },
+};
+
+
+if (!process.features.openssl_is_boringssl) {
   kWrappingData['ChaCha20-Poly1305'] = {
     wrap: {
       iv: new Uint8Array(12),
@@ -56,7 +57,7 @@ if (!process.features.openssl_is_boringssl) {
     pair: false
   };
 } else {
-  common.printSkipMessage('Skipping unsupported AES-KW test case');
+  common.printSkipMessage('Skipping unsupported ChaCha20-Poly1305 test case');
 }
 
 if (hasOpenSSL(3)) {
@@ -188,20 +189,15 @@ async function generateKeysToWrap() {
       usages: ['sign', 'verify'],
       pair: false,
     },
-  ];
-
-  if (!process.features.openssl_is_boringssl) {
-    parameters.push({
+    {
       algorithm: {
         name: 'AES-KW',
         length: 128
       },
       usages: ['wrapKey', 'unwrapKey'],
       pair: false,
-    });
-  } else {
-    common.printSkipMessage('Skipping unsupported AES-KW test case');
-  }
+    },
+  ];
 
   if (!process.features.openssl_is_boringssl) {
     parameters.push({
