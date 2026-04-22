@@ -213,7 +213,7 @@ then untrusted input must not lead to arbitrary JavaScript code execution.
   along with anything under the control of the operating system.
 * The code it is asked to run, including JavaScript, WASM and native code, even
   if said code is dynamically loaded, e.g., all dependencies installed from the
-  npm registry.
+  npm registry or libraries loaded via `node:ffi`.
   The code run inherits all the privileges of the execution user.
 * Inputs provided to it by the code it is asked to run, as it is the
   responsibility of the application to perform the required input validations,
