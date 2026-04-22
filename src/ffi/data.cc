@@ -25,6 +25,7 @@ using v8::MaybeLocal;
 using v8::NewStringType;
 using v8::Number;
 using v8::Object;
+using v8::SharedArrayBuffer;
 using v8::String;
 using v8::Value;
 
@@ -675,26 +676,17 @@ void ExportBytes(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  const uint8_t* source_data = nullptr;
-  size_t source_len = 0;
+  // This needs to be kept alive until the data
+  // is actually copied.
+  ArrayBufferViewContents<uint8_t> view;
 
-  if (args[0]->IsArrayBuffer()) {
-    Local<ArrayBuffer> array_buffer = args[0].As<ArrayBuffer>();
-    std::shared_ptr<BackingStore> store = array_buffer->GetBackingStore();
-    if (!store) {
-      THROW_ERR_INVALID_ARG_VALUE(env, "Invalid ArrayBuffer backing store");
-      return;
-    }
-    source_data = static_cast<const uint8_t*>(store->Data());
-    source_len = array_buffer->ByteLength();
-  } else if (args[0]->IsArrayBufferView()) {
-    ArrayBufferViewContents<uint8_t> view(args[0]);
+  if (args[0]->IsArrayBuffer() || args[0]->IsSharedArrayBuffer() ||
+      args[0]->IsArrayBufferView()) {
+    view.ReadValue(args[0]);
     if (view.WasDetached()) {
       THROW_ERR_INVALID_ARG_VALUE(env, "Invalid ArrayBufferView backing store");
       return;
     }
-    source_data = view.data();
-    source_len = view.length();
   } else {
     THROW_ERR_INVALID_ARG_TYPE(
         env,
@@ -713,12 +705,12 @@ void ExportBytes(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  if (len < source_len) {
+  if (len < view.length()) {
     THROW_ERR_OUT_OF_RANGE(env, "The length must be >= source byte length");
     return;
   }
 
-  if (ptr == 0 && source_len > 0) {
+  if (ptr == 0 && view.length() > 0) {
     THROW_ERR_FFI_INVALID_POINTER(env,
                                   "Cannot create a buffer from a null pointer");
     return;
@@ -733,9 +725,7 @@ void ExportBytes(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  if (source_len > 0) {
-    std::memcpy(reinterpret_cast<void*>(ptr), source_data, source_len);
-  }
+  std::memcpy(reinterpret_cast<void*>(ptr), view.data(), view.length());
 }
 
 void GetRawPointer(const FunctionCallbackInfo<Value>& args) {
@@ -752,28 +742,34 @@ void GetRawPointer(const FunctionCallbackInfo<Value>& args) {
   }
 
   uintptr_t ptr = 0;
+  size_t offset = 0;
+  std::shared_ptr<BackingStore> store;
 
   if (args[0]->IsArrayBuffer()) {
-    Local<ArrayBuffer> array_buffer = args[0].As<ArrayBuffer>();
-    std::shared_ptr<BackingStore> store = array_buffer->GetBackingStore();
-    if (!store) {
-      THROW_ERR_INVALID_ARG_VALUE(env, "Invalid ArrayBuffer backing store");
-      return;
-    }
-    ptr = reinterpret_cast<uintptr_t>(store->Data());
+    store = args[0].As<ArrayBuffer>()->GetBackingStore();
+  } else if (args[0]->IsSharedArrayBuffer()) {
+    store = args[0].As<SharedArrayBuffer>()->GetBackingStore();
   } else if (args[0]->IsArrayBufferView()) {
-    ArrayBufferViewContents<uint8_t> view(args[0]);
-    if (view.WasDetached()) {
-      THROW_ERR_INVALID_ARG_VALUE(env, "Invalid ArrayBufferView backing store");
-      return;
-    }
-    ptr = reinterpret_cast<uintptr_t>(view.data());
+    // Access the store here to ensure that it exists. Small typed arrays
+    // may not have a store until this point and can instead be stored
+    // entirely in-heap.
+    store = args[0].As<ArrayBufferView>()->Buffer()->GetBackingStore();
+    offset = args[0].As<ArrayBufferView>()->ByteOffset();
   } else {
-    THROW_ERR_INVALID_ARG_TYPE(
-        env,
-        "The first argument must be a Buffer, ArrayBuffer, or ArrayBufferView");
+    THROW_ERR_INVALID_ARG_TYPE(env,
+                               "The first argument must be a Buffer, "
+                               "ArrayBuffer, or ArrayBufferView");
     return;
   }
+
+  // WARNING: There is no inherent guarantee that the pointer returned
+  // from this function will be valid beyond the lifetime of the BackingStore
+  // instance!
+  if (!store) {
+    THROW_ERR_INVALID_ARG_VALUE(env, "Invalid ArrayBuffer backing store");
+    return;
+  }
+  ptr = reinterpret_cast<uintptr_t>(store->Data()) + offset;
 
   args.GetReturnValue().Set(
       BigInt::NewFromUnsigned(isolate, static_cast<uint64_t>(ptr)));
