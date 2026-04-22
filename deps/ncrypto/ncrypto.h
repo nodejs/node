@@ -309,9 +309,12 @@ class Cipher final {
 #else
   static constexpr size_t MAX_AUTH_TAG_LENGTH = 16;
 #endif
-  static_assert(EVP_GCM_TLS_TAG_LEN <= MAX_AUTH_TAG_LENGTH &&
-                EVP_CCM_TLS_TAG_LEN <= MAX_AUTH_TAG_LENGTH &&
-                EVP_CHACHAPOLY_TLS_TAG_LEN <= MAX_AUTH_TAG_LENGTH);
+  static_assert(EVP_GCM_TLS_TAG_LEN <= MAX_AUTH_TAG_LENGTH
+#ifndef OPENSSL_IS_BORINGSSL
+                && EVP_CCM_TLS_TAG_LEN <= MAX_AUTH_TAG_LENGTH &&
+                EVP_CHACHAPOLY_TLS_TAG_LEN <= MAX_AUTH_TAG_LENGTH
+#endif
+  );  // NOLINT(whitespace/parens)
 
   Cipher() = default;
   Cipher(const EVP_CIPHER* cipher) : cipher_(cipher) {}

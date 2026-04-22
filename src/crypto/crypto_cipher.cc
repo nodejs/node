@@ -432,61 +432,46 @@ bool CipherBase::InitAuthenticated(const char* cipher_type,
     return false;
   }
 
-  if (ctx_.isGcmMode()) {
-    if (auth_tag_len != kNoAuthTagLength) {
-      if (!Cipher::IsValidGCMTagLength(auth_tag_len)) {
-        THROW_ERR_CRYPTO_INVALID_AUTH_TAG(
-          env(),
-          "Invalid authentication tag length: %u",
-          auth_tag_len);
-        return false;
-      }
-
-      // Remember the given authentication tag length for later.
-      auth_tag_len_ = auth_tag_len;
-    }
-  } else {
-    if (auth_tag_len == kNoAuthTagLength) {
-      // We treat ChaCha20-Poly1305 specially. Like GCM, the authentication tag
-      // length defaults to 16 bytes when encrypting. Unlike GCM, the
-      // authentication tag length also defaults to 16 bytes when decrypting,
-      // whereas GCM would accept any valid authentication tag length.
-      if (ctx_.isChaCha20Poly1305()) {
-        auth_tag_len = EVP_CHACHAPOLY_TLS_TAG_LEN;
-      } else {
-        THROW_ERR_CRYPTO_INVALID_AUTH_TAG(
-          env(), "authTagLength required for %s", cipher_type);
-        return false;
-      }
-    }
-
+  if (ctx_.isCcmMode()) {
     // TODO(tniessen) Support CCM decryption in FIPS mode
-
-    if (ctx_.isCcmMode() && kind_ == kDecipher && ncrypto::isFipsEnabled()) {
-      THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(env(),
-          "CCM encryption not supported in FIPS mode");
+    if (kind_ == kDecipher && ncrypto::isFipsEnabled()) {
+      THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(
+          env(), "CCM encryption not supported in FIPS mode");
       return false;
     }
 
-    // Tell OpenSSL about the desired length.
-    if (!ctx_.setAeadTagLength(auth_tag_len)) {
-      THROW_ERR_CRYPTO_INVALID_AUTH_TAG(
-          env(), "Invalid authentication tag length: %u", auth_tag_len);
-      return false;
-    }
-
-    // Remember the given authentication tag length for later.
-    auth_tag_len_ = auth_tag_len;
-
-    if (ctx_.isCcmMode()) {
-      // Restrict the message length to min(INT_MAX, 2^(8*(15-iv_len))-1) bytes.
-      CHECK(iv_len >= 7 && iv_len <= 13);
-      max_message_size_ = INT_MAX;
-      if (iv_len == 12) max_message_size_ = 16777215;
-      if (iv_len == 13) max_message_size_ = 65535;
-    }
+    // Restrict the message length to min(INT_MAX, 2^(8*(15-iv_len))-1) bytes.
+    CHECK(iv_len >= 7 && iv_len <= 13);
+    max_message_size_ = INT_MAX;
+    if (iv_len == 12) max_message_size_ = 16777215;
+    if (iv_len == 13) max_message_size_ = 65535;
   }
 
+  if (auth_tag_len == kNoAuthTagLength) {
+    // GCM accepts any valid authentication tag length when decrypting without
+    // an explicit authTagLength. This remains deprecated, but supported.
+    if (ctx_.isGcmMode()) {
+      return true;
+#ifdef EVP_CHACHAPOLY_TLS_TAG_LEN
+    } else if (ctx_.isChaCha20Poly1305()) {
+      auth_tag_len = EVP_CHACHAPOLY_TLS_TAG_LEN;
+#endif
+    } else {
+      THROW_ERR_CRYPTO_INVALID_AUTH_TAG(
+          env(), "authTagLength required for %s", cipher_type);
+      return false;
+    }
+  } else if ((ctx_.isGcmMode() && !Cipher::IsValidGCMTagLength(auth_tag_len)) ||
+             (!ctx_.isGcmMode() && !ctx_.setAeadTagLength(auth_tag_len))) {
+    // GCM authentication tag lengths are restricted according to NIST 800-38d,
+    // page 9. For other modes, we rely on OpenSSL to validate the length.
+    THROW_ERR_CRYPTO_INVALID_AUTH_TAG(
+        env(), "Invalid authentication tag length: %u", auth_tag_len);
+    return false;
+  }
+
+  // Remember the given authentication tag length for later.
+  auth_tag_len_ = auth_tag_len;
   return true;
 }
 
