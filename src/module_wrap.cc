@@ -43,6 +43,7 @@ using v8::Just;
 using v8::JustVoid;
 using v8::Local;
 using v8::LocalVector;
+using v8::Location;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::MemorySpan;
@@ -595,7 +596,10 @@ static Local<Object> createImportAttributesContainer(
 }
 
 static Local<Array> createModuleRequestsContainer(
-    Realm* realm, Isolate* isolate, Local<FixedArray> raw_requests) {
+    Realm* realm,
+    Isolate* isolate,
+    Local<Module> module,
+    Local<FixedArray> raw_requests) {
   EscapableHandleScope scope(isolate);
   Local<Context> context = realm->context();
   LocalVector<Value> requests(isolate, raw_requests->Length());
@@ -606,6 +610,8 @@ static Local<Array> createModuleRequestsContainer(
         raw_requests->Get(realm->context(), i).As<ModuleRequest>();
 
     Local<String> specifier = module_request->GetSpecifier();
+    int source_offset = module_request->GetSourceOffset();
+    Location location = module->SourceOffsetToLocation(source_offset);
 
     // Contains the import attributes for this request in the form:
     // [key1, value1, source_offset1, key2, value2, source_offset2, ...].
@@ -618,11 +624,15 @@ static Local<Array> createModuleRequestsContainer(
         realm->isolate_data()->specifier_string(),
         realm->isolate_data()->attributes_string(),
         realm->isolate_data()->phase_string(),
+        FIXED_ONE_BYTE_STRING(isolate, "lineNumber"),
+        FIXED_ONE_BYTE_STRING(isolate, "columnNumber"),
     };
     Local<Value> values[] = {
         specifier,
         attributes,
         Integer::New(isolate, to_phase_constant(phase)),
+        Integer::New(isolate, location.GetLineNumber()),
+        Integer::New(isolate, location.GetColumnNumber()),
     };
     DCHECK_EQ(arraysize(names), arraysize(values));
 
@@ -646,7 +656,7 @@ void ModuleWrap::GetModuleRequests(const FunctionCallbackInfo<Value>& args) {
 
   Local<Module> module = obj->module_.Get(isolate);
   args.GetReturnValue().Set(createModuleRequestsContainer(
-      realm, isolate, module->GetModuleRequests()));
+      realm, isolate, module, module->GetModuleRequests()));
 }
 
 // moduleWrap.link(moduleWraps)
