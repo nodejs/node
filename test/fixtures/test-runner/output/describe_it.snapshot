@@ -40,18 +40,13 @@ not ok 7 - sync todo # TODO
   ---
   duration_ms: *
   type: 'test'
-  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):4'
+  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:30:4'
   failureType: 'testCodeFailure'
   error: 'should not count as a failure'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
-    *
-    *
-    *
-    *
-    *
-    *
+    TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/describe_it.js:31:9)
+    <node-internal-frames>
   ...
 # Subtest: sync todo with expect fail
 ok 8 - sync todo with expect fail # TODO
@@ -64,18 +59,13 @@ not ok 9 - sync todo with message # TODO this is a failing todo
   ---
   duration_ms: *
   type: 'test'
-  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:38:1'
   failureType: 'testCodeFailure'
   error: 'should not count as a failure'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
-    *
-    *
-    *
-    *
-    *
-    *
+    TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/describe_it.js:39:9)
+    <node-internal-frames>
   ...
 # Subtest: sync skip pass
 ok 10 - sync skip pass # SKIP
@@ -106,18 +96,13 @@ not ok 14 - sync throw fail
   ---
   duration_ms: *
   type: 'test'
-  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:55:1'
   failureType: 'testCodeFailure'
   error: 'thrown from sync throw fail'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
-    *
-    *
-    *
-    *
-    *
-    *
+    TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/describe_it.js:56:9)
+    <node-internal-frames>
   ...
 # Subtest: async skip pass
 ok 15 - async skip pass # SKIP
@@ -142,25 +127,20 @@ not ok 18 - async throw fail
   ---
   duration_ms: *
   type: 'test'
-  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:68:1'
   failureType: 'testCodeFailure'
   error: 'thrown from async throw fail'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
-    *
-    *
-    *
-    *
-    *
-    *
+    TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/describe_it.js:69:9)
+    <node-internal-frames>
   ...
 # Subtest: async skip fail
 not ok 19 - async skip fail # SKIP
   ---
   duration_ms: *
   type: 'test'
-  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:72:1'
   failureType: 'callbackAndPromisePresent'
   error: 'passed a callback but also returned a Promise'
   code: 'ERR_TEST_FAILURE'
@@ -170,7 +150,7 @@ not ok 20 - async assertion fail
   ---
   duration_ms: *
   type: 'test'
-  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:77:1'
   failureType: 'testCodeFailure'
   error: |-
     Expected values to be strictly equal:
@@ -183,13 +163,8 @@ not ok 20 - async assertion fail
   actual: true
   operator: 'strictEqual'
   stack: |-
-    *
-    *
-    *
-    *
-    *
-    *
-    *
+    TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/describe_it.js:79:10)
+    <node-internal-frames>
   ...
 # Subtest: resolve pass
 ok 21 - resolve pass
@@ -202,18 +177,13 @@ not ok 22 - reject fail
   ---
   duration_ms: *
   type: 'test'
-  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:86:1'
   failureType: 'testCodeFailure'
   error: 'rejected from reject fail'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
-    *
-    *
-    *
-    *
-    *
-    *
+    TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/describe_it.js:87:25)
+    <node-internal-frames>
   ...
 # Subtest: unhandled rejection - passes but warns
 ok 23 - unhandled rejection - passes but warns
@@ -251,20 +221,15 @@ ok 27 - immediate resolve pass
       ---
       duration_ms: *
       type: 'test'
-      location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):3'
+      location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:119:3'
       failureType: 'testCodeFailure'
       error: 'thrown from subtest sync throw fail'
       code: 'ERR_TEST_FAILURE'
       stack: |-
-        *
-        *
-        *
-        *
-        *
-        *
+        TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/describe_it.js:120:11)
+        <node-internal-frames>
         new Promise (<anonymous>)
-        *
-        *
+        <node-internal-frames>
         Array.map (<anonymous>)
       ...
     # Subtest: mixing describe/it and test should work
@@ -278,7 +243,7 @@ not ok 28 - subtest sync throw fail
   ---
   duration_ms: *
   type: 'suite'
-  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:118:1'
   failureType: 'subtestsFailed'
   error: '1 subtest failed'
   code: 'ERR_TEST_FAILURE'
@@ -288,7 +253,7 @@ not ok 29 - sync throw non-error fail
   ---
   duration_ms: *
   type: 'test'
-  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:125:1'
   failureType: 'testCodeFailure'
   error: 'Symbol(thrown symbol from sync throw non-error fail)'
   code: 'ERR_TEST_FAILURE'
@@ -347,18 +312,13 @@ not ok 34 - sync skip option is false fail
   ---
   duration_ms: *
   type: 'test'
-  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:194:1'
   failureType: 'testCodeFailure'
   error: 'this should be executed'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
-    *
-    *
-    *
-    *
-    *
-    *
+    TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/describe_it.js:195:9)
+    <node-internal-frames>
   ...
 # Subtest: <anonymous>
 ok 35 - <anonymous>
@@ -419,13 +379,13 @@ not ok 44 - callback fail
   ---
   duration_ms: *
   type: 'test'
-  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:226:1'
   failureType: 'testCodeFailure'
   error: 'callback failure'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
-    *
+    Immediate.<anonymous> (<project-root>/test/fixtures/test-runner/output/describe_it.js:228:10)
+    <node-internal-frames>
   ...
 # Subtest: sync t is this in test
 ok 45 - sync t is this in test
@@ -450,7 +410,7 @@ not ok 48 - callback also returns a Promise
   ---
   duration_ms: *
   type: 'test'
-  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:245:1'
   failureType: 'callbackAndPromisePresent'
   error: 'passed a callback but also returned a Promise'
   code: 'ERR_TEST_FAILURE'
@@ -460,31 +420,26 @@ not ok 49 - callback throw
   ---
   duration_ms: *
   type: 'test'
-  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:249:1'
   failureType: 'testCodeFailure'
   error: 'thrown from callback throw'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
-    *
-    *
-    *
-    *
-    *
-    *
+    TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/describe_it.js:250:9)
+    <node-internal-frames>
   ...
 # Subtest: callback called twice
 not ok 50 - callback called twice
   ---
   duration_ms: *
   type: 'test'
-  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:253:1'
   failureType: 'multipleCallbackInvocations'
   error: 'callback invoked multiple times'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
-    *
+    TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/describe_it.js:255:3)
+    <node-internal-frames>
   ...
 # Subtest: callback called twice in different ticks
 ok 51 - callback called twice in different ticks
@@ -497,25 +452,25 @@ not ok 52 - callback called twice in future tick
   ---
   duration_ms: *
   type: 'test'
-  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:263:1'
   failureType: 'uncaughtException'
   error: 'callback invoked multiple times'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
+    Immediate.<anonymous> (<project-root>/test/fixtures/test-runner/output/describe_it.js:266:5)
   ...
 # Subtest: callback async throw
 not ok 53 - callback async throw
   ---
   duration_ms: *
   type: 'test'
-  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:270:1'
   failureType: 'uncaughtException'
   error: 'thrown from callback async throw'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
-    *
+    Immediate.<anonymous> (<project-root>/test/fixtures/test-runner/output/describe_it.js:272:11)
+    <node-internal-frames>
   ...
 # Subtest: callback async throw after done
 ok 54 - callback async throw after done
@@ -528,7 +483,7 @@ not ok 55 - custom inspect symbol fail
   ---
   duration_ms: *
   type: 'test'
-  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:284:1'
   failureType: 'testCodeFailure'
   error: 'customized'
   code: 'ERR_TEST_FAILURE'
@@ -538,7 +493,7 @@ not ok 56 - custom inspect symbol that throws fail
   ---
   duration_ms: *
   type: 'test'
-  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:295:1'
   failureType: 'testCodeFailure'
   error: |-
     {
@@ -553,20 +508,15 @@ not ok 56 - custom inspect symbol that throws fail
       ---
       duration_ms: *
       type: 'test'
-      location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):3'
+      location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:307:3'
       failureType: 'testCodeFailure'
       error: 'thrown from subtest sync throw fails at first'
       code: 'ERR_TEST_FAILURE'
       stack: |-
-        *
-        *
-        *
-        *
-        *
-        *
+        TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/describe_it.js:308:11)
+        <node-internal-frames>
         new Promise (<anonymous>)
-        *
-        *
+        <node-internal-frames>
         Array.map (<anonymous>)
       ...
     # Subtest: sync throw fails at second
@@ -574,27 +524,22 @@ not ok 56 - custom inspect symbol that throws fail
       ---
       duration_ms: *
       type: 'test'
-      location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):3'
+      location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:310:3'
       failureType: 'testCodeFailure'
       error: 'thrown from subtest sync throw fails at second'
       code: 'ERR_TEST_FAILURE'
       stack: |-
-        *
-        *
-        *
-        *
-        *
-        *
+        TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/describe_it.js:311:11)
+        <node-internal-frames>
         async Promise.all (index 0)
-        *
-        *
+        <node-internal-frames>
       ...
     1..2
 not ok 57 - subtest sync throw fails
   ---
   duration_ms: *
   type: 'suite'
-  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:306:1'
   failureType: 'subtestsFailed'
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
@@ -605,7 +550,7 @@ not ok 57 - subtest sync throw fails
       ---
       duration_ms: *
       type: 'test'
-      location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):3'
+      location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:316:3'
       failureType: 'cancelledByParent'
       error: 'test did not finish before its parent and was cancelled'
       code: 'ERR_TEST_FAILURE'
@@ -615,21 +560,15 @@ not ok 58 - describe sync throw fails
   ---
   duration_ms: *
   type: 'suite'
-  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:315:1'
   failureType: 'testCodeFailure'
   error: 'thrown from describe'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
+    SuiteContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/describe_it.js:317:9)
+    <node-internal-frames>
+    Object.<anonymous> (<project-root>/test/fixtures/test-runner/output/describe_it.js:315:1)
+    <node-internal-frames>
   ...
 # Subtest: describe async throw fails
     # Subtest: should not run
@@ -637,7 +576,7 @@ not ok 58 - describe sync throw fails
       ---
       duration_ms: *
       type: 'test'
-      location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):3'
+      location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:321:3'
       failureType: 'cancelledByParent'
       error: 'test did not finish before its parent and was cancelled'
       code: 'ERR_TEST_FAILURE'
@@ -647,21 +586,15 @@ not ok 59 - describe async throw fails
   ---
   duration_ms: *
   type: 'suite'
-  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:320:1'
   failureType: 'testCodeFailure'
   error: 'thrown from describe'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
+    SuiteContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/describe_it.js:322:9)
+    <node-internal-frames>
+    Object.<anonymous> (<project-root>/test/fixtures/test-runner/output/describe_it.js:320:1)
+    <node-internal-frames>
   ...
 # Subtest: timeouts
     # Subtest: timed out async test
@@ -669,7 +602,7 @@ not ok 59 - describe async throw fails
       ---
       duration_ms: *
       type: 'test'
-      location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):3'
+      location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:326:3'
       failureType: 'testTimeoutFailure'
       error: 'test timed out after 5ms'
       code: 'ERR_TEST_FAILURE'
@@ -681,7 +614,7 @@ not ok 59 - describe async throw fails
       ---
       duration_ms: *
       type: 'test'
-      location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):3'
+      location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:335:3'
       failureType: 'testTimeoutFailure'
       error: 'test timed out after 5ms'
       code: 'ERR_TEST_FAILURE'
@@ -703,7 +636,7 @@ not ok 60 - timeouts
   ---
   duration_ms: *
   type: 'suite'
-  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:325:1'
   failureType: 'subtestsFailed'
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
@@ -720,21 +653,20 @@ not ok 60 - timeouts
       ---
       duration_ms: *
       type: 'test'
-      location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):3'
+      location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:366:3'
       failureType: 'testCodeFailure'
       error: 'custom error'
       code: 'ERR_TEST_FAILURE'
       stack: |-
-        *
-        *
-        *
+        Object.<anonymous> (<project-root>/test/fixtures/test-runner/output/describe_it.js:372:50)
+        <node-internal-frames>
       ...
     1..2
 not ok 61 - successful thenable
   ---
   duration_ms: *
   type: 'suite'
-  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:354:1'
   failureType: 'subtestsFailed'
   error: '1 subtest failed'
   code: 'ERR_TEST_FAILURE'
@@ -744,13 +676,13 @@ not ok 62 - rejected thenable
   ---
   duration_ms: *
   type: 'suite'
-  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:387:1'
   failureType: 'testCodeFailure'
   error: 'custom error'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
-    *
+    Object.<anonymous> (<project-root>/test/fixtures/test-runner/output/describe_it.js:393:48)
+    <node-internal-frames>
   ...
 # Subtest: async describe function
     # Subtest: it inside describe 1
@@ -789,20 +721,20 @@ not ok 64 - invalid subtest fail
   ---
   duration_ms: *
   type: 'test'
-  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:(LINE):5'
+  location: '<project-root>/test/fixtures/test-runner/output/describe_it.js:180:5'
   failureType: 'parentAlreadyFinished'
   error: 'test could not be started because its parent finished'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
+    Immediate.<anonymous> (<project-root>/test/fixtures/test-runner/output/describe_it.js:180:5)
   ...
 1..64
-# Error: Test "unhandled rejection - passes but warns" at test/fixtures/test-runner/output/describe_it.js:(LINE):1 generated asynchronous activity after the test ended. This activity created the error "Error: rejected from unhandled rejection fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
-# Error: Test "async unhandled rejection - passes but warns" at test/fixtures/test-runner/output/describe_it.js:(LINE):1 generated asynchronous activity after the test ended. This activity created the error "Error: rejected from async unhandled rejection fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
-# Error: Test "immediate throw - passes but warns" at test/fixtures/test-runner/output/describe_it.js:(LINE):1 generated asynchronous activity after the test ended. This activity created the error "Error: thrown from immediate throw fail" and would have caused the test to fail, but instead triggered an uncaughtException event.
-# Error: Test "immediate reject - passes but warns" at test/fixtures/test-runner/output/describe_it.js:(LINE):1 generated asynchronous activity after the test ended. This activity created the error "Error: rejected from immediate reject fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
-# Error: Test "callback called twice in different ticks" at test/fixtures/test-runner/output/describe_it.js:(LINE):1 generated asynchronous activity after the test ended. This activity created the error "Error [ERR_TEST_FAILURE]: callback invoked multiple times" and would have caused the test to fail, but instead triggered an uncaughtException event.
-# Error: Test "callback async throw after done" at test/fixtures/test-runner/output/describe_it.js:(LINE):1 generated asynchronous activity after the test ended. This activity created the error "Error: thrown from callback async throw after done" and would have caused the test to fail, but instead triggered an uncaughtException event.
+# Error: Test "unhandled rejection - passes but warns" at test/fixtures/test-runner/output/describe_it.js:90:1 generated asynchronous activity after the test ended. This activity created the error "Error: rejected from unhandled rejection fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
+# Error: Test "async unhandled rejection - passes but warns" at test/fixtures/test-runner/output/describe_it.js:94:1 generated asynchronous activity after the test ended. This activity created the error "Error: rejected from async unhandled rejection fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
+# Error: Test "immediate throw - passes but warns" at test/fixtures/test-runner/output/describe_it.js:98:1 generated asynchronous activity after the test ended. This activity created the error "Error: thrown from immediate throw fail" and would have caused the test to fail, but instead triggered an uncaughtException event.
+# Error: Test "immediate reject - passes but warns" at test/fixtures/test-runner/output/describe_it.js:104:1 generated asynchronous activity after the test ended. This activity created the error "Error: rejected from immediate reject fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
+# Error: Test "callback called twice in different ticks" at test/fixtures/test-runner/output/describe_it.js:258:1 generated asynchronous activity after the test ended. This activity created the error "Error [ERR_TEST_FAILURE]: callback invoked multiple times" and would have caused the test to fail, but instead triggered an uncaughtException event.
+# Error: Test "callback async throw after done" at test/fixtures/test-runner/output/describe_it.js:276:1 generated asynchronous activity after the test ended. This activity created the error "Error: thrown from callback async throw after done" and would have caused the test to fail, but instead triggered an uncaughtException event.
 # tests 73
 # suites 11
 # pass 35

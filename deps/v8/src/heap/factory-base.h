@@ -199,7 +199,8 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
   // The function returns a pre-allocated empty byte array for length = 0.
   Handle<ByteArray> NewByteArray(
-      int length, AllocationType allocation = AllocationType::kYoung);
+      int length, AllocationType allocation = AllocationType::kYoung,
+      AllocationAlignment alignment = kTaggedAligned);
 
   // Allocates a trusted byte array in trusted space, initialized with zeros.
   Handle<TrustedByteArray> NewTrustedByteArray(
@@ -413,8 +414,10 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   static constexpr int kNumberToStringBufferSize = 32;
 
   // Allocate memory for an uninitialized array (e.g., a FixedArray or similar).
-  Tagged<HeapObject> AllocateRawArray(int size, AllocationType allocation,
-                                      AllocationHint hint = AllocationHint());
+  Tagged<HeapObject> AllocateRawArray(
+      int size, AllocationType allocation,
+      AllocationHint hint = AllocationHint(),
+      AllocationAlignment alignment = kTaggedAligned);
   Tagged<HeapObject> AllocateRawFixedArray(int length,
                                            AllocationType allocation);
   Tagged<HeapObject> AllocateRawWeakArrayList(int length,

@@ -48,6 +48,7 @@
   V(constants)                                                                 \
   V(contextify)                                                                \
   V(credentials)                                                               \
+  V(diagnostics_channel)                                                       \
   V(encoding_binding)                                                          \
   V(errors)                                                                    \
   V(fs)                                                                        \
@@ -106,7 +107,8 @@
   NODE_BUILTIN_PROFILER_BINDINGS(V)                                            \
   NODE_BUILTIN_DEBUG_BINDINGS(V)                                               \
   NODE_BUILTIN_QUIC_BINDINGS(V)                                                \
-  NODE_BUILTIN_SQLITE_BINDINGS(V)
+  NODE_BUILTIN_SQLITE_BINDINGS(V)                                              \
+  NODE_BUILTIN_FFI_BINDINGS(V)
 
 // This is used to load built-in bindings. Instead of using
 // __attribute__((constructor)), we call the _register_<modname>

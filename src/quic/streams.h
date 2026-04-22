@@ -37,9 +37,9 @@ using Ngtcp2Source = bob::SourceImpl<ngtcp2_vec>;
 // Note that only locally initiated streams can be created in a pending state.
 class PendingStream final {
  public:
-  PendingStream(Direction direction,
-                Stream* stream,
-                BaseObjectWeakPtr<Session> session);
+  explicit PendingStream(Direction direction,
+                         Stream* stream,
+                         BaseObjectWeakPtr<Session> session);
   DISALLOW_COPY_AND_MOVE(PendingStream)
   ~PendingStream();
 
@@ -233,7 +233,7 @@ class Stream final : public AsyncWrap,
   // indication occuring the first time data is sent. It does not indicate
   // that the data has been retransmitted due to loss or has been
   // acknowledged to have been received by the peer.
-  void Commit(size_t datalen);
+  void Commit(size_t datalen, bool fin = false);
 
   void EndWritable();
   void EndReadable(std::optional<uint64_t> maybe_final_size = std::nullopt);
@@ -280,6 +280,8 @@ class Stream final : public AsyncWrap,
   // have already been added, or the maximum total header length is reached.
   bool AddHeader(const Header& header);
 
+  // TODO(@jasnell): Implement MemoryInfo to track outbound_, inbound_,
+  // reader_, headers_, and pending_headers_queue_.
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(Stream)
   SET_SELF_SIZE(Stream)
@@ -298,6 +300,11 @@ class Stream final : public AsyncWrap,
 
   void set_final_size(uint64_t amount);
   void set_outbound(std::shared_ptr<DataQueue> source);
+
+  // Streaming outbound support
+  void InitStreaming();
+  void WriteStreamData(const v8::FunctionCallbackInfo<v8::Value>& args);
+  void EndWriting();
 
   bool is_local_unidirectional() const;
   bool is_remote_unidirectional() const;
@@ -337,6 +344,7 @@ class Stream final : public AsyncWrap,
   BaseObjectWeakPtr<Session> session_;
   std::unique_ptr<Outbound> outbound_;
   std::shared_ptr<DataQueue> inbound_;
+  BaseObjectWeakPtr<Blob::Reader> reader_;
 
   // If the stream cannot be opened yet, it will be created in a pending state.
   // Once the owning session is able to, it will complete opening of the stream
@@ -372,7 +380,7 @@ class Stream final : public AsyncWrap,
   friend class DefaultApplication;
 
  public:
-  // The Queue/Schedule/Unschedule here are part of the mechanism used to
+  // The Queue/Schedule here are part of the mechanism used to
   // determine which streams have data to send on the session. When a stream
   // potentially has data available, it will be scheduled in the Queue. Then,
   // when the Session::Application starts sending pending data, it will check
@@ -385,7 +393,6 @@ class Stream final : public AsyncWrap,
   using Queue = ListHead<Stream, &Stream::stream_queue_>;
 
   void Schedule(Queue* queue);
-  void Unschedule();
 };
 
 }  // namespace node::quic

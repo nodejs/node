@@ -2318,19 +2318,13 @@ void Initialize(Local<Object> target,
   NODE_DEFINE_CONSTANT(target, DNS_ORDER_IPV4_FIRST);
   NODE_DEFINE_CONSTANT(target, DNS_ORDER_IPV6_FIRST);
 
-  Local<FunctionTemplate> aiw =
-      BaseObject::MakeLazilyInitializedJSTemplate(env);
-  aiw->Inherit(AsyncWrap::GetConstructorTemplate(env));
+  Local<FunctionTemplate> aiw = AsyncWrap::MakeLazilyInitializedJSTemplate(env);
   SetConstructorFunction(context, target, "GetAddrInfoReqWrap", aiw);
 
-  Local<FunctionTemplate> niw =
-      BaseObject::MakeLazilyInitializedJSTemplate(env);
-  niw->Inherit(AsyncWrap::GetConstructorTemplate(env));
+  Local<FunctionTemplate> niw = AsyncWrap::MakeLazilyInitializedJSTemplate(env);
   SetConstructorFunction(context, target, "GetNameInfoReqWrap", niw);
 
-  Local<FunctionTemplate> qrw =
-      BaseObject::MakeLazilyInitializedJSTemplate(env);
-  qrw->Inherit(AsyncWrap::GetConstructorTemplate(env));
+  Local<FunctionTemplate> qrw = AsyncWrap::MakeLazilyInitializedJSTemplate(env);
   SetConstructorFunction(context, target, "QueryReqWrap", qrw);
 
   Local<FunctionTemplate> channel_wrap =

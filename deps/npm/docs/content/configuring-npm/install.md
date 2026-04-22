@@ -1,5 +1,5 @@
 ---
-title: install
+title: Install
 section: 5
 description: Download and install node and npm
 ---

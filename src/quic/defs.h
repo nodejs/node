@@ -338,7 +338,7 @@ class DebugIndentScope final {
   }
 
  private:
-  static int indent_;
+  static thread_local int indent_;
 };
 
 }  // namespace node::quic

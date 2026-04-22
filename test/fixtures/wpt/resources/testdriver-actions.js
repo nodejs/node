@@ -252,7 +252,7 @@
      */
     addTick: function(duration) {
       this.tickIdx += 1;
-      if (duration) {
+      if (duration !== undefined && duration !== null) {
         this.pause(duration);
       }
       return this;
@@ -279,6 +279,10 @@
     /**
      * Create a keyDown event for the current default key source
      *
+     * To send special keys, send the respective key's codepoint,
+     * as defined by `WebDriver
+     * <https://w3c.github.io/webdriver/#keyboard-actions>`_.
+     *
      * @param {String} key - Key to press
      * @param {String?} sourceName - Named key source to use or null for the default key source
      * @returns {Actions}
@@ -291,6 +295,10 @@
 
     /**
      * Create a keyUp event for the current default key source
+     *
+     * To send special keys, send the respective key's codepoint,
+     * as defined by `WebDriver
+     * <https://w3c.github.io/webdriver/#keyboard-actions>`_.
      *
      * @param {String} key - Key to release
      * @param {String?} sourceName - Named key source to use or null for the default key source
@@ -536,7 +544,7 @@
         tick = actions.addTick().tickIdx;
       }
       let moveAction = {type: "pointerMove", x, y, origin};
-      if (duration) {
+      if (duration !== undefined && duration !== null) {
         moveAction.duration = duration;
       }
       let actionProperties = setPointerProperties(moveAction, width, height, pressure,
@@ -581,7 +589,7 @@
         tick = actions.addTick().tickIdx;
       }
       this.actions.set(tick, {type: "scroll", x, y, deltaX, deltaY, origin});
-      if (duration) {
+      if (duration !== undefined && duration !== null) {
         this.actions.get(tick).duration = duration;
       }
     },

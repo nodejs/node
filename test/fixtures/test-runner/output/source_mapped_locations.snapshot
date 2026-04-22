@@ -17,11 +17,8 @@ not ok 1 - fails
   actual: 1
   operator: 'strictEqual'
   stack: |-
-    *
-    *
-    *
-    *
-    *
+    TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/source_mapped_locations.ts:6:3)
+    <node-internal-frames>
   ...
 1..1
 # tests 1

@@ -106,6 +106,8 @@ MaybeLocal<Value> ToV8Value(Local<Context> context, BIOPointer&& bio) {
   if (!bio) [[unlikely]]
     return {};
   BUF_MEM* mem = bio;
+  if (!mem) [[unlikely]]
+    return {};
   Local<Value> ret;
   if (!String::NewFromUtf8(Isolate::GetCurrent(),
                            mem->data,
@@ -120,6 +122,8 @@ MaybeLocal<Value> ToV8Value(Local<Context> context, const BIOPointer& bio) {
   if (!bio) [[unlikely]]
     return {};
   BUF_MEM* mem = bio;
+  if (!mem) [[unlikely]]
+    return {};
   Local<Value> ret;
   if (!String::NewFromUtf8(Isolate::GetCurrent(),
                            mem->data,
@@ -134,6 +138,8 @@ MaybeLocal<Value> ToBuffer(Environment* env, BIOPointer* bio) {
   if (bio == nullptr || !*bio) [[unlikely]]
     return {};
   BUF_MEM* mem = *bio;
+  if (!mem) [[unlikely]]
+    return {};
 #ifdef V8_ENABLE_SANDBOX
   // If the v8 sandbox is enabled, then all array buffers must be allocated
   // via the isolate. External buffers are not allowed. So, instead of wrapping
@@ -253,8 +259,8 @@ MaybeLocal<Value> GetSignatureAlgorithmOID(Environment* env,
 
 MaybeLocal<Value> GetSerialNumber(Environment* env, const X509View& view) {
   if (auto serial = view.getSerialNumber()) {
-    return OneByteString(env->isolate(),
-                         static_cast<unsigned char*>(serial.get()));
+    return ToV8Value(
+        env, ToUpper(std::string_view(static_cast<char*>(serial.get()))));
   }
   return Undefined(env->isolate());
 }
@@ -827,7 +833,7 @@ Local<FunctionTemplate> X509Certificate::GetConstructorTemplate(
     Isolate* isolate = env->isolate();
     tmpl = NewFunctionTemplate(isolate, nullptr);
     tmpl->InstanceTemplate()->SetInternalFieldCount(
-        BaseObject::kInternalFieldCount);
+        X509Certificate::kInternalFieldCount);
     tmpl->SetClassName(
         FIXED_ONE_BYTE_STRING(env->isolate(), "X509Certificate"));
     SetProtoMethodNoSideEffect(isolate, tmpl, "subject", Subject);

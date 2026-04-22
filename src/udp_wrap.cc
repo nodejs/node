@@ -226,9 +226,7 @@ void UDPWrap::Initialize(Local<Object> target,
   env->set_udp_constructor_function(t->GetFunction(context).ToLocalChecked());
 
   // Create FunctionTemplate for SendWrap
-  Local<FunctionTemplate> swt =
-      BaseObject::MakeLazilyInitializedJSTemplate(env);
-  swt->Inherit(AsyncWrap::GetConstructorTemplate(env));
+  Local<FunctionTemplate> swt = AsyncWrap::MakeLazilyInitializedJSTemplate(env);
   SetConstructorFunction(context, target, "SendWrap", swt);
 
   Local<Object> constants = Object::New(isolate);

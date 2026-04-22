@@ -5,7 +5,7 @@ TAP version 13
       ---
       duration_ms: *
       type: 'test'
-      location: '<project-root>/test/fixtures/test-runner/output/test-timeout-flag.js:(LINE):3'
+      location: '<project-root>/test/fixtures/test-runner/output/test-timeout-flag.js:8:3'
       failureType: 'testTimeoutFailure'
       error: 'test timed out after 100ms'
       code: 'ERR_TEST_FAILURE'
@@ -17,7 +17,7 @@ TAP version 13
       ---
       duration_ms: *
       type: 'test'
-      location: '<project-root>/test/fixtures/test-runner/output/test-timeout-flag.js:(LINE):3'
+      location: '<project-root>/test/fixtures/test-runner/output/test-timeout-flag.js:16:3'
       failureType: 'testTimeoutFailure'
       error: 'test timed out after 5ms'
       code: 'ERR_TEST_FAILURE'
@@ -39,7 +39,7 @@ not ok 1 - --test-timeout is set to 100ms
   ---
   duration_ms: *
   type: 'suite'
-  location: '<project-root>/test/fixtures/test-runner/output/test-timeout-flag.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/test-timeout-flag.js:5:1'
   failureType: 'subtestsFailed'
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
@@ -50,7 +50,7 @@ not ok 1 - --test-timeout is set to 100ms
       ---
       duration_ms: *
       type: 'test'
-      location: '<project-root>/test/fixtures/test-runner/output/test-timeout-flag.js:(LINE):3'
+      location: '<project-root>/test/fixtures/test-runner/output/test-timeout-flag.js:51:3'
       failureType: 'cancelledByParent'
       error: 'test did not finish before its parent and was cancelled'
       code: 'ERR_TEST_FAILURE'
@@ -60,7 +60,7 @@ not ok 2 - should inherit timeout options to children
   ---
   duration_ms: *
   type: 'suite'
-  location: '<project-root>/test/fixtures/test-runner/output/test-timeout-flag.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/test-timeout-flag.js:42:1'
   failureType: 'testTimeoutFailure'
   error: 'test timed out after 1ms'
   code: 'ERR_TEST_FAILURE'

@@ -36,14 +36,18 @@ let keyObjects;
 const bench = common.createBenchmark(main, {
   keyType: Object.keys(keyFixtures),
   mode: ['sync', 'async', 'async-parallel'],
-  keyFormat: ['pem', 'der', 'jwk', 'keyObject', 'keyObject.unique'],
+  keyFormat: ['pem', 'der', 'jwk', 'keyObject', 'keyObject.unique', 'raw-public'],
   n: [1e3],
 }, {
   combinationFilter(p) {
     // "keyObject.unique" allows to compare the result with "keyObject" to
     // assess whether mutexes over the key material impact the operation
-    return p.keyFormat !== 'keyObject.unique' ||
-      (p.keyFormat === 'keyObject.unique' && p.mode === 'async-parallel');
+    if (p.keyFormat === 'keyObject.unique')
+      return p.mode === 'async-parallel';
+    // raw-public is not supported by rsa
+    if (p.keyFormat === 'raw-public')
+      return p.keyType !== 'rsa';
+    return true;
   },
 });
 
@@ -101,6 +105,13 @@ function main({ n, mode, keyFormat, keyType }) {
   pems ||= [...Buffer.alloc(n)].map(() => keyFixtures[keyType].publicKey);
   keyObjects ||= pems.map(crypto.createPublicKey);
 
+  // Warm up OpenSSL's provider operation cache for each key object
+  const warmupDigest = keyType === 'rsa' || keyType === 'ec' ? 'sha256' : null;
+  const warmupSig = crypto.sign(warmupDigest, data, keyFixtures[keyType].privateKey);
+  for (const keyObject of keyObjects) {
+    crypto.verify(warmupDigest, data, keyObject, warmupSig);
+  }
+
   let publicKey, keys, digest;
 
   switch (keyType) {
@@ -128,6 +139,13 @@ function main({ n, mode, keyFormat, keyType }) {
     }
     case 'der': {
       publicKey = { key: keyObjects[0].export({ format: 'der', type: 'spki' }), format: 'der', type: 'spki' };
+      break;
+    }
+    case 'raw-public': {
+      const exportedKey = keyObjects[0].export({ format: 'raw-public' });
+      const keyOpts = { key: exportedKey, format: 'raw-public', asymmetricKeyType: keyType };
+      if (keyType === 'ec') keyOpts.namedCurve = keyObjects[0].asymmetricKeyDetails.namedCurve;
+      publicKey = keyOpts;
       break;
     }
     case 'keyObject.unique':

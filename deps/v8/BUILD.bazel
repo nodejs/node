@@ -233,6 +233,11 @@ v8_flag(
     default = False,
 )
 
+v8_flag(
+    name = "v8_enable_seeded_array_index_hash",
+    default = False,
+)
+
 selects.config_setting_group(
     name = "enable_drumbrake_x64",
     match_all = [
@@ -505,6 +510,7 @@ v8_config(
         "v8_enable_webassembly": "V8_ENABLE_WEBASSEMBLY",
         "v8_enable_drumbrake": "V8_ENABLE_DRUMBRAKE",
         "v8_enable_drumbrake_tracing": "V8_ENABLE_DRUMBRAKE_TRACING",
+        "v8_enable_seeded_array_index_hash": "V8_ENABLE_SEEDED_ARRAY_INDEX_HASH",
         "v8_jitless": "V8_JITLESS",
         "v8_enable_vtunejit": "ENABLE_VTUNE_JIT_INTERFACE",
     },
@@ -1993,6 +1999,7 @@ filegroup(
         "src/numbers/conversions.h",
         "src/numbers/conversions-inl.h",
         "src/numbers/hash-seed.h",
+        "src/numbers/hash-seed.cc",
         "src/numbers/hash-seed-inl.h",
         "src/numbers/ieee754.cc",
         "src/numbers/ieee754.h",

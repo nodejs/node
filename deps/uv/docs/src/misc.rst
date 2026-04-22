@@ -522,6 +522,10 @@ API
     Gets the executable path. You *must* call `uv_setup_args` before calling
     this function.
 
+    Be careful in setuid executables. On some platforms the executable path
+    is an arbitrary string that is controlled by the user. On other platforms
+    environment variables are consulted that may be under control of the user.
+
 .. c:function:: int uv_cwd(char* buffer, size_t* size)
 
     Gets the current working directory, and stores it in `buffer`. If the
@@ -892,6 +896,16 @@ API
 
     .. versionadded:: 1.34.0
 
+.. code-block:: c
+    #include <uv.h>
+    #include <stdio.h>
+    int main() {
+        printf("Sleeping for 1 second...\n");
+        uv_sleep(1000);
+        printf("Awake!\n");
+        return 0;
+    }
+
 String manipulation functions
 -----------------------------
 
@@ -913,7 +927,7 @@ is not complete.
     `utf16_len` count (in characters) gives the length of `utf16`. If `utf16`
     is NUL terminated, `utf16_len` can be set to -1, otherwise it must be
     specified. If `wtf8_ptr` is `NULL`, no result will be computed, but the
-    length (equal to `uv_utf16_length_as_wtf8`) will be stored in `wtf8_ptr`.
+    length (equal to `uv_utf16_length_as_wtf8`) will be stored in `wtf8_len_ptr`.
     If `*wtf8_ptr` is `NULL`, space for the conversion will be allocated and
     returned in `wtf8_ptr` and the length will be returned in `wtf8_len_ptr`.
     Otherwise, the length of `*wtf8_ptr` must be passed in `wtf8_len_ptr`. The

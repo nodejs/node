@@ -208,6 +208,13 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
                       "used, not both");
   }
 
+#if HAVE_OPENSSL
+  if (use_system_ca && per_process::cli_options->use_openssl_ca) {
+    errors->push_back("either --use-openssl-ca or --use-system-ca can be "
+                      "used, not both");
+  }
+#endif  // HAVE_OPENSSL
+
   if (heap_snapshot_near_heap_limit < 0) {
     errors->push_back("--heapsnapshot-near-heap-limit must not be negative");
   }
@@ -581,6 +588,13 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             false);
   AddOption("--experimental-fetch", "", NoOp{}, kAllowedInEnvvar);
+#if HAVE_FFI
+  AddOption("--experimental-ffi",
+            "experimental node:ffi module",
+            &EnvironmentOptions::experimental_ffi,
+            kAllowedInEnvvar,
+            false);
+#endif  // HAVE_FFI
   AddOption("--experimental-websocket",
             "experimental WebSocket API",
             &EnvironmentOptions::experimental_websocket,
@@ -591,7 +605,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental node:sqlite module",
             &EnvironmentOptions::experimental_sqlite,
             kAllowedInEnvvar,
-            true);
+            HAVE_SQLITE);
+  AddOption("--experimental-stream-iter",
+            "experimental iterable streams API (node:stream/iter)",
+            &EnvironmentOptions::experimental_stream_iter,
+            kAllowedInEnvvar);
   AddOption("--experimental-quic",
 #ifndef OPENSSL_NO_QUIC
             "experimental QUIC support",
@@ -635,6 +653,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             false,
             OptionNamespaces::kPermissionNamespace);
+  AddOption("--permission-audit",
+            "enable audit only for the permission system",
+            &EnvironmentOptions::permission_audit,
+            kAllowedInEnvvar,
+            false);
   AddOption("--allow-fs-read",
             "allow permissions to read the filesystem",
             &EnvironmentOptions::allow_fs_read,
@@ -657,6 +680,14 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             false,
             OptionNamespaces::kPermissionNamespace);
+#if HAVE_FFI
+  AddOption("--allow-ffi",
+            "allow use of FFI when any permissions are set",
+            &EnvironmentOptions::allow_ffi,
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kPermissionNamespace);
+#endif  // HAVE_FFI
   AddOption("--allow-inspector",
             "allow use of inspector when any permissions are set",
             &EnvironmentOptions::allow_inspector,
@@ -869,11 +900,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::optional_env_file);
   Implies("--env-file-if-exists", "[has_env_file_string]");
   AddOption("--experimental-config-file",
-            "set config file from supplied file",
-            &EnvironmentOptions::experimental_config_file_path);
-  AddOption("--experimental-default-config-file",
-            "set config file from default config file",
-            &EnvironmentOptions::experimental_default_config_file);
+            "set config file path",
+            &EnvironmentOptions::experimental_config_file_path,
+            kDisallowedInEnvvar);
+  AddAlias("--experimental-default-config-file", "--experimental-config-file");
   AddOption("--test",
             "launch test runner on startup",
             &EnvironmentOptions::test_runner,
@@ -987,6 +1017,20 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::test_global_setup_path,
             kAllowedInEnvvar,
             OptionNamespaces::kTestRunnerNamespace);
+  AddOption("--test-randomize",
+            "run tests in a random order",
+            &EnvironmentOptions::test_randomize,
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kTestRunnerNamespace);
+  AddOption(
+      "[has_test_random_seed]", "", &EnvironmentOptions::has_test_random_seed);
+  AddOption("--test-random-seed",
+            "seed used to randomize test execution order",
+            &EnvironmentOptions::test_random_seed,
+            kAllowedInEnvvar,
+            OptionNamespaces::kTestRunnerNamespace);
+  Implies("--test-random-seed", "[has_test_random_seed]");
   AddOption("--test-rerun-failures",
             "specifies the path to the rerun state file",
             &EnvironmentOptions::test_rerun_failures_path,
@@ -1046,6 +1090,13 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
       "Print accesses to the environment variables and the native stack trace",
       &EnvironmentOptions::trace_env_native_stack,
       kAllowedInEnvvar);
+
+#if HAVE_OPENSSL
+  AddOption("--use-system-ca",
+            "use system's CA store",
+            &EnvironmentOptions::use_system_ca,
+            kAllowedInEnvvar);
+#endif  // HAVE_OPENSSL
 
   AddOption(
       "--trace-require-module",
@@ -1131,13 +1182,6 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             HAVE_AMARO);
   AddAlias("--experimental-strip-types", "--strip-types");
-  AddOption("--experimental-transform-types",
-            "enable transformation of TypeScript-only"
-            "syntax into JavaScript code",
-            &EnvironmentOptions::experimental_transform_types,
-            kAllowedInEnvvar);
-  Implies("--experimental-transform-types", "--strip-types");
-  Implies("--experimental-transform-types", "--enable-source-maps");
   AddOption("--interactive",
             "always enter the REPL even if stdin does not appear "
             "to be a terminal",
@@ -1209,6 +1253,7 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
             "help system profilers to translate JavaScript interpreted frames",
             V8Option{},
             kAllowedInEnvvar);
+  AddOption("--max-heap-size", "", V8Option{}, kAllowedInEnvvar);
   AddOption("--max-old-space-size", "", V8Option{}, kAllowedInEnvvar);
   AddOption("--max-old-space-size-percentage",
             "set V8's max old space size as a percentage of available memory "
@@ -1386,10 +1431,6 @@ PerProcessOptionsParser::PerProcessOptionsParser(
 #endif
             ,
             &PerProcessOptions::use_openssl_ca,
-            kAllowedInEnvvar);
-  AddOption("--use-system-ca",
-            "use system's CA store",
-            &PerProcessOptions::use_system_ca,
             kAllowedInEnvvar);
   AddOption("--use-bundled-ca",
             "use bundled CA store"
@@ -2156,6 +2197,10 @@ void HandleEnvOptions(std::shared_ptr<EnvironmentOptions> env_options,
       opt_getter("NODE_PRESERVE_SYMLINKS_MAIN") == "1";
 
   env_options->use_env_proxy = opt_getter("NODE_USE_ENV_PROXY") == "1";
+
+#if HAVE_OPENSSL
+  env_options->use_system_ca = opt_getter("NODE_USE_SYSTEM_CA") == "1";
+#endif  // HAVE_OPENSSL
 
   if (env_options->redirect_warnings.empty())
     env_options->redirect_warnings = opt_getter("NODE_REDIRECT_WARNINGS");

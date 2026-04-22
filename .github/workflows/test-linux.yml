@@ -34,9 +34,9 @@ env:
   PYTHON_VERSION: '3.14'
   FLAKY_TESTS: keep_retrying
   CLANG_VERSION: '19'
-  CC: sccache clang-19
-  CXX: sccache clang++-19
-  SCCACHE_GHA_ENABLED: 'true'
+  CC: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} clang-19
+  CXX: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} clang++-19
+  SCCACHE_GHA_ENABLED: ${{ github.base_ref == 'main' || github.ref_name == 'main' }}
   SCCACHE_IDLE_TIMEOUT: '0'
   RUSTC_VERSION: '1.82'
 
@@ -70,15 +70,21 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           allow-prereleases: true
       - name: Set up sccache
+        if: github.base_ref == 'main' || github.ref_name == 'main'
         uses: Mozilla-Actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad  # v0.0.9
         with:
           version: v0.12.0
       - name: Environment Information
         run: npx envinfo
       - name: Build
-        run: make -C node build-ci -j4 V=1 CONFIG_FLAGS="--error-on-warn --v8-enable-temporal-support"
+        working-directory: node
+        run: make build-ci -j4 V=1 CONFIG_FLAGS="--error-on-warn --v8-enable-temporal-support"
       - name: Test
-        run: make -C node test-ci -j1 V=1 TEST_CI_ARGS="-p actions --measure-flakiness 9"
+        working-directory: node
+        run: make test-ci -j1 V=1 TEST_CI_ARGS="-p actions --measure-flakiness 9"
+      - name: Ensure running tests did not cause any change in the tree
+        working-directory: node
+        run: git add -A && git diff --name-only --exit-code --staged
       - name: Re-run test in a folder whose name contains unusual chars
         run: |
           mv node "$DIR"

@@ -50,7 +50,7 @@ ok 2 - describe hooks - no subtests
       ---
       duration_ms: *
       type: 'test'
-      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):3'
+      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:74:3'
       failureType: 'cancelledByParent'
       error: 'test did not finish before its parent and was cancelled'
       code: 'ERR_TEST_FAILURE'
@@ -60,7 +60,7 @@ ok 2 - describe hooks - no subtests
       ---
       duration_ms: *
       type: 'test'
-      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):3'
+      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:75:3'
       failureType: 'cancelledByParent'
       error: 'test did not finish before its parent and was cancelled'
       code: 'ERR_TEST_FAILURE'
@@ -70,38 +70,26 @@ not ok 3 - before throws
   ---
   duration_ms: *
   type: 'suite'
-  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:72:1'
   failureType: 'hookFailed'
   error: 'before'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
+    SuiteContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:73:24)
+    <node-internal-frames>
   ...
 # Subtest: before throws - no subtests
 not ok 4 - before throws - no subtests
   ---
   duration_ms: *
   type: 'suite'
-  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:78:1'
   failureType: 'hookFailed'
   error: 'before'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
+    SuiteContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:79:24)
+    <node-internal-frames>
   ...
 # Subtest: after throws
     # Subtest: 1
@@ -121,42 +109,26 @@ not ok 5 - after throws
   ---
   duration_ms: *
   type: 'suite'
-  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:83:1'
   failureType: 'hookFailed'
   error: 'after'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
+    SuiteContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:84:23)
+    <node-internal-frames>
   ...
 # Subtest: after throws - no subtests
 not ok 6 - after throws - no subtests
   ---
   duration_ms: *
   type: 'suite'
-  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:89:1'
   failureType: 'hookFailed'
   error: 'after'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
+    SuiteContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:90:23)
+    <node-internal-frames>
   ...
 # Subtest: beforeEach throws
     # Subtest: 1
@@ -164,20 +136,13 @@ not ok 6 - after throws - no subtests
       ---
       duration_ms: *
       type: 'test'
-      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):3'
+      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:95:3'
       failureType: 'hookFailed'
       error: 'beforeEach'
       code: 'ERR_TEST_FAILURE'
       stack: |-
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
+        TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:94:28)
+        <node-internal-frames>
         new Promise (<anonymous>)
       ...
     # Subtest: 2
@@ -185,20 +150,13 @@ not ok 6 - after throws - no subtests
       ---
       duration_ms: *
       type: 'test'
-      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):3'
+      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:96:3'
       failureType: 'hookFailed'
       error: 'beforeEach'
       code: 'ERR_TEST_FAILURE'
       stack: |-
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
+        TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:94:28)
+        <node-internal-frames>
         async Promise.all (index 0)
       ...
     1..2
@@ -206,7 +164,7 @@ not ok 7 - beforeEach throws
   ---
   duration_ms: *
   type: 'suite'
-  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:93:1'
   failureType: 'subtestsFailed'
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
@@ -217,48 +175,35 @@ not ok 7 - beforeEach throws
       ---
       duration_ms: *
       type: 'test'
-      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):3'
+      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:101:3'
       failureType: 'hookFailed'
       error: 'afterEach'
       code: 'ERR_TEST_FAILURE'
       stack: |-
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
+        TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:100:27)
+        <node-internal-frames>
         async Promise.all (index 0)
-        *
+        <node-internal-frames>
       ...
     # Subtest: 2
     not ok 2 - 2
       ---
       duration_ms: *
       type: 'test'
-      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):3'
+      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:102:3'
       failureType: 'hookFailed'
       error: 'afterEach'
       code: 'ERR_TEST_FAILURE'
       stack: |-
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
+        TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:100:27)
+        <node-internal-frames>
       ...
     1..2
 not ok 8 - afterEach throws
   ---
   duration_ms: *
   type: 'suite'
-  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:99:1'
   failureType: 'subtestsFailed'
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
@@ -269,20 +214,15 @@ not ok 8 - afterEach throws
       ---
       duration_ms: *
       type: 'test'
-      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):3'
+      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:107:3'
       failureType: 'testCodeFailure'
       error: 'test'
       code: 'ERR_TEST_FAILURE'
       stack: |-
-        *
-        *
-        *
-        *
-        *
-        *
+        TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:107:25)
+        <node-internal-frames>
         new Promise (<anonymous>)
-        *
-        *
+        <node-internal-frames>
         Array.map (<anonymous>)
       ...
     # Subtest: 2
@@ -296,7 +236,7 @@ not ok 9 - afterEach when test fails
   ---
   duration_ms: *
   type: 'suite'
-  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:105:1'
   failureType: 'subtestsFailed'
   error: '1 subtest failed'
   code: 'ERR_TEST_FAILURE'
@@ -307,20 +247,15 @@ not ok 9 - afterEach when test fails
       ---
       duration_ms: *
       type: 'test'
-      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):3'
+      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:113:3'
       failureType: 'testCodeFailure'
       error: 'test'
       code: 'ERR_TEST_FAILURE'
       stack: |-
-        *
-        *
-        *
-        *
-        *
-        *
+        TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:113:25)
+        <node-internal-frames>
         new Promise (<anonymous>)
-        *
-        *
+        <node-internal-frames>
         Array.map (<anonymous>)
       ...
     # Subtest: 2
@@ -328,27 +263,20 @@ not ok 9 - afterEach when test fails
       ---
       duration_ms: *
       type: 'test'
-      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):3'
+      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:114:3'
       failureType: 'hookFailed'
       error: 'afterEach'
       code: 'ERR_TEST_FAILURE'
       stack: |-
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
+        TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:112:27)
+        <node-internal-frames>
       ...
     1..2
 not ok 10 - afterEach throws and test fails
   ---
   duration_ms: *
   type: 'suite'
-  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:111:1'
   failureType: 'subtestsFailed'
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
@@ -403,84 +331,60 @@ ok 12 - test hooks - no subtests
       ---
       duration_ms: *
       type: 'test'
-      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):11'
+      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:172:11'
       failureType: 'hookFailed'
       error: 'before'
       code: 'ERR_TEST_FAILURE'
       stack: |-
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
+        TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:171:26)
+        <node-internal-frames>
+        TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:171:5)
+        <node-internal-frames>
       ...
     # Subtest: 2
     not ok 2 - 2
       ---
       duration_ms: *
       type: 'test'
-      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):11'
+      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:173:11'
       failureType: 'hookFailed'
       error: 'before'
       code: 'ERR_TEST_FAILURE'
       stack: |-
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
+        TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:171:26)
+        <node-internal-frames>
+        TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:171:5)
+        <node-internal-frames>
       ...
     1..2
 not ok 13 - t.before throws
   ---
   duration_ms: *
   type: 'test'
-  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:169:1'
   failureType: 'testCodeFailure'
   error: 'before'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
+    TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:171:26)
+    <node-internal-frames>
+    TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:171:5)
+    <node-internal-frames>
   ...
 # Subtest: t.before throws - no subtests
 not ok 14 - t.before throws - no subtests
   ---
   duration_ms: *
   type: 'test'
-  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:176:1'
   failureType: 'testCodeFailure'
   error: 'before'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
+    TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:178:26)
+    <node-internal-frames>
+    TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:178:5)
+    <node-internal-frames>
   ...
 # Subtest: t.after throws
     # Subtest: 1
@@ -500,40 +404,26 @@ not ok 15 - t.after throws
   ---
   duration_ms: *
   type: 'test'
-  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:181:1'
   failureType: 'hookFailed'
   error: 'after'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
+    TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:183:25)
+    <node-internal-frames>
   ...
 # Subtest: t.after throws - no subtests
 not ok 16 - t.after throws - no subtests
   ---
   duration_ms: *
   type: 'test'
-  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:188:1'
   failureType: 'hookFailed'
   error: 'after'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
+    TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:190:25)
+    <node-internal-frames>
   ...
 # Subtest: t.beforeEach throws
     # Subtest: 1
@@ -541,49 +431,37 @@ not ok 16 - t.after throws - no subtests
       ---
       duration_ms: *
       type: 'test'
-      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):11'
+      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:197:11'
       failureType: 'hookFailed'
       error: 'beforeEach'
       code: 'ERR_TEST_FAILURE'
       stack: |-
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
+        TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:196:30)
+        <node-internal-frames>
+        TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:197:11)
+        <node-internal-frames>
       ...
     # Subtest: 2
     not ok 2 - 2
       ---
       duration_ms: *
       type: 'test'
-      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):11'
+      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:198:11'
       failureType: 'hookFailed'
       error: 'beforeEach'
       code: 'ERR_TEST_FAILURE'
       stack: |-
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
+        TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:196:30)
+        <node-internal-frames>
+        TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:198:11)
+        <node-internal-frames>
       ...
     1..2
 not ok 17 - t.beforeEach throws
   ---
   duration_ms: *
   type: 'test'
-  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:194:1'
   failureType: 'subtestsFailed'
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
@@ -594,49 +472,37 @@ not ok 17 - t.beforeEach throws
       ---
       duration_ms: *
       type: 'test'
-      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):11'
+      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:204:11'
       failureType: 'hookFailed'
       error: 'afterEach'
       code: 'ERR_TEST_FAILURE'
       stack: |-
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
+        TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:203:29)
+        <node-internal-frames>
+        async TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:204:3)
+        <node-internal-frames>
       ...
     # Subtest: 2
     not ok 2 - 2
       ---
       duration_ms: *
       type: 'test'
-      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):11'
+      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:205:11'
       failureType: 'hookFailed'
       error: 'afterEach'
       code: 'ERR_TEST_FAILURE'
       stack: |-
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
+        TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:203:29)
+        <node-internal-frames>
+        async TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:205:3)
+        <node-internal-frames>
       ...
     1..2
 not ok 18 - t.afterEach throws
   ---
   duration_ms: *
   type: 'test'
-  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:201:1'
   failureType: 'subtestsFailed'
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
@@ -647,20 +513,15 @@ not ok 18 - t.afterEach throws
       ---
       duration_ms: *
       type: 'test'
-      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):11'
+      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:212:11'
       failureType: 'testCodeFailure'
       error: 'test'
       code: 'ERR_TEST_FAILURE'
       stack: |-
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
+        TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:212:35)
+        <node-internal-frames>
+        TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:212:11)
+        <node-internal-frames>
       ...
     # Subtest: 2
     ok 2 - 2
@@ -673,7 +534,7 @@ not ok 19 - afterEach when test fails
   ---
   duration_ms: *
   type: 'test'
-  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:209:1'
   failureType: 'subtestsFailed'
   error: '1 subtest failed'
   code: 'ERR_TEST_FAILURE'
@@ -697,22 +558,20 @@ ok 20 - afterEach context when test passes
       ---
       duration_ms: *
       type: 'test'
-      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):11'
+      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:232:11'
       failureType: 'testCodeFailure'
       error: 'test'
       code: 'ERR_TEST_FAILURE'
       stack: |-
-        *
-        *
-        *
-        *
+        TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:226:15)
+        <node-internal-frames>
       ...
     1..1
 not ok 21 - afterEach context when test fails
   ---
   duration_ms: *
   type: 'test'
-  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:225:1'
   failureType: 'subtestsFailed'
   error: '1 subtest failed'
   code: 'ERR_TEST_FAILURE'
@@ -723,48 +582,37 @@ not ok 21 - afterEach context when test fails
       ---
       duration_ms: *
       type: 'test'
-      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):11'
+      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:238:11'
       failureType: 'testCodeFailure'
       error: 'test'
       code: 'ERR_TEST_FAILURE'
       stack: |-
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
+        TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:238:35)
+        <node-internal-frames>
+        TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:238:11)
+        <node-internal-frames>
       ...
     # Subtest: 2
     not ok 2 - 2
       ---
       duration_ms: *
       type: 'test'
-      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):11'
+      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:239:11'
       failureType: 'hookFailed'
       error: 'afterEach'
       code: 'ERR_TEST_FAILURE'
       stack: |-
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
-        *
+        TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:237:29)
+        <node-internal-frames>
+        async TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:239:3)
+        <node-internal-frames>
       ...
     1..2
 not ok 22 - afterEach throws and test fails
   ---
   duration_ms: *
   type: 'test'
-  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:235:1'
   failureType: 'subtestsFailed'
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
@@ -774,15 +622,13 @@ not ok 23 - t.after() is called if test body throws
   ---
   duration_ms: *
   type: 'test'
-  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:242:1'
   failureType: 'testCodeFailure'
   error: 'bye'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
-    *
-    *
-    *
+    TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:246:9)
+    <node-internal-frames>
   ...
 # - after() called
 # Subtest: run after when before throws
@@ -791,7 +637,7 @@ not ok 23 - t.after() is called if test body throws
       ---
       duration_ms: *
       type: 'test'
-      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):3'
+      location: '<project-root>/test/fixtures/test-runner/output/hooks.js:254:3'
       failureType: 'cancelledByParent'
       error: 'test did not finish before its parent and was cancelled'
       code: 'ERR_TEST_FAILURE'
@@ -801,19 +647,13 @@ not ok 24 - run after when before throws
   ---
   duration_ms: *
   type: 'suite'
-  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/hooks.js:249:1'
   failureType: 'hookFailed'
   error: 'before'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
+    SuiteContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:253:24)
+    <node-internal-frames>
   ...
 # Subtest: test hooks - async
     # Subtest: 1

@@ -5144,7 +5144,7 @@ table#results.assertions > tbody > tr > td:last-child {\
     width:35%;\
 }\
 \
-table#results > thead > > tr > th {\
+table#results > thead > tr > th {\
     padding:0;\
     padding-bottom:0.5em;\
     border-bottom:medium solid black;\

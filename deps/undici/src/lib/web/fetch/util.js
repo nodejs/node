@@ -1439,7 +1439,7 @@ function hasAuthenticationEntry (request) {
  */
 function includesCredentials (url) {
   // A URL includes credentials if its username or password is not the empty string.
-  return !!(url.username && url.password)
+  return !!(url.username || url.password)
 }
 
 /**
@@ -1447,8 +1447,10 @@ function includesCredentials (url) {
  * @param {object|string} navigable
  */
 function isTraversableNavigable (navigable) {
-  // TODO
-  return true
+  // Returns true only if we have an actual traversable navigable object
+  // that can prompt the user for credentials. In Node.js, this will always
+  // be false since there's no Window object or navigable.
+  return navigable != null && navigable !== 'client' && navigable !== 'no-traversable'
 }
 
 class EnvironmentSettingsObjectBase {

@@ -178,7 +178,13 @@ isBuiltin('wss'); // false
 added:
   - v20.6.0
   - v18.19.0
+deprecated:
+ - v25.9.0
+ - v24.15.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62401
+    description: Runtime deprecation (DEP0205).
   - version:
     - v23.6.1
     - v22.13.1
@@ -193,7 +199,7 @@ changes:
     description: Add support for WHATWG URL instances.
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 0 - Deprecated: Use [`module.registerHooks()`][] instead.
 
 * `specifier` {string|URL} Customization hooks to be registered; this should be
   the same string that would be passed to `import()`, except that if it is
@@ -225,6 +231,7 @@ added:
 changes:
   - version:
     - v25.4.0
+    - v24.13.1
     pr-url: https://github.com/nodejs/node/pull/60960
     description: Synchronous and in-thread hooks are now release candidate.
 -->
@@ -234,9 +241,14 @@ changes:
 * `options` {Object}
   * `load` {Function|undefined} See [load hook][]. **Default:** `undefined`.
   * `resolve` {Function|undefined} See [resolve hook][]. **Default:** `undefined`.
+* Returns: {Object} An object with the following property:
+  * `deregister()` {Function} Remove the registered hooks so that they are no
+    longer called. Hooks are otherwise retained for the lifetime of the running
+    process.
 
 Register [hooks][] that customize Node.js module resolution and loading behavior.
-See [Customization hooks][].
+See [Customization hooks][]. The returned object can be used to
+[deregister the hooks][deregistration of synchronous customization hooks].
 
 ### `module.stripTypeScriptTypes(code[, options])`
 
@@ -244,6 +256,10 @@ See [Customization hooks][].
 added:
   - v23.2.0
   - v22.13.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61803
+    description: Removed `transform` and `sourceMap` options.
 -->
 
 > Stability: 1.2 - Release candidate
@@ -252,21 +268,15 @@ added:
 * `options` {Object}
   * `mode` {string} **Default:** `'strip'`. Possible values are:
     * `'strip'` Only strip type annotations without performing the transformation of TypeScript features.
-    * `'transform'` Strip type annotations and transform TypeScript features to JavaScript.
-  * `sourceMap` {boolean} **Default:** `false`. Only when `mode` is `'transform'`, if `true`, a source map
-    will be generated for the transformed code.
   * `sourceUrl` {string}  Specifies the source url used in the source map.
 * Returns: {string} The code with type annotations stripped.
-  `module.stripTypeScriptTypes()` removes type annotations from TypeScript code. It
-  can be used to strip type annotations from TypeScript code before running it
-  with `vm.runInContext()` or `vm.compileFunction()`.
-  By default, it will throw an error if the code contains TypeScript features
-  that require transformation such as `Enums`,
-  see [type-stripping][] for more information.
-  When mode is `'transform'`, it also transforms TypeScript features to JavaScript,
-  see [transform TypeScript features][] for more information.
-  When mode is `'strip'`, source maps are not generated, because locations are preserved.
-  If `sourceMap` is provided, when mode is `'strip'`, an error will be thrown.
+
+`module.stripTypeScriptTypes()` removes type annotations from TypeScript code. It
+can be used to strip type annotations from TypeScript code before running it
+with `vm.runInContext()` or `vm.compileFunction()`.
+
+By default, it will throw an error if the code contains TypeScript features
+that require transformation, such as `enum`s. See [type-stripping][] for more information.
 
 _WARNING_: The output of this function should not be considered stable across Node.js versions,
 due to changes in the TypeScript parser.
@@ -303,40 +313,6 @@ const code = 'const a: number = 1;';
 const strippedCode = stripTypeScriptTypes(code, { mode: 'strip', sourceUrl: 'source.ts' });
 console.log(strippedCode);
 // Prints: const a         = 1\n\n//# sourceURL=source.ts;
-```
-
-When `mode` is `'transform'`, the code is transformed to JavaScript:
-
-```mjs
-import { stripTypeScriptTypes } from 'node:module';
-const code = `
-  namespace MathUtil {
-    export const add = (a: number, b: number) => a + b;
-  }`;
-const strippedCode = stripTypeScriptTypes(code, { mode: 'transform', sourceMap: true });
-console.log(strippedCode);
-// Prints:
-// var MathUtil;
-// (function(MathUtil) {
-//     MathUtil.add = (a, b)=>a + b;
-// })(MathUtil || (MathUtil = {}));
-// # sourceMappingURL=data:application/json;base64, ...
-```
-
-```cjs
-const { stripTypeScriptTypes } = require('node:module');
-const code = `
-  namespace MathUtil {
-    export const add = (a: number, b: number) => a + b;
-  }`;
-const strippedCode = stripTypeScriptTypes(code, { mode: 'transform', sourceMap: true });
-console.log(strippedCode);
-// Prints:
-// var MathUtil;
-// (function(MathUtil) {
-//     MathUtil.add = (a, b)=>a + b;
-// })(MathUtil || (MathUtil = {}));
-// # sourceMappingURL=data:application/json;base64, ...
 ```
 
 ### `module.syncBuiltinESMExports()`
@@ -460,7 +436,9 @@ separately if the same base directory is used to persist the cache, so they can 
 <!-- YAML
 added: v22.8.0
 changes:
-  - version: v25.4.0
+  - version:
+     - v25.4.0
+     - v24.15.0
     pr-url: https://github.com/nodejs/node/pull/60971
     description: This feature is no longer experimental.
 -->
@@ -515,7 +493,9 @@ The following constants are returned as the `status` field in the object returne
 <!-- YAML
 added: v22.8.0
 changes:
-  - version: v25.4.0
+  - version:
+     - v25.4.0
+     - v24.15.0
     pr-url: https://github.com/nodejs/node/pull/60971
     description: This feature is no longer experimental.
   - version:
@@ -575,7 +555,9 @@ added:
  - v23.0.0
  - v22.10.0
 changes:
-  - version: v25.4.0
+  - version:
+     - v25.4.0
+     - v24.15.0
     pr-url: https://github.com/nodejs/node/pull/60971
     description: This feature is no longer experimental.
 -->
@@ -591,7 +573,9 @@ interfere with the actual operation of the application.
 <!-- YAML
 added: v22.8.0
 changes:
-  - version: v25.4.0
+  - version:
+     - v25.4.0
+     - v24.15.0
     pr-url: https://github.com/nodejs/node/pull/60971
     description: This feature is no longer experimental.
 -->
@@ -608,6 +592,7 @@ added: v8.8.0
 changes:
   - version:
     - v25.4.0
+    - v24.13.1
     pr-url: https://github.com/nodejs/node/pull/60960
     description: Synchronous and in-thread hooks are now release candidate.
   - version:
@@ -797,6 +782,63 @@ hook to signal that the chain is intentionally ending at your hook.
 
 If a hook should be applied when loading other hook modules, the other hook
 modules should be loaded after the hook is registered.
+
+#### Deregistration of synchronous customization hooks
+
+The object returned by `registerHooks()` has a `deregister()` method that can be
+used to remove the hooks from the chain. Once `deregister()` is called, the hooks
+will no longer be invoked during module resolution or loading.
+
+This is currently only available for synchronous hooks registered via `registerHooks()`, not for asynchronous
+hooks registered via `module.register()`.
+
+```mjs
+import { registerHooks } from 'node:module';
+
+const hooks = registerHooks({
+  resolve(specifier, context, nextResolve) {
+    console.log('resolve hook called for', specifier);
+    return nextResolve(specifier, context);
+  },
+  load(url, context, nextLoad) {
+    return nextLoad(url, context);
+  },
+});
+
+// At this point, the hooks are active and will be called for
+// any subsequent import() or require() calls.
+await import('./my-module.mjs');
+
+// Later, remove the hooks from the chain.
+hooks.deregister();
+
+// Subsequent loads will no longer trigger the hooks.
+await import('./another-module.mjs');
+```
+
+```cjs
+const { registerHooks } = require('node:module');
+
+const hooks = registerHooks({
+  resolve(specifier, context, nextResolve) {
+    console.log('resolve hook called for', specifier);
+    return nextResolve(specifier, context);
+  },
+  load(url, context, nextLoad) {
+    return nextLoad(url, context);
+  },
+});
+
+// At this point, the hooks are active and will be called for
+// any subsequent require() calls.
+require('./my-module.cjs');
+
+// Later, remove the hooks from the chain.
+hooks.deregister();
+
+// Subsequent loads will no longer trigger the hooks.
+require('./another-module.cjs');
+```
 
 #### Hook functions accepted by `module.registerHooks()`
 
@@ -2029,6 +2071,7 @@ returned object contains the following keys:
 [asynchronous `resolve` hook]: #asynchronous-resolvespecifier-context-nextresolve
 [asynchronous hook functions]: #asynchronous-hooks-accepted-by-moduleregister
 [caveats of asynchronous customization hooks]: #caveats-of-asynchronous-customization-hooks
+[deregistration of synchronous customization hooks]: #deregistration-of-synchronous-customization-hooks
 [hooks]: #customization-hooks
 [load hook]: #synchronous-loadurl-context-nextload
 [module compile cache]: #module-compile-cache
@@ -2039,5 +2082,4 @@ returned object contains the following keys:
 [synchronous hook functions]: #hook-functions-accepted-by-moduleregisterhooks
 [the documentation of `Worker`]: worker_threads.md#new-workerfilename-options
 [transferable objects]: worker_threads.md#portpostmessagevalue-transferlist
-[transform TypeScript features]: typescript.md#typescript-features
 [type-stripping]: typescript.md#type-stripping

@@ -809,6 +809,15 @@ imports and they cannot be inspected via `WebAssembly.Module.imports(mod)`
 or virtualized unless recompiling the module using the direct
 `WebAssembly.compile` API with string builtins disabled.
 
+String constants may also be imported from the `wasm:js/string-constants` builtin
+import URL, allowing static JS string globals to be defined:
+
+```text
+(module
+  (import "wasm:js/string-constants" "hello" (global $hello externref))
+)
+```
+
 Importing a module in the source phase before it has been instantiated will also
 use the compile-time builtins automatically:
 
@@ -1274,7 +1283,7 @@ _isImports_, _conditions_)
 >    2. If _source_ contains a top-level lexical declaration (`const`, `let`,
 >       or `class`) of any of the CommonJS wrapper variables (`require`,
 >       `exports`, `module`, `__filename`, or `__dirname`) then return **true**.
-> 3. Else return **false**.
+> 3. Return **false**.
 
 ### Customizing ESM specifier resolution algorithm
 

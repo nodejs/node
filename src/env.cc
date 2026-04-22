@@ -918,8 +918,11 @@ Environment::Environment(IsolateData* isolate_data,
                                       tracing::CastTracedValue(traced_value));
   }
 
-  if (options_->permission) {
+  if (options_->permission || options_->permission_audit) {
     permission()->EnablePermissions();
+    if (options_->permission_audit) {
+      permission()->EnableWarningOnly();
+    }
     // The process shouldn't be able to neither
     // spawn/worker nor use addons or enable inspector
     // unless explicitly allowed by the user
@@ -934,6 +937,9 @@ Environment::Environment(IsolateData* isolate_data,
     if (!options_->allow_child_process) {
       permission()->Apply(
           this, {"*"}, permission::PermissionScope::kChildProcess);
+    }
+    if (!options_->allow_ffi) {
+      permission()->Apply(this, {"*"}, permission::PermissionScope::kFFI);
     }
     if (!options_->allow_worker_threads) {
       permission()->Apply(
@@ -2200,7 +2206,7 @@ size_t Environment::NearHeapLimitCallback(void* data,
     env->RemoveHeapSnapshotNearHeapLimitCallback(0);
   }
 
-  FPrintF(stderr, "Wrote snapshot to %s\n", filename.c_str());
+  FPrintF(stderr, "Wrote snapshot to %s\n", filename);
   // Tell V8 to reset the heap limit once the heap usage falls down to
   // 95% of the initial limit.
   env->isolate()->AutomaticallyRestoreInitialHeapLimit(0.95);

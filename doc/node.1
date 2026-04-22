@@ -135,6 +135,27 @@ This behavior also applies to \fBchild_process.spawn()\fR, but in that case, the
 flags are propagated via the \fBNODE_OPTIONS\fR environment variable rather than
 directly through the process arguments.
 .
+.It Fl -allow-ffi
+When using the Permission Model, the process will not be able to use
+\fBnode:ffi\fR by default.
+Attempts to use FFI APIs will throw an \fBERR_ACCESS_DENIED\fR exception unless
+the user explicitly passes the \fB--allow-ffi\fR flag when starting Node.js.
+The \fBnode:ffi\fR module also requires the \fB--experimental-ffi\fR flag and
+is only available in builds with FFI support.
+Example:
+.Bd -literal
+const { DynamicLibrary } = require('node:ffi');
+const lib = new DynamicLibrary('mylib.so');
+.Ed
+.Bd -literal
+$ node --permission --experimental-ffi index.js
+Error: Access to this API has been restricted. Use --allow-ffi to manage permissions.
+    at node:internal/main/run_main_module:17:47 {
+  code: 'ERR_ACCESS_DENIED',
+  permission: 'FFI'
+}
+.Ed
+.
 .It Fl -allow-fs-read
 This flag configures file system read permissions using
 the Permission Model.
@@ -460,7 +481,7 @@ vm.measureMemory();
 .It Fl -disable-wasm-trap-handler
 By default, Node.js enables trap-handler-based WebAssembly bound
 checks. As a result, V8 does not need to insert inline bound checks
-int the code compiled from WebAssembly which may speedup WebAssembly
+in the code compiled from WebAssembly which may speed up WebAssembly
 execution significantly, but this optimization requires allocating
 a big virtual memory cage (currently 10GB). If the Node.js process
 does not have access to a large enough virtual memory address space
@@ -602,8 +623,12 @@ It is possible to run code containing inline types unless the
 .It Fl -experimental-addon-modules
 Enable experimental import support for \fB.node\fR addons.
 .
-.It Fl -experimental-config-file Ns = Ns Ar config
+.It Fl -experimental-config-file= Ns Ar config , Fl -experimental-config-file , Fl -experimental-default-config-file
 If present, Node.js will look for a configuration file at the specified path.
+If the path is not specified, Node.js will look for a \fBnode.config.json\fR file
+in the current working directory.
+To specify a custom path, use the \fB--experimental-config-file=\fR\fBpath\fR form.
+The space-separated \fB--experimental-config-file path\fR form is not supported.
 Node.js will read the configuration file and apply the settings. The
 configuration file should be a JSON file with the following structure. \fBvX.Y.Z\fR
 in the \fB$schema\fR must be replaced with the version of Node.js you are using.
@@ -689,12 +714,17 @@ Node.js will not sanitize or perform validation on the user-provided configurati
 so \fBNEVER\fR use untrusted configuration files.
 .
 .It Fl -experimental-default-config-file
-If the \fB--experimental-default-config-file\fR flag is present, Node.js will look for a
+This flag is an alias for \fB--experimental-config-file\fR without an argument.
+If present, Node.js will look for a
 \fBnode.config.json\fR file in the current working directory and load it as a
-as configuration file.
+configuration file.
 .
 .It Fl -experimental-eventsource
 Enable exposition of EventSource Web API on the global scope.
+.
+.It Fl -experimental-ffi
+Enable the experimental \fBnode:ffi\fR module.
+This flag is only available in builds with FFI support.
 .
 .It Fl -experimental-import-meta-resolve
 Enable experimental \fBimport.meta.resolve()\fR parent URL support, which allows
@@ -720,6 +750,11 @@ top-level awaits, and print their location to help users find them.
 .It Fl -experimental-quic
 Enable experimental support for the QUIC protocol.
 .
+.It Fl -experimental-stream-iter
+Enable the experimental
+.Sy node:stream/iter
+module.
+.
 .It Fl -experimental-sea-config
 Use this flag to generate a blob that can be injected into the Node.js
 binary to produce a single executable application. See the documentation
@@ -740,10 +775,6 @@ collecting code coverage from tests for more details.
 .It Fl -experimental-test-module-mocks
 Enable module mocking in the test runner.
 This feature requires \fB--allow-worker\fR if used with the Permission Model.
-.
-.It Fl -experimental-transform-types
-Enables the transformation of TypeScript-only syntax into JavaScript code.
-Implies \fB--enable-source-maps\fR.
 .
 .It Fl -experimental-vm-modules
 Enable experimental ES Module support in the \fBnode:vm\fR module.
@@ -1113,7 +1144,14 @@ Worker Threads - manageable through \fB--allow-worker\fR flag
 WASI - manageable through \fB--allow-wasi\fR flag
 .It
 Addons - manageable through \fB--allow-addons\fR flag
+.It
+FFI - manageable through \fB--allow-ffi\fR flag
 .El
+.
+.It Fl -permission-audit
+Enable audit only for the permission model. When enabled, permission checks
+are performed but access is not denied. Instead, a warning is emitted for
+each permission violation via diagnostics channel.
 .
 .It Fl -preserve-symlinks
 Instructs the module loader to preserve symbolic links when resolving and
@@ -1356,6 +1394,22 @@ tests must satisfy \fBboth\fR requirements in order to be executed.
 .It Fl -test-only
 Configures the test runner to only execute top level tests that have the \fBonly\fR
 option set. This flag is not necessary when test isolation is disabled.
+.
+.It Fl -test-random-seed
+Set the seed used to randomize test execution order.
+This applies to both test file execution order and queued tests within each file.
+Providing this flag enables randomization implicitly, even without
+\fB--test-randomize\fR.
+The value must be an integer between 0 and 4294967295.
+This flag cannot be used with \fB--watch\fR or \fB--test-rerun-failures\fR.
+.
+.It Fl -test-randomize
+Randomize test execution order.
+This applies to both test file execution order and queued tests within each file.
+This can help detect tests that rely on shared state or execution order.
+The seed used for randomization is printed in the test summary and can be
+reused with \fB--test-random-seed\fR.
+This flag cannot be used with \fB--watch\fR or \fB--test-rerun-failures\fR.
 .
 .It Fl -test-reporter
 A test reporter to use when running tests. See the documentation on
@@ -1806,6 +1860,8 @@ one is included in the list below.
 .It
 \fB--allow-child-process\fR
 .It
+\fB--allow-ffi\fR
+.It
 \fB--allow-fs-read\fR
 .It
 \fB--allow-fs-write\fR
@@ -1856,6 +1912,8 @@ one is included in the list below.
 .It
 \fB--experimental-eventsource\fR
 .It
+\fB--experimental-ffi\fR
+.It
 \fB--experimental-import-meta-resolve\fR
 .It
 \fB--experimental-json-modules\fR
@@ -1877,8 +1935,6 @@ one is included in the list below.
 \fB--experimental-test-isolation\fR
 .It
 \fB--experimental-top-level-await\fR
-.It
-\fB--experimental-transform-types\fR
 .It
 \fB--experimental-vm-modules\fR
 .It
@@ -1978,6 +2034,8 @@ one is included in the list below.
 .It
 \fB--permission\fR
 .It
+\fB--permission-audit\fR
+.It
 \fB--preserve-symlinks-main\fR
 .It
 \fB--preserve-symlinks\fR
@@ -2033,6 +2091,10 @@ one is included in the list below.
 \fB--test-only\fR
 .It
 \fB--test-reporter-destination\fR
+.It
+\fB--test-randomize\fR
+.It
+\fB--test-random-seed\fR
 .It
 \fB--test-reporter\fR
 .It
@@ -2286,7 +2348,7 @@ that run in libuv's threadpool will experience degraded performance. In order to
 mitigate this issue, one potential solution is to increase the size of libuv's
 threadpool by setting the \fB'UV_THREADPOOL_SIZE'\fR environment variable to a value
 greater than \fB4\fR (its current default value). However, setting this from inside
-the process using \fBprocess.env.UV_THREADPOOL_SIZE=size\fR is not guranteed to work
+the process using \fBprocess.env.UV_THREADPOOL_SIZE=size\fR is not guaranteed to work
 as the threadpool would have been created as part of the runtime initialisation
 much before user code is run. For more information, see the libuv threadpool documentation.
 .

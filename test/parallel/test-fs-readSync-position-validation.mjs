@@ -77,3 +77,21 @@ function testInvalid(code, position) {
     testInvalid('ERR_INVALID_ARG_TYPE', badTypeValue);
   }
 }
+
+{
+  const emptyBuffer = Buffer.alloc(0);
+  let fdSync;
+  try {
+    fdSync = fs.openSync(filepath, 'r');
+    assert.throws(
+      () => fs.readSync(fdSync, emptyBuffer, 0, 0, { not: 'a number' }),
+      { code: 'ERR_INVALID_ARG_TYPE' }
+    );
+    assert.throws(
+      () => fs.readSync(fdSync, emptyBuffer, { offset: 0, length: 0, position: 'string' }),
+      { code: 'ERR_INVALID_ARG_TYPE' }
+    );
+  } finally {
+    if (fdSync) fs.closeSync(fdSync);
+  }
+}

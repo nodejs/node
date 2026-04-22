@@ -4219,6 +4219,19 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
   // If return value is on the stack, pop it to registers.
   if (needs_return_buffer) {
+    Label done;
+    if (switch_to_central_stack) {
+      Label no_stack_change;
+      __ CmpU64(kOldSPRegister, Operand(0), r0);
+      __ beq(&no_stack_change);
+      __ addi(r3, kOldSPRegister,
+              Operand((kStackFrameExtraParamSlot + 1) * kSystemPointerSize));
+      __ b(&done);
+      __ bind(&no_stack_change);
+    }
+    __ addi(r3, sp,
+            Operand((kStackFrameExtraParamSlot + 1) * kSystemPointerSize));
+    __ bind(&done);
     __ LoadU64(r4, MemOperand(r3, kSystemPointerSize));
     __ LoadU64(r3, MemOperand(r3));
   }

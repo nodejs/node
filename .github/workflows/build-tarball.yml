@@ -18,7 +18,6 @@ on:
       - tsconfig.json
       - test/internet/**
       - tools/actions/**
-      - tools/bootstrap/**
       - tools/dep_updaters/**
       - tools/doc/**
       - tools/eslint-rules/**
@@ -48,7 +47,6 @@ on:
       - tsconfig.json
       - test/internet/**
       - tools/actions/**
-      - tools/bootstrap/**
       - tools/dep_updaters/**
       - tools/doc/**
       - tools/eslint-rules/**
@@ -74,7 +72,7 @@ permissions:
 jobs:
   build-tarball:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
@@ -93,18 +91,18 @@ jobs:
           export COMMIT=$(git rev-parse --short=10 "$GITHUB_SHA")
           ./configure && make tar -j4 SKIP_XZ=1
       - name: Upload tarball artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
         with:
           name: tarballs
           path: '*.tar.gz'
           compression-level: 0
   test-tarball-linux:
     needs: build-tarball
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-24.04-arm
     env:
-      CC: sccache clang-19
-      CXX: sccache clang++-19
-      SCCACHE_GHA_ENABLED: 'true'
+      CC: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} clang-19
+      CXX: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} clang++-19
+      SCCACHE_GHA_ENABLED: ${{ github.base_ref == 'main' || github.ref_name == 'main' }}
       SCCACHE_IDLE_TIMEOUT: '0'
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
@@ -122,13 +120,14 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           allow-prereleases: true
       - name: Set up sccache
+        if: github.base_ref == 'main' || github.ref_name == 'main'
         uses: Mozilla-Actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad  # v0.0.9
         with:
           version: v0.12.0
       - name: Environment Information
         run: npx envinfo
       - name: Download tarball
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
         with:
           name: tarballs
           path: tarballs

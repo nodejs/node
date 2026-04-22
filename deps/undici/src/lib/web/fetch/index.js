@@ -64,12 +64,7 @@ const { getGlobalDispatcher } = require('../../global')
 const { webidl } = require('../webidl')
 const { STATUS_CODES } = require('node:http')
 const { bytesMatch } = require('../subresource-integrity/subresource-integrity')
-const { createDeferredPromise } = require('../../util/promise')
 const { isomorphicEncode } = require('../infra')
-const { runtimeFeatures } = require('../../util/runtime-features')
-
-// Node.js v23.8.0+ and v22.15.0+ supports Zstandard
-const hasZstd = runtimeFeatures.has('zstd')
 
 const GET_OR_HEAD = ['GET', 'HEAD']
 
@@ -136,7 +131,7 @@ function fetch (input, init = undefined) {
   webidl.argumentLengthCheck(arguments, 1, 'globalThis.fetch')
 
   // 1. Let p be a new promise.
-  let p = createDeferredPromise()
+  let p = Promise.withResolvers()
 
   // 2. Let requestObject be the result of invoking the initial value of
   // Request as constructor with input and init as arguments. If this throws
@@ -251,7 +246,10 @@ function fetch (input, init = undefined) {
     request,
     processResponseEndOfBody: handleFetchDone,
     processResponse,
-    dispatcher: getRequestDispatcher(requestObject) // undici
+    dispatcher: getRequestDispatcher(requestObject), // undici
+    // Keep requestObject alive to prevent its AbortController from being GC'd
+    // See https://github.com/nodejs/undici/issues/4627
+    requestObject
   })
 
   // 14. Return p.
@@ -370,7 +368,8 @@ function fetching ({
   processResponseEndOfBody,
   processResponseConsumeBody,
   useParallelQueue = false,
-  dispatcher = getGlobalDispatcher() // undici
+  dispatcher = getGlobalDispatcher(), // undici
+  requestObject = null // Keep alive to prevent AbortController GC, see #4627
 }) {
   // Ensure that the dispatcher is set accordingly
   assert(dispatcher)
@@ -424,7 +423,9 @@ function fetching ({
     processResponseConsumeBody,
     processResponseEndOfBody,
     taskDestination,
-    crossOriginIsolatedCapability
+    crossOriginIsolatedCapability,
+    // Keep requestObject alive to prevent its AbortController from being GC'd
+    requestObject
   }
 
   // 7. If request’s body is a byte sequence, then set request’s body to
@@ -1638,12 +1639,25 @@ async function httpNetworkOrCacheFetch (
   // 14. If response’s status is 401, httpRequest’s response tainting is not "cors",
   //     includeCredentials is true, and request’s traversable for user prompts is
   //     a traversable navigable:
-  if (response.status === 401 && httpRequest.responseTainting !== 'cors' && includeCredentials && isTraversableNavigable(request.traversableForUserPrompts)) {
+  //
+  //     In Node.js there is no traversable navigable to prompt the user, but we
+  //     still need to handle URL-embedded credentials so authentication retries
+  //     for WebSocket handshakes continue to work.
+  if (response.status === 401 && httpRequest.responseTainting !== 'cors' && includeCredentials && (
+    request.useURLCredentials !== undefined ||
+    isTraversableNavigable(request.traversableForUserPrompts)
+  )) {
     // 2. If request’s body is non-null, then:
     if (request.body != null) {
       // 1. If request’s body’s source is null, then return a network error.
       if (request.body.source == null) {
-        return makeNetworkError('expected non-null body source')
+        // Note: In Node.js, this code path should not be reached because
+        // isTraversableNavigable() returns false for non-navigable contexts.
+        // However, we handle it gracefully by returning the response instead of
+        // a network error, as we won't actually retry the request.
+        // This aligns with the Fetch spec discussion in whatwg/fetch#1132,
+        // which allows implementations flexibility when credentials can't be obtained.
+        return response
       }
 
       // 2. Set request’s body to the body of the result of safely extracting
@@ -2126,206 +2140,246 @@ async function httpNetworkFetch (
     /** @type {import('../../..').Agent} */
     const agent = fetchParams.controller.dispatcher
 
-    return new Promise((resolve, reject) => agent.dispatch(
-      {
-        path: url.pathname + url.search,
-        origin: url.origin,
-        method: request.method,
-        body: agent.isMockActive ? request.body && (request.body.source || request.body.stream) : body,
-        headers: request.headersList.entries,
-        maxRedirections: 0,
-        upgrade: request.mode === 'websocket' ? 'websocket' : undefined
-      },
-      {
-        body: null,
-        abort: null,
+    const path = url.pathname + url.search
+    const hasTrailingQuestionMark = url.search.length === 0 && url.href[url.href.length - url.hash.length - 1] === '?'
 
-        onConnect (abort) {
-          // TODO (fix): Do we need connection here?
-          const { connection } = fetchParams.controller
+    return dispatchWithProtocolPreference(body)
 
-          // Set timingInfo’s final connection timing info to the result of calling clamp and coarsen
-          // connection timing info with connection’s timing info, timingInfo’s post-redirect start
-          // time, and fetchParams’s cross-origin isolated capability.
-          // TODO: implement connection timing
-          timingInfo.finalConnectionTimingInfo = clampAndCoarsenConnectionTimingInfo(undefined, timingInfo.postRedirectStartTime, fetchParams.crossOriginIsolatedCapability)
-
-          if (connection.destroyed) {
-            abort(new DOMException('The operation was aborted.', 'AbortError'))
-          } else {
-            fetchParams.controller.on('terminated', abort)
-            this.abort = connection.abort = abort
-          }
-
-          // Set timingInfo’s final network-request start time to the coarsened shared current time given
-          // fetchParams’s cross-origin isolated capability.
-          timingInfo.finalNetworkRequestStartTime = coarsenedSharedCurrentTime(fetchParams.crossOriginIsolatedCapability)
+    function dispatchWithProtocolPreference (body, allowH2) {
+      return new Promise((resolve, reject) => agent.dispatch(
+        {
+          path: hasTrailingQuestionMark ? `${path}?` : path,
+          origin: url.origin,
+          method: request.method,
+          body: agent.isMockActive ? request.body && (request.body.source || request.body.stream) : body,
+          headers: request.headersList.entries,
+          maxRedirections: 0,
+          upgrade: request.mode === 'websocket' ? 'websocket' : undefined,
+          ...(allowH2 === false ? { allowH2 } : null)
         },
+        {
+          body: null,
+          abort: null,
 
-        onResponseStarted () {
-          // Set timingInfo’s final network-response start time to the coarsened shared current
-          // time given fetchParams’s cross-origin isolated capability, immediately after the
-          // user agent’s HTTP parser receives the first byte of the response (e.g., frame header
-          // bytes for HTTP/2 or response status line for HTTP/1.x).
-          timingInfo.finalNetworkResponseStartTime = coarsenedSharedCurrentTime(fetchParams.crossOriginIsolatedCapability)
-        },
+          onRequestStart (controller) {
+            // TODO (fix): Do we need connection here?
+            const { connection } = fetchParams.controller
 
-        onHeaders (status, rawHeaders, resume, statusText) {
-          if (status < 200) {
-            return false
-          }
+            // Set timingInfo’s final connection timing info to the result of calling clamp and coarsen
+            // connection timing info with connection’s timing info, timingInfo’s post-redirect start
+            // time, and fetchParams’s cross-origin isolated capability.
+            // TODO: implement connection timing
+            timingInfo.finalConnectionTimingInfo = clampAndCoarsenConnectionTimingInfo(undefined, timingInfo.postRedirectStartTime, fetchParams.crossOriginIsolatedCapability)
 
-          const headersList = new HeadersList()
+            const abort = (reason) => controller.abort(reason)
 
-          for (let i = 0; i < rawHeaders.length; i += 2) {
-            headersList.append(bufferToLowerCasedHeaderName(rawHeaders[i]), rawHeaders[i + 1].toString('latin1'), true)
-          }
-          const location = headersList.get('location', true)
-
-          this.body = new Readable({ read: resume })
-
-          const willFollow = location && request.redirect === 'follow' &&
-            redirectStatusSet.has(status)
-
-          const decoders = []
-
-          // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding
-          if (request.method !== 'HEAD' && request.method !== 'CONNECT' && !nullBodyStatus.includes(status) && !willFollow) {
-            // https://www.rfc-editor.org/rfc/rfc7231#section-3.1.2.1
-            const contentEncoding = headersList.get('content-encoding', true)
-            // "All content-coding values are case-insensitive..."
-            /** @type {string[]} */
-            const codings = contentEncoding ? contentEncoding.toLowerCase().split(',') : []
-
-            // Limit the number of content-encodings to prevent resource exhaustion.
-            // CVE fix similar to urllib3 (GHSA-gm62-xv2j-4w53) and curl (CVE-2022-32206).
-            const maxContentEncodings = 5
-            if (codings.length > maxContentEncodings) {
-              reject(new Error(`too many content-encodings in response: ${codings.length}, maximum allowed is ${maxContentEncodings}`))
-              return true
+            if (connection.destroyed) {
+              abort(new DOMException('The operation was aborted.', 'AbortError'))
+            } else {
+              fetchParams.controller.on('terminated', abort)
+              this.abort = connection.abort = abort
             }
 
-            for (let i = codings.length - 1; i >= 0; --i) {
-              const coding = codings[i].trim()
-              // https://www.rfc-editor.org/rfc/rfc9112.html#section-7.2
-              if (coding === 'x-gzip' || coding === 'gzip') {
-                decoders.push(zlib.createGunzip({
-                  // Be less strict when decoding compressed responses, since sometimes
-                  // servers send slightly invalid responses that are still accepted
-                  // by common browsers.
-                  // Always using Z_SYNC_FLUSH is what cURL does.
-                  flush: zlib.constants.Z_SYNC_FLUSH,
-                  finishFlush: zlib.constants.Z_SYNC_FLUSH
-                }))
-              } else if (coding === 'deflate') {
-                decoders.push(createInflate({
-                  flush: zlib.constants.Z_SYNC_FLUSH,
-                  finishFlush: zlib.constants.Z_SYNC_FLUSH
-                }))
-              } else if (coding === 'br') {
-                decoders.push(zlib.createBrotliDecompress({
-                  flush: zlib.constants.BROTLI_OPERATION_FLUSH,
-                  finishFlush: zlib.constants.BROTLI_OPERATION_FLUSH
-                }))
-              } else if (coding === 'zstd' && hasZstd) {
-                decoders.push(zlib.createZstdDecompress({
-                  flush: zlib.constants.ZSTD_e_continue,
-                  finishFlush: zlib.constants.ZSTD_e_end
-                }))
+            // Set timingInfo’s final network-request start time to the coarsened shared current time given
+            // fetchParams’s cross-origin isolated capability.
+            timingInfo.finalNetworkRequestStartTime = coarsenedSharedCurrentTime(fetchParams.crossOriginIsolatedCapability)
+          },
+
+          onResponseStarted () {
+            // Set timingInfo’s final network-response start time to the coarsened shared current
+            // time given fetchParams’s cross-origin isolated capability, immediately after the
+            // user agent’s HTTP parser receives the first byte of the response (e.g., frame header
+            // bytes for HTTP/2 or response status line for HTTP/1.x).
+            timingInfo.finalNetworkResponseStartTime = coarsenedSharedCurrentTime(fetchParams.crossOriginIsolatedCapability)
+          },
+
+          onResponseStart (controller, status, _headers, statusText) {
+            if (status < 200) {
+              return
+            }
+
+            const rawHeaders = controller?.rawHeaders ?? []
+            const headersList = new HeadersList()
+
+            for (let i = 0; i < rawHeaders.length; i += 2) {
+              const nameStr = bufferToLowerCasedHeaderName(rawHeaders[i])
+              const value = rawHeaders[i + 1]
+              if (Array.isArray(value) && !Buffer.isBuffer(rawHeaders[i + 1])) {
+                for (const val of value) {
+                  headersList.append(nameStr, val.toString('latin1'), true)
+                }
               } else {
-                decoders.length = 0
-                break
+                headersList.append(nameStr, value.toString('latin1'), true)
               }
             }
-          }
+            const location = headersList.get('location', true)
 
-          const onError = this.onError.bind(this)
+            this.body = new Readable({ read: () => controller.resume() })
 
-          resolve({
-            status,
-            statusText,
-            headersList,
-            body: decoders.length
-              ? pipeline(this.body, ...decoders, (err) => {
-                if (err) {
-                  this.onError(err)
+            const willFollow = location && request.redirect === 'follow' &&
+              redirectStatusSet.has(status)
+
+            const decoders = []
+
+            // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding
+            if (request.method !== 'HEAD' && request.method !== 'CONNECT' && !nullBodyStatus.includes(status) && !willFollow) {
+              // https://www.rfc-editor.org/rfc/rfc7231#section-3.1.2.1
+              const contentEncoding = headersList.get('content-encoding', true)
+              // "All content-coding values are case-insensitive..."
+              /** @type {string[]} */
+              const codings = contentEncoding ? contentEncoding.toLowerCase().split(',') : []
+
+              // Limit the number of content-encodings to prevent resource exhaustion.
+              // CVE fix similar to urllib3 (GHSA-gm62-xv2j-4w53) and curl (CVE-2022-32206).
+              const maxContentEncodings = 5
+              if (codings.length > maxContentEncodings) {
+                reject(new Error(`too many content-encodings in response: ${codings.length}, maximum allowed is ${maxContentEncodings}`))
+                return
+              }
+
+              for (let i = codings.length - 1; i >= 0; --i) {
+                const coding = codings[i].trim()
+                // https://www.rfc-editor.org/rfc/rfc9112.html#section-7.2
+                if (coding === 'x-gzip' || coding === 'gzip') {
+                  decoders.push(zlib.createGunzip({
+                    // Be less strict when decoding compressed responses, since sometimes
+                    // servers send slightly invalid responses that are still accepted
+                    // by common browsers.
+                    // Always using Z_SYNC_FLUSH is what cURL does.
+                    flush: zlib.constants.Z_SYNC_FLUSH,
+                    finishFlush: zlib.constants.Z_SYNC_FLUSH
+                  }))
+                } else if (coding === 'deflate') {
+                  decoders.push(createInflate({
+                    flush: zlib.constants.Z_SYNC_FLUSH,
+                    finishFlush: zlib.constants.Z_SYNC_FLUSH
+                  }))
+                } else if (coding === 'br') {
+                  decoders.push(zlib.createBrotliDecompress({
+                    flush: zlib.constants.BROTLI_OPERATION_FLUSH,
+                    finishFlush: zlib.constants.BROTLI_OPERATION_FLUSH
+                  }))
+                } else if (coding === 'zstd') {
+                  decoders.push(zlib.createZstdDecompress({
+                    flush: zlib.constants.ZSTD_e_continue,
+                    finishFlush: zlib.constants.ZSTD_e_end
+                  }))
+                } else {
+                  decoders.length = 0
+                  break
                 }
-              }).on('error', onError)
-              : this.body.on('error', onError)
-          })
+              }
+            }
 
-          return true
-        },
+            const onError = (err) => this.onResponseError(controller, err)
 
-        onData (chunk) {
-          if (fetchParams.controller.dump) {
-            return
+            resolve({
+              status,
+              statusText,
+              headersList,
+              body: decoders.length
+                ? pipeline(this.body, ...decoders, (err) => {
+                  if (err) {
+                    this.onResponseError(controller, err)
+                  }
+                }).on('error', onError)
+                : this.body.on('error', onError)
+            })
+          },
+
+          onResponseData (controller, chunk) {
+            if (fetchParams.controller.dump) {
+              return
+            }
+
+            // 1. If one or more bytes have been transmitted from response’s
+            // message body, then:
+
+            //  1. Let bytes be the transmitted bytes.
+            const bytes = chunk
+
+            //  2. Let codings be the result of extracting header list values
+            //  given `Content-Encoding` and response’s header list.
+            //  See pullAlgorithm.
+
+            //  3. Increase timingInfo’s encoded body size by bytes’s length.
+            timingInfo.encodedBodySize += bytes.byteLength
+
+            //  4. See pullAlgorithm...
+
+            if (this.body.push(bytes) === false) {
+              controller.pause()
+            }
+          },
+
+          onResponseEnd () {
+            if (this.abort) {
+              fetchParams.controller.off('terminated', this.abort)
+            }
+
+            fetchParams.controller.ended = true
+
+            this.body?.push(null)
+          },
+
+          onResponseError (_controller, error) {
+            if (this.abort) {
+              fetchParams.controller.off('terminated', this.abort)
+            }
+
+            if (
+              request.mode === 'websocket' &&
+              allowH2 !== false &&
+              error?.code === 'UND_ERR_INFO' &&
+              error?.message === 'HTTP/2: Extended CONNECT protocol not supported by server'
+            ) {
+              // The origin negotiated H2, but RFC 8441 websocket support is unavailable.
+              // Retry the opening handshake on a fresh HTTP/1.1-only connection instead.
+              resolve(dispatchWithProtocolPreference(body, false))
+              return
+            }
+
+            this.body?.destroy(error)
+
+            fetchParams.controller.terminate(error)
+
+            reject(error)
+          },
+
+          onRequestUpgrade (controller, status, _headers, socket) {
+            // We need to support 200 for websocket over h2 as per RFC-8441
+            // Absence of session means H1
+            if ((socket.session != null && status !== 200) || (socket.session == null && status !== 101)) {
+              return false
+            }
+
+            const rawHeaders = controller?.rawHeaders ?? []
+            const headersList = new HeadersList()
+
+            for (let i = 0; i < rawHeaders.length; i += 2) {
+              const nameStr = bufferToLowerCasedHeaderName(rawHeaders[i])
+              const value = rawHeaders[i + 1]
+              if (Array.isArray(value) && !Buffer.isBuffer(rawHeaders[i + 1])) {
+                for (const val of value) {
+                  headersList.append(nameStr, val.toString('latin1'), true)
+                }
+              } else {
+                headersList.append(nameStr, value.toString('latin1'), true)
+              }
+            }
+
+            resolve({
+              status,
+              statusText: STATUS_CODES[status],
+              headersList,
+              socket
+            })
+
+            return true
           }
-
-          // 1. If one or more bytes have been transmitted from response’s
-          // message body, then:
-
-          //  1. Let bytes be the transmitted bytes.
-          const bytes = chunk
-
-          //  2. Let codings be the result of extracting header list values
-          //  given `Content-Encoding` and response’s header list.
-          //  See pullAlgorithm.
-
-          //  3. Increase timingInfo’s encoded body size by bytes’s length.
-          timingInfo.encodedBodySize += bytes.byteLength
-
-          //  4. See pullAlgorithm...
-
-          return this.body.push(bytes)
-        },
-
-        onComplete () {
-          if (this.abort) {
-            fetchParams.controller.off('terminated', this.abort)
-          }
-
-          fetchParams.controller.ended = true
-
-          this.body.push(null)
-        },
-
-        onError (error) {
-          if (this.abort) {
-            fetchParams.controller.off('terminated', this.abort)
-          }
-
-          this.body?.destroy(error)
-
-          fetchParams.controller.terminate(error)
-
-          reject(error)
-        },
-
-        onUpgrade (status, rawHeaders, socket) {
-          // We need to support 200 for websocket over h2 as per RFC-8441
-          // Absence of session means H1
-          if ((socket.session != null && status !== 200) || (socket.session == null && status !== 101)) {
-            return false
-          }
-
-          const headersList = new HeadersList()
-
-          for (let i = 0; i < rawHeaders.length; i += 2) {
-            headersList.append(bufferToLowerCasedHeaderName(rawHeaders[i]), rawHeaders[i + 1].toString('latin1'), true)
-          }
-
-          resolve({
-            status,
-            statusText: STATUS_CODES[status],
-            headersList,
-            socket
-          })
-
-          return true
         }
-      }
-    ))
+      ))
+    }
   }
 }
 

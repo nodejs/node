@@ -15,6 +15,7 @@
     'python%': 'python',
 
     'node_shared%': 'false',
+    'node_enable_experimentals%': 'false',
     'force_dynamic_crt%': 0,
     'node_use_v8_platform%': 'true',
     'node_use_bundled_v8%': 'true',
@@ -38,7 +39,7 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.12',
+    'v8_embedder_string': '-node.18',
 
     ##### V8 defaults for Node.js #####
 
@@ -189,7 +190,7 @@
             ['clang==1', {
               'lto': ' -flto ', # Clang
             }, {
-              'lto': ' -flto=4 -fuse-linker-plugin -ffat-lto-objects ', # GCC
+              'lto': ' -flto=4 -ffat-lto-objects ', # GCC
             }],
           ],
         },
@@ -437,6 +438,9 @@
       }],
       # The defines bellow must include all things from the external_v8_defines
       # list in v8/BUILD.gn.
+      ['node_enable_experimentals == "true"', {
+        'defines': ['EXPERIMENTALS_DEFAULT_VALUE=true'],
+      }],
       ['v8_enable_v8_checks == 1', {
         'defines': ['V8_ENABLE_CHECKS'],
       }],
@@ -591,6 +595,18 @@
           '-maix64',
         ],
         'conditions': [
+          [ 'clang==1', {
+            'cflags': [
+              '-fno-integrated-as',
+              '-fno-xl-pragma-pack',
+              '-mcpu=power9',
+            ],
+            'cflags_cc': [
+              '-fno-integrated-as',
+              '-fno-xl-pragma-pack',
+              '-mcpu=power9',
+            ],
+          }],
           [ '"<(aix_variant_name)"=="OS400"', {            # a.k.a. `IBM i`
             'ldflags': [
               '-Wl,-blibpath:/QOpenSys/pkgs/lib:/QOpenSys/usr/lib',

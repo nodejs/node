@@ -89,25 +89,29 @@ callbackFunction((err, ret) => {
 });
 ```
 
-## `util.convertProcessSignalToExitCode(signalCode)`
+## `util.convertProcessSignalToExitCode(signal)`
 
 <!-- YAML
-added: v25.4.0
+added:
+ - v25.4.0
+ - v24.14.0
 -->
 
-* `signalCode` {string} A signal name (e.g., `'SIGTERM'`, `'SIGKILL'`).
-* Returns: {number|null} The exit code, or `null` if the signal is invalid.
+* `signal` {string} A signal name (e.g. `'SIGTERM'`)
+* Returns: {number} The exit code corresponding to `signal`
 
 The `util.convertProcessSignalToExitCode()` method converts a signal name to its
 corresponding POSIX exit code. Following the POSIX standard, the exit code
 for a process terminated by a signal is calculated as `128 + signal number`.
+
+If `signal` is not a valid signal name, then an error will be thrown. See
+[`signal(7)`][] for a list of valid signals.
 
 ```mjs
 import { convertProcessSignalToExitCode } from 'node:util';
 
 console.log(convertProcessSignalToExitCode('SIGTERM')); // 143 (128 + 15)
 console.log(convertProcessSignalToExitCode('SIGKILL')); // 137 (128 + 9)
-console.log(convertProcessSignalToExitCode('INVALID')); // null
 ```
 
 ```cjs
@@ -115,7 +119,6 @@ const { convertProcessSignalToExitCode } = require('node:util');
 
 console.log(convertProcessSignalToExitCode('SIGTERM')); // 143 (128 + 15)
 console.log(convertProcessSignalToExitCode('SIGKILL')); // 137 (128 + 9)
-console.log(convertProcessSignalToExitCode('INVALID')); // null
 ```
 
 This is particularly useful when working with processes to determine
@@ -677,8 +680,7 @@ anotherFunction();
 
 It is possible to reconstruct the original locations by setting the option `sourceMap` to `true`.
 If the source map is not available, the original location will be the same as the current location.
-When the `--enable-source-maps` flag is enabled, for example when using `--experimental-transform-types`,
-`sourceMap` will be true by default.
+When the `--enable-source-maps` flag is enabled,`sourceMap` will be true by default.
 
 ```ts
 import { getCallSites } from 'node:util';
@@ -2529,6 +2531,9 @@ added:
   - v21.7.0
   - v20.12.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61556
+    description: Add support for hexadecimal colors.
   - version:
       - v24.2.0
       - v22.17.0
@@ -2548,7 +2553,8 @@ changes:
 -->
 
 * `format` {string | Array} A text format or an Array
-  of text formats defined in `util.inspect.colors`.
+  of text formats defined in `util.inspect.colors`, or a hex color in `#RGB`
+  or `#RRGGBB` form.
 * `text` {string} The text to to be formatted.
 * `options` {Object}
   * `validateStream` {boolean} When true, `stream` is checked to see if it can handle colors. **Default:** `true`.
@@ -2610,6 +2616,30 @@ console.log(
 ```
 
 The special format value `none` applies no additional styling to the text.
+
+In addition to predefined color names, `util.styleText()` supports hex color
+strings using ANSI TrueColor (24-bit) escape sequences. Hex colors can be
+specified in either 3-digit (`#RGB`) or 6-digit (`#RRGGBB`) format:
+
+```mjs
+import { styleText } from 'node:util';
+
+// 6-digit hex color
+console.log(styleText('#ff5733', 'Orange text'));
+
+// 3-digit hex color (shorthand)
+console.log(styleText('#f00', 'Red text'));
+```
+
+```cjs
+const { styleText } = require('node:util');
+
+// 6-digit hex color
+console.log(styleText('#ff5733', 'Orange text'));
+
+// 3-digit hex color (shorthand)
+console.log(styleText('#f00', 'Red text'));
+```
 
 The full list of formats can be found in [modifiers][].
 
@@ -3868,6 +3898,7 @@ npx codemod@latest @nodejs/util-is
 [`mime.toString()`]: #mimetostring
 [`mimeParams.entries()`]: #mimeparamsentries
 [`napi_create_external()`]: n-api.md#napi_create_external
+[`signal(7)`]: https://man7.org/linux/man-pages/man7/signal.7.html
 [`target` and `handler`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy#terminology
 [`tty.hasColors()`]: tty.md#writestreamhascolorscount-env
 [`util.diff()`]: #utildiffactual-expected

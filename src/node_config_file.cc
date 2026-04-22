@@ -2,39 +2,53 @@
 #include "debug_utils-inl.h"
 #include "simdjson.h"
 
-#include <string>
-
 namespace node {
 
+constexpr std::string_view kConfigFileFlag = "--experimental-config-file";
+constexpr std::string_view kDefaultConfigFileFlag =
+    "--experimental-default-config-file";
+constexpr std::string_view kDefaultConfigFileName = "node.config.json";
+
+inline bool HasEqualsPrefix(std::string_view arg, std::string_view flag) {
+  return arg.size() > flag.size() && arg.starts_with(flag) &&
+         arg[flag.size()] == '=';
+}
+
 std::optional<std::string_view> ConfigReader::GetDataFromArgs(
-    const std::vector<std::string>& args) {
-  constexpr std::string_view flag_path = "--experimental-config-file";
-  constexpr std::string_view default_file =
-      "--experimental-default-config-file";
+    std::vector<std::string>* args) {
+  std::optional<std::string_view> result;
+  invalid_default_config_file_argument_ = false;
 
-  bool has_default_config_file = false;
+  for (size_t i = 0; i < args->size(); ++i) {
+    std::string& arg = (*args)[i];
 
-  for (auto it = args.begin(); it != args.end(); ++it) {
-    if (*it == flag_path) {
-      // Case: "--experimental-config-file foo"
-      if (auto next = std::next(it); next != args.end()) {
-        return *next;
+    if (arg == kConfigFileFlag) {
+      // --experimental-config-file
+      arg = std::string(kConfigFileFlag) + "=" +
+            std::string(kDefaultConfigFileName);
+      result = kDefaultConfigFileName;
+    } else if (HasEqualsPrefix(arg, kConfigFileFlag)) {
+      // --experimental-config-file=path
+      std::string_view path =
+          std::string_view(arg).substr(kConfigFileFlag.size() + 1);
+      if (!path.empty()) {
+        result = path;
       }
-    } else if (it->starts_with(flag_path)) {
-      // Case: "--experimental-config-file=foo"
-      if (it->size() > flag_path.size() && (*it)[flag_path.size()] == '=') {
-        return std::string_view(*it).substr(flag_path.size() + 1);
-      }
-    } else if (*it == default_file || it->starts_with(default_file)) {
-      has_default_config_file = true;
+    } else if (arg == kDefaultConfigFileFlag) {
+      // --experimental-default-config-file
+      arg = std::string(kConfigFileFlag) + "=" +
+            std::string(kDefaultConfigFileName);
+      result = kDefaultConfigFileName;
+    } else if (HasEqualsPrefix(arg, kDefaultConfigFileFlag)) {
+      invalid_default_config_file_argument_ = true;
     }
   }
 
-  if (has_default_config_file) {
-    return "node.config.json";
-  }
+  return result;
+}
 
-  return std::nullopt;
+bool ConfigReader::HasInvalidDefaultConfigFileArgument() const {
+  return invalid_default_config_file_argument_;
 }
 
 ParseResult ConfigReader::ProcessOptionValue(
@@ -49,7 +63,7 @@ ParseResult ConfigReader::ProcessOptionValue(
     case options_parser::OptionType::kBoolean: {
       bool result;
       if (option_value->get_bool().get(result)) {
-        FPrintF(stderr, "Invalid value for %s\n", option_name.c_str());
+        FPrintF(stderr, "Invalid value for %s\n", option_name);
         return ParseResult::InvalidContent;
       }
 
@@ -75,13 +89,13 @@ ParseResult ConfigReader::ProcessOptionValue(
           std::vector<std::string> result;
           simdjson::ondemand::array raw_imports;
           if (option_value->get_array().get(raw_imports)) {
-            FPrintF(stderr, "Invalid value for %s\n", option_name.c_str());
+            FPrintF(stderr, "Invalid value for %s\n", option_name);
             return ParseResult::InvalidContent;
           }
           for (auto raw_import : raw_imports) {
             std::string_view import;
             if (raw_import.get_string(import)) {
-              FPrintF(stderr, "Invalid value for %s\n", option_name.c_str());
+              FPrintF(stderr, "Invalid value for %s\n", option_name);
               return ParseResult::InvalidContent;
             }
             output->push_back(option_name + "=" + std::string(import));
@@ -91,14 +105,14 @@ ParseResult ConfigReader::ProcessOptionValue(
         case simdjson::ondemand::json_type::string: {
           std::string result;
           if (option_value->get_string(result)) {
-            FPrintF(stderr, "Invalid value for %s\n", option_name.c_str());
+            FPrintF(stderr, "Invalid value for %s\n", option_name);
             return ParseResult::InvalidContent;
           }
           output->push_back(option_name + "=" + result);
           break;
         }
         default:
-          FPrintF(stderr, "Invalid value for %s\n", option_name.c_str());
+          FPrintF(stderr, "Invalid value for %s\n", option_name);
           return ParseResult::InvalidContent;
       }
       break;
@@ -106,7 +120,7 @@ ParseResult ConfigReader::ProcessOptionValue(
     case options_parser::OptionType::kString: {
       std::string result;
       if (option_value->get_string(result)) {
-        FPrintF(stderr, "Invalid value for %s\n", option_name.c_str());
+        FPrintF(stderr, "Invalid value for %s\n", option_name);
         return ParseResult::InvalidContent;
       }
       output->push_back(option_name + "=" + result);
@@ -115,7 +129,7 @@ ParseResult ConfigReader::ProcessOptionValue(
     case options_parser::OptionType::kInteger: {
       int64_t result;
       if (option_value->get_int64().get(result)) {
-        FPrintF(stderr, "Invalid value for %s\n", option_name.c_str());
+        FPrintF(stderr, "Invalid value for %s\n", option_name);
         return ParseResult::InvalidContent;
       }
       output->push_back(option_name + "=" + std::to_string(result));
@@ -125,22 +139,19 @@ ParseResult ConfigReader::ProcessOptionValue(
     case options_parser::OptionType::kUInteger: {
       uint64_t result;
       if (option_value->get_uint64().get(result)) {
-        FPrintF(stderr, "Invalid value for %s\n", option_name.c_str());
+        FPrintF(stderr, "Invalid value for %s\n", option_name);
         return ParseResult::InvalidContent;
       }
       output->push_back(option_name + "=" + std::to_string(result));
       break;
     }
     case options_parser::OptionType::kNoOp: {
-      FPrintF(stderr,
-              "No-op flag %s is currently not supported\n",
-              option_name.c_str());
+      FPrintF(
+          stderr, "No-op flag %s is currently not supported\n", option_name);
       return ParseResult::InvalidContent;
     }
     case options_parser::OptionType::kV8Option: {
-      FPrintF(stderr,
-              "V8 flag %s is currently not supported\n",
-              option_name.c_str());
+      FPrintF(stderr, "V8 flag %s is currently not supported\n", option_name);
       return ParseResult::InvalidContent;
     }
     default:
@@ -189,8 +200,7 @@ ParseResult ConfigReader::ParseOptions(
     if (option != options_map.end()) {
       // If the option has already been set, return an error
       if (unique_options->contains(option->first)) {
-        FPrintF(
-            stderr, "Option %s is already defined\n", option->first.c_str());
+        FPrintF(stderr, "Option %s is already defined\n", option->first);
         return ParseResult::InvalidContent;
       }
       // Add the option to the unique set to prevent duplicates
@@ -206,7 +216,7 @@ ParseResult ConfigReader::ParseOptions(
       FPrintF(stderr,
               "Unknown or not allowed option %s for namespace %s\n",
               option_key,
-              namespace_name.c_str());
+              namespace_name);
       return ParseResult::InvalidContent;
     }
   }
@@ -303,7 +313,7 @@ ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
     if (field_error) {
       FPrintF(stderr,
               "\"%s\" value unexpected for %s (should be an object)\n",
-              namespace_name.c_str(),
+              namespace_name,
               config_path.data());
       return ParseResult::InvalidContent;
     }

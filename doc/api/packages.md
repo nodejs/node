@@ -528,7 +528,9 @@ added:
   - v14.6.0
   - v12.19.0
 changes:
-  - version: v25.4.0
+  - version:
+     - v25.4.0
+     - v24.14.0
     pr-url: https://github.com/nodejs/node/pull/60864
     description: Allow subpath imports that start with `#/`.
 -->
@@ -1010,7 +1012,7 @@ added: v0.4.0
 The `"main"` field defines the entry point of a package when imported by name
 via a `node_modules` lookup.  Its value is a path.
 
-When a package has an [`"exports"`][] field, this will take precedence over the
+The [`"exports"`][] field, if it exists, takes precedence over the
 `"main"` field when importing the package by name.
 
 It also defines the script that is used when the [package directory is loaded

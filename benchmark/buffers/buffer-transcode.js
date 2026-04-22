@@ -8,7 +8,7 @@ const encodings = ['latin1', 'ascii', 'ucs2', 'utf8'];
 
 if (!hasIntl) {
   console.log('Skipping: `transcode` is only available on platforms that support i18n`');
-  process.exit(0);
+  return;
 }
 
 const bench = common.createBenchmark(main, {

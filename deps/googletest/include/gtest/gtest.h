@@ -57,6 +57,7 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <vector>
 
@@ -135,6 +136,10 @@ GTEST_DECLARE_int32_(repeat);
 // test Environment objects are only set up once, for the first iteration, and
 // only torn down once, for the last.
 GTEST_DECLARE_bool_(recreate_environments_when_repeating);
+
+// Together these flags determine which tests are run if the test is sharded.
+GTEST_DECLARE_int32_(shard_index);
+GTEST_DECLARE_int32_(total_shards);
 
 // This flag controls whether Google Test includes Google Test internal
 // stack frames in failure stack traces.
@@ -1246,7 +1251,7 @@ class GTEST_API_ [[nodiscard]] UnitTest {
   // eventually call this to report their results.  The user code
   // should use the assertion macros instead of calling this directly.
   void AddTestPartResult(TestPartResult::Type result_type,
-                         const char* file_name, int line_number,
+                         std::string_view file_name, int line_number,
                          const std::string& message,
                          const std::string& os_stack_trace)
       GTEST_LOCK_EXCLUDED_(mutex_);
@@ -1619,6 +1624,8 @@ class GTEST_API_ [[nodiscard]] AssertHelper {
   // Constructor.
   AssertHelper(TestPartResult::Type type, const char* file, int line,
                const char* message);
+  AssertHelper(TestPartResult::Type type, std::string_view file, int line,
+               std::string_view message);
   ~AssertHelper();
 
   // Message assignment is a semantic trick to enable assertion
@@ -1632,12 +1639,12 @@ class GTEST_API_ [[nodiscard]] AssertHelper {
   // re-using stack space even for temporary variables, so every EXPECT_EQ
   // reserves stack space for another AssertHelper.
   struct AssertHelperData {
-    AssertHelperData(TestPartResult::Type t, const char* srcfile, int line_num,
-                     const char* msg)
+    AssertHelperData(TestPartResult::Type t, std::string_view srcfile,
+                     int line_num, std::string_view msg)
         : type(t), file(srcfile), line(line_num), message(msg) {}
 
     TestPartResult::Type const type;
-    const char* const file;
+    const std::string_view file;
     int const line;
     std::string const message;
 

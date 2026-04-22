@@ -57,7 +57,7 @@ class RunScript extends BaseCommand {
       if (!args.length) {
         const newline = await this.#list(path, { workspace })
         if (newline && !last) {
-          output.standard('')
+          output.standard()
         }
         continue
       }
@@ -113,7 +113,8 @@ class RunScript extends BaseCommand {
         ? ` --workspace=${pkg._id || pkg.name}`
         : ''
       throw new Error([
-        `Missing script: "${event}"${suggestions}\n`,
+        `Missing script: "${event}"${suggestions}`,
+        '',
         'To see a list of scripts, run:',
         `  npm run${wsArg}`,
       ].join('\n'))
@@ -213,8 +214,7 @@ class RunScript extends BaseCommand {
       }
     }
 
-    // Return true to indicate that something was output for this path
-    // that should be separated from others
+    // Return true to indicate that something was output for this path that should be separated from others
     return true
   }
 }

@@ -48,7 +48,8 @@ struct KEMEncapsulateTraits final {
   static bool DeriveBits(Environment* env,
                          const KEMConfiguration& params,
                          ByteSource* out,
-                         CryptoJobMode mode);
+                         CryptoJobMode mode,
+                         CryptoErrorStore* errors);
 
   static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
                                                 const KEMConfiguration& params,
@@ -71,7 +72,8 @@ struct KEMDecapsulateTraits final {
   static bool DeriveBits(Environment* env,
                          const KEMConfiguration& params,
                          ByteSource* out,
-                         CryptoJobMode mode);
+                         CryptoJobMode mode,
+                         CryptoErrorStore* errors);
 
   static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
                                                 const KEMConfiguration& params,

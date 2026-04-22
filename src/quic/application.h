@@ -17,8 +17,18 @@ class Session::Application : public MemoryRetainer {
  public:
   using Options = Session::Application_Options;
 
+  // The type of Application, exposed via the session state so JS
+  // can observe which Application was selected after ALPN negotiation.
+  enum class Type : uint8_t {
+    NONE = 0,     // Not yet selected (server pre-negotiation)
+    DEFAULT = 1,  // DefaultApplication (non-h3 ALPN)
+    HTTP3 = 2,    // Http3ApplicationImpl (h3 / h3-XX ALPN)
+  };
+
   Application(Session* session, const Options& options);
   DISALLOW_COPY_AND_MOVE(Application)
+
+  virtual Type type() const = 0;
 
   virtual bool Start();
 
@@ -120,7 +130,6 @@ class Session::Application : public MemoryRetainer {
 
   virtual int GetStreamData(StreamData* data) = 0;
   virtual bool StreamCommit(StreamData* data, size_t datalen) = 0;
-  virtual bool ShouldSetFin(const StreamData& data) = 0;
 
   inline Environment* env() const { return session().env(); }
   inline Session& session() {
@@ -133,7 +142,7 @@ class Session::Application : public MemoryRetainer {
   }
 
  private:
-  BaseObjectPtr<Packet> CreateStreamDataPacket();
+  Packet::Ptr CreateStreamDataPacket();
 
   // Write the given stream_data into the buffer.
   ssize_t WriteVStream(PathStorage* path,
@@ -148,7 +157,6 @@ class Session::Application : public MemoryRetainer {
 struct Session::Application::StreamData final {
   // The actual number of vectors in the struct, up to kMaxVectorCount.
   size_t count = 0;
-  size_t remaining = 0;
   // The stream identifier. If this is a negative value then no stream is
   // identified.
   int64_t id = -1;
@@ -156,6 +164,11 @@ struct Session::Application::StreamData final {
   ngtcp2_vec data[kMaxVectorCount]{};
   BaseObjectPtr<Stream> stream;
 
+  static_assert(sizeof(ngtcp2_vec) == sizeof(nghttp3_vec) &&
+                    alignof(ngtcp2_vec) == alignof(nghttp3_vec) &&
+                    offsetof(ngtcp2_vec, base) == offsetof(nghttp3_vec, base) &&
+                    offsetof(ngtcp2_vec, len) == offsetof(nghttp3_vec, len),
+                "ngtcp2_vec and nghttp3_vec must have identical layout");
   inline operator nghttp3_vec*() {
     return reinterpret_cast<nghttp3_vec*>(data);
   }
@@ -165,6 +178,10 @@ struct Session::Application::StreamData final {
 
   std::string ToString() const;
 };
+
+// Create a DefaultApplication for the given session.
+std::unique_ptr<Session::Application> CreateDefaultApplication(
+    Session* session, const Session::Application_Options& options);
 
 }  // namespace node::quic
 

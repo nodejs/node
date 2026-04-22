@@ -6,7 +6,9 @@ const Pool = require('./lib/dispatcher/pool')
 const BalancedPool = require('./lib/dispatcher/balanced-pool')
 const RoundRobinPool = require('./lib/dispatcher/round-robin-pool')
 const Agent = require('./lib/dispatcher/agent')
+const Dispatcher1Wrapper = require('./lib/dispatcher/dispatcher1-wrapper')
 const ProxyAgent = require('./lib/dispatcher/proxy-agent')
+const Socks5ProxyAgent = require('./lib/dispatcher/socks5-proxy-agent')
 const EnvHttpProxyAgent = require('./lib/dispatcher/env-http-proxy-agent')
 const RetryAgent = require('./lib/dispatcher/retry-agent')
 const H2CClient = require('./lib/dispatcher/h2c-client')
@@ -34,7 +36,9 @@ module.exports.Pool = Pool
 module.exports.BalancedPool = BalancedPool
 module.exports.RoundRobinPool = RoundRobinPool
 module.exports.Agent = Agent
+module.exports.Dispatcher1Wrapper = Dispatcher1Wrapper
 module.exports.ProxyAgent = ProxyAgent
+module.exports.Socks5ProxyAgent = Socks5ProxyAgent
 module.exports.EnvHttpProxyAgent = EnvHttpProxyAgent
 module.exports.RetryAgent = RetryAgent
 module.exports.H2CClient = H2CClient
@@ -101,14 +105,14 @@ function makeDispatcher (fn) {
       url = util.parseURL(url)
     }
 
-    const { agent, dispatcher = getGlobalDispatcher() } = opts
+    const { agent, dispatcher = getGlobalDispatcher(), ...restOpts } = opts
 
     if (agent) {
       throw new InvalidArgumentError('unsupported opts.agent. Did you mean opts.client?')
     }
 
     return fn.call(dispatcher, {
-      ...opts,
+      ...restOpts,
       origin: url.origin,
       path: url.search ? `${url.pathname}${url.search}` : url.pathname,
       method: opts.method || (opts.body ? 'PUT' : 'GET')

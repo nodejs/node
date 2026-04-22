@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.22.0](https://github.com/nodejs/gyp-next/compare/v0.21.1...v0.22.0) (2026-04-02)
+
+
+### Features
+
+* Windows ARM64 target architecture support ([#331](https://github.com/nodejs/gyp-next/issues/331)) ([652a346](https://github.com/nodejs/gyp-next/commit/652a346bbd3b077a4b08a3c37d48100ce200758a))
+
+
+### Bug Fixes
+
+* drop deprecated Python module pkg_resources ([#333](https://github.com/nodejs/gyp-next/issues/333)) ([5b180d5](https://github.com/nodejs/gyp-next/commit/5b180d52d03aff062bdea1ad0209b82271c7eb4a))
+
 ## [0.21.1](https://github.com/nodejs/gyp-next/compare/v0.21.0...v0.21.1) (2026-01-24)
 
 

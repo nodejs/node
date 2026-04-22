@@ -120,7 +120,8 @@ class TransportParams final {
     // connection migration. See the QUIC specification for more details on
     // connection migration.
     // https://www.rfc-editor.org/rfc/rfc9000.html#section-18.2-4.30.1
-    // TODO(@jasnell): We currently do not implement active migration.
+    // TODO(@jasnell): Active connection migration is not yet implemented.
+    // This will be revisited in a future update.
     bool disable_active_migration = true;
 
     static const Options kDefault;
@@ -160,6 +161,15 @@ class TransportParams final {
   // If an error occurs during encoding, or if the parameters could
   // not be encoded, an empty Store will be returned.
   Store Encode(Environment* env, Version version = Version::V1) const;
+
+  // Returns the encoded size in bytes, or 0 on error.
+  ssize_t EncodedSize(Version version = Version::V1) const;
+
+  // Encode into a caller-provided buffer. Returns the number of bytes
+  // written, or a negative value on error.
+  ssize_t EncodeInto(uint8_t* buf,
+                     size_t len,
+                     Version version = Version::V1) const;
 
  private:
   void SetPreferredAddress(const SocketAddress& address);

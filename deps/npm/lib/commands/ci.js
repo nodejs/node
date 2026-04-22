@@ -21,6 +21,7 @@ class CI extends ArboristWorkspaceCmd {
     'strict-peer-deps',
     'foreground-scripts',
     'ignore-scripts',
+    'allow-git',
     'audit',
     'bin-links',
     'fund',
@@ -35,6 +36,8 @@ class CI extends ArboristWorkspaceCmd {
       })
     }
 
+    const dryRun = this.npm.config.get('dry-run')
+    const ignoreScripts = this.npm.config.get('ignore-scripts')
     const where = this.npm.prefix
     const Arborist = require('@npmcli/arborist')
     const opts = {
@@ -45,46 +48,42 @@ class CI extends ArboristWorkspaceCmd {
       workspaces: this.workspaceNames,
     }
 
-    const arb = new Arborist(opts)
-    await arb.loadVirtual().catch(er => {
-      log.verbose('loadVirtual', er.stack)
+    // generate an inventory from the virtual tree in the lockfile
+    const virtualArb = new Arborist(opts)
+    try {
+      await virtualArb.loadVirtual()
+    } catch (err) {
+      log.verbose('loadVirtual', err.stack)
       const msg =
         'The `npm ci` command can only install with an existing package-lock.json or\n' +
         'npm-shrinkwrap.json with lockfileVersion >= 1. Run an install with npm@5 or\n' +
         'later to generate a package-lock.json file, then try again.'
       throw this.usageError(msg)
-    })
+    }
+    const virtualInventory = new Map(virtualArb.virtualTree.inventory)
 
-    // retrieves inventory of packages from loaded virtual tree (lock file)
-    const virtualInventory = new Map(arb.virtualTree.inventory)
-
-    // build ideal tree step needs to come right after retrieving the virtual
-    // inventory since it's going to erase the previous ref to virtualTree
+    // Now we make our real Arborist.
+    // We need a new one because the virtual tree fromt the lockfile can have extraneous dependencies in it that won't install on this platform
+    const arb = new Arborist(opts)
     await arb.buildIdealTree()
 
-    // verifies that the packages from the ideal tree will match
-    // the same versions that are present in the virtual tree (lock file)
-    // throws a validation error in case of mismatches
+    // Verifies that the packages from the ideal tree will match the same versions that are present in the virtual tree (lock file).
     const errors = validateLockfile(virtualInventory, arb.idealTree.inventory)
     if (errors.length) {
       throw this.usageError(
-        '`npm ci` can only install packages when your package.json and ' +
-        'package-lock.json or npm-shrinkwrap.json are in sync. Please ' +
-        'update your lock file with `npm install` ' +
-        'before continuing.\n\n' +
+        '`npm ci` can only install packages when your package.json and package-lock.json or npm-shrinkwrap.json are in sync. ' +
+        'Please update your lock file with `npm install` before continuing.\n\n' +
         errors.join('\n')
       )
     }
 
-    const dryRun = this.npm.config.get('dry-run')
     if (!dryRun) {
       const workspacePaths = await getWorkspaces([], {
         path: this.npm.localPrefix,
         includeWorkspaceRoot: true,
       })
 
-      // Only remove node_modules after we've successfully loaded the virtual
-      // tree and validated the lockfile
+      // Only remove node_modules after we've successfully loaded the virtual tree and validated the lockfile
       await time.start('npm-ci:rm', async () => {
         return await Promise.all([...workspacePaths.values()].map(async modulePath => {
           const fullPath = path.join(modulePath, 'node_modules')
@@ -99,7 +98,6 @@ class CI extends ArboristWorkspaceCmd {
 
     await arb.reify(opts)
 
-    const ignoreScripts = this.npm.config.get('ignore-scripts')
     // run the same set of scripts that `npm install` runs.
     if (!ignoreScripts) {
       const scripts = [

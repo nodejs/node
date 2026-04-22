@@ -247,8 +247,9 @@ void PrintDebuggerReadyMessage(
               FormatWsAddress(host, server_socket->port(), id, true).c_str());
     }
   }
-  fprintf(out, "For help, see: %s\n",
-          "https://nodejs.org/en/docs/inspector");
+  fprintf(out,
+          "For help, see: %s\n",
+          "https://nodejs.org/learn/getting-started/debugging");
   fflush(out);
 }
 

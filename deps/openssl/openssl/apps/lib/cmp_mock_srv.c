@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Siemens AG 2018-2020
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -10,6 +10,7 @@
 
 #include "apps.h"
 #include "cmp_mock_srv.h"
+#include "../../crypto/cmp/cmp_local.h" /* for access to msg->protection */
 
 #include <openssl/cmp.h>
 #include <openssl/err.h>
@@ -28,6 +29,7 @@ typedef struct {
     X509 *oldWithNew; /* to return in oldWithNew of rootKeyUpdate */
     OSSL_CMP_PKISI *statusOut; /* status for ip/cp/kup/rp msg unless polling */
     int sendError; /* send error response on given request type */
+    int useBadProtection; /* use bad protection on given response type */
     OSSL_CMP_MSG *req; /* original request message during polling */
     int pollCount; /* number of polls before actual cert response */
     int curr_pollCount; /* number of polls so far for current request */
@@ -59,6 +61,7 @@ static mock_srv_ctx *mock_srv_ctx_new(void)
         goto err;
 
     ctx->sendError = -1;
+    ctx->useBadProtection = -1;
 
     /* all other elements are initialized to 0 or NULL, respectively */
     return ctx;
@@ -184,6 +187,19 @@ int ossl_cmp_mock_srv_set_sendError(OSSL_CMP_SRV_CTX *srv_ctx, int bodytype)
     }
     /* might check bodytype, but this would require exporting all body types */
     ctx->sendError = bodytype;
+    return 1;
+}
+
+int ossl_cmp_mock_srv_set_useBadProtection(OSSL_CMP_SRV_CTX *srv_ctx, int bodytype)
+{
+    mock_srv_ctx *ctx = OSSL_CMP_SRV_CTX_get0_custom_ctx(srv_ctx);
+
+    if (ctx == NULL) {
+        ERR_raise(ERR_LIB_CMP, CMP_R_NULL_ARGUMENT);
+        return 0;
+    }
+    /* might check bodytype, but this would require exporting all body types */
+    ctx->useBadProtection = bodytype;
     return 1;
 }
 
@@ -591,6 +607,7 @@ static int process_genm(OSSL_CMP_SRV_CTX *srv_ctx,
         if (rsp != NULL && sk_OSSL_CMP_ITAV_push(*out, rsp))
             return 1;
         sk_OSSL_CMP_ITAV_free(*out);
+        OSSL_CMP_ITAV_free(rsp);
         return 0;
     }
 
@@ -710,6 +727,25 @@ static int process_pollReq(OSSL_CMP_SRV_CTX *srv_ctx,
         *check_after = ctx->checkAfterTime;
     }
     return 1;
+}
+
+OSSL_CMP_MSG *ossl_cmp_mock_server_perform(OSSL_CMP_CTX *ctx,
+    const OSSL_CMP_MSG *req)
+{
+    OSSL_CMP_SRV_CTX *srv_ctx = OSSL_CMP_CTX_get_transfer_cb_arg(ctx);
+    OSSL_CMP_MSG *rsp = OSSL_CMP_CTX_server_perform(ctx, req);
+
+    if (srv_ctx != NULL && rsp != NULL) {
+        mock_srv_ctx *mock_ctx = OSSL_CMP_SRV_CTX_get0_custom_ctx(srv_ctx);
+
+        if (mock_ctx != NULL && OSSL_CMP_MSG_get_bodytype(rsp) == mock_ctx->useBadProtection) {
+            ASN1_BIT_STRING *prot = rsp->protection;
+
+            if (prot != NULL && prot->length != 0 && prot->data != NULL)
+                prot->data[0] ^= 0x80; /* flip most significant bit of the first byte */
+        }
+    }
+    return rsp;
 }
 
 OSSL_CMP_SRV_CTX *ossl_cmp_mock_srv_new(OSSL_LIB_CTX *libctx, const char *propq)

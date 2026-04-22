@@ -339,7 +339,8 @@ module.exports = cls => class IdealTreeBuilder extends cls {
           filter: node => node,
           visit: node => {
             for (const edge of node.edgesOut.values()) {
-              if ((!edge.to && edge.type !== 'peerOptional') || !edge.valid) {
+              const skipPeerOptional = edge.type === 'peerOptional' && this.options.save === false
+              if (!skipPeerOptional && (!edge.to || !edge.valid)) {
                 this.#depsQueue.push(node)
                 break // no need to continue the loop after the first hit
               }
@@ -504,27 +505,25 @@ module.exports = cls => class IdealTreeBuilder extends cls {
     this.#depsQueue.push(tree)
   }
 
-  // This returns a promise because we might not have the name yet, and need to
-  // call pacote.manifest to find the name.
+  // This returns a promise because we might not have the name yet, and need to call pacote.manifest to find the name.
   async #add (tree, { add, saveType = null, saveBundle = false }) {
     // If we have a link it will need to be added relative to the target's path
     const path = tree.target.path
 
-    // get the name for each of the specs in the list.
-    // ie, doing `foo@bar` we just return foo but if it's a url or git, we
-    // don't know the name until we fetch it and look in its manifest.
+    // Get the name for each of the specs in the list.
+    // e.g. doing `foo@bar` we just return foo but if it's a url or git, we don't know the name until we fetch it and look in its manifest.
     await Promise.all(add.map(async rawSpec => {
-      // We do NOT provide the path to npa here, because user-additions need to
-      // be resolved relative to the tree being added to.
+      // We do NOT provide the path to npa here, because user-additions need to be resolved relative to the tree being added to.
       let spec = npa(rawSpec)
 
-      // if it's just @'' then we reload whatever's there, or get latest
-      // if it's an explicit tag, we need to install that specific tag version
+      // if it's just @'' then we reload whatever's there, or get latest.
+      // if it's an explicit tag, we need to install that specific tag version.
       const isTag = spec.rawSpec && spec.type === 'tag'
 
       // look up the names of file/directory/git specs
       if (!spec.name || isTag) {
-        const mani = await pacote.manifest(spec, { ...this.options })
+        const _isRoot = tree.isProjectRoot || tree.isWorkspace
+        const mani = await pacote.manifest(spec, { ...this.options, _isRoot })
         if (isTag) {
           // translate tag to a version
           spec = npa(`${mani.name}@${mani.version}`)
@@ -968,9 +967,17 @@ This is a one-time fix-up, please be patient...
                 continue
               }
               const { from, valid, peerConflicted } = edgeIn
-              if (!peerConflicted && !valid && !this.#depsSeen.has(from)) {
-                this.addTracker('idealTree', from.name, from.location)
-                this.#depsQueue.push(edgeIn.from)
+              if (!peerConflicted && !valid) {
+                if (this.#depsSeen.has(from) && this.options.save) {
+                  // Re-queue already-processed nodes when a newly placed dep creates an invalid edge during npm install (save=true).
+                  // This handles the case where a peerOptional dep was valid (missing) when the node was first processed, but becomes invalid when the dep is later placed by another path with a version that doesn't satisfy the peer spec.
+                  // See npm/cli#8726.
+                  this.#depsSeen.delete(from)
+                  this.#depsQueue.push(from)
+                } else if (!this.#depsSeen.has(from)) {
+                  this.addTracker('idealTree', from.name, from.location)
+                  this.#depsQueue.push(from)
+                }
               }
             }
           } else {
@@ -1167,9 +1174,13 @@ This is a one-time fix-up, please be patient...
         continue
       }
 
-      // If the edge has an error, there's a problem.
+      // If the edge has an error, there's a problem, unless it's peerOptional and we're not saving (e.g. npm ci), in which case we trust the lockfile and skip re-resolution.
+      // When saving (npm install), peerOptional invalid edges ARE treated as problems so the lockfile gets fixed.
+      // See npm/cli#8726.
       if (!edge.valid) {
-        problems.push(edge)
+        if (edge.type !== 'peerOptional' || this.options.save !== false) {
+          problems.push(edge)
+        }
         continue
       }
 

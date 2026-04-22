@@ -1,6 +1,6 @@
-.TH "CONFIG" "7" "January 2026" "NPM@11.8.0" ""
+.TH "CONFIG" "7" "March 2026" "NPM@11.12.1" ""
 .SH "NAME"
-\fBconfig\fR - More than you probably want to know about npm configuration
+\fBConfig\fR - About npm configuration
 .SS "Description"
 .P
 This article details npm configuration in general. To learn about the \fBconfig\fR command, see npm help config.
@@ -194,6 +194,18 @@ Type: Boolean
 
 .P
 When running \fBnpm outdated\fR and \fBnpm ls\fR, setting \fB--all\fR will show all outdated or installed packages, rather than only those directly depended upon by the current project.
+.SS "\fBallow-git\fR"
+.RS 0
+.IP \(bu 4
+Default: "all"
+.IP \(bu 4
+Type: "all", "none", or "root"
+.RE 0
+
+.P
+Limits the ability for npm to fetch dependencies from git references. That is, dependencies that point to a git repo instead of a version or semver range. Please note that this could leave your tree incomplete and some packages may not function as intended or designed.
+.P
+\fBall\fR allows any git dependencies to be fetched and installed. \fBnone\fR prevents any git dependencies from being fetched and installed. \fBroot\fR only allows git dependencies defined in your project's package.json to be fetched installed. Also allows git dependencies to be fetched for other commands like \fBnpm view\fR
 .SS "\fBallow-same-version\fR"
 .RS 0
 .IP \(bu 4
@@ -246,6 +258,8 @@ Type: null or Date
 If passed to \fBnpm install\fR, will rebuild the npm tree such that only versions that were available \fBon or before\fR the given date are installed. If there are no versions available for the current set of dependencies, the command will error.
 .P
 If the requested version is a \fBdist-tag\fR and the given tag does not pass the \fB--before\fR filter, the most recent version less than or equal to that tag will be used. For example, \fBfoo@latest\fR might install \fBfoo@1.2\fR even though \fBlatest\fR is \fB2.0\fR.
+.P
+This config cannot be used with: \fBmin-release-age\fR
 .SS "\fBbin-links\fR"
 .RS 0
 .IP \(bu 4
@@ -787,6 +801,16 @@ Option that allows for defining which types of dependencies to install.
 This is the inverse of \fB--omit=<type>\fR.
 .P
 Dependency types specified in \fB--include\fR will not be omitted, regardless of the order in which omit/include are specified on the command-line.
+.SS "\fBinclude-attestations\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+When used with \fBnpm audit signatures --json\fR, includes the full sigstore attestation bundles in the JSON output for each verified package. The bundles contain DSSE envelopes, verification material, and transparency log entries.
 .SS "\fBinclude-staged\fR"
 .RS 0
 .IP \(bu 4
@@ -1081,6 +1105,22 @@ Type: String
 Commit message which is used by \fBnpm version\fR when creating version commit.
 .P
 Any "%s" in the message will be replaced with the version number.
+.SS "\fBmin-release-age\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or Number
+.RE 0
+
+.P
+If set, npm will build the npm tree such that only versions that were available more than the given number of days ago will be installed. If there are no versions available for the current set of dependencies, the command will error.
+.P
+This flag is a complement to \fBbefore\fR, which accepts an exact date instead of a relative number of days.
+.P
+This config cannot be used with: \fBbefore\fR
+.P
+This value is not exported to the environment for child processes.
 .SS "\fBname\fR"
 .RS 0
 .IP \(bu 4

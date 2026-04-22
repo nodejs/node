@@ -1,7 +1,4 @@
-<!--
-  NB(chrisdickinson): if you move this file, be sure to update
-  tools/doc/html.mjs to point at the new location.
--->
+# Index
 
 <!--introduced_in=v0.10.0-->
 
@@ -31,6 +28,7 @@
 * [Errors](errors.md)
 * [Events](events.md)
 * [File system](fs.md)
+* [FFI](ffi.md)
 * [Globals](globals.md)
 * [HTTP](http.md)
 * [HTTP/2](http2.md)
@@ -43,6 +41,7 @@
 * [Modules: Packages](packages.md)
 * [Modules: TypeScript](typescript.md)
 * [Net](net.md)
+* [Iterable Streams API](stream_iter.md)
 * [OS](os.md)
 * [Path](path.md)
 * [Performance hooks](perf_hooks.md)
@@ -72,6 +71,7 @@
 * [Web Streams API](webstreams.md)
 * [Worker threads](worker_threads.md)
 * [Zlib](zlib.md)
+* [Zlib Iterable Compression](zlib_iter.md)
 
 <hr class="line"/>
 

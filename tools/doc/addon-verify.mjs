@@ -1,93 +1,102 @@
-// doc/api/addons.md has a bunch of code.  Extract it for verification
-// that the C++ code compiles and the js code runs.
-// Add .gyp files which will be used to compile the C++ code.
-// Modify the require paths in the js code to pull from the build tree.
-// Triggered from the build-addons target in the Makefile and vcbuild.bat.
+#!/usr/bin/env node
 
-import { mkdir, writeFile } from 'fs/promises';
+// Extracts C++ addon examples from doc/api/addons.md into numbered test
+// directories under test/addons/.
+//
+// Each code block to extract is preceded by a marker in the markdown:
+//
+//   <!-- addon-verify-file worker_support/addon.cc -->
+//   ```cpp
+//   #include <node.h>
+//   ...
+//   ```
+//
+// This produces test/addons/01_worker_support/addon.cc.
+// Sections are numbered in order of first appearance.
 
-import gfm from 'remark-gfm';
-import remarkParse from 'remark-parse';
-import { readSync } from 'to-vfile';
-import { unified } from 'unified';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { open } from 'node:fs/promises';
+import { join } from 'node:path';
+import { parseArgs } from 'node:util';
 
-const rootDir = new URL('../../', import.meta.url);
-const doc = new URL('./doc/api/addons.md', rootDir);
-const verifyDir = new URL('./test/addons/', rootDir);
-
-const file = readSync(doc, 'utf8');
-const tree = unified().use(remarkParse).use(gfm).parse(file);
-const addons = {};
-let id = 0;
-let currentHeader;
-
-const validNames = /^\/\/\s+(.*\.(?:cc|h|js))[\r\n]/;
-tree.children.forEach((node) => {
-  if (node.type === 'heading') {
-    currentHeader = file.value.slice(
-      node.children[0].position.start.offset,
-      node.position.end.offset);
-    addons[currentHeader] = { files: {} };
-  } else if (node.type === 'code') {
-    const match = node.value.match(validNames);
-    if (match !== null) {
-      addons[currentHeader].files[match[1]] = node.value;
-    }
-  }
+const { values } = parseArgs({
+  options: {
+    input: { type: 'string' },
+    output: { type: 'string' },
+  },
 });
 
-await Promise.all(
-  Object.keys(addons).flatMap(
-    (header) => verifyFiles(addons[header].files, header),
-  ));
+if (!values.input || !values.output) {
+  console.error('Usage: addon-verify.mjs --input <file> --output <dir>');
+  process.exit(1);
+}
 
-function verifyFiles(files, blockName) {
-  const fileNames = Object.keys(files);
+const src = await open(values.input, 'r');
 
-  // Must have a .cc and a .js to be a valid test.
-  if (!fileNames.some((name) => name.endsWith('.cc')) ||
-      !fileNames.some((name) => name.endsWith('.js'))) {
-    return [];
+const MARKER_RE = /^<!--\s*addon-verify-file\s+(\S+?)\/(\S+)\s*-->$/;
+
+const entries = [];
+let nextBlockIsAddonVerifyFile = false;
+let expectedClosingFenceMarker;
+for await (const line of src.readLines()) {
+  if (expectedClosingFenceMarker) {
+    // We're inside a Addon snippet
+    if (line === expectedClosingFenceMarker) {
+      // End of the snippet
+      expectedClosingFenceMarker = null;
+      continue;
+    }
+
+    entries.at(-1).content += `${line}\n`;
+  }
+  if (nextBlockIsAddonVerifyFile) {
+    if (line) {
+      expectedClosingFenceMarker = line.replace(/\w/g, '');
+      nextBlockIsAddonVerifyFile = false;
+    }
+    continue;
+  }
+  const match = MARKER_RE.exec(line);
+  if (match) {
+    nextBlockIsAddonVerifyFile = true;
+    const [, dir, name] = match;
+    entries.push({ dir, name, content: '' });
+  }
+}
+
+// Collect files grouped by section directory name.
+const sections = Map.groupBy(entries, (e) => e.dir);
+
+let idx = 0;
+for (const [name, files] of sections) {
+  const dirName = `${String(++idx).padStart(2, '0')}_${name}`;
+  const dir = join(values.output, dirName);
+  mkdirSync(dir, { recursive: true });
+
+  for (const file of files) {
+    let content = file.content;
+    if (file.name === 'test.js') {
+      content =
+        "'use strict';\n" +
+        "const common = require('../../common');\n" +
+        content.replace(
+          "'./build/Release/addon'",
+          // eslint-disable-next-line no-template-curly-in-string
+          '`./build/${common.buildType}/addon`',
+        );
+    }
+    writeFileSync(join(dir, file.name), content);
   }
 
-  blockName = blockName.toLowerCase().replace(/\s/g, '_').replace(/\W/g, '');
-  const dir = new URL(
-    `./${String(++id).padStart(2, '0')}_${blockName}/`,
-    verifyDir,
-  );
+  // Generate binding.gyp
+  const names = files.map((f) => f.name);
+  writeFileSync(join(dir, 'binding.gyp'), JSON.stringify({
+    targets: [{
+      target_name: 'addon',
+      sources: names,
+      includes: ['../common.gypi'],
+    }],
+  }));
 
-  files = fileNames.map((name) => {
-    if (name === 'test.js') {
-      files[name] = `'use strict';
-const common = require('../../common');
-${files[name].replace(
-  "'./build/Release/addon'",
-  // eslint-disable-next-line no-template-curly-in-string
-  '`./build/${common.buildType}/addon`')}
-`;
-    }
-    return {
-      content: files[name],
-      name,
-      url: new URL(`./${name}`, dir),
-    };
-  });
-
-  files.push({
-    url: new URL('./binding.gyp', dir),
-    content: JSON.stringify({
-      targets: [
-        {
-          target_name: 'addon',
-          sources: files.map(({ name }) => name),
-          includes: ['../common.gypi'],
-        },
-      ],
-    }),
-  });
-
-  const dirCreation = mkdir(dir);
-
-  return files.map(({ url, content }) =>
-    dirCreation.then(() => writeFile(url, content)));
+  console.log(`Generated ${dirName} with files: ${names.join(', ')}`);
 }

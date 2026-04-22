@@ -2,6 +2,22 @@ const t = require('tap')
 const { resolve } = require('node:path')
 const mockNpm = require('../../fixtures/mock-npm.js')
 
+t.test('completion', async t => {
+  const { explain } = await mockNpm(t, {
+    command: 'explain',
+    prefixDir: {
+      node_modules: {
+        foo: {
+          'package.json': JSON.stringify({ name: 'foo', version: '1.0.0' }),
+        },
+      },
+      'package.json': JSON.stringify({ name: 'project', version: '1.0.0' }),
+    },
+  })
+  const res = await explain.completion({ conf: { argv: { remain: ['npm', 'explain'] } } })
+  t.type(res, Array)
+})
+
 const mockExplain = async (t, opts) => {
   const mock = await mockNpm(t, {
     command: 'explain',

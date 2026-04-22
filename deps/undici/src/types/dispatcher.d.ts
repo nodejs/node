@@ -8,8 +8,6 @@ import { FormData } from './formdata'
 import Errors from './errors'
 import { Autocomplete } from './utility'
 
-type AbortSignal = unknown
-
 export default Dispatcher
 
 export type UndiciHeaders = Record<string, string | string[]> | IncomingHttpHeaders | string[] | Iterable<[string, string | string[] | undefined]> | null
@@ -96,7 +94,7 @@ declare class Dispatcher extends EventEmitter {
 }
 
 declare namespace Dispatcher {
-  export interface ComposedDispatcher extends Dispatcher {}
+  export interface ComposedDispatcher extends Dispatcher { }
   export type Dispatch = Dispatcher['dispatch']
   export type DispatcherComposeInterceptor = (dispatch: Dispatch) => Dispatch
   export interface DispatchOptions {
@@ -113,6 +111,8 @@ declare namespace Dispatcher {
     idempotent?: boolean;
     /** Whether the response is expected to take a long time and would end up blocking the pipeline. When this is set to `true` further pipelining will be avoided on the same connection until headers have been received. Defaults to `method !== 'HEAD'`. */
     blocking?: boolean;
+    /** The IP Type of Service (ToS) value for the request socket. Must be an integer between 0 and 255. Default: `0` */
+    typeOfService?: number | null;
     /** Upgrade the request. Should be used to specify the kind of upgrade i.e. `'Websocket'`. Default: `method === 'CONNECT' || null`. */
     upgrade?: boolean | string | null;
     /** The amount of time, in milliseconds, the parser will wait to receive the complete HTTP headers. Defaults to 300 seconds. */
@@ -135,8 +135,6 @@ declare namespace Dispatcher {
     signal?: AbortSignal | EventEmitter | null;
     /** This argument parameter is passed through to `ConnectData` */
     opaque?: TOpaque;
-    /** Default: false */
-    redirectionLimitReached?: boolean;
     /** Default: `null` */
     responseHeaders?: 'raw' | null;
   }
@@ -145,8 +143,6 @@ declare namespace Dispatcher {
     opaque?: TOpaque;
     /** Default: `null` */
     signal?: AbortSignal | EventEmitter | null;
-    /** Default: false */
-    redirectionLimitReached?: boolean;
     /** Default: `null` */
     onInfo?: (info: { statusCode: number, headers: Record<string, string | string[]> }) => void;
     /** Default: `null` */
@@ -168,8 +164,6 @@ declare namespace Dispatcher {
     protocol?: string;
     /** Default: `null` */
     signal?: AbortSignal | EventEmitter | null;
-    /** Default: false */
-    redirectionLimitReached?: boolean;
     /** Default: `null` */
     responseHeaders?: 'raw' | null;
   }
@@ -213,10 +207,12 @@ declare namespace Dispatcher {
   export type StreamFactory<TOpaque = null> = (data: StreamFactoryData<TOpaque>) => Writable
 
   export interface DispatchController {
-    get aborted () : boolean
-    get paused () : boolean
-    get reason () : Error | null
-    abort (reason: Error): void
+    get aborted(): boolean
+    get paused(): boolean
+    get reason(): Error | null
+    rawHeaders?: Buffer[] | string[] | null
+    rawTrailers?: Buffer[] | string[] | null
+    abort(reason: Error): void
     pause(): void
     resume(): void
   }
@@ -229,30 +225,12 @@ declare namespace Dispatcher {
     onResponseEnd?(controller: DispatchController, trailers: IncomingHttpHeaders): void;
     onResponseError?(controller: DispatchController, error: Error): void;
 
-    /** Invoked before request is dispatched on socket. May be invoked multiple times when a request is retried when the request at the head of the pipeline fails. */
-    /** @deprecated */
-    onConnect?(abort: (err?: Error) => void): void;
-    /** Invoked when an error has occurred. */
-    /** @deprecated */
-    onError?(err: Error): void;
-    /** Invoked when request is upgraded either due to a `Upgrade` header or `CONNECT` method. */
-    /** @deprecated */
-    onUpgrade?(statusCode: number, headers: Buffer[] | string[] | null, socket: Duplex): void;
     /** Invoked when response is received, before headers have been read. **/
-    /** @deprecated */
     onResponseStarted?(): void;
-    /** Invoked when statusCode and headers have been received. May be invoked multiple times due to 1xx informational headers. */
-    /** @deprecated */
-    onHeaders?(statusCode: number, headers: Buffer[], resume: () => void, statusText: string): boolean;
-    /** Invoked when response payload data is received. */
-    /** @deprecated */
-    onData?(chunk: Buffer): boolean;
-    /** Invoked when response payload and trailers have been received and the request has completed. */
-    /** @deprecated */
-    onComplete?(trailers: string[] | null): void;
     /** Invoked when a body chunk is sent to the server. May be invoked multiple times for chunked requests */
-    /** @deprecated */
-    onBodySent?(chunkSize: number, totalBytesSent: number): void;
+    onBodySent?(chunk: Buffer): void;
+    /** Invoked after the request body is fully sent. */
+    onRequestSent?(): void;
   }
   export type PipelineHandler<TOpaque = null> = (data: PipelineHandlerData<TOpaque>) => Readable
   export type HttpMethod = Autocomplete<'GET' | 'HEAD' | 'POST' | 'PUT' | 'DELETE' | 'CONNECT' | 'OPTIONS' | 'TRACE' | 'PATCH'>

@@ -1,5 +1,5 @@
 ---
-title: scripts
+title: Scripts
 section: 7
 description: How npm handles the "scripts" field
 ---
@@ -240,10 +240,6 @@ If your package must support very old npm versions, you may wish to add a safegu
 For more details, see:
 - [npm v7 release notes](https://github.com/npm/cli/releases/tag/v7.0.0)
 - [Discussion about script working directory reliability in npm v6 and earlier](https://github.com/npm/npm/issues/12356)
-
-### User
-
-When npm is run as root, scripts are always run with the effective uid and gid of the working directory owner.
 
 ### Environment
 

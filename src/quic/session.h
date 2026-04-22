@@ -58,6 +58,7 @@ class Endpoint;
 // object itself is closed/destroyed by user code.
 class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
  public:
+  SessionTicket::AppData::Source& ticket_app_data_source() { return *this; }
   // For simplicity, we use the same Application::Options struct for all
   // Application types. This may change in the future. Not all of the options
   // are going to be relevant for all Application types.
@@ -98,17 +99,19 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // of a QUIC Session.
   class Application;
 
-  // The ApplicationProvider optionally supplies the underlying application
-  // protocol handler used by a session. The ApplicationProvider is supplied
-  // in the *internal* options (that is, it is not exposed as a public, user
-  // facing API. If the ApplicationProvider is not specified, then the
-  // DefaultApplication is used (see application.cc).
-  class ApplicationProvider : public BaseObject {
-   public:
-    using BaseObject::BaseObject;
-    virtual std::unique_ptr<Application> Create(Session* session) = 0;
-  };
+  // Decode the first ALPN protocol name from wire format (length-prefixed).
+  static std::string_view DecodeAlpn(std::string_view wire);
 
+  // Select the Application implementation based on the negotiated ALPN.
+  // h3 (and h3-XX variants) map to Http3ApplicationImpl; all others map
+  // to DefaultApplication. Sets the application_type state field.
+  std::unique_ptr<Application> SelectApplicationFromAlpn(std::string_view alpn);
+
+  // Install the Application on the session. Called at construction for
+  // clients (ALPN known upfront) or from OnSelectAlpn for servers
+  // (ALPN negotiated during handshake). Must be called before any
+  // application data is received.
+  void SetApplication(std::unique_ptr<Application> app);
   // The options used to configure a session. Most of these deal directly with
   // the transport parameters that are exchanged with the remote peer during
   // handshake.
@@ -128,6 +131,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     TransportParams::Options transport_params =
         TransportParams::Options::kDefault;
     TLSContext::Options tls_options = TLSContext::Options::kDefault;
+    std::unordered_map<std::string, TLSContext::Options> sni;
 
     // A reference to the CID::Factory used to generate CID instances
     // for this session.
@@ -136,9 +140,9 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     // so that it cannot be garbage collected.
     BaseObjectPtr<BaseObject> cid_factory_ref;
 
-    // If the application provider is specified, it will be used to create
-    // the underlying Application instance for the session.
-    BaseObjectPtr<ApplicationProvider> application_provider;
+    // Application-specific options (used for HTTP/3 if the negotiated
+    // ALPN selects Http3ApplicationImpl).
+    Application_Options application_options = Application_Options::kDefault;
 
     // When true, QLog output will be enabled for the session.
     bool qlog = false;
@@ -175,6 +179,11 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     // like. Additional performance profiling will be needed to determine which
     // is the better of the two for our needs.
     ngtcp2_cc_algo cc_algorithm = CC_ALGO_CUBIC;
+
+    // An optional NEW_TOKEN from a previous connection to the same
+    // server. When set, the token is included in the Initial packet
+    // to skip address validation. Client-side only.
+    std::optional<Store> token;
 
     void MemoryInfo(MemoryTracker* tracker) const override;
     SET_MEMORY_INFO_NAME(Session::Options)
@@ -322,8 +331,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
                const SocketAddress& local_address,
                const SocketAddress& remote_address);
 
-  void Send(const BaseObjectPtr<Packet>& packet);
-  void Send(const BaseObjectPtr<Packet>& packet, const PathStorage& path);
+  void Send(Packet::Ptr packet);
+  void Send(Packet::Ptr packet, const PathStorage& path);
   datagram_id SendDatagram(Store&& data);
 
   // A non-const variation to allow certain modifications.
@@ -477,6 +486,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
                           const ValidatedPath& newPath,
                           const std::optional<ValidatedPath>& oldPath);
   void EmitSessionTicket(Store&& ticket);
+  void EmitNewToken(const uint8_t* token, size_t len);
   void EmitStream(const BaseObjectWeakPtr<Stream>& stream);
   void EmitVersionNegotiation(const ngtcp2_pkt_hd& hd,
                               const uint32_t* sv,
@@ -489,9 +499,6 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   bool HandshakeCompleted();
   void HandshakeConfirmed();
   void SelectPreferredAddress(PreferredAddress* preferredAddress);
-
-  static std::unique_ptr<Application> SelectApplication(Session* session,
-                                                        const Config& config);
 
   QuicConnectionPointer InitConnection();
 

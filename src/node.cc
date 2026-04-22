@@ -867,15 +867,6 @@ static ExitCode InitializeNodeWithArgsInternal(
   // default value.
   V8::SetFlagsFromString("--rehash-snapshot");
 
-#if HAVE_OPENSSL
-  // TODO(joyeecheung): make this a per-env option and move the normalization
-  // into HandleEnvOptions.
-  std::string use_system_ca;
-  if (credentials::SafeGetenv("NODE_USE_SYSTEM_CA", &use_system_ca) &&
-      use_system_ca == "1") {
-    per_process::cli_options->use_system_ca = true;
-  }
-#endif  // HAVE_OPENSSL
   HandleEnvOptions(per_process::cli_options->per_isolate->per_env);
 
   std::string node_options;
@@ -909,15 +900,21 @@ static ExitCode InitializeNodeWithArgsInternal(
   }
 
   std::string node_options_from_config;
-  if (auto path = per_process::config_reader.GetDataFromArgs(*argv)) {
-    switch (per_process::config_reader.ParseConfig(*path)) {
+  auto config_path = per_process::config_reader.GetDataFromArgs(argv);
+  if (per_process::config_reader.HasInvalidDefaultConfigFileArgument()) {
+    errors->push_back("--experimental-default-config-file does not take an "
+                      "argument");
+    return ExitCode::kInvalidCommandLineArgument;
+  }
+  if (config_path) {
+    switch (per_process::config_reader.ParseConfig(*config_path)) {
       case ParseResult::Valid:
         break;
       case ParseResult::InvalidContent:
-        errors->push_back(std::string(*path) + ": invalid content");
+        errors->push_back(std::string(*config_path) + ": invalid content");
         break;
       case ParseResult::FileError:
-        errors->push_back(std::string(*path) + ": not found");
+        errors->push_back(std::string(*config_path) + ": not found");
         break;
       default:
         UNREACHABLE();
@@ -1054,6 +1051,45 @@ static ExitCode InitializeNodeWithArgsInternal(
   node_is_initialized = true;
   return ExitCode::kNoFailure;
 }
+
+#if NODE_USE_V8_WASM_TRAP_HANDLER
+bool CanEnableWebAssemblyTrapHandler() {
+// On POSIX, the machine may have a limit on the amount of virtual memory
+// available, if it's not enough to allocate at least one cage for WASM,
+// then the trap-handler-based bound checks cannot be used.
+#ifdef __POSIX__
+  struct rlimit lim;
+  if (getrlimit(RLIMIT_AS, &lim) != 0 || lim.rlim_cur == RLIM_INFINITY) {
+    // Can't get the limit or there's no limit, assume trap handler can be
+    // enabled.
+    return true;
+  }
+  uint64_t virtual_memory_available = static_cast<uint64_t>(lim.rlim_cur);
+
+  size_t byte_capacity = 64 * 1024;  // 64KB, the minimum size of a WASM memory.
+  uint64_t cage_size_needed_32 = V8::GetWasmMemoryReservationSizeInBytes(
+      V8::WasmMemoryType::kMemory32, byte_capacity);
+  uint64_t cage_size_needed_64 = V8::GetWasmMemoryReservationSizeInBytes(
+      V8::WasmMemoryType::kMemory64, byte_capacity);
+  uint64_t cage_size_needed =
+      std::max(cage_size_needed_32, cage_size_needed_64);
+  bool can_enable = virtual_memory_available >= cage_size_needed;
+  per_process::Debug(DebugCategory::BOOTSTRAP,
+                     "Virtual memory available: %" PRIu64 " bytes,\n"
+                     "cage size needed for 32-bit: %" PRIu64 " bytes,\n"
+                     "cage size needed for 64-bit: %" PRIu64 " bytes,\n"
+                     "Can%senable WASM trap handler\n",
+                     virtual_memory_available,
+                     cage_size_needed_32,
+                     cage_size_needed_64,
+                     can_enable ? " " : " not ");
+
+  return can_enable;
+#else
+  return true;
+#endif  // __POSIX__
+}
+#endif  // NODE_USE_V8_WASM_TRAP_HANDLER
 
 static std::shared_ptr<InitializationResultImpl>
 InitializeOncePerProcessInternal(const std::vector<std::string>& args,
@@ -1257,7 +1293,9 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
   bool use_wasm_trap_handler =
       !per_process::cli_options->disable_wasm_trap_handler;
   if (!(flags & ProcessInitializationFlags::kNoDefaultSignalHandling) &&
-      use_wasm_trap_handler) {
+      use_wasm_trap_handler && CanEnableWebAssemblyTrapHandler()) {
+    per_process::Debug(DebugCategory::BOOTSTRAP,
+                       "Enabling WebAssembly trap handler for bounds checks\n");
 #if defined(_WIN32)
     constexpr ULONG first = TRUE;
     per_process::old_vectored_exception_handler =

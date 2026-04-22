@@ -8,6 +8,7 @@
 #include "json_utils.h"
 #include "node_exit_code.h"
 #include "node_messaging.h"
+#include "util.h"
 #include "uv.h"
 
 namespace node {

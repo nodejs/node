@@ -21,6 +21,8 @@
   V(arrow_message_private_symbol, "node:arrowMessage")                         \
   V(contextify_context_private_symbol, "node:contextify:context")              \
   V(decorated_private_symbol, "node:decorated")                                \
+  V(empty_context_frame_sentinel_symbol, "node:empty_context_frame_sentinel")  \
+  V(ffi_pointer_address_private_symbol, "node:ffi:pointer_address")            \
   V(transfer_mode_private_symbol, "node:transfer_mode")                        \
   V(host_defined_option_symbol, "node:host_defined_option_symbol")             \
   V(js_transferable_wrapper_private_symbol, "node:js_transferable_wrapper")    \
@@ -58,6 +60,7 @@
   V(resource_symbol, "resource_symbol")                                        \
   V(trigger_async_id_symbol, "trigger_async_id_symbol")                        \
   V(builtin_source_text_module_hdo, "builtin_source_text_module_hdo")          \
+  V(embedder_module_hdo, "embedder_module_hdo")                                \
   V(source_text_module_default_hdo, "source_text_module_default_hdo")          \
   V(vm_context_no_contextify, "vm_context_no_contextify")                      \
   V(vm_dynamic_import_default_internal, "vm_dynamic_import_default_internal")  \
@@ -78,6 +81,7 @@
   V(allow_unknown_named_params_string, "allowUnknownNamedParameters")          \
   V(alpn_callback_string, "ALPNCallback")                                      \
   V(args_string, "args")                                                       \
+  V(arguments_string, "arguments")                                             \
   V(async_ids_stack_string, "async_ids_stack")                                 \
   V(attributes_string, "attributes")                                           \
   V(backup_string, "backup")                                                   \
@@ -236,6 +240,7 @@
   V(kind_string, "kind")                                                       \
   V(last_insert_rowid_string, "lastInsertRowid")                               \
   V(length_string, "length")                                                   \
+  V(limits_string, "limits")                                                   \
   V(library_string, "library")                                                 \
   V(loop_count, "loopCount")                                                   \
   V(max_buffer_string, "maxBuffer")                                            \
@@ -284,10 +289,12 @@
   V(password_string, "password")                                               \
   V(path_string, "path")                                                       \
   V(pathname_string, "pathname")                                               \
+  V(parameters_string, "parameters")                                           \
   V(pending_handle_string, "pendingHandle")                                    \
   V(permission_string, "permission")                                           \
   V(phase_string, "phase")                                                     \
   V(pid_string, "pid")                                                         \
+  V(pointer_string, "pointer")                                                 \
   V(ping_rtt_string, "pingRTT")                                                \
   V(pipe_source_string, "pipeSource")                                          \
   V(pipe_string, "pipe")                                                       \
@@ -318,6 +325,8 @@
   V(require_string, "require")                                                 \
   V(resource_string, "resource")                                               \
   V(result_string, "result")                                                   \
+  V(return_string, "return")                                                   \
+  V(returns_string, "returns")                                                 \
   V(return_arrays_string, "returnArrays")                                      \
   V(salt_length_string, "saltLength")                                          \
   V(search_string, "search")                                                   \
@@ -402,6 +411,8 @@
   V(dns_ns_record_template, v8::DictionaryTemplate)                            \
   V(fd_constructor_template, v8::ObjectTemplate)                               \
   V(fdclose_constructor_template, v8::ObjectTemplate)                          \
+  V(ffi_dynamic_library_constructor_template, v8::FunctionTemplate)            \
+  V(ffi_function_constructor_template, v8::FunctionTemplate)                   \
   V(filehandlereadwrap_template, v8::ObjectTemplate)                           \
   V(free_list_statistics_template, v8::DictionaryTemplate)                     \
   V(fsreqpromise_constructor_template, v8::ObjectTemplate)                     \
@@ -434,6 +445,7 @@
   V(socketaddress_constructor_template, v8::FunctionTemplate)                  \
   V(space_stats_template, v8::DictionaryTemplate)                              \
   V(sqlite_column_template, v8::DictionaryTemplate)                            \
+  V(sqlite_limits_template, v8::ObjectTemplate)                                \
   V(sqlite_run_result_template, v8::DictionaryTemplate)                        \
   V(sqlite_statement_sync_constructor_template, v8::FunctionTemplate)          \
   V(sqlite_statement_sync_iterator_constructor_template, v8::FunctionTemplate) \

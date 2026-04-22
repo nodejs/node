@@ -12,8 +12,6 @@ const { InvalidArgumentError, ConnectTimeoutError } = require('./errors')
 const { headerNameLowerCasedRecord } = require('./constants')
 const { tree } = require('./tree')
 
-const [nodeMajor, nodeMinor] = process.versions.node.split('.', 2).map(v => Number(v))
-
 class BodyAsyncIterable {
   constructor (body) {
     this[kBody] = body
@@ -85,23 +83,9 @@ function isStream (obj) {
 /**
  * @param {*} object
  * @returns {object is Blob}
- * based on https://github.com/node-fetch/fetch-blob/blob/8ab587d34080de94140b54f07168451e7d0b655e/index.js#L229-L241 (MIT License)
  */
 function isBlobLike (object) {
-  if (object === null) {
-    return false
-  } else if (object instanceof Blob) {
-    return true
-  } else if (typeof object !== 'object') {
-    return false
-  } else {
-    const sTag = object[Symbol.toStringTag]
-
-    return (sTag === 'Blob' || sTag === 'File') && (
-      ('stream' in object && typeof object.stream === 'function') ||
-      ('arrayBuffer' in object && typeof object.arrayBuffer === 'function')
-    )
-  }
+  return object instanceof Blob
 }
 
 /**
@@ -328,6 +312,20 @@ function isIterable (obj) {
 }
 
 /**
+ * Checks whether an object has a safe Symbol.iterator — i.e. one that is
+ * either own or inherited from a non-Object.prototype chain.  This prevents
+ * prototype-pollution attacks from injecting a fake iterator on
+ * Object.prototype.
+ * @param {object} obj
+ * @returns {boolean}
+ */
+function hasSafeIterator (obj) {
+  const prototype = Object.getPrototypeOf(obj)
+  const ownIterator = Object.hasOwn(obj, Symbol.iterator)
+  return ownIterator || (prototype != null && prototype !== Object.prototype && typeof obj[Symbol.iterator] === 'function')
+}
+
+/**
  * @param {Blob|Buffer|import ('stream').Stream} body
  * @returns {number|null}
  */
@@ -426,19 +424,39 @@ function parseHeaders (headers, obj) {
     const key = headerNameToString(headers[i])
     let val = obj[key]
 
-    if (val) {
-      if (typeof val === 'string') {
-        val = [val]
-        obj[key] = val
-      }
-      val.push(headers[i + 1].toString('latin1'))
-    } else {
-      const headersValue = headers[i + 1]
-      if (typeof headersValue === 'string') {
-        obj[key] = headersValue
+    if (val !== undefined) {
+      if (!Object.hasOwn(obj, key)) {
+        const headersValue = typeof headers[i + 1] === 'string'
+          ? headers[i + 1]
+          : Array.isArray(headers[i + 1])
+            ? headers[i + 1].map(x => x.toString('latin1'))
+            : headers[i + 1].toString('latin1')
+
+        if (key === '__proto__') {
+          Object.defineProperty(obj, key, {
+            value: headersValue,
+            enumerable: true,
+            configurable: true,
+            writable: true
+          })
+        } else {
+          obj[key] = headersValue
+        }
       } else {
-        obj[key] = Array.isArray(headersValue) ? headersValue.map(x => x.toString('latin1')) : headersValue.toString('latin1')
+        if (typeof val === 'string') {
+          val = [val]
+          obj[key] = val
+        }
+        val.push(headers[i + 1].toString('latin1'))
       }
+    } else {
+      const headersValue = typeof headers[i + 1] === 'string'
+        ? headers[i + 1]
+        : Array.isArray(headers[i + 1])
+          ? headers[i + 1].map(x => x.toString('latin1'))
+          : headers[i + 1].toString('latin1')
+
+      obj[key] = headersValue
     }
   }
 
@@ -474,6 +492,26 @@ function parseRawHeaders (headers) {
 }
 
 /**
+ * @param {Record<string, string | string[]>} headers
+ * @returns {Buffer[]}
+ */
+function toRawHeaders (headers) {
+  const rawHeaders = []
+
+  for (const [name, value] of Object.entries(headers)) {
+    if (Array.isArray(value)) {
+      for (const entry of value) {
+        rawHeaders.push(Buffer.from(name, 'latin1'), Buffer.from(`${entry}`, 'latin1'))
+      }
+    } else {
+      rawHeaders.push(Buffer.from(name, 'latin1'), Buffer.from(`${value}`, 'latin1'))
+    }
+  }
+
+  return rawHeaders
+}
+
+/**
  * @param {string[]} headers
  * @param {Buffer[]} headers
  */
@@ -506,38 +544,37 @@ function assertRequestHandler (handler, method, upgrade) {
     throw new InvalidArgumentError('handler must be an object')
   }
 
-  if (typeof handler.onRequestStart === 'function') {
-    // TODO (fix): More checks...
-    return
+  if (typeof handler.onRequestStart !== 'function') {
+    throw new InvalidArgumentError('invalid onRequestStart method')
   }
 
-  if (typeof handler.onConnect !== 'function') {
-    throw new InvalidArgumentError('invalid onConnect method')
-  }
-
-  if (typeof handler.onError !== 'function') {
-    throw new InvalidArgumentError('invalid onError method')
+  if (typeof handler.onResponseError !== 'function') {
+    throw new InvalidArgumentError('invalid onResponseError method')
   }
 
   if (typeof handler.onBodySent !== 'function' && handler.onBodySent !== undefined) {
     throw new InvalidArgumentError('invalid onBodySent method')
   }
 
+  if (typeof handler.onRequestSent !== 'function' && handler.onRequestSent !== undefined) {
+    throw new InvalidArgumentError('invalid onRequestSent method')
+  }
+
   if (upgrade || method === 'CONNECT') {
-    if (typeof handler.onUpgrade !== 'function') {
-      throw new InvalidArgumentError('invalid onUpgrade method')
+    if (typeof handler.onRequestUpgrade !== 'function') {
+      throw new InvalidArgumentError('invalid onRequestUpgrade method')
     }
   } else {
-    if (typeof handler.onHeaders !== 'function') {
-      throw new InvalidArgumentError('invalid onHeaders method')
+    if (typeof handler.onResponseStart !== 'function') {
+      throw new InvalidArgumentError('invalid onResponseStart method')
     }
 
-    if (typeof handler.onData !== 'function') {
-      throw new InvalidArgumentError('invalid onData method')
+    if (typeof handler.onResponseData !== 'function') {
+      throw new InvalidArgumentError('invalid onResponseData method')
     }
 
-    if (typeof handler.onComplete !== 'function') {
-      throw new InvalidArgumentError('invalid onComplete method')
+    if (typeof handler.onResponseEnd !== 'function') {
+      throw new InvalidArgumentError('invalid onResponseEnd method')
     }
   }
 }
@@ -778,7 +815,7 @@ function removeAllListeners (obj) {
  */
 function errorRequest (client, request, err) {
   try {
-    request.onError(err)
+    request.onResponseError(err)
     assert(request.aborted)
   } catch (err) {
     client.emit('error', err)
@@ -918,6 +955,7 @@ module.exports = {
   getServerName,
   isStream,
   isIterable,
+  hasSafeIterator,
   isAsyncIterable,
   isDestroyed,
   headerNameToString,
@@ -926,6 +964,7 @@ module.exports = {
   removeAllListeners,
   errorRequest,
   parseRawHeaders,
+  toRawHeaders,
   encodeRawHeaders,
   parseHeaders,
   parseKeepAliveTimeout,
@@ -948,8 +987,6 @@ module.exports = {
   normalizedMethodRecords,
   isValidPort,
   isHttpOrHttpsPrefixed,
-  nodeMajor,
-  nodeMinor,
   safeHTTPMethods: Object.freeze(['GET', 'HEAD', 'OPTIONS', 'TRACE']),
   wrapRequestBody,
   setupConnectTimeout,

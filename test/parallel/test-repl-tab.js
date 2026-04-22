@@ -10,6 +10,4 @@ const testMe = repl.start('', putIn, function(cmd, context, filename,
   callback(null, cmd);
 });
 
-testMe._domain.on('error', common.mustNotCall());
-
 testMe.complete('', common.mustSucceed());

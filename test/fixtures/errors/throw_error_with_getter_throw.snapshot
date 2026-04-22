@@ -1,5 +1,5 @@
 
-<project-root>/test/fixtures/errors/throw_error_with_getter_throw.js:*
+<project-root>/test/fixtures/errors/throw_error_with_getter_throw.js:3
 throw {  // eslint-disable-line no-throw-literal
 ^
 [object Object]

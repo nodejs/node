@@ -112,6 +112,10 @@ class DebugOptions : public Options {
                     std::vector<std::string>* argv) override;
 };
 
+#ifndef EXPERIMENTALS_DEFAULT_VALUE
+#define EXPERIMENTALS_DEFAULT_VALUE false
+#endif
+
 class EnvironmentOptions : public Options {
  public:
   bool abort_on_uncaught_exception = false;
@@ -122,22 +126,22 @@ class EnvironmentOptions : public Options {
   bool require_module = true;
   std::string dns_result_order;
   bool enable_source_maps = false;
-  bool experimental_addon_modules = false;
-  bool experimental_eventsource = false;
-  bool experimental_fetch = true;
+  bool experimental_addon_modules = EXPERIMENTALS_DEFAULT_VALUE;
+  bool experimental_eventsource = EXPERIMENTALS_DEFAULT_VALUE;
+  bool experimental_ffi = EXPERIMENTALS_DEFAULT_VALUE;
   bool experimental_websocket = true;
-  bool experimental_sqlite = true;
+  bool experimental_sqlite = HAVE_SQLITE;
+  bool experimental_stream_iter = EXPERIMENTALS_DEFAULT_VALUE;
   bool webstorage = HAVE_SQLITE;
-#ifndef OPENSSL_NO_QUIC
-  bool experimental_quic = false;
-#endif
+  bool experimental_quic = EXPERIMENTALS_DEFAULT_VALUE;
   std::string localstorage_file;
   bool experimental_global_navigator = true;
   bool experimental_global_web_crypto = true;
-  bool experimental_import_meta_resolve = false;
+  bool experimental_import_meta_resolve = EXPERIMENTALS_DEFAULT_VALUE;
   std::string input_type;  // Value of --input-type
   bool entry_is_url = false;
   bool permission = false;
+  bool permission_audit = false;
   std::vector<std::string> allow_fs_read;
   std::vector<std::string> allow_fs_write;
   bool allow_addons = false;
@@ -145,9 +149,10 @@ class EnvironmentOptions : public Options {
   bool allow_child_process = false;
   bool allow_net = false;
   bool allow_wasi = false;
+  bool allow_ffi = false;
   bool allow_worker_threads = false;
   bool experimental_repl_await = true;
-  bool experimental_vm_modules = false;
+  bool experimental_vm_modules = EXPERIMENTALS_DEFAULT_VALUE;
   bool async_context_frame = true;
   bool expose_internals = false;
   bool force_node_api_uncaught_exceptions_policy = false;
@@ -174,10 +179,10 @@ class EnvironmentOptions : public Options {
   uint64_t cpu_prof_interval = kDefaultCpuProfInterval;
   std::string cpu_prof_name;
   bool cpu_prof = false;
-  bool experimental_network_inspection = false;
-  bool experimental_worker_inspection = false;
-  bool experimental_storage_inspection = false;
-  bool experimental_inspector_network_resource = false;
+  bool experimental_network_inspection = EXPERIMENTALS_DEFAULT_VALUE;
+  bool experimental_worker_inspection = EXPERIMENTALS_DEFAULT_VALUE;
+  bool experimental_storage_inspection = EXPERIMENTALS_DEFAULT_VALUE;
+  bool experimental_inspector_network_resource = EXPERIMENTALS_DEFAULT_VALUE;
   std::string heap_prof_dir;
   std::string heap_prof_name;
   static const uint64_t kDefaultHeapProfInterval = 512 * 1024;
@@ -204,6 +209,9 @@ class EnvironmentOptions : public Options {
   std::string test_rerun_failures_path;
   std::vector<std::string> test_reporter_destination;
   std::string test_global_setup_path;
+  bool test_randomize = false;
+  bool has_test_random_seed = false;
+  uint64_t test_random_seed = 0;
   bool test_only = false;
   bool test_udp_no_try_send = false;
   std::string test_isolation = "process";
@@ -222,6 +230,7 @@ class EnvironmentOptions : public Options {
   bool trace_env = false;
   bool trace_env_js_stack = false;
   bool trace_env_native_stack = false;
+  bool use_system_ca = false;
   std::string trace_require_module;
   bool extra_info_on_fatal_exception = true;
   std::string unhandled_rejections;
@@ -261,14 +270,12 @@ class EnvironmentOptions : public Options {
   std::vector<std::string> preload_esm_modules;
 
   bool strip_types = HAVE_AMARO;
-  bool experimental_transform_types = false;
 
   std::vector<std::string> user_argv;
 
   bool report_exclude_env = false;
   bool report_exclude_network = false;
   std::string experimental_config_file_path;
-  bool experimental_default_config_file = false;
 
   inline DebugOptions* get_debug_options() { return &debug_options_; }
   inline const DebugOptions& debug_options() const { return debug_options_; }
@@ -285,7 +292,7 @@ class PerIsolateOptions : public Options {
   PerIsolateOptions() = default;
   PerIsolateOptions(PerIsolateOptions&&) = default;
 
-  std::shared_ptr<EnvironmentOptions> per_env { new EnvironmentOptions() };
+  std::shared_ptr<EnvironmentOptions> per_env{new EnvironmentOptions()};
   bool track_heap_objects = false;
   bool report_uncaught_exception = false;
   bool report_on_signal = false;
@@ -318,7 +325,7 @@ class PerProcessOptions : public Options {
   // using the node::per_process::cli_options_mutex, typically:
   //
   //     Mutex::ScopedLock lock(node::per_process::cli_options_mutex);
-  std::shared_ptr<PerIsolateOptions> per_isolate { new PerIsolateOptions() };
+  std::shared_ptr<PerIsolateOptions> per_isolate{new PerIsolateOptions()};
 
   std::string title;
   std::string trace_event_categories;
@@ -359,7 +366,6 @@ class PerProcessOptions : public Options {
   bool ssl_openssl_cert_store = false;
 #endif
   bool use_openssl_ca = false;
-  bool use_system_ca = false;
   bool use_bundled_ca = false;
   bool enable_fips_crypto = false;
   bool force_fips_crypto = false;
@@ -529,8 +535,7 @@ class OptionsParser {
   // if the option has a non-option argument (not starting with -) following it.
   void AddAlias(const char* from, const char* to);
   void AddAlias(const char* from, const std::vector<std::string>& to);
-  void AddAlias(const char* from,
-                const std::initializer_list<std::string>& to);
+  void AddAlias(const char* from, const std::initializer_list<std::string>& to);
 
   // Add implications from some arbitrary option to a boolean one, either
   // in a way that makes `from` set `to` to true or to false.
@@ -542,7 +547,7 @@ class OptionsParser {
   // type.
   template <typename ChildOptions>
   void Insert(const OptionsParser<ChildOptions>& child_options_parser,
-              ChildOptions* (Options::* get_child)());
+              ChildOptions* (Options::*get_child)());
 
   // Parse a sequence of options into an options struct, a list of
   // arguments that were parsed as options, a list of unknown/JS engine options,
@@ -631,17 +636,15 @@ class OptionsParser {
   // These are helpers that make `Insert()` support properties of other
   // options structs, if we know how to access them.
   template <typename OriginalField, typename ChildOptions>
-  static auto Convert(
-      std::shared_ptr<OriginalField> original,
-      ChildOptions* (Options::* get_child)());
+  static auto Convert(std::shared_ptr<OriginalField> original,
+                      ChildOptions* (Options::*get_child)());
   template <typename ChildOptions>
-  static auto Convert(
-      typename OptionsParser<ChildOptions>::OptionInfo original,
-      ChildOptions* (Options::* get_child)());
+  static auto Convert(typename OptionsParser<ChildOptions>::OptionInfo original,
+                      ChildOptions* (Options::*get_child)());
   template <typename ChildOptions>
   static auto Convert(
       typename OptionsParser<ChildOptions>::Implication original,
-      ChildOptions* (Options::* get_child)());
+      ChildOptions* (Options::*get_child)());
 
   std::unordered_map<std::string, OptionInfo> options_;
   std::unordered_map<std::string, std::vector<std::string>> aliases_;
@@ -668,10 +671,12 @@ class OptionsParser {
 
 using StringVector = std::vector<std::string>;
 template <class OptionsType, class = Options>
-void Parse(
-  StringVector* const args, StringVector* const exec_args,
-  StringVector* const v8_args, OptionsType* const options,
-  OptionEnvvarSettings required_env_settings, StringVector* const errors);
+void Parse(StringVector* const args,
+           StringVector* const exec_args,
+           StringVector* const v8_args,
+           OptionsType* const options,
+           OptionEnvvarSettings required_env_settings,
+           StringVector* const errors);
 
 }  // namespace options_parser
 

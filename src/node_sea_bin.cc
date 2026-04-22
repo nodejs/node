@@ -388,7 +388,7 @@ ExitCode BuildSingleExecutable(const std::string& sea_config_path,
 
   SeaConfig config = opt_config.value();
   if (config.executable_path.empty()) {
-    config.executable_path = args[0];
+    config.executable_path = Environment::GetExecPath(args);
   }
 
   // Get file permissions from source executable to copy over later.

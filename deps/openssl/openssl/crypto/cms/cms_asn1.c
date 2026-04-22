@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -23,7 +23,7 @@ ASN1_SEQUENCE(CMS_OtherCertificateFormat) = {
     ASN1_OPT(CMS_OtherCertificateFormat, otherCert, ASN1_ANY)
 } static_ASN1_SEQUENCE_END(CMS_OtherCertificateFormat)
 
-    ASN1_CHOICE(CMS_CertificateChoices)
+ASN1_CHOICE(CMS_CertificateChoices)
     = { ASN1_SIMPLE(CMS_CertificateChoices, d.certificate, X509), ASN1_IMP(CMS_CertificateChoices, d.extendedCertificate, ASN1_SEQUENCE, 0), ASN1_IMP(CMS_CertificateChoices, d.v1AttrCert, ASN1_SEQUENCE, 1), ASN1_IMP(CMS_CertificateChoices, d.v2AttrCert, ASN1_SEQUENCE, 2), ASN1_IMP(CMS_CertificateChoices, d.other, CMS_OtherCertificateFormat, 3) } ASN1_CHOICE_END(CMS_CertificateChoices)
 
 ASN1_CHOICE(CMS_SignerIdentifier) = {
@@ -31,11 +31,11 @@ ASN1_CHOICE(CMS_SignerIdentifier) = {
     ASN1_IMP(CMS_SignerIdentifier, d.subjectKeyIdentifier, ASN1_OCTET_STRING, 0)
 } static_ASN1_CHOICE_END(CMS_SignerIdentifier)
 
-    ASN1_NDEF_SEQUENCE(CMS_EncapsulatedContentInfo)
+ASN1_NDEF_SEQUENCE(CMS_EncapsulatedContentInfo)
     = { ASN1_SIMPLE(CMS_EncapsulatedContentInfo, eContentType, ASN1_OBJECT), ASN1_NDEF_EXP_OPT(CMS_EncapsulatedContentInfo, eContent, ASN1_OCTET_STRING_NDEF, 0) } static_ASN1_NDEF_SEQUENCE_END(CMS_EncapsulatedContentInfo)
 
-    /* Minor tweak to operation: free up signer key, cert */
-    static int cms_si_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it, void *exarg)
+/* Minor tweak to operation: free up signer key, cert */
+static int cms_si_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it, void *exarg)
 {
     if (operation == ASN1_OP_FREE_POST) {
         CMS_SignerInfo *si = (CMS_SignerInfo *)*pval;
@@ -62,7 +62,7 @@ ASN1_SEQUENCE(CMS_OtherRevocationInfoFormat) = {
     ASN1_OPT(CMS_OtherRevocationInfoFormat, otherRevInfo, ASN1_ANY)
 } static_ASN1_SEQUENCE_END(CMS_OtherRevocationInfoFormat)
 
-    ASN1_CHOICE(CMS_RevocationInfoChoice)
+ASN1_CHOICE(CMS_RevocationInfoChoice)
     = { ASN1_SIMPLE(CMS_RevocationInfoChoice, d.crl, X509_CRL), ASN1_IMP(CMS_RevocationInfoChoice, d.other, CMS_OtherRevocationInfoFormat, 1) } ASN1_CHOICE_END(CMS_RevocationInfoChoice)
 
 ASN1_NDEF_SEQUENCE(CMS_SignedData) = {
@@ -80,7 +80,7 @@ ASN1_SEQUENCE(CMS_OriginatorInfo) = {
     ASN1_IMP_SET_OF_OPT(CMS_OriginatorInfo, crls, CMS_RevocationInfoChoice, 1)
 } static_ASN1_SEQUENCE_END(CMS_OriginatorInfo)
 
-    static int cms_ec_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it, void *exarg)
+static int cms_ec_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it, void *exarg)
 {
     CMS_EncryptedContentInfo *ec = (CMS_EncryptedContentInfo *)*pval;
 
@@ -118,7 +118,7 @@ ASN1_CHOICE(CMS_KeyAgreeRecipientIdentifier) = {
     ASN1_IMP(CMS_KeyAgreeRecipientIdentifier, d.rKeyId, CMS_RecipientKeyIdentifier, 0)
 } static_ASN1_CHOICE_END(CMS_KeyAgreeRecipientIdentifier)
 
-    static int cms_rek_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it, void *exarg)
+static int cms_rek_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it, void *exarg)
 {
     CMS_RecipientEncryptedKey *rek = (CMS_RecipientEncryptedKey *)*pval;
     if (operation == ASN1_OP_FREE_POST) {
@@ -143,7 +143,7 @@ ASN1_CHOICE(CMS_OriginatorIdentifierOrKey) = {
     ASN1_IMP(CMS_OriginatorIdentifierOrKey, d.originatorKey, CMS_OriginatorPublicKey, 1)
 } static_ASN1_CHOICE_END(CMS_OriginatorIdentifierOrKey)
 
-    static int cms_kari_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it, void *exarg)
+static int cms_kari_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it, void *exarg)
 {
     CMS_KeyAgreeRecipientInfo *kari = (CMS_KeyAgreeRecipientInfo *)*pval;
     if (operation == ASN1_OP_NEW_POST) {
@@ -173,7 +173,7 @@ ASN1_SEQUENCE(CMS_KEKIdentifier) = {
     ASN1_OPT(CMS_KEKIdentifier, other, CMS_OtherKeyAttribute)
 } static_ASN1_SEQUENCE_END(CMS_KEKIdentifier)
 
-    ASN1_SEQUENCE(CMS_KEKRecipientInfo)
+ASN1_SEQUENCE(CMS_KEKRecipientInfo)
     = { ASN1_EMBED(CMS_KEKRecipientInfo, version, INT32), ASN1_SIMPLE(CMS_KEKRecipientInfo, kekid, CMS_KEKIdentifier), ASN1_SIMPLE(CMS_KEKRecipientInfo, keyEncryptionAlgorithm, X509_ALGOR), ASN1_SIMPLE(CMS_KEKRecipientInfo, encryptedKey, ASN1_OCTET_STRING) } ASN1_SEQUENCE_END(CMS_KEKRecipientInfo)
 
 ASN1_SEQUENCE(CMS_PasswordRecipientInfo) = {
@@ -188,8 +188,8 @@ ASN1_SEQUENCE(CMS_OtherRecipientInfo) = {
     ASN1_OPT(CMS_OtherRecipientInfo, oriValue, ASN1_ANY)
 } static_ASN1_SEQUENCE_END(CMS_OtherRecipientInfo)
 
-    /* Free up RecipientInfo additional data */
-    static int cms_ri_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it, void *exarg)
+/* Free up RecipientInfo additional data */
+static int cms_ri_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it, void *exarg)
 {
     if (operation == ASN1_OP_FREE_PRE) {
         CMS_RecipientInfo *ri = (CMS_RecipientInfo *)*pval;
@@ -262,7 +262,7 @@ ASN1_NDEF_SEQUENCE(CMS_AuthenticatedData) = {
     ASN1_IMP_SET_OF_OPT(CMS_AuthenticatedData, unauthAttrs, X509_ALGOR, 3)
 } static_ASN1_NDEF_SEQUENCE_END(CMS_AuthenticatedData)
 
-    ASN1_NDEF_SEQUENCE(CMS_CompressedData)
+ASN1_NDEF_SEQUENCE(CMS_CompressedData)
     = {
           ASN1_EMBED(CMS_CompressedData, version, INT32),
           ASN1_SIMPLE(CMS_CompressedData, compressionAlgorithm, X509_ALGOR),
@@ -348,7 +348,7 @@ ASN1_CHOICE(CMS_ReceiptsFrom) = {
     ASN1_IMP_SEQUENCE_OF(CMS_ReceiptsFrom, d.receiptList, GENERAL_NAMES, 1)
 } static_ASN1_CHOICE_END(CMS_ReceiptsFrom)
 
-    ASN1_SEQUENCE(CMS_ReceiptRequest)
+ASN1_SEQUENCE(CMS_ReceiptRequest)
     = { ASN1_SIMPLE(CMS_ReceiptRequest, signedContentIdentifier, ASN1_OCTET_STRING), ASN1_SIMPLE(CMS_ReceiptRequest, receiptsFrom, CMS_ReceiptsFrom), ASN1_SEQUENCE_OF(CMS_ReceiptRequest, receiptsTo, GENERAL_NAMES) } ASN1_SEQUENCE_END(CMS_ReceiptRequest)
 
 ASN1_SEQUENCE(CMS_Receipt) = {
@@ -375,7 +375,7 @@ ASN1_SEQUENCE(CMS_SharedInfo) = {
     ASN1_EXP_OPT(CMS_SharedInfo, suppPubInfo, ASN1_OCTET_STRING, 2),
 } static_ASN1_SEQUENCE_END(CMS_SharedInfo)
 
-    int CMS_SharedInfo_encode(unsigned char **pder, X509_ALGOR *kekalg, ASN1_OCTET_STRING *ukm, int keylen)
+int CMS_SharedInfo_encode(unsigned char **pder, X509_ALGOR *kekalg, ASN1_OCTET_STRING *ukm, int keylen)
 {
     union {
         CMS_SharedInfo *pecsi;

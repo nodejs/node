@@ -1,5 +1,5 @@
 ---
-title: workspaces
+title: Workspaces
 section: 7
 description: Working with workspaces
 ---
@@ -88,23 +88,24 @@ npm install abbrev -w a
 
 **Adding a workspace as a dependency of another workspace:**
 
-If you want to add workspace **b** as a dependency of workspace **a**, you can use the workspace protocol in the dependency specifier:
+The same approach works when adding one workspace as a dependency of another.
+If you want to add workspace **b** as a dependency of workspace **a**, run:
 
 ```
-npm install b@workspace:* -w a
+npm install b -w a
 ```
 
-This will add an entry to workspace **a**'s `package.json` like:
+npm will detect that **b** is a workspace and automatically symlink it rather
+than fetching it from the registry. The resulting entry in workspace **a**'s
+`package.json` will use a standard version range:
 
 ```json
 {
   "dependencies": {
-    "b": "workspace:*"
+    "b": "^1.0.0"
   }
 }
 ```
-
-The `workspace:` protocol tells npm to link to the local workspace rather than fetching from the registry. The `*` version means it will use whatever version is defined in workspace **b**'s `package.json`.
 
 Note: other installing commands such as `uninstall`, `ci`, etc will also respect the provided `workspace` configuration.
 
