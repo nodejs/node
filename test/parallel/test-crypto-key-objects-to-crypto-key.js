@@ -26,14 +26,9 @@ function assertCryptoKey(cryptoKey, keyObject, algorithm, extractable, usages) {
 {
   for (const length of [128, 192, 256]) {
     const key = createSecretKey(randomBytes(length >> 3));
-    let algorithms = ['AES-CTR', 'AES-CBC', 'AES-GCM', 'AES-KW'];
+    const algorithms = ['AES-CTR', 'AES-CBC', 'AES-GCM', 'AES-KW'];
     if (length === 256)
       algorithms.push('ChaCha20-Poly1305');
-
-    if (process.features.openssl_is_boringssl) {
-      algorithms = algorithms.filter((a) => a !== 'ChaCha20-Poly1305');
-      common.printSkipMessage('Skipping unsupported ChaCha20-Poly1305 test case');
-    }
 
     for (const algorithm of algorithms) {
       const usages = algorithm === 'AES-KW' ? ['wrapKey', 'unwrapKey'] : ['encrypt', 'decrypt'];
