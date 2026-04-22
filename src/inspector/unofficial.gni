@@ -29,7 +29,7 @@ template("inspector_gn_build") {
     deps = [ ":node_protocol_json" ]
 
     outputs = gypi_values.node_inspector_generated_sources
-    inputs = gypi_values.node_protocol_files + [
+    inputs = gypi_values.node_protocol_files + gypi_values.node_pdl_files + [
       "node_protocol_config.json",
       "$node_gen_dir/src/node_protocol.json",
     ]
