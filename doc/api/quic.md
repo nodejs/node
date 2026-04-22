@@ -1497,7 +1497,7 @@ The following body source types are supported:
 * `AsyncIterable`, `Iterable` — Each yielded chunk (string or
   `Uint8Array`) is written incrementally in streaming mode.
 * `Promise` — Awaited; the resolved value is used as the body (subject
-  to the same type rules, with a nesting depth limit).
+  to the same type rules).
 
 Throws `ERR_INVALID_STATE` if the outbound is already configured or if
 the writer has been accessed.
