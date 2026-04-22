@@ -1,8 +1,8 @@
 // Flags: --experimental-quic --experimental-stream-iter --no-warnings
 
-// Test: body: Promise rejection and nested promise depth.
-// Promise rejection during body configuration errors the stream.
-// Nested promises are resolved up to the depth limit.
+// Test: body: nested promise resolution.
+// Native promises auto-flatten, so Promise<Promise<string>> resolves
+// to the inner string value.
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
@@ -16,8 +16,8 @@ if (!hasQuic) {
 const { listen, connect } = await import('../common/quic.mjs');
 const { bytes } = await import('stream/iter');
 
-// Nested promises — the body is resolved recursively up to
-// depth 3. A Promise<Promise<string>> should work.
+// Nested promises — native promises auto-flatten, so the
+// resolved value is never itself a promise.
 {
   const serverDone = Promise.withResolvers();
 
