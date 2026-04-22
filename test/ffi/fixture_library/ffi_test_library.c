@@ -2,10 +2,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-
 #ifdef _WIN32
 #define FFI_EXPORT __declspec(dllexport)
 #else
+#include <sys/mman.h>
 #define FFI_EXPORT
 #endif
 
@@ -378,3 +378,12 @@ FFI_EXPORT void array_set_f64(double* arr, size_t index, double value) {
 
   arr[index] = value;
 }
+
+#ifndef _WIN32
+FFI_EXPORT void* readonly_memory() {
+  // TODO(bengl) Add a Windows version of this.
+
+  void* p = mmap(0, 4096, PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  return p;
+}
+#endif
