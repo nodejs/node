@@ -69,7 +69,9 @@ const net = require('net');
   const server = http.createServer(common.mustCall((req, res) => {
     assert.strictEqual(Object.getPrototypeOf(req.headers), null);
     // The __proto__ header should be stored as a regular property
-    assert.strictEqual(req.headers['__proto__'], 'test');
+    assert.strictEqual(
+      Object.getOwnPropertyDescriptor(req.headers, '__proto__').value, 'test',
+    );
     res.end();
   }));
 
