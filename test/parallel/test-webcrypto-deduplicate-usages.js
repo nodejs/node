@@ -45,6 +45,9 @@ function assertSameSet(actual, expected, msg) {
     { algorithm: { name: 'AES-KW', length: 128 },
       usages: ['wrapKey', 'unwrapKey', 'wrapKey', 'unwrapKey'],
       expected: ['wrapKey', 'unwrapKey'] },
+    { algorithm: { name: 'ChaCha20-Poly1305' },
+      usages: ['wrapKey', 'decrypt', 'encrypt', 'unwrapKey', 'wrapKey', 'encrypt'],
+      expected: ['encrypt', 'decrypt', 'wrapKey', 'unwrapKey'] },
   ];
 
   if (hasOpenSSL(3)) {
@@ -60,16 +63,6 @@ function assertSameSet(actual, expected, msg) {
     });
   } else {
     common.printSkipMessage('AES-OCB and KMAC require OpenSSL >= 3');
-  }
-
-  if (!process.features.openssl_is_boringssl) {
-    symmetric.push({
-      algorithm: { name: 'ChaCha20-Poly1305' },
-      usages: ['wrapKey', 'decrypt', 'encrypt', 'unwrapKey', 'wrapKey', 'encrypt'],
-      expected: ['encrypt', 'decrypt', 'wrapKey', 'unwrapKey'],
-    });
-  } else {
-    common.printSkipMessage('ChaCha20-Poly1305 is not supported in BoringSSL');
   }
 
   for (const { algorithm, usages, expected } of symmetric) {
@@ -342,20 +335,16 @@ function assertSameSet(actual, expected, msg) {
   })());
 
   // ChaCha20-Poly1305 raw-secret import.
-  if (!process.features.openssl_is_boringssl) {
-    tests.push((async () => {
-      const key = await subtle.importKey(
-        'raw-secret',
-        new Uint8Array(32),
-        { name: 'ChaCha20-Poly1305' },
-        true,
-        ['decrypt', 'encrypt', 'decrypt', 'encrypt']);
-      assertSameSet(key.usages, ['encrypt', 'decrypt']);
-      assert.strictEqual(key.usages.length, 2);
-    })());
-  } else {
-    common.printSkipMessage('ChaCha20-Poly1305 is not supported in BoringSSL');
-  }
+  tests.push((async () => {
+    const key = await subtle.importKey(
+      'raw-secret',
+      new Uint8Array(32),
+      { name: 'ChaCha20-Poly1305' },
+      true,
+      ['decrypt', 'encrypt', 'decrypt', 'encrypt']);
+    assertSameSet(key.usages, ['encrypt', 'decrypt']);
+    assert.strictEqual(key.usages.length, 2);
+  })());
 
   // AES-OCB raw-secret import.
   if (hasOpenSSL(3)) {
