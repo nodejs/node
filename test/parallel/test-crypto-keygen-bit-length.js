@@ -4,6 +4,10 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+if (process.features.openssl_is_boringssl)
+  common.skip('BoringSSL does not support arbitrary RSA modulus length ' +
+              'or RSA-PSS/DSA key generation');
+
 const assert = require('assert');
 const {
   generateKeyPair,

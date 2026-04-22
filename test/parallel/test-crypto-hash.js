@@ -4,6 +4,13 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
 }
 
+common.expectWarning({
+  DeprecationWarning: [
+    ['crypto.Hash constructor is deprecated.',
+     'DEP0179'],
+  ]
+});
+
 const assert = require('assert');
 const crypto = require('crypto');
 const fs = require('fs');
@@ -260,6 +267,8 @@ if (!process.features.openssl_is_boringssl) {
     assert.throws(() => crypto.createHash('sha256', { outputLength }),
                   { code: 'ERR_OUT_OF_RANGE' });
   }
+} else {
+  common.printSkipMessage('Skipping unsupported XOF hash test cases');
 }
 
 {
@@ -280,10 +289,4 @@ if (!process.features.openssl_is_boringssl) {
 
 {
   crypto.Hash('sha256');
-  common.expectWarning({
-    DeprecationWarning: [
-      ['crypto.Hash constructor is deprecated.',
-       'DEP0179'],
-    ]
-  });
 }
