@@ -25,14 +25,11 @@
   hdr-histogram = pkgs.hdrhistogram_c;
   http-parser = pkgs.llhttp;
   nghttp2 = pkgs.nghttp2.overrideAttrs {
-    patches = [
-      (pkgs.fetchpatch2 {
-        url = "https://github.com/nghttp2/nghttp2/commit/7784fa979d0bcf801a35f1afbb25fb048d815cd7.patch?full_index=1";
-        revert = true;
-        excludes = [ "lib/includes/nghttp2/nghttp2.h" ];
-        hash = "sha256-RG87Qifjpl7HTP9ac2JwHj2XAbDlFgOpAnpZX3ET6gU=";
-      })
-    ];
+    version = "1.69.0";
+    src = pkgs.fetchurl {
+      url = "https://github.com/nghttp2/nghttp2/releases/download/v1.69.0/nghttp2-1.69.0.tar.bz2";
+      hash = "sha256-PxhfWxw+d4heuc8/LE2ksan3OiS/WVe4KRg60Tf4Lcg=";
+    };
   };
 }
 // (pkgs.lib.optionalAttrs withLief {
