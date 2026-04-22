@@ -68,11 +68,9 @@ if (process.features.openssl_is_boringssl) {
     'digest/cshake.tentative.https.any.js',
     'digest/sha3.tentative.https.any.js',
     'encrypt_decrypt/chacha20_poly1305.tentative.https.any.js',
-    'generateKey/failures_AES-KW.https.any.js',
     'generateKey/failures_Ed448.tentative.https.any.js',
     'generateKey/failures_X448.tentative.https.any.js',
     'generateKey/failures_chacha20_poly1305.tentative.https.any.js',
-    'generateKey/successes_AES-KW.https.any.js',
     'generateKey/successes_Ed448.tentative.https.any.js',
     'generateKey/successes_X448.tentative.https.any.js',
     'generateKey/successes_chacha20_poly1305.tentative.https.any.js',
@@ -84,11 +82,6 @@ if (process.features.openssl_is_boringssl) {
     'sign_verify/eddsa_curve448.tentative.https.any.js');
 
   skipSubtests(
-    ['derive_bits_keys/hkdf.https.any.js', /AES-KW/],
-    ['derive_bits_keys/pbkdf2.https.any.js', /AES-KW/],
-    ['import_export/raw_format_aliases.tentative.https.any.js', /AES-KW/],
-    ['import_export/symmetric_importKey.https.any.js', /AES-KW/],
-    ['supports.tentative.https.any.js', /AES-KW/],
     ['supports-modern.tentative.https.any.js', /ChaCha20-Poly1305/],
     ['supports-modern.tentative.https.any.js', /^supports returns true for algorithm objects with valid parameters$/]);
 }

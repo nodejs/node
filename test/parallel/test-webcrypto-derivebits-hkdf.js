@@ -24,12 +24,12 @@ const kDerivedKeyTypes = [
   ['HMAC', 256, 'SHA-256', 'sign', 'verify'],
   ['HMAC', 256, 'SHA-384', 'sign', 'verify'],
   ['HMAC', 256, 'SHA-512', 'sign', 'verify'],
+  ['AES-KW', 128, undefined, 'wrapKey', 'unwrapKey'],
+  ['AES-KW', 256, undefined, 'wrapKey', 'unwrapKey'],
 ];
 
 if (!process.features.openssl_is_boringssl) {
   kDerivedKeyTypes.push(
-    ['AES-KW', 128, undefined, 'wrapKey', 'unwrapKey'],
-    ['AES-KW', 256, undefined, 'wrapKey', 'unwrapKey'],
     ['HMAC', 256, 'SHA3-256', 'sign', 'verify'],
     ['HMAC', 256, 'SHA3-384', 'sign', 'verify'],
     ['HMAC', 256, 'SHA3-512', 'sign', 'verify'],
