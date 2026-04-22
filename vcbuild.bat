@@ -687,7 +687,7 @@ for /d %%F in (test\addons\??_*) do (
   rd /s /q %%F
 )
 :: generate
-%doc_kit_exe% generate -t addon-verify -i "file://%~dp0doc\api\addons.md" -o "file://%~dp0test\addons" --type-map "file://%~dp0doc\type-map.json"
+"%node_exe%" tools\doc\addon-verify.mjs --input "%~dp0doc\api\addons.md" --output "%~dp0test\addons"
 if %errorlevel% neq 0 exit /b %errorlevel%
 :: building addons
 setlocal
