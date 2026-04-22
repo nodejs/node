@@ -22,9 +22,21 @@ constexpr unsigned kNoAuthTagLength = static_cast<unsigned>(-1);
   V(GCM_128, AES_Cipher, ncrypto::Cipher::AES_128_GCM)                         \
   V(GCM_192, AES_Cipher, ncrypto::Cipher::AES_192_GCM)                         \
   V(GCM_256, AES_Cipher, ncrypto::Cipher::AES_256_GCM)                         \
+  VARIANTS_KW(V)
+
+#ifdef OPENSSL_IS_BORINGSSL
+// BoringSSL does not expose EVP_aes_*_wrap via the EVP_CIPHER registry.
+// Route AES-KW through low-level AES_wrap_key / AES_unwrap_key instead.
+#define VARIANTS_KW(V)                                                         \
+  V(KW_128, AES_KW_Cipher, static_cast<const EVP_CIPHER*>(nullptr))            \
+  V(KW_192, AES_KW_Cipher, static_cast<const EVP_CIPHER*>(nullptr))            \
+  V(KW_256, AES_KW_Cipher, static_cast<const EVP_CIPHER*>(nullptr))
+#else
+#define VARIANTS_KW(V)                                                         \
   V(KW_128, AES_Cipher, ncrypto::Cipher::AES_128_KW)                           \
   V(KW_192, AES_Cipher, ncrypto::Cipher::AES_192_KW)                           \
   V(KW_256, AES_Cipher, ncrypto::Cipher::AES_256_KW)
+#endif
 
 #if OPENSSL_WITH_AES_OCB
 #define VARIANTS_OCB(V)                                                        \

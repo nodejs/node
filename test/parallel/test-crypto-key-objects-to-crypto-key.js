@@ -31,8 +31,8 @@ function assertCryptoKey(cryptoKey, keyObject, algorithm, extractable, usages) {
       algorithms.push('ChaCha20-Poly1305');
 
     if (process.features.openssl_is_boringssl) {
-      algorithms = algorithms.filter((a) => a !== 'AES-KW' && a !== 'ChaCha20-Poly1305');
-      common.printSkipMessage('Skipping unsupported AES-KW/ChaCha20-Poly1305 test cases');
+      algorithms = algorithms.filter((a) => a !== 'ChaCha20-Poly1305');
+      common.printSkipMessage('Skipping unsupported ChaCha20-Poly1305 test case');
     }
 
     for (const algorithm of algorithms) {
