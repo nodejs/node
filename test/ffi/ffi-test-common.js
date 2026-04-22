@@ -79,6 +79,10 @@ const fixtureSymbols = {
   array_set_f64: { parameters: ['pointer', 'u64', 'f64'], result: 'void' },
 };
 
+if (!common.isWindows) {
+  fixtureSymbols.readonly_memory = { parameters: [], result: 'pointer' };
+}
+
 function cString(value) {
   return Buffer.from(`${value}\0`);
 }

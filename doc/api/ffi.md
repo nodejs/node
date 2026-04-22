@@ -539,6 +539,8 @@ native memory directly. The caller must guarantee that:
 * `length` stays within the allocated native region.
 * no native code frees or repurposes that memory while JavaScript still uses
   the `Buffer`.
+* Memory protection is observed. For example, read-only memory pages must not
+  be written to.
 
 If these guarantees are not met, reading or writing the `Buffer` can corrupt
 memory or crash the process.
