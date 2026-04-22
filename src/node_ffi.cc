@@ -21,10 +21,11 @@ using v8::FunctionTemplate;
 using v8::Global;
 using v8::HandleScope;
 using v8::Isolate;
+using v8::Just;
 using v8::Local;
 using v8::LocalVector;
+using v8::Maybe;
 using v8::MaybeLocal;
-using v8::NewStringType;
 using v8::Null;
 using v8::Object;
 using v8::PropertyAttribute;
@@ -83,12 +84,11 @@ void DynamicLibrary::Close() {
   callbacks_.clear();
 }
 
-bool DynamicLibrary::ResolveSymbol(Environment* env,
-                                   const std::string& name,
-                                   void** ret) {
+Maybe<void*> DynamicLibrary::ResolveSymbol(Environment* env,
+                                           const std::string& name) {
   if (handle_ == nullptr) {
     THROW_ERR_FFI_LIBRARY_CLOSED(env);
-    return false;
+    return {};
   }
 
   auto existing = symbols_.find(name);
@@ -98,42 +98,36 @@ bool DynamicLibrary::ResolveSymbol(Environment* env,
     ptr = existing->second;
   } else {
     if (uv_dlsym(&lib_, name.c_str(), &ptr) != 0) {
-      std::string msg = std::string("dlsym failed: ") + uv_dlerror(&lib_);
-      THROW_ERR_FFI_CALL_FAILED(env, msg.c_str());
-      return false;
+      THROW_ERR_FFI_CALL_FAILED(env, "dlsym failed: %s", uv_dlerror(&lib_));
+      return {};
     }
   }
 
-  *ret = ptr;
-  return true;
+  return Just(ptr);
 }
 
-bool DynamicLibrary::PrepareFunction(Environment* env,
-                                     const std::string& name,
-                                     Local<Object> signature,
-                                     std::shared_ptr<FFIFunction>* ret,
-                                     bool* should_cache_symbol,
-                                     bool* should_cache_function) {
+Maybe<DynamicLibrary::PreparedFunction> DynamicLibrary::PrepareFunction(
+    Environment* env, const std::string& name, Local<Object> signature) {
   std::shared_ptr<FFIFunction> fn;
   auto existing = functions_.find(name);
-  ffi_type* return_type = &ffi_type_void;
-  std::vector<ffi_type*> args;
+  FunctionSignature parsed;
 
-  *should_cache_symbol = false;
-  *should_cache_function = false;
-
-  if (!ParseFunctionSignature(env, name, signature, &return_type, &args)) {
-    return false;
+  if (!ParseFunctionSignature(env, name, signature).To(&parsed)) {
+    return {};
   }
+  auto [return_type, args] = parsed;
+
+  bool should_cache_symbol = false;
+  bool should_cache_function = false;
 
   if (existing == functions_.end()) {
     void* ptr;
 
-    if (!ResolveSymbol(env, name, &ptr)) {
-      return false;
+    if (!ResolveSymbol(env, name).To(&ptr)) {
+      return {};
     }
 
-    *should_cache_symbol = symbols_.find(name) == symbols_.end();
+    should_cache_symbol = symbols_.find(name) == symbols_.end();
 
     fn = std::make_shared<FFIFunction>(FFIFunction{.closed = false,
                                                    .ptr = ptr,
@@ -161,23 +155,24 @@ bool DynamicLibrary::PrepareFunction(Environment* env,
       }
 
       THROW_ERR_FFI_CALL_FAILED(env, msg);
-      return false;
+      return {};
     }
 
-    *should_cache_function = true;
+    should_cache_function = true;
   } else {
     fn = existing->second;
 
     if (!SignaturesMatch(*fn, return_type, args)) {
-      std::string msg = "Function " + name +
-                        " was already requested with a different signature";
-      THROW_ERR_INVALID_ARG_VALUE(env, msg.c_str());
-      return false;
+      THROW_ERR_INVALID_ARG_VALUE(
+          env,
+          "Function %s"
+          " was already requested with a different signature",
+          name);
+      return {};
     }
   }
 
-  *ret = fn;
-  return true;
+  return Just(PreparedFunction{fn, should_cache_symbol, should_cache_function});
 }
 
 void DynamicLibrary::CleanupFunctionInfo(
@@ -204,16 +199,15 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
     return MaybeLocal<Function>();
   }
 
-  Local<String> name_str;
-  if (!String::NewFromUtf8(isolate, name.c_str(), NewStringType::kNormal)
-           .ToLocal(&name_str)) {
+  Local<Value> name_str;
+  if (!ToV8Value(env->context(), name, isolate).ToLocal(&name_str)) {
     return MaybeLocal<Function>();
   }
 
   info->self.Reset(isolate, ret);
   info->self.SetWeak(
       info, DynamicLibrary::CleanupFunctionInfo, WeakCallbackType::kParameter);
-  ret->SetName(name_str);
+  ret->SetName(name_str.As<String>());
   if (!ret->Set(
               env->context(),
               env->pointer_string(),
@@ -264,8 +258,7 @@ void DynamicLibrary::New(const FunctionCallbackInfo<Value>& args) {
 
   // Open the library
   if (uv_dlopen(library_path, &lib->lib_) != 0) {
-    std::string msg = std::string("dlopen failed: ") + uv_dlerror(&lib->lib_);
-    THROW_ERR_FFI_CALL_FAILED(env, msg.c_str());
+    THROW_ERR_FFI_CALL_FAILED(env, "dlopen failed: %s", uv_dlerror(&lib->lib_));
     return;
   }
 
@@ -295,10 +288,10 @@ void DynamicLibrary::InvokeFunction(const FunctionCallbackInfo<Value>& args) {
   unsigned int provided_args = args.Length();
 
   if (provided_args != expected_args) {
-    std::string msg = "Invalid argument count: expected " +
-                      std::to_string(expected_args) + ", got " +
-                      std::to_string(provided_args);
-    THROW_ERR_INVALID_ARG_VALUE(env, msg.c_str());
+    THROW_ERR_INVALID_ARG_VALUE(env,
+                                "Invalid argument count: expected %s, got %s",
+                                expected_args,
+                                provided_args);
     return;
   }
 
@@ -308,20 +301,18 @@ void DynamicLibrary::InvokeFunction(const FunctionCallbackInfo<Value>& args) {
   strings.reserve(expected_args);
 
   for (unsigned int i = 0; i < expected_args; i++) {
-    uint8_t res = ToFFIArgument(env, i, fn->args[i], args[i], &values[i]);
+    FFIArgumentCategory res;
 
-    if (!res) {
+    if (!ToFFIArgument(env, i, fn->args[i], args[i], &values[i]).To(&res)) {
       return;
     }
 
     // The argument is a string, we need to copy
-    if (res == 2) {
+    if (res == FFIArgumentCategory::String) {
       Utf8Value str(env->isolate(), args[i]);
 
       if (*str == nullptr) {
-        THROW_ERR_INVALID_ARG_TYPE(
-            env,
-            ("Argument " + std::to_string(i) + " must be a string").c_str());
+        THROW_ERR_INVALID_ARG_TYPE(env, "Argument %s must be a string", i);
         return;
       }
 
@@ -440,9 +431,8 @@ void DynamicLibrary::InvokeCallback(ffi_cif* cif,
 void DynamicLibrary::GetPath(const FunctionCallbackInfo<Value>& args) {
   DynamicLibrary* lib = Unwrap<DynamicLibrary>(args.This());
 
-  Local<String> path;
-  if (!String::NewFromUtf8(
-           args.GetIsolate(), lib->path_.c_str(), NewStringType::kNormal)
+  Local<Value> path;
+  if (!ToV8Value(lib->env()->context(), lib->path_, args.GetIsolate())
            .ToLocal(&path)) {
     return;
   }
@@ -469,19 +459,13 @@ void DynamicLibrary::GetFunction(const FunctionCallbackInfo<Value>& args) {
   if (ThrowIfContainsNullBytes(env, name, "Function name")) {
     return;
   }
-  std::shared_ptr<FFIFunction> fn;
-  bool should_cache_symbol;
-  bool should_cache_function;
+  PreparedFunction prepared;
 
   Local<Object> signature = args[1].As<Object>();
-  if (!lib->PrepareFunction(env,
-                            *name,
-                            signature,
-                            &fn,
-                            &should_cache_symbol,
-                            &should_cache_function)) {
+  if (!lib->PrepareFunction(env, *name, signature).To(&prepared)) {
     return;
   }
+  auto [fn, should_cache_symbol, should_cache_function] = prepared;
 
   if (should_cache_symbol) {
     lib->symbols_.emplace(*name, fn->ptr);
@@ -547,25 +531,18 @@ void DynamicLibrary::GetFunctions(const FunctionCallbackInfo<Value>& args) {
       }
 
       if (!signature->IsObject() || signature->IsArray()) {
-        std::string msg = std::string("Signature of function ") + name.out() +
-                          " must be an object";
-        THROW_ERR_INVALID_ARG_TYPE(env, msg.c_str());
+        THROW_ERR_INVALID_ARG_TYPE(
+            env, "Signature of function %s must be an object", name);
         return;
       }
 
-      std::shared_ptr<FFIFunction> fn;
-      bool should_cache_symbol;
-      bool should_cache_function;
+      PreparedFunction prepared;
 
       Local<Object> signature_object = signature.As<Object>();
-      if (!lib->PrepareFunction(env,
-                                *name,
-                                signature_object,
-                                &fn,
-                                &should_cache_symbol,
-                                &should_cache_function)) {
+      if (!lib->PrepareFunction(env, *name, signature_object).To(&prepared)) {
         return;
       }
+      auto [fn, should_cache_symbol, should_cache_function] = prepared;
 
       pending.push_back(ResolvedFunction{
           .name = *name,
@@ -592,14 +569,14 @@ void DynamicLibrary::GetFunctions(const FunctionCallbackInfo<Value>& args) {
         return;
       }
 
-      Local<String> name_string;
-      if (!String::NewFromUtf8(
-               isolate, item.name.c_str(), NewStringType::kNormal)
+      Local<Value> name_string;
+      if (!ToV8Value(env->context(), item.name, env->isolate())
                .ToLocal(&name_string)) {
         return;
       }
 
-      if (!functions->Set(context, name_string, ret).FromMaybe(false)) {
+      if (!functions->Set(context, name_string.As<String>(), ret)
+               .FromMaybe(false)) {
         return;
       }
     }
@@ -612,14 +589,14 @@ void DynamicLibrary::GetFunctions(const FunctionCallbackInfo<Value>& args) {
         return;
       }
 
-      Local<String> name_string;
-      if (!String::NewFromUtf8(
-               isolate, entry.first.c_str(), NewStringType::kNormal)
+      Local<Value> name_string;
+      if (!ToV8Value(env->context(), entry.first, env->isolate())
                .ToLocal(&name_string)) {
         return;
       }
 
-      if (!functions->Set(context, name_string, fn).FromMaybe(false)) {
+      if (!functions->Set(context, name_string.As<String>(), fn)
+               .FromMaybe(false)) {
         return;
       }
     }
@@ -644,7 +621,7 @@ void DynamicLibrary::GetSymbol(const FunctionCallbackInfo<Value>& args) {
   }
   void* ptr;
 
-  if (!lib->ResolveSymbol(env, *name, &ptr)) {
+  if (!lib->ResolveSymbol(env, *name).To(&ptr)) {
     return;
   }
 
@@ -670,16 +647,15 @@ void DynamicLibrary::GetSymbols(const FunctionCallbackInfo<Value>& args) {
     return;
   }
   for (const auto& entry : lib->symbols_) {
-    Local<String> symbol_key;
-    if (!String::NewFromUtf8(
-             isolate, entry.first.c_str(), NewStringType::kNormal)
+    Local<Value> symbol_key;
+    if (!ToV8Value(env->context(), entry.first, env->isolate())
              .ToLocal(&symbol_key)) {
       return;
     }
 
     if (!symbols
              ->Set(context,
-                   symbol_key,
+                   symbol_key.As<String>(),
                    BigInt::NewFromUnsigned(
                        isolate,
                        static_cast<uint64_t>(
@@ -720,13 +696,14 @@ void DynamicLibrary::RegisterCallback(const FunctionCallbackInfo<Value>& args) {
       return;
     }
 
-    if (!ParseFunctionSignature(env,
-                                "<callback>",
-                                args[0].As<Object>(),
-                                &return_type,
-                                &callback_args)) {
+    FunctionSignature parsed;
+    if (!ParseFunctionSignature(env, "<callback>", args[0].As<Object>())
+             .To(&parsed)) {
       return;
     }
+
+    return_type = parsed.return_type;
+    callback_args = std::move(parsed.args);
 
     fn = args[1].As<Function>();
   }
@@ -827,7 +804,8 @@ void DynamicLibrary::UnregisterCallback(
   }
 
   uintptr_t raw_ptr;
-  if (!GetValidatedPointerAddress(env, args[0], "first argument", &raw_ptr)) {
+  if (!GetValidatedPointerAddress(env, args[0], "first argument")
+           .To(&raw_ptr)) {
     return;
   }
 
@@ -862,7 +840,8 @@ void DynamicLibrary::RefCallback(const FunctionCallbackInfo<Value>& args) {
   }
 
   uintptr_t raw_ptr;
-  if (!GetValidatedPointerAddress(env, args[0], "first argument", &raw_ptr)) {
+  if (!GetValidatedPointerAddress(env, args[0], "first argument")
+           .To(&raw_ptr)) {
     return;
   }
 
@@ -892,7 +871,8 @@ void DynamicLibrary::UnrefCallback(const FunctionCallbackInfo<Value>& args) {
   }
 
   uintptr_t raw_ptr;
-  if (!GetValidatedPointerAddress(env, args[0], "first argument", &raw_ptr)) {
+  if (!GetValidatedPointerAddress(env, args[0], "first argument")
+           .To(&raw_ptr)) {
     return;
   }
 

@@ -15,21 +15,26 @@ struct FFIFunction;
 
 bool ThrowIfContainsNullBytes(Environment* env,
                               const Utf8Value& value,
-                              const std::string& label);
+                              std::string_view label);
 
-bool ParseFunctionSignature(Environment* env,
-                            const std::string& name,
-                            v8::Local<v8::Object> signature,
-                            ffi_type** return_type,
-                            std::vector<ffi_type*>* args);
+struct FunctionSignature {
+  ffi_type* return_type;
+  std::vector<ffi_type*> args;
+};
+v8::Maybe<FunctionSignature> ParseFunctionSignature(
+    Environment* env, std::string_view name, v8::Local<v8::Object> signature);
 
-bool ToFFIType(Environment* env, const std::string& type_str, ffi_type** ret);
+v8::Maybe<ffi_type*> ToFFIType(Environment* env, std::string_view type_str);
 
-uint8_t ToFFIArgument(Environment* env,
-                      unsigned int index,
-                      ffi_type* type,
-                      v8::Local<v8::Value> arg,
-                      void* ret);
+enum class FFIArgumentCategory {
+  Regular,
+  String,
+};
+v8::Maybe<FFIArgumentCategory> ToFFIArgument(Environment* env,
+                                             unsigned int index,
+                                             ffi_type* type,
+                                             v8::Local<v8::Value> arg,
+                                             void* ret);
 
 v8::Local<v8::Value> ToJSArgument(v8::Isolate* isolate,
                                   ffi_type* type,
