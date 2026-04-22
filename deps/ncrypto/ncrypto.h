@@ -314,7 +314,7 @@ class Cipher final {
                 && EVP_CCM_TLS_TAG_LEN <= MAX_AUTH_TAG_LENGTH &&
                 EVP_CHACHAPOLY_TLS_TAG_LEN <= MAX_AUTH_TAG_LENGTH
 #endif
-  );
+  );  // NOLINT(whitespace/parens)
 
   Cipher() = default;
   Cipher(const EVP_CIPHER* cipher) : cipher_(cipher) {}
