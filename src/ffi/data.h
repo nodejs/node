@@ -9,23 +9,20 @@
 
 namespace node::ffi {
 
-bool GetValidatedSignedInt(Environment* env,
-                           v8::Local<v8::Value> value,
-                           int64_t min,
-                           int64_t max,
-                           const char* type_name,
-                           int64_t* out);
+v8::Maybe<int64_t> GetValidatedSignedInt(Environment* env,
+                                         v8::Local<v8::Value> value,
+                                         int64_t min,
+                                         int64_t max,
+                                         const char* type_name);
 
-bool GetValidatedUnsignedInt(Environment* env,
-                             v8::Local<v8::Value> value,
-                             uint64_t max,
-                             const char* type_name,
-                             uint64_t* out);
+v8::Maybe<uint64_t> GetValidatedUnsignedInt(Environment* env,
+                                            v8::Local<v8::Value> value,
+                                            uint64_t max,
+                                            const char* type_name);
 
-bool GetValidatedPointerAddress(Environment* env,
-                                v8::Local<v8::Value> value,
-                                const char* label,
-                                uintptr_t* out);
+v8::Maybe<uintptr_t> GetValidatedPointerAddress(Environment* env,
+                                                v8::Local<v8::Value> value,
+                                                const char* label);
 
 size_t GetFFIReturnValueStorageSize(ffi_type* type);
 }  // namespace node::ffi
