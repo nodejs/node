@@ -737,6 +737,7 @@ module.exports = cls => class Reifier extends cls {
         ...this.options,
         resolved: node.resolved,
         integrity: node.integrity,
+        _isRoot: node.parent?.isProjectRoot || node.parent?.isWorkspace,
       })
       // store nodes don't use Node class so node.package doesn't get updated
       if (node.isInStore) {

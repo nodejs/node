@@ -204,7 +204,7 @@ class Outdated extends ArboristWorkspaceCmd {
     } catch (err) {
       // silently catch and ignore ETARGET, E403 & E404 errors
       // deps are just skipped
-      if (!['ETARGET', 'E404', 'E404'].includes(err.code)) {
+      if (!['ETARGET', 'E403', 'E404'].includes(err.code)) {
         throw err
       }
     }

@@ -13,6 +13,7 @@ import re
 import shlex
 import sys
 import traceback
+from importlib.metadata import version
 
 import gyp.input
 from gyp.common import GypError
@@ -491,9 +492,7 @@ def gyp_main(args):
 
     options, build_files_arg = parser.parse_args(args)
     if options.version:
-        import pkg_resources  # noqa: PLC0415
-
-        print(f"v{pkg_resources.get_distribution('gyp-next').version}")
+        print(f"v{version('gyp-next')}")
         return 0
     build_files = build_files_arg
 

@@ -72,12 +72,12 @@ const missingFromTree = async ({ spec, tree, flatOptions, isNpxTree, shallow }) 
     // non-registry spec, or a specific tag, or name only in npx tree.  Look up
     // manifest and check resolved to see if it's in the tree.
     const manifest = await getManifest(spec, flatOptions)
-    if (spec.type === 'directory') {
+    if (spec.type === 'directory' && !isNpxTree) {
       return { manifest }
     }
     const nodesByManifest = tree.inventory.query('packageName', manifest.name)
     for (const node of nodesByManifest) {
-      if (node.package.resolved === manifest._resolved) {
+      if (node.package.resolved === manifest._resolved || node.realpath === manifest._resolved) {
         // we have a package by the same name and the same resolved destination, nothing to add.
         return { node }
       }
