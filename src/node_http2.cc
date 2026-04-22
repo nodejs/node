@@ -1265,6 +1265,24 @@ int Http2Session::OnFrameSent(nghttp2_session* handle,
                               void* user_data) {
   Http2Session* session = static_cast<Http2Session*>(user_data);
   session->statistics_.frame_sent += 1;
+
+  // If nghttp2 has internally terminated the session (e.g. due to a protocol
+  // error like oversized frames, padding errors, or HPACK compression
+  // failures), it calls nghttp2_session_terminate_session() directly which
+  // queues a GOAWAY but does not invoke any application-level callback.
+  // Detect that case here: a GOAWAY was sent but we never initiated it
+  // (no Close(), no session.close(), no session.goaway()).
+  //
+  // We set a flag here, and then throw the error at the end of
+  // SendPendingData, to wait until the GOAWAY is written before the session
+  // is torn down.
+  if (frame->hd.type == NGHTTP2_GOAWAY && !session->is_closing() &&
+      !session->is_destroyed() && !session->IsGracefulCloseInitiated() &&
+      !session->goaway_initiated_) {
+    Debug(session, "nghttp2 session terminated internally");
+    session->internal_goaway_sent_ = true;
+  }
+
   return 0;
 }
 
@@ -1998,6 +2016,18 @@ uint8_t Http2Session::SendPendingData() {
   }
 
   MaybeStopReading();
+
+  // If nghttp2 has internally torn down the session (detected in OnFrameSent)
+  // during the nghttp2_session_mem_send loop above, at this point we error:
+  if (internal_goaway_sent_) {
+    internal_goaway_sent_ = false;
+    if (!is_closing() && !is_destroyed()) {
+      Isolate* isolate = env()->isolate();
+      HandleScope scope(isolate);
+      Local<Value> arg = Integer::New(isolate, NGHTTP2_ERR_PROTO);
+      MakeCallback(env()->http2session_on_error_function(), 1, &arg);
+    }
+  }
 
   return 0;
 }
@@ -2940,6 +2970,7 @@ void Http2Session::Goaway(uint32_t code,
   if (is_destroyed())
     return;
 
+  goaway_initiated_ = true;
   Http2Scope h2scope(this);
   // the last proc stream id is the most recently created Http2Stream.
   if (lastStreamID <= 0)
