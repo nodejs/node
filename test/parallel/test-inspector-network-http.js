@@ -22,6 +22,16 @@ const requestHeaders = {
   'x-header1': ['value1', 'value2']
 };
 
+const requestBodyHeaders = {
+  ...requestHeaders,
+  'content-type': 'text/plain; charset=utf-8',
+};
+
+const binaryRequestBodyHeaders = {
+  ...requestHeaders,
+  'content-type': 'application/octet-stream',
+};
+
 const setResponseHeaders = (res) => {
   res.setHeader('server', 'node');
   res.setHeader('etag', 12345);
@@ -65,6 +75,17 @@ const handleRequest = (req, res) => {
         res.end('hello world\n');
       }, kTimeout);
       break;
+    case '/text-body': {
+      const chunks = [];
+      req.on('data', (chunk) => chunks.push(chunk));
+      req.on('end', common.mustCall(() => {
+        assert.strictEqual(Buffer.concat(chunks).toString(), 'foobar');
+        setResponseHeaders(res);
+        res.writeHead(200);
+        res.end('hello world\n');
+      }));
+      break;
+    }
     case '/echo-post': {
       const chunks = [];
       req.on('data', (chunk) => {
@@ -79,6 +100,17 @@ const handleRequest = (req, res) => {
           body,
         }));
       });
+      break;
+    }
+    case '/binary-body': {
+      const chunks = [];
+      req.on('data', (chunk) => chunks.push(chunk));
+      req.on('end', common.mustCall(() => {
+        assert.deepStrictEqual(Buffer.concat(chunks), Buffer.from([0, 1, 2, 3]));
+        setResponseHeaders(res);
+        res.writeHead(200);
+        res.end('hello world\n');
+      }));
       break;
     }
     default:
@@ -118,6 +150,9 @@ function verifyRequestWillBeSent({ method, params }, expect) {
   assert.strictEqual(params.request.headers.cookie, 'k1=v1; k2=v2');
   assert.strictEqual(params.request.headers.age, '1000');
   assert.strictEqual(params.request.headers['x-header1'], 'value1, value2');
+  if (expect.contentType) {
+    assert.strictEqual(params.request.headers['content-type'], expect.contentType);
+  }
   assert.strictEqual(typeof params.timestamp, 'number');
   assert.strictEqual(typeof params.wallTime, 'number');
 
@@ -173,8 +208,11 @@ function verifyLoadingFailed({ method, params }) {
   assert.strictEqual(typeof params.errorText, 'string');
 }
 
-function verifyHttpResponse(response) {
+function verifyHttpResponse(response, expectedBody = '\nhello world\n', responseEncoding) {
   assert.strictEqual(response.statusCode, 200);
+  if (responseEncoding) {
+    response.setEncoding(responseEncoding);
+  }
   const chunks = [];
 
   // Verifies that the inspector does not put the response into flowing mode.
@@ -189,8 +227,8 @@ function verifyHttpResponse(response) {
   }));
 
   response.on('end', common.mustCall(() => {
-    const body = Buffer.concat(chunks).toString();
-    assert.strictEqual(body, '\nhello world\n');
+    const body = responseEncoding ? chunks.join('') : Buffer.concat(chunks).toString();
+    assert.strictEqual(body, expectedBody);
   }));
 }
 
@@ -203,6 +241,7 @@ function createRequestTracker(url, responseExpect, requestExpect = {}) {
     .then(([event]) => verifyRequestWillBeSent(event, {
       url,
       method: requestExpect.method,
+      contentType: requestExpect.contentType,
     }));
 
   const responseReceivedFuture = once(session, 'Network.responseReceived')
@@ -345,7 +384,7 @@ async function testHttpsGet() {
 async function testHttpError() {
   const url = `http://${addresses.INVALID_HOST}/`;
   const requestWillBeSentFuture = once(session, 'Network.requestWillBeSent')
-    .then(([event]) => verifyRequestWillBeSent(event, { url }));
+    .then(([event]) => verifyRequestWillBeSent(event, { url, method: 'GET' }));
   session.on('Network.responseReceived', common.mustNotCall());
   session.on('Network.loadingFinished', common.mustNotCall());
 
@@ -364,7 +403,7 @@ async function testHttpError() {
 async function testHttpsError() {
   const url = `https://${addresses.INVALID_HOST}/`;
   const requestWillBeSentFuture = once(session, 'Network.requestWillBeSent')
-    .then(([event]) => verifyRequestWillBeSent(event, { url }));
+    .then(([event]) => verifyRequestWillBeSent(event, { url, method: 'GET' }));
   session.on('Network.responseReceived', common.mustNotCall());
   session.on('Network.loadingFinished', common.mustNotCall());
 
@@ -380,6 +419,98 @@ async function testHttpsError() {
   await loadingFailedFuture;
 }
 
+async function makeHttpRequest(
+  requestModule,
+  options,
+  bodyWriter,
+  expectedBody = 'hello world\n',
+  responseEncoding,
+) {
+  return new Promise((resolve, reject) => {
+    const req = requestModule.request(options, common.mustCall((res) => {
+      verifyHttpResponse(res, expectedBody, responseEncoding);
+      resolve(res);
+    }));
+    req.on('error', reject);
+    bodyWriter(req);
+  });
+}
+
+async function testTextBodyRequest({ requestModule, protocol, port, requestOptions }) {
+  const url = `${protocol}://127.0.0.1:${port}/text-body`;
+  requestOptions ??= {};
+  const responseEncoding = protocol === 'http' ? 'utf8' : undefined;
+  const {
+    requestWillBeSentFuture,
+    responseReceivedFuture,
+    loadingFinishedFuture,
+  } = createRequestTracker(url, getDefaultResponseExpect(url), {
+    method: 'POST',
+    contentType: 'text/plain; charset=utf-8',
+  });
+
+  await makeHttpRequest(requestModule, {
+    host: '127.0.0.1',
+    port,
+    path: '/text-body',
+    method: 'POST',
+    ...requestOptions,
+    headers: requestBodyHeaders,
+  }, (req) => {
+    req.write('foo');
+    req.end('bar');
+  }, 'hello world\n', responseEncoding);
+
+  await requestWillBeSentFuture;
+  const responseReceived = await responseReceivedFuture;
+  const loadingFinished = await loadingFinishedFuture;
+
+  assert.ok(loadingFinished.timestamp >= responseReceived.timestamp);
+
+  const requestBody = await session.post('Network.getRequestPostData', {
+    requestId: responseReceived.requestId,
+  });
+  assert.strictEqual(requestBody.postData, 'foobar');
+
+  const responseBody = await session.post('Network.getResponseBody', {
+    requestId: responseReceived.requestId,
+  });
+  assert.strictEqual(responseBody.base64Encoded, false);
+  assert.strictEqual(responseBody.body, 'hello world\n');
+}
+
+async function testBinaryBodyRequest() {
+  const url = `http://127.0.0.1:${httpServer.address().port}/binary-body`;
+  const {
+    requestWillBeSentFuture,
+    responseReceivedFuture,
+    loadingFinishedFuture,
+  } = createRequestTracker(url, getDefaultResponseExpect(url), {
+    method: 'POST',
+    contentType: 'application/octet-stream',
+  });
+
+  await makeHttpRequest(http, {
+    host: '127.0.0.1',
+    port: httpServer.address().port,
+    path: '/binary-body',
+    method: 'POST',
+    headers: binaryRequestBodyHeaders,
+  }, (req) => {
+    req.end(Buffer.from([0, 1, 2, 3]));
+  }, 'hello world\n');
+
+  await requestWillBeSentFuture;
+  const responseReceived = await responseReceivedFuture;
+  await loadingFinishedFuture;
+
+  await assert.rejects(session.post('Network.getRequestPostData', {
+    requestId: responseReceived.requestId,
+  }), {
+    code: 'ERR_INSPECTOR_COMMAND',
+  });
+}
+
 const testNetworkInspection = async () => {
   await testHttpGet();
   session.removeAllListeners();
@@ -388,6 +519,21 @@ const testNetworkInspection = async () => {
   await testHttpPostWithAbsoluteUrlPath();
   session.removeAllListeners();
   await testHttpsGet();
+  session.removeAllListeners();
+  await testTextBodyRequest({
+    requestModule: http,
+    protocol: 'http',
+    port: httpServer.address().port,
+  });
+  session.removeAllListeners();
+  await testTextBodyRequest({
+    requestModule: https,
+    protocol: 'https',
+    port: httpsServer.address().port,
+    requestOptions: { rejectUnauthorized: false },
+  });
+  session.removeAllListeners();
+  await testBinaryBodyRequest();
   session.removeAllListeners();
   await testHttpError();
   session.removeAllListeners();
