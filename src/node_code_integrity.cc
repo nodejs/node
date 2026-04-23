@@ -97,21 +97,6 @@ static void IsFileTrustedBySystemCodeIntegrityPolicy(
     InitWldp(env);
   }
 
-  // BufferValue path(env->isolate(), args[0]);
-  // CHECK_NOT_NULL(*path);
-
-  // HANDLE hFile = CreateFileA(*path,
-  //                            GENERIC_READ,
-  //                            FILE_SHARE_READ,
-  //                            nullptr,
-  //                            OPEN_EXISTING,
-  //                            FILE_ATTRIBUTE_NORMAL,
-  //                            nullptr);
-
-  // if (hFile == INVALID_HANDLE_VALUE || hFile == nullptr) {
-  //   return args.GetReturnValue().SetFalse();
-  // }
-
   HANDLE hFile = uv_get_osfhandle(fd);  
     
   if (hFile == INVALID_HANDLE_VALUE || hFile == nullptr) {
