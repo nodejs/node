@@ -29,6 +29,7 @@ class Code;
   V(kExternalStringsTable, "(External strings)")               \
   V(kGlobalHandles, "(Global handles)")                        \
   V(kHandleScope, "(Handle scope)")                            \
+  V(kIdentityMap, "(Identity map)")                            \
   V(kMicroTasks, "(Micro tasks)")                              \
   V(kReadOnlyRootList, "(Read-only roots)")                    \
   V(kRelocatable, "(Relocatable)")                             \

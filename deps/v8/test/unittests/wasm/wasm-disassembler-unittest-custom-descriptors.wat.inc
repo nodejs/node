@@ -10,10 +10,10 @@
     ref.null none
     struct.new_default $type2
     struct.new_default $type1
-    ref.cast_desc exact $type0
+    ref.cast_desc_eq exact $type0
     ref.get_desc $type0
     struct.new_default $type2
-    br_on_cast_desc 0 (ref struct) (ref $type1)
+    br_on_cast_desc_eq 0 (ref struct) (ref $type1)
   )
 )
 ;;)---";

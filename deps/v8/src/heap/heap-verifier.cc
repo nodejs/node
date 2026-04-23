@@ -15,6 +15,7 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/array-buffer-sweeper.h"
+#include "src/heap/base-page.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/heap-layout-inl.h"
@@ -23,7 +24,6 @@
 #include "src/heap/heap.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/memory-chunk-layout.h"
-#include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/paged-spaces.h"
@@ -146,14 +146,6 @@ void VerifyPointersVisitor::VisitMapPointer(Tagged<HeapObject> host) {
 void VerifyPointersVisitor::VerifyHeapObjectImpl(
     Tagged<HeapObject> heap_object) {
   CHECK(IsValidHeapObject(heap_, heap_object));
-#if V8_STATIC_ROOTS_BOOL
-  // In static roots builds, holes are unmapped in RO space -- skip verifying
-  // them beyond the RO space check.
-  if (SafeIsAnyHole(heap_object)) {
-    CHECK(HeapLayout::InReadOnlySpace(heap_object));
-    return;
-  }
-#endif
   CHECK(IsMap(heap_object->map(cage_base())));
   // Heap::InToPage() is not available with sticky mark-bits.
   CHECK_IMPLIES(
@@ -285,8 +277,8 @@ class HeapVerification final : public SpaceVerificationVisitor {
  private:
   void VerifySpace(BaseSpace* space);
 
-  void VerifyPage(const MemoryChunkMetadata* chunk) final;
-  void VerifyPageDone(const MemoryChunkMetadata* chunk) final;
+  void VerifyPage(const BasePage* chunk) final;
+  void VerifyPageDone(const BasePage* chunk) final;
 
   void VerifyObject(Tagged<HeapObject> object) final;
   void VerifyObjectMap(Tagged<HeapObject> object);
@@ -328,7 +320,7 @@ class HeapVerification final : public SpaceVerificationVisitor {
   Isolate* const isolate_;
   const PtrComprCageBase cage_base_;
   std::optional<AllocationSpace> current_space_identity_;
-  std::optional<const MemoryChunkMetadata*> current_chunk_;
+  std::optional<const BasePage*> current_chunk_;
 };
 
 void HeapVerification::Verify() {
@@ -340,7 +332,7 @@ void HeapVerification::Verify() {
   SafepointScope safepoint_scope(isolate(), safepoint_kind);
   HandleScope scope(isolate());
 
-  heap()->MakeHeapIterable();
+  heap()->MakeHeapIterable(CompleteSweepingReason::kTesting);
   heap()->FreeLinearAllocationAreas();
 
   // TODO(v8:13257): Currently we don't iterate through the stack conservatively
@@ -411,7 +403,7 @@ void HeapVerification::VerifySpace(BaseSpace* space) {
   current_space_identity_.reset();
 }
 
-void HeapVerification::VerifyPage(const MemoryChunkMetadata* chunk_metadata) {
+void HeapVerification::VerifyPage(const BasePage* chunk_metadata) {
   const MemoryChunk* chunk = chunk_metadata->Chunk();
 
   CHECK(!current_chunk_.has_value());
@@ -431,14 +423,13 @@ void HeapVerification::VerifyPage(const MemoryChunkMetadata* chunk_metadata) {
   current_chunk_ = chunk_metadata;
 }
 
-void HeapVerification::VerifyPageDone(const MemoryChunkMetadata* chunk) {
+void HeapVerification::VerifyPageDone(const BasePage* chunk) {
   CHECK_EQ(chunk, *current_chunk_);
   current_chunk_.reset();
 }
 
 void HeapVerification::VerifyObject(Tagged<HeapObject> object) {
-  CHECK_EQ(MemoryChunkMetadata::FromHeapObject(isolate(), object),
-           *current_chunk_);
+  CHECK_EQ(BasePage::FromHeapObject(isolate(), object), *current_chunk_);
 
   // Verify object map.
   VerifyObjectMap(object);
@@ -502,7 +493,7 @@ void HeapVerification::VerifyObjectMap(Tagged<HeapObject> object) {
     // The object should not be code or a map.
     CHECK(!IsMap(object, cage_base_));
     CHECK(!IsAbstractCode(object, cage_base_));
-  } else if (current_space_identity() == RO_SPACE && !IsAnyHole(object)) {
+  } else if (current_space_identity() == RO_SPACE) {
     CHECK(!IsExternalString(object));
     CHECK(!IsJSArrayBuffer(object));
   }
@@ -671,14 +662,14 @@ class OldToSharedSlotVerifyingVisitor : public SlotVerifyingVisitor {
     return target.GetHeapObject(&target_heap_object) &&
            HeapLayout::InWritableSharedSpace(target_heap_object) &&
            !(v8_flags.black_allocated_pages &&
-             HeapLayout::InBlackAllocatedPage(target_heap_object)) &&
+             TrustedHeapLayout::InBlackAllocatedPage(target_heap_object)) &&
            !HeapLayout::InYoungGeneration(host) &&
            !HeapLayout::InWritableSharedSpace(host);
   }
 };
 
 template <RememberedSetType direction>
-void CollectSlots(MutablePageMetadata* chunk, Address start, Address end,
+void CollectSlots(MutablePage* chunk, Address start, Address end,
                   std::set<Address>* untyped,
                   std::set<std::pair<SlotType, Address>>* typed) {
   RememberedSet<direction>::Iterate(
@@ -759,8 +750,7 @@ void HeapVerification::VerifyRememberedSetFor(Tagged<HeapObject> object) {
     return;
   }
 
-  MutablePageMetadata* chunk =
-      MutablePageMetadata::FromHeapObject(isolate(), object);
+  MutablePage* chunk = MutablePage::FromHeapObject(isolate(), object);
 
   Address start = object.address();
   Address end = start + object->Size(cage_base_);
@@ -870,7 +860,8 @@ void HeapVerifier::VerifyObjectLayoutChange(Heap* heap,
                                             Tagged<HeapObject> object,
                                             Tagged<Map> new_map) {
   // Object layout changes are currently not supported on background threads.
-  CHECK(LocalHeap::Current()->is_main_thread());
+  CHECK(heap->gc_state() == Heap::MARK_COMPACT ||
+        LocalHeap::Current()->is_main_thread());
 
   if (!v8_flags.verify_heap) return;
 

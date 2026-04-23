@@ -43,17 +43,22 @@ struct TrustedPointerTableEntry {
   // Retrieve the pointer stored in this entry. This entry must be tagged with
   // the given tag, otherwise an inaccessible pointer will be returned.
   // This entry must not be a freelist entry.
-  inline Address GetPointer(IndirectPointerTag tag) const;
+  inline Address GetPointer(IndirectPointerTagRange tag_range) const;
 
   // Store the given pointer in this entry while preserving the marking state.
   // This entry must not be a freelist entry.
   inline void SetPointer(Address pointer, IndirectPointerTag tag);
 
   // Returns true if this entry contains a pointer with the given tag.
-  inline bool HasPointer(IndirectPointerTag tag) const;
+  inline bool HasPointer(IndirectPointerTagRange tag_range) const;
 
-  // Overwrites the existing type tag. Be careful.
-  inline void OverwriteTag(IndirectPointerTag tag);
+  // Unpublish this entry by setting its tag to kUnpublishedIndirectPointerTag.
+  // This way, the entry (and the object referenced by it) will not be
+  // accessible from within the sandbox.
+  inline void Unpublish();
+
+  // Publish a currently unpublished entry by setting its tag to the given one.
+  inline void Publish(IndirectPointerTag tag);
 
   // Returns true if this entry is a freelist entry.
   inline bool IsFreelistEntry() const;
@@ -62,7 +67,7 @@ struct TrustedPointerTableEntry {
   // called even when the entry is not a freelist entry. However, the result
   // is only valid if this is a freelist entry. This behaviour is required
   // for efficient entry allocation, see TryAllocateEntryFromFreelist.
-  inline uint32_t GetNextFreelistEntryIndex() const;
+  inline std::optional<uint32_t> GetNextFreelistEntryIndex() const;
 
   // Mark this entry as alive during garbage collection.
   inline void Mark();
@@ -83,35 +88,16 @@ struct TrustedPointerTableEntry {
   struct TrustedPointerTaggingScheme {
     using TagType = IndirectPointerTag;
     static constexpr uint64_t kMarkBit = kTrustedPointerTableMarkBit;
-    static constexpr uint64_t kTagMask = kIndirectPointerTagMask;
-    static constexpr TagType kFreeEntryTag = kFreeTrustedPointerTableEntryTag;
-    static constexpr bool kSupportsEvacuation = false;
-    static constexpr bool kSupportsZapping = false;
+    static constexpr uint64_t kTagShift = kTrustedPointerTableTagShift;
+    static constexpr uint64_t kTagMask = kTrustedPointerTableTagMask;
+    static constexpr uint64_t kPayloadMask = kTrustedPointerTablePayloadMask;
+    static constexpr uint64_t kPayloadShift = kTrustedPointerTablePayloadShift;
+    static constexpr TagType kFreeEntryTag = kIndirectPointerFreeEntryTag;
+    static constexpr TagType kEvacuationEntryTag =
+        kIndirectPointerEvacuationEntryTag;
   };
 
-  struct Payload : TaggedPayload<TrustedPointerTaggingScheme> {
-    static Payload ForTrustedPointerEntry(Address pointer,
-                                          IndirectPointerTag tag) {
-      // We expect to only store references to (trusted) HeapObjects in the
-      // TrustedPointerTable, so the HeapObject tag bit must be set.
-      DCHECK_EQ(pointer & kHeapObjectTag, kHeapObjectTag);
-      DCHECK_EQ(pointer & kTrustedPointerTableMarkBit, 0);
-      DCHECK_EQ(pointer & kIndirectPointerTagMask, 0);
-      return Payload(pointer, tag);
-    }
-
-    static Payload ForFreelistEntry(uint32_t next_entry) {
-      return Payload(next_entry, kFreeTrustedPointerTableEntryTag);
-    }
-
-    static Payload ForZappedEntry() {
-      return Payload(0, kIndirectPointerNullTag);
-    }
-
-   private:
-    Payload(Address pointer, IndirectPointerTag tag)
-        : TaggedPayload(pointer, tag) {}
-  };
+  using Payload = TaggedPayload<TrustedPointerTaggingScheme>;
 
   std::atomic<Payload> payload_;
 };
@@ -151,10 +137,12 @@ class V8_EXPORT_PRIVATE TrustedPointerTable
   // Retrieves the content of the entry referenced by the given handle.
   //
   // This method is atomic and can be called from background threads.
-  inline Address Get(TrustedPointerHandle handle, IndirectPointerTag tag) const;
+  inline Address Get(TrustedPointerHandle handle,
+                     IndirectPointerTagRange tag_range) const;
+
   // Allows kUnpublishedIndirectPointerTag in addition to the specified {tag}.
   inline Address GetMaybeUnpublished(TrustedPointerHandle handle,
-                                     IndirectPointerTag tag) const;
+                                     IndirectPointerTagRange tag_range) const;
 
   // Sets the content of the entry referenced by the given handle.
   //
@@ -186,6 +174,13 @@ class V8_EXPORT_PRIVATE TrustedPointerTable
   //
   // Accessing a zapped entry will return an invalid pointer.
   inline void Zap(TrustedPointerHandle handle);
+
+  // Publish the entry referenced by the given handle.
+  //
+  // The specified entry must currently be unpublished, and is therefore
+  // inaccessible from within the sandbox. Calling this method will make the
+  // entry accessible.
+  inline void Publish(TrustedPointerHandle handle, IndirectPointerTag tag);
 
   // Checks whether the given entry currently has the "unpublished" tag.
   inline bool IsUnpublished(TrustedPointerHandle handle) const;

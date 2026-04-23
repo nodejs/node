@@ -499,6 +499,10 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* AbortCSADcheck();
   const Operator* DebugBreak();
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  const Operator* SwitchSandboxMode(CodeSandboxingMode mode);
+#endif
+
   const Operator* Word32And();
   const Operator* Word32Or();
   const Operator* Word32Xor();

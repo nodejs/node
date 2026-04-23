@@ -82,6 +82,18 @@ void Builtins::Generate_CallApiCallbackOptimized(MacroAssembler* masm) {
   Generate_CallApiCallbackImpl(masm, CallApiCallbackMode::kOptimized);
 }
 
+void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
+  Generate_CallApiAccessorImpl(masm, false, false);
+}
+
+void Builtins::Generate_CallNamedInterceptorGetter(MacroAssembler* masm) {
+  Generate_CallApiAccessorImpl(masm, true, false);
+}
+
+void Builtins::Generate_CallNamedInterceptorSetter(MacroAssembler* masm) {
+  Generate_CallApiAccessorImpl(masm, true, true);
+}
+
 // TODO(cbruni): Try reusing code between builtin versions to avoid binary
 // overhead.
 TF_BUILTIN(Call_ReceiverIsNullOrUndefined_Baseline_Compact,

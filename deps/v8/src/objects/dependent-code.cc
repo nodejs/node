@@ -165,8 +165,7 @@ int DependentCode::FillEntryFromBack(int index, int length) {
     if (obj.IsCleared()) continue;
 
     Set(index + kCodeSlotOffset, obj);
-    Set(index + kGroupsSlotOffset, Get(i + kGroupsSlotOffset),
-        SKIP_WRITE_BARRIER);
+    Set(index + kGroupsSlotOffset, Cast<Smi>(Get(i + kGroupsSlotOffset)));
     return i;
   }
   return index;  // No non-cleared entry found.

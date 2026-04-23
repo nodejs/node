@@ -84,13 +84,20 @@ class GCCallbacks final {
 // relocated. Note that in order to do so `Iterate()` may be invoked more than
 // once per GC.
 //
+// Users can also override `GCEpilogueInSafepoint`. This method gets called once
+// at the end of a GC.
+//
 // Note that an object implementing GCRootsProvider still needs to be registered
-// with a thread (=LocalHeap/LocalIsolate) using GCRootsProviderScope.
+// with a thread (=LocalHeap/LocalIsolate) using GCRootsProviderScope. Some
+// roots like e.g. IdentityMap are passed around between threads, such objects
+// can be registered on a global list in Heap using
+// Heap::AddGlobalGCRootsProvider.
 class GCRootsProvider {
  public:
   virtual ~GCRootsProvider() {}
 
   virtual void Iterate(RootVisitor* v) = 0;
+  virtual void GCEpilogueInSafepoint(GCType gc_type) {}
 };
 
 class GCCallbacksInSafepoint final {

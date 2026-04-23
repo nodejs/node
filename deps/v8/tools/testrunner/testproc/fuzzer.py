@@ -2,12 +2,14 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+from itertools import chain
 
 from . import base
 
 
 # Extra flags randomly added to all fuzz tests with numfuzz. List of tuples
-# (probability, flag).
+# (probability, flag). You can space-separate multiple flags in the flag
+# string.
 EXTRA_FLAGS = [
     (0.05, '--always-osr'),
     (0.05, '--always-osr-from-maglev'),
@@ -55,6 +57,8 @@ EXTRA_FLAGS = [
     (0.1, '--regexp-tier-up-ticks=0'),
     (0.1, '--regexp-tier-up-ticks=10'),
     (0.1, '--regexp-tier-up-ticks=100'),
+    (0.1, '--no-regexp-quick-check'),
+    (0.1, '--no-regexp-unroll'),
     (0.1, '--shared-string-table'),
     (0.1, '--shared-heap'),
     (0.1, '--stress-background-compile'),
@@ -66,6 +70,8 @@ EXTRA_FLAGS = [
     (0.1, '--turbo-instruction-scheduling'),
     (0.1, '--turbo-stress-instruction-scheduling'),
     (0.2, '--turboshaft-verify-load-elimination'),
+    (0.2, '--turboshaft-verify-load-store-taggedness'),
+    (0.1, '--turboshaft-verify-reductions'),
     (0.1, '--stress-wasm-memory-moving'),
     (0.1, '--stress-scavenger-conservative-object-pinning-random'),
     (0.1, '--conservative-stack-scanning'),
@@ -74,9 +80,9 @@ EXTRA_FLAGS = [
     (0.1, '--ephemeron-fixpoint-iterations=0'),
     (0.25, '--experimental-wasm-revectorize'),
     (0.1, '--no-memory-pool'),
-    (0.1, '--handle-weak-ref-weakly-in-minor-gc'),
     (0.1, '--wasm-assert-types'),
     (0.5, '--proto-assign-seq-opt'),
+    (0.1, '--proto-assign-seq-opt --proto-assign-seq-opt-count=1'),
 ]
 
 MIN_DEOPT = 1
@@ -84,11 +90,13 @@ MAX_DEOPT = 10**9
 ANALYSIS_SUFFIX = 'analysis'
 
 
-def random_extra_flags(rng):
+def random_extra_flags(rng, extra_flags=EXTRA_FLAGS):
   """Returns a random list of flags chosen from the configurations in
   EXTRA_FLAGS.
   """
-  return [flag for prob, flag in EXTRA_FLAGS if rng.random() < prob]
+  return list(chain(
+      *(flags.split(' ')
+        for prob, flags in extra_flags if rng.random() < prob)))
 
 
 def _flag_prefix(flag):

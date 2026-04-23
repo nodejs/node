@@ -206,8 +206,10 @@ bool ArgsList::ReadFromFlagfile(const std::string& flag_file_name) {
 
   std::string line;
   bool success = true;
+  int line_number = 0;
 
   while (std::getline(flag_file, line)) {
+    line_number++;
     absl::string_view stripped = absl::StripLeadingAsciiWhitespace(line);
 
     if (stripped.empty() || stripped[0] == '#') {
@@ -229,8 +231,8 @@ bool ArgsList::ReadFromFlagfile(const std::string& flag_file_name) {
     }
 
     flags_internal::ReportUsageError(
-        absl::StrCat("Unexpected line in the flagfile ", flag_file_name, ": ",
-                     line),
+        absl::StrCat("Unexpected line ", line_number, " in the flagfile ",
+                     flag_file_name),
         true);
 
     success = false;

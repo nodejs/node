@@ -14,7 +14,7 @@
 #include "src/heap/base/worklist.h"
 #include "src/heap/heap.h"
 #include "src/heap/memory-chunk-layout.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/paged-spaces.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/spaces.h"
@@ -35,7 +35,7 @@ class RememberedSetOperations {
   }
 
   template <AccessMode access_mode = AccessMode::ATOMIC, typename Callback>
-  static int Iterate(SlotSet* slot_set, const MutablePageMetadata* chunk,
+  static int Iterate(SlotSet* slot_set, const MutablePage* chunk,
                      Callback callback, SlotSet::EmptyBucketMode mode) {
     int slots = 0;
     if (slot_set != nullptr) {
@@ -45,17 +45,15 @@ class RememberedSetOperations {
     return slots;
   }
 
-  static void Remove(SlotSet* slot_set, MutablePageMetadata* chunk,
-                     Address slot_addr) {
+  static void Remove(SlotSet* slot_set, MutablePage* chunk, Address slot_addr) {
     if (slot_set != nullptr) {
       uintptr_t offset = chunk->Offset(slot_addr);
       slot_set->Remove(offset);
     }
   }
 
-  static void RemoveRange(SlotSet* slot_set, MutablePageMetadata* page,
-                          Address start, Address end,
-                          SlotSet::EmptyBucketMode mode) {
+  static void RemoveRange(SlotSet* slot_set, MutablePage* page, Address start,
+                          Address end, SlotSet::EmptyBucketMode mode) {
     if (slot_set != nullptr) {
       MemoryChunk* chunk = page->Chunk();
       uintptr_t start_offset = chunk->Offset(start);
@@ -94,7 +92,7 @@ class RememberedSet : public AllStatic {
   // Given a page and a slot in that page, this function adds the slot to the
   // remembered set.
   template <AccessMode access_mode>
-  static void Insert(MutablePageMetadata* page, size_t slot_offset) {
+  static void Insert(MutablePage* page, size_t slot_offset) {
     SlotSet* slot_set = page->slot_set<type, access_mode>();
     if (slot_set == nullptr) {
       slot_set = page->AllocateSlotSet(type);
@@ -104,8 +102,7 @@ class RememberedSet : public AllStatic {
 
   // Given a page and a slot set, this function merges the slot set to the set
   // of the page. |other_slot_set| should not be used after calling this method.
-  static void MergeAndDelete(MutablePageMetadata* chunk,
-                             SlotSet&& other_slot_set) {
+  static void MergeAndDelete(MutablePage* chunk, SlotSet&& other_slot_set) {
     static_assert(type == RememberedSetType::OLD_TO_NEW ||
                   type == RememberedSetType::OLD_TO_NEW_BACKGROUND);
     SlotSet* slot_set = chunk->slot_set<type, AccessMode::NON_ATOMIC>();
@@ -119,7 +116,7 @@ class RememberedSet : public AllStatic {
 
   // Given a page and a slot set, this function merges the slot set to the set
   // of the page. |other_slot_set| should not be used after calling this method.
-  static void MergeAndDeleteTyped(MutablePageMetadata* chunk,
+  static void MergeAndDeleteTyped(MutablePage* chunk,
                                   TypedSlotSet&& other_typed_slot_set) {
     static_assert(type == RememberedSetType::OLD_TO_NEW);
     TypedSlotSet* typed_slot_set =
@@ -139,7 +136,7 @@ class RememberedSet : public AllStatic {
 
   // Given a page and a slot in that page, this function returns true if
   // the remembered set contains the slot.
-  static bool Contains(MutablePageMetadata* chunk, Address slot_addr) {
+  static bool Contains(MutablePage* chunk, Address slot_addr) {
     DCHECK(chunk->Contains(slot_addr));
     SlotSet* slot_set = chunk->slot_set<type>();
     if (slot_set == nullptr) {
@@ -149,8 +146,7 @@ class RememberedSet : public AllStatic {
     return slot_set->Contains(offset);
   }
 
-  static void CheckNoneInRange(MutablePageMetadata* page, Address start,
-                               Address end) {
+  static void CheckNoneInRange(MutablePage* page, Address start, Address end) {
     SlotSet* slot_set = page->slot_set<type>();
     RememberedSetOperations::CheckNoneInRange(slot_set, page->Chunk(), start,
                                               end);
@@ -159,7 +155,7 @@ class RememberedSet : public AllStatic {
   // Given a page and a slot in that page, this function removes the slot from
   // the remembered set.
   // If the slot was never added, then the function does nothing.
-  static void Remove(MutablePageMetadata* chunk, Address slot_addr) {
+  static void Remove(MutablePage* chunk, Address slot_addr) {
     DCHECK(chunk->Contains(slot_addr));
     SlotSet* slot_set = chunk->slot_set<type>();
     RememberedSetOperations::Remove(slot_set, chunk, slot_addr);
@@ -167,18 +163,18 @@ class RememberedSet : public AllStatic {
 
   // Given a page and a range of slots in that page, this function removes the
   // slots from the remembered set.
-  static void RemoveRange(MutablePageMetadata* chunk, Address start,
-                          Address end, SlotSet::EmptyBucketMode mode) {
+  static void RemoveRange(MutablePage* chunk, Address start, Address end,
+                          SlotSet::EmptyBucketMode mode) {
     SlotSet* slot_set = chunk->slot_set<type>();
     RememberedSetOperations::RemoveRange(slot_set, chunk, start, end, mode);
   }
 
   // Iterates over all memory chunks that contains non-empty slot sets.
-  // The callback should take (MutablePageMetadata* chunk) and return void.
+  // The callback should take (MutablePage* chunk) and return void.
   template <typename Callback>
   static void IterateMemoryChunks(Heap* heap, Callback callback) {
     OldGenerationMemoryChunkIterator it(heap);
-    MutablePageMetadata* chunk;
+    MutablePage* chunk;
     while ((chunk = it.next()) != nullptr) {
       SlotSet* slot_set = chunk->slot_set<type>();
       TypedSlotSet* typed_slot_set = chunk->typed_slot_set<type>();
@@ -195,14 +191,14 @@ class RememberedSet : public AllStatic {
   // Notice that |mode| can only be of FREE* or PREFREE* if there are no other
   // threads concurrently inserting slots.
   template <AccessMode access_mode = AccessMode::ATOMIC, typename Callback>
-  static int Iterate(MutablePageMetadata* chunk, Callback callback,
+  static int Iterate(MutablePage* chunk, Callback callback,
                      SlotSet::EmptyBucketMode mode) {
     SlotSet* slot_set = chunk->slot_set<type>();
     return Iterate<access_mode>(slot_set, chunk, callback, mode);
   }
 
   template <AccessMode access_mode = AccessMode::ATOMIC, typename Callback>
-  static int Iterate(SlotSet* slot_set, const MutablePageMetadata* chunk,
+  static int Iterate(SlotSet* slot_set, const MutablePage* chunk,
                      Callback callback, SlotSet::EmptyBucketMode mode) {
     return RememberedSetOperations::Iterate<access_mode>(slot_set, chunk,
                                                          callback, mode);
@@ -210,8 +206,8 @@ class RememberedSet : public AllStatic {
 
   template <typename Callback>
   static int IterateAndTrackEmptyBuckets(
-      MutablePageMetadata* chunk, Callback callback,
-      ::heap::base::Worklist<MutablePageMetadata*, 64>::Local* empty_chunks) {
+      MutablePage* chunk, Callback callback,
+      ::heap::base::Worklist<MutablePage*, 64>::Local* empty_chunks) {
     SlotSet* slot_set = chunk->slot_set<type>();
     int slots = 0;
     if (slot_set != nullptr) {
@@ -225,7 +221,7 @@ class RememberedSet : public AllStatic {
     return slots;
   }
 
-  static bool CheckPossiblyEmptyBuckets(MutablePageMetadata* chunk) {
+  static bool CheckPossiblyEmptyBuckets(MutablePage* chunk) {
     DCHECK(type == OLD_TO_NEW || type == OLD_TO_NEW_BACKGROUND);
     SlotSet* slot_set = chunk->slot_set<type, AccessMode::NON_ATOMIC>();
     if (slot_set != nullptr &&
@@ -240,7 +236,7 @@ class RememberedSet : public AllStatic {
 
   // Given a page and a typed slot in that page, this function adds the slot
   // to the remembered set.
-  static void InsertTyped(MutablePageMetadata* memory_chunk, SlotType slot_type,
+  static void InsertTyped(MutablePage* memory_chunk, SlotType slot_type,
                           uint32_t offset) {
     TypedSlotSet* slot_set = memory_chunk->typed_slot_set<type>();
     if (slot_set == nullptr) {
@@ -249,8 +245,7 @@ class RememberedSet : public AllStatic {
     slot_set->Insert(slot_type, offset);
   }
 
-  static void MergeTyped(MutablePageMetadata* page,
-                         std::unique_ptr<TypedSlots> other) {
+  static void MergeTyped(MutablePage* page, std::unique_ptr<TypedSlots> other) {
     TypedSlotSet* slot_set = page->typed_slot_set<type>();
     if (slot_set == nullptr) {
       slot_set = page->AllocateTypedSlotSet(type);
@@ -260,8 +255,7 @@ class RememberedSet : public AllStatic {
 
   // Given a page and a range of typed slots in that page, this function removes
   // the slots from the remembered set.
-  static void RemoveRangeTyped(MutablePageMetadata* page, Address start,
-                               Address end) {
+  static void RemoveRangeTyped(MutablePage* page, Address start, Address end) {
     TypedSlotSet* slot_set = page->typed_slot_set<type>();
     if (slot_set != nullptr) {
       slot_set->Iterate(
@@ -277,7 +271,7 @@ class RememberedSet : public AllStatic {
   // given callback. The callback should take (SlotType slot_type, Address addr)
   // and return SlotCallbackResult.
   template <typename Callback>
-  static int IterateTyped(MutablePageMetadata* chunk, Callback callback) {
+  static int IterateTyped(MutablePage* chunk, Callback callback) {
     TypedSlotSet* slot_set = chunk->typed_slot_set<type>();
     if (!slot_set) return 0;
     return IterateTyped(slot_set, callback);
@@ -293,7 +287,7 @@ class RememberedSet : public AllStatic {
   static void ClearAll(Heap* heap) {
     static_assert(type == OLD_TO_OLD || type == TRUSTED_TO_CODE);
     OldGenerationMemoryChunkIterator it(heap);
-    MutablePageMetadata* chunk;
+    MutablePage* chunk;
     while ((chunk = it.next()) != nullptr) {
       chunk->ReleaseSlotSet(OLD_TO_OLD);
       chunk->ReleaseSlotSet(TRUSTED_TO_CODE);

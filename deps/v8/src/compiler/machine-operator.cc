@@ -1796,6 +1796,19 @@ struct MachineOperatorGlobalCache {
   };
   DebugBreakOperator kDebugBreak;
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  template <CodeSandboxingMode mode>
+  struct SwitchSandboxModeOperator : public Operator1<CodeSandboxingMode> {
+    SwitchSandboxModeOperator()
+        : Operator1<CodeSandboxingMode>(IrOpcode::kSwitchSandboxMode,
+                                        Operator::kNoDeopt | Operator::kNoThrow,
+                                        "SwitchSandboxMode", 0, 1, 1, 0, 1, 0,
+                                        mode) {}
+  };
+  SwitchSandboxModeOperator<CodeSandboxingMode::kSandboxed> kEnterSandbox;
+  SwitchSandboxModeOperator<CodeSandboxingMode::kUnsandboxed> kExitSandbox;
+#endif
+
   struct StackPointerGreaterThanOperator : public Operator1<StackCheckKind> {
     explicit StackPointerGreaterThanOperator(StackCheckKind kind)
         : Operator1<StackCheckKind>(
@@ -2272,6 +2285,20 @@ const Operator* MachineOperatorBuilder::AbortCSADcheck() {
 const Operator* MachineOperatorBuilder::DebugBreak() {
   return &cache_.kDebugBreak;
 }
+
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+const Operator* MachineOperatorBuilder::SwitchSandboxMode(
+    CodeSandboxingMode mode) {
+  switch (mode) {
+    case CodeSandboxingMode::kUnsandboxed:
+      return &cache_.kExitSandbox;
+    case CodeSandboxingMode::kSandboxed:
+      return &cache_.kEnterSandbox;
+    default:
+      UNREACHABLE();
+  }
+}
+#endif
 
 const Operator* MachineOperatorBuilder::Comment(const char* msg) {
   return zone_->New<CommentOperator>(msg);

@@ -77,10 +77,10 @@ TimezoneCache* OS::CreateTimezoneCache() { return new ZOSTimezoneCache(); }
 
 // static
 void* OS::AllocateShared(void* hint, size_t size, MemoryPermission access,
-                         PlatformSharedMemoryHandle handle, uint64_t offset) {
+                         SharedMemoryHandle handle, uint64_t offset) {
   DCHECK_EQ(0, size % AllocatePageSize());
   int prot = GetProtectionFromMemoryPermission(access);
-  int fd = FileDescriptorFromSharedMemoryHandle(handle);
+  int fd = handle.GetPlatformHandle();
   return mmap(hint, size, prot, MAP_SHARED, fd, offset);
 }
 
@@ -92,11 +92,11 @@ void OS::FreeShared(void* address, size_t size) {
 
 bool AddressSpaceReservation::AllocateShared(void* address, size_t size,
                                              OS::MemoryPermission access,
-                                             PlatformSharedMemoryHandle handle,
+                                             SharedMemoryHandle handle,
                                              uint64_t offset) {
   DCHECK(Contains(address, size));
   int prot = GetProtectionFromMemoryPermission(access);
-  int fd = FileDescriptorFromSharedMemoryHandle(handle);
+  int fd = handle.GetPlatformHandle();
   return mmap(address, size, prot, MAP_SHARED | MAP_FIXED, fd, offset) !=
          MAP_FAILED;
 }

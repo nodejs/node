@@ -15,6 +15,19 @@ namespace internal {
 
 class Boolean;
 
+enum class JSIteratorHelperState {
+  kSuspendedStart,
+  kSuspendedYield,
+  kExecuting,
+  kCompleted
+};
+
+V8_EXPORT_PRIVATE const char* JSIteratorHelperStateToString(
+    JSIteratorHelperState state);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           JSIteratorHelperState state);
+
 #include "torque-generated/src/objects/js-iterator-helpers-tq.inc"
 
 // Iterator helpers are iterators that transform an underlying iterator in some
@@ -58,10 +71,20 @@ class JSIteratorHelper
   TQ_OBJECT_CONSTRUCTORS(JSIteratorHelper)
 };
 
+// The superclass of iterator helpers that have a single underlying iterator.
+class JSIteratorHelperSimple
+    : public TorqueGeneratedJSIteratorHelperSimple<JSIteratorHelperSimple,
+                                                   JSIteratorHelper> {
+ public:
+  void JSIteratorHelperSimplePrintHeader(std::ostream& os,
+                                         const char* helper_name);
+  TQ_OBJECT_CONSTRUCTORS(JSIteratorHelperSimple)
+};
+
 // The iterator helper returned by Iterator.prototype.map.
 class JSIteratorMapHelper
     : public TorqueGeneratedJSIteratorMapHelper<JSIteratorMapHelper,
-                                                JSIteratorHelper> {
+                                                JSIteratorHelperSimple> {
  public:
   DECL_PRINTER(JSIteratorMapHelper)
   DECL_VERIFIER(JSIteratorMapHelper)
@@ -72,7 +95,7 @@ class JSIteratorMapHelper
 // The iterator helper returned by Iterator.prototype.filter.
 class JSIteratorFilterHelper
     : public TorqueGeneratedJSIteratorFilterHelper<JSIteratorFilterHelper,
-                                                   JSIteratorHelper> {
+                                                   JSIteratorHelperSimple> {
  public:
   DECL_PRINTER(JSIteratorFilterHelper)
   DECL_VERIFIER(JSIteratorFilterHelper)
@@ -83,7 +106,7 @@ class JSIteratorFilterHelper
 // The iterator helper returned by Iterator.prototype.take.
 class JSIteratorTakeHelper
     : public TorqueGeneratedJSIteratorTakeHelper<JSIteratorTakeHelper,
-                                                 JSIteratorHelper> {
+                                                 JSIteratorHelperSimple> {
  public:
   DECL_PRINTER(JSIteratorTakeHelper)
   DECL_VERIFIER(JSIteratorTakeHelper)
@@ -94,7 +117,7 @@ class JSIteratorTakeHelper
 // The iterator helper returned by Iterator.prototype.drop.
 class JSIteratorDropHelper
     : public TorqueGeneratedJSIteratorDropHelper<JSIteratorDropHelper,
-                                                 JSIteratorHelper> {
+                                                 JSIteratorHelperSimple> {
  public:
   DECL_PRINTER(JSIteratorDropHelper)
   DECL_VERIFIER(JSIteratorDropHelper)
@@ -105,12 +128,23 @@ class JSIteratorDropHelper
 // The iterator helper returned by Iterator.prototype.flatMap.
 class JSIteratorFlatMapHelper
     : public TorqueGeneratedJSIteratorFlatMapHelper<JSIteratorFlatMapHelper,
-                                                    JSIteratorHelper> {
+                                                    JSIteratorHelperSimple> {
  public:
   DECL_PRINTER(JSIteratorFlatMapHelper)
   DECL_VERIFIER(JSIteratorFlatMapHelper)
 
   TQ_OBJECT_CONSTRUCTORS(JSIteratorFlatMapHelper)
+};
+
+// The iterator helper returned by Iterator.concat.
+class JSIteratorConcatHelper
+    : public TorqueGeneratedJSIteratorConcatHelper<JSIteratorConcatHelper,
+                                                   JSIteratorHelperSimple> {
+ public:
+  DECL_PRINTER(JSIteratorConcatHelper)
+  DECL_VERIFIER(JSIteratorConcatHelper)
+
+  TQ_OBJECT_CONSTRUCTORS(JSIteratorConcatHelper)
 };
 
 }  // namespace internal

@@ -9,16 +9,20 @@ found in the LICENSE file. -->
   .scriptNode {
     font-family: var(--code-font);
     font-size: var(--code-font-size);
+    white-space: pre;
   }
 
-  .scriptNode span {
+  .scriptNode .line {
+    display: block;
+    padding-left: 3.5em;
+  }
+
+  .scriptNode .line-start {
     counter-increment: sourceLineCounter 1;
     text-indent: -3.5em;
-    padding-left: 3.5em;
-    display: block;
   }
 
-  .scriptNode span::before {
+  .scriptNode .line-start::before {
     content: counter(sourceLineCounter) ": ";
     width: 3.5em;
     display: inline-block;

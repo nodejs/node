@@ -46,6 +46,7 @@ class AssemblerRISCVZicsr : public AssemblerRiscvBase {
   void frrm(Register rd) { csrrs(rd, csr_frm, zero_reg); }
   void fsrm(Register rd, Register rs) { csrrw(rd, csr_frm, rs); }
   void fsrm(Register rs) { csrrw(zero_reg, csr_frm, rs); }
+  void fsrm(uint8_t imm) { csrrwi(zero_reg, csr_frm, imm); }
 
   void frflags(Register rd) { csrrs(rd, csr_fflags, zero_reg); }
   void fsflags(Register rd, Register rs) { csrrw(rd, csr_fflags, rs); }

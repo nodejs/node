@@ -13,6 +13,7 @@
 #include "src/base/macros.h"
 #include "src/common/globals.h"
 #include "src/wasm/value-type.h"
+#include "src/wasm/wasm-module.h"
 #include "src/zone/zone.h"
 
 namespace v8::internal::wasm {
@@ -141,7 +142,8 @@ class StructTypeBase : public ZoneObject {
   }
 
   // For incrementally building StructTypes.
-  template <class Subclass, class ValueTypeSubclass>
+  template <typename Subclass, typename ValueTypeSubclass,
+            typename SignatureStorageOrZone>
   class BuilderImpl {
    public:
     enum ComputeOffsets : bool {
@@ -149,18 +151,19 @@ class StructTypeBase : public ZoneObject {
       kUseProvidedOffsets = false
     };
 
-    BuilderImpl(Zone* zone, uint32_t field_count, bool is_descriptor,
-                bool is_shared)
-        : zone_(zone),
+    BuilderImpl(SignatureStorageOrZone* storage, uint32_t field_count,
+                bool is_descriptor, bool is_shared)
+        : storage_(storage),
           field_count_(field_count),
           is_descriptor_(is_descriptor),
           is_shared_(is_shared),
           cursor_(0),
-          field_offsets_(zone_->AllocateArray<uint32_t>(field_count_)),
-          buffer_(zone->AllocateArray<ValueTypeSubclass>(
+          field_offsets_(
+              storage->template AllocateArray<uint32_t>(field_count_)),
+          buffer_(storage->template AllocateArray<ValueTypeSubclass>(
               static_cast<int>(field_count))),
-          mutabilities_(
-              zone->AllocateArray<bool>(static_cast<int>(field_count))) {}
+          mutabilities_(storage->template AllocateArray<bool>(
+              static_cast<int>(field_count))) {}
 
     void AddField(ValueTypeSubclass type, bool mutability,
                   uint32_t offset = 0) {
@@ -187,9 +190,9 @@ class StructTypeBase : public ZoneObject {
 
     Subclass* Build(ComputeOffsets compute_offsets = kComputeOffsets) {
       DCHECK_EQ(cursor_, field_count_);
-      Subclass* result =
-          zone_->New<Subclass>(field_count_, field_offsets_, buffer_,
-                               mutabilities_, is_descriptor_, is_shared_);
+      Subclass* result = storage_->template New<Subclass>(
+          field_count_, field_offsets_, buffer_, mutabilities_, is_descriptor_,
+          is_shared_);
       if (compute_offsets == kComputeOffsets) {
         result->InitializeOffsets();
       } else {
@@ -208,7 +211,7 @@ class StructTypeBase : public ZoneObject {
     }
 
    private:
-    Zone* const zone_;
+    SignatureStorageOrZone* const storage_;
     const uint32_t field_count_;
     const bool is_descriptor_;
     const bool is_shared_;
@@ -240,7 +243,9 @@ class StructTypeBase : public ZoneObject {
 // Module-relative type indices.
 class StructType : public StructTypeBase {
  public:
-  using Builder = StructTypeBase::BuilderImpl<StructType, ValueType>;
+  template <typename SignatureStorageOrZone>
+  using Builder = StructTypeBase::BuilderImpl<StructType, ValueType,
+                                              SignatureStorageOrZone>;
 
   StructType(uint32_t field_count, uint32_t* field_offsets,
              const ValueType* reps, const bool* mutabilities,
@@ -271,8 +276,10 @@ class StructType : public StructTypeBase {
 // Canonicalized type indices.
 class CanonicalStructType : public StructTypeBase {
  public:
+  template <typename SignatureStorageOrZone>
   using Builder =
-      StructTypeBase::BuilderImpl<CanonicalStructType, CanonicalValueType>;
+      StructTypeBase::BuilderImpl<CanonicalStructType, CanonicalValueType,
+                                  SignatureStorageOrZone>;
 
   CanonicalStructType(uint32_t field_count, uint32_t* field_offsets,
                       const CanonicalValueType* reps, const bool* mutabilities,

@@ -299,7 +299,8 @@ class ValueDeserializer {
   MaybeDirectHandle<JSMap> ReadJSMap() V8_WARN_UNUSED_RESULT;
   MaybeDirectHandle<JSSet> ReadJSSet() V8_WARN_UNUSED_RESULT;
   MaybeDirectHandle<JSArrayBuffer> ReadJSArrayBuffer(
-      bool is_shared, bool is_resizable) V8_WARN_UNUSED_RESULT;
+      bool is_shared, bool is_resizable,
+      bool is_immutable) V8_WARN_UNUSED_RESULT;
   MaybeDirectHandle<JSArrayBuffer> ReadTransferredJSArrayBuffer()
       V8_WARN_UNUSED_RESULT;
   MaybeDirectHandle<JSArrayBufferView> ReadJSArrayBufferView(

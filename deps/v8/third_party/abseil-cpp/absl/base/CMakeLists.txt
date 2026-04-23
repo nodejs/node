@@ -261,6 +261,7 @@ absl_cc_library(
     "internal/unscaledcycleclock.h"
     "internal/unscaledcycleclock_config.h"
   SRCS
+    "casts.cc"
     "internal/cycleclock.cc"
     "internal/spinlock.cc"
     "internal/sysinfo.cc"

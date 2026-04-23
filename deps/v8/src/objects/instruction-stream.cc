@@ -129,5 +129,18 @@ InstructionStream::WriteBarrierPromise::~WriteBarrierPromise() {
 }
 #endif
 
+void InstructionStream::ValidateJSDispatchHandles(Heap* heap,
+                                                  const CodeDesc& desc) {
+  if (desc.origin) {
+    for (const auto& pair : desc.origin->js_dispatch_handles()) {
+      JSDispatchHandle handle = pair.first;
+      uint16_t expected_arg_count = pair.second;
+      uint16_t actual_arg_count =
+          heap->isolate()->js_dispatch_table().GetParameterCount(handle);
+      SBXCHECK_EQ(expected_arg_count, actual_arg_count);
+    }
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

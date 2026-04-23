@@ -562,8 +562,12 @@ bool ParseScript(Isolate* isolate, Handle<Script> script, ParseInfo* parse_info,
     result->status = debug::LiveEditResult::COMPILE_ERROR;
     return false;
   }
-  CollectFunctionLiterals(isolate, parse_info->literal())
-      .Run(literals, eval_calls);
+  CollectFunctionLiterals visitor(isolate, parse_info->literal());
+  visitor.Run(literals, eval_calls);
+  if (visitor.HasStackOverflow()) {
+    visitor.ClearStackOverflow();
+    return false;
+  }
   return true;
 }
 

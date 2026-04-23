@@ -18,7 +18,29 @@ namespace internal {
 
 #include "torque-generated/src/objects/property-descriptor-object-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(PropertyDescriptorObject)
+int PropertyDescriptorObject::flags() const { return flags_.load().value(); }
+void PropertyDescriptorObject::set_flags(int value) {
+  flags_.store(this, Smi::FromInt(value));
+}
+
+Tagged<Object> PropertyDescriptorObject::value() const { return value_.load(); }
+void PropertyDescriptorObject::set_value(Tagged<Object> value,
+                                         WriteBarrierMode mode) {
+  value_.store(this, value, mode);
+}
+
+Tagged<Object> PropertyDescriptorObject::get() const { return get_.load(); }
+void PropertyDescriptorObject::set_get(Tagged<Object> value,
+                                       WriteBarrierMode mode) {
+  get_.store(this, value, mode);
+}
+
+Tagged<Object> PropertyDescriptorObject::set() const { return set_.load(); }
+void PropertyDescriptorObject::set_set(Tagged<Object> value,
+                                       WriteBarrierMode mode) {
+  set_.store(this, value, mode);
+}
+
 }  // namespace internal
 }  // namespace v8
 

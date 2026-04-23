@@ -1218,7 +1218,7 @@ bool CompatibleStackSlotTypes(ValueKind a, ValueKind b) {
   // Since Liftoff doesn't do accurate type tracking (e.g. on loop back edges,
   // ref.as_non_null/br_on_cast results), we only care that pointer types stay
   // amongst pointer types. It's fine if ref/ref null overwrite each other.
-  return a == b || (is_object_reference(a) && is_object_reference(b));
+  return a == b || (is_reference(a) && is_reference(b));
 }
 #endif
 

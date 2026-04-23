@@ -24,7 +24,7 @@ namespace internal {
 // Forward declarations.
 class HeapObjectVisitor;
 class LargeObjectSpace;
-class LargePageMetadata;
+class LargePage;
 class MainMarkingVisitor;
 class MarkCompactCollector;
 class RecordMigratedSlotVisitor;
@@ -101,7 +101,7 @@ class MarkCompactCollector final {
 
   void CollectEvacuationCandidates(PagedSpace* space);
 
-  void AddEvacuationCandidate(PageMetadata* p);
+  void AddEvacuationCandidate(NormalPage* p);
 
   // Prepares for GC by resetting relocation info in old and map spaces and
   // choosing spaces to compact.
@@ -120,7 +120,7 @@ class MarkCompactCollector final {
   static inline bool IsOnEvacuationCandidate(Tagged<MaybeObject> obj);
 
   struct RecordRelocSlotInfo {
-    MutablePageMetadata* page_metadata;
+    MutablePage* page_metadata;
     SlotType slot_type;
     uint32_t offset;
   };
@@ -315,7 +315,6 @@ class MarkCompactCollector final {
   void ClearFullMapTransitions();
   void TrimDescriptorArray(Tagged<Map> map,
                            Tagged<DescriptorArray> descriptors);
-  void TrimEnumCache(Tagged<Map> map, Tagged<DescriptorArray> descriptors);
   bool CompactTransitionArray(Tagged<Map> map,
                               Tagged<TransitionArray> transitions,
                               Tagged<DescriptorArray> descriptors);
@@ -342,12 +341,6 @@ class MarkCompactCollector final {
       WeakObjects::WeakObjectWorklist<TObjectAndSlot>::Local& worklist,
       Tagged<HeapObjectReference> cleared_weak_ref);
 
-  // Goes through the list of encountered non-trivial weak references and
-  // filters out those whose values are still alive. This is performed in a
-  // parallel job.
-  void FilterNonTrivialWeakReferences();
-  class FilterNonTrivialWeakRefJobItem;
-
   // Goes through the list of encountered non-trivial weak references with
   // dead values. If the value is a dead map and the parent map transitions to
   // the dead map via weak cell, then this function also clears the map
@@ -356,7 +349,7 @@ class MarkCompactCollector final {
 
   // Goes through the list of encountered JSWeakRefs and WeakCells and clears
   // those with dead values.
-  void ProcessJSWeakRefs();
+  void ProcessJSWeakRefs(JobDelegate* delegate);
 
   // Starts sweeping of spaces by contributing on the main thread and setting
   // up other pages for sweeping. Does not start sweeper tasks.
@@ -369,26 +362,23 @@ class MarkCompactCollector final {
   void EvacuatePagesInParallel();
   void UpdatePointersAfterEvacuation();
 
-  void ReleasePage(PagedSpaceBase* space, PageMetadata* page);
+  void ReleasePage(PagedSpaceBase* space, NormalPage* page);
 
   // Returns number of aborted pages.
   size_t PostProcessAbortedEvacuationCandidates();
   void ReportAbortedEvacuationCandidateDueToOOM(Address failed_start,
-                                                PageMetadata* page);
-  void ReportAbortedEvacuationCandidateDueToFlags(PageMetadata* page);
-  void ReportAbortedEvacuationCandidateDueToRunningCode(PageMetadata* page);
+                                                NormalPage* page);
+  void ReportAbortedEvacuationCandidateDueToFlags(NormalPage* page);
+  void ReportAbortedEvacuationCandidateDueToRunningCode(NormalPage* page);
 
   static const int kEphemeronChunkSize = 8 * KB;
 
   int NumberOfParallelEphemeronVisitingTasks(size_t elements);
 
-  void RightTrimDescriptorArray(Tagged<DescriptorArray> array,
-                                int descriptors_to_trim);
-
   void StartSweepNewSpace();
   void SweepLargeSpace(LargeObjectSpace* space);
 
-  void ResetAndRelinkBlackAllocatedPage(PagedSpace*, PageMetadata*);
+  void ResetAndRelinkBlackAllocatedPage(PagedSpace*, NormalPage*);
 
   Heap* const heap_;
 
@@ -432,15 +422,15 @@ class MarkCompactCollector final {
   base::Mutex strong_descriptor_arrays_mutex_;
 
   // Candidates for pages that should be evacuated.
-  std::vector<PageMetadata*> evacuation_candidates_;
+  std::vector<NormalPage*> evacuation_candidates_;
   // Pages that are actually processed during evacuation.
-  std::vector<PageMetadata*> old_space_evacuation_pages_;
-  std::vector<PageMetadata*> new_space_evacuation_pages_;
-  std::vector<std::pair<Address, PageMetadata*>>
+  std::vector<NormalPage*> old_space_evacuation_pages_;
+  std::vector<NormalPage*> new_space_evacuation_pages_;
+  std::vector<std::pair<Address, NormalPage*>>
       aborted_evacuation_candidates_due_to_oom_;
-  std::vector<PageMetadata*> aborted_evacuation_candidates_due_to_flags_;
-  std::vector<LargePageMetadata*> promoted_large_pages_;
-  absl::flat_hash_set<PageMetadata*>
+  std::vector<NormalPage*> aborted_evacuation_candidates_due_to_flags_;
+  std::vector<LargePage*> promoted_large_pages_;
+  absl::flat_hash_set<NormalPage*>
       aborted_evacuation_candidates_due_to_running_code_;
 
   // Map which stores ephemeron pairs for the linear-time algorithm.
@@ -463,7 +453,7 @@ class MarkCompactCollector final {
   // the start of each GC.
   base::EnumSet<CodeFlushMode> code_flush_mode_;
 
-  std::vector<PageMetadata*> empty_new_space_pages_to_be_swept_;
+  std::vector<NormalPage*> empty_new_space_pages_to_be_swept_;
 
   bool use_background_threads_in_cycle_ = false;
 
@@ -473,6 +463,7 @@ class MarkCompactCollector final {
   friend class RecordMigratedSlotVisitor;
   friend class RootMarkingVisitor;
   friend class PrecisePagePinningVisitor;
+  friend class StringForwardingTableCleanerBase;
 };
 
 }  // namespace internal

@@ -18,10 +18,10 @@ builder.addFunction("main", kSig_v_v).exportFunc().addBody([
   kGCPrefix, kExprRefGetDesc, $struct0,
   kExprRefNull, kWasmExact, $struct0,
   kGCPrefix, kExprRefGetDesc, $struct0,
-  kGCPrefix, kExprRefCastDescNull, $struct0,
+  kGCPrefix, kExprRefCastDescEqNull, $struct0,
   kExprRefNull, kWasmExact, $struct0,
   kGCPrefix, kExprRefGetDesc, $struct0,
-  kGCPrefix, kExprStructNewDefault, $struct0,
+  kGCPrefix, kExprStructNewDefaultDesc, $struct0,
   kExprDrop,
   kExprDrop,
 ]);

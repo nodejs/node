@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <memory>
+#include <thread>  // NOLINT(build/c++11)
 
 #include "include/v8-context.h"
 #include "include/v8-function-callback.h"
@@ -16,6 +17,7 @@
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-js.h"
 #include "test/common/flag-utils.h"
+#include "test/common/wasm/wasm-macro-gen.h"
 #include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -261,6 +263,134 @@ TEST_F(ApiWasmTest, WasmEnableDisableCustomDescriptors) {
     EXPECT_FALSE(i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate())
                      .has_custom_descriptors());
   }
+}
+
+TEST_F(ApiWasmTest, WasmModuleCompilation_Basic) {
+  Isolate::Scope iscope(isolate());
+  HandleScope scope(isolate());
+  Local<Context> context = Context::New(isolate());
+  Context::Scope cscope(context);
+
+  TryCatch try_catch(isolate());
+
+  // Start compilation.
+  WasmModuleCompilation compilation;
+
+  // Pass minimal bytes.
+  compilation.OnBytesReceived(kMinimalWasmModuleBytes,
+                              sizeof(kMinimalWasmModuleBytes));
+
+  // Finish compilation.
+  WasmModuleCompilation::ModuleCachingCallback no_caching_callback;
+  MaybeLocal<WasmModuleObject> module_object;
+  compilation.Finish(
+      isolate(), no_caching_callback,
+      [&module_object](
+          std::variant<Local<WasmModuleObject>, Local<Value>> module_or_error) {
+        CHECK(std::holds_alternative<Local<WasmModuleObject>>(module_or_error));
+        CHECK(module_object.IsEmpty());
+        module_object = std::get<Local<WasmModuleObject>>(module_or_error);
+      });
+
+  // Execute pending tasks.
+  EmptyMessageQueues();
+
+  // The callback must have been called without any exception.
+  CHECK(!module_object.IsEmpty());
+  CHECK(!try_catch.HasCaught());
+  CHECK(!isolate()->HasPendingException());
+}
+
+TEST_F(ApiWasmTest, WasmModuleCompilation_MultiThreaded) {
+  using namespace internal::wasm;  // NOLINT(build/namespaces)
+  // The module we are about to compile. It contains two functions, each
+  // returning a constant.
+  static const uint8_t module_bytes[] = {
+      WASM_MODULE_HEADER, SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_x(kI32Code)),
+      SECTION(Function, ENTRY_COUNT(2), SIG_INDEX(0), SIG_INDEX(0)),
+      SECTION(Code, ENTRY_COUNT(2),
+              ADD_COUNT(WASM_NO_LOCALS, WASM_I32V_1(1), WASM_END),
+              ADD_COUNT(WASM_NO_LOCALS, WASM_I32V_1(2), WASM_END))};
+
+  base::Vector<const uint8_t> remaining_bytes = base::VectorOf(module_bytes);
+  auto next_split =
+      [&remaining_bytes,
+       rng = base::RandomNumberGenerator(
+           i::v8_flags.random_seed)]() mutable -> base::Vector<const uint8_t> {
+    if (remaining_bytes.empty()) return {};
+    size_t split = static_cast<size_t>(
+        rng.NextInt(static_cast<int>(remaining_bytes.size())));
+    auto split_bytes = remaining_bytes.SubVector(0, split);
+    remaining_bytes += split;
+    return split_bytes;
+  };
+  base::Vector<const uint8_t> bytes_0 = next_split();
+  base::Vector<const uint8_t> bytes_1 = next_split();
+
+  // We spawn multiple threads to start compilation and deliver the bytes in
+  // pieces from multiple threads. Eventually the foreground task will finish
+  // compilation.
+  std::atomic<int> next_step{0};
+  std::unique_ptr<WasmModuleCompilation> compilation;
+  std::thread threads[]{
+      std::thread{[&] {
+        // Start compilation.
+        compilation = std::make_unique<WasmModuleCompilation>();
+        next_step.store(1, std::memory_order_release);
+      }},
+      std::thread{[&] {
+        while (next_step.load(std::memory_order_acquire) != 1) continue;
+        // Deliver first split of the module bytes.
+        compilation->OnBytesReceived(bytes_0.data(), bytes_0.size());
+        next_step.store(2, std::memory_order_release);
+      }},
+      std::thread{[&] {
+        while (next_step.load(std::memory_order_acquire) != 2) continue;
+        // Deliver second split of the module bytes.
+        compilation->OnBytesReceived(bytes_1.data(), bytes_1.size());
+        next_step.store(3, std::memory_order_release);
+      }},
+      std::thread{[&] {
+        while (next_step.load(std::memory_order_acquire) != 3) continue;
+        // Deliver remaining module bytes.
+        compilation->OnBytesReceived(remaining_bytes.data(),
+                                     remaining_bytes.size());
+        next_step.store(4, std::memory_order_release);
+      }},
+  };
+
+  // Wait for background work to finish.
+  while (next_step.load(std::memory_order_acquire) != 4) continue;
+
+  Isolate::Scope iscope(isolate());
+  HandleScope scope(isolate());
+  Local<Context> context = Context::New(isolate());
+  Context::Scope cscope(context);
+
+  TryCatch try_catch(isolate());
+
+  // Finish compilation from foreground.
+  WasmModuleCompilation::ModuleCachingCallback no_caching_callback;
+  MaybeLocal<WasmModuleObject> module_object;
+  compilation->Finish(
+      isolate(), no_caching_callback,
+      [&module_object](
+          std::variant<Local<WasmModuleObject>, Local<Value>> module_or_error) {
+        CHECK(std::holds_alternative<Local<WasmModuleObject>>(module_or_error));
+        CHECK(module_object.IsEmpty());
+        module_object = std::get<Local<WasmModuleObject>>(module_or_error);
+      });
+
+  // Execute pending tasks.
+  EmptyMessageQueues();
+
+  // The callback must have been called without any exception.
+  CHECK(!module_object.IsEmpty());
+  CHECK(!try_catch.HasCaught());
+  CHECK(!isolate()->HasPendingException());
+
+  // Join all background threads before finishing.
+  for (auto& t : threads) t.join();
 }
 
 }  // namespace v8

@@ -426,8 +426,7 @@ void JumpTableAssembler::EmitFarJumpSlot(Address target) {
 // static
 void JumpTableAssembler::PatchFarJumpSlot(WritableJitAllocation& jit_allocation,
                                           Address slot, Address target) {
-  // See {EmitFarJumpSlot} for the offset of the target.
-  Address target_addr = slot + kFarJumpTableSlotSize - kSystemPointerSize;
+  Address target_addr = slot + 8;
   jit_allocation.WriteValue(target_addr, target, kRelaxedStore);
 }
 
@@ -637,7 +636,7 @@ bool JumpTableAssembler::EmitJumpSlot(Address target) {
 
   CHECK_EQ(0, relative_target & (kAAMask | kLKMask));
   // The jump table is updated live, so the write has to be atomic.
-  emit<uint32_t>(inst[0] | (relative_target & kImm26Mask), kRelaxedStore);
+  emit<uint32_t>(inst[0] | relative_target, kRelaxedStore);
   return true;
 }
 
@@ -672,9 +671,7 @@ void JumpTableAssembler::EmitFarJumpSlot(Address target) {
 // static
 void JumpTableAssembler::PatchFarJumpSlot(WritableJitAllocation& jit_allocation,
                                           Address slot, Address target) {
-  // See {EmitFarJumpSlot} for the offset of the target.
-  Address target_addr =
-      slot + kFarJumpTableSlotSize - (2 * kInstrSize) - kSystemPointerSize;
+  Address target_addr = slot + kFarJumpTableSlotSize - 8;
   jit_allocation.WriteValue(target_addr, target, kRelaxedStore);
 }
 

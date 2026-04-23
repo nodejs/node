@@ -861,7 +861,7 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
       } else if (use_info.truncation()
                      .TruncatesBooleanAndNullAndBigIntToNumber()) {
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
-        return jsgraph()->Float64Constant(UndefinedNan());
+        return jsgraph()->Float64Constant(Float64::undefined_nan());
 #else
         UNREACHABLE();
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE

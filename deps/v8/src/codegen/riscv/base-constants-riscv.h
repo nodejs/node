@@ -22,6 +22,10 @@
   v8::internal::PrintF("Unsupported instruction %d.\n", __LINE__); \
   UNIMPLEMENTED();
 
+#define ILLEGAL_RISCV()                                        \
+  v8::internal::PrintF("Illegal instruction %d.\n", __LINE__); \
+  UNIMPLEMENTED();
+
 enum Endianness { kLittle, kBig };
 
 #if defined(V8_TARGET_LITTLE_ENDIAN)
@@ -338,6 +342,12 @@ constexpr int kRvvELEN = 64;
 // constant.
 constexpr int kMaxRvvVLEN = 512;
 
+#if V8_TARGET_ARCH_RISCV64
+constexpr int kRvXLEN = 64;
+#elif V8_TARGET_ARCH_RISCV32
+constexpr int kRvXLEN = 32;
+#endif
+
 #ifdef RVV_VLEN
 constexpr int kSimulatorRvvVLEN = RVV_VLEN;
 static_assert(kSimulatorRvvVLEN >= 128, "RvvVLEN must be >= 128 bit");
@@ -401,6 +411,14 @@ const uint32_t kRvvWidthMask = (((1 << kRvvWidthBits) - 1) << kRvvWidthShift);
 const int kRvvMopBits = 2;
 const int kRvvMopShift = 26;
 const uint32_t kRvvMopMask = (((1 << kRvvMopBits) - 1) << kRvvMopShift);
+
+const int kRvvLumopBits = 5;
+const int kRvvLumopShift = 20;
+const uint32_t kRvvLumopMask = (((1 << kRvvLumopBits) - 1) << kRvvLumopShift);
+
+const int kRvvSumopBits = 5;
+const int kRvvSumopShift = 20;
+const uint32_t kRvvSumopMask = (((1 << kRvvSumopBits) - 1) << kRvvSumopShift);
 
 const int kRvvMewBits = 1;
 const int kRvvMewShift = 28;

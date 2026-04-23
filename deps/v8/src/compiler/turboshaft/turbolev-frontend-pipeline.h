@@ -7,20 +7,38 @@
 
 #include "src/compiler/turboshaft/phase.h"
 #include "src/maglev/maglev-compilation-info.h"
+#include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph.h"
 
 namespace v8::internal::compiler::turboshaft {
 
-bool RunMaglevOptimizations(PipelineData* data,
-                            maglev::MaglevCompilationInfo* compilation_info,
-                            maglev::Graph* maglev_graph);
+class TurbolevFrontendPipeline {
+ public:
+  explicit TurbolevFrontendPipeline(PipelineData* data, Linkage* linkage);
 
-void PrintMaglevGraph(PipelineData& data, maglev::Graph* maglev_graph,
-                      const char* msg);
+  std::optional<maglev::Graph*> Run();
 
-inline bool ShouldPrintMaglevGraph(PipelineData* data) {
-  return data->info()->trace_turbo_graph() || v8_flags.print_turbolev_frontend;
-}
+  maglev::MaglevGraphLabeller* graph_labeller() const {
+    return compilation_info_->graph_labeller();
+  }
+
+ private:
+  PipelineData& data_;
+  std::unique_ptr<maglev::MaglevCompilationInfo> compilation_info_;
+  maglev::Graph* graph_;
+
+  bool ShouldPrintMaglevGraph() {
+    return data_.info()->trace_turbo_graph() ||
+           v8_flags.print_turbolev_frontend;
+  }
+
+  void PrintBytecode();
+  void PrintMaglevGraph(const char* msg);
+  void PrintInliningTreeDebugInfo();
+
+  template <typename Phase, typename... Args>
+  auto Run(Args&&... args);
+};
 
 }  // namespace v8::internal::compiler::turboshaft
 

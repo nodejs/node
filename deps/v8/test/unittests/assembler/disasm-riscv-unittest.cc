@@ -287,10 +287,10 @@ TEST_F(DisasmRiscvTest, ZIMOP) {
   COMPARE(mop_r(10, s1, t3), "89ee44f3       mop.r.10  s1, t3");
   COMPARE(mop_rr(5, a1, t1, t2), "c67345f3       mop.rr.05 a1, t1, t2");
   if (CpuFeatures::IsSupported(ZICFISS)) {
-    COMPARE(sspush_x1(), "ce104073       sspush    ra");
-    COMPARE(sspush_x5(), "ce504073       sspush    t0");
-    COMPARE(sspopchk_x1(), "cdc0c073       sspopchk  ra");
-    COMPARE(sspopchk_x5(), "cdc2c073       sspopchk  t0");
+    COMPARE(sspush_ra(), "ce104073       sspush    ra");
+    COMPARE(sspush_t0(), "ce504073       sspush    t0");
+    COMPARE(sspopchk_ra(), "cdc0c073       sspopchk  ra");
+    COMPARE(sspopchk_t0(), "cdc2c073       sspopchk  t0");
     COMPARE(ssrdp(a0), "cdc04573       ssrdp     a0");
   }
   VERIFY_RUN();

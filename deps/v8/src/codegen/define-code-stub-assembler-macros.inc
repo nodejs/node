@@ -88,10 +88,5 @@
 #define CSA_SLOW_DCHECK(csa, ...) ((void)0)
 #endif
 
-// Similar to SBXCHECK in C++, these become a CSA_CHECK in sandbox-enabled
-// builds, otherwise a CSA_DCHECK.
-#ifdef V8_ENABLE_SANDBOX
+// Similar to SBXCHECK in C++.
 #define CSA_SBXCHECK(csa, ...) CSA_CHECK(csa, __VA_ARGS__)
-#else
-#define CSA_SBXCHECK(csa, ...) CSA_DCHECK(csa, __VA_ARGS__)
-#endif

@@ -271,6 +271,10 @@ class V8_EXPORT_PRIVATE StatsCollector final {
   // reasonably interesting sizes.
   static constexpr size_t kAllocationThresholdBytes = 1024;
 
+  static void Note(const char* note) {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("cppgc"), note);
+  }
+
   explicit StatsCollector(Platform*);
   StatsCollector(const StatsCollector&) = delete;
   StatsCollector& operator=(const StatsCollector&) = delete;

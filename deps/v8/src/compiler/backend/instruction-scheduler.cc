@@ -323,6 +323,11 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
       // (non-tail-)calls as barriers.
       return kIsBarrier;
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+    case kArchSwitchSandboxMode:
+      return kIsBarrier;
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
     case kArchStoreWithWriteBarrier:
     case kArchAtomicStoreWithWriteBarrier:
     case kArchStoreIndirectWithWriteBarrier:

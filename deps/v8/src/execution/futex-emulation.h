@@ -38,6 +38,7 @@ class FutexWaitList;
 
 class Isolate;
 class JSArrayBuffer;
+class JSPromise;
 
 class FutexWaitListNode {
  public:
@@ -47,7 +48,7 @@ class FutexWaitListNode {
   // Create an async FutexWaitListNode.
   FutexWaitListNode(std::weak_ptr<BackingStore> backing_store,
                     void* wait_location,
-                    DirectHandle<JSObject> promise_capability,
+                    DirectHandle<JSPromise> promise_capability,
                     Isolate* isolate);
 
   // Disallow copying nodes.
@@ -163,14 +164,14 @@ class FutexEmulation : public AllStatic {
   // Same as WaitJs above except it returns 0 (ok), 1 (not equal) and 2 (timed
   // out) as expected by Wasm.
   V8_EXPORT_PRIVATE static Tagged<Object> WaitWasm32(
-      Isolate* isolate, DirectHandle<JSArrayBuffer> array_buffer, size_t addr,
-      int32_t value, int64_t rel_timeout_ns);
+      Isolate* isolate, BackingStore* backing_store, size_t addr, int32_t value,
+      int64_t rel_timeout_ns);
 
   // Same as Wait32 above except it checks for an int64_t value in the
   // array_buffer.
   V8_EXPORT_PRIVATE static Tagged<Object> WaitWasm64(
-      Isolate* isolate, DirectHandle<JSArrayBuffer> array_buffer, size_t addr,
-      int64_t value, int64_t rel_timeout_ns);
+      Isolate* isolate, BackingStore* backing_store, size_t addr, int64_t value,
+      int64_t rel_timeout_ns);
 
   // Wake |num_waiters_to_wake| threads that are waiting on the given |addr|.
   // |num_waiters_to_wake| can be kWakeAll, in which case all waiters are
@@ -204,20 +205,13 @@ class FutexEmulation : public AllStatic {
   template <typename T>
   static Tagged<Object> Wait(Isolate* isolate, WaitMode mode,
                              DirectHandle<JSArrayBuffer> array_buffer,
-                             size_t addr, T value, double rel_timeout_ms);
+                             size_t addr, T value, double rel_timeout_ms,
+                             CallType call_type);
 
   template <typename T>
-  static Tagged<Object> Wait(Isolate* isolate, WaitMode mode,
-                             DirectHandle<JSArrayBuffer> array_buffer,
-                             size_t addr, T value, bool use_timeout,
-                             int64_t rel_timeout_ns,
-                             CallType call_type = CallType::kIsNotWasm);
-
-  template <typename T>
-  static Tagged<Object> WaitSync(Isolate* isolate,
-                                 DirectHandle<JSArrayBuffer> array_buffer,
-                                 size_t addr, T value, bool use_timeout,
-                                 int64_t rel_timeout_ns, CallType call_type);
+  static Tagged<Object> WaitSync(Isolate* isolate, void* wait_location, T value,
+                                 bool use_timeout, int64_t rel_timeout_ns,
+                                 CallType call_type);
 
   template <typename T>
   static Tagged<Object> WaitAsync(Isolate* isolate,

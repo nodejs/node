@@ -27,21 +27,14 @@ class V8_EXPORT_PRIVATE WasmSerializer {
   // success and false if the given buffer it too small for serialization.
   bool SerializeNativeModule(base::Vector<uint8_t> buffer) const;
 
-  // The data header consists of uint32_t-sized entries (see {WriteVersion}):
-  // [0] magic number
-  // [1] version hash
-  // [2] supported CPU features
-  // [3] flag hash
-  // [4] enabled features (via flags and OT)
-  // ...  number of functions
-  // ... serialized functions
-  static constexpr size_t kMagicNumberOffset = 0;
-  static constexpr size_t kVersionHashOffset = kMagicNumberOffset + kUInt32Size;
-  static constexpr size_t kSupportedCPUFeaturesOffset =
-      kVersionHashOffset + kUInt32Size;
-  static constexpr size_t kFlagHashOffset =
-      kSupportedCPUFeaturesOffset + kUInt32Size;
-  static constexpr size_t kHeaderSize = 5 * kUInt32Size;
+  // The data header consists of (see {WriteHeader}):
+  // [0] magic number (uint32_t)
+  // [1] version hash (uint32_t)
+  // [2] supported CPU features (uint32_t)
+  // [3] flag hash (uint32_t)
+  // [4] enabled features (via flags and OT) (uint32_t)
+  // [5] compile time imports (variable size)
+  static constexpr size_t kVersionHashOffset = kUInt32Size;
 
  private:
   NativeModule* native_module_;
@@ -51,15 +44,13 @@ class V8_EXPORT_PRIVATE WasmSerializer {
   std::vector<WellKnownImport> import_statuses_;
 };
 
-// Support for deserializing WebAssembly {NativeModule} objects.
-// Checks the version header of the data against the current version.
-bool IsSupportedVersion(base::Vector<const uint8_t> data,
-                        WasmEnabledFeatures enabled_features);
-
 // Deserializes the given data to create a Wasm module object.
+// On successful deserialization, ownership of the `wire_bytes` vector is taken
+// over by the deserialized module (the parameter will be reset to an empty
+// vector); otherwise ownership stays with the caller.
 V8_EXPORT_PRIVATE MaybeDirectHandle<WasmModuleObject> DeserializeNativeModule(
     Isolate*, WasmEnabledFeatures, base::Vector<const uint8_t> data,
-    base::Vector<const uint8_t> wire_bytes,
+    base::OwnedVector<const uint8_t>& wire_bytes,
     const CompileTimeImports& compile_imports,
     base::Vector<const char> source_url);
 

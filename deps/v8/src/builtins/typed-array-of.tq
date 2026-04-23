@@ -24,7 +24,8 @@ transitioning javascript builtin TypedArrayOf(
 
     // 5. Let newObj be ? TypedArrayCreate(C, len).
     const newObj = TypedArrayCreateByLength(
-        constructor, Convert<Number>(len), kBuiltinNameOf);
+        constructor, Convert<Number>(len), kBuiltinNameOf,
+        TypedArrayAccessMode::kWrite);
 
     const accessor: TypedArrayAccessor =
         GetTypedArrayAccessor(newObj.elements_kind);

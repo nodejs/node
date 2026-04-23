@@ -4,6 +4,7 @@
 
 #include "src/zone/zone-chunk-list.h"
 
+#include "src/base/iterator.h"
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
 #include "test/unittests/test-utils.h"
@@ -52,8 +53,8 @@ TEST_F(ZoneChunkListTest, ReverseIterationTest) {
 
   size_t count = 0;
 
-  for (auto it = zone_chunk_list.rbegin(); it != zone_chunk_list.rend(); ++it) {
-    EXPECT_EQ(static_cast<size_t>(*it), kItemCount - count - 1);
+  for (uintptr_t item : base::Reversed(zone_chunk_list)) {
+    EXPECT_EQ(static_cast<size_t>(item), kItemCount - count - 1);
     count++;
   }
 

@@ -44,7 +44,7 @@ void LsanVirtualAddressSpace::FreePages(Address address, size_t size) {
 
 Address LsanVirtualAddressSpace::AllocateSharedPages(
     Address hint, size_t size, PagePermissions permissions,
-    PlatformSharedMemoryHandle handle, uint64_t offset) {
+    SharedMemoryHandle handle, uint64_t offset) {
   Address result =
       vas_->AllocateSharedPages(hint, size, permissions, handle, offset);
 #if defined(LEAK_SANITIZER)
@@ -66,7 +66,7 @@ std::unique_ptr<VirtualAddressSpace> LsanVirtualAddressSpace::AllocateSubspace(
     Address hint, size_t size, size_t alignment,
     PagePermissions max_page_permissions,
     std::optional<MemoryProtectionKeyId> key,
-    PlatformSharedMemoryHandle handle) {
+    std::optional<SharedMemoryHandle> handle) {
   auto subspace = vas_->AllocateSubspace(hint, size, alignment,
                                          max_page_permissions, key, handle);
 #if defined(LEAK_SANITIZER)

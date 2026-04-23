@@ -32,7 +32,7 @@ bytecode array length: 6
 bytecodes: [
   /*   42 S> */ B(LdaZero),
                 B(Star0),
-  /*   54 S> */ B(AddSmi), I8(3), U8(0),
+  /*   54 S> */ B(AddSmi), I8(3), FBV(0),
   /*   58 S> */ B(Return),
 ]
 constant pool: [
@@ -53,7 +53,7 @@ bytecodes: [
   /*   45 S> */ B(LdaSmi), I8(3),
                 B(Star1),
                 B(Ldar), R(0),
-  /*   54 E> */ B(Add), R(1), U8(0),
+  /*   54 E> */ B(Add), R(1), FBV(0),
   /*   58 S> */ B(Return),
 ]
 constant pool: [
@@ -71,7 +71,7 @@ bytecode array length: 6
 bytecodes: [
   /*   42 S> */ B(LdaZero),
                 B(Star0),
-  /*   54 S> */ B(SubSmi), I8(3), U8(0),
+  /*   54 S> */ B(SubSmi), I8(3), FBV(0),
   /*   58 S> */ B(Return),
 ]
 constant pool: [
@@ -92,7 +92,7 @@ bytecodes: [
   /*   45 S> */ B(LdaSmi), I8(3),
                 B(Star1),
                 B(Ldar), R(0),
-  /*   54 E> */ B(Sub), R(1), U8(0),
+  /*   54 E> */ B(Sub), R(1), FBV(0),
   /*   58 S> */ B(Return),
 ]
 constant pool: [
@@ -110,7 +110,7 @@ bytecode array length: 7
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(4),
                 B(Star0),
-  /*   54 S> */ B(MulSmi), I8(3), U8(0),
+  /*   54 S> */ B(MulSmi), I8(3), FBV(0),
   /*   58 S> */ B(Return),
 ]
 constant pool: [
@@ -128,7 +128,7 @@ bytecode array length: 7
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(4),
                 B(Star0),
-  /*   54 S> */ B(MulSmi), I8(3), U8(0),
+  /*   54 S> */ B(MulSmi), I8(3), FBV(0),
   /*   58 S> */ B(Return),
 ]
 constant pool: [
@@ -146,7 +146,7 @@ bytecode array length: 7
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(4),
                 B(Star0),
-  /*   54 S> */ B(DivSmi), I8(3), U8(0),
+  /*   54 S> */ B(DivSmi), I8(3), FBV(0),
   /*   58 S> */ B(Return),
 ]
 constant pool: [
@@ -167,7 +167,7 @@ bytecodes: [
   /*   45 S> */ B(LdaSmi), I8(3),
                 B(Star1),
                 B(Ldar), R(0),
-  /*   54 E> */ B(Div), R(1), U8(0),
+  /*   54 E> */ B(Div), R(1), FBV(0),
   /*   58 S> */ B(Return),
 ]
 constant pool: [
@@ -185,7 +185,7 @@ bytecode array length: 7
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(4),
                 B(Star0),
-  /*   54 S> */ B(ModSmi), I8(3), U8(0),
+  /*   54 S> */ B(ModSmi), I8(3), FBV(0),
   /*   58 S> */ B(Return),
 ]
 constant pool: [
@@ -206,7 +206,7 @@ bytecodes: [
   /*   45 S> */ B(LdaSmi), I8(3),
                 B(Star1),
                 B(Ldar), R(0),
-  /*   54 E> */ B(Mod), R(1), U8(0),
+  /*   54 E> */ B(Mod), R(1), FBV(0),
   /*   58 S> */ B(Return),
 ]
 constant pool: [
@@ -224,7 +224,7 @@ bytecode array length: 7
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star0),
-  /*   54 S> */ B(BitwiseOrSmi), I8(2), U8(0),
+  /*   54 S> */ B(BitwiseOrSmi), I8(2), FBV(0),
   /*   58 S> */ B(Return),
 ]
 constant pool: [
@@ -242,7 +242,7 @@ bytecode array length: 7
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star0),
-  /*   54 S> */ B(BitwiseOrSmi), I8(2), U8(0),
+  /*   54 S> */ B(BitwiseOrSmi), I8(2), FBV(0),
   /*   58 S> */ B(Return),
 ]
 constant pool: [
@@ -260,7 +260,7 @@ bytecode array length: 7
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star0),
-  /*   54 S> */ B(BitwiseXorSmi), I8(2), U8(0),
+  /*   54 S> */ B(BitwiseXorSmi), I8(2), FBV(0),
   /*   58 S> */ B(Return),
 ]
 constant pool: [
@@ -278,7 +278,7 @@ bytecode array length: 7
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star0),
-  /*   54 S> */ B(BitwiseXorSmi), I8(2), U8(0),
+  /*   54 S> */ B(BitwiseXorSmi), I8(2), FBV(0),
   /*   58 S> */ B(Return),
 ]
 constant pool: [
@@ -296,7 +296,7 @@ bytecode array length: 7
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star0),
-  /*   54 S> */ B(BitwiseAndSmi), I8(2), U8(0),
+  /*   54 S> */ B(BitwiseAndSmi), I8(2), FBV(0),
   /*   58 S> */ B(Return),
 ]
 constant pool: [
@@ -314,7 +314,7 @@ bytecode array length: 7
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star0),
-  /*   54 S> */ B(BitwiseAndSmi), I8(2), U8(0),
+  /*   54 S> */ B(BitwiseAndSmi), I8(2), FBV(0),
   /*   58 S> */ B(Return),
 ]
 constant pool: [
@@ -332,7 +332,7 @@ bytecode array length: 7
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(10),
                 B(Star0),
-  /*   55 S> */ B(ShiftLeftSmi), I8(3), U8(0),
+  /*   55 S> */ B(ShiftLeftSmi), I8(3), FBV(0),
   /*   60 S> */ B(Return),
 ]
 constant pool: [
@@ -353,7 +353,7 @@ bytecodes: [
   /*   46 S> */ B(LdaSmi), I8(3),
                 B(Star1),
                 B(Ldar), R(0),
-  /*   55 E> */ B(ShiftLeft), R(1), U8(0),
+  /*   55 E> */ B(ShiftLeft), R(1), FBV(0),
   /*   60 S> */ B(Return),
 ]
 constant pool: [
@@ -371,7 +371,7 @@ bytecode array length: 7
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(10),
                 B(Star0),
-  /*   55 S> */ B(ShiftRightSmi), I8(3), U8(0),
+  /*   55 S> */ B(ShiftRightSmi), I8(3), FBV(0),
   /*   60 S> */ B(Return),
 ]
 constant pool: [
@@ -392,7 +392,7 @@ bytecodes: [
   /*   46 S> */ B(LdaSmi), I8(3),
                 B(Star1),
                 B(Ldar), R(0),
-  /*   55 E> */ B(ShiftRight), R(1), U8(0),
+  /*   55 E> */ B(ShiftRight), R(1), FBV(0),
   /*   60 S> */ B(Return),
 ]
 constant pool: [
@@ -410,7 +410,7 @@ bytecode array length: 7
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(10),
                 B(Star0),
-  /*   55 S> */ B(ShiftRightLogicalSmi), I8(3), U8(0),
+  /*   55 S> */ B(ShiftRightLogicalSmi), I8(3), FBV(0),
   /*   61 S> */ B(Return),
 ]
 constant pool: [
@@ -431,7 +431,7 @@ bytecodes: [
   /*   46 S> */ B(LdaSmi), I8(3),
                 B(Star1),
                 B(Ldar), R(0),
-  /*   55 E> */ B(ShiftRightLogical), R(1), U8(0),
+  /*   55 E> */ B(ShiftRightLogical), R(1), FBV(0),
   /*   61 S> */ B(Return),
 ]
 constant pool: [
