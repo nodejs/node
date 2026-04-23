@@ -3319,14 +3319,14 @@ added: v24.7.0
   * `nonce` {string|ArrayBuffer|Buffer|TypedArray|DataView} REQUIRED, must be at
     least 8 bytes long. This is the salt for password hashing applications of Argon2.
   * `parallelism` {number} REQUIRED, degree of parallelism determines how many computational chains (lanes)
-    can be run. Must be greater than 1 and less than `2**24-1`.
-  * `tagLength` {number} REQUIRED, the length of the key to generate. Must be greater than 4 and
-    less than `2**32-1`.
-  * `memory` {number} REQUIRED, memory cost in 1KiB blocks. Must be greater than
-    `8 * parallelism` and less than `2**32-1`. The actual number of blocks is rounded
+    can be run. Must be at least `1` and at most `2**24-1`.
+  * `tagLength` {number} REQUIRED, the length of the key to generate. Must be at least `4` and
+    at most `2**32-1`.
+  * `memory` {number} REQUIRED, memory cost in 1KiB blocks. Must be at least
+    `8 * parallelism` and at most `2**32-1`. The actual number of blocks is rounded
     down to the nearest multiple of `4 * parallelism`.
-  * `passes` {number} REQUIRED, number of passes (iterations). Must be greater than 1 and less
-    than `2**32-1`.
+  * `passes` {number} REQUIRED, number of passes (iterations). Must be at least `1` and at most
+    `2**32-1`.
   * `secret` {string|ArrayBuffer|Buffer|TypedArray|DataView|undefined} OPTIONAL, Random additional input,
     similar to the salt, that should **NOT** be stored with the derived key. This is known as pepper in
     password hashing applications. If used, must have a length not greater than `2**32-1` bytes.
@@ -3405,14 +3405,14 @@ added: v24.7.0
   * `nonce` {string|ArrayBuffer|Buffer|TypedArray|DataView} REQUIRED, must be at
     least 8 bytes long. This is the salt for password hashing applications of Argon2.
   * `parallelism` {number} REQUIRED, degree of parallelism determines how many computational chains (lanes)
-    can be run. Must be greater than 1 and less than `2**24-1`.
-  * `tagLength` {number} REQUIRED, the length of the key to generate. Must be greater than 4 and
-    less than `2**32-1`.
-  * `memory` {number} REQUIRED, memory cost in 1KiB blocks. Must be greater than
-    `8 * parallelism` and less than `2**32-1`. The actual number of blocks is rounded
+    can be run. Must be at least 1 and at most `2**24-1`.
+  * `tagLength` {number} REQUIRED, the length of the key to generate. Must be at least `4` and
+    at most `2**32-1`.
+  * `memory` {number} REQUIRED, memory cost in 1KiB blocks. Must be at least
+    `8 * parallelism` and at most `2**32-1`. The actual number of blocks is rounded
     down to the nearest multiple of `4 * parallelism`.
-  * `passes` {number} REQUIRED, number of passes (iterations). Must be greater than 1 and less
-    than `2**32-1`.
+  * `passes` {number} REQUIRED, number of passes (iterations). Must be at least `1` and at most
+    `2**32-1`.
   * `secret` {string|ArrayBuffer|Buffer|TypedArray|DataView|undefined} OPTIONAL, Random additional input,
     similar to the salt, that should **NOT** be stored with the derived key. This is known as pepper in
     password hashing applications. If used, must have a length not greater than `2**32-1` bytes.
