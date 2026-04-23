@@ -4,9 +4,8 @@
 const common = require('../common');
 common.skipIfInspectorDisabled();
 
-const assert = require('assert');
 const { spawnSyncAndAssert } = require('../common/child_process');
-const { probeScript } = require('../common/debugger-probe');
+const { assertProbeJson, probeScript } = require('../common/debugger-probe');
 
 spawnSyncAndAssert(process.execPath, [
   'inspect',
@@ -18,7 +17,7 @@ spawnSyncAndAssert(process.execPath, [
   probeScript,
 ], {
   stdout(output) {
-    assert.deepStrictEqual(JSON.parse(output), {
+    assertProbeJson(output, {
       v: 1,
       probes: [{
         expr: 'finalValue',

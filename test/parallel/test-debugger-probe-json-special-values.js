@@ -4,9 +4,11 @@
 const common = require('../common');
 common.skipIfInspectorDisabled();
 
-const assert = require('assert');
 const { spawnSyncAndAssert } = require('../common/child_process');
-const { probeTypesScript } = require('../common/debugger-probe');
+const {
+  assertProbeJson,
+  probeTypesScript,
+} = require('../common/debugger-probe');
 
 const location = `${probeTypesScript}:17`;
 
@@ -38,7 +40,7 @@ spawnSyncAndAssert(process.execPath, [
   probeTypesScript,
 ], {
   stdout(output) {
-    assert.deepStrictEqual(JSON.parse(output), {
+    assertProbeJson(output, {
       v: 1,
       probes: [
         { expr: 'stringValue', target: [probeTypesScript, 17] },
