@@ -14,9 +14,11 @@
 #include "v8-platform.h"  // NOLINT(build/include_directory)
 
 namespace perfetto {
+#if defined(V8_USE_PERFETTO_JSON_EXPORT)
 namespace trace_processor {
 class TraceProcessorStorage;
 }
+#endif  // defined(V8_USE_PERFETTO_JSON_EXPORT)
 class TracingSession;
 }
 
@@ -231,6 +233,12 @@ class V8_PLATFORM_EXPORT TraceConfig {
 #define V8_PLATFORM_NON_EXPORTED_BASE(code) code
 #endif  // defined(_MSC_VER)
 
+/**
+ * V8 Tracing controller default implementation.
+ *
+ * Will become obsolete in Perfetto build
+ * (v8_use_perfetto_json_export = true).
+ */
 class V8_PLATFORM_EXPORT TracingController
     : public V8_PLATFORM_NON_EXPORTED_BASE(v8::TracingController) {
  public:
@@ -307,10 +315,13 @@ class V8_PLATFORM_EXPORT TracingController
   std::unique_ptr<TraceConfig> trace_config_;
   std::atomic_bool recording_{false};
 
-#if defined(V8_USE_PERFETTO)
-  std::ostream* output_stream_ = nullptr;
+#if defined(V8_USE_PERFETTO_JSON_EXPORT)
   std::unique_ptr<perfetto::trace_processor::TraceProcessorStorage>
       trace_processor_;
+#endif
+
+#if defined(V8_USE_PERFETTO)
+  std::ostream* output_stream_ = nullptr;
   TraceEventListener* listener_for_testing_ = nullptr;
   std::unique_ptr<perfetto::TracingSession> tracing_session_;
 #else   // !defined(V8_USE_PERFETTO)

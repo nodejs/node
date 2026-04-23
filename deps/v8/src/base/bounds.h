@@ -27,6 +27,15 @@ inline constexpr bool IsInRange(T value, U lower_limit, U higher_limit) {
                                  static_cast<unsigned_T>(lower_limit));
 }
 
+// Overload IsInRange for pointers. This can't be constexpr because of
+// reinterpret_cast.
+inline bool IsInRange(void* value, void* lower_limit, void* higher_limit) {
+  DCHECK_LE(lower_limit, higher_limit);
+  return base::IsInRange(reinterpret_cast<uintptr_t>(value),
+                         reinterpret_cast<uintptr_t>(lower_limit),
+                         reinterpret_cast<uintptr_t>(higher_limit));
+}
+
 // Like IsInRange but for the half-open range [lower_limit, higher_limit).
 template <typename T, typename U>
   requires((std::is_integral_v<T> || std::is_enum_v<T>) &&

@@ -6,6 +6,7 @@
 #define V8_SANDBOX_INDIRECT_POINTER_H_
 
 #include "src/common/globals.h"
+#include "src/objects/objects.h"
 #include "src/sandbox/indirect-pointer-tag.h"
 #include "src/sandbox/isolate.h"
 
@@ -43,7 +44,7 @@ V8_INLINE void InitSelfIndirectPointerField(
 // trusted pointer table for all other trusted objects.
 //
 // Only available when the sandbox is enabled.
-template <IndirectPointerTag tag>
+template <IndirectPointerTagRange tag_range>
 V8_INLINE Tagged<Object> ReadIndirectPointerField(Address field_address,
                                                   IsolateForSandbox isolate,
                                                   AcquireLoadTag);
@@ -53,7 +54,7 @@ V8_INLINE Tagged<Object> ReadIndirectPointerField(Address field_address,
 // reference to the given object.
 //
 // Only available when the sandbox is enabled.
-template <IndirectPointerTag tag>
+template <IndirectPointerTagRange tag_range>
 V8_INLINE void WriteIndirectPointerField(Address field_address,
                                          Tagged<ExposedTrustedObject> value,
                                          ReleaseStoreTag);

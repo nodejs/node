@@ -11,6 +11,10 @@
 #
 # https://github.com/tc39/process-document
 
+# Intl Era Monthcode
+# https://github.com/tc39/proposal-intl-era-monthcode
+Intl.Era-monthcode
+
 # Intl.Locale Info
 # https://github.com/tc39/proposal-intl-locale-info
 Intl.Locale-info
@@ -83,6 +87,10 @@ immutable-arraybuffer
 # Non-extensible Applies to Private
 # https://github.com/tc39/proposal-nonextensible-applies-to-private
 nonextensible-applies-to-private
+
+# Joint Iteration
+# https://github.com/tc39/proposal-joint-iteration
+joint-iteration
 
 ## Standard language features
 #

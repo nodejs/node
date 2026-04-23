@@ -15,7 +15,7 @@ frame size: 0
 parameter count: 1
 bytecode array length: 7
 bytecodes: [
-  /*   15 S> */ B(CallRuntime), U16(Runtime::kTheHole), R(0), U8(0),
+  /*   15 S> */ B(CallRuntime), U16(Runtime::kTheHole), R(0), RegCount8(0),
                 B(LdaUndefined),
   /*   26 S> */ B(Return),
 ]
@@ -33,7 +33,7 @@ frame size: 0
 parameter count: 2
 bytecode array length: 6
 bytecodes: [
-  /*   16 S> */ B(CallRuntime), U16(Runtime::kIsArray), R(arg0), U8(1),
+  /*   16 S> */ B(CallRuntime), U16(Runtime::kIsArray), R(arg0), RegCount8(1),
   /*   34 S> */ B(Return),
 ]
 constant pool: [
@@ -54,7 +54,7 @@ bytecodes: [
                 B(Star0),
                 B(LdaSmi), I8(2),
                 B(Star1),
-                B(CallRuntime), U16(Runtime::kAdd), R(0), U8(2),
+                B(CallRuntime), U16(Runtime::kAdd), R(0), RegCount8(2),
   /*   32 S> */ B(Return),
 ]
 constant pool: [

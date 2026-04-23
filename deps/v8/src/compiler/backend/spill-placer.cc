@@ -38,13 +38,13 @@ void SpillPlacer::Add(TopLevelLiveRange* range) {
   // - If the value is defined in a deferred block, then the logic to select
   //   the earliest deferred block as the insertion point would cause
   //   incorrect behavior, so the value must be spilled at the definition.
-  // - We haven't seen any indication of performance improvements from seeking
-  //   optimal spilling positions except on loop-top phi values, so spill
-  //   any value that isn't a loop-top phi at the definition to avoid
-  //   increasing the code size for no benefit.
+  // - Late spilling was only enabled for loop phis initially. However, we also
+  // saw benefits in some wasm benchmarks when enabling it for other ranges, so
+  // the "--turbo-always-optimize-spills" flag is enabled by default now. It can
+  // be cleaned up if this is stable and does not cause regressions.
   if (range->GetSpillMoveInsertionLocations(data()) == nullptr ||
       range->spilled() || top_start_block->IsDeferred() ||
-      (!v8_flags.stress_turbo_late_spilling && !range->is_loop_phi())) {
+      (!v8_flags.turbo_always_optimize_spills && !range->is_loop_phi())) {
     range->CommitSpillMoves(data(), spill_operand);
     return;
   }

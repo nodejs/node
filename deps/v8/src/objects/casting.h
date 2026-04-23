@@ -42,6 +42,10 @@ namespace v8::internal {
 template <typename To>
 struct CastTraits;
 
+template <typename T>
+concept NotGCedType = !std::is_base_of_v<HeapObject, T> &&
+                      !std::is_base_of_v<HeapObjectLayout, T>;
+
 // `Is<T>(value)` checks whether `value` is a tagged object of type `T`.
 template <typename T, typename U>
 inline bool Is(Tagged<U> value) {
@@ -57,6 +61,27 @@ template <typename T, typename U>
 bool Is(MaybeIndirectHandle<U> value) = delete;
 template <typename T, typename U>
 bool Is(MaybeDirectHandle<U> value) = delete;
+// C++ versions for `Is<T>` that accept pointers and references.
+template <typename To, typename From>
+  requires NotGCedType<To>
+bool Is(const From& value) {
+  return CastTraits<std::remove_const_t<To>>::AllowFrom(value);
+}
+template <typename To, typename From>
+  requires NotGCedType<To>
+bool Is(From& value) {
+  return Is<To>(const_cast<const From&>(value));
+}
+template <typename To, typename From>
+  requires NotGCedType<To>
+bool Is(const From* value) {
+  return value && Is<To>(*value);
+}
+template <typename To, typename From>
+  requires NotGCedType<To>
+bool Is(From* value) {
+  return value && Is<To>(*static_cast<const From*>(value));
+}
 
 // `UncheckedCast<T>(value)` casts `value` to a tagged object of type `T`,
 // without checking the type of value.
@@ -81,6 +106,18 @@ concept HasTryCastImplementation = requires(Holder<From> value) {
   { UncheckedCast<To>(value) } -> std::same_as<Holder<To>>;
 };
 
+template <typename Derived, typename Base>
+concept HasCppRefTryCastImplementation =
+    NotGCedType<Derived> && requires(Base& value) {
+      { Is<Derived>(value) } -> std::same_as<bool>;
+    };
+
+template <typename Derived, typename Base>
+concept HasCppPointerTryCastImplementation =
+    NotGCedType<Derived> && requires(Base* value) {
+      { Is<Derived>(value) } -> std::same_as<bool>;
+    };
+
 // `TryCast<T>(value, &out)` casts `value` to a tagged object of type `T` and
 // writes the value to `out`, returning true if the cast succeeded and false if
 // it failed.
@@ -89,6 +126,22 @@ template <typename To, typename From, template <typename> class Holder>
 inline bool TryCast(Holder<From> value, Holder<To>* out) {
   if (!Is<To>(value)) return false;
   *out = UncheckedCast<To>(value);
+  return true;
+}
+
+template <typename Derived, typename Base>
+  requires HasCppRefTryCastImplementation<Derived, Base>
+inline bool TryCast(Base& value, Derived** out) {
+  if (!Is<Derived>(value)) return false;
+  *out = static_cast<Derived*>(&value);
+  return true;
+}
+
+template <typename Derived, typename Base>
+  requires HasCppPointerTryCastImplementation<Derived, Base>
+inline bool TryCast(Base* value, Derived** out) {
+  if (!Is<Derived>(value)) return false;
+  *out = static_cast<Derived*>(value);
   return true;
 }
 
@@ -136,6 +189,14 @@ inline bool NullOrIs(MaybeDirectHandle<U> value) {
   DirectHandle<U> handle;
   return !value.ToHandle(&handle) || Is<T>(handle);
 }
+template <typename Derived, typename Base>
+bool NullOrIs(Base& value) {
+  return Is<Derived>(value);
+}
+template <typename Derived, typename Base>
+bool NullOrIs(Base* value) {
+  return !value || Is<Derived>(*value);
+}
 
 // HasCastImplementation is a concept that checks for the existence of
 // NullOrIs<To>(Holder<From>) and UncheckedCast<To>(Holder<From>).
@@ -145,6 +206,18 @@ concept HasCastImplementation = requires(Holder<From> value) {
   { UncheckedCast<To>(value) } -> std::same_as<Holder<To>>;
 };
 
+template <typename Derived, typename Base>
+concept HasCppRefCastImplementation =
+    NotGCedType<Derived> && requires(Base& value) {
+      { Is<Derived>(value) } -> std::same_as<bool>;
+    };
+
+template <typename Derived, typename Base>
+concept HasCppPointerCastImplementation =
+    NotGCedType<Derived> && requires(Base* value) {
+      { Is<Derived>(value) } -> std::same_as<bool>;
+    };
+
 // `TrustedCast<T>(value)` casts `value` to a tagged object of type `T`, only
 // doing a debug check that `value` is a tagged object of type `T`. Down-casts
 // to trusted objects are allowed for callers which already ensured their
@@ -153,8 +226,13 @@ template <typename To, typename From, template <typename> class Holder>
   requires HasCastImplementation<Holder, To, From>
 inline Holder<To> TrustedCast(
     Holder<From> value, SourceLocation loc = SourceLocation::CurrentIfDebug()) {
-  DCHECK_WITH_MSG_AND_LOC(NullOrIs<To>(value),
-                          V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
+  // Casting pointers to in-sandbox objects is allowed even with an active
+  // DisallowSandboxAccess scope (as casting itself doesn't access any memory).
+  // However, in debug builds the DCHECK below will need to access the Map of
+  // the object, so we need to temporarily enable sandbox access. If no
+  // DisallowSandboxAccess scope is active, this is a no-op.
+  DCHECK_WITH_SANDBOX_ACCESS_AND_MSG_AND_LOC(
+      NullOrIs<To>(value), V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
   return UncheckedCast<To>(value);
 }
 
@@ -176,6 +254,26 @@ inline Holder<To> SbxCast(
   return UncheckedCast<To>(value);
 }
 
+template <typename Derived, typename Base>
+  requires HasCppRefCastImplementation<Derived, Base>
+inline Derived& SbxCast(Base& from,
+                        SourceLocation loc = SourceLocation::CurrentIfDebug()) {
+  DCHECK_WITH_MSG_AND_LOC(NullOrIs<Derived>(from),
+                          V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
+  SBXCHECK(NullOrIs<Derived>(from));
+  return static_cast<Derived&>(from);
+}
+
+template <typename Derived, typename Base>
+  requires HasCppPointerCastImplementation<Derived, Base>
+inline Derived* SbxCast(Base* from,
+                        SourceLocation loc = SourceLocation::CurrentIfDebug()) {
+  DCHECK_WITH_MSG_AND_LOC(NullOrIs<Derived>(from),
+                          V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
+  SBXCHECK(NullOrIs<Derived>(from));
+  return static_cast<Derived*>(from);
+}
+
 // `CheckedCast<T>(value)` casts `value` to a tagged object of type `T`,
 // with a always-on dynamic type check ensuring that `value` is a tagged object
 // of type `T`. Null-valued holders are allowed.
@@ -187,6 +285,26 @@ inline Holder<To> CheckedCast(
                           V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
   CHECK(NullOrIs<To>(value));
   return UncheckedCast<To>(value);
+}
+
+template <typename Derived, typename Base>
+  requires HasCppRefCastImplementation<Derived, Base>
+inline Derived& CheckedCast(
+    Base& from, SourceLocation loc = SourceLocation::CurrentIfDebug()) {
+  DCHECK_WITH_MSG_AND_LOC(NullOrIs<Derived>(from),
+                          V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
+  CHECK(NullOrIs<Derived>(from));
+  return static_cast<Derived&>(from);
+}
+
+template <typename Derived, typename Base>
+  requires HasCppPointerCastImplementation<Derived, Base>
+inline Derived* CheckedCast(
+    Base* from, SourceLocation loc = SourceLocation::CurrentIfDebug()) {
+  DCHECK_WITH_MSG_AND_LOC(NullOrIs<Derived>(from),
+                          V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
+  CHECK(NullOrIs<Derived>(from));
+  return static_cast<Derived*>(from);
 }
 
 // `Cast<T>(value)` casts `value` to a tagged object of type `T`, with a debug
@@ -262,6 +380,24 @@ template <typename To, typename From>
 inline Tagged<To> Cast(From value,
                        SourceLocation loc = SourceLocation::CurrentIfDebug()) {
   return Cast<To>(Tagged(value), loc);
+}
+
+template <typename Derived, typename Base>
+  requires HasCppRefCastImplementation<Derived, Base>
+inline Derived& Cast(Base& from,
+                     SourceLocation loc = SourceLocation::CurrentIfDebug()) {
+  DCHECK_WITH_MSG_AND_LOC(NullOrIs<Derived>(from),
+                          V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
+  return static_cast<Derived&>(from);
+}
+
+template <typename Derived, typename Base>
+  requires HasCppPointerCastImplementation<Derived, Base>
+inline Derived* Cast(Base* from,
+                     SourceLocation loc = SourceLocation::CurrentIfDebug()) {
+  DCHECK_WITH_MSG_AND_LOC(NullOrIs<Derived>(from),
+                          V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
+  return static_cast<Derived*>(from);
 }
 
 // `Is<T>(maybe_weak_value)` specialization for possible weak values and strong

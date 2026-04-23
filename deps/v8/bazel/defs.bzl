@@ -97,7 +97,7 @@ v8_config = rule(
 
 def _default_args():
     return struct(
-        deps = [":define_flags"],
+        deps = [":define_flags", "@libcxx//:libc++"],
         defines = select({
             "@v8//bazel/config:is_windows": [
                 "UNICODE",
@@ -111,6 +111,7 @@ def _default_args():
             "@v8//bazel/config:is_posix": [
                 "-fPIC",
                 "-fno-strict-aliasing",
+                "-fconstexpr-steps=2000000",
                 "-Werror",
                 "-Wextra",
                 "-Wno-unneeded-internal-declaration",

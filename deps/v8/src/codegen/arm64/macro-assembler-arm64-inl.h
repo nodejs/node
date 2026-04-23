@@ -36,6 +36,11 @@ MemOperand ExitFrameCallerStackSlotOperand(int index) {
                             kSystemPointerSize);
 }
 
+MemOperand MacroAssembler::AsMemOperand(IsolateFieldId id) {
+  DCHECK(root_array_available());
+  return MemOperand(kRootRegister, IsolateData::GetOffset(id));
+}
+
 void MacroAssembler::And(const Register& rd, const Register& rn,
                          const Operand& operand) {
   DCHECK(allow_macro_instructions());
@@ -464,12 +469,14 @@ void MacroAssembler::BindJumpOrCallTarget(Label* label) {
 #endif
 }
 
-void MacroAssembler::Bl(Label* label) {
+void MacroAssembler::Call(Label* label) {
+  Assembler::BlockPoolsScope block_pools(this);
   DCHECK(allow_macro_instructions());
   bl(label);
 }
 
-void MacroAssembler::Blr(const Register& xn) {
+void MacroAssembler::Call(const Register& xn) {
+  Assembler::BlockPoolsScope block_pools(this);
   DCHECK(allow_macro_instructions());
   DCHECK(!xn.IsZero());
   blr(xn);

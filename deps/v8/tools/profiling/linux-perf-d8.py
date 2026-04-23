@@ -190,7 +190,7 @@ def main():
     datetime_str = datetime.now().strftime("%Y-%m-%d_%H%M%S")
     perf_data_file = options.perf_data_dir / f"d8_{datetime_str}.perf.data"
     perf_cmd = [
-        "perf", "record", f"--call-graph={options.call_graph}",
+        "perf", "record", "--no-buildid", f"--call-graph={options.call_graph}",
         f"--clockid={options.clockid}", f"--output={perf_data_file}"
     ]
     if options.freq:

@@ -129,14 +129,11 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   inline std::pair<Handle<String>, Handle<Map>> ExpectedTransition(
       base::Vector<const Char> key_chars);
 
-  template <typename Callback, typename ProtoCallback,
-            typename SideStepCallback>
+  template <typename Callback, typename SideStepCallback>
   void ForEachTransition(DisallowGarbageCollection* no_gc, Callback callback,
-                         ProtoCallback proto_transition_callback,
                          SideStepCallback side_step_transition_callback) {
-    ForEachTransitionWithKey<Callback, ProtoCallback, SideStepCallback, false>(
-        no_gc, callback, proto_transition_callback,
-        side_step_transition_callback);
+    ForEachTransitionWithKey<Callback, Callback, SideStepCallback, false>(
+        no_gc, callback, callback, side_step_transition_callback);
   }
 
   template <typename Callback, typename ProtoCallback,
@@ -233,6 +230,7 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
     kMigrationTarget,
     kWeakRef,
     kFullTransitionArray,
+    kPrototypeSharedClosureInfo,
   };
 
   inline Encoding encoding() { return encoding_; }
@@ -316,6 +314,10 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
 // shared.
 class TransitionArray : public WeakFixedArray {
  public:
+  // Do linear search for small arrays, and for searches in the background
+  // thread.
+  static constexpr int kMaxElementsForLinearSearch = 32;
+
   inline int number_of_transitions() const;
 
   inline Tagged<WeakFixedArray> GetPrototypeTransitions();

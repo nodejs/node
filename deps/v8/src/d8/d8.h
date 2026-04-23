@@ -23,8 +23,11 @@
 #include "src/base/platform/time.h"
 #include "src/base/platform/wrappers.h"
 #include "src/d8/async-hooks-wrapper.h"
+// For V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT.
+#include "src/d8/hardware-watchpoints.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/parked-scope.h"
+#include "src/sandbox/sandboxable-thread.h"
 
 namespace v8 {
 
@@ -244,11 +247,12 @@ class Worker : public std::enable_shared_from_this<Worker> {
   void ProcessMessage(std::unique_ptr<SerializationData> data);
   void ProcessMessages();
 
-  class WorkerThread : public base::Thread {
+  class WorkerThread : public internal::SandboxableThread {
    public:
     explicit WorkerThread(std::shared_ptr<Worker> worker,
                           base::Thread::Priority priority)
-        : base::Thread(base::Thread::Options("WorkerThread", priority)),
+        : internal::SandboxableThread(
+              base::Thread::Options("WorkerThread", priority)),
           worker_(std::move(worker)) {}
 
     void Run() override;
@@ -429,6 +433,10 @@ class ShellOptions {
     }
     void Overwrite(T value) { value_ = value; }
 
+    bool WasSpecified() const { return specified_; }
+
+    const char* name() const { return name_; }
+
    private:
     const char* name_;
     T value_;
@@ -488,7 +496,13 @@ class ShellOptions {
       "scope-linux-perf-to-mark-measure", false};
   DisallowReassignment<int> perf_ctl_fd = {"perf-ctl-fd", -1};
   DisallowReassignment<int> perf_ack_fd = {"perf-ack-fd", -1};
-#endif
+#endif  // V8_OS_LINUX
+#ifdef V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
+  DisallowReassignment<bool> memory_corruption_via_watchpoints = {
+      "memory-corruption-via-watchpoints", false};
+  DisallowReassignment<bool> trace_memory_corruption_via_watchpoints = {
+      "trace-memory-corruption-via-watchpoints", false};
+#endif  // V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
   DisallowReassignment<bool> disable_in_process_stack_traces = {
       "disable-in-process-stack-traces", false};
   DisallowReassignment<int> read_from_tcp_port = {"read-from-tcp-port", -1};
@@ -594,6 +608,8 @@ class Shell : public i::AllStatic {
   static void RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& info);
   static void RealmCreate(const v8::FunctionCallbackInfo<v8::Value>& info);
   static void RealmNavigate(const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void RealmNavigateSameOrigin(
+      const v8::FunctionCallbackInfo<v8::Value>& info);
   static void RealmCreateAllowCrossRealmAccess(
       const v8::FunctionCallbackInfo<v8::Value>& info);
   static void RealmDetachGlobal(
@@ -880,6 +896,7 @@ class Shell : public i::AllStatic {
                                                      Local<Value> name);
   static void StoreInCodeCache(Isolate* isolate, Local<Value> name,
                                const ScriptCompiler::CachedData* data);
+
   // We may have multiple isolates running concurrently, so the access to
   // the isolate_status_ needs to be concurrency-safe.
   static base::LazyMutex isolate_status_lock_;

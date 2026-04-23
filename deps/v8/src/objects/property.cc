@@ -67,7 +67,7 @@ Descriptor::Descriptor(DirectHandle<Name> key,
       details_(kind, attributes, location, constness, representation,
                field_index) {
   DCHECK(IsUniqueName(*key));
-  DCHECK_IMPLIES(key->IsPrivate(), !details_.IsEnumerable());
+  DCHECK_IMPLIES(key->IsAnyPrivate(), !details_.IsEnumerable());
 }
 
 Descriptor::Descriptor(DirectHandle<Name> key,
@@ -75,7 +75,7 @@ Descriptor::Descriptor(DirectHandle<Name> key,
                        PropertyDetails details)
     : key_(key), value_(value), details_(details) {
   DCHECK(IsUniqueName(*key));
-  DCHECK_IMPLIES(key->IsPrivate(), !details_.IsEnumerable());
+  DCHECK_IMPLIES(key->IsAnyPrivate(), !details_.IsEnumerable());
 }
 
 Descriptor Descriptor::DataField(Isolate* isolate, DirectHandle<Name> key,

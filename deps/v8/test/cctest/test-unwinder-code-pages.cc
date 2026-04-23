@@ -659,7 +659,7 @@ TEST(PCIsInV8_LargeCodeObject_CodePagesAPI) {
   HandleScope scope(i_isolate);
 
   // Create a big function that ends up in CODE_LO_SPACE.
-  const int instruction_size = PageMetadata::kPageSize + 1;
+  const int instruction_size = NormalPage::kPageSize + 1;
   CHECK_GT(instruction_size, MemoryChunkLayout::MaxRegularCodeObjectSize());
   std::unique_ptr<uint8_t[]> instructions(new uint8_t[instruction_size]);
 

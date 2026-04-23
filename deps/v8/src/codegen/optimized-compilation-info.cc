@@ -33,7 +33,10 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
   DCHECK_EQ(*shared, closure->shared());
   DCHECK(shared->is_compiled());
   DCHECK_IMPLIES(is_osr(), IsOptimizing());
+  // TODO(dmercadier): get the BytecodeArray from a trusted place rather than
+  // from the SharedFunctionInfo.
   bytecode_array_ = handle(shared->GetBytecodeArray(isolate), isolate);
+
   shared_info_ = shared;
   closure_ = closure;
   canonical_handles_ = std::make_unique<CanonicalHandlesMap>(

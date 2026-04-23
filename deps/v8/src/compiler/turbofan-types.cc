@@ -146,6 +146,7 @@ Type::bitset Type::BitsetLub() const {
 // MapRef and get rid of the HeapObjectType class.
 template <typename MapRefLike>
 Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
+  // LINT.IfChange(bitset_type_lub)
   switch (map.instance_type()) {
     case CONS_TWO_BYTE_STRING_TYPE:
     case CONS_ONE_BYTE_STRING_TYPE:
@@ -263,6 +264,7 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
     case JS_ASYNC_FUNCTION_OBJECT_TYPE:
     case JS_ASYNC_GENERATOR_OBJECT_TYPE:
     case JS_MODULE_NAMESPACE_TYPE:
+    case JS_DEFERRED_MODULE_NAMESPACE_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
     case JS_ARRAY_ITERATOR_TYPE:
     case JS_REG_EXP_TYPE:
@@ -283,6 +285,7 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
     case JS_ITERATOR_TAKE_HELPER_TYPE:
     case JS_ITERATOR_DROP_HELPER_TYPE:
     case JS_ITERATOR_FLAT_MAP_HELPER_TYPE:
+    case JS_ITERATOR_CONCAT_HELPER_TYPE:
     case JS_VALID_ITERATOR_WRAPPER_TYPE:
     case JS_FINALIZATION_REGISTRY_TYPE:
     case JS_WEAK_MAP_TYPE:
@@ -342,6 +345,7 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
 #undef TYPED_ARRAY_CONSTRUCTORS_SWITCH
       DCHECK(!map.is_undetectable());
       return kCallableFunction;
+    case JS_DETACHED_TYPED_ARRAY_TYPE:
     case JS_TYPED_ARRAY_TYPE:
       DCHECK(!map.is_callable());
       DCHECK(!map.is_undetectable());
@@ -426,6 +430,7 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
     default:
       UNREACHABLE();
   }
+  // LINT.ThenChange()
   UNREACHABLE();
 }
 
@@ -933,15 +938,15 @@ Type Type::Constant(JSHeapBroker* broker, ObjectRef ref, Zone* zone) {
   if (ref.IsSmi()) {
     return Constant(static_cast<double>(ref.AsSmi()), zone);
   }
-  if (ref.HoleType() != HoleType::kNone) {
-    return Type::Hole();
-  }
   if (ref.IsString() && !ref.IsInternalizedString()) {
     return Type::String();
   }
   if (ref.IsJSPrimitiveWrapper() &&
       ref.AsJSPrimitiveWrapper().IsStringWrapper(broker)) {
     return Type::StringWrapper();
+  }
+  if (ref.HoleType() != HoleType::kNone) {
+    return Type::Hole();
   }
   if (ref.IsJSTypedArray()) {
     return Type::TypedArray();

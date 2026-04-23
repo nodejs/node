@@ -9,6 +9,7 @@
 
 #include "include/v8-profiler.h"
 #include "src/base/hashing.h"
+#include "src/base/iterator.h"
 #include "src/base/lazy-instance.h"
 #include "src/codegen/source-position.h"
 #include "src/objects/shared-function-info-inl.h"
@@ -479,10 +480,10 @@ ProfileNode* ProfileTree::AddPathFromEnd(const std::vector<CodeEntry*>& path,
                                          LineAndColumn pos, bool update_stats) {
   ProfileNode* node = root_;
   CodeEntry* last_entry = nullptr;
-  for (auto it = path.rbegin(); it != path.rend(); ++it) {
-    if (*it == nullptr) continue;
-    last_entry = *it;
-    node = node->FindOrAddChild(*it, LineAndColumn{});
+  for (CodeEntry* entry : base::Reversed(path)) {
+    if (entry == nullptr) continue;
+    last_entry = entry;
+    node = node->FindOrAddChild(entry, LineAndColumn{});
   }
   if (last_entry && last_entry->has_deopt_info()) {
     node->CollectDeoptInfo(last_entry);
@@ -502,12 +503,12 @@ ProfileNode* ProfileTree::AddPathFromEnd(const ProfileStackTrace& path,
   ProfileNode* node = root_;
   CodeEntry* last_entry = nullptr;
   LineAndColumn parent_pos = {};
-  for (auto it = path.rbegin(); it != path.rend(); ++it) {
-    if (it->code_entry == nullptr) continue;
-    last_entry = it->code_entry;
-    node = node->FindOrAddChild(it->code_entry, parent_pos);
-    parent_pos = mode == ProfilingMode::kCallerLineNumbers ? it->line_and_column
-                                                           : LineAndColumn{};
+  for (const auto& [entry, frame_pos] : base::Reversed(path)) {
+    if (entry == nullptr) continue;
+    last_entry = entry;
+    node = node->FindOrAddChild(entry, parent_pos);
+    parent_pos =
+        mode == ProfilingMode::kCallerLineNumbers ? frame_pos : LineAndColumn{};
   }
   if (last_entry && last_entry->has_deopt_info()) {
     node->CollectDeoptInfo(last_entry);
@@ -570,6 +571,24 @@ void ContextFilter::OnMoveEvent(Address from_address, Address to_address) {
 
 using v8::tracing::TracedValue;
 
+namespace {
+
+constexpr const char* ToString(v8::CpuProfileSource source) {
+  switch (source) {
+    case v8::CpuProfileSource::kUnspecified:
+      return "Unspecified";
+    case v8::CpuProfileSource::kInspector:
+      return "Inspector";
+    case v8::CpuProfileSource::kSelfProfiling:
+      return "SelfProfiling";
+    case v8::CpuProfileSource::kInternal:
+      return "Internal";
+  }
+  UNREACHABLE();
+}
+
+}  // namespace
+
 std::atomic<ProfilerId> CpuProfilesCollection::last_id_{0};
 
 CpuProfile::CpuProfile(CpuProfiler* profiler, ProfilerId id, const char* title,
@@ -590,6 +609,7 @@ CpuProfile::CpuProfile(CpuProfiler* profiler, ProfilerId id, const char* title,
   // should be used instead (it is recorded nearly immediately after).
   auto value = TracedValue::Create();
   value->SetDouble("startTime", start_time_.since_origin().InMicroseconds());
+  value->SetString("source", ToString(options_.profile_source()));
   TRACE_EVENT_SAMPLE_WITH_ID1(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"),
                               "Profile", id_, "data", std::move(value));
 
@@ -693,6 +713,8 @@ void CpuProfile::StreamPendingTraceEvents() {
   if (pending_nodes.empty() && samples_.empty()) return;
   auto value = TracedValue::Create();
 
+  value->SetString("source", ToString(options_.profile_source()));
+
   if (!pending_nodes.empty() || streaming_next_sample_ != samples_.size()) {
     value->BeginDictionary("cpuProfile");
     if (!pending_nodes.empty()) {
@@ -774,6 +796,7 @@ void CpuProfile::FinishProfile() {
   context_filter_.set_native_context_address(kNullAddress);
   StreamPendingTraceEvents();
   auto value = TracedValue::Create();
+  value->SetString("source", ToString(options_.profile_source()));
   // The endTime timestamp is not converted to Perfetto's clock domain and will
   // get out of sync with other timestamps Perfetto knows about, including the
   // automatic trace event "ts" timestamp. endTime is included for backward

@@ -16,7 +16,7 @@ let $s2 = builder.addStruct({fields: [i32_field], supertype: $s1});
 
 let sig_r_v = makeSig([], [kWasmAnyRef]);
 let sig_v_r = makeSig([kWasmAnyRef], []);
-let sig_i_r = makeSig([kWasmAnyRef], [kWasmI32])
+let sig_i_r = makeSig([kWasmAnyRef], [kWasmI32]);
 
 function MakeFunctions(type_index) {
   builder.addFunction("make_s" + type_index, sig_r_v).exportFunc().addBody([
@@ -28,6 +28,11 @@ function MakeFunctions(type_index) {
     kGCPrefix, kExprRefCast, kWasmExact, type_index,
     kExprDrop,
   ]);
+
+  let sig_v_exact_s = makeSig([wasmRefType(type_index).exact()], []);
+  builder.addFunction("implicit_cast_s" + type_index, sig_v_exact_s)
+    .exportFunc()
+    .addBody([]);
 
   builder.addFunction("test_s" + type_index, sig_i_r).exportFunc().addBody([
     kExprLocalGet, 0,
@@ -78,6 +83,14 @@ assertThrows(() => wasm.cast_s1(s0), WebAssembly.RuntimeError, "illegal cast");
 assertThrows(() => wasm.cast_s0(s1), WebAssembly.RuntimeError, "illegal cast");
 wasm.cast_s1(s1);
 assertThrows(() => wasm.cast_s2(s1), WebAssembly.RuntimeError, "illegal cast");
+
+assertThrows(
+    () => wasm.implicit_cast_s0(s1), TypeError,
+    "type incompatibility when transforming from/to JS");
+wasm.implicit_cast_s1(s1);
+assertThrows(
+    () => wasm.implicit_cast_s2(s1), TypeError,
+    "type incompatibility when transforming from/to JS");
 
 assertThrows(() => wasm.cast_s1(s2), WebAssembly.RuntimeError, "illegal cast");
 wasm.cast_s2(s2);

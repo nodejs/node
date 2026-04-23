@@ -61,6 +61,10 @@ using IsAtLeastIterator =
     std::is_convertible<IteratorConcept<Iterator>, IteratorTag>;
 
 template <typename Iterator>
+using IsAtLeastInputIterator =
+    IsAtLeastIterator<std::input_iterator_tag, Iterator>;
+
+template <typename Iterator>
 using IsAtLeastForwardIterator =
     IsAtLeastIterator<std::forward_iterator_tag, Iterator>;
 

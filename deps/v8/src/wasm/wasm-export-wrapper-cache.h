@@ -63,8 +63,8 @@ class WasmExportWrapperCache : public AllStatic {
     // Note: "hash" is a bit of a misnomer here; we require this value to
     // fully represent the identity of the cached value. See {FirstProbe} for
     // the step where collisions can and do happen.
-    static_assert(kMaxCanonicalTypes < (1u << 20));
-    return ((receiver_is_first_param ? 1 : 0) << 20) | sig_index.index;
+    static_assert(kMaxCanonicalTypes < (1u << 21));
+    return ((receiver_is_first_param ? 1 : 0) << 21) | sig_index.index;
   }
 
   // Maps the n-th entry to an index in the underlying WeakFixedArray.

@@ -116,7 +116,7 @@ class Decoder {
       : Decoder(start, start, end, buffer_offset) {}
   explicit Decoder(const base::Vector<const uint8_t> bytes,
                    uint32_t buffer_offset = 0)
-      : Decoder(bytes.begin(), bytes.begin() + bytes.length(), buffer_offset) {}
+      : Decoder(bytes.begin(), bytes.end(), buffer_offset) {}
   Decoder(const uint8_t* start, const uint8_t* pc, const uint8_t* end,
           uint32_t buffer_offset = 0)
       : start_(start), pc_(pc), end_(end), buffer_offset_(buffer_offset) {
