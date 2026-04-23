@@ -55,6 +55,20 @@ const { hasOpenSSL3 } = require('../common/crypto');
     code: 'ERR_INVALID_ARG_VALUE',
     message: "The argument 'type' must be a supported key type. Received 'rsa2'"
   });
+
+  for (const type of ['toString', 'constructor']) {
+    assert.throws(() => generateKeyPairSync(type, {}), {
+      name: 'TypeError',
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: `The argument 'type' must be a supported key type. Received '${type}'`
+    });
+
+    assert.throws(() => generateKeyPair(type, {}, common.mustNotCall()), {
+      name: 'TypeError',
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: `The argument 'type' must be a supported key type. Received '${type}'`
+    });
+  }
 }
 
 {
