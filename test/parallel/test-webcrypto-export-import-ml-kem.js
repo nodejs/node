@@ -491,3 +491,16 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
     });
   }
 })().then(common.mustCall());
+
+// Regression test: JWK `key_ops` validation must recognize ML-KEM operations
+// (encapsulateKey, encapsulateBits, decapsulateKey, decapsulateBits) so that
+// duplicate entries are rejected
+(async function() {
+  for (const op of ['encapsulateKey', 'encapsulateBits',
+                    'decapsulateKey', 'decapsulateBits']) {
+    const jwk = { ...keyData['ML-KEM-768'].jwk, key_ops: [op, op] };
+    await assert.rejects(
+      subtle.importKey('jwk', jwk, { name: 'ML-KEM-768' }, true, [op]),
+      { name: 'DataError', message: /Duplicate key operation/ });
+  }
+})().then(common.mustCall());
