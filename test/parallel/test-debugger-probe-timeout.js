@@ -4,9 +4,8 @@
 const common = require('../common');
 common.skipIfInspectorDisabled();
 
-const assert = require('assert');
 const { spawnSyncAndExit } = require('../common/child_process');
-const { timeoutScript } = require('../common/debugger-probe');
+const { assertProbeJson, timeoutScript } = require('../common/debugger-probe');
 
 spawnSyncAndExit(process.execPath, [
   'inspect',
@@ -19,7 +18,7 @@ spawnSyncAndExit(process.execPath, [
   signal: null,
   status: 1,
   stdout(output) {
-    assert.deepStrictEqual(JSON.parse(output), {
+    assertProbeJson(output, {
       v: 1,
       probes: [{ expr: '1', target: [timeoutScript, 99] }],
       results: [{
