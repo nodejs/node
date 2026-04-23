@@ -148,6 +148,9 @@ describe('net.SocketAddress...', () => {
       { input: '0x.0x.0', address: '0.0.0.0', port: 0, family: 'ipv4' },
       { input: '[1:0::]', address: '1::', port: 0, family: 'ipv6' },
       { input: '[1::8]:123', address: '1::8', port: 123, family: 'ipv6' },
+      { input: '127.0.0.1:80', address: '127.0.0.1', port: 80, family: 'ipv4' },
+      { input: '127.0.0.1:443', address: '127.0.0.1', port: 443, family: 'ipv4' },
+      { input: '[::1]:80', address: '::1', port: 80, family: 'ipv6' },
     ];
 
     good.forEach((i) => {
