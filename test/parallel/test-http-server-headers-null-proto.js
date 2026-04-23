@@ -35,7 +35,12 @@ const net = require('net');
 // Test 2: req.trailers has a null prototype
 {
   const server = http.createServer(common.mustCall((req, res) => {
+    req.on('end', common.mustCall(() => {
+      assert.strictEqual(Object.getPrototypeOf(req.trailers), null);
+      assert.strictEqual(req.trailers['x-client-trailer'], 'bar');
+    }));
     res.setHeader('Transfer-Encoding', 'chunked');
+    res.setHeader('Trailer', 'X-Trailer');
     res.write('Hello');
     res.addTrailers({
       'X-Trailer': 'test',
@@ -50,8 +55,12 @@ const net = require('net');
       client.write(
         'GET / HTTP/1.1\r\n' +
         'Host: localhost\r\n' +
-        'TE: trailers\r\n' +
+        'Transfer-Encoding: chunked\r\n' +
+        'Trailer: X-Client-Trailer\r\n' +
         'Connection: close\r\n' +
+        '\r\n' +
+        '0\r\n' +
+        'X-Client-Trailer: bar\r\n' +
         '\r\n',
       );
     }));

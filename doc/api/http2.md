@@ -4120,6 +4120,9 @@ The request/response headers object.
 
 Key-value pairs of header names and values. Header names are lower-cased.
 
+The object has a null prototype and should not be accessed using the `in`
+operator.
+
 ```js
 // Prints something like:
 //
@@ -4278,6 +4281,9 @@ added: v8.4.0
 * Type: {Object}
 
 The request/response trailers object. Only populated at the `'end'` event.
+
+The object has a null prototype and should not be accessed using the `in`
+operator.
 
 #### `request.url`
 
