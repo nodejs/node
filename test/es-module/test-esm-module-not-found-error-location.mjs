@@ -14,12 +14,26 @@ await writeFile(entry, [
   'console.log(ok, missing);',
 ].join('\n'));
 
-const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [entry]);
+async function assertModuleNotFoundLocation(args) {
+  const { code, signal, stdout, stderr } = await spawnPromisified(execPath, args);
 
-assert.strictEqual(code, 1);
-assert.strictEqual(signal, null);
-assert.strictEqual(stdout, '');
-assert.ok(stderr.includes(`${entry}:2`));
-assert.match(stderr, /import missing from "this-package-does-not-exist";/);
-assert.match(stderr, / {21}\^{27}/);
-assert.match(stderr, /ERR_MODULE_NOT_FOUND/);
+  assert.strictEqual(code, 1);
+  assert.strictEqual(signal, null);
+  assert.strictEqual(stdout, '');
+  assert.ok(stderr.includes(`${entry}:2`));
+  assert.match(stderr, /import missing from "this-package-does-not-exist";/);
+  assert.match(stderr, / {21}\^{27}/);
+  assert.match(stderr, /ERR_MODULE_NOT_FOUND/);
+}
+
+await assertModuleNotFoundLocation([entry]);
+
+await assertModuleNotFoundLocation([
+  '--no-warnings',
+  '--import',
+  'data:text/javascript,' +
+    'import{register}from"node:module";' +
+    'register("data:text/javascript,' +
+    'export async function resolve(s,c,n){return n(s,c)}")',
+  entry,
+]);

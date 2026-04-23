@@ -45,3 +45,21 @@ assert.ok(longLineResult.stderr.includes(`${longLineEntry}:1`));
 assert.match(longLineResult.stderr, /\.\.\.x+"; require\("this-package-does-not-exist"\);/);
 assert.match(longLineResult.stderr, / {43}\^{27}/);
 assert.match(longLineResult.stderr, /MODULE_NOT_FOUND/);
+
+const variableEntry = tmpdir.resolve('variable-entry.cjs');
+writeFileSync(variableEntry, [
+  'const pkg = "this-package-does-not-exist";',
+  'require(pkg);',
+].join('\n'));
+
+const variableResult = spawnSync(process.execPath, [variableEntry], {
+  encoding: 'utf8',
+});
+
+assert.strictEqual(variableResult.status, 1);
+assert.strictEqual(variableResult.signal, null);
+assert.strictEqual(variableResult.stdout, '');
+assert.ok(variableResult.stderr.includes(`${variableEntry}:2`));
+assert.match(variableResult.stderr, /require\(pkg\);/);
+assert.match(variableResult.stderr, /^\^{27}$/m);
+assert.match(variableResult.stderr, /MODULE_NOT_FOUND/);
