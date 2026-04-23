@@ -912,6 +912,19 @@ bool DatabaseSync::Open() {
     return false;
   }
 
+  // Permission checks: skip for in-memory databases, enforce FS permissions
+  // for file-backed databases.
+  std::string_view db_path = open_config_.location();
+  if (db_path != ":memory:" && !db_path.empty()) {
+    if (open_config_.get_read_only()) {
+      THROW_IF_INSUFFICIENT_PERMISSIONS(
+          env(), permission::PermissionScope::kFileSystemRead, db_path, false);
+    } else {
+      THROW_IF_INSUFFICIENT_PERMISSIONS(
+          env(), permission::PermissionScope::kFileSystemWrite, db_path, false);
+    }
+  }
+
   // TODO(cjihrig): Support additional flags.
   int default_flags = SQLITE_OPEN_URI;
   int flags = open_config_.get_read_only()
