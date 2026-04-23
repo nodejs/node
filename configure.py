@@ -202,14 +202,14 @@ parser.add_argument("--enable-pgo-generate",
     dest="enable_pgo_generate",
     default=None,
     help="Enable profiling with pgo of a binary. This feature is only available "
-         "on linux with gcc and g++ 5.4.1 or newer.")
+         "on linux with gcc and g++ 5.4.1 or newer and on windows.")
 
 parser.add_argument("--enable-pgo-use",
     action="store_true",
     dest="enable_pgo_use",
     default=None,
     help="Enable use of the profile generated with --enable-pgo-generate. This "
-         "feature is only available on linux with gcc and g++ 5.4.1 or newer.")
+         "feature is only available on linux with gcc and g++ 5.4.1 or newer and on windows.")
 
 parser.add_argument("--enable-lto",
     action="store_true",
@@ -217,6 +217,13 @@ parser.add_argument("--enable-lto",
     default=None,
     help="Enable compiling with lto of a binary. This feature is only available "
          "with gcc 5.4.1+ or clang 3.9.1+.")
+
+parser.add_argument("--enable-thin-lto",
+    action="store_true",
+    dest="enable_thin_lto",
+    default=None,
+    help="Enable compiling with thin lto of a binary. This feature is only available "
+         "on windows.")
 
 parser.add_argument("--link-module",
     action="append",
@@ -925,7 +932,8 @@ parser.add_argument('--with-ltcg',
     action='store_true',
     dest='with_ltcg',
     default=None,
-    help='Use Link Time Code Generation. This feature is only available on Windows.')
+    help='Use Thin LTO scoped to node.exe and libnode only. '
+         'This feature is only available on Windows.')
 
 parser.add_argument('--write-snapshot-as-array-literals',
     action='store_true',
@@ -1916,9 +1924,9 @@ def configure_node(o):
   else:
     o['variables']['node_enable_v8_vtunejit'] = 'false'
 
-  if flavor != 'linux' and (options.enable_pgo_generate or options.enable_pgo_use):
+  if (flavor != 'linux' and flavor != 'win') and (options.enable_pgo_generate or options.enable_pgo_use):
     raise Exception(
-      'The pgo option is supported only on linux.')
+      'The pgo option is supported only on linux and windows.')
 
   if flavor == 'linux':
     if options.enable_pgo_generate or options.enable_pgo_use:
@@ -1929,21 +1937,55 @@ def configure_node(o):
           'The options --enable-pgo-generate and --enable-pgo-use '
           f'are supported for gcc and gxx {version_checked_str} or newer only.')
 
-    if options.enable_pgo_generate and options.enable_pgo_use:
-      raise Exception(
-        'Only one of the --enable-pgo-generate or --enable-pgo-use options '
-        'can be specified at a time. You would like to use '
-        '--enable-pgo-generate first, profile node, and then recompile '
-        'with --enable-pgo-use')
+  if options.enable_pgo_generate and options.enable_pgo_use:
+    raise Exception(
+      'Only one of the --enable-pgo-generate or --enable-pgo-use options '
+      'can be specified at a time. You would like to use '
+      '--enable-pgo-generate first, profile node, and then recompile '
+      'with --enable-pgo-use')
 
   o['variables']['enable_pgo_generate'] = b(options.enable_pgo_generate)
   o['variables']['enable_pgo_use']      = b(options.enable_pgo_use)
 
-  if flavor == 'win' and (options.enable_lto):
-    raise Exception(
-      'Use Link Time Code Generation instead.')
+  if flavor == 'win' and (options.enable_pgo_generate or options.enable_pgo_use):
+    lib_suffix = 'aarch64' if target_arch == 'arm64' else 'x86_64'
+    lib_name = f'clang_rt.profile-{lib_suffix}.lib'
+    msvc_dir = target_arch  # 'x64' or 'arm64'
 
-  if options.enable_lto:
+    vc_tools_dir = os.environ.get('VCToolsInstallDir', '')
+    if vc_tools_dir:
+      clang_profile_lib = os.path.join(vc_tools_dir, 'lib', msvc_dir, lib_name)
+      if os.path.isfile(clang_profile_lib):
+        o['variables']['clang_profile_lib'] = clang_profile_lib
+      else:
+        raise Exception(
+          f'PGO profile runtime library not found at {clang_profile_lib}. '
+          'Ensure the ClangCL toolset is installed.')
+    else:
+      raise Exception(
+        'VCToolsInstallDir not set. Run from a Visual Studio command prompt.')
+
+  if flavor != 'win' and options.enable_thin_lto:
+    raise Exception(
+      'Use --enable-lto instead.')
+
+  # LTO mutual exclusion
+  if flavor == 'win':
+    lto_options = []
+    if options.enable_lto:
+      lto_options.append('--enable-lto')
+    if options.enable_thin_lto:
+      lto_options.append('--enable-thin-lto')
+    if options.with_ltcg:
+      lto_options.append('--with-ltcg')
+    if len(lto_options) > 1:
+      raise Exception(
+        f'Only one LTO option can be specified at a time: {", ".join(lto_options)}. '
+        'Use --enable-lto for Full LTO (global), '
+        '--enable-thin-lto for Thin LTO (global), '
+        'or --with-ltcg for Thin LTO (scoped to node.exe and libnode).')
+
+  if options.enable_lto and flavor != 'win':
     gcc_version_checked = (5, 4, 1)
     clang_version_checked = (3, 9, 1)
     if not gcc_version_ge(gcc_version_checked) and not clang_version_ge(clang_version_checked):
@@ -1954,6 +1996,7 @@ def configure_node(o):
         f'or clang {clang_version_checked_str}+ only.')
 
   o['variables']['enable_lto'] = b(options.enable_lto)
+  o['variables']['enable_thin_lto'] = b(options.enable_thin_lto)
 
   if options.node_use_large_pages or options.node_use_large_pages_script_lld:
     warn('''The `--use-largepages` and `--use-largepages-script-lld` options
