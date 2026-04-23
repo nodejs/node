@@ -9,6 +9,7 @@ const assert = require('assert');
 
 const {
   normalizeAlgorithm,
+  validateKeyOps,
 } = require('internal/crypto/util');
 
 {
@@ -48,4 +49,13 @@ const {
   const normalized = normalizeAlgorithm(algorithm, 'sign');
   assert.strictEqual(normalized.name, 'ECDSA');
   assert.strictEqual(nameReadCount, 1);
+}
+
+{
+  for (const ops of [
+    ['sign', 'toString', 'constructor'],
+    ['sign', '__proto__', 'constructor'],
+  ]) {
+    validateKeyOps(ops);
+  }
 }
