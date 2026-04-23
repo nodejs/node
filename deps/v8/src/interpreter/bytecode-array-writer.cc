@@ -5,14 +5,18 @@
 #include "src/interpreter/bytecode-array-writer.h"
 
 #include "src/api/api-inl.h"
+#include "src/base/numerics/safe_conversions.h"
 #include "src/heap/local-factory-inl.h"
 #include "src/interpreter/bytecode-jump-table.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-node.h"
+#include "src/interpreter/bytecode-operands.h"
 #include "src/interpreter/bytecode-source-info.h"
+#include "src/interpreter/bytecodes.h"
 #include "src/interpreter/constant-array-builder.h"
 #include "src/interpreter/handler-table-builder.h"
 #include "src/objects/objects-inl.h"
+#include "src/sandbox/bytecode-verifier.h"
 
 namespace v8 {
 namespace internal {
@@ -50,6 +54,9 @@ Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
   Handle<BytecodeArray> bytecode_array = isolate->factory()->NewBytecodeArray(
       bytecode_size, &bytecodes()->front(), frame_size, parameter_count,
       max_arguments, constant_pool, handler_table);
+
+  BytecodeVerifier::Verify(isolate, bytecode_array, zone());
+
   return bytecode_array;
 }
 
@@ -81,26 +88,40 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
         LocalIsolate* isolate);
 
 #ifdef DEBUG
-int BytecodeArrayWriter::CheckBytecodeMatches(Tagged<BytecodeArray> bytecode) {
-  int mismatches = false;
+int BytecodeArrayWriter::CheckBytecodeMatches(Handle<BytecodeArray> bytecode) {
   int bytecode_size = static_cast<int>(bytecodes()->size());
   const uint8_t* bytecode_ptr = &bytecodes()->front();
-  if (bytecode_size != bytecode->length()) mismatches = true;
+  // we only check up to the minimum length.
+  int min_length = std::min(bytecode_size, bytecode->length());
 
-  // If there's a mismatch only in the length of the bytecode (very unlikely)
-  // then the first mismatch will be the first extra bytecode.
-  int first_mismatch = std::min(bytecode_size, bytecode->length());
-  for (int i = 0; i < first_mismatch; ++i) {
-    if (bytecode_ptr[i] != bytecode->get(i)) {
-      mismatches = true;
-      first_mismatch = i;
-      break;
+  BytecodeArrayIterator it(bytecode);
+  while (!it.done() && it.current_offset() < min_length) {
+    int bytes_need_to_check = it.current_bytecode_size();
+    // skip embedded feedback value.
+    if (Bytecodes::IsEmbeddedFeedbackBytecode(it.current_bytecode())) {
+      bytes_need_to_check -= static_cast<int>(
+          Bytecodes::GetOperandSize(it.current_bytecode(), /*operand_idx=*/1,
+                                    it.current_operand_scale()));
     }
+
+    int start_idx = it.current_offset();
+    DCHECK_GE(start_idx, 0);
+    for (int i = start_idx; i < start_idx + bytes_need_to_check; ++i) {
+      // boundary check
+      if (i >= min_length) break;
+      if (bytecode_ptr[i] != bytecode->get(i)) {
+        return i;
+      }
+    }
+    it.Advance();
   }
 
-  if (mismatches) {
-    return first_mismatch;
+  // all common bytes are checked and no mismatches founded, then the first
+  // mismatch will be the first extra byte (if have).
+  if (bytecode_size != bytecode->length()) {
+    return min_length;
   }
+  // no mismatches founded.
   return -1;
 }
 #endif
@@ -459,6 +480,67 @@ void BytecodeArrayWriter::PatchJump(size_t jump_target, size_t jump_location) {
   unbound_jumps_--;
 }
 
+void BytecodeArrayWriter::PatchJumpTableSize(BytecodeJumpTable* table,
+                                             int size) {
+  CHECK_LT(size, table->size());
+
+  size_t switch_location = table->switch_bytecode_offset();
+  OperandScale operand_scale = table->switch_bytecode_operand_scale();
+
+  Bytecode switch_bytecode =
+      Bytecodes::FromByte(bytecodes()->at(switch_location));
+
+  // Currently only SwitchOnGeneratorState is supported, since uses of
+  // SwitchOnSmiNoFeedback can ensure that it is correctly sized.
+  CHECK_EQ(switch_bytecode, Bytecode::kSwitchOnGeneratorState);
+  DCHECK(Bytecodes::IsSwitch(switch_bytecode));
+  // Verify that there is a prefix bytecode if the operand scale would need one.
+  DCHECK_IMPLIES(
+      operand_scale > OperandScale::kSingle,
+      operand_scale ==
+          Bytecodes::PrefixBytecodeToOperandScale(
+              Bytecodes::FromByte(bytecodes()->at(switch_location - 1))));
+
+  DCHECK_EQ(Bytecodes::GetOperandType(switch_bytecode, 0), OperandType::kReg);
+  DCHECK_EQ(Bytecodes::GetOperandType(switch_bytecode, 1),
+            OperandType::kConstantPoolIndex);
+  DCHECK_EQ(Bytecodes::GetOperandType(switch_bytecode, 2), OperandType::kUImm);
+
+  size_t size_operand_location =
+      switch_location +
+      Bytecodes::GetOperandOffset(switch_bytecode, 2, operand_scale);
+
+  uint8_t* operand_ptr = &bytecodes()->at(size_operand_location);
+
+  switch (operand_scale) {
+    case OperandScale::kSingle:
+      base::WriteUnalignedValue<uint8_t>(reinterpret_cast<Address>(operand_ptr),
+                                         base::checked_cast<uint8_t>(size));
+      break;
+    case OperandScale::kDouble:
+      base::WriteUnalignedValue<uint16_t>(
+          reinterpret_cast<Address>(operand_ptr),
+          base::checked_cast<uint16_t>(size));
+      break;
+    case OperandScale::kQuadruple:
+      base::WriteUnalignedValue<uint32_t>(
+          reinterpret_cast<Address>(operand_ptr),
+          base::checked_cast<uint32_t>(size));
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  // Set the dead constant pool entries to Smi::zero, so that an invalid access
+  // to one of them ends up hanging rather than jumping randomly.
+  size_t constant_pool_index = table->constant_pool_index();
+  for (int i = size; i < table->size(); ++i) {
+    constant_array_builder_->SetJumpTableSmi(constant_pool_index + i,
+                                             Smi::zero());
+  }
+  table->set_size(size);
+}
+
 void BytecodeArrayWriter::EmitJumpLoop(BytecodeNode* node,
                                        BytecodeLoopHeader* loop_header) {
   DCHECK_EQ(node->bytecode(), Bytecode::kJumpLoop);
@@ -540,7 +622,7 @@ void BytecodeArrayWriter::EmitSwitch(BytecodeNode* node,
     // Adjust for scaling byte prefix.
     current_offset += 1;
   }
-  jump_table->set_switch_bytecode_offset(current_offset);
+  jump_table->set_switch_bytecode_offset(current_offset, node->operand_scale());
 
   EmitBytecode(node);
 }

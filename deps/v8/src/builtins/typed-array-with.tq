@@ -15,8 +15,8 @@ transitioning javascript builtin TypedArrayPrototypeWith(
     // 3. Let len be TypedArrayLength(taRecord).
     const array: JSTypedArray =
         Cast<JSTypedArray>(receiver) otherwise NotTypedArray;
-    let attachedArrayAndLength = EnsureAttachedAndReadLength(array)
-        otherwise IsDetachedOrOutOfBounds;
+    let attachedArrayAndLength = EnsureValidAndReadLength(
+        array, TypedArrayAccessMode::kRead) otherwise Fail;
     const originalLength = attachedArrayAndLength.length;
 
     // 4. Let relativeIndex be ? ToIntegerOrInfinity(index).
@@ -38,8 +38,8 @@ transitioning javascript builtin TypedArrayPrototypeWith(
     //
     // 9. If IsValidIntegerIndex(O, 𝔽(actualIndex)) is false, throw a
     // RangeError exception.
-    attachedArrayAndLength = EnsureAttachedAndReadLength(array)
-        otherwise IndexOutOfBounds;
+    attachedArrayAndLength = EnsureValidAndReadLength(
+        array, TypedArrayAccessMode::kRead) otherwise IndexOutOfBounds;
     const actualIndex: uintptr =
         ConvertRelativeIndex(relativeIndex, attachedArrayAndLength.length)
         otherwise IndexOutOfBounds, IndexOutOfBounds;
@@ -90,8 +90,9 @@ transitioning javascript builtin TypedArrayPrototypeWith(
     ThrowRangeError(MessageTemplate::kInvalidTypedArrayIndex);
   } label NotTypedArray deferred {
     ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameWith);
-  } label IsDetachedOrOutOfBounds deferred {
-    ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameWith);
+  } label Fail deferred {
+    ThrowTypeError(
+        MessageTemplate::kTypedArrayValidateErrorOperation, kBuiltinNameWith);
   }
 }
 }

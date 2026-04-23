@@ -55,7 +55,7 @@ TEST_F(ControlFlowTest, DefaultBlockInlining) {
 // BranchElimination should remove such branches by cloning the block with the
 // branch. In the end, the graph should contain (almost) no branches anymore.
 TEST_F(ControlFlowTest, BranchElimination) {
-  static constexpr int kSize = 10000;
+  static constexpr int kSize = 200;
 
   auto test = CreateFromGraph(1, [](auto& Asm) {
     V<Word32> cond =

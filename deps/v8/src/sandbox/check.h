@@ -9,9 +9,8 @@
 
 #include "src/sandbox/hardware-support.h"
 
-// When the sandbox is enabled, a SBXCHECK behaves exactly like a CHECK, but
-// indicates that the check is required for the sandbox, i.e. prevents a
-// sandbox bypass. When the sandbox is off, it becomes a DCHECK.
+// An SBXCHECK behaves like a CHECK, but indicates that the check is required
+// for the sandbox, i.e. prevents a sandbox bypass.
 //
 // As an example, consider a scenario where an in-sandbox object stores an
 // index into an out-of-sandbox array (or a similar data structure). While
@@ -39,7 +38,7 @@
   do {                                                                    \
     std::optional<v8::internal::DisallowSandboxAccess> no_sandbox_access; \
     if (!std::is_constant_evaluated()) {                                  \
-      no_sandbox_access.emplace();                                        \
+      no_sandbox_access.emplace("No sandbox access during SBXCHECK");     \
     }                                                                     \
     CHECK(condition);                                                     \
   } while (false)
@@ -48,7 +47,7 @@
   do {                                                                    \
     std::optional<v8::internal::DisallowSandboxAccess> no_sandbox_access; \
     if (!std::is_constant_evaluated()) {                                  \
-      no_sandbox_access.emplace();                                        \
+      no_sandbox_access.emplace("No sandbox access during SBXCHECK");     \
     }                                                                     \
     CHECK_##CONDITION(lhs, rhs);                                          \
   } while (false)

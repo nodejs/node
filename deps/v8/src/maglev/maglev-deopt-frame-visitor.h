@@ -58,17 +58,9 @@ class DeoptInfoVisitor {
     auto updated_f = [&](ValueNodeT node) {
       DCHECK(!node->template Is<VirtualObject>());
       if (std::is_same_v<ValueNodeT, ValueNode*&>) {
-        // We modify the deopt frame to bypass the Identity node, we update the
-        // use_count for consistency.
-        while (node->properties().is_conversion() ||
-               node->template Is<Identity>() ||
-               node->template Is<ReturnedValue>()) {
-          node->remove_use();
-          node = node->input(0).node();
-          node->add_use();
-        }
+        node = node->UnwrapAndUpdateUseCountForDeopt(virtual_objects_);
       } else {
-        node = node->UnwrapIdentities();
+        node = node->Unwrap();
       }
       if (auto alloc = node->template TryCast<InlinedAllocation>()) {
         VirtualObject* vobject = virtual_objects_.FindAllocatedWith(alloc);

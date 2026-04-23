@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "src/base/bits.h"
+#include "src/base/iterator.h"
 #include "src/base/logging.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/index.h"
@@ -371,6 +372,10 @@ class BranchEliminationReducer : public Next {
       goto no_change;
     }
 
+    if (!__ CanCreateNVariables(destination_origin->OpCountUpperBound())) {
+      goto no_change;
+    }
+
     if (const BranchOp* branch = last_op.template TryCast<BranchOp>()) {
       V<Word32> condition =
           __ template MapToNewGraph<true>(branch->condition());
@@ -586,8 +591,7 @@ class BranchEliminationReducer : public Next {
     // Actually does the replaying, starting from the oldest block and finishing
     // with the newest one (so that they will later be removed in the correct
     // order).
-    for (auto it = missing_blocks.rbegin(); it != missing_blocks.rend(); ++it) {
-      Block* block = *it;
+    for (Block* block : base::Reversed(missing_blocks)) {
       StartLayer(block);
 
       if (block->IsBranchTarget()) {

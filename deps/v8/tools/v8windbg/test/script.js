@@ -8,7 +8,6 @@ try {
   externalizeString(str);
 } catch (e) { }
 
-
 function a() {
   JSON.stringify({firstProp: 12345, secondProp: str}, function replacer() {});
 }

@@ -24,10 +24,8 @@ struct WasmModule;
 
 // We use ValueType instances constructed from canonical type indices, so we
 // can't let them get bigger than what we have storage space for.
-// We could raise this limit using unused bits in the ValueType, but that
-// doesn't seem urgent, as we have no evidence of the current limit being
-// an actual limitation in practice.
-static constexpr size_t kMaxCanonicalTypes = kV8MaxWasmTypes;
+// We can raise this limit as long as we have unused bits in the ValueType.
+static constexpr size_t kMaxCanonicalTypes = 2 * kV8MaxWasmTypes;
 // We don't want any valid modules to fail canonicalization.
 static_assert(kMaxCanonicalTypes >= kV8MaxWasmTypes);
 // We want the invalid index to fail any range checks.
@@ -52,7 +50,25 @@ class TypeCanonicalizer {
   static constexpr CanonicalTypeIndex kPredefinedArrayI16Index{1};
   static constexpr CanonicalTypeIndex kPredefinedArrayExternRefIndex{2};
   static constexpr CanonicalTypeIndex kPredefinedArrayFuncRefIndex{3};
-  static constexpr uint32_t kNumberOfPredefinedTypes = 4;
+  // Function signatures for compile-time builtins.
+  // Shorthands: "r" = nullable "externref", "e" = non-nullable "ref extern".
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_e_i{4};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_e_r{5};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_e_rr{6};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_e_rii{7};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_i_r{8};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_i_ri{9};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_i_rr{10};
+  // Shorthands: "a16" = nullable array of i16, "a8" analogous,
+  // "n8" = non-nullable array of i8.
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_e_a16ii{11};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_i_ra16i{12};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_i_ra8i{13};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_n8_r{14};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_e_a8ii{15};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_configureAll{16};
+
+  static constexpr uint32_t kNumberOfPredefinedTypes = 17;
 
   TypeCanonicalizer();
 
@@ -459,13 +475,13 @@ class TypeCanonicalizer {
   // Conceptually a vector of CanonicalType. Modification generally requires
   // synchronization, read-only access can be done without locking.
   class CanonicalTypeVector {
-    static constexpr uint32_t kSegmentSize = 1024;
+    static constexpr uint32_t kSegmentSize = 2048;
     static constexpr uint32_t kNumSegments =
         (kMaxCanonicalTypes + kSegmentSize - 1) / kSegmentSize;
     static_assert(kSegmentSize * kNumSegments >= kMaxCanonicalTypes);
     static_assert(
         kNumSegments <= 1024,
-        "Reconsider this data structures when increasing kMaxCanonicalTypes");
+        "Reconsider this data structure when increasing kMaxCanonicalTypes");
 
    public:
     const CanonicalType* operator[](CanonicalTypeIndex index) const {
@@ -531,7 +547,9 @@ class TypeCanonicalizer {
     std::atomic<Segment*> segments_[kNumSegments]{};
   };
 
-  void AddPredefinedArrayTypes();
+  void AddPredefinedTypes();
+  void AddPredefinedSingletonGroup(CanonicalTypeIndex index,
+                                   const CanonicalType& type);
 
   CanonicalTypeIndex FindCanonicalGroup(const CanonicalGroup&) const;
   CanonicalTypeIndex FindCanonicalGroup(const CanonicalSingletonGroup&) const;

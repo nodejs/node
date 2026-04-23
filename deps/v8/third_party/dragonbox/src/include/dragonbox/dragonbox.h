@@ -1,4 +1,4 @@
-// Copyright 2020-2024 Junekey Jeon
+// Copyright 2020-2025 Junekey Jeon
 //
 // The contents of this file may be used under the terms of
 // the Apache License v2.0 with LLVM Exceptions.
@@ -15,194 +15,256 @@
 // is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 // KIND, either express or implied.
 
+// We want to achieve the followings regarding the macro leakage of this header file:
+//   - Normally, no macro other than the header guard JKJ_HEADER_DRAGONBOX is leaked.
+//   - For internal library use, macros defined below are leaked if explicitly requested.
+//   - This header file does not include any other header file in this library.
+//   - The order of inclusions and repeated inclusions of header files in this library must not matter.
+// To achieve all of these at once, we do some preprocessing hack:
+//   - Macros are populated if JKJ_HEADER_DRAGONBOX is not defined (which means the header file is being
+//   included for the first time), or JKJ_DRAGONBOX_LEAK_MACROS is defined and
+//   JKJ_DRAGONBOX_MACROS_DEFINED is not defined at the same time.
+//   - JKJ_DRAGONBOX_MACROS_DEFINED is defined at the end of this header file if (and only if)
+//   JKJ_DRAGONBOX_LEAK_MACROS is defined.
+//   - The actual content (excluding the macros) of this header file is guarded by JKJ_HEADER_DRAGONBOX
+//   as usual.
+//   - JKJ_DRAGONBOX_MACROS_DEFINED and all macros defined below except for JKJ_HEADER_DRAGONBOX are
+//   #undef-ed at the end of this header if JKJ_DRAGONBOX_LEAK_MACROS is not defined.
 
 #ifndef JKJ_HEADER_DRAGONBOX
-#define JKJ_HEADER_DRAGONBOX
-
-// Attribute for storing static data into a dedicated place, e.g. flash memory. Every ODR-used
-// static data declaration will be decorated with this macro. The users may define this macro,
-// before including the library headers, into whatever they want.
-#ifndef JKJ_STATIC_DATA_SECTION
-    #define JKJ_STATIC_DATA_SECTION
-#else
-    #define JKJ_STATIC_DATA_SECTION_DEFINED 1
-#endif
-
-// To use the library with toolchains without standard C++ headers, the users may define this macro
-// into their custom namespace which contains the definitions of all the standard C++ library
-// features used in this header. (The list can be found below.)
-#ifndef JKJ_STD_REPLACEMENT_NAMESPACE
-    #define JKJ_STD_REPLACEMENT_NAMESPACE std
-    #include <cassert>
-    #include <cstdint>
-    #include <cstring>
-    #include <limits>
-    #include <type_traits>
-
-    #ifdef __has_include
-        #if __has_include(<version>)
-            #include <version>
-        #endif
+    // User-provided header file that contains declarations of custom implementations and config macros.
+    #ifdef JKJ_DRAGONBOX_CONFIG_HEADER_NAMES
+        #include JKJ_DRAGONBOX_CONFIG_HEADER_NAME
     #endif
-#else
-    #define JKJ_STD_REPLACEMENT_NAMESPACE_DEFINED 1
 #endif
 
-////////////////////////////////////////////////////////////////////////////////////////
-// Language feature detections.
-////////////////////////////////////////////////////////////////////////////////////////
+#if !defined(JKJ_HEADER_DRAGONBOX) ||                                                                  \
+    (defined(JKJ_DRAGONBOX_LEAK_MACROS) && !defined(JKJ_DRAGONBOX_MACROS_DEFINED))
+    // Users vendoring this library are advised to define the macro JKJ_NAMESPACE to avoid potential
+    // clash with other libraries vendoring this library. Every (non-macro) entity in this library will
+    // live inside the namespace JKJ_NAMESPACE, whose default is "jkj".
+    #ifndef JKJ_NAMESPACE
+        #define JKJ_NAMESPACE jkj
+    #else
+        #define JKJ_NAMESPACE_DEFINED 1
+    #endif
 
-// C++14 constexpr
-#if defined(__cpp_constexpr) && __cpp_constexpr >= 201304L
-    #define JKJ_HAS_CONSTEXPR14 1
-#elif __cplusplus >= 201402L
-    #define JKJ_HAS_CONSTEXPR14 1
-#elif defined(_MSC_VER) && _MSC_VER >= 1910 && _MSVC_LANG >= 201402L
-    #define JKJ_HAS_CONSTEXPR14 1
-#else
-    #define JKJ_HAS_CONSTEXPR14 0
-#endif
+    // Attribute for storing static data into a dedicated place, e.g. flash memory. Every ODR-used
+    // static data declaration will be decorated with this macro. The users may define this macro,
+    // before including the library headers, into whatever they want.
+    #ifndef JKJ_STATIC_DATA_SECTION
+        #define JKJ_STATIC_DATA_SECTION
+    #else
+        #define JKJ_STATIC_DATA_SECTION_DEFINED 1
+    #endif
 
-#if JKJ_HAS_CONSTEXPR14
-    #define JKJ_CONSTEXPR14 constexpr
-#else
-    #define JKJ_CONSTEXPR14
-#endif
+    // To use the library with toolchains without standard C++ headers, the users may define this macro
+    // into their custom namespace which contains the definitions of all the standard C++ library
+    // features used in this header. (The list can be found below.)
+    #ifndef JKJ_STD_REPLACEMENT_NAMESPACE
+        #define JKJ_STD_REPLACEMENT_NAMESPACE std
+        #include <cassert>
+        #include <cstdint>
+        #include <cstring>
+        #include <limits>
+        #include <type_traits>
 
-// C++17 constexpr lambdas
-#if defined(__cpp_constexpr) && __cpp_constexpr >= 201603L
-    #define JKJ_HAS_CONSTEXPR17 1
-#elif __cplusplus >= 201703L
-    #define JKJ_HAS_CONSTEXPR17 1
-#elif defined(_MSC_VER) && _MSC_VER >= 1911 && _MSVC_LANG >= 201703L
-    #define JKJ_HAS_CONSTEXPR17 1
-#else
-    #define JKJ_HAS_CONSTEXPR17 0
-#endif
+        #ifdef __has_include
+            #if __has_include(<version>)
+                #include <version>
+            #endif
+        #endif
+    #else
+        #define JKJ_STD_REPLACEMENT_NAMESPACE_DEFINED 1
+    #endif
 
-// C++17 inline variables
-#if defined(__cpp_inline_variables) && __cpp_inline_variables >= 201606L
-    #define JKJ_HAS_INLINE_VARIABLE 1
-#elif __cplusplus >= 201703L
-    #define JKJ_HAS_INLINE_VARIABLE 1
-#elif defined(_MSC_VER) && _MSC_VER >= 1912 && _MSVC_LANG >= 201703L
-    #define JKJ_HAS_INLINE_VARIABLE 1
-#else
-    #define JKJ_HAS_INLINE_VARIABLE 0
-#endif
+    // The compressed cache handling for IEEE-754 binary32 performs 64-bit x 32-bit -> 96-bit
+    // multiplication. The library chooses between 64-bit + 32-bit and 32-bit + 64-bit splittings of the
+    // 96-bit result depending on availability of fast 64-bit x 64-bit -> 64-bit multiplication of
+    // unsigned integers. By default, the latter is used if and only if one of the macros listed below
+    // is defined, but the user can override this behavior by defining JKJ_FAST_MUL64. This should have
+    // no impact on the codegen if compact cache for IEEE-754 binary32 is not used.
+    #ifndef JKJ_FAST_MUL64
+        #if defined(__x86_64__) || defined(__aarch64__) || defined(__ppc64__) || defined(_M_X64) ||    \
+            defined(_M_ARM64)
+            #define JKJ_FAST_MUL64 1
+        #else
+            #define JKJ_FAST_MUL64 0
+        #endif
+    #else
+        #define JKJ_FAST_MUL64_DEFINED 1
+    #endif
 
-#if JKJ_HAS_INLINE_VARIABLE
-    #define JKJ_INLINE_VARIABLE inline constexpr
-#else
-    #define JKJ_INLINE_VARIABLE static constexpr
-#endif
+    ////////////////////////////////////////////////////////////////////////////////////////
+    // Language feature detections.
+    ////////////////////////////////////////////////////////////////////////////////////////
 
-// C++17 if constexpr
-#if defined(__cpp_if_constexpr) && __cpp_if_constexpr >= 201606L
-    #define JKJ_HAS_IF_CONSTEXPR 1
-#elif __cplusplus >= 201703L
-    #define JKJ_HAS_IF_CONSTEXPR 1
-#elif defined(_MSC_VER) && _MSC_VER >= 1911 && _MSVC_LANG >= 201703L
-    #define JKJ_HAS_IF_CONSTEXPR 1
-#else
-    #define JKJ_HAS_IF_CONSTEXPR 0
-#endif
+    // C++14 variable templates
+    #if defined(__cpp_variable_templates) && __cpp_variable_templates >= 201304L
+        #define JKJ_HAS_VARIABLE_TEMPLATES 1
+    #elif __cplusplus >= 201402L
+        #define JKJ_HAS_VARIABLE_TEMPLATES 1
+    #elif defined(_MSC_FULL_VER) && _MSC_FULL_VER >= 190023918L && _MSVC_LANG >= 201402L
+        #define JKJ_HAS_VARIABLE_TEMPLATES 1
+    #else
+        #define JKJ_HAS_VARIABLE_TEMPLATES 0
+    #endif
 
-#if JKJ_HAS_IF_CONSTEXPR
-    #define JKJ_IF_CONSTEXPR if constexpr
-#else
-    #define JKJ_IF_CONSTEXPR if
-#endif
+    // C++14 constexpr
+    #if defined(__cpp_constexpr) && __cpp_constexpr >= 201304L
+        #define JKJ_HAS_CONSTEXPR14 1
+    #elif __cplusplus >= 201402L
+        #define JKJ_HAS_CONSTEXPR14 1
+    #elif defined(_MSC_VER) && _MSC_VER >= 1910 && _MSVC_LANG >= 201402L
+        #define JKJ_HAS_CONSTEXPR14 1
+    #else
+        #define JKJ_HAS_CONSTEXPR14 0
+    #endif
 
-// C++20 std::bit_cast
-#if JKJ_STD_REPLACEMENT_NAMESPACE_DEFINED
-    #if JKJ_STD_REPLACEMENT_HAS_BIT_CAST
+    #if JKJ_HAS_CONSTEXPR14
+        #define JKJ_CONSTEXPR14 constexpr
+    #else
+        #define JKJ_CONSTEXPR14
+    #endif
+
+    // C++17 constexpr lambdas
+    #if defined(__cpp_constexpr) && __cpp_constexpr >= 201603L
+        #define JKJ_HAS_CONSTEXPR17 1
+    #elif __cplusplus >= 201703L
+        #define JKJ_HAS_CONSTEXPR17 1
+    #elif defined(_MSC_VER) && _MSC_VER >= 1911 && _MSVC_LANG >= 201703L
+        #define JKJ_HAS_CONSTEXPR17 1
+    #else
+        #define JKJ_HAS_CONSTEXPR17 0
+    #endif
+
+    // C++17 inline variables
+    #if defined(__cpp_inline_variables) && __cpp_inline_variables >= 201606L
+        #define JKJ_HAS_INLINE_VARIABLE 1
+    #elif __cplusplus >= 201703L
+        #define JKJ_HAS_INLINE_VARIABLE 1
+    #elif defined(_MSC_VER) && _MSC_VER >= 1912 && _MSVC_LANG >= 201703L
+        #define JKJ_HAS_INLINE_VARIABLE 1
+    #else
+        #define JKJ_HAS_INLINE_VARIABLE 0
+    #endif
+
+    #if JKJ_HAS_INLINE_VARIABLE
+        #define JKJ_INLINE_VARIABLE inline constexpr
+    #else
+        #define JKJ_INLINE_VARIABLE static constexpr
+    #endif
+
+    // C++17 if constexpr
+    #if defined(__cpp_if_constexpr) && __cpp_if_constexpr >= 201606L
+        #define JKJ_HAS_IF_CONSTEXPR 1
+    #elif __cplusplus >= 201703L
+        #define JKJ_HAS_IF_CONSTEXPR 1
+    #elif defined(_MSC_VER) && _MSC_VER >= 1911 && _MSVC_LANG >= 201703L
+        #define JKJ_HAS_IF_CONSTEXPR 1
+    #else
+        #define JKJ_HAS_IF_CONSTEXPR 0
+    #endif
+
+    #if JKJ_HAS_IF_CONSTEXPR
+        #define JKJ_IF_CONSTEXPR if constexpr
+    #else
+        #define JKJ_IF_CONSTEXPR if
+    #endif
+
+    // C++20 std::bit_cast
+    #if JKJ_STD_REPLACEMENT_NAMESPACE_DEFINED
+        #if JKJ_STD_REPLACEMENT_HAS_BIT_CAST
+            #define JKJ_HAS_BIT_CAST 1
+        #else
+            #define JKJ_HAS_BIT_CAST 0
+        #endif
+    #elif defined(__cpp_lib_bit_cast) && __cpp_lib_bit_cast >= 201806L
+        #include <bit>
         #define JKJ_HAS_BIT_CAST 1
     #else
         #define JKJ_HAS_BIT_CAST 0
     #endif
-#elif defined(__cpp_lib_bit_cast) && __cpp_lib_bit_cast >= 201806L
-    #include <bit>
-    #define JKJ_HAS_BIT_CAST 1
-#else
-    #define JKJ_HAS_BIT_CAST 0
-#endif
 
-// C++23 if consteval or C++20 std::is_constant_evaluated
-#if defined(__cpp_if_consteval) && __cpp_is_consteval >= 202106L
-    #define JKJ_IF_CONSTEVAL if consteval
-    #define JKJ_IF_NOT_CONSTEVAL if !consteval
-    #define JKJ_CAN_BRANCH_ON_CONSTEVAL 1
-    #define JKJ_USE_IS_CONSTANT_EVALUATED 0
-#elif JKJ_STD_REPLACEMENT_NAMESPACE_DEFINED
-    #if JKJ_STD_REPLACEMENT_HAS_IS_CONSTANT_EVALUATED
-        #define JKJ_IF_CONSTEVAL if (stdr::is_constant_evaluated())
-        #define JKJ_IF_NOT_CONSTEVAL if (!stdr::is_constant_evaluated())
+    // C++23 if consteval or C++20 std::is_constant_evaluated
+    #if defined(__cpp_if_consteval) && __cpp_is_consteval >= 202106L
+        #define JKJ_IF_CONSTEVAL if consteval
+        #define JKJ_IF_NOT_CONSTEVAL if !consteval
         #define JKJ_CAN_BRANCH_ON_CONSTEVAL 1
-        #define JKJ_USE_IS_CONSTANT_EVALUATED 1
-    #elif JKJ_HAS_IF_CONSTEXPR
-        #define JKJ_IF_CONSTEVAL if constexpr (false)
-        #define JKJ_IF_NOT_CONSTEVAL if constexpr (true)
-        #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
         #define JKJ_USE_IS_CONSTANT_EVALUATED 0
+    #elif JKJ_STD_REPLACEMENT_NAMESPACE_DEFINED
+        #if JKJ_STD_REPLACEMENT_HAS_IS_CONSTANT_EVALUATED
+            #define JKJ_IF_CONSTEVAL if (stdr::is_constant_evaluated())
+            #define JKJ_IF_NOT_CONSTEVAL if (!stdr::is_constant_evaluated())
+            #define JKJ_CAN_BRANCH_ON_CONSTEVAL 1
+            #define JKJ_USE_IS_CONSTANT_EVALUATED 1
+        #elif JKJ_HAS_IF_CONSTEXPR
+            #define JKJ_IF_CONSTEVAL if constexpr (false)
+            #define JKJ_IF_NOT_CONSTEVAL if constexpr (true)
+            #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
+            #define JKJ_USE_IS_CONSTANT_EVALUATED 0
+        #else
+            #define JKJ_IF_CONSTEVAL if (false)
+            #define JKJ_IF_NOT_CONSTEVAL if (true)
+            #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
+            #define JKJ_USE_IS_CONSTANT_EVALUATED 0
+        #endif
     #else
-        #define JKJ_IF_CONSTEVAL if (false)
-        #define JKJ_IF_NOT_CONSTEVAL if (true)
-        #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
-        #define JKJ_USE_IS_CONSTANT_EVALUATED 0
+        #if defined(__cpp_lib_is_constant_evaluated) && __cpp_lib_is_constant_evaluated >= 201811L
+            #define JKJ_IF_CONSTEVAL if (stdr::is_constant_evaluated())
+            #define JKJ_IF_NOT_CONSTEVAL if (!stdr::is_constant_evaluated())
+            #define JKJ_CAN_BRANCH_ON_CONSTEVAL 1
+            #define JKJ_USE_IS_CONSTANT_EVALUATED 1
+        #elif JKJ_HAS_IF_CONSTEXPR
+            #define JKJ_IF_CONSTEVAL if constexpr (false)
+            #define JKJ_IF_NOT_CONSTEVAL if constexpr (true)
+            #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
+            #define JKJ_USE_IS_CONSTANT_EVALUATED 0
+        #else
+            #define JKJ_IF_CONSTEVAL if (false)
+            #define JKJ_IF_NOT_CONSTEVAL if (true)
+            #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
+            #define JKJ_USE_IS_CONSTANT_EVALUATED 0
+        #endif
     #endif
-#else
-    #if defined(__cpp_lib_is_constant_evaluated) && __cpp_lib_is_constant_evaluated >= 201811L
-        #define JKJ_IF_CONSTEVAL if (stdr::is_constant_evaluated())
-        #define JKJ_IF_NOT_CONSTEVAL if (!stdr::is_constant_evaluated())
-        #define JKJ_CAN_BRANCH_ON_CONSTEVAL 1
-        #define JKJ_USE_IS_CONSTANT_EVALUATED 1
-    #elif JKJ_HAS_IF_CONSTEXPR
-        #define JKJ_IF_CONSTEVAL if constexpr (false)
-        #define JKJ_IF_NOT_CONSTEVAL if constexpr (true)
-        #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
-        #define JKJ_USE_IS_CONSTANT_EVALUATED 0
+
+    #if JKJ_CAN_BRANCH_ON_CONSTEVAL && JKJ_HAS_BIT_CAST
+        #define JKJ_CONSTEXPR20 constexpr
     #else
-        #define JKJ_IF_CONSTEVAL if (false)
-        #define JKJ_IF_NOT_CONSTEVAL if (true)
-        #define JKJ_CAN_BRANCH_ON_CONSTEVAL 0
-        #define JKJ_USE_IS_CONSTANT_EVALUATED 0
+        #define JKJ_CONSTEXPR20
+    #endif
+
+    // Suppress additional buffer overrun check.
+    // I have no idea why MSVC thinks some functions here are vulnerable to the buffer overrun
+    // attacks. No, they aren't.
+    #if defined(__GNUC__) || defined(__clang__)
+        #define JKJ_SAFEBUFFERS
+        #define JKJ_FORCEINLINE inline __attribute__((always_inline))
+    #elif defined(_MSC_VER)
+        #define JKJ_SAFEBUFFERS __declspec(safebuffers)
+        #define JKJ_FORCEINLINE __forceinline
+    #else
+        #define JKJ_SAFEBUFFERS
+        #define JKJ_FORCEINLINE inline
+    #endif
+
+    #if defined(__has_builtin)
+        #define JKJ_HAS_BUILTIN(x) __has_builtin(x)
+    #else
+        #define JKJ_HAS_BUILTIN(x) false
+    #endif
+
+    #if defined(_MSC_VER)
+        #include <intrin.h>
+    #elif defined(__INTEL_COMPILER)
+        #include <immintrin.h>
     #endif
 #endif
 
-#if JKJ_CAN_BRANCH_ON_CONSTEVAL && JKJ_HAS_BIT_CAST
-    #define JKJ_CONSTEXPR20 constexpr
-#else
-    #define JKJ_CONSTEXPR20
-#endif
+#ifndef JKJ_HEADER_DRAGONBOX
+    #define JKJ_HEADER_DRAGONBOX
 
-// Suppress additional buffer overrun check.
-// I have no idea why MSVC thinks some functions here are vulnerable to the buffer overrun
-// attacks. No, they aren't.
-#if defined(__GNUC__) || defined(__clang__)
-    #define JKJ_SAFEBUFFERS
-    #define JKJ_FORCEINLINE inline __attribute__((always_inline))
-#elif defined(_MSC_VER)
-    #define JKJ_SAFEBUFFERS __declspec(safebuffers)
-    #define JKJ_FORCEINLINE __forceinline
-#else
-    #define JKJ_SAFEBUFFERS
-    #define JKJ_FORCEINLINE inline
-#endif
-
-#if defined(__has_builtin)
-    #define JKJ_HAS_BUILTIN(x) __has_builtin(x)
-#else
-    #define JKJ_HAS_BUILTIN(x) false
-#endif
-
-#if defined(_MSC_VER)
-    #include <intrin.h>
-#elif defined(__INTEL_COMPILER)
-    #include <immintrin.h>
-#endif
-
-namespace jkj {
+namespace JKJ_NAMESPACE {
     namespace dragonbox {
         ////////////////////////////////////////////////////////////////////////////////////////
         // The Compatibility layer for toolchains without standard C++ headers.
@@ -210,9 +272,9 @@ namespace jkj {
         namespace detail {
             namespace stdr {
                 // <bit>
-#if JKJ_HAS_BIT_CAST
+    #if JKJ_HAS_BIT_CAST
                 using JKJ_STD_REPLACEMENT_NAMESPACE::bit_cast;
-#endif
+    #endif
 
                 // <cassert>
                 // We need assert() macro, but it is not namespaced anyway, so nothing to do here.
@@ -231,6 +293,7 @@ namespace jkj {
                 using JKJ_STD_REPLACEMENT_NAMESPACE::uint_fast8_t;
                 using JKJ_STD_REPLACEMENT_NAMESPACE::uint_fast16_t;
                 using JKJ_STD_REPLACEMENT_NAMESPACE::uint_fast32_t;
+                using JKJ_STD_REPLACEMENT_NAMESPACE::uint_fast64_t;
                 // We need INT32_C, UINT32_C and UINT64_C macros too, but again there is nothing to do
                 // here.
 
@@ -249,21 +312,24 @@ namespace jkj {
                 using add_rvalue_reference = JKJ_STD_REPLACEMENT_NAMESPACE::add_rvalue_reference<T>;
                 template <bool cond, class T_true, class T_false>
                 using conditional = JKJ_STD_REPLACEMENT_NAMESPACE::conditional<cond, T_true, T_false>;
-#if JKJ_USE_IS_CONSTANT_EVALUATED
+    #if JKJ_USE_IS_CONSTANT_EVALUATED
                 using JKJ_STD_REPLACEMENT_NAMESPACE::is_constant_evaluated;
-#endif
+    #endif
                 template <class T1, class T2>
                 using is_same = JKJ_STD_REPLACEMENT_NAMESPACE::is_same<T1, T2>;
-#if !JKJ_HAS_BIT_CAST
+    #if !JKJ_HAS_BIT_CAST
                 template <class T>
                 using is_trivially_copyable = JKJ_STD_REPLACEMENT_NAMESPACE::is_trivially_copyable<T>;
-#endif
+    #endif
                 template <class T>
                 using is_integral = JKJ_STD_REPLACEMENT_NAMESPACE::is_integral<T>;
                 template <class T>
                 using is_signed = JKJ_STD_REPLACEMENT_NAMESPACE::is_signed<T>;
                 template <class T>
                 using is_unsigned = JKJ_STD_REPLACEMENT_NAMESPACE::is_unsigned<T>;
+
+                template <class T>
+                using make_unsigned = JKJ_STD_REPLACEMENT_NAMESPACE::make_unsigned<T>;
             }
         }
 
@@ -272,7 +338,7 @@ namespace jkj {
         // Some general utilities for C++11-compatibility.
         ////////////////////////////////////////////////////////////////////////////////////////
         namespace detail {
-#if !JKJ_HAS_CONSTEXPR17
+    #if !JKJ_HAS_CONSTEXPR17
             template <stdr::size_t... indices>
             struct index_sequence {};
 
@@ -289,19 +355,41 @@ namespace jkj {
 
             template <stdr::size_t N>
             using make_index_sequence = typename make_index_sequence_impl<0, N, void>::type;
-#endif
+    #endif
 
             // Available since C++11, but including <utility> just for this is an overkill.
             template <class T>
             typename stdr::add_rvalue_reference<T>::type declval() noexcept;
+        }
 
-            // Similarly, including <array> is an overkill.
+
+        ////////////////////////////////////////////////////////////////////////////////////////
+        // Utilities for static data.
+        ////////////////////////////////////////////////////////////////////////////////////////
+        namespace detail {
+            // Including <array> is an overkill.
             template <class T, stdr::size_t N>
             struct array {
                 T data_[N];
+                constexpr T const* data() const noexcept { return data_; }
                 constexpr T operator[](stdr::size_t idx) const noexcept { return data_[idx]; }
                 JKJ_CONSTEXPR14 T& operator[](stdr::size_t idx) noexcept { return data_[idx]; }
             };
+
+            // Platforms may require special instructions for reading static data declared with
+            // JKJ_STATIC_DATA_SECTION. Users can specify such instructions by defining the macro
+            // JKJ_READ_STATIC_DATA.
+            template <class T>
+            JKJ_CONSTEXPR20 T read_static_data(T const* ptr) noexcept {
+                JKJ_IF_CONSTEVAL { return *ptr; }
+                else {
+    #ifdef JKJ_READ_STATIC_DATA
+                    return JKJ_READ_STATIC_DATA(ptr);
+    #else
+                    return *ptr;
+    #endif
+                }
+            }
         }
 
 
@@ -322,16 +410,16 @@ namespace jkj {
 
             template <typename To, typename From>
             JKJ_CONSTEXPR20 To bit_cast(const From& from) {
-#if JKJ_HAS_BIT_CAST
+    #if JKJ_HAS_BIT_CAST
                 return stdr::bit_cast<To>(from);
-#else
+    #else
                 static_assert(sizeof(From) == sizeof(To), "");
                 static_assert(stdr::is_trivially_copyable<To>::value, "");
                 static_assert(stdr::is_trivially_copyable<From>::value, "");
                 To to;
                 stdr::memcpy(&to, &from, sizeof(To));
                 return to;
-#endif
+    #endif
             }
         }
 
@@ -347,6 +435,7 @@ namespace jkj {
             static constexpr int exponent_bias = -127;
             static constexpr int decimal_significand_digits = 9;
             static constexpr int decimal_exponent_digits = 2;
+            static constexpr int max_abs_decimal_exponent = 45;
         };
         struct ieee754_binary64 {
             static constexpr int total_bits = 64;
@@ -357,6 +446,7 @@ namespace jkj {
             static constexpr int exponent_bias = -1023;
             static constexpr int decimal_significand_digits = 17;
             static constexpr int decimal_exponent_digits = 3;
+            static constexpr int max_abs_decimal_exponent = 324;
         };
 
         // A floating-point format traits class defines ways to interpret a bit pattern of given size as
@@ -621,12 +711,12 @@ namespace jkj {
 
                 // clang-format off
 #if defined(__SIZEOF_INT128__)
-		// To silence "error: ISO C++ does not support '__int128' for 'type name'
-		// [-Wpedantic]"
+		        // To silence "error: ISO C++ does not support '__int128' for 'type name'
+		        // [-Wpedantic]"
 #if defined(__GNUC__)
-			__extension__
+			    __extension__
 #endif
-			using builtin_uint128_t = unsigned __int128;
+			    using builtin_uint128_t = unsigned __int128;
 #endif
                 // clang-format on
 
@@ -662,7 +752,7 @@ namespace jkj {
                         }
 
                         // See https://github.com/fmtlib/fmt/pull/2985.
-#if JKJ_HAS_BUILTIN(__builtin_addcll) && !defined(__ibmxl__)
+    #if JKJ_HAS_BUILTIN(__builtin_addcll) && !defined(__ibmxl__)
                         JKJ_IF_CONSTEXPR(
                             stdr::is_same<stdr::uint_least64_t, unsigned long long>::value) {
                             unsigned long long carry{};
@@ -670,8 +760,8 @@ namespace jkj {
                             high_ = stdr::uint_least64_t(__builtin_addcll(high_, 0, carry, &carry));
                             return *this;
                         }
-#endif
-#if JKJ_HAS_BUILTIN(__builtin_addcl) && !defined(__ibmxl__)
+    #endif
+    #if JKJ_HAS_BUILTIN(__builtin_addcl) && !defined(__ibmxl__)
                         JKJ_IF_CONSTEXPR(stdr::is_same<stdr::uint_least64_t, unsigned long>::value) {
                             unsigned long carry{};
                             low_ = stdr::uint_least64_t(
@@ -681,8 +771,8 @@ namespace jkj {
                                 __builtin_addcl(static_cast<unsigned long>(high_), 0, carry, &carry));
                             return *this;
                         }
-#endif
-#if JKJ_HAS_BUILTIN(__builtin_addc) && !defined(__ibmxl__)
+    #endif
+    #if JKJ_HAS_BUILTIN(__builtin_addc) && !defined(__ibmxl__)
                         JKJ_IF_CONSTEXPR(stdr::is_same<stdr::uint_least64_t, unsigned int>::value) {
                             unsigned int carry{};
                             low_ = stdr::uint_least64_t(__builtin_addc(static_cast<unsigned int>(low_),
@@ -692,9 +782,9 @@ namespace jkj {
                                 __builtin_addc(static_cast<unsigned int>(high_), 0, carry, &carry));
                             return *this;
                         }
-#endif
+    #endif
 
-#if JKJ_HAS_BUILTIN(__builtin_ia32_addcarry_u64)
+    #if JKJ_HAS_BUILTIN(__builtin_ia32_addcarry_u64)
                         // __builtin_ia32_addcarry_u64 is not documented, but it seems it takes unsigned
                         // long long arguments.
                         unsigned long long result{};
@@ -702,7 +792,7 @@ namespace jkj {
                         low_ = stdr::uint_least64_t(result);
                         __builtin_ia32_addcarry_u64(carry, high_, 0, &result);
                         high_ = stdr::uint_least64_t(result);
-#elif defined(_MSC_VER) && defined(_M_X64)
+    #elif defined(_MSC_VER) && defined(_M_X64)
                         // On MSVC, uint_least64_t and __int64 must be unsigned long long; see
                         // https://learn.microsoft.com/en-us/cpp/c-runtime-library/standard-types
                         // and https://learn.microsoft.com/en-us/cpp/cpp/int8-int16-int32-int64.
@@ -710,24 +800,48 @@ namespace jkj {
                                       "");
                         auto const carry = _addcarry_u64(0, low_, n, &low_);
                         _addcarry_u64(carry, high_, 0, &high_);
-#elif defined(__INTEL_COMPILER) && (defined(_M_X64) || defined(__x86_64))
+    #elif defined(__INTEL_COMPILER) && (defined(_M_X64) || defined(__x86_64))
                         // Cannot find any documentation on how things are defined, but hopefully this
                         // is always true...
                         static_assert(stdr::is_same<unsigned __int64, stdr::uint_least64_t>::value, "");
                         auto const carry = _addcarry_u64(0, low_, n, &low_);
                         _addcarry_u64(carry, high_, 0, &high_);
-#else
+    #else
                         generic_impl();
-#endif
+    #endif
                         return *this;
                     }
                 };
 
+                struct uint32_64 {
+                    stdr::uint_least64_t low64_;
+                    stdr::uint_least32_t high32_;
+
+                    constexpr uint32_64(stdr::uint_least32_t high32,
+                                        stdr::uint_least64_t low64) noexcept
+                        : low64_{low64}, high32_{high32} {}
+
+                    constexpr stdr::uint_least32_t high32() const noexcept { return high32_; }
+                    constexpr stdr::uint_least64_t low64() const noexcept { return low64_; }
+                };
+
+                struct uint64_32 {
+                    stdr::uint_least64_t high64_;
+                    stdr::uint_least32_t low32_;
+
+                    constexpr uint64_32(stdr::uint_least64_t high64,
+                                        stdr::uint_least32_t low32) noexcept
+                        : high64_{high64}, low32_{low32} {}
+
+                    constexpr stdr::uint_least64_t high64() const noexcept { return high64_; }
+                    constexpr stdr::uint_least32_t low32() const noexcept { return low32_; }
+                };
+
                 inline JKJ_CONSTEXPR20 stdr::uint_least64_t umul64(stdr::uint_least32_t x,
                                                                    stdr::uint_least32_t y) noexcept {
-#if defined(_MSC_VER) && defined(_M_IX86)
+    #if defined(_MSC_VER) && defined(_M_IX86)
                     JKJ_IF_NOT_CONSTEVAL { return __emulu(x, y); }
-#endif
+    #endif
                     return x * stdr::uint_least64_t(y);
                 }
 
@@ -754,10 +868,10 @@ namespace jkj {
                     // To silence warning.
                     static_cast<void>(generic_impl);
 
-#if defined(__SIZEOF_INT128__)
+    #if defined(__SIZEOF_INT128__)
                     auto const result = builtin_uint128_t(x) * builtin_uint128_t(y);
                     return {stdr::uint_least64_t(result >> 64), stdr::uint_least64_t(result)};
-#elif defined(_MSC_VER) && defined(_M_X64)
+    #elif defined(_MSC_VER) && defined(_M_X64)
                     JKJ_IF_CONSTEVAL {
                         // This redundant variable is to workaround MSVC's codegen bug caused by the
                         // interaction of NRVO and intrinsics.
@@ -765,15 +879,15 @@ namespace jkj {
                         return result;
                     }
                     uint128 result;
-    #if defined(__AVX2__)
+        #if defined(__AVX2__)
                     result.low_ = _mulx_u64(x, y, &result.high_);
-    #else
+        #else
                     result.low_ = _umul128(x, y, &result.high_);
-    #endif
+        #endif
                     return result;
-#else
+    #else
                     return generic_impl();
-#endif
+    #endif
                 }
 
                 // Get high half of the 128-bit result of multiplication of two 64-bit unsigned
@@ -799,10 +913,10 @@ namespace jkj {
                     // To silence warning.
                     static_cast<void>(generic_impl);
 
-#if defined(__SIZEOF_INT128__)
+    #if defined(__SIZEOF_INT128__)
                     auto const result = builtin_uint128_t(x) * builtin_uint128_t(y);
                     return stdr::uint_least64_t(result >> 64);
-#elif defined(_MSC_VER) && defined(_M_X64)
+    #elif defined(_MSC_VER) && defined(_M_X64)
                     JKJ_IF_CONSTEVAL {
                         // This redundant variable is to workaround MSVC's codegen bug caused by the
                         // interaction of NRVO and intrinsics.
@@ -810,15 +924,15 @@ namespace jkj {
                         return result;
                     }
                     stdr::uint_least64_t result;
-    #if defined(__AVX2__)
+        #if defined(__AVX2__)
                     _mulx_u64(x, y, &result);
-    #else
+        #else
                     result = __umulh(x, y);
-    #endif
+        #endif
                     return result;
-#else
+    #else
                     return generic_impl();
-#endif
+    #endif
                 }
 
                 // Get upper 128-bits of multiplication of a 64-bit unsigned integer and a 128-bit
@@ -830,13 +944,50 @@ namespace jkj {
                     return r;
                 }
 
+                // Get 96-bit result of multiplication of a 32-bit unsigned integer and a 64-bit
+                // unsigned integer.
+                JKJ_SAFEBUFFERS inline JKJ_CONSTEXPR20
+    #if JKJ_FAST_MUL64
+                    uint32_64
+    #else
+                    uint64_32
+    #endif
+                    umul96(stdr::uint_fast32_t x, stdr::uint_least64_t y) noexcept {
+    #if defined(__SIZEOF_INT128__) || (defined(_MSC_VER) && defined(_M_X64))
+                    auto const r128 = umul128(stdr::uint_least64_t(x), y);
+
+                    auto const high = stdr::uint_least32_t(r128.high());
+                    auto const middle = stdr::uint_least32_t(r128.low() >> 32);
+                    auto const low = stdr::uint_least32_t(r128.low());
+    #else
+                    auto const yh = stdr::uint_least32_t(y >> 32);
+                    auto const yl = stdr::uint_least32_t(y);
+
+                    auto xyh = umul64(x, yh);
+                    auto const xyl = umul64(x, yl);
+
+                    xyh += (xyl >> 32);
+
+                    auto const high = stdr::uint_least32_t(xyh >> 32);
+                    auto const middle = stdr::uint_least32_t(xyh);
+                    auto const low = stdr::uint_least32_t(xyl);
+    #endif
+
+    #if JKJ_FAST_MUL64
+                    uint32_64 r{high, (stdr::uint_least64_t(middle) << 32) | low};
+    #else
+                    uint64_32 r{(stdr::uint_least64_t(high) << 32) | middle, low};
+    #endif
+                    return r;
+                }
+
                 // Get upper 64-bits of multiplication of a 32-bit unsigned integer and a 64-bit
                 // unsigned integer.
                 inline JKJ_CONSTEXPR20 stdr::uint_least64_t
                 umul96_upper64(stdr::uint_least32_t x, stdr::uint_least64_t y) noexcept {
-#if defined(__SIZEOF_INT128__) || (defined(_MSC_VER) && defined(_M_X64))
+    #if defined(__SIZEOF_INT128__) || (defined(_MSC_VER) && defined(_M_X64))
                     return umul128_upper64(stdr::uint_least64_t(x) << 32, y);
-#else
+    #else
                     auto const yh = stdr::uint_least32_t(y >> 32);
                     auto const yl = stdr::uint_least32_t(y);
 
@@ -844,7 +995,7 @@ namespace jkj {
                     auto const xyl = umul64(x, yl);
 
                     return xyh + (xyl >> 32);
-#endif
+    #endif
                 }
 
                 // Get lower 128-bits of multiplication of a 64-bit unsigned integer and a 128-bit
@@ -871,32 +1022,32 @@ namespace jkj {
             template <int k, class Int>
             constexpr Int compute_power(Int a) noexcept {
                 static_assert(k >= 0, "");
-#if JKJ_HAS_CONSTEXPR14
+    #if JKJ_HAS_CONSTEXPR14
                 Int p = 1;
                 for (int i = 0; i < k; ++i) {
                     p *= a;
                 }
                 return p;
-#else
+    #else
                 return k == 0       ? 1
                        : k % 2 == 0 ? compute_power<k / 2, Int>(a * a)
                                     : a * compute_power<k / 2, Int>(a * a);
-#endif
+    #endif
             }
 
             template <int a, class UInt>
             constexpr int count_factors(UInt n) noexcept {
                 static_assert(a > 1, "");
-#if JKJ_HAS_CONSTEXPR14
+    #if JKJ_HAS_CONSTEXPR14
                 int c = 0;
                 while (n % a == 0) {
                     n /= a;
                     ++c;
                 }
                 return c;
-#else
+    #else
                 return n % a == 0 ? count_factors<a, UInt>(n / a) + 1 : 0;
-#endif
+    #endif
             }
 
             ////////////////////////////////////////////////////////////////////////////////////////
@@ -908,22 +1059,34 @@ namespace jkj {
                                   (stdr::int_fast16_t(-1) >> 1) == stdr::int_fast16_t(-1),
                               "jkj::dragonbox: right-shift for signed integers must be arithmetic");
 
-                // For constexpr computation.
+                // Only for constexpr computation.
                 // Returns -1 when n = 0.
                 template <class UInt>
                 constexpr int floor_log2(UInt n) noexcept {
-#if JKJ_HAS_CONSTEXPR14
+    #if JKJ_HAS_CONSTEXPR14
                     int count = -1;
                     while (n != 0) {
                         ++count;
                         n >>= 1;
                     }
                     return count;
-#else
+    #else
                     return n == 0 ? -1 : floor_log2<UInt>(n / 2) + 1;
-#endif
+    #endif
                 }
 
+                // Implementations of various log computations using binary approximations.
+                // On less powerful platforms, using smaller integer types and magic numbers for these
+                // computations significantly improve codegen, so depending on the range of input we try
+                // to choose the smallest possible magic numbers that result in the best codegen.
+                // To generically achieve that goal, we list multiple sets of magic numbers with
+                // associated ranges of inputs, called "tiers", so that we choose the smallest tier
+                // whose associated range covers the requested range of input.
+
+                // Check if the given tier covers the requested range.
+                // Info<current_tier> is supposed to hold the magic numbers needed for the computation
+                // and the supported range of input (i.e. the range of input where the computation with
+                // the given magic numbers must be valid).
                 template <template <stdr::size_t> class Info, stdr::int_least32_t min_exponent,
                           stdr::int_least32_t max_exponent, stdr::size_t current_tier,
                           stdr::int_least32_t supported_min_exponent = Info<current_tier>::min_exponent,
@@ -932,6 +1095,9 @@ namespace jkj {
                     return min_exponent >= supported_min_exponent &&
                            max_exponent <= supported_max_exponent;
                 }
+                // This overload generates a compile-error and is called only if the former overload is
+                // removed via SFINAE, which happens if and only if every provided tier fails to cover
+                // the requested range.
                 template <template <stdr::size_t> class Info, stdr::int_least32_t min_exponent,
                           stdr::int_least32_t max_exponent, stdr::size_t current_tier>
                 constexpr bool is_in_range(...) noexcept {
@@ -941,11 +1107,14 @@ namespace jkj {
                     return false;
                 }
 
+                // Generic implementation of log computations.
                 template <template <stdr::size_t> class Info, stdr::int_least32_t min_exponent,
                           stdr::int_least32_t max_exponent, stdr::size_t current_tier = 0,
                           bool = is_in_range<Info, min_exponent, max_exponent, current_tier>(0)>
                 struct compute_impl;
 
+                // Specialization for the case when the given tier covers the requested range of input.
+                // In this case, do the computation with the given magic numbers.
                 template <template <stdr::size_t> class Info, stdr::int_least32_t min_exponent,
                           stdr::int_least32_t max_exponent, stdr::size_t current_tier>
                 struct compute_impl<Info, min_exponent, max_exponent, current_tier, true> {
@@ -953,9 +1122,9 @@ namespace jkj {
                     using default_return_type = typename info::default_return_type;
                     template <class ReturnType, class Int>
                     static constexpr ReturnType compute(Int e) noexcept {
-#if JKJ_HAS_CONSTEXPR14
+    #if JKJ_HAS_CONSTEXPR14
                         assert(min_exponent <= e && e <= max_exponent);
-#endif
+    #endif
                         // The sign is irrelevant for the mathematical validity of the formula, but
                         // assuming positivity makes the overflow analysis simpler.
                         static_assert(info::multiply >= 0 && info::subtract >= 0, "");
@@ -964,6 +1133,9 @@ namespace jkj {
                     }
                 };
 
+                // Specialization for the case when the given tier does not cover the requested range of
+                // input. In this case, delegate the computation to the next tier. If the next tier does
+                // not exist, then the compilation must fail.
                 template <template <stdr::size_t> class Info, stdr::int_least32_t min_exponent,
                           stdr::int_least32_t max_exponent, stdr::size_t current_tier>
                 struct compute_impl<Info, min_exponent, max_exponent, current_tier, false> {
@@ -1098,6 +1270,38 @@ namespace jkj {
                           class Int>
                 constexpr ReturnType floor_log10_pow2_minus_log10_4_over_3(Int e) noexcept {
                     return compute_impl<floor_log10_pow2_minus_log10_4_over_3_info, min_exponent,
+                                        max_exponent>::template compute<ReturnType>(e);
+                }
+
+                template <stdr::size_t tier>
+                struct floor_log2_pow5_info;
+                template <>
+                struct floor_log2_pow5_info<0> {
+                    using default_return_type = stdr::int_fast8_t;
+                    // 24-bits are enough in fact.
+                    static constexpr stdr::int_fast32_t multiply = 1189;
+                    static constexpr stdr::int_fast32_t subtract = 0;
+                    static constexpr stdr::size_t shift = 9;
+                    // Formula itself holds on [-58,58]; [-55,55] is to ensure no overflow.
+                    static constexpr stdr::int_least32_t min_exponent = -55;
+                    static constexpr stdr::int_least32_t max_exponent = 55;
+                };
+                template <>
+                struct floor_log2_pow5_info<1> {
+                    using default_return_type = stdr::int_fast16_t;
+                    static constexpr stdr::int_fast32_t multiply = INT32_C(76085);
+                    static constexpr stdr::int_fast32_t subtract = 0;
+                    static constexpr stdr::size_t shift = 15;
+                    static constexpr stdr::int_least32_t min_exponent = -642;
+                    static constexpr stdr::int_least32_t max_exponent = 642;
+                };
+                template <stdr::int_least32_t min_exponent = -642,
+                          stdr::int_least32_t max_exponent = 642,
+                          class ReturnType = typename compute_impl<floor_log2_pow5_info, min_exponent,
+                                                                   max_exponent>::default_return_type,
+                          class Int>
+                constexpr ReturnType floor_log2_pow5(Int e) noexcept {
+                    return compute_impl<floor_log2_pow5_info, min_exponent,
                                         max_exponent>::template compute<ReturnType>(e);
                 }
 
@@ -1388,13 +1592,13 @@ namespace jkj {
                      UINT64_C(0xe596b7b0c643c71a), UINT64_C(0x8f7e32ce7bea5c70),
                      UINT64_C(0xb35dbf821ae4f38c), UINT64_C(0xe0352f62a19e306f)}};
         };
-#if !JKJ_HAS_INLINE_VARIABLE
+    #if !JKJ_HAS_INLINE_VARIABLE
         // decltype(...) should not depend on Dummy; see
         // https://stackoverflow.com/questions/76438400/decltype-on-static-variable-in-template-class.
         template <class Dummy>
         constexpr decltype(cache_holder<ieee754_binary32>::cache)
             cache_holder<ieee754_binary32, Dummy>::cache;
-#endif
+    #endif
 
         template <class Dummy>
         struct cache_holder<ieee754_binary64, Dummy> {
@@ -2024,13 +2228,13 @@ namespace jkj {
                      {UINT64_C(0xc5a05277621be293), UINT64_C(0xc7098b7305241886)},
                      {UINT64_C(0xf70867153aa2db38), UINT64_C(0xb8cbee4fc66d1ea8)}}};
         };
-#if !JKJ_HAS_INLINE_VARIABLE
+    #if !JKJ_HAS_INLINE_VARIABLE
         // decltype(...) should not depend on Dummy; see
         // https://stackoverflow.com/questions/76438400/decltype-on-static-variable-in-template-class.
         template <class Dummy>
         constexpr decltype(cache_holder<ieee754_binary64>::cache)
             cache_holder<ieee754_binary64, Dummy>::cache;
-#endif
+    #endif
 
         // Compressed cache.
         template <class FloatFormat, class Dummy = void>
@@ -2041,8 +2245,8 @@ namespace jkj {
             static constexpr int max_k = cache_holder<FloatFormat>::max_k;
 
             template <class ShiftAmountType, class DecimalExponentType>
-            static constexpr cache_entry_type get_cache(DecimalExponentType k) noexcept {
-                return cache_holder<FloatFormat>::cache[k - min_k];
+            static JKJ_CONSTEXPR20 cache_entry_type get_cache(DecimalExponentType k) noexcept {
+                return detail::read_static_data(cache_holder<FloatFormat>::cache.data() + k - min_k);
             }
         };
 
@@ -2061,7 +2265,7 @@ namespace jkj {
             using cache_holder_t = detail::array<cache_entry_type, compressed_table_size>;
             using pow5_holder_t = detail::array<detail::stdr::uint_least16_t, pow5_table_size>;
 
-#if JKJ_HAS_CONSTEXPR17
+    #if JKJ_HAS_CONSTEXPR17
             static constexpr cache_holder_t cache JKJ_STATIC_DATA_SECTION = [] {
                 cache_holder_t res{};
                 for (detail::stdr::size_t i = 0; i < compressed_table_size; ++i) {
@@ -2078,7 +2282,7 @@ namespace jkj {
                 }
                 return res;
             }();
-#else
+    #else
             template <detail::stdr::size_t... indices>
             static constexpr cache_holder_t make_cache(detail::index_sequence<indices...>) {
                 return {cache_holder<ieee754_binary32>::cache[indices * compression_ratio]...};
@@ -2092,7 +2296,7 @@ namespace jkj {
             }
             static constexpr pow5_holder_t pow5_table JKJ_STATIC_DATA_SECTION =
                 make_pow5_table(detail::make_index_sequence<pow5_table_size>{});
-#endif
+    #endif
 
             template <class ShiftAmountType, class DecimalExponentType>
             static JKJ_CONSTEXPR20 cache_entry_type get_cache(DecimalExponentType k) noexcept {
@@ -2102,52 +2306,64 @@ namespace jkj {
                 static_assert(max_k - min_k <= 89 && compression_ratio == 13, "");
                 static_assert(
                     max_k - min_k <= (detail::stdr::numeric_limits<DecimalExponentType>::max)(), "");
+                using unsigned_exponent_type =
+                    typename detail::stdr::make_unsigned<DecimalExponentType>::type;
                 auto const cache_index =
-                    DecimalExponentType(detail::stdr::uint_fast16_t(DecimalExponentType(k - min_k) *
-                                                                    detail::stdr::int_fast16_t(79)) >>
+                    DecimalExponentType(detail::stdr::uint_fast16_t(unsigned_exponent_type(k - min_k) *
+                                                                    detail::stdr::uint_fast16_t(79)) >>
                                         10);
                 auto const kb = DecimalExponentType(cache_index * compression_ratio + min_k);
                 auto const offset = DecimalExponentType(k - kb);
 
                 // Get the base cache.
-                auto const base_cache = cache[cache_index];
+                auto const base_cache = detail::read_static_data(cache.data() + cache_index);
 
                 if (offset == 0) {
                     return base_cache;
                 }
                 else {
                     // Compute the required amount of bit-shift.
-                    auto const alpha =
-                        ShiftAmountType(detail::log::floor_log2_pow10<min_k, max_k>(k) -
-                                        detail::log::floor_log2_pow10<min_k, max_k>(kb) - offset);
-                    assert(alpha > 0 && alpha < 64);
+                    auto const alpha = ShiftAmountType(detail::log::floor_log2_pow5<min_k, max_k>(k) -
+                                                       detail::log::floor_log2_pow5<min_k, max_k>(kb));
+                    assert(alpha > 0 && alpha < 32);
 
                     // Try to recover the real cache.
+                    constexpr auto pow5_6 = detail::stdr::uint_fast32_t(pow5_table[6]);
                     auto const pow5 =
                         offset >= 7
-                            ? detail::stdr::uint_fast32_t(detail::stdr::uint_fast32_t(pow5_table[6]) *
-                                                          pow5_table[offset - 6])
-                            : detail::stdr::uint_fast32_t(pow5_table[offset]);
-                    auto mul_result = detail::wuint::umul128(base_cache, pow5);
+                            ? detail::stdr::uint_fast32_t(
+                                  pow5_6 * detail::read_static_data(pow5_table.data() + offset - 6))
+                            : detail::stdr::uint_fast32_t(
+                                  detail::read_static_data(pow5_table.data() + offset));
+                    auto mul_result = detail::wuint::umul96(pow5, base_cache);
+
                     auto const recovered_cache =
-                        cache_entry_type((((mul_result.high() << ShiftAmountType(64 - alpha)) |
-                                           (mul_result.low() >> alpha)) +
+    #if JKJ_FAST_MUL64
+                        cache_entry_type((((detail::stdr::uint_least64_t(mul_result.high32())
+                                            << ShiftAmountType(64 - alpha)) |
+                                           (mul_result.low64() >> alpha)) +
                                           1) &
                                          UINT64_C(0xffffffffffffffff));
+    #else
+                        cache_entry_type((((mul_result.high64() << ShiftAmountType(32 - alpha)) |
+                                           (mul_result.low32() >> alpha)) +
+                                          1) &
+                                         UINT64_C(0xffffffffffffffff));
+    #endif
                     assert(recovered_cache != 0);
 
                     return recovered_cache;
                 }
             }
         };
-#if !JKJ_HAS_INLINE_VARIABLE
+    #if !JKJ_HAS_INLINE_VARIABLE
         template <class Dummy>
         constexpr typename compressed_cache_holder<ieee754_binary32, Dummy>::cache_holder_t
             compressed_cache_holder<ieee754_binary32, Dummy>::cache;
         template <class Dummy>
         constexpr typename compressed_cache_holder<ieee754_binary32, Dummy>::pow5_holder_t
             compressed_cache_holder<ieee754_binary32, Dummy>::pow5_table;
-#endif
+    #endif
 
         template <class Dummy>
         struct compressed_cache_holder<ieee754_binary64, Dummy> {
@@ -2164,7 +2380,7 @@ namespace jkj {
             using cache_holder_t = detail::array<cache_entry_type, compressed_table_size>;
             using pow5_holder_t = detail::array<detail::stdr::uint_least64_t, pow5_table_size>;
 
-#if JKJ_HAS_CONSTEXPR17
+    #if JKJ_HAS_CONSTEXPR17
             static constexpr cache_holder_t cache JKJ_STATIC_DATA_SECTION = [] {
                 cache_holder_t res{};
                 for (detail::stdr::size_t i = 0; i < compressed_table_size; ++i) {
@@ -2181,7 +2397,7 @@ namespace jkj {
                 }
                 return res;
             }();
-#else
+    #else
             template <detail::stdr::size_t... indices>
             static constexpr cache_holder_t make_cache(detail::index_sequence<indices...>) {
                 return {cache_holder<ieee754_binary64>::cache[indices * compression_ratio]...};
@@ -2195,7 +2411,7 @@ namespace jkj {
             }
             static constexpr pow5_holder_t pow5_table JKJ_STATIC_DATA_SECTION =
                 make_pow5_table(detail::make_index_sequence<pow5_table_size>{});
-#endif
+    #endif
 
             template <class ShiftAmountType, class DecimalExponentType>
             static JKJ_CONSTEXPR20 cache_entry_type get_cache(DecimalExponentType k) noexcept {
@@ -2205,28 +2421,29 @@ namespace jkj {
                 static_assert(max_k - min_k <= 619 && compression_ratio == 27, "");
                 static_assert(
                     max_k - min_k <= (detail::stdr::numeric_limits<DecimalExponentType>::max)(), "");
+                using unsigned_exponent_type =
+                    typename detail::stdr::make_unsigned<DecimalExponentType>::type;
                 auto const cache_index =
-                    DecimalExponentType(detail::stdr::uint_fast32_t(DecimalExponentType(k - min_k) *
-                                                                    detail::stdr::int_fast32_t(607)) >>
+                    DecimalExponentType(detail::stdr::uint_fast32_t(unsigned_exponent_type(k - min_k) *
+                                                                    detail::stdr::uint_fast32_t(607)) >>
                                         14);
                 auto const kb = DecimalExponentType(cache_index * compression_ratio + min_k);
                 auto const offset = DecimalExponentType(k - kb);
 
                 // Get the base cache.
-                auto const base_cache = cache[cache_index];
+                auto const base_cache = detail::read_static_data(cache.data() + cache_index);
 
                 if (offset == 0) {
                     return base_cache;
                 }
                 else {
                     // Compute the required amount of bit-shift.
-                    auto const alpha =
-                        ShiftAmountType(detail::log::floor_log2_pow10<min_k, max_k>(k) -
-                                        detail::log::floor_log2_pow10<min_k, max_k>(kb) - offset);
+                    auto const alpha = ShiftAmountType(detail::log::floor_log2_pow5<min_k, max_k>(k) -
+                                                       detail::log::floor_log2_pow5<min_k, max_k>(kb));
                     assert(alpha > 0 && alpha < 64);
 
                     // Try to recover the real cache.
-                    auto const pow5 = pow5_table[offset];
+                    auto const pow5 = detail::read_static_data(pow5_table.data() + offset);
                     auto recovered_cache = detail::wuint::umul128(base_cache.high(), pow5);
                     auto const middle_low = detail::wuint::umul128(base_cache.low(), pow5);
 
@@ -2250,14 +2467,14 @@ namespace jkj {
                 }
             }
         };
-#if !JKJ_HAS_INLINE_VARIABLE
+    #if !JKJ_HAS_INLINE_VARIABLE
         template <class Dummy>
         constexpr typename compressed_cache_holder<ieee754_binary64, Dummy>::cache_holder_t
             compressed_cache_holder<ieee754_binary64, Dummy>::cache;
         template <class Dummy>
         constexpr typename compressed_cache_holder<ieee754_binary64, Dummy>::pow5_holder_t
             compressed_cache_holder<ieee754_binary64, Dummy>::pow5_table;
-#endif
+    #endif
 
         ////////////////////////////////////////////////////////////////////////////////////////
         // Forward declarations of user-specializable templates used in the main algorithm.
@@ -2311,7 +2528,7 @@ namespace jkj {
                     using sign_policy = ignore_t;
                     static constexpr bool return_has_sign = false;
 
-#if defined(_MSC_VER) && !defined(__clang__)
+    #if defined(_MSC_VER) && !defined(__clang__)
                     // See
                     // https://developercommunity.visualstudio.com/t/Failure-to-optimize-intrinsics/10628226
                     template <class SignedSignificandBits, class DecimalSignificand,
@@ -2330,13 +2547,13 @@ namespace jkj {
                         decimal_fp<DecimalSignificand, DecimalExponentType, false, true> r) noexcept {
                         return {r.significand, r.exponent, r.may_have_trailing_zeros};
                     }
-#else
+    #else
                     template <class SignedSignificandBits, class UnsignedDecimalFp>
                     static constexpr UnsignedDecimalFp handle_sign(SignedSignificandBits,
                                                                    UnsignedDecimalFp r) noexcept {
                         return r;
                     }
-#endif
+    #endif
                 } ignore = {};
 
                 JKJ_INLINE_VARIABLE struct return_sign_t {
@@ -2830,14 +3047,14 @@ namespace jkj {
                     using cache_holder_type = cache_holder<FloatFormat>;
 
                     template <class FloatFormat, class ShiftAmountType, class DecimalExponentType>
-                    static constexpr typename cache_holder_type<FloatFormat>::cache_entry_type
+                    static JKJ_CONSTEXPR20 typename cache_holder_type<FloatFormat>::cache_entry_type
                     get_cache(DecimalExponentType k) noexcept {
-#if JKJ_HAS_CONSTEXPR14
                         assert(k >= cache_holder_type<FloatFormat>::min_k &&
                                k <= cache_holder_type<FloatFormat>::max_k);
-#endif
-                        return cache_holder_type<FloatFormat>::cache[detail::stdr::size_t(
-                            k - cache_holder_type<FloatFormat>::min_k)];
+
+                        return detail::read_static_data(
+                            cache_holder_type<FloatFormat>::cache.data() +
+                            detail::stdr::size_t(k - cache_holder_type<FloatFormat>::min_k));
                     }
                 } full = {};
 
@@ -2962,7 +3179,7 @@ namespace jkj {
                 auto r = detail::bits::rotr<32>(
                     detail::stdr::uint_least32_t(significand * UINT32_C(184254097)), 4);
                 auto b = r < UINT32_C(429497);
-                auto s = detail::stdr::size_t(b);
+                auto s = DecimalExponentType(b);
                 significand = b ? r : significand;
 
                 r = detail::bits::rotr<32>(
@@ -2977,6 +3194,7 @@ namespace jkj {
                 s = s * 2 + b;
                 significand = b ? r : significand;
 
+                assert(detail::stdr::numeric_limits<DecimalExponentType>::max() - s >= exponent);
                 exponent += s;
             }
         };
@@ -2994,7 +3212,7 @@ namespace jkj {
                 auto r = detail::bits::rotr<64>(
                     detail::stdr::uint_least64_t(significand * UINT64_C(28999941890838049)), 8);
                 auto b = r < UINT64_C(184467440738);
-                auto s = detail::stdr::size_t(b);
+                auto s = DecimalExponentType(b);
                 significand = b ? r : significand;
 
                 r = detail::bits::rotr<64>(
@@ -3015,6 +3233,7 @@ namespace jkj {
                 s = s * 2 + b;
                 significand = b ? r : significand;
 
+                assert(detail::stdr::numeric_limits<DecimalExponentType>::max() - s >= exponent);
                 exponent += s;
             }
         };
@@ -4031,8 +4250,8 @@ namespace jkj {
             using make_policy_holder =
                 typename make_policy_holder_impl<DetectorDefaultPairList, Policies...>::type;
 
-                // Policy kind detectors.
-                struct is_sign_policy {
+            // Policy kind detectors.
+            struct is_sign_policy {
                 constexpr bool operator()(...) noexcept { return false; }
                 template <class Policy, class = typename Policy::sign_policy>
                 constexpr bool operator()(dummy<Policy>) noexcept {
@@ -4127,11 +4346,11 @@ namespace jkj {
                             preferred_integer_types_policy>(s, exponent_bits);
                     }
                     else {
-#if JKJ_HAS_IF_CONSTEXPR
+    #if JKJ_HAS_IF_CONSTEXPR
                         static_assert(
                             tag == policy::decimal_to_binary_rounding::tag_t::right_closed_directed,
                             "");
-#endif
+    #endif
                         return impl<FormatTraits>::template compute_right_closed_directed<
                             sign_policy, trailing_zero_policy, cache_policy,
                             preferred_integer_types_policy>(s, exponent_bits);
@@ -4175,31 +4394,47 @@ namespace jkj {
     }
 }
 
-#undef JKJ_HAS_BUILTIN
-#undef JKJ_FORCEINLINE
-#undef JKJ_SAFEBUFFERS
-#undef JKJ_CONSTEXPR20
-#undef JKJ_USE_IS_CONSTANT_EVALUATED
-#undef JKJ_CAN_BRANCH_ON_CONSTEVAL
-#undef JKJ_IF_NOT_CONSTEVAL
-#undef JKJ_IF_CONSTEVAL
-#undef JKJ_HAS_BIT_CAST
-#undef JKJ_IF_CONSTEXPR
-#undef JKJ_HAS_IF_CONSTEXPR
-#undef JKJ_INLINE_VARIABLE
-#undef JKJ_HAS_INLINE_VARIABLE
-#undef JKJ_HAS_CONSTEXPR17
-#undef JKJ_CONSTEXPR14
-#undef JKJ_HAS_CONSTEXPR14
-#if JKJ_STD_REPLACEMENT_NAMESPACE_DEFINED
-    #undef JKJ_STD_REPLACEMENT_NAMESPACE_DEFINED
-#else
-    #undef JKJ_STD_REPLACEMENT_NAMESPACE
-#endif
-#if JKJ_STATIC_DATA_SECTION_DEFINED
-    #undef JKJ_STATIC_DATA_SECTION_DEFINED
-#else
-    #undef JKJ_STATIC_DATA_SECTION
 #endif
 
+#ifdef JKJ_DRAGONBOX_LEAK_MACROS
+    #define JKJ_DRAGONBOX_MACROS_DEFINED
+#else
+    #undef JKJ_HAS_BUILTIN
+    #undef JKJ_FORCEINLINE
+    #undef JKJ_SAFEBUFFERS
+    #undef JKJ_CONSTEXPR20
+    #undef JKJ_USE_IS_CONSTANT_EVALUATED
+    #undef JKJ_CAN_BRANCH_ON_CONSTEVAL
+    #undef JKJ_IF_NOT_CONSTEVAL
+    #undef JKJ_IF_CONSTEVAL
+    #undef JKJ_HAS_BIT_CAST
+    #undef JKJ_IF_CONSTEXPR
+    #undef JKJ_HAS_IF_CONSTEXPR
+    #undef JKJ_INLINE_VARIABLE
+    #undef JKJ_HAS_INLINE_VARIABLE
+    #undef JKJ_HAS_CONSTEXPR17
+    #undef JKJ_CONSTEXPR14
+    #undef JKJ_HAS_CONSTEXPR14
+    #undef JKJ_HAS_VARIABLE_TEMPLATES
+    #if JKJ_FAST_MUL64_DEFINED
+        #undef JKJ_FAST_MUL64_DEFINED
+    #else
+        #undef JKJ_FAST_MUL64
+    #endif
+    #if JKJ_STD_REPLACEMENT_NAMESPACE_DEFINED
+        #undef JKJ_STD_REPLACEMENT_NAMESPACE_DEFINED
+    #else
+        #undef JKJ_STD_REPLACEMENT_NAMESPACE
+    #endif
+    #if JKJ_STATIC_DATA_SECTION_DEFINED
+        #undef JKJ_STATIC_DATA_SECTION_DEFINED
+    #else
+        #undef JKJ_STATIC_DATA_SECTION
+    #endif
+    #if JKJ_NAMESPACE_DEFINED
+        #undef JKJ_NAMESPACE_DEFINED
+    #else
+        #undef JKJ_NAMESPACE
+    #endif
+    #undef JKJ_DRAGONBOX_MACROS_DEFINED
 #endif

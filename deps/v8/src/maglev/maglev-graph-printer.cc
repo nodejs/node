@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-regalloc-node-info.h"
 #ifdef V8_ENABLE_MAGLEV_GRAPH_PRINTER
 
@@ -507,7 +508,39 @@ void PrintSingleDeoptFrame(
       break;
     }
   }
+  if (v8_flags.print_maglev_deopt_verbose) {
+    os << " (addr:" << &frame << ")";
+  }
 }
+
+namespace {
+void PrintVirtualObject(std::ostream& os, VirtualObject* vobj) {
+  os << "[";
+  bool is_first = true;
+  vobj->ForEachSlot(
+      [&](maglev::ValueNode* value_node, maglev::vobj::Field desc) -> bool {
+        switch (desc.type) {
+          case maglev::vobj::FieldType::kTagged:
+          case maglev::vobj::FieldType::kTrustedPointer:
+          case maglev::vobj::FieldType::kFloat64: {
+            if (!is_first) os << ",";
+            is_first = false;
+            os << PrintNodeLabel(value_node);
+            if (VirtualObject* nested = value_node->TryCast<VirtualObject>()) {
+              os << "=VO";
+              PrintVirtualObject(os, nested);
+            }
+            break;
+          }
+          case maglev::vobj::FieldType::kInt32:
+          case maglev::vobj::FieldType::kNone:
+            UNREACHABLE();
+        }
+        return true;
+      });
+  os << "]";
+}
+}  // namespace
 
 void PrintVirtualObjects(std::ostream& os, std::vector<BasicBlock*> targets,
                          const DeoptFrame& frame, int max_node_id) {
@@ -517,7 +550,9 @@ void PrintVirtualObjects(std::ostream& os, std::vector<BasicBlock*> targets,
   os << "  │       VOs : { ";
   const VirtualObjectList& virtual_objects = frame.GetVirtualObjects();
   for (auto vo : virtual_objects) {
-    os << PrintNodeLabel(vo) << "; ";
+    os << PrintNodeLabel(vo) << "=";
+    PrintVirtualObject(os, vo);
+    os << ";";
   }
   os << "}\n";
 }
@@ -647,29 +682,17 @@ void PrintExceptionHandlerPoint(std::ostream& os,
 
   // The exception handler liveness should be a subset of lazy_deopt_info one.
   auto* liveness = block->state()->frame_state().liveness();
-  LazyDeoptInfo* deopt_info = node->lazy_deopt_info();
 
-  const InterpretedDeoptFrame* lazy_frame;
-  switch (deopt_info->top_frame().type()) {
-    case DeoptFrame::FrameType::kInterpretedFrame:
-      lazy_frame = &deopt_info->top_frame().as_interpreted();
-      break;
-    case DeoptFrame::FrameType::kInlinedArgumentsFrame:
-      UNREACHABLE();
-    case DeoptFrame::FrameType::kConstructInvokeStubFrame:
-    case DeoptFrame::FrameType::kBuiltinContinuationFrame:
-      lazy_frame = &deopt_info->top_frame().parent()->as_interpreted();
-      break;
-  }
+  const maglev::InterpretedDeoptFrame& lazy_frame =
+      node->lazy_deopt_info()->GetFrameForExceptionHandler(info);
 
   PrintVerticalArrows(os, targets);
   PrintPadding(os, max_node_id, 0);
 
   os << "  ↳ throw @" << handler_offset << " (b" << block->id() << ") : {";
   bool first = true;
-  lazy_frame->as_interpreted().frame_state()->ForEachValue(
-      lazy_frame->as_interpreted().unit(),
-      [&](ValueNode* node, interpreter::Register reg) {
+  lazy_frame.frame_state()->ForEachValue(
+      lazy_frame.unit(), [&](ValueNode* node, interpreter::Register reg) {
         if (!reg.is_parameter() && !liveness->RegisterIsLive(reg.index())) {
           // Skip, since not live at the handler offset.
           return;
@@ -707,6 +730,7 @@ void MaybePrintLazyDeoptOrExceptionHandler(std::ostream& os,
 void MaybePrintProvenance(std::ostream& os, std::vector<BasicBlock*> targets,
                           MaglevGraphLabeller::Provenance provenance,
                           MaglevGraphLabeller::Provenance existing_provenance) {
+  if (!v8_flags.maglev_print_provenance) return;
   DisallowGarbageCollection no_gc;
 
   // Print function every time the compilation unit changes.
@@ -765,7 +789,7 @@ void MaybePrintProvenance(std::ostream& os, std::vector<BasicBlock*> targets,
       os << "\033[0;34m";
     }
     os << std::setw(4) << iterator.current_offset() << " : ";
-    interpreter::BytecodeDecoder::Decode(os, iterator.current_address(), false);
+    iterator.PrintCurrentBytecodeTo(os);
     os << "\n";
     if (v8_flags.log_colour) {
       os << "\033[m";
@@ -797,6 +821,7 @@ ProcessResult MaglevPrintingVisitor::Process(Phi* phi,
       os_ << "ʰᶠ";
       break;
     case ValueRepresentation::kIntPtr:
+    case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
@@ -836,6 +861,9 @@ ProcessResult MaglevPrintingVisitor::Process(Phi* phi,
       os_ << ", live range: [" << node_info->live_range().start << "-"
           << node_info->live_range().end << "]";
     }
+  } else if (phi->unused_inputs_were_visited()) {
+    // This node is dead, node sweeper will remove it.
+    os_ << "🪦";
   } else {
     os_ << ", " << phi->use_count() << " uses";
   }
@@ -844,6 +872,20 @@ ProcessResult MaglevPrintingVisitor::Process(Phi* phi,
   MaglevPrintingVisitorOstream::cast(os_for_additional_info_)
       ->set_padding(MaxIdWidth(max_node_id_, 2));
   return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevPrintingVisitor::Process(NodeBase* node,
+                                             const ProcessingState& state) {
+  if (node->Is<ControlNode>()) {
+    return Process(node->Cast<ControlNode>(), state);
+  }
+  if (node->Is<Phi>()) {
+    return Process(node->Cast<Phi>(), state);
+  }
+  if (node->Is<Node>()) {
+    return Process(node->Cast<Node>(), state);
+  }
+  UNREACHABLE();
 }
 
 ProcessResult MaglevPrintingVisitor::Process(Node* node,
@@ -980,6 +1022,7 @@ ProcessResult MaglevPrintingVisitor::Process(ControlNode* control_node,
             os_ << "ʰᶠ";
             break;
           case ValueRepresentation::kIntPtr:
+          case ValueRepresentation::kRawPtr:
           case ValueRepresentation::kNone:
             UNREACHABLE();
         }
@@ -1018,6 +1061,9 @@ ProcessResult MaglevPrintingVisitor::Process(ControlNode* control_node,
 #endif
     }
   }
+
+  MaybePrintLazyDeoptOrExceptionHandler(os_, targets_, control_node,
+                                        max_node_id_);
 
   PrintVerticalArrows(os_, targets_);
   if (has_fallthrough) {

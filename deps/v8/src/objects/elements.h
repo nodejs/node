@@ -93,7 +93,7 @@ class ElementsAccessor {
   virtual Maybe<bool> CollectValuesOrEntries(
       Isolate* isolate, DirectHandle<JSObject> object,
       DirectHandle<FixedArray> values_or_entries, bool get_entries,
-      int* nof_items, PropertyFilter filter = ALL_PROPERTIES) = 0;
+      uint32_t* nof_items, PropertyFilter filter = ALL_PROPERTIES) = 0;
 
   virtual MaybeHandle<FixedArray> PrependElementIndices(
       Isolate* isolate, DirectHandle<JSObject> object,
@@ -200,7 +200,7 @@ class ElementsAccessor {
                             DirectHandle<FixedArrayBase> source,
                             ElementsKind source_kind,
                             DirectHandle<FixedArrayBase> destination,
-                            int size) = 0;
+                            uint32_t size) = 0;
 
   virtual Tagged<Object> CopyElements(Isolate* isolate,
                                       DirectHandle<JSAny> source,
@@ -248,7 +248,7 @@ class ElementsAccessor {
   virtual void CopyElements(Isolate* isolate, Tagged<JSObject> source_holder,
                             uint32_t source_start, ElementsKind source_kind,
                             DirectHandle<FixedArrayBase> destination,
-                            uint32_t destination_start, int copy_size) = 0;
+                            uint32_t destination_start, uint32_t copy_size) = 0;
 
  private:
   V8_EXPORT_PRIVATE static ElementsAccessor** elements_accessors_;

@@ -22,8 +22,8 @@ transitioning javascript builtin TypedArrayPrototypeToSorted(
   // 3. Perform ? ValidateTypedArray(O).
   // 4. Let buffer be obj.[[ViewedArrayBuffer]].
   // 5. Let len be O.[[ArrayLength]].
-  const len: uintptr =
-      ValidateTypedArrayAndGetLength(context, obj, kBuiltinNameToSorted);
+  const len: uintptr = ValidateTypedArrayAndGetLength(
+      context, obj, kBuiltinNameToSorted, TypedArrayAccessMode::kRead);
   const array: JSTypedArray = UnsafeCast<JSTypedArray>(obj);
 
   // 6. Let A be ? TypedArrayCreateSameType(O, « 𝔽(len) »).

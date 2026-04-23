@@ -297,7 +297,8 @@ MaybeDirectHandle<JSDurationFormat> JSDurationFormat::New(
   if (get) {
     auto nu_extension_it = r.extensions.find("nu");
     if (nu_extension_it != r.extensions.end() &&
-        nu_extension_it->second != numbering_system_str) {
+        nu_extension_it->second != numbering_system_str &&
+        Intl::IsValidNumberingSystem(numbering_system_str)) {
       r_locale.setUnicodeKeywordValue("nu", nullptr, status);
       DCHECK(U_SUCCESS(status));
     }
@@ -500,7 +501,7 @@ DirectHandle<String> StyleToString(Isolate* isolate,
   }
   // Avoid undefined behavior for enum values not handled by the exhaustive
   // switch, since they're read from inside the sandbox.
-  SBXCHECK(false);
+  UNREACHABLE();
 }
 
 DirectHandle<String> StyleToString(Isolate* isolate,
@@ -526,7 +527,7 @@ DirectHandle<String> StyleToString(Isolate* isolate,
   }
   // Avoid undefined behavior for enum values not handled by the exhaustive
   // switch, since they're read from inside the sandbox.
-  SBXCHECK(false);
+  UNREACHABLE();
 }
 
 DirectHandle<String> DisplayToString(Isolate* isolate,
@@ -539,7 +540,7 @@ DirectHandle<String> DisplayToString(Isolate* isolate,
   }
   // Avoid undefined behavior for enum values not handled by the exhaustive
   // switch, since they're read from inside the sandbox.
-  SBXCHECK(false);
+  UNREACHABLE();
 }
 
 }  // namespace
@@ -635,7 +636,7 @@ UNumberUnitWidth ToUNumberUnitWidth(JSDurationFormat::FieldStyle style) {
   }
   // Avoid undefined behavior for enum values not handled by the exhaustive
   // switch, since they're read from inside the sandbox.
-  SBXCHECK(false);
+  UNREACHABLE();
 }
 
 struct Part {
@@ -755,6 +756,85 @@ bool OutputLongShortNarrowOrNumeric(
       type, value, display, fmt.unit(unit).unitWidth(ToUNumberUnitWidth(style)),
       addToLast, display_negative_sign, negative_duration, separator, parts,
       strings);
+}
+
+// To format seconds/milliseconds/microseconds with high precision, the values
+// to be formatted are passed in three fields as value = integer * 10^powerOfTen
+// + nanoseconds This allow we pass in the information as large as 2^63 seconds,
+// which is more than the required 2^53
+void OutputFractional(const char* type, int64_t integer, int32_t powerOfTen,
+                      int64_t nanoseconds, JSDurationFormat::Display display,
+                      JSDurationFormat::FieldStyle style,
+                      const icu::number::LocalizedNumberFormatter& fmt,
+                      icu::MeasureUnit unit, bool display_negative_sign,
+                      bool negative_duration,
+                      JSDurationFormat::Separator separator,
+                      std::vector<std::vector<Part>>* parts,
+                      std::vector<icu::UnicodeString>* strings) {
+  // k. If value is not 0 or display is not "auto" or displayRequired is "true",
+  // then
+  if (integer == 0 && nanoseconds == 0 &&
+      display == JSDurationFormat::Display::kAuto) {
+    return;
+  }
+  icu::number::LocalizedNumberFormatter nfOpts(fmt);
+  bool addToLast;
+  // i. If displayNegativeSign is true, then
+  if (display_negative_sign) {
+    // 1. Set displayNegativeSign to false.
+    display_negative_sign = false;
+  } else {  // ii. Else,
+    // 1. Perform ! CreateDataPropertyOrThrow(nfOpts, "signDisplay", "never").
+    nfOpts = nfOpts.sign(UNumberSignDisplay::UNUM_SIGN_NEVER);
+  }
+
+  switch (style) {
+    case JSDurationFormat::FieldStyle::k2Digit:
+      nfOpts = nfOpts.integerWidth(icu::number::IntegerWidth::zeroFillTo(2))
+                   .grouping(UNumberGroupingStrategy::UNUM_GROUPING_OFF);
+      addToLast = true;
+      break;
+    case JSDurationFormat::FieldStyle::kNumeric:
+      nfOpts = nfOpts.grouping(UNumberGroupingStrategy::UNUM_GROUPING_OFF);
+      addToLast = true;
+      break;
+    default:
+      nfOpts = nfOpts.unit(unit).unitWidth(ToUNumberUnitWidth(style));
+      addToLast = false;
+      break;
+  }
+
+  // Pass in the value as int64_t and ask ICU to scale down.
+  nfOpts = nfOpts.scale(icu::number::Scale::powerOfTen(-powerOfTen));
+
+  int64_t factor = static_cast<int64_t>(std::powl(10, powerOfTen));
+  int64_t bound = std::numeric_limits<int64_t>::max() / factor - 1;
+  UErrorCode status = U_ZERO_ERROR;
+  // Use faster ICU API formatInt if the value fit the precision int64_t,
+  // otherwise convert the value to string and use the slower
+  // formatDecimal method.
+  if (std::llabs(integer) < bound) {
+    icu::number::FormattedNumber formatted =
+        nfOpts.formatInt(nanoseconds + integer * factor, status);
+    CHECK(U_SUCCESS(status));
+    FormattedToParts(type, formatted, addToLast, display_negative_sign,
+                     separator, parts, strings);
+  } else {
+    std::string fraction =
+        std::to_string(nanoseconds < 0 ? -nanoseconds : nanoseconds);
+    std::string digits = std::to_string(integer);
+    // add padding '0' to form total powerOfTen digits after '.'.
+    if (static_cast<int32_t>(fraction.length()) < powerOfTen) {
+      digits.append(powerOfTen - fraction.length(), '0');
+    }
+    digits.append(fraction);
+    icu::number::FormattedNumber formatted =
+        nfOpts.formatDecimal(digits.c_str(), status);
+
+    CHECK(U_SUCCESS(status));
+    FormattedToParts(type, formatted, addToLast, display_negative_sign,
+                     separator, parts, strings);
+  }
 }
 
 bool OutputLongShortNarrowNumericOr2Digit(
@@ -888,15 +968,16 @@ void DurationRecordToListOfFormattedNumber(
 
   if (df->milliseconds_style() == JSDurationFormat::FieldStyle::kFractional) {
     // 1. Set value to value + AddFractionalDigits(durationFormat, duration).
-    double value = record.time_duration.nanoseconds / 1e9 +
-                   record.time_duration.microseconds / 1e6 +
-                   record.time_duration.milliseconds / 1e3 +
-                   record.time_duration.seconds;
+    int64_t nanoseconds = record.time_duration.nanoseconds +
+                          record.time_duration.microseconds * 1000LL +
+                          record.time_duration.milliseconds * 1000000LL;
+    int64_t seconds = record.time_duration.seconds + nanoseconds / 1000000000LL;
+    nanoseconds = nanoseconds % 1000000000LL;
 
-    OutputLongShortNarrowNumericOr2Digit(
-        "second", value, df->seconds_display(), df->seconds_style(), nfOps,
-        icu::MeasureUnit::getSecond(), true, false, display_negative_sign,
-        negative_duration, separator, parts, strings);
+    OutputFractional("second", seconds, 9, nanoseconds, df->seconds_display(),
+                     df->seconds_style(), nfOps, icu::MeasureUnit::getSecond(),
+                     display_negative_sign, negative_duration, separator, parts,
+                     strings);
     return;
   }
   display_negative_sign = OutputLongShortNarrowNumericOr2Digit(
@@ -906,15 +987,15 @@ void DurationRecordToListOfFormattedNumber(
 
   if (df->microseconds_style() == JSDurationFormat::FieldStyle::kFractional) {
     // 1. Set value to value + AddFractionalDigits(durationFormat, duration).
-    double value = record.time_duration.nanoseconds / 1e6 +
-                   record.time_duration.microseconds / 1e3 +
-                   record.time_duration.milliseconds;
-
-    OutputLongShortNarrowOrNumeric(
-        "millisecond", value, df->milliseconds_display(),
+    int64_t nanoseconds = record.time_duration.nanoseconds +
+                          record.time_duration.microseconds * 1000LL;
+    int64_t milliseconds =
+        record.time_duration.milliseconds + nanoseconds / 1000000LL;
+    nanoseconds = nanoseconds % 1000000LL;
+    OutputFractional(
+        "millisecond", milliseconds, 6, nanoseconds, df->milliseconds_display(),
         df->milliseconds_style(), nfOps, icu::MeasureUnit::getMillisecond(),
-        false, display_negative_sign, negative_duration, separator, parts,
-        strings);
+        display_negative_sign, negative_duration, separator, parts, strings);
     return;
   }
   display_negative_sign = OutputLongShortNarrowOrNumeric(
@@ -925,13 +1006,14 @@ void DurationRecordToListOfFormattedNumber(
 
   if (df->nanoseconds_style() == JSDurationFormat::FieldStyle::kFractional) {
     // 1. Set value to value + AddFractionalDigits(durationFormat, duration).
-    double value = record.time_duration.nanoseconds / 1e3 +
-                   record.time_duration.microseconds;
-    OutputLongShortNarrowOrNumeric(
-        "microsecond", value, df->microseconds_display(),
+    int64_t nanoseconds = record.time_duration.nanoseconds;
+    int64_t microseconds =
+        record.time_duration.microseconds + nanoseconds / 1000LL;
+    nanoseconds = nanoseconds % 1000LL;
+    OutputFractional(
+        "microsecond", microseconds, 3, nanoseconds, df->microseconds_display(),
         df->microseconds_style(), nfOps, icu::MeasureUnit::getMicrosecond(),
-        false, display_negative_sign, negative_duration, separator, parts,
-        strings);
+        display_negative_sign, negative_duration, separator, parts, strings);
     return;
   }
   display_negative_sign = OutputLongShortNarrowOrNumeric(

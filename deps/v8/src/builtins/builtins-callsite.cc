@@ -4,10 +4,10 @@
 
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/heap/heap-inl.h"  // For ToBoolean.
 #include "src/logging/counters.h"
 #include "src/objects/call-site-info-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/roots/roots-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -181,37 +181,37 @@ BUILTIN(CallSitePrototypeGetTypeName) {
 BUILTIN(CallSitePrototypeIsAsync) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(frame, "isAsync");
-  return isolate->heap()->ToBoolean(frame->IsAsync());
+  return ReadOnlyRoots(isolate).boolean_value(frame->IsAsync());
 }
 
 BUILTIN(CallSitePrototypeIsConstructor) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(frame, "isConstructor");
-  return isolate->heap()->ToBoolean(frame->IsConstructor());
+  return ReadOnlyRoots(isolate).boolean_value(frame->IsConstructor());
 }
 
 BUILTIN(CallSitePrototypeIsEval) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(frame, "isEval");
-  return isolate->heap()->ToBoolean(frame->IsEval());
+  return ReadOnlyRoots(isolate).boolean_value(frame->IsEval());
 }
 
 BUILTIN(CallSitePrototypeIsNative) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(frame, "isNative");
-  return isolate->heap()->ToBoolean(frame->IsNative());
+  return ReadOnlyRoots(isolate).boolean_value(frame->IsNative());
 }
 
 BUILTIN(CallSitePrototypeIsPromiseAll) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(frame, "isPromiseAll");
-  return isolate->heap()->ToBoolean(frame->IsPromiseAll());
+  return ReadOnlyRoots(isolate).boolean_value(frame->IsPromiseAll());
 }
 
 BUILTIN(CallSitePrototypeIsToplevel) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(frame, "isToplevel");
-  return isolate->heap()->ToBoolean(frame->IsToplevel());
+  return ReadOnlyRoots(isolate).boolean_value(frame->IsToplevel());
 }
 
 BUILTIN(CallSitePrototypeToString) {

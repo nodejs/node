@@ -179,6 +179,14 @@ bool HashTable<Derived, Shape>::IsKey(ReadOnlyRoots roots, Tagged<Object> k) {
   return !IsUndefined(k, roots) && !IsTheHole(k, roots);
 }
 
+// static
+template <typename Derived, typename Shape>
+bool HashTable<Derived, Shape>::IsKey(EarlyReadOnlyRoots roots,
+                                      Tagged<Object> k) {
+  // TODO(leszeks): Dictionaries that don't delete could skip the hole check.
+  return !IsUndefined(k, roots) && !IsTheHole(k, roots);
+}
+
 template <typename Derived, typename Shape>
 bool HashTable<Derived, Shape>::ToKey(ReadOnlyRoots roots, InternalIndex entry,
                                       Tagged<Object>* out_k) {

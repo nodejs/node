@@ -152,7 +152,6 @@ class V8_EXPORT_PRIVATE MemoryReducer {
     bool next_gc_likely_to_collect_more;
     bool should_start_incremental_gc;
     bool can_start_incremental_gc;
-    bool is_frozen;
   };
 
   explicit MemoryReducer(Heap* heap);
@@ -167,7 +166,6 @@ class V8_EXPORT_PRIVATE MemoryReducer {
   // Posts a timer task that will call NotifyTimer after the given delay.
   void ScheduleTimer(double delay_ms);
   void TearDown();
-  static const int kLongDelayMs;
   static const int kShortDelayMs;
   static const int kWatchdogDelayMs;
   // The committed memory has to increase by at least this factor since the
@@ -182,8 +180,6 @@ class V8_EXPORT_PRIVATE MemoryReducer {
   bool ShouldGrowHeapSlowly() { return state_.id() == kDone; }
 
   static int MaxNumberOfGCs();
-
-  static bool IsFrozen(const Heap* heap);
 
  private:
   class TimerTask : public v8::internal::CancelableTask {

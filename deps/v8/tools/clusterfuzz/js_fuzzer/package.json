@@ -10,7 +10,9 @@
   "author": "ochang@google.com",
   "license": "ISC",
   "dependencies": {
+    "@babel/core": "^7.26.10",
     "@babel/generator": "^7.26.10",
+    "@babel/preset-env": "^7.26.10",
     "@babel/template": "^7.26.9",
     "@babel/traverse": "^7.6.0",
     "@babel/types": "^7.26.10",

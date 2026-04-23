@@ -148,7 +148,7 @@ TEST(TryProbeStubCache) {
   stub_cache.Clear();
 
   {
-    auto receiver = m.Parameter<JSAny>(1);
+    auto receiver = m.Parameter<JSObject>(1);
     auto name = m.Parameter<Name>(2);
     TNode<MaybeObject> expected_handler = m.UncheckedParameter<MaybeObject>(3);
 
@@ -157,8 +157,9 @@ TEST(TryProbeStubCache) {
     CodeStubAssembler::TVariable<MaybeObject> var_handler(&m);
     Label if_handler(&m), if_miss(&m);
 
-    m.TryProbeStubCache(&stub_cache, receiver, name, &if_handler, &var_handler,
-                        &if_miss);
+    TNode<Map> receiver_map = m.LoadMap(receiver);
+    m.TryProbeStubCache(&stub_cache, receiver, receiver_map, name, &if_handler,
+                        &var_handler, &if_miss);
     m.BIND(&if_handler);
     m.Branch(m.TaggedEqual(expected_handler, var_handler.value()), &passed,
              &failed);

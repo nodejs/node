@@ -1063,14 +1063,12 @@ Tagged<NativeContext> JSGlobalObject::native_context() {
   return *GetCreationContext();
 }
 
-bool JSGlobalObject::IsDetached(Isolate* isolate) {
-  return global_proxy()->IsDetachedFrom(isolate, *this);
+bool JSGlobalObject::IsDetached() {
+  return global_proxy()->IsDetachedFrom(*this);
 }
 
-bool JSGlobalProxy::IsDetachedFrom(Isolate* isolate,
-                                   Tagged<JSGlobalObject> global) const {
-  const PrototypeIterator iter(isolate, Tagged<JSReceiver>(*this));
-  return iter.GetCurrent() != global;
+bool JSGlobalProxy::IsDetachedFrom(Tagged<JSGlobalObject> global) const {
+  return map()->prototype() != global;
 }
 
 inline int JSGlobalProxy::SizeWithEmbedderFields(int embedder_field_count) {

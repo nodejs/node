@@ -126,18 +126,19 @@ transitioning macro TypedArraySortCommon(
   let writebackLen = len;
   if constexpr (isSort) {
     try {
-      const newLen = LoadJSTypedArrayLengthAndCheckDetached(array)
-          otherwise DetachedOrOutOfBounds;
+      const newLen = LoadJSTypedArrayLengthAndValidate(
+          array, TypedArrayAccessMode::kRead) otherwise Fail;
       if (newLen < writebackLen) {
         writebackLen = newLen;
       }
-    } label DetachedOrOutOfBounds {
+    } label Fail {
       writebackLen = 0;
     }
   } else {
+    const access = TypedArrayAccessMode::kRead;
     dcheck(
         writebackLen ==
-        LoadJSTypedArrayLengthAndCheckDetached(array) otherwise unreachable);
+        LoadJSTypedArrayLengthAndValidate(array, access) otherwise unreachable);
   }
 
   // work1 contains the sorted numbers. Write them back.
@@ -164,8 +165,8 @@ transitioning javascript builtin TypedArrayPrototypeSort(
 
   // 3. Let buffer be ? ValidateTypedArray(obj).
   // 4. Let len be IntegerIndexedObjectLength(obj).
-  const len: uintptr =
-      ValidateTypedArrayAndGetLength(context, obj, kBuiltinNameSort);
+  const len: uintptr = ValidateTypedArrayAndGetLength(
+      context, obj, kBuiltinNameSort, TypedArrayAccessMode::kWrite);
   const array: JSTypedArray = UnsafeCast<JSTypedArray>(obj);
   const kIsSort: constexpr bool = true;
   return TypedArraySortCommon(array, len, comparefn, kIsSort);

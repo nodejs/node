@@ -48,6 +48,21 @@ template class V8_EXPORT std::vector<v8::CpuProfileDeoptFrame>;
 
 namespace v8 {
 
+/**
+ * Identifies which component initiated CPU profiling for proper attribution.
+ */
+enum class CpuProfileSource : uint8_t {
+  /** Default value when no explicit source is specified. */
+  kUnspecified = 0,
+  /** Profiling initiated via the DevTools Inspector protocol. */
+  kInspector = 1,
+  /** Profiling initiated by the embedder (e.g., Blink) via self-profiling API.
+   */
+  kSelfProfiling = 2,
+  /** Profiling initiated internally by V8 (e.g., tracing CPU profiler). */
+  kInternal = 3,
+};
+
 struct V8_EXPORT CpuProfileDeoptInfo {
   /** A pointer to a static string owned by v8. */
   const char* deopt_reason;
@@ -378,11 +393,13 @@ class V8_EXPORT CpuProfilingOptions {
    *                             the profiler's sampling interval.
    * \param filter_context If specified, profiles will only contain frames
    *                       using this context. Other frames will be elided.
+   * \param profile_source Identifies the source of this CPU profile.
    */
   CpuProfilingOptions(
       CpuProfilingMode mode = kLeafNodeLineNumbers,
       unsigned max_samples = kNoSampleLimit, int sampling_interval_us = 0,
-      MaybeLocal<Context> filter_context = MaybeLocal<Context>());
+      MaybeLocal<Context> filter_context = MaybeLocal<Context>(),
+      CpuProfileSource profile_source = CpuProfileSource::kUnspecified);
 
   CpuProfilingOptions(CpuProfilingOptions&&) = default;
   CpuProfilingOptions& operator=(CpuProfilingOptions&&) = default;
@@ -390,6 +407,7 @@ class V8_EXPORT CpuProfilingOptions {
   CpuProfilingMode mode() const { return mode_; }
   unsigned max_samples() const { return max_samples_; }
   int sampling_interval_us() const { return sampling_interval_us_; }
+  CpuProfileSource profile_source() const { return profile_source_; }
 
  private:
   friend class internal::CpuProfile;
@@ -401,6 +419,7 @@ class V8_EXPORT CpuProfilingOptions {
   unsigned max_samples_;
   int sampling_interval_us_;
   Global<Context> filter_context_;
+  CpuProfileSource profile_source_;
 };
 
 /**
@@ -1113,7 +1132,7 @@ class V8_EXPORT HeapProfiler {
     /**
      * The resolver used by the snapshot generator to get names for V8 objects.
      */
-    V8_DEPRECATE_SOON("Use context_name_resolver callback instead.")
+    V8_DEPRECATED("Use context_name_resolver callback instead.")
     ObjectNameResolver* global_object_name_resolver = nullptr;
     /**
      * The resolver used by the snapshot generator to get names for v8::Context
@@ -1151,7 +1170,7 @@ class V8_EXPORT HeapProfiler {
    *
    * \returns the snapshot.
    */
-  V8_DEPRECATE_SOON("Use overload with ContextNameResolver* resolver instead.")
+  V8_DEPRECATED("Use overload with ContextNameResolver* resolver instead.")
   const HeapSnapshot* TakeHeapSnapshot(
       ActivityControl* control, ObjectNameResolver* global_object_name_resolver,
       bool hide_internals = true, bool capture_numeric_value = false);

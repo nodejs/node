@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --memory-pool-release-on-malloc-failures
+
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 // We generate the module bytes once to make this test more efficient,

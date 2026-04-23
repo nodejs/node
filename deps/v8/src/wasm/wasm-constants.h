@@ -75,12 +75,14 @@ constexpr uint8_t kWasmDescriptorCode = 0x4d;
 constexpr uint8_t kWasmDescribesCode = 0x4c;
 
 // Binary encoding of import/export kinds.
+constexpr uint8_t kExternalExactBit = 1 << 5;
 enum ImportExportKindCode : uint8_t {
   kExternalFunction = 0,
   kExternalTable = 1,
   kExternalMemory = 2,
   kExternalGlobal = 3,
-  kExternalTag = 4
+  kExternalTag = 4,
+  kExternalExactFunction = kExternalFunction | kExternalExactBit,
 };
 
 // The limits structure: valid for both memory and table limits.
@@ -140,6 +142,25 @@ enum SectionCode : int8_t {
   kLastKnownModuleSection = kStringRefSectionCode,
   kFirstUnorderedSection = kDataCountSectionCode,
 };
+
+// Names of custom sections.
+constexpr char kNameString[] = "name";
+constexpr char kSourceMappingURLString[] = "sourceMappingURL";
+constexpr char kInstTraceString[] = "metadata.code.trace_inst";
+constexpr char kBranchHintsString[] = "metadata.code.branch_hint";
+#if V8_CC_GNU
+// TODO(miladfarca): remove once switched to using Clang.
+__attribute__((used))
+#endif
+constexpr char kCompilationPriorityString[] =
+    "metadata.code.compilation_priority";
+constexpr char kInstructionFrequenciesString[] = "metadata.code.instr_freq";
+constexpr char kCallTargetsString[] = "metadata.code.call_targets";
+constexpr char kDebugInfoString[] = ".debug_info";
+constexpr char kExternalDebugInfoString[] = "external_debug_info";
+constexpr char kBuildIdString[] = "build_id";
+// TODO(403372470): Rename to "descriptors" when finalized.
+constexpr char kDescriptorsString[] = "experimental-descriptors";
 
 // Binary encoding of name section kinds.
 enum NameSectionKindCode : uint8_t {

@@ -753,13 +753,13 @@ class LiftoffAssembler : public MacroAssembler {
   inline void AtomicLoad(LiftoffRegister dst, Register src_addr,
                          Register offset_reg, uintptr_t offset_imm,
                          LoadType type, uint32_t* protected_load_pc,
-                         LiftoffRegList pinned, bool i64_offset,
-                         Endianness endianness = kLittle);
+                         AtomicMemoryOrder memory_order, LiftoffRegList pinned,
+                         bool i64_offset, Endianness endianness = kLittle);
   inline void AtomicStore(Register dst_addr, Register offset_reg,
                           uintptr_t offset_imm, LiftoffRegister src,
                           StoreType type, uint32_t* protected_store_pc,
-                          LiftoffRegList pinned, bool i64_offset,
-                          Endianness endianness = kLittle);
+                          AtomicMemoryOrder memory_order, LiftoffRegList pinned,
+                          bool i64_offset, Endianness endianness = kLittle);
 
   inline void AtomicAdd(Register dst_addr, Register offset_reg,
                         uintptr_t offset_imm, LiftoffRegister value,

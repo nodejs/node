@@ -137,61 +137,6 @@ TEST(NativeContextStatsExternalString) {
 
 namespace {
 
-class MockPlatform : public TestPlatform {
- public:
-  MockPlatform() : mock_task_runner_(new MockTaskRunner()) {}
-
-  std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
-      v8::Isolate*, v8::TaskPriority priority) override {
-    return mock_task_runner_;
-  }
-
-  double Delay() { return mock_task_runner_->Delay(); }
-
-  void PerformTask() { mock_task_runner_->PerformTask(); }
-
-  bool TaskPosted() { return mock_task_runner_->TaskPosted(); }
-
- private:
-  class MockTaskRunner : public v8::TaskRunner {
-   public:
-    void PostTaskImpl(std::unique_ptr<v8::Task> task,
-                      const SourceLocation&) override {}
-
-    void PostDelayedTaskImpl(std::unique_ptr<Task> task,
-                             double delay_in_seconds,
-                             const SourceLocation&) override {
-      task_ = std::move(task);
-      delay_ = delay_in_seconds;
-    }
-
-    void PostIdleTaskImpl(std::unique_ptr<IdleTask> task,
-                          const SourceLocation&) override {
-      UNREACHABLE();
-    }
-
-    bool NonNestableTasksEnabled() const override { return true; }
-
-    bool NonNestableDelayedTasksEnabled() const override { return true; }
-
-    bool IdleTasksEnabled() override { return false; }
-
-    double Delay() { return delay_; }
-
-    void PerformTask() {
-      std::unique_ptr<Task> task = std::move(task_);
-      task->Run();
-    }
-
-    bool TaskPosted() { return task_.get(); }
-
-   private:
-    double delay_ = -1;
-    std::unique_ptr<Task> task_;
-  };
-  std::shared_ptr<MockTaskRunner> mock_task_runner_;
-};
-
 class MockMeasureMemoryDelegate : public v8::MeasureMemoryDelegate {
  public:
   bool ShouldMeasure(v8::Local<v8::Context> context) override { return true; }
@@ -223,7 +168,7 @@ TEST(LazyMemoryMeasurement) {
   CcTest::isolate()->MeasureMemory(
       std::make_unique<MockMeasureMemoryDelegate>(),
       v8::MeasureMemoryExecution::kLazy);
-  CHECK(!platform.TaskPosted());
+  CHECK(!platform.PendingTask());
 }
 
 TEST(PartiallyInitializedJSFunction) {

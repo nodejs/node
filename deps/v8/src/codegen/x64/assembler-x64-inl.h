@@ -124,6 +124,114 @@ void Assembler::emit_optional_rex_8(Register reg, Operand op) {
   }
 }
 
+#ifdef V8_ENABLE_APX_F
+void Assembler::emit_rex2_prefix(Register reg, Register rm_reg, Rex2MapID m,
+                                 Rex2W w) {
+  emit(0xD5);
+  emit(m | reg.bit4() << 6 | rm_reg.bit4() << 4 | w | reg.high_bit() << 2 |
+       rm_reg.high_bit());
+}
+
+void Assembler::emit_rex2_prefix(Register reg, Operand op, Rex2MapID m,
+                                 Rex2W w) {
+  emit(0xD5);
+  emit(m | reg.bit4() << 6 | op.rex2() << 4 | w | reg.high_bit() << 2 |
+       op.rex());
+}
+
+void Assembler::emit_rex2_64(Register reg, Register rm_reg, Rex2MapID m) {
+  emit_rex2_prefix(reg, rm_reg, m, kRex2W1);
+}
+
+void Assembler::emit_rex2_64(Register reg, Operand op, Rex2MapID m) {
+  emit_rex2_prefix(reg, op, m, kRex2W1);
+}
+
+void Assembler::emit_rex2_64(Register reg, Rex2MapID m) {
+  emit_rex2_prefix(rax, reg, m, kRex2W1);
+}
+
+void Assembler::emit_rex2_64(Operand op, Rex2MapID m) {
+  emit_rex2_prefix(rax, op, m, kRex2W1);
+}
+
+void Assembler::emit_rex2_32(Register reg, Register rm_reg, Rex2MapID m) {
+  emit_rex2_prefix(reg, rm_reg, m, kRex2W0);
+}
+
+void Assembler::emit_rex2_32(Register reg, Operand op, Rex2MapID m) {
+  emit_rex2_prefix(reg, op, m, kRex2W0);
+}
+
+void Assembler::emit_rex2_32(Register reg, Rex2MapID m) {
+  emit_rex2_prefix(rax, reg, m, kRex2W0);
+}
+
+void Assembler::emit_rex2_32(Operand op, Rex2MapID m) {
+  emit_rex2_prefix(rax, op, m, kRex2W0);
+}
+
+// Legacy extended evex
+void Assembler::emit_legacy_extended_evex_prefix(Register dst, Register src1,
+                                                 Register src2, SIMDPrefix pp,
+                                                 VexW w,
+                                                 EvexStatusFlagUpdate nf,
+                                                 EvexNewDataDestination nd) {
+  emit_evex_byte0();
+  emit_legacy_extended_evex_byte1(src1, src2);
+  emit_legacy_extended_evex_byte2(dst, w, pp);
+  emit_legacy_extended_evex_byte3(dst, nd, nf);
+}
+
+void Assembler::emit_legacy_extended_evex_prefix(Register dst, Register src1,
+                                                 Operand src2, SIMDPrefix pp,
+                                                 VexW w,
+                                                 EvexStatusFlagUpdate nf,
+                                                 EvexNewDataDestination nd) {
+  emit_evex_byte0();
+  emit_legacy_extended_evex_byte1(src1, src2);
+  emit_legacy_extended_evex_byte2(dst, src2, w, pp);
+  emit_legacy_extended_evex_byte3(dst, nd, nf);
+}
+
+void Assembler::emit_legacy_extended_evex_byte1(Register src1, Register src2) {
+  uint8_t mm = 4;
+  uint8_t rxb =
+      static_cast<uint8_t>(~((src1.high_bit() << 2) | src2.high_bit())) << 5;
+  uint8_t r4 = static_cast<uint8_t>((~src1.bit4()) & 0x1);
+  uint8_t b4 = static_cast<uint8_t>(src2.bit4() & 0x1);
+  emit(rxb | (r4 << 4) | (b4 << 3) | mm);
+}
+
+void Assembler::emit_legacy_extended_evex_byte1(Register src1, Operand src2) {
+  uint8_t mm = 4;
+  uint8_t r3 = static_cast<uint8_t>((~src1.high_bit()) & 0x1);
+  uint8_t x3b3 = (~src2.rex()) & 0x3;
+  uint8_t r4 = static_cast<uint8_t>((~src1.bit4()) & 0x1);
+  uint8_t b4 = src2.rex2() & 0x1;
+  emit((r3 << 7) | (x3b3 << 5) | (r4 << 4) | (b4 << 3) | mm);
+}
+
+void Assembler::emit_legacy_extended_evex_byte2(Register dst, VexW w,
+                                                SIMDPrefix pp) {
+  uint8_t x4 = 1;
+  emit(w | ((~dst.code() & 0xf) << 3) | (x4 << 2) | pp);
+}
+
+void Assembler::emit_legacy_extended_evex_byte2(Register dst, Operand src2,
+                                                VexW w, SIMDPrefix pp) {
+  uint8_t x4 = (~src2.rex2() & 0x2) >> 1;
+  emit(w | ((~dst.code() & 0xf) << 3) | (x4 << 2) | pp);
+}
+
+void Assembler::emit_legacy_extended_evex_byte3(Register dst,
+                                                EvexNewDataDestination nd,
+                                                EvexStatusFlagUpdate nf) {
+  uint8_t v4 = (dst.code() < 16) ? 0x8 : 0;
+  emit(nd | v4 | nf);
+}
+#endif  // V8_ENABLE_APX_F
+
 // byte 1 of 3-byte VEX
 void Assembler::emit_vex3_byte1(XMMRegister reg, XMMRegister rm,
                                 LeadingOpcode m) {

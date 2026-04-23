@@ -42,20 +42,20 @@ void SloppyArgumentsElements::set_arguments(
 }
 
 Tagged<UnionOf<Smi, Hole>> SloppyArgumentsElements::mapped_entries(
-    int index, RelaxedLoadTag tag) const {
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
+    uint32_t index, RelaxedLoadTag tag) const {
+  DCHECK_LT(index, ulength());
   return objects()[index].Relaxed_Load();
 }
 
 void SloppyArgumentsElements::set_mapped_entries(
-    int index, Tagged<UnionOf<Smi, Hole>> value) {
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
+    uint32_t index, Tagged<UnionOf<Smi, Hole>> value) {
+  DCHECK_LT(index, length());
   objects()[index].store(this, value);
 }
 
 void SloppyArgumentsElements::set_mapped_entries(
-    int index, Tagged<UnionOf<Smi, Hole>> value, RelaxedStoreTag tag) {
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
+    uint32_t index, Tagged<UnionOf<Smi, Hole>> value, RelaxedStoreTag tag) {
+  DCHECK_LT(index, ulength());
   objects()[index].Relaxed_Store(this, value);
 }
 

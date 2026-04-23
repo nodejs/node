@@ -235,12 +235,7 @@ class PosixCommand(DesktopCommand):
 
   def _kill_process(self, process):
     # Kill the whole process group (PID == GPID after setsid).
-    # First try a soft term to allow some feedback
-    os.killpg(process.pid, signal.SIGTERM)
-    # Give the process some time to cleanly terminate.
-    time.sleep(0.1)
-    # Forcefully kill processes.
-    os.killpg(process.pid, signal.SIGKILL)
+    terminate_process_group_posix(process)
 
 
 class IOSCommand(BaseCommand):
@@ -292,15 +287,23 @@ class IOSCommand(BaseCommand):
 
   def _kill_process(self, process):
     # Kill the whole process group (PID == GPID after setsid).
+    terminate_process_group_posix(process)
+
+  def _to_args_list(self):
+    return list(map(str, self.cmd_prefix + [self.shell]))
+
+
+def terminate_process_group_posix(process):
+  try:
     # First try a soft term to allow some feedback
     os.killpg(process.pid, signal.SIGTERM)
     # Give the process some time to cleanly terminate.
     time.sleep(0.1)
     # Forcefully kill processes.
     os.killpg(process.pid, signal.SIGKILL)
-
-  def _to_args_list(self):
-    return list(map(str, self.cmd_prefix + [self.shell]))
+  except ProcessLookupError:
+    # The process terminated in the middle.
+    pass
 
 def terminate_process_windows(process):
   try:

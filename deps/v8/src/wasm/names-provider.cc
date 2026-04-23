@@ -41,7 +41,10 @@ void NamesProvider::ComputeFunctionNamesFromImportsExports() {
   // When tracing streaming compilations, we might not yet have wire bytes.
   if (wire_bytes_.empty()) return;
   for (const WasmImport& import : module_->import_table) {
-    if (import.kind != kExternalFunction) continue;
+    if (import.kind != kExternalFunction &&
+        import.kind != kExternalExactFunction) {
+      continue;
+    }
     if (module_->lazily_generated_names.Has(import.index)) continue;
     ComputeImportName(import, import_export_function_names_);
   }
@@ -61,6 +64,7 @@ void NamesProvider::ComputeNamesFromImportsExports() {
   for (const WasmImport import : module_->import_table) {
     switch (import.kind) {
       case kExternalFunction:
+      case kExternalExactFunction:
         continue;  // Functions are handled separately.
       case kExternalTable:
         if (name_section_names_->table_names_.Has(import.index)) continue;
@@ -83,6 +87,7 @@ void NamesProvider::ComputeNamesFromImportsExports() {
   for (const WasmExport& ex : module_->export_table) {
     switch (ex.kind) {
       case kExternalFunction:
+      case kExternalExactFunction:
         continue;  // Functions are handled separately.
       case kExternalTable:
         if (name_section_names_->table_names_.Has(ex.index)) continue;
@@ -389,7 +394,7 @@ void NamesProvider::PrintTagName(StringBuilder& out, uint32_t tag_index,
 }
 
 void NamesProvider::PrintHeapType(StringBuilder& out, HeapType type) {
-  if (type.is_index()) {
+  if (type.has_index()) {
     if (type.is_exact()) out << "exact ";
     PrintTypeName(out, type.ref_index());
   } else {
