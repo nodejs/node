@@ -147,7 +147,12 @@ DataPointer DataPointer::SecureAlloc(size_t len) {
 #ifndef OPENSSL_IS_BORINGSSL
   auto ptr = OPENSSL_secure_zalloc(len);
   if (ptr == nullptr) return {};
-  return DataPointer(ptr, len, true);
+  // OPENSSL_secure_zalloc transparently falls back to a regular allocation
+  // when the secure heap is not initialized or is exhausted. Reflect the
+  // actual provenance of the pointer so that reset() routes to the correct
+  // free function (OPENSSL_secure_clear_free vs. OPENSSL_clear_free) and
+  // callers of isSecure() get a truthful answer.
+  return DataPointer(ptr, len, CRYPTO_secure_allocated(ptr) == 1);
 #else
   // BoringSSL does not implement the OPENSSL_secure_zalloc API.
   auto ptr = OPENSSL_malloc(len);
