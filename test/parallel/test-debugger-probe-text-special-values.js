@@ -4,9 +4,11 @@
 const common = require('../common');
 common.skipIfInspectorDisabled();
 
-const assert = require('assert');
 const { spawnSyncAndAssert } = require('../common/child_process');
-const { probeTypesScript } = require('../common/debugger-probe');
+const {
+  assertProbeText,
+  probeTypesScript,
+} = require('../common/debugger-probe');
 
 const location = `${probeTypesScript}:17`;
 
@@ -37,7 +39,7 @@ spawnSyncAndAssert(process.execPath, [
   probeTypesScript,
 ], {
   stdout(output) {
-    assert.strictEqual(output, [
+    assertProbeText(output, [
       `Hit 1 at ${location}`,
       '  stringValue = "hello"',
       `Hit 1 at ${location}`,
