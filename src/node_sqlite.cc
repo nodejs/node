@@ -941,6 +941,19 @@ bool DatabaseSync::Open() {
     return false;
   }
 
+  // Permission checks: skip for in-memory databases, enforce FS permissions
+  // for file-backed databases.
+  std::string_view db_path = open_config_.location();
+  if (db_path != ":memory:" && !db_path.empty()) {
+    if (open_config_.get_read_only()) {
+      THROW_IF_INSUFFICIENT_PERMISSIONS(
+          env(), permission::PermissionScope::kFileSystemRead, db_path, false);
+    } else {
+      THROW_IF_INSUFFICIENT_PERMISSIONS(
+          env(), permission::PermissionScope::kFileSystemWrite, db_path, false);
+    }
+  }
+
   // sqlite3_open_v2() assigns a database handle even when it fails. Such a
   // handle is in a "sick" state and may only be used to retrieve the error
   // and must then be released with sqlite3_close(). Close and reset the
