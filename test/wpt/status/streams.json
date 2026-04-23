@@ -43,5 +43,13 @@
   },
   "transform-streams/invalid-realm.tentative.window.js": {
     "skip": "Browser-specific test"
+  },
+  "writable-streams/aborting.any.js": {
+    "fail": {
+      "note": "Recursive abort() call from within an abort algorithm triggers ERR_INTERNAL_ASSERTION",
+      "expected": [
+        "recursive abort() call from abort() aborting signal"
+      ]
+    }
   }
 }

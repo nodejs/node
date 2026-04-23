@@ -237,6 +237,29 @@ promise_test(t => {
 }, 'ReadableStream with byte source: Test that erroring a stream does not release a BYOB reader automatically');
 
 promise_test(async t => {
+  const rs = new ReadableStream({
+    type: 'bytes',
+    start(c) {
+      c.enqueue(new Uint8Array([1, 2, 3]));
+    }
+  });
+
+  const reader1 = rs.getReader({mode: 'byob'});
+  reader1.releaseLock();
+
+  const reader2 = rs.getReader({mode: 'byob'});
+
+  // Should be a no-op
+  reader1.releaseLock();
+
+  const result = await reader2.read(new Uint8Array([0, 0, 0]));
+  assert_typed_array_equals(result.value, new Uint8Array([1, 2, 3]),
+    'read() should still work on reader2 even after reader1 is released');
+  assert_false(result.done, 'done');
+
+}, 'ReadableStream with byte source: cannot use an already-released BYOB reader to unlock a stream again');
+
+promise_test(async t => {
   const stream = new ReadableStream({
     type: 'bytes'
   });
@@ -991,6 +1014,69 @@ promise_test(() => {
   });
 }, 'ReadableStream with byte source: respond(3) to read(view) with 2 element Uint16Array enqueues the 1 byte ' +
    'remainder');
+
+promise_test(() => {
+  let pullCount = 0;
+
+  let controller;
+  let byobRequest;
+  let viewInfo;
+
+  const stream = new ReadableStream({
+    start(c) {
+      controller = c;
+    },
+    pull() {
+      ++pullCount;
+
+      byobRequest = controller.byobRequest;
+      const view = byobRequest.view;
+      viewInfo = extractViewInfo(view);
+
+      view[0] = 0x01;
+      view[1] = 0x02;
+      view[2] = 0x03;
+
+      controller.byobRequest.respond(3);
+    },
+    type: 'bytes'
+  });
+
+  const reader = stream.getReader({ mode: 'byob' });
+  const read1 = reader.read(new Uint16Array(2));
+  const read2 = reader.read(new Uint8Array(1));
+
+  return read1.then(result => {
+    assert_equals(pullCount, 1);
+
+    assert_false(result.done, 'done');
+
+    const view = result.value;
+    assert_equals(view.byteOffset, 0, 'byteOffset');
+    assert_equals(view.byteLength, 2, 'byteLength');
+
+    const dataView = new DataView(view.buffer, view.byteOffset, view.byteLength);
+    assert_equals(dataView.getUint16(0), 0x0102);
+
+    return read2;
+  }).then(result => {
+    assert_equals(pullCount, 1);
+    assert_not_equals(byobRequest, null, 'byobRequest must not be null');
+    assert_equals(viewInfo.constructor, Uint8Array, 'view.constructor should be Uint8Array');
+    assert_equals(viewInfo.bufferByteLength, 4, 'view.buffer.byteLength should be 4');
+    assert_equals(viewInfo.byteOffset, 0, 'view.byteOffset should be 0');
+    assert_equals(viewInfo.byteLength, 4, 'view.byteLength should be 4');
+
+    assert_false(result.done, 'done');
+
+    const view = result.value;
+    assert_equals(view.byteOffset, 0, 'byteOffset');
+    assert_equals(view.byteLength, 1, 'byteLength');
+
+    assert_equals(view[0], 0x03);
+  });
+}, 'ReadableStream with byte source: respond(3) to read(view) with 2 element Uint16Array fulfills second read(view) ' +
+   'with the 1 byte remainder');
 
 promise_test(t => {
   const stream = new ReadableStream({
