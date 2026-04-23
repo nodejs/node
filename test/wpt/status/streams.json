@@ -8,6 +8,15 @@
   "readable-streams/cross-realm-crash.window.js": {
     "skip": "Browser-specific test"
   },
+  "readable-streams/from.any.js": {
+    "fail": {
+      "note": "does not synchronously validate that the value returned by @@iterator/@@asyncIterator is an object",
+      "expected": [
+        "ReadableStream.from throws on invalid iterables; specifically an object with an @@iterator method returning a non-object",
+        "ReadableStream.from throws on invalid iterables; specifically an object with an @@asyncIterator method returning a non-object"
+      ]
+    }
+  },
   "readable-streams/owning-type-message-port.any.js": {
     "fail": {
       "note": "Readable streams with type owning are not yet supported",
@@ -43,5 +52,13 @@
   },
   "transform-streams/invalid-realm.tentative.window.js": {
     "skip": "Browser-specific test"
+  },
+  "writable-streams/aborting.any.js": {
+    "fail": {
+      "note": "Recursive abort() call from within an abort algorithm triggers ERR_INTERNAL_ASSERTION",
+      "expected": [
+        "recursive abort() call from abort() aborting signal"
+      ]
+    }
   }
 }
