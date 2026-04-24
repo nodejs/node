@@ -224,8 +224,8 @@ $ node --permission --allow-env=* --allow-fs-read=* -p 'process.env.HOME'
 Environment variable permissions can be checked programmatically:
 
 ```js
-process.permission.has('env'); // true if any env access is allowed
-process.permission.has('env', 'HOME'); // true if HOME is allowed
+process.permission.has('env'); // True if any env access is allowed
+process.permission.has('env', 'HOME'); // True if HOME is allowed
 ```
 
 Attempting to write a restricted variable throws:
