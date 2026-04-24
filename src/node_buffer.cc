@@ -983,8 +983,8 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
   if (!StringBytes::Size(isolate, needle, enc).To(&needle_length)) return;
 
   // search_end is the exclusive upper bound of the search range.
-  size_t search_end = static_cast<size_t>(
-      std::min(end_i64, static_cast<int64_t>(haystack_length)));
+  size_t search_end = static_cast<size_t>(std::min(
+      std::max(end_i64, int64_t{0}), static_cast<int64_t>(haystack_length)));
   if (enc == UCS2) search_end &= ~static_cast<size_t>(1);
 
   int64_t opt_offset = IndexOfOffset(haystack_length,
@@ -993,8 +993,10 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
                                      is_forward);
 
   if (needle_length == 0) {
-    // Match String#indexOf() and String#lastIndexOf() behavior.
-    args.GetReturnValue().Set(static_cast<double>(opt_offset));
+    // Match String#indexOf() and String#lastIndexOf() behavior,
+    // but clamp to search_end.
+    int64_t clamped = std::min(opt_offset, static_cast<int64_t>(search_end));
+    args.GetReturnValue().Set(static_cast<double>(clamped));
     return;
   }
 
@@ -1108,8 +1110,8 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
   const size_t needle_length = needle_contents.length();
 
   // search_end is the exclusive upper bound of the search range.
-  size_t search_end = static_cast<size_t>(
-      std::min(end_i64, static_cast<int64_t>(haystack_length)));
+  size_t search_end = static_cast<size_t>(std::min(
+      std::max(end_i64, int64_t{0}), static_cast<int64_t>(haystack_length)));
   if (enc == UCS2) search_end &= ~static_cast<size_t>(1);
 
   int64_t opt_offset = IndexOfOffset(haystack_length,
@@ -1118,8 +1120,10 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
                                      is_forward);
 
   if (needle_length == 0) {
-    // Match String#indexOf() and String#lastIndexOf() behavior.
-    args.GetReturnValue().Set(static_cast<double>(opt_offset));
+    // Match String#indexOf() and String#lastIndexOf() behavior,
+    // but clamp to search_end.
+    int64_t clamped = std::min(opt_offset, static_cast<int64_t>(search_end));
+    args.GetReturnValue().Set(static_cast<double>(clamped));
     return;
   }
 
@@ -1184,8 +1188,8 @@ int32_t IndexOfNumberImpl(Local<Value> buffer_obj,
   }
   size_t offset = static_cast<size_t>(opt_offset);
   // search_end is the exclusive upper bound of the search range.
-  size_t search_end = static_cast<size_t>(
-      std::min(end_i64, static_cast<int64_t>(buffer_length)));
+  size_t search_end = static_cast<size_t>(std::min(
+      std::max(end_i64, int64_t{0}), static_cast<int64_t>(buffer_length)));
 
   const void* ptr;
   if (is_forward) {
@@ -1222,8 +1226,8 @@ int32_t FastIndexOfNumber(Local<Value>,
                           Local<Value> buffer_obj,
                           uint32_t needle,
                           int64_t offset_i64,
-                          int64_t end_i64,
                           bool is_forward,
+                          int64_t end_i64,
                           // NOLINTNEXTLINE(runtime/references)
                           FastApiCallbackOptions& options) {
   HandleScope scope(options.isolate);
