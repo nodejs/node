@@ -259,7 +259,7 @@ changes:
     flags may be passed by bitwise `OR`ing their values.
   * `all` {boolean} When `true`, the callback returns all resolved addresses in
     an array. Otherwise, returns a single address. **Default:** `false`.
-  * `order` {string} When `verbatim`, the resolved addresses are return
+  * `order` {string} When `verbatim`, the resolved addresses are returned
     unsorted. When `ipv4first`, the resolved addresses are sorted by placing
     IPv4 addresses before IPv6 addresses. When `ipv6first`, the resolved
     addresses are sorted by placing IPv6 addresses before IPv4 addresses.
