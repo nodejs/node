@@ -4515,6 +4515,13 @@ Or the `--use-env-proxy` flag.
 HTTP_PROXY=http://proxy.example.com:8080 NO_PROXY=localhost,127.0.0.1 node --use-env-proxy client.js
 ```
 
+If the proxy does not support the HTTP CONNECT method, set `NODE_PROXY_TUNNEL=false`
+to use direct HTTP forwarding instead:
+
+```console
+NODE_USE_ENV_PROXY=1 NODE_PROXY_TUNNEL=false HTTP_PROXY=http://proxy.example.com:8080 node client.js
+```
+
 To enable proxy support dynamically and globally with `process.env` (the default option of `http.setGlobalProxyFromEnv()`):
 
 ```cjs

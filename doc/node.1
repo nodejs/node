@@ -2232,6 +2232,16 @@ for connections. This setting applies to Windows only.
 When set to \fB1\fR, instructs the module loader to preserve symbolic links when
 resolving and caching modules.
 .
+.It Ev NODE_PROXY_TUNNEL
+When \fBNODE_USE_ENV_PROXY=1\fR or \fB--use-env-proxy\fR is enabled, controls whether
+proxy connections use the HTTP CONNECT tunneling method.
+
+When set to \fBtrue\fR or \fB1\fR (the default), undici uses CONNECT tunneling to establish
+a proxy connection. When set to \fBfalse\fR or \fB0\fR, undici uses direct HTTP forwarding
+instead, which may be required for proxies that do not support the CONNECT method.
+
+Valid values: \fBtrue\fR, \fB1\fR, \fBfalse\fR, \fB0\fR.
+.
 .It Ev NODE_REDIRECT_WARNINGS Ar file
 When set, process warnings will be emitted to the given file instead of
 printing to stderr. The file will be created if it does not exist, and will be

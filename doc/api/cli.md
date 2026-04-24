@@ -3903,6 +3903,25 @@ added: v7.1.0
 When set to `1`, instructs the module loader to preserve symbolic links when
 resolving and caching modules.
 
+### `NODE_PROXY_TUNNEL`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active Development
+
+When `NODE_USE_ENV_PROXY=1` or `--use-env-proxy` is enabled, controls whether
+proxy connections use the HTTP CONNECT tunneling method.
+
+When set to `true` or `1` (the default), undici uses CONNECT tunneling to establish
+a proxy connection. When set to `false` or `0`, undici uses direct HTTP forwarding
+instead, which may be required for proxies that do not support the CONNECT method.
+
+Valid values: `true`, `1`, `false`, `0`.
+
+See also [`NODE_USE_ENV_PROXY=1`][].
+
 ### `NODE_REDIRECT_WARNINGS=file`
 
 <!-- YAML
@@ -3978,7 +3997,8 @@ added:
 
 When enabled, Node.js parses the `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY`
 environment variables during startup, and tunnels requests over the
-specified proxy.
+specified proxy. Use [`NODE_PROXY_TUNNEL`][] to disable CONNECT tunneling
+for proxies that do not support it.
 
 This can also be enabled using the [`--use-env-proxy`][] command-line flag.
 When both are set, `--use-env-proxy` takes precedence.
@@ -4338,6 +4358,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`ERR_INVALID_TYPESCRIPT_SYNTAX`]: errors.md#err_invalid_typescript_syntax
 [`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`]: errors.md#err_unsupported_typescript_syntax
 [`NODE_OPTIONS`]: #node_optionsoptions
+[`NODE_PROXY_TUNNEL`]: #node_proxy_tunnel
 [`NODE_USE_ENV_PROXY=1`]: #node_use_env_proxy1
 [`NO_COLOR`]: https://no-color.org
 [`Web Storage`]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API
