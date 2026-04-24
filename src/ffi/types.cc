@@ -246,9 +246,11 @@ v8::Maybe<ffi_type*> ToFFIType(Environment* env, std::string_view type_str) {
     return Just(&ffi_type_sint64);
   } else if (type_str == "u64" || type_str == "uint64") {
     return Just(&ffi_type_uint64);
-  } else if (type_str == "f32" || type_str == "float") {
+  } else if (type_str == "f32" || type_str == "float" ||
+             type_str == "float32") {
     return Just(&ffi_type_float);
-  } else if (type_str == "f64" || type_str == "double") {
+  } else if (type_str == "f64" || type_str == "double" ||
+             type_str == "float64") {
     return Just(&ffi_type_double);
   } else if (type_str == "buffer" || type_str == "arraybuffer" ||
              type_str == "string" || type_str == "str" ||
