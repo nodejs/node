@@ -436,7 +436,6 @@ Maybe<void> EcKeyGenTraits::AdditionalConfig(
     EcKeyPairGenConfig* params) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args[*offset]->IsString());  // curve name
-  CHECK(args[*offset + 1]->IsInt32());  // param encoding
 
   Utf8Value curve_name(env->isolate(), args[*offset]);
   params->params.curve_nid = Ec::GetCurveIdFromName(*curve_name);
@@ -445,11 +444,17 @@ Maybe<void> EcKeyGenTraits::AdditionalConfig(
     return Nothing<void>();
   }
 
-  params->params.param_encoding = args[*offset + 1].As<Int32>()->Value();
-  if (params->params.param_encoding != OPENSSL_EC_NAMED_CURVE &&
-      params->params.param_encoding != OPENSSL_EC_EXPLICIT_CURVE) {
-    THROW_ERR_OUT_OF_RANGE(env, "Invalid param_encoding specified");
-    return Nothing<void>();
+  // param encoding
+  if (args[*offset + 1]->IsNullOrUndefined()) {
+    params->params.param_encoding = OPENSSL_EC_NAMED_CURVE;
+  } else {
+    CHECK(args[*offset + 1]->IsInt32());
+    params->params.param_encoding = args[*offset + 1].As<Int32>()->Value();
+    if (params->params.param_encoding != OPENSSL_EC_NAMED_CURVE &&
+        params->params.param_encoding != OPENSSL_EC_EXPLICIT_CURVE) {
+      THROW_ERR_OUT_OF_RANGE(env, "Invalid param_encoding specified");
+      return Nothing<void>();
+    }
   }
 
   *offset += 2;
