@@ -646,11 +646,10 @@ void ELDNativeHistogram::RegisterExternalReferences(
 }
 
 ELDNativeHistogram::ELDNativeHistogram(Environment* env, Local<Object> wrap)
-    : HandleWrap(
-          env,
-          wrap,
-          reinterpret_cast<uv_handle_t*>(&check_),
-          AsyncWrap::PROVIDER_ELDNATIVEHISTOGRAM),
+    : HandleWrap(env,
+                 wrap,
+                 reinterpret_cast<uv_handle_t*>(&check_),
+                 AsyncWrap::PROVIDER_ELDNATIVEHISTOGRAM),
       HistogramImpl() {
   MakeWeak();
   wrap->SetAlignedPointerInInternalField(
@@ -660,8 +659,7 @@ ELDNativeHistogram::ELDNativeHistogram(Environment* env, Local<Object> wrap)
   uv_check_init(env->event_loop(), &check_);
 }
 
-BaseObjectPtr<ELDNativeHistogram> ELDNativeHistogram::Create(
-    Environment* env) {
+BaseObjectPtr<ELDNativeHistogram> ELDNativeHistogram::Create(Environment* env) {
   Local<Object> obj;
   if (!GetConstructorTemplate(env)
            ->InstanceTemplate()
@@ -684,8 +682,7 @@ void ELDNativeHistogram::CheckCB(uv_check_t* handle) {
     uint64_t idle = idle_now - histogram->prev_idle_time_;
     if (idle > total) idle = total;
     int64_t busy = static_cast<int64_t>(total - idle);
-    if (busy > 0)
-      histogram->histogram()->Record(busy);
+    if (busy > 0) histogram->histogram()->Record(busy);
   }
 
   histogram->prev_hrtime_ = now;
@@ -738,8 +735,8 @@ void ELDNativeHistogram::FastStop(Local<Value> receiver) {
   histogram->OnStop();
 }
 
-std::unique_ptr<worker::TransferData>
-ELDNativeHistogram::CloneForMessaging() const {
+std::unique_ptr<worker::TransferData> ELDNativeHistogram::CloneForMessaging()
+    const {
   return std::make_unique<HistogramBase::HistogramTransferData>(histogram());
 }
 

@@ -286,8 +286,7 @@ void CreateELDHistogram(const FunctionCallbackInfo<Value>& args) {
   if (args[1]->IsTrue()) {
     BaseObjectPtr<ELDNativeHistogram> histogram =
         ELDNativeHistogram::Create(env);
-    if (histogram)
-      args.GetReturnValue().Set(histogram->object());
+    if (histogram) args.GetReturnValue().Set(histogram->object());
     return;
   }
 
