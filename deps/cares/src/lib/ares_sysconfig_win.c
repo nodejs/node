@@ -638,11 +638,9 @@ ares_status_t ares_init_sysconfig_windows(const ares_channel_t *channel,
   if (get_SuffixList_Windows(&line)) {
     sysconfig->domains = ares_strsplit(line, ", ", &sysconfig->ndomains);
     ares_free(line);
+    /* Keep discovered DNS servers even if suffix parsing fails. */
     if (sysconfig->domains == NULL) {
-      status = ARES_EFILE;
-    }
-    if (status != ARES_SUCCESS) {
-      goto done;
+      sysconfig->ndomains = 0;
     }
   }
 
