@@ -231,6 +231,10 @@ const keepAliveAgent = new http.Agent({ keepAlive: true });
 options.agent = keepAliveAgent;
 http.request(options, onResponseCallback);
 ```
+### `agent.options`
+
+> **Note:** The `options` property reflects the configuration used when creating the agent. However, this property is not part of the documented public API and should not be relied upon for application logic, as it may change without notice.
+
 
 ### `agent.createConnection(options[, callback])`
 
