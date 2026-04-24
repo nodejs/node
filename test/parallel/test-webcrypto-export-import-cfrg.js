@@ -351,7 +351,7 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
         { name },
         extractable,
         publicUsages),
-      { message: 'JWK "crv" Parameter and algorithm name mismatch' });
+      { message: crv ? 'JWK "crv" Parameter and algorithm name mismatch' : 'Invalid keyData' });
 
     await assert.rejects(
       subtle.importKey(
@@ -360,7 +360,7 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
         { name },
         extractable,
         privateUsages),
-      { message: 'JWK "crv" Parameter and algorithm name mismatch' });
+      { message: crv ? 'JWK "crv" Parameter and algorithm name mismatch' : 'Invalid keyData' });
   }
 
   await assert.rejects(

@@ -128,9 +128,9 @@ Maybe<void> RsaKeyGenTraits::AdditionalConfig(
       static_cast<RSAKeyVariant>(args[*offset].As<Uint32>()->Value());
 
   CHECK_IMPLIES(params->params.variant != kKeyVariantRSA_PSS,
-                args.Length() == 10);
+                static_cast<unsigned int>(args.Length()) >= *offset + 3);
   CHECK_IMPLIES(params->params.variant == kKeyVariantRSA_PSS,
-                args.Length() == 13);
+                static_cast<unsigned int>(args.Length()) >= *offset + 6);
 
   params->params.modulus_bits = args[*offset + 1].As<Uint32>()->Value();
   params->params.exponent = args[*offset + 2].As<Uint32>()->Value();
