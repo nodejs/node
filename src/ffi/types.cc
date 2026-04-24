@@ -159,7 +159,7 @@ Maybe<FunctionSignature> ParseFunctionSignature(Environment* env,
     if (!ToFFIType(env, return_type_str.ToStringView()).To(&return_type)) {
       return {};
     }
-    return_type_name = *return_type_str;
+    return_type_name = return_type_str.ToString();
   }
 
   if (has_arguments || has_parameters) {
@@ -204,7 +204,7 @@ Maybe<FunctionSignature> ParseFunctionSignature(Environment* env,
       }
 
       args.push_back(arg_type);
-      arg_type_names.emplace_back(*arg_str);
+      arg_type_names.emplace_back(arg_str.ToString());
     }
   }
 

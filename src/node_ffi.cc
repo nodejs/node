@@ -32,7 +32,6 @@ using v8::Local;
 using v8::LocalVector;
 using v8::Maybe;
 using v8::MaybeLocal;
-using v8::NewStringType;
 using v8::Null;
 using v8::Object;
 using v8::PropertyAttribute;
@@ -257,8 +256,6 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
     // The shared_ptr to the backing store keeps the memory alive while
     // FFIFunctionInfo still references it.
     info->sb_backing = ab->GetBackingStore();
-    info->sb_data = static_cast<uint8_t*>(info->sb_backing->Data());
-    info->sb_size = sb_size;
 
     if (!ret->DefineOwnProperty(
                 context, env->ffi_sb_shared_buffer_symbol(), ab, internal_attrs)
@@ -289,19 +286,9 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
     // rebuild the signature from a raw function when the caller did not
     // pass parameters and result explicitly. The `lib.functions` accessor
     // path relies on this.
-    Local<Array> params_arr =
-        Array::New(isolate, static_cast<int>(fn->arg_type_names.size()));
-    for (size_t i = 0; i < fn->arg_type_names.size(); i++) {
-      Local<String> s;
-      if (!String::NewFromUtf8(
-               isolate, fn->arg_type_names[i].c_str(), NewStringType::kNormal)
-               .ToLocal(&s)) {
-        return MaybeLocal<Function>();
-      }
-      if (!params_arr->Set(context, static_cast<uint32_t>(i), s)
-               .FromMaybe(false)) {
-        return MaybeLocal<Function>();
-      }
+    Local<Value> params_arr;
+    if (!ToV8Value(context, fn->arg_type_names, isolate).ToLocal(&params_arr)) {
+      return MaybeLocal<Function>();
     }
     if (!ret->DefineOwnProperty(context,
                                 env->ffi_sb_params_symbol(),
@@ -311,9 +298,8 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
       return MaybeLocal<Function>();
     }
 
-    Local<String> result_name;
-    if (!String::NewFromUtf8(
-             isolate, fn->return_type_name.c_str(), NewStringType::kNormal)
+    Local<Value> result_name;
+    if (!ToV8Value(context, fn->return_type_name, isolate)
              .ToLocal(&result_name)) {
       return MaybeLocal<Function>();
     }
@@ -327,10 +313,9 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
   }
 
   info->self.Reset(isolate, ret);
-  info->self.SetWeak(info.get(),
+  info->self.SetWeak(info.release(),
                      DynamicLibrary::CleanupFunctionInfo,
                      WeakCallbackType::kParameter);
-  info.release();
 
   return ret;
 }
@@ -482,10 +467,10 @@ void DynamicLibrary::InvokeFunctionSB(const FunctionCallbackInfo<Value>& args) {
   // that `CreateFunction` did not set up for the fast path, which is a
   // contract violation. They stay enabled in Release because each FFI call
   // is already dominated by `ffi_call` itself.
-  CHECK_NOT_NULL(info->sb_data);
-  CHECK_EQ(info->sb_size, 8u * (info->fn->args.size() + 1));
+  CHECK(info->sb_backing);
+  CHECK_EQ(info->sb_backing->ByteLength(), 8u * (info->fn->args.size() + 1));
 
-  uint8_t* buffer = info->sb_data;
+  uint8_t* buffer = static_cast<uint8_t*>(info->sb_backing->Data());
   unsigned int nargs = fn->args.size();
 
   // Layout is 8 bytes per slot. The return value lives at offset 0 and

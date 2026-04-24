@@ -33,8 +33,6 @@ struct FFIFunctionInfo {
   std::shared_ptr<FFIFunction> fn;
   v8::Global<v8::Function> self;
   std::shared_ptr<v8::BackingStore> sb_backing;
-  uint8_t* sb_data = nullptr;
-  size_t sb_size = 0;
 };
 
 struct FFICallback {
