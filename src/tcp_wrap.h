@@ -83,13 +83,16 @@ class TCPWrap : public ConnectionWrap<TCPWrap, uv_tcp_t> {
   static void Connect6(const v8::FunctionCallbackInfo<v8::Value>& args);
   template <typename T>
   static void Connect(const v8::FunctionCallbackInfo<v8::Value>& args,
-      std::function<int(const char* ip_address, T* addr)> uv_ip_addr);
+                      int (*uv_ip_addr)(const char* ip_address,
+                                        int port,
+                                        T* addr));
   static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
   template <typename T>
-  static void Bind(
-      const v8::FunctionCallbackInfo<v8::Value>& args,
-      int family,
-      std::function<int(const char* ip_address, int port, T* addr)> uv_ip_addr);
+  static void Bind(const v8::FunctionCallbackInfo<v8::Value>& args,
+                   int family,
+                   int (*uv_ip_addr)(const char* ip_address,
+                                     int port,
+                                     T* addr));
   static void Reset(const v8::FunctionCallbackInfo<v8::Value>& args);
   int Reset(v8::Local<v8::Value> close_callback = v8::Local<v8::Value>());
 
