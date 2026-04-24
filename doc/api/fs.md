@@ -1088,6 +1088,9 @@ behavior is similar to `cp dir1/ dir2/`.
 <!-- YAML
 added: v22.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62695
+    description: Add support for the `followSymlinks` option.
   - version: v24.1.0
     pr-url: https://github.com/nodejs/node/pull/58182
     description: Add support for `URL` instances for `cwd` option.
@@ -1113,10 +1116,15 @@ changes:
     If a string array is provided, each string should be a glob pattern that
     specifies paths to exclude. Note: Negation patterns (e.g., '!foo.js') are
     not supported.
+  * `followSymlinks` {boolean} When `true`, symbolic links to directories are
+    followed while expanding `**` patterns. **Default:** `false`.
   * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
     `false` otherwise. **Default:** `false`.
 * Returns: {AsyncIterator} An AsyncIterator that yields the paths of files
   that match the pattern.
+
+When `followSymlinks` is enabled, detected symbolic link cycles are not
+traversed recursively.
 
 ```mjs
 import { glob } from 'node:fs/promises';
@@ -3194,6 +3202,9 @@ descriptor. See [`fs.utimes()`][].
 <!-- YAML
 added: v22.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62695
+    description: Add support for the `followSymlinks` option.
   - version: v24.1.0
     pr-url: https://github.com/nodejs/node/pull/58182
     description: Add support for `URL` instances for `cwd` option.
@@ -3217,6 +3228,8 @@ changes:
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
+  * `followSymlinks` {boolean} When `true`, symbolic links to directories are
+    followed while expanding `**` patterns. **Default:** `false`.
   * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
     `false` otherwise. **Default:** `false`.
 
@@ -3224,6 +3237,9 @@ changes:
   * `err` {Error}
 
 * Retrieves the files matching the specified pattern.
+
+When `followSymlinks` is enabled, detected symbolic link cycles are not
+traversed recursively.
 
 ```mjs
 import { glob } from 'node:fs';
@@ -5763,6 +5779,9 @@ Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 <!-- YAML
 added: v22.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62695
+    description: Add support for the `followSymlinks` option.
   - version: v24.1.0
     pr-url: https://github.com/nodejs/node/pull/58182
     description: Add support for `URL` instances for `cwd` option.
@@ -5785,9 +5804,14 @@ changes:
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
+  * `followSymlinks` {boolean} When `true`, symbolic links to directories are
+    followed while expanding `**` patterns. **Default:** `false`.
   * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
     `false` otherwise. **Default:** `false`.
 * Returns: {string\[]} paths of files that match the pattern.
+
+When `followSymlinks` is enabled, detected symbolic link cycles are not
+traversed recursively.
 
 ```mjs
 import { globSync } from 'node:fs';
