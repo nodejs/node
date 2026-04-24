@@ -424,6 +424,7 @@
   V(http2stream_constructor_template, v8::ObjectTemplate)                      \
   V(http2ping_constructor_template, v8::ObjectTemplate)                        \
   V(i18n_converter_template, v8::ObjectTemplate)                               \
+  V(eld_native_histogram_constructor_template, v8::FunctionTemplate)           \
   V(intervalhistogram_constructor_template, v8::FunctionTemplate)              \
   V(iter_template, v8::DictionaryTemplate)                                     \
   V(js_transferable_constructor_template, v8::FunctionTemplate)                \

@@ -612,4 +612,135 @@ IntervalHistogram::CloneForMessaging() const {
   return std::make_unique<HistogramBase::HistogramTransferData>(histogram());
 }
 
+CFunction ELDNativeHistogram::fast_start_(
+    CFunction::Make(&ELDNativeHistogram::FastStart));
+CFunction ELDNativeHistogram::fast_stop_(
+    CFunction::Make(&ELDNativeHistogram::FastStop));
+
+Local<FunctionTemplate> ELDNativeHistogram::GetConstructorTemplate(
+    Environment* env) {
+  Local<FunctionTemplate> tmpl =
+      env->eld_native_histogram_constructor_template();
+  if (tmpl.IsEmpty()) {
+    Isolate* isolate = env->isolate();
+    tmpl = NewFunctionTemplate(isolate, nullptr);
+    tmpl->Inherit(HandleWrap::GetConstructorTemplate(env));
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "Histogram"));
+    auto instance = tmpl->InstanceTemplate();
+    instance->SetInternalFieldCount(ELDNativeHistogram::kInternalFieldCount);
+    HistogramImpl::AddMethods(isolate, tmpl);
+    SetFastMethod(isolate, instance, "start", Start, &fast_start_);
+    SetFastMethod(isolate, instance, "stop", Stop, &fast_stop_);
+    env->set_eld_native_histogram_constructor_template(tmpl);
+  }
+  return tmpl;
+}
+
+void ELDNativeHistogram::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(Start);
+  registry->Register(Stop);
+  registry->Register(fast_start_);
+  registry->Register(fast_stop_);
+  HistogramImpl::RegisterExternalReferences(registry);
+}
+
+ELDNativeHistogram::ELDNativeHistogram(Environment* env, Local<Object> wrap)
+    : HandleWrap(
+          env,
+          wrap,
+          reinterpret_cast<uv_handle_t*>(&check_),
+          AsyncWrap::PROVIDER_ELDNATIVEHISTOGRAM),
+      HistogramImpl() {
+  MakeWeak();
+  wrap->SetAlignedPointerInInternalField(
+      HistogramImpl::InternalFields::kImplField,
+      static_cast<HistogramImpl*>(this),
+      EmbedderDataTag::kDefault);
+  uv_check_init(env->event_loop(), &check_);
+}
+
+BaseObjectPtr<ELDNativeHistogram> ELDNativeHistogram::Create(
+    Environment* env) {
+  Local<Object> obj;
+  if (!GetConstructorTemplate(env)
+           ->InstanceTemplate()
+           ->NewInstance(env->context())
+           .ToLocal(&obj)) {
+    return nullptr;
+  }
+  return MakeBaseObject<ELDNativeHistogram>(env, obj);
+}
+
+void ELDNativeHistogram::CheckCB(uv_check_t* handle) {
+  ELDNativeHistogram* histogram =
+      ContainerOf(&ELDNativeHistogram::check_, handle);
+
+  uint64_t now = uv_hrtime();
+  uint64_t idle_now = uv_metrics_idle_time(histogram->env()->event_loop());
+
+  if (histogram->prev_hrtime_ > 0) {
+    uint64_t total = now - histogram->prev_hrtime_;
+    uint64_t idle = idle_now - histogram->prev_idle_time_;
+    if (idle > total) idle = total;
+    int64_t busy = static_cast<int64_t>(total - idle);
+    if (busy > 0)
+      histogram->histogram()->Record(busy);
+  }
+
+  histogram->prev_hrtime_ = now;
+  histogram->prev_idle_time_ = idle_now;
+}
+
+void ELDNativeHistogram::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("histogram", histogram());
+}
+
+void ELDNativeHistogram::OnStart(bool reset) {
+  if (enabled_ || IsHandleClosing()) return;
+  enabled_ = true;
+  if (reset) histogram()->Reset();
+  prev_hrtime_ = 0;
+  prev_idle_time_ = 0;
+  uv_check_start(&check_, CheckCB);
+  uv_unref(reinterpret_cast<uv_handle_t*>(&check_));
+}
+
+void ELDNativeHistogram::OnStop() {
+  if (!enabled_ || IsHandleClosing()) return;
+  enabled_ = false;
+  uv_check_stop(&check_);
+}
+
+void ELDNativeHistogram::Start(const FunctionCallbackInfo<Value>& args) {
+  ELDNativeHistogram* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.This());
+  histogram->OnStart(args[0]->IsTrue());
+}
+
+void ELDNativeHistogram::FastStart(Local<Value> receiver, bool reset) {
+  TRACK_V8_FAST_API_CALL("histogram.start");
+  ELDNativeHistogram* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, receiver);
+  histogram->OnStart(reset);
+}
+
+void ELDNativeHistogram::Stop(const FunctionCallbackInfo<Value>& args) {
+  ELDNativeHistogram* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.This());
+  histogram->OnStop();
+}
+
+void ELDNativeHistogram::FastStop(Local<Value> receiver) {
+  TRACK_V8_FAST_API_CALL("histogram.stop");
+  ELDNativeHistogram* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, receiver);
+  histogram->OnStop();
+}
+
+std::unique_ptr<worker::TransferData>
+ELDNativeHistogram::CloneForMessaging() const {
+  return std::make_unique<HistogramBase::HistogramTransferData>(histogram());
+}
+
 }  // namespace node
