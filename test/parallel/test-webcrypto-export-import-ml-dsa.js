@@ -347,7 +347,7 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
         { name },
         extractable,
         publicUsages),
-      { message: 'JWK "alg" Parameter and algorithm name mismatch' });
+      { message: alg ? 'JWK "alg" Parameter and algorithm name mismatch' : 'Invalid keyData' });
 
     await assert.rejects(
       subtle.importKey(
@@ -356,7 +356,7 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
         { name },
         extractable,
         privateUsages),
-      { message: 'JWK "alg" Parameter and algorithm name mismatch' });
+      { message: alg ? 'JWK "alg" Parameter and algorithm name mismatch' : 'Invalid keyData' });
   }
 
   await assert.rejects(

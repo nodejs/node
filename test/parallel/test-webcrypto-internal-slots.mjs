@@ -18,4 +18,11 @@ assert.ok(kp.publicKey.usages.includes('foo'));
 assert.ok(util.inspect(kp.publicKey).includes("algorithm: { name: 'Ed25519' }"));
 assert.ok(util.inspect(kp.publicKey).includes("usages: [ 'verify' ]"));
 
+const jwk = await subtle.exportKey('jwk', kp.publicKey);
+assert.deepStrictEqual(jwk.key_ops, ['verify']);
+jwk.key_ops.push('foo');
+assert.ok(!util.inspect(kp.publicKey).includes('foo'));
+assert.deepStrictEqual((await subtle.exportKey('jwk', kp.publicKey)).key_ops,
+                       ['verify']);
+
 await subtle.sign('Ed25519', kp.privateKey, Buffer.alloc(32));

@@ -220,6 +220,7 @@ async function testDecrypt({ keyBuffer, algorithm, result }) {
 
     // JWK error conditions
     const jwkTests = [
+      [{ kty: 'oct' }, /Invalid keyData/],
       [{ k: baseJwk.k }, /Invalid keyData/],
       [{ ...baseJwk, kty: 'RSA' }, /Invalid JWK "kty" Parameter/],
       [{ ...baseJwk, use: 'sig' }, /Invalid JWK "use" Parameter/],
