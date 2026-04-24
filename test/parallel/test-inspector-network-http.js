@@ -59,23 +59,29 @@ const handleRequest = (req, res) => {
     case '/text-body': {
       const chunks = [];
       req.on('data', (chunk) => chunks.push(chunk));
-      req.on('end', common.mustCall(() => {
-        assert.strictEqual(Buffer.concat(chunks).toString(), 'foobar');
+      req.on('end', () => {
+        if (Buffer.concat(chunks).toString() !== 'foobar') {
+          throw new Error('Unexpected text request body');
+        }
         setResponseHeaders(res);
         res.writeHead(200);
         res.end('hello world\n');
-      }));
+      });
       break;
     }
     case '/binary-body': {
       const chunks = [];
       req.on('data', (chunk) => chunks.push(chunk));
-      req.on('end', common.mustCall(() => {
-        assert.deepStrictEqual(Buffer.concat(chunks), Buffer.from([0, 1, 2, 3]));
+      req.on('end', () => {
+        const body = Buffer.concat(chunks);
+        const expectedBody = Buffer.from([0, 1, 2, 3]);
+        if (!body.equals(expectedBody)) {
+          throw new Error('Unexpected binary request body');
+        }
         setResponseHeaders(res);
         res.writeHead(200);
         res.end('hello world\n');
-      }));
+      });
       break;
     }
     default:
