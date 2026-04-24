@@ -26,6 +26,7 @@ server.on('stream', common.mustCall((stream) => {
 server.listen(0, common.mustCall(function() {
   const client = h2.connect(`http://localhost:${this.address().port}`);
   const req = client.request();
+  req.on('error', common.mustCall());
 
   req.on('response', common.mustCall(() => {
     // Send a premature socket close
@@ -33,7 +34,7 @@ server.listen(0, common.mustCall(function() {
   }));
 
   req.resume();
-  req.on('end', common.mustCall());
+  req.on('end', common.mustNotCall());
   req.on('close', common.mustCall(() => server.close()));
 
   // On the client, the close event must call

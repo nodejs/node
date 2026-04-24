@@ -22,5 +22,6 @@ server.on('stream', common.mustCall((stream, headers) => {
 }));
 server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}/`);
-  client.request({ ':path': '/', '': 'foo', 'bar': '' }).end();
+  const req = client.request({ ':path': '/', '': 'foo', 'bar': '' });
+  req.on('error', common.mustCall());
 }));

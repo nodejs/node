@@ -118,7 +118,10 @@ const { listenerCount } = require('events');
       client.destroy();
     });
 
-    client.request();
+    const req = client.request();
+    req.on('error', common.mustCall((err) => {
+      assert.strictEqual(err.code, 'ERR_HTTP2_STREAM_ERROR');
+    }));
   }));
 }
 

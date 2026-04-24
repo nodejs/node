@@ -45,6 +45,7 @@ server.listen(0, common.mustCall(function() {
       createConnection: () => proxy
     });
     const req = client.request();
+    req.on('error', common.mustCall());
 
     server.on('request', () => {
       socket.destroy();
