@@ -12,28 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "absl/base/internal/throw_delegate.h"
+#include "absl/base/throw_delegate.h"
 
 #include <functional>
 #include <new>
 #include <stdexcept>
 
-#include "absl/base/config.h"
 #include "gtest/gtest.h"
+#include "absl/base/config.h"
 
 namespace {
 
-using absl::base_internal::ThrowStdLogicError;
-using absl::base_internal::ThrowStdInvalidArgument;
-using absl::base_internal::ThrowStdDomainError;
-using absl::base_internal::ThrowStdLengthError;
-using absl::base_internal::ThrowStdOutOfRange;
-using absl::base_internal::ThrowStdRuntimeError;
-using absl::base_internal::ThrowStdRangeError;
-using absl::base_internal::ThrowStdOverflowError;
-using absl::base_internal::ThrowStdUnderflowError;
-using absl::base_internal::ThrowStdBadFunctionCall;
-using absl::base_internal::ThrowStdBadAlloc;
+using absl::ThrowStdBadAlloc;
+using absl::ThrowStdBadArrayNewLength;
+using absl::ThrowStdBadFunctionCall;
+using absl::ThrowStdDomainError;
+using absl::ThrowStdInvalidArgument;
+using absl::ThrowStdLengthError;
+using absl::ThrowStdLogicError;
+using absl::ThrowStdOutOfRange;
+using absl::ThrowStdOverflowError;
+using absl::ThrowStdRangeError;
+using absl::ThrowStdRuntimeError;
+using absl::ThrowStdUnderflowError;
 
 constexpr const char* what_arg = "The quick brown fox jumps over the lazy dog";
 
@@ -151,25 +152,15 @@ TEST(ThrowDelegate, ThrowStdUnderflowErrorString) {
 }
 
 TEST(ThrowDelegate, ThrowStdBadFunctionCallNoWhat) {
-#ifdef ABSL_HAVE_EXCEPTIONS
-  try {
-    ThrowStdBadFunctionCall();
-    FAIL() << "Didn't throw";
-  } catch (const std::bad_function_call&) {
-  }
-#ifdef _LIBCPP_VERSION
-  catch (const std::exception&) {
-    // https://reviews.llvm.org/D92397 causes issues with the vtable for
-    // std::bad_function_call when using libc++ as a shared library.
-  }
-#endif
-#else
-  EXPECT_DEATH_IF_SUPPORTED(ThrowStdBadFunctionCall(), "");
-#endif
+  ExpectThrowNoWhat<std::bad_function_call>(ThrowStdBadFunctionCall);
 }
 
 TEST(ThrowDelegate, ThrowStdBadAllocNoWhat) {
   ExpectThrowNoWhat<std::bad_alloc>(ThrowStdBadAlloc);
+}
+
+TEST(ThrowDelegate, ThrowStdBadArrayNewLength) {
+  ExpectThrowNoWhat<std::bad_array_new_length>(ThrowStdBadArrayNewLength);
 }
 
 }  // namespace

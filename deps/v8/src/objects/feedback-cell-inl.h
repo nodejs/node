@@ -23,16 +23,41 @@ namespace v8::internal {
 
 #include "torque-generated/src/objects/feedback-cell-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(FeedbackCell)
-
-RELEASE_ACQUIRE_ACCESSORS(FeedbackCell, value, Tagged<HeapObject>, kValueOffset)
-
-void FeedbackCell::clear_padding() {
-  if (FeedbackCell::kAlignedSize == FeedbackCell::kUnalignedSize) return;
-  DCHECK_GE(FeedbackCell::kAlignedSize, FeedbackCell::kUnalignedSize);
-  memset(reinterpret_cast<uint8_t*>(address() + FeedbackCell::kUnalignedSize),
-         0, FeedbackCell::kAlignedSize - FeedbackCell::kUnalignedSize);
+Tagged<FeedbackCell::Value> FeedbackCell::value() const {
+  return value_.load();
 }
+
+Tagged<FeedbackCell::Value> FeedbackCell::value(AcquireLoadTag) const {
+  return value_.Acquire_Load();
+}
+
+void FeedbackCell::set_value(Tagged<FeedbackCell::Value> value,
+                             WriteBarrierMode mode) {
+  value_.store(this, value, mode);
+}
+
+void FeedbackCell::set_value(Tagged<FeedbackCell::Value> value, ReleaseStoreTag,
+                             WriteBarrierMode mode) {
+  value_.Release_Store(this, value, mode);
+}
+
+int32_t FeedbackCell::interrupt_budget() const { return interrupt_budget_; }
+
+void FeedbackCell::set_interrupt_budget(int32_t value) {
+  interrupt_budget_ = value;
+}
+
+JSDispatchHandle FeedbackCell::dispatch_handle() const {
+  return dispatch_handle_;
+}
+
+void FeedbackCell::set_dispatch_handle(JSDispatchHandle new_handle) {
+  DCHECK_EQ(dispatch_handle(), kNullJSDispatchHandle);
+  dispatch_handle_ = new_handle;
+  JS_DISPATCH_HANDLE_WRITE_BARRIER(this, new_handle);
+}
+
+void FeedbackCell::clear_padding() {}
 
 void FeedbackCell::reset_feedback_vector(
     std::optional<std::function<void(Tagged<HeapObject> object, ObjectSlot slot,
@@ -46,8 +71,10 @@ void FeedbackCell::reset_feedback_vector(
       Cast<FeedbackVector>(value())->closure_feedback_cell_array();
   set_value(closure_feedback_cell_array, kReleaseStore);
   if (gc_notify_updated_slot) {
-    (*gc_notify_updated_slot)(*this, RawField(FeedbackCell::kValueOffset),
-                              closure_feedback_cell_array);
+    (*gc_notify_updated_slot)(
+        Tagged<FeedbackCell>(this),
+        ObjectSlot(address() + offsetof(FeedbackCell, value_)),
+        closure_feedback_cell_array);
   }
 }
 
@@ -57,20 +84,7 @@ void FeedbackCell::clear_interrupt_budget() {
 }
 
 void FeedbackCell::clear_dispatch_handle() {
-  WriteField<JSDispatchHandle::underlying_type>(kDispatchHandleOffset,
-                                                kNullJSDispatchHandle.value());
-}
-
-JSDispatchHandle FeedbackCell::dispatch_handle() const {
-  return JSDispatchHandle(
-      ReadField<JSDispatchHandle::underlying_type>(kDispatchHandleOffset));
-}
-
-void FeedbackCell::set_dispatch_handle(JSDispatchHandle new_handle) {
-  DCHECK_EQ(dispatch_handle(), kNullJSDispatchHandle);
-  WriteField<JSDispatchHandle::underlying_type>(kDispatchHandleOffset,
-                                                new_handle.value());
-  JS_DISPATCH_HANDLE_WRITE_BARRIER(*this, new_handle);
+  dispatch_handle_ = kNullJSDispatchHandle;
 }
 
 FeedbackCell::ClosureCountTransition FeedbackCell::IncrementClosureCount(

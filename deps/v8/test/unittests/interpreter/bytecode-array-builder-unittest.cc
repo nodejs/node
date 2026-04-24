@@ -46,8 +46,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   Handle<ScopeInfo> scope_info =
       factory->NewScopeInfo(ScopeInfo::kVariablePartIndex);
-  int flags = ScopeInfo::IsEmptyBit::encode(true) |
-              ScopeInfo::HasContextCellsBit::encode(true);
+  int flags = ScopeInfo::HasContextCellsBit::encode(true);
   scope_info->set_flags(flags, kRelaxedStore);
   scope_info->set_context_local_count(0);
   scope_info->set_parameter_count(0);
@@ -142,6 +141,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   Variable var1(&scope, name, VariableMode::kLet, VariableKind::NORMAL_VARIABLE,
                 InitializationFlag::kCreatedInitialized);
   var1.AllocateTo(VariableLocation::CONTEXT, 1);
+  var1.SetMaybeAssigned();
   Variable var2(&scope, name, VariableMode::kLet, VariableKind::NORMAL_VARIABLE,
                 InitializationFlag::kCreatedInitialized);
   var2.AllocateTo(VariableLocation::CONTEXT, 1);
@@ -152,21 +152,17 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit context operations which operate on the script context.
   builder.PushContext(reg)
       .PopContext(reg)
-      .LoadContextSlot(reg, &var1, 0, BytecodeArrayBuilder::kMutableSlot)
+      .LoadContextSlot(reg, &var1, 0)
       .StoreContextSlot(reg, &var1, 0)
-      .LoadContextSlot(reg, &var2, 0, BytecodeArrayBuilder::kImmutableSlot)
+      .LoadContextSlot(reg, &var2, 0)
       .StoreContextSlot(reg, &var3, 0);
 
   // Emit context operations which operate on the local context.
-  builder
-      .LoadContextSlot(Register::current_context(), &var1, 0,
-                       BytecodeArrayBuilder::kMutableSlot)
+  builder.LoadContextSlot(Register::current_context(), &var1, 0)
       .StoreContextSlot(Register::current_context(), &var1, 0)
-      .LoadContextSlot(Register::current_context(), &var2, 0,
-                       BytecodeArrayBuilder::kImmutableSlot)
+      .LoadContextSlot(Register::current_context(), &var2, 0)
       .StoreContextSlot(Register::current_context(), &var3, 0)
-      .LoadContextSlot(Register::current_context(), &var1, 0,
-                       BytecodeArrayBuilder::kMutableSlot);
+      .LoadContextSlot(Register::current_context(), &var1, 0);
 
   // Emit context operations.
   DeclarationScope fun_scope(zone(), ScopeType::FUNCTION_SCOPE, &ast_factory,
@@ -186,23 +182,20 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   fun_var3.AllocateTo(VariableLocation::CONTEXT, 3);
   builder.CreateFunctionContext(&fun_scope, 3)
       .StoreAccumulatorInRegister(reg)
-      .LoadContextSlot(reg, &fun_var1, 0, BytecodeArrayBuilder::kMutableSlot)
+      .LoadContextSlot(reg, &fun_var1, 0)
       .StoreContextSlot(reg, &fun_var1, 0)
-      .LoadContextSlot(reg, &fun_var2, 0, BytecodeArrayBuilder::kImmutableSlot)
+      .LoadContextSlot(reg, &fun_var2, 0)
       .StoreContextSlot(reg, &fun_var3, 0)
       .PushContext(reg)
-      .LoadContextSlot(Register::current_context(), &fun_var1, 0,
-                       BytecodeArrayBuilder::kMutableSlot)
+      .LoadContextSlot(Register::current_context(), &fun_var1, 0)
       .StoreContextSlot(Register::current_context(), &fun_var1, 0)
-      .LoadContextSlot(Register::current_context(), &fun_var2, 0,
-                       BytecodeArrayBuilder::kImmutableSlot)
+      .LoadContextSlot(Register::current_context(), &fun_var2, 0)
       .StoreContextSlot(Register::current_context(), &fun_var3, 0)
       .PopContext(reg);
 
   Handle<ScopeInfo> scope_info2 =
       factory->NewScopeInfo(ScopeInfo::kVariablePartIndex);
-  int flags2 = ScopeInfo::IsEmptyBit::encode(true) |
-               ScopeInfo::HasContextCellsBit::encode(false);
+  int flags2 = ScopeInfo::HasContextCellsBit::encode(false);
   scope_info2->set_flags(flags2, kRelaxedStore);
   scope_info2->set_context_local_count(0);
   scope_info2->set_parameter_count(0);
@@ -215,12 +208,12 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
                      VariableKind::NORMAL_VARIABLE,
                      InitializationFlag::kCreatedInitialized);
   fun2_var1.AllocateTo(VariableLocation::CONTEXT, 1);
+  fun2_var1.SetMaybeAssigned();
   builder.CreateFunctionContext(&fun_scope2, 1)
       .StoreAccumulatorInRegister(reg)
-      .LoadContextSlot(reg, &fun2_var1, 0, BytecodeArrayBuilder::kMutableSlot)
+      .LoadContextSlot(reg, &fun2_var1, 0)
       .PushContext(reg)
-      .LoadContextSlot(Register::current_context(), &fun2_var1, 0,
-                       BytecodeArrayBuilder::kMutableSlot)
+      .LoadContextSlot(Register::current_context(), &fun2_var1, 0)
       .PopContext(reg);
 
   // Emit load / store property operations.
@@ -239,7 +232,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .DefineNamedOwnProperty(reg, name, define_named_own_slot.ToInt())
       .DefineKeyedOwnProperty(reg, reg, DefineKeyedOwnPropertyFlag::kNoFlags,
                               define_named_own_slot.ToInt())
-      .StoreInArrayLiteral(reg, reg, store_array_element_slot.ToInt());
+      .StoreInArrayLiteral(reg, reg, store_array_element_slot.ToInt())
+      .GetPrivateField(reg, 0, 0, reg, 0)
+      .SetPrivateField(reg, 0, 0, reg, 0);
 
   // Emit Iterator-protocol operations
   builder.GetIterator(reg, load_slot.ToInt(), call_slot.ToInt());
@@ -478,9 +473,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   Variable var(&scope, name, VariableMode::kVar, VariableKind::NORMAL_VARIABLE,
                InitializationFlag::kCreatedInitialized);
   var.AllocateTo(VariableLocation::CONTEXT, 1024);
+  var.SetMaybeAssigned();
 
-  builder.LoadContextSlot(reg, &var, 0, BytecodeArrayBuilder::kMutableSlot)
-      .StoreContextSlot(reg, &var, 0);
+  builder.LoadContextSlot(reg, &var, 0).StoreContextSlot(reg, &var, 0);
 
   // Emit wide load / store lookup slots.
   builder.LoadLookupSlot(wide_name, TypeofMode::kNotInside)
@@ -675,7 +670,7 @@ TEST_F(BytecodeArrayBuilderTest, Constants) {
   ast_factory.Internalize(isolate());
   DirectHandle<BytecodeArray> array = builder.ToBytecodeArray(isolate());
   // Should only have one entry for each identical constant.
-  EXPECT_EQ(4, array->constant_pool()->length());
+  EXPECT_EQ(4u, array->constant_pool()->length().value());
 }
 
 TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {

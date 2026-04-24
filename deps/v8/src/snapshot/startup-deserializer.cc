@@ -91,9 +91,9 @@ void StartupDeserializer::DeserializeIntoIsolate() {
   if (V8_UNLIKELY(v8_flags.profile_deserialization)) {
     // ATTENTION: The Memory.json benchmark greps for this exact output. Do not
     // change it without also updating Memory.json.
-    const int bytes = source()->length();
+    const size_t bytes = source()->length();
     const double ms = timer.Elapsed().InMillisecondsF();
-    PrintF("[Deserializing isolate (%d bytes) took %0.3f ms]\n", bytes, ms);
+    PrintF("[Deserializing isolate (%zu bytes) took %0.3f ms]\n", bytes, ms);
   }
 }
 

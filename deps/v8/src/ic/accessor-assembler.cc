@@ -13,6 +13,7 @@
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/globals.h"
 #include "src/ic/handler-configuration-inl.h"
+#include "src/ic/handler-configuration.h"
 #include "src/ic/ic.h"
 #include "src/ic/keyed-store-generic.h"
 #include "src/ic/stub-cache.h"
@@ -23,6 +24,7 @@
 #include "src/objects/feedback-vector.h"
 #include "src/objects/foreign.h"
 #include "src/objects/heap-number.h"
+#include "src/objects/heap-object-inl.h"
 #include "src/objects/megadom-handler.h"
 #include "src/objects/module.h"
 #include "src/objects/objects-inl.h"
@@ -139,6 +141,167 @@ void AccessorAssembler::HandlePolymorphicCase(
     var_index = Int32Sub(var_index.value(), Int32Constant(kEntrySize));
     Branch(Int32GreaterThanOrEqual(var_index.value(), Int32Constant(0)), &loop,
            if_miss);
+  }
+}
+
+void AccessorAssembler::TryHomomorphicCase(
+    TNode<Object> lookup_start_object, TNode<Map> lookup_start_object_map,
+    TNode<Name> name, TVariable<MaybeObject>* var_handler, TNode<Object> vector,
+    TNode<TaggedIndex> slot, Label* miss, ExitPoint* exit_point) {
+  // Check if feedback is WeakHomomorphicFixedArray.
+  TNode<MaybeObject> feedback = LoadFeedbackVectorSlot(CAST(vector), slot);
+  // We assume the caller (LoadIC_Noninlined) has checked that feedback is a
+  // WeakHomomorphicFixedArray.
+  TNode<WeakHomomorphicFixedArray> array = CAST(feedback);
+  TNode<Smi> handler;
+  if (var_handler->IsBound()) {
+    handler = CAST(var_handler->value());
+  } else {
+    handler = CAST(LoadFeedbackVectorSlot(CAST(vector), slot, kTaggedSize));
+  }
+
+  TNode<Int32T> handler_value = SmiToInt32(handler);
+  // Decode handler info needed for execution/checks.
+  TNode<Uint32T> descriptor_index =
+      DecodeWord32<LoadHandler::DescriptorIndexBits>(handler_value);
+
+  // Special handling for special descriptor index values.
+  // TODO(leszeks): Make this a single check or a different IC type.
+  Label if_array_len(this), if_string_len(this);
+  GotoIf(IsEqualInWord32<LoadHandler::DescriptorIndexBits>(
+             handler_value, LoadHandler::kArrayLengthFieldDescriptorIndex),
+         &if_array_len);
+  GotoIf(IsEqualInWord32<LoadHandler::DescriptorIndexBits>(
+             handler_value, LoadHandler::kStringLengthFieldDescriptorIndex),
+         &if_string_len);
+
+  Label execute_handler(this);
+
+  // Look up in map cache.
+  // TODO(leszeks): Could avoid this lookup by fixing the length at build time.
+  TNode<IntPtrT> length =
+      LoadAndUntagWeakFixedArrayLength(ReinterpretCast<WeakFixedArray>(array));
+
+  // Hash: (map_ptr >> kTaggedSizeLog2) % length
+  // We assume length is power of 2.
+  TNode<IntPtrT> map_intptr = BitcastTaggedToWord(lookup_start_object_map);
+  TNode<IntPtrT> hash = WordSar(map_intptr, IntPtrConstant(kTaggedSizeLog2));
+  // TODO(leszeks): Could avoid this subtraction by fixing the length at build
+  // time.
+  TNode<IntPtrT> cache_index =
+      WordAnd(hash, IntPtrSub(length, IntPtrConstant(1)));
+
+  // Check if the cached map matches, and if it does, go immediately to handler
+  // execution.
+  TNode<MaybeObject> element = LoadWeakFixedArrayElement(
+      ReinterpretCast<WeakFixedArray>(array), cache_index);
+  GotoIf(TaggedEqual(element, MakeWeak(lookup_start_object_map)),
+         &execute_handler);
+
+  {
+    // Fallback checks -- decode the handler, and validate against the incoming
+    // map's descriptor array.
+
+    // Only field handlers are supported, this is ensured in ic.cc
+    CSA_DCHECK(this, IsEqualInWord32<LoadHandler::KindBits>(
+                         handler_value, LoadHandler::Kind::kField));
+
+    // Check that the descriptor index is in-bounds. This will also miss for
+    // dictionary maps.
+    GotoIfNot(Uint32LessThan(descriptor_index, LoadNumberOfOwnDescriptors(
+                                                   lookup_start_object_map)),
+              miss);
+    CSA_DCHECK(this,
+               Word32BitwiseNot(IsDictionaryMap(lookup_start_object_map)));
+
+    // Load the descriptor at the index and verify that the key matches the
+    // loaded name.
+    TNode<DescriptorArray> descriptors =
+        LoadMapDescriptors(lookup_start_object_map);
+    GotoIfNot(TaggedEqual(LoadKeyByDescriptorEntry(
+                              descriptors,
+                              Signed(ChangeUint32ToWord(descriptor_index))),
+                          name),
+              miss);
+
+    // Load the descriptor details and verify it against the handler.
+    TNode<Uint32T> entry = LoadDetailsByDescriptorEntry(
+        descriptors, Signed(ChangeUint32ToWord(descriptor_index)));
+
+    // Check that this is indeed a data field.
+    GotoIfNot(AreEqualInWord32<PropertyDetails::KindField,
+                               PropertyDetails::LocationField>(
+                  entry, PropertyKind::kData, PropertyLocation::kField),
+              miss);
+
+    // Check is_double flag.
+    TNode<BoolT> is_double =
+        IsSetWord32<LoadHandler::IsDoubleBits>(handler_value);
+    TNode<BoolT> repr_is_double =
+        IsEqualInWord32<PropertyDetails::RepresentationField>(
+            entry, Representation::kDouble);
+    GotoIf(Word32NotEqual(repr_is_double, is_double), miss);
+
+    // Check is_inbobject flag and field offset. These are carefully structured
+    // so that they have the same (shifted) mask in both the handler and
+    // property details, so that we can compare them both with a single compare.
+    constexpr int kLoadHandlerMask =
+        (LoadHandler::IsInobjectBits::kMask |
+         LoadHandler::StorageOffsetInWordsBits::kMask);
+    constexpr int kDetailsMask = (PropertyDetails::InObjectField::kMask |
+                                  PropertyDetails::OffsetInWordsField::kMask);
+    // We only need to shift one of the values, whichever has the higher shift.
+    constexpr int kLoadHandlerShift =
+        std::max(0, LoadHandler::StorageOffsetInWordsBits::kShift -
+                        PropertyDetails::OffsetInWordsField::kShift);
+    constexpr int kDetailsShift =
+        std::max(0, PropertyDetails::OffsetInWordsField::kShift -
+                        LoadHandler::StorageOffsetInWordsBits::kShift);
+    static_assert(kLoadHandlerShift == 0 || kDetailsShift == 0);
+    // Make sure that the masks are actually the same after shifting, in both
+    // shift directions.
+    static_assert(kLoadHandlerMask >> kLoadHandlerShift ==
+                  kDetailsMask >> kDetailsShift);
+    static_assert(kLoadHandlerMask << kDetailsShift ==
+                  kDetailsMask << kLoadHandlerShift);
+
+    TNode<Word32T> inobject_and_offset =
+        DecodeWord32(handler_value, kLoadHandlerShift, kLoadHandlerMask);
+    TNode<Word32T> details_inobject_and_offset =
+        DecodeWord32(entry, kDetailsShift, kDetailsMask);
+    GotoIf(Word32NotEqual(details_inobject_and_offset, inobject_and_offset),
+           miss);
+
+    // Update Cache: Overwrite at hash.
+    StoreWeakFixedArrayElement(ReinterpretCast<WeakFixedArray>(array),
+                               cache_index, MakeWeak(lookup_start_object_map));
+    Goto(&execute_handler);
+  }
+
+  // 3. Execute.
+  BIND(&execute_handler);
+  {
+    TVARIABLE(Float64T, var_double_value);
+    Label rebox_double(this);
+
+    HandleLoadField(CAST(lookup_start_object), handler_value, &var_double_value,
+                    &rebox_double, miss, exit_point);
+    BIND(&rebox_double);
+    {
+      exit_point->Return(AllocateHeapNumberWithValue(var_double_value.value()));
+    }
+  }
+
+  BIND(&if_array_len);
+  {
+    GotoIfNot(IsJSArray(lookup_start_object_map), miss);
+    exit_point->Return(LoadJSArrayLength(CAST(lookup_start_object)));
+  }
+
+  BIND(&if_string_len);
+  {
+    GotoIfNot(IsStringMap(lookup_start_object_map), miss);
+    exit_point->Return(LoadStringLengthAsSmi(CAST(lookup_start_object)));
   }
 }
 
@@ -377,7 +540,8 @@ void AccessorAssembler::HandleLoadICHandlerCase(
 
   BIND(&call_code_handler);
   {
-    TNode<Code> code_handler = CAST(handler);
+    TNode<Code> code_handler = TrustedCast<Code>(
+        handler, "used in a call which will be checkd via dispatch table");
     exit_point->ReturnCallStub(LoadWithVectorDescriptor{}, code_handler,
                                p->context(), p->lookup_start_object(),
                                p->name(), p->slot(), p->vector());
@@ -421,9 +585,11 @@ void AccessorAssembler::HandleLoadField(TNode<JSObject> holder,
                                         Label* rebox_double, Label* miss,
                                         ExitPoint* exit_point) {
   Comment("LoadField");
-  TNode<IntPtrT> index =
-      Signed(DecodeWordFromWord32<LoadHandler::FieldIndexBits>(handler_word));
-  TNode<IntPtrT> offset = IntPtrMul(index, IntPtrConstant(kTaggedSize));
+  TNode<IntPtrT> offset_in_words =
+      Signed(DecodeWordFromWord32<LoadHandler::StorageOffsetInWordsBits>(
+          handler_word));
+  TNode<IntPtrT> offset =
+      IntPtrMul(offset_in_words, IntPtrConstant(kTaggedSize));
 
   TNode<BoolT> is_inobject =
       IsSetWord32<LoadHandler::IsInobjectBits>(handler_word);
@@ -835,18 +1001,99 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
   BIND(&normal);
   {
     Comment("load_normal");
-    TNode<PropertyDictionary> properties =
-        CAST(LoadSlowProperties(CAST(holder)));
+    TNode<HeapObject> properties = LoadSlowProperties(CAST(holder));
+
     TVARIABLE(IntPtrT, var_name_index);
-    Label found(this, &var_name_index);
-    NameDictionaryLookup<PropertyDictionary>(properties, CAST(p->name()),
+    Label found(this);
+    Label lookup(this);
+    uint32_t encoding =
+        LoadHandler::KindBits::encode(LoadHandler::Kind::kNormal);
+    encoding = LoadHandler::DictionaryIndexBits::update(
+        encoding, LoadHandler::DictionaryIndexBits::kMax);
+    TNode<Uint32T> max_normal_handler = Uint32Constant(encoding);
+
+    GotoIf(Word32Equal(handler_word, max_normal_handler), &lookup);
+
+    TNode<Uint32T> index =
+        DecodeWord32<LoadHandler::DictionaryIndexBits>(handler_word);
+
+    {
+      TNode<IntPtrT> index_ptr = Signed(ChangeUint32ToWord(index));
+      if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+        TNode<Uint32T> capacity =
+            Unsigned(LoadSwissNameDictionaryCapacity(CAST(properties)));
+        GotoIf(Uint32GreaterThanOrEqual(index, capacity), &lookup);
+        TNode<Object> key =
+            LoadSwissNameDictionaryKey(CAST(properties), index_ptr);
+        GotoIf(TaggedNotEqual(key, p->name()), &lookup);
+        var_name_index = index_ptr;
+      } else {
+        TNode<IntPtrT> element_index = EntryToIndex<NameDictionary>(index_ptr);
+        TNode<IntPtrT> properties_length =
+            LoadAndUntagFixedArrayBaseLength(CAST(properties));
+        GotoIf(UintPtrGreaterThanOrEqual(element_index, properties_length),
+               &lookup);
+        static_assert(NameDictionary::kEntryKeyIndex == 0);
+        TNode<Object> key =
+            LoadFixedArrayElement(CAST(properties), element_index);
+        GotoIf(TaggedNotEqual(key, p->name()), &lookup);
+        var_name_index = element_index;
+      }
+      Goto(&found);
+    }
+
+    BIND(&lookup);
+    NameDictionaryLookup<PropertyDictionary>(CAST(properties), CAST(p->name()),
                                              &found, &var_name_index, miss);
+
     BIND(&found);
     {
+      {
+        Comment("Update LRU dictionary index");
+        Label done_update(this);
+        // We might arrive here without a vector (e.g. via the megamorphic
+        // stub cache or generic ICs).
+        TNode<HeapObject> vector = p->vector();
+        GotoIf(IsUndefined(vector), &done_update);
+        TNode<MaybeObject> current_handler =
+            LoadFeedbackVectorSlot(CAST(vector), p->slot(), kTaggedSize);
+
+        // Atm we only update the handler in the monomorphic case, as doing it
+        // for other cases is too expensive.
+        GotoIfNot(TaggedEqual(current_handler, handler), &done_update);
+
+        TNode<Uint32T> new_index;
+        if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+          new_index = Unsigned(TruncateIntPtrToInt32(var_name_index.value()));
+        } else {
+          TNode<IntPtrT> entry_index = IntPtrDiv(
+              IntPtrSub(var_name_index.value(),
+                        IntPtrConstant(NameDictionary::kElementsStartIndex)),
+              IntPtrConstant(NameDictionary::kEntrySize));
+          new_index = Unsigned(TruncateIntPtrToInt32(entry_index));
+        }
+
+        GotoIf(Word32Equal(new_index, index), &done_update);
+        GotoIf(Uint32GreaterThanOrEqual(
+                   new_index,
+                   Uint32Constant(LoadHandler::DictionaryIndexBits::kMax)),
+               &done_update);
+
+        TNode<Word32T> new_handler_word =
+            UpdateWord32<LoadHandler::DictionaryIndexBits>(handler_word,
+                                                           new_index);
+        StoreFeedbackVectorSlot(CAST(vector),
+                                Unsigned(TaggedIndexToIntPtr(p->slot())),
+                                SmiFromInt32(Signed(new_handler_word)),
+                                SKIP_WRITE_BARRIER, kTaggedSize);
+        Goto(&done_update);
+        BIND(&done_update);
+      }
+
       TVARIABLE(Uint32T, var_details);
       TVARIABLE(Object, var_value);
       LoadPropertyFromDictionary<PropertyDictionary>(
-          properties, var_name_index.value(), &var_details, &var_value);
+          CAST(properties), var_name_index.value(), &var_details, &var_value);
 
       ExpectedReceiverMode expected_receiver_mode =
           p->IsLoadSuperIC() ? kExpectingAnyReceiver : kExpectingJSReceiver;
@@ -1037,7 +1284,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
     TNode<Module> module =
         LoadObjectField<Module>(CAST(holder), JSModuleNamespace::kModuleOffset);
     TNode<ObjectHashTable> exports =
-        LoadObjectField<ObjectHashTable>(module, Module::kExportsOffset);
+        LoadObjectField<ObjectHashTable>(module, offsetof(Module, exports_));
     TNode<Cell> cell = CAST(LoadFixedArrayElement(exports, index));
     // The handler is only installed for exports that exist.
     TNode<Object> value = LoadCellValue(cell);
@@ -1096,10 +1343,9 @@ void AccessorAssembler::HandleLoadICSmiHandlerHasNamedCase(
   BIND(&return_lookup);
   {
     CSA_DCHECK(this,
-               Word32Or(Word32Equal(handler_kind, LOAD_KIND(kInterceptor)),
-                        Word32Or(Word32Equal(handler_kind, LOAD_KIND(kProxy)),
-                                 Word32Equal(handler_kind,
-                                             LOAD_KIND(kModuleExport)))));
+               Word32Any(Word32Equal(handler_kind, LOAD_KIND(kInterceptor)),
+                         Word32Equal(handler_kind, LOAD_KIND(kProxy)),
+                         Word32Equal(handler_kind, LOAD_KIND(kModuleExport))));
     exit_point->ReturnCallBuiltin(Builtin::kHasProperty, p->context(),
                                   p->receiver(), p->name());
   }
@@ -1189,7 +1435,9 @@ TNode<Object> AccessorAssembler::HandleProtoHandler(
     if (on_code_handler) {
       Label if_smi_handler(this);
       GotoIf(TaggedIsSmi(smi_or_code_handler), &if_smi_handler);
-      TNode<Code> code = CAST(smi_or_code_handler);
+      TNode<Code> code = TrustedCast<Code>(
+          smi_or_code_handler,
+          "used in a call which will be checkd via dispatch table");
       on_code_handler(code);
 
       BIND(&if_smi_handler);
@@ -1428,9 +1676,10 @@ void AccessorAssembler::HandleStoreICSmiHandlerJSSharedStructFieldCase(
       is_inobject, [&]() { return holder; },
       [&]() { return LoadFastProperties(holder, true); });
 
-  TNode<UintPtrT> index =
-      DecodeWordFromWord32<StoreHandler::FieldIndexBits>(handler_word);
-  TNode<IntPtrT> offset = Signed(TimesTaggedSize(index));
+  TNode<UintPtrT> offset_in_words =
+      DecodeWordFromWord32<StoreHandler::StorageOffsetInWordsBits>(
+          handler_word);
+  TNode<IntPtrT> offset = Signed(TimesTaggedSize(offset_in_words));
 
   StoreSharedObjectField(property_storage, offset, shared_value.value());
 
@@ -1593,7 +1842,9 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     // |handler| is a heap object. Must be code, call it.
     BIND(&call_handler);
     {
-      TNode<Code> code_handler = CAST(strong_handler);
+      TNode<Code> code_handler = TrustedCast<Code>(
+          strong_handler,
+          "used in a call which will be checkd via dispatch table");
       TailCallStub(StoreWithVectorDescriptor{}, code_handler, p->context(),
                    p->receiver(), p->name(), p->value(), p->slot(),
                    p->vector());
@@ -1825,21 +2076,17 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
     CheckFieldType(descriptors, descriptor_name_index, representation, value,
                    slow);
 
-    TNode<UintPtrT> field_index =
-        DecodeWordFromWord32<PropertyDetails::FieldIndexField>(details);
-    field_index = Unsigned(
-        IntPtrAdd(field_index,
-                  Unsigned(LoadMapInobjectPropertiesStartInWords(object_map))));
-    TNode<IntPtrT> instance_size_in_words =
-        LoadMapInstanceSizeInWords(object_map);
+    TNode<UintPtrT> field_word_offset =
+        DecodeWordFromWord32<PropertyDetails::OffsetInWordsField>(details);
+    TNode<BoolT> is_in_object =
+        IsSetWord32<PropertyDetails::InObjectField>(details);
 
     Label inobject(this), backing_store(this);
-    Branch(UintPtrLessThan(field_index, instance_size_in_words), &inobject,
-           &backing_store);
+    Branch(is_in_object, &inobject, &backing_store);
 
     BIND(&inobject);
     {
-      TNode<IntPtrT> field_offset = Signed(TimesTaggedSize(field_index));
+      TNode<IntPtrT> field_offset = Signed(TimesTaggedSize(field_word_offset));
       Label tagged_rep(this), double_rep(this);
       Branch(
           Word32Equal(representation, Int32Constant(Representation::kDouble)),
@@ -1875,8 +2122,12 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
 
     BIND(&backing_store);
     {
-      TNode<IntPtrT> backing_store_index =
-          Signed(IntPtrSub(field_index, instance_size_in_words));
+      // TODO(leszeks): The field_word_offset already represents the offset
+      // inside the property array, we could do a direct (scaled) access to the
+      // property array.
+      TNode<IntPtrT> backing_store_index = Signed(
+          IntPtrSub(field_word_offset,
+                    IntPtrConstant(PropertyArray::kHeaderSize / kTaggedSize)));
 
       if (do_transitioning_store) {
         // Allocate mutable heap number before extending properties backing
@@ -1955,33 +2206,32 @@ void AccessorAssembler::StoreJSSharedStructField(
 
   Label done(this);
 
-  TNode<UintPtrT> field_index =
-      DecodeWordFromWord32<PropertyDetails::FieldIndexField>(details);
-  field_index = Unsigned(IntPtrAdd(
-      field_index,
-      Unsigned(LoadMapInobjectPropertiesStartInWords(shared_struct_map))));
-
-  TNode<IntPtrT> instance_size_in_words =
-      LoadMapInstanceSizeInWords(shared_struct_map);
+  TNode<UintPtrT> field_word_offset =
+      DecodeWordFromWord32<PropertyDetails::OffsetInWordsField>(details);
+  TNode<BoolT> is_in_object =
+      IsSetWord32<PropertyDetails::InObjectField>(details);
 
   TVARIABLE(Object, shared_value, maybe_local_value);
   SharedValueBarrier(context, &shared_value);
 
   Label inobject(this), backing_store(this);
-  Branch(UintPtrLessThan(field_index, instance_size_in_words), &inobject,
-         &backing_store);
+  Branch(is_in_object, &inobject, &backing_store);
 
   BIND(&inobject);
   {
-    TNode<IntPtrT> field_offset = Signed(TimesTaggedSize(field_index));
+    TNode<IntPtrT> field_offset = Signed(TimesTaggedSize(field_word_offset));
     StoreSharedObjectField(shared_struct, field_offset, shared_value.value());
     Goto(&done);
   }
 
   BIND(&backing_store);
   {
-    TNode<IntPtrT> backing_store_index =
-        Signed(IntPtrSub(field_index, instance_size_in_words));
+    // TODO(leszeks): The field_word_offset already represents the offset
+    // inside the property array, we could do a direct (scaled) access to the
+    // property array.
+    TNode<IntPtrT> backing_store_index = Signed(
+        IntPtrSub(field_word_offset,
+                  IntPtrConstant(PropertyArray::kHeaderSize / kTaggedSize)));
 
     CSA_DCHECK(
         this,
@@ -2401,9 +2651,10 @@ void AccessorAssembler::HandleStoreFieldAndReturn(
       is_inobject, [&]() { return holder; },
       [&]() { return LoadFastProperties(holder, true); });
 
-  TNode<UintPtrT> index =
-      DecodeWordFromWord32<StoreHandler::FieldIndexBits>(handler_word);
-  TNode<IntPtrT> offset = Signed(TimesTaggedSize(index));
+  TNode<UintPtrT> offset_in_words =
+      DecodeWordFromWord32<StoreHandler::StorageOffsetInWordsBits>(
+          handler_word);
+  TNode<IntPtrT> offset = Signed(TimesTaggedSize(offset_in_words));
 
   // For Double fields, we want to mutate the current double-value
   // field rather than changing it to point at a new HeapNumber.
@@ -3455,10 +3706,10 @@ void AccessorAssembler::LoadIC_Field(const LazyLoadICParameters* p,
   {
     TNode<IntPtrT> offset;
     TNode<HeapObject> holder;
-    int target_handler =
-        LoadHandler::KindBits::encode(LoadHandler::Kind::kField);
 
     if (field_index != kNotSpecifiedFieldIndex) {
+      Tagged<Smi> target_handler;
+
       // Specified field index.
       DCHECK_GE(field_index, 0);
       // Currently we only support handlers for loading non-double fields with
@@ -3468,17 +3719,14 @@ void AccessorAssembler::LoadIC_Field(const LazyLoadICParameters* p,
       int field_offset;
       if (field_location == FieldLocation::kInObject) {
         field_offset = JSObject::kHeaderSize + field_index * kTaggedSize;
-        target_handler |=
-            LoadHandler::IsInobjectBits::encode(true) |
-            LoadHandler::FieldIndexBits::encode(field_offset / kTaggedSize);
-
       } else {
         DCHECK_EQ(field_location, FieldLocation::kOutOfObject);
-        field_offset =
-            OFFSET_OF_DATA_START(FixedArray) + field_index * kTaggedSize;
-        target_handler |=
-            LoadHandler::FieldIndexBits::encode(field_offset / kTaggedSize);
+        field_offset = PropertyArray::OffsetOfElementAt(field_index);
       }
+      target_handler =
+          LoadHandler::LoadField(field_offset / kTaggedSize,
+                                 field_location == FieldLocation::kInObject,
+                                 false, InternalIndex::NotFound());
 
       GotoIfNot(TaggedEqual(var_handler.value(), SmiConstant(target_handler)),
                 &miss);
@@ -3501,19 +3749,17 @@ void AccessorAssembler::LoadIC_Field(const LazyLoadICParameters* p,
         mask |= LoadHandler::IsInobjectBits::kMask;
       }
       // Compute target_handler.
-      if (field_location == FieldLocation::kInObject) {
-        target_handler |= LoadHandler::IsInobjectBits::encode(true);
-      }
-      if (field_kind == FieldKind::kDouble) {
-        target_handler |= LoadHandler::IsDoubleBits::encode(true);
-      }
+      Tagged<Smi> target_handler = LoadHandler::LoadField(
+          /* ignored */ 0, field_location == FieldLocation::kInObject,
+          field_kind == FieldKind::kDouble, InternalIndex::NotFound());
 
       GotoIfNot(Word32Equal(Word32And(handler_word, Int32Constant(mask)),
-                            Int32Constant(target_handler)),
+                            Int32Constant(target_handler.value())),
                 &miss);
-      TNode<IntPtrT> index = Signed(
-          DecodeWordFromWord32<LoadHandler::FieldIndexBits>(handler_word));
-      offset = IntPtrMul(index, IntPtrConstant(kTaggedSize));
+      TNode<IntPtrT> offset_in_words =
+          Signed(DecodeWordFromWord32<LoadHandler::StorageOffsetInWordsBits>(
+              handler_word));
+      offset = TimesTaggedSize(offset_in_words);
 
       if (field_location == FieldLocation::kInObject) {
         holder = CAST(receiver);
@@ -3564,9 +3810,10 @@ void AccessorAssembler::LoadIC_Noninlined(const LoadICParameters* p,
   DCHECK_EQ(MachineRepresentation::kTagged, var_handler->rep());
 
   {
-    Label try_megamorphic(this), try_megadom(this);
+    Label try_megamorphic(this), try_homomorphic(this), try_megadom(this);
     GotoIf(TaggedEqual(feedback, MegamorphicSymbolConstant()),
            &try_megamorphic);
+    GotoIf(IsWeakHomomorphicFixedArrayMap(LoadMap(feedback)), &try_homomorphic);
     GotoIf(TaggedEqual(feedback, MegaDOMSymbolConstant()), &try_megadom);
     Goto(miss);
 
@@ -3575,6 +3822,13 @@ void AccessorAssembler::LoadIC_Noninlined(const LoadICParameters* p,
       TryProbeStubCache(isolate()->load_stub_cache(), p->lookup_start_object(),
                         lookup_start_object_map, CAST(p->name()), if_handler,
                         var_handler, miss);
+    }
+
+    BIND(&try_homomorphic);
+    {
+      TryHomomorphicCase(p->lookup_start_object(), lookup_start_object_map,
+                         CAST(p->name()), var_handler, p->vector(), p->slot(),
+                         miss, exit_point);
     }
 
     BIND(&try_megadom);
@@ -4478,8 +4732,8 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
       GotoIfNot(IsCode(handler), &if_transitioning_element_store);
 
       {
-        // Call the handler.
-        TNode<Code> code_handler = CAST(handler);
+        TNode<Code> code_handler = TrustedCast<Code>(
+            handler, "used in a call which will be checkd via dispatch table");
         TailCallStub(StoreWithVectorDescriptor{}, code_handler, p->context(),
                      p->receiver(), p->name(), p->value(), p->slot(),
                      p->vector());
@@ -4492,8 +4746,9 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
         TNode<Map> transition_map =
             CAST(GetHeapObjectAssumeWeak(maybe_transition_map, &miss));
         GotoIf(IsDeprecatedMap(transition_map), &miss);
-        TNode<Code> code = CAST(
-            LoadObjectField(handler, offsetof(StoreHandler, smi_handler_)));
+        TNode<Code> code = TrustedCast<Code>(
+            LoadObjectField(handler, offsetof(StoreHandler, smi_handler_)),
+            "used in a call which will be checkd via dispatch table");
         TailCallStub(StoreTransitionDescriptor{}, code, p->context(),
                      p->receiver(), p->name(), transition_map, p->value(),
                      p->slot(), p->vector());
@@ -4586,17 +4841,18 @@ void AccessorAssembler::GenerateLoadIC_Megamorphic() {
 
   CSA_DCHECK(
       this,
-      Word32Or(
-          Word32Or(
-              // Either the IC is in regular megamorphic state...
-              TaggedEqual(LoadFeedbackVectorSlot(CAST(vector), slot),
-                          MegamorphicSymbolConstant()),
-              // ...or it's monomorphic but using a slow handler. Compilers are
-              // free to approximate this by using the generic stub for
-              // everything.
-              TaggedEqual(
-                  LoadFeedbackVectorSlot(CAST(vector), slot, kTaggedSize),
-                  SmiConstant(*LoadHandler::LoadSlow(isolate())))),
+      Word32Any(
+          // Either the IC is in regular megamorphic state...
+          TaggedEqual(LoadFeedbackVectorSlot(CAST(vector), slot),
+                      MegamorphicSymbolConstant()),
+          // ... or it's homomorphic ...
+          IsWeakHomomorphicFixedArrayMap(
+              LoadMap(CAST(LoadFeedbackVectorSlot(CAST(vector), slot)))),
+          // ...or it's monomorphic but using a slow handler. Compilers
+          // are free to approximate this by using the generic stub for
+          // everything.
+          TaggedEqual(LoadFeedbackVectorSlot(CAST(vector), slot, kTaggedSize),
+                      SmiConstant(*LoadHandler::LoadSlow(isolate()))),
           TaggedEqual(LoadFeedbackVectorSlot(CAST(vector), slot, kTaggedSize),
                       SmiConstant(LoadHandler::LoadGeneric()))));
 

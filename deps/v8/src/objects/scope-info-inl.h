@@ -23,8 +23,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/scope-info-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(ScopeInfo)
-
 bool ScopeInfo::IsAsmModule() const { return IsAsmModuleBit::decode(Flags()); }
 
 bool ScopeInfo::HasSimpleParameters() const {
@@ -33,6 +31,10 @@ bool ScopeInfo::HasSimpleParameters() const {
 
 bool ScopeInfo::HasContextCells() const {
   return HasContextCellsBit::decode(Flags());
+}
+
+bool ScopeInfo::is_hoisted_in_context() const {
+  return IsHoistedInContextBit::decode(Flags());
 }
 
 uint32_t ScopeInfo::Flags() const { return flags(kRelaxedLoad); }

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-liftoff --no-turboshaft-wasm-load-elimination
+// Flags: --no-turboshaft-wasm-load-elimination
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -11,7 +11,7 @@ builder.startRecGroup();
 builder.addStruct([]);
 builder.endRecGroup();
 builder.startRecGroup();
-builder.addArray(kWasmI32, true);
+builder.addArray(kWasmI32);
 builder.endRecGroup();
 builder.startRecGroup();
 builder.addType(makeSig([kWasmI32, kWasmI32, kWasmI32], [kWasmI32]));

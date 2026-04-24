@@ -59,7 +59,8 @@ class ConsoleHelper {
   int groupId() const { return m_inspector->contextGroupId(contextId()); }
 
   InjectedScript* injectedScript(int sessionId) {
-    InspectedContext* context = m_inspector->getContext(groupId(), contextId());
+    std::shared_ptr<InspectedContext> context =
+        m_inspector->getContext(groupId(), contextId());
     if (!context) return nullptr;
     return context->getInjectedScript(sessionId);
   }
@@ -750,7 +751,8 @@ void V8Console::lastEvaluationResultCallback(
 
 static void inspectImpl(const v8::FunctionCallbackInfo<v8::Value>& info,
                         v8::Local<v8::Value> value, int sessionId,
-                        InspectRequest request, V8InspectorImpl* inspector) {
+                        InspectRequest request, V8InspectorImpl* inspector,
+                        bool omitFocus = false) {
   if (request == kRegular) info.GetReturnValue().Set(value);
 
   v8::debug::ConsoleCallArguments args(info);
@@ -769,6 +771,9 @@ static void inspectImpl(const v8::FunctionCallbackInfo<v8::Value>& info,
   } else if (request == kQueryObjects) {
     hints->setBoolean("queryObjects", true);
   }
+  if (omitFocus) {
+    hints->setBoolean("omitFocus", true);
+  }
   if (V8InspectorSessionImpl* session = helper.session(sessionId)) {
     session->runtimeAgent()->inspect(std::move(wrappedObject), std::move(hints),
                                      helper.contextId());
@@ -778,7 +783,19 @@ static void inspectImpl(const v8::FunctionCallbackInfo<v8::Value>& info,
 void V8Console::inspectCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
                                 int sessionId) {
   if (info.Length() < 1) return;
-  inspectImpl(info, info[0], sessionId, kRegular, m_inspector);
+  bool omitFocus = false;
+  if (info.Length() >= 2 && info[1]->IsObject()) {
+    v8::Isolate* isolate = info.GetIsolate();
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    v8::Local<v8::Object> options = info[1].As<v8::Object>();
+    v8::Local<v8::Value> focusValue;
+    if (options->Get(context, toV8StringInternalized(isolate, "focus"))
+            .ToLocal(&focusValue) &&
+        focusValue->IsFalse()) {
+      omitFocus = true;
+    }
+  }
+  inspectImpl(info, info[0], sessionId, kRegular, m_inspector, omitFocus);
 }
 
 void V8Console::copyCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
@@ -863,8 +880,8 @@ v8::Local<v8::Object> V8Console::createCommandLineAPI(
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
 
   v8::Local<v8::Object> commandLineAPI = v8::Object::New(isolate);
-  bool success = commandLineAPI->SetPrototypeV2(context, v8::Null(isolate))
-                     .FromMaybe(false);
+  bool success =
+      commandLineAPI->SetPrototype(context, v8::Null(isolate)).FromMaybe(false);
   DCHECK(success);
   USE(success);
 
@@ -948,7 +965,7 @@ void V8Console::CommandLineAPIScope::accessorGetterCallback(
       info.Data().As<v8::ArrayBuffer>()->GetBackingStore()->Data());
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
   if (scope == nullptr) {
-    USE(info.HolderV2()->Delete(context, name).FromMaybe(false));
+    USE(info.Holder()->Delete(context, name).FromMaybe(false));
     return;
   }
 
@@ -970,15 +987,13 @@ void V8Console::CommandLineAPIScope::accessorGetterCallback(
 
 void V8Console::CommandLineAPIScope::accessorSetterCallback(
     v8::Local<v8::Name> name, v8::Local<v8::Value> value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<v8::Boolean>& info) {
   CommandLineAPIScope* scope = *static_cast<CommandLineAPIScope**>(
       info.Data().As<v8::ArrayBuffer>()->GetBackingStore()->Data());
   if (scope == nullptr) return;
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
-  if (!info.HolderV2()->Delete(context, name).FromMaybe(false)) return;
-  if (!info.HolderV2()
-           ->CreateDataProperty(context, name, value)
-           .FromMaybe(false))
+  if (!info.Holder()->Delete(context, name).FromMaybe(false)) return;
+  if (!info.Holder()->CreateDataProperty(context, name, value).FromMaybe(false))
     return;
 
   v8::Local<v8::PrimitiveArray> methods = scope->installedMethods();

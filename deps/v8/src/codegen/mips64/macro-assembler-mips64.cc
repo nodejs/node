@@ -5516,7 +5516,7 @@ void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
   Label done;
   // Load the feedback vector from the closure.
   Ld(dst, FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
-  Ld(dst, FieldMemOperand(dst, FeedbackCell::kValueOffset));
+  Ld(dst, FieldMemOperand(dst, offsetof(FeedbackCell, value_)));
 
   // Check if feedback vector is valid.
   Ld(scratch, FieldMemOperand(dst, HeapObject::kMapOffset));
@@ -5751,6 +5751,19 @@ void MacroAssembler::AssertSmi(Register object) {
     Register scratch = temps.Acquire();
     andi(scratch, object, kSmiTagMask);
     Check(eq, AbortReason::kOperandIsASmi, scratch, Operand(zero_reg));
+  }
+}
+
+void MacroAssembler::AssertMap(Register object) {
+  if (v8_flags.debug_code) {
+    ASM_CODE_COMMENT(this);
+    AssertNotSmi(object, AbortReason::kOperandIsNotAMap);
+
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+
+    GetObjectType(object, scratch, scratch);
+    Check(eq, AbortReason::kOperandIsNotAMap, scratch, Operand(MAP_TYPE));
   }
 }
 

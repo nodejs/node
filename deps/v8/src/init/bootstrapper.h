@@ -99,6 +99,11 @@ class Bootstrapper final {
 
   SourceCodeCache* extensions_cache() { return &extensions_cache_; }
 
+  // Triggers initialization of a lazily initialized part of the context,
+  // e.g. the Temporal object.
+  void InitializeLazyPartOfContext(DirectHandle<NativeContext> native_context,
+                                   NativeContext::Field index);
+
  private:
   // Log newly created Map objects if no snapshot was used.
   void LogAllMaps();

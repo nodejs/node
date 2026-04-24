@@ -14,6 +14,7 @@
 
 #include "absl/status/statusor.h"
 
+#include <any>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -25,6 +26,7 @@
 #include <string>
 #include <type_traits>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "gmock/gmock.h"
@@ -35,8 +37,6 @@
 #include "absl/status/status_matchers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/any.h"
-#include "absl/types/variant.h"
 #include "absl/utility/utility.h"
 
 namespace {
@@ -696,13 +696,13 @@ TEST(StatusOr, ExplicitConstruction) {
 TEST(StatusOr, ImplicitConstruction) {
   // Check implicit casting works.
   auto status_or =
-      absl::implicit_cast<absl::StatusOr<absl::variant<int, std::string>>>(10);
+      absl::implicit_cast<absl::StatusOr<std::variant<int, std::string>>>(10);
   EXPECT_THAT(status_or, IsOkAndHolds(VariantWith<int>(10)));
 }
 
 TEST(StatusOr, ImplicitConstructionFromInitliazerList) {
   // Note: dropping the explicit std::initializer_list<int> is not supported
-  // by absl::StatusOr or absl::optional.
+  // by absl::StatusOr or std::optional.
   auto status_or =
       absl::implicit_cast<absl::StatusOr<std::vector<int>>>({{10, 20, 30}});
   EXPECT_THAT(status_or, IsOkAndHolds(ElementsAre(10, 20, 30)));
@@ -796,49 +796,49 @@ TEST(StatusOr, CopyAndMoveAbility) {
 }
 
 TEST(StatusOr, StatusOrAnyCopyAndMoveConstructorTests) {
-  absl::StatusOr<absl::any> status_or = CopyDetector(10);
-  absl::StatusOr<absl::any> status_error = absl::InvalidArgumentError("foo");
+  absl::StatusOr<std::any> status_or = CopyDetector(10);
+  absl::StatusOr<std::any> status_error = absl::InvalidArgumentError("foo");
   EXPECT_THAT(
       status_or,
       IsOkAndHolds(AnyWith<CopyDetector>(CopyDetectorHas(10, true, false))));
-  absl::StatusOr<absl::any> a = status_or;
+  absl::StatusOr<std::any> a = status_or;
   EXPECT_THAT(
       a, IsOkAndHolds(AnyWith<CopyDetector>(CopyDetectorHas(10, false, true))));
-  absl::StatusOr<absl::any> a_err = status_error;
+  absl::StatusOr<std::any> a_err = status_error;
   EXPECT_THAT(a_err, Not(IsOk()));
 
-  const absl::StatusOr<absl::any>& cref = status_or;
+  const absl::StatusOr<std::any>& cref = status_or;
   // No lint for no-change copy.
-  absl::StatusOr<absl::any> b = cref;  // NOLINT
+  absl::StatusOr<std::any> b = cref;  // NOLINT
   EXPECT_THAT(
       b, IsOkAndHolds(AnyWith<CopyDetector>(CopyDetectorHas(10, false, true))));
-  const absl::StatusOr<absl::any>& cref_err = status_error;
+  const absl::StatusOr<std::any>& cref_err = status_error;
   // No lint for no-change copy.
-  absl::StatusOr<absl::any> b_err = cref_err;  // NOLINT
+  absl::StatusOr<std::any> b_err = cref_err;  // NOLINT
   EXPECT_THAT(b_err, Not(IsOk()));
 
-  absl::StatusOr<absl::any> c = std::move(status_or);
+  absl::StatusOr<std::any> c = std::move(status_or);
   EXPECT_THAT(
       c, IsOkAndHolds(AnyWith<CopyDetector>(CopyDetectorHas(10, true, false))));
-  absl::StatusOr<absl::any> c_err = std::move(status_error);
+  absl::StatusOr<std::any> c_err = std::move(status_error);
   EXPECT_THAT(c_err, Not(IsOk()));
 }
 
 TEST(StatusOr, StatusOrAnyCopyAndMoveAssignment) {
-  absl::StatusOr<absl::any> status_or = CopyDetector(10);
-  absl::StatusOr<absl::any> status_error = absl::InvalidArgumentError("foo");
-  absl::StatusOr<absl::any> a;
+  absl::StatusOr<std::any> status_or = CopyDetector(10);
+  absl::StatusOr<std::any> status_error = absl::InvalidArgumentError("foo");
+  absl::StatusOr<std::any> a;
   a = status_or;
   EXPECT_THAT(
       a, IsOkAndHolds(AnyWith<CopyDetector>(CopyDetectorHas(10, false, true))));
   a = status_error;
   EXPECT_THAT(a, Not(IsOk()));
 
-  const absl::StatusOr<absl::any>& cref = status_or;
+  const absl::StatusOr<std::any>& cref = status_or;
   a = cref;
   EXPECT_THAT(
       a, IsOkAndHolds(AnyWith<CopyDetector>(CopyDetectorHas(10, false, true))));
-  const absl::StatusOr<absl::any>& cref_err = status_error;
+  const absl::StatusOr<std::any>& cref_err = status_error;
   a = cref_err;
   EXPECT_THAT(a, Not(IsOk()));
   a = std::move(status_or);
@@ -876,15 +876,15 @@ TEST(StatusOr, StatusOrCopyAndMoveTestsAssignment) {
 }
 
 TEST(StatusOr, AbslAnyAssignment) {
-  EXPECT_FALSE((std::is_assignable<absl::StatusOr<absl::any>,
+  EXPECT_FALSE((std::is_assignable<absl::StatusOr<std::any>,
                                    absl::StatusOr<int>>::value));
-  absl::StatusOr<absl::any> status_or;
+  absl::StatusOr<std::any> status_or;
   status_or = absl::InvalidArgumentError("foo");
   EXPECT_THAT(status_or, Not(IsOk()));
 }
 
 TEST(StatusOr, ImplicitAssignment) {
-  absl::StatusOr<absl::variant<int, std::string>> status_or;
+  absl::StatusOr<std::variant<int, std::string>> status_or;
   status_or = 10;
   EXPECT_THAT(status_or, IsOkAndHolds(VariantWith<int>(10)));
 }

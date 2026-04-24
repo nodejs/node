@@ -873,10 +873,19 @@ void Float64Exponentiate::GenerateCode(MaglevAssembler* masm,
 void Float64Min::SetValueLocationConstraints() {
   UseRegister(LeftInput());
   UseRegister(RightInput());
-  DefineAsRegister(this);
+  if (LeftInput().node() == RightInput().node()) {
+    DefineSameAsFirst(this);
+  } else {
+    DefineAsRegister(this);
+  }
 }
 void Float64Min::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
+  if (LeftInput().node() == RightInput().node()) {
+    DCHECK_EQ(ToDoubleRegister(result()), ToDoubleRegister(LeftInput()));
+    return;
+  }
+
   DoubleRegister left = ToDoubleRegister(LeftInput());
   DoubleRegister right = ToDoubleRegister(RightInput());
   DoubleRegister out = ToDoubleRegister(result());
@@ -887,11 +896,19 @@ void Float64Min::GenerateCode(MaglevAssembler* masm,
 void Float64Max::SetValueLocationConstraints() {
   UseRegister(LeftInput());
   UseRegister(RightInput());
-  DefineAsRegister(this);
+  if (LeftInput().node() == RightInput().node()) {
+    DefineSameAsFirst(this);
+  } else {
+    DefineAsRegister(this);
+  }
 }
 
 void Float64Max::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
+  if (LeftInput().node() == RightInput().node()) {
+    DCHECK_EQ(ToDoubleRegister(result()), ToDoubleRegister(LeftInput()));
+    return;
+  }
   DoubleRegister left = ToDoubleRegister(LeftInput());
   DoubleRegister right = ToDoubleRegister(RightInput());
   DoubleRegister out = ToDoubleRegister(result());
@@ -1130,11 +1147,11 @@ void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
   Register scratch = temps.Acquire();
   Register budget = scratch;
 
-  __ Lw(budget,
-        FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+  __ Lw(budget, FieldMemOperand(feedback_cell,
+                                offsetof(FeedbackCell, interrupt_budget_)));
   __ Sub32(budget, budget, Operand(amount));
-  __ Sw(budget,
-        FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+  __ Sw(budget, FieldMemOperand(feedback_cell,
+                                offsetof(FeedbackCell, interrupt_budget_)));
 
   ZoneLabelRef done(masm);
   Label* deferred_code = __ MakeDeferredCode(

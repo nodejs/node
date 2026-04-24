@@ -22,6 +22,8 @@ extern class InterceptorInfo extends HeapObject {
   deleter: ExternalPointer;
   enumerator: ExternalPointer;
   definer: ExternalPointer;
+
+  index_of: ExternalPointer;
 }
 
 @cppObjectLayoutDefinition

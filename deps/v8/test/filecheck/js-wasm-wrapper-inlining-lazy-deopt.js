@@ -14,7 +14,7 @@ let arrayIndex = 0;
 function createWasmModuleForLazyDeopt(returnType, createValue, callback) {
   let builder = new WasmModuleBuilder();
   builder.addMemory(1, 1);
-  let index = builder.addArray(kWasmI32, true);
+  let index = builder.addArray(kWasmI32);
   assertEquals(arrayIndex, index);
   let callbackIndex = builder.addImport('env', 'callback', kSig_v_i);
 

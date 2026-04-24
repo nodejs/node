@@ -93,14 +93,14 @@ void RevecTest::TestBinOp(const Operator* bin_op,
   Node* mem_buffer1 = graph()->NewNode(machine()->Int64Add(), load0, sixteen);
   Node* mem_buffer2 = graph()->NewNode(machine()->Int64Add(), load0, sixteen);
   Node* mem_store = graph()->NewNode(machine()->Int64Add(), load0, sixteen);
-  Node* load1 = graph()->NewNode(machine()->ProtectedLoad(load_rep), load0, p1,
+  Node* load1 = graph()->NewNode(machine()->TrappingLoad(load_rep), load0, p1,
                                  load0, start);
-  Node* load2 = graph()->NewNode(machine()->ProtectedLoad(load_rep),
-                                 mem_buffer1, p1, load1, start);
-  Node* load3 = graph()->NewNode(machine()->ProtectedLoad(load_rep), load0, p2,
+  Node* load2 = graph()->NewNode(machine()->TrappingLoad(load_rep), mem_buffer1,
+                                 p1, load1, start);
+  Node* load3 = graph()->NewNode(machine()->TrappingLoad(load_rep), load0, p2,
                                  load2, start);
-  Node* load4 = graph()->NewNode(machine()->ProtectedLoad(load_rep),
-                                 mem_buffer2, p2, load3, start);
+  Node* load4 = graph()->NewNode(machine()->TrappingLoad(load_rep), mem_buffer2,
+                                 p2, load3, start);
   Node* bin_op1 = graph()->NewNode(bin_op, load1, load3);
   Node* bin_op2 = graph()->NewNode(bin_op, load2, load4);
   Node* store1 = graph()->NewNode(machine()->Store(store_rep), load0, p3,
@@ -220,16 +220,16 @@ TEST_F(RevecTest, ReorderLoadChain1) {
   Node* mem_buffer1 = graph()->NewNode(machine()->Int64Add(), load0, sixteen);
   Node* mem_buffer2 = graph()->NewNode(machine()->Int64Add(), load0, sixteen);
   Node* mem_store = graph()->NewNode(machine()->Int64Add(), load0, sixteen);
-  Node* load1 = graph()->NewNode(machine()->ProtectedLoad(load_rep), load0, p1,
+  Node* load1 = graph()->NewNode(machine()->TrappingLoad(load_rep), load0, p1,
                                  load0, start);
-  Node* irrelevant_load = graph()->NewNode(machine()->ProtectedLoad(load_rep),
+  Node* irrelevant_load = graph()->NewNode(machine()->TrappingLoad(load_rep),
                                            mem_buffer1, p1, load1, start);
-  Node* load2 = graph()->NewNode(machine()->ProtectedLoad(load_rep),
-                                 mem_buffer1, p1, irrelevant_load, start);
-  Node* load3 = graph()->NewNode(machine()->ProtectedLoad(load_rep), load0, p2,
+  Node* load2 = graph()->NewNode(machine()->TrappingLoad(load_rep), mem_buffer1,
+                                 p1, irrelevant_load, start);
+  Node* load3 = graph()->NewNode(machine()->TrappingLoad(load_rep), load0, p2,
                                  load2, start);
-  Node* load4 = graph()->NewNode(machine()->ProtectedLoad(load_rep),
-                                 mem_buffer2, p2, load3, start);
+  Node* load4 = graph()->NewNode(machine()->TrappingLoad(load_rep), mem_buffer2,
+                                 p2, load3, start);
   Node* add1 = graph()->NewNode(machine()->F32x4Add(), load1, load3);
   Node* add2 = graph()->NewNode(machine()->F32x4Add(), load2, load4);
   Node* store1 = graph()->NewNode(machine()->Store(store_rep), load0, p3, add1,
@@ -280,16 +280,16 @@ TEST_F(RevecTest, ReorderLoadChain2) {
   Node* mem_buffer1 = graph()->NewNode(machine()->Int64Add(), load0, sixteen);
   Node* mem_buffer2 = graph()->NewNode(machine()->Int64Add(), load0, sixteen);
   Node* mem_store = graph()->NewNode(machine()->Int64Add(), load0, sixteen);
-  Node* load3 = graph()->NewNode(machine()->ProtectedLoad(load_rep), load0, p2,
+  Node* load3 = graph()->NewNode(machine()->TrappingLoad(load_rep), load0, p2,
                                  load0, start);
-  Node* irrelevant_load = graph()->NewNode(machine()->ProtectedLoad(load_rep),
+  Node* irrelevant_load = graph()->NewNode(machine()->TrappingLoad(load_rep),
                                            mem_buffer1, p1, load3, start);
-  Node* load1 = graph()->NewNode(machine()->ProtectedLoad(load_rep), load0, p1,
+  Node* load1 = graph()->NewNode(machine()->TrappingLoad(load_rep), load0, p1,
                                  irrelevant_load, start);
-  Node* load2 = graph()->NewNode(machine()->ProtectedLoad(load_rep),
-                                 mem_buffer1, p1, load1, start);
-  Node* load4 = graph()->NewNode(machine()->ProtectedLoad(load_rep),
-                                 mem_buffer2, p2, load2, start);
+  Node* load2 = graph()->NewNode(machine()->TrappingLoad(load_rep), mem_buffer1,
+                                 p1, load1, start);
+  Node* load4 = graph()->NewNode(machine()->TrappingLoad(load_rep), mem_buffer2,
+                                 p2, load2, start);
   Node* add1 = graph()->NewNode(machine()->F32x4Add(), load1, load3);
   Node* add2 = graph()->NewNode(machine()->F32x4Add(), load2, load4);
   Node* store1 = graph()->NewNode(machine()->Store(store_rep), load0, p3, add1,
@@ -340,14 +340,14 @@ void RevecTest::TestShiftOp(const Operator* shift_op,
   Node* base = graph()->NewNode(machine()->Load(MachineType::Int64()), p0,
                                 offset, start, start);
   Node* base16 = graph()->NewNode(machine()->Int64Add(), base, sixteen);
-  Node* load0 = graph()->NewNode(machine()->ProtectedLoad(load_rep), base, a,
-                                 base, start);
-  Node* load1 = graph()->NewNode(machine()->ProtectedLoad(load_rep), base16, a,
+  Node* load0 =
+      graph()->NewNode(machine()->TrappingLoad(load_rep), base, a, base, start);
+  Node* load1 = graph()->NewNode(machine()->TrappingLoad(load_rep), base16, a,
                                  load0, start);
   Node* shift0 = graph()->NewNode(shift_op, load0, one);
   Node* shift1 = graph()->NewNode(shift_op, load1, one);
   Node* load2 =
-      graph()->NewNode(machine()->ProtectedLoad(LoadRepresentation::Int32()),
+      graph()->NewNode(machine()->TrappingLoad(LoadRepresentation::Int32()),
                        base, b, load1, start);
   Node* store0 =
       graph()->NewNode(machine()->Store(store_rep), base, c,
@@ -408,9 +408,8 @@ void RevecTest::TestSplatOp(const Operator* splat_op,
   Node* base = graph()->NewNode(machine()->Load(MachineType::Uint64()), p0,
                                 offset, start, start);
 
-  Node* load =
-      graph()->NewNode(machine()->ProtectedLoad(splat_input_machine_type), base,
-                       p1, base, start);
+  Node* load = graph()->NewNode(
+      machine()->TrappingLoad(splat_input_machine_type), base, p1, base, start);
   Node* splat0 = graph()->NewNode(splat_op, load);
   Node* splat1 = graph()->NewNode(splat_op, load);
 
@@ -492,14 +491,14 @@ TEST_F(RevecTest, ShuffleForSplat) {
                                 WriteBarrierKind::kNoWriteBarrier);
   Node* base = graph()->NewNode(machine()->Load(MachineType::Int64()), p0,
                                 offset, start, start);
-  Node* load0 = graph()->NewNode(machine()->ProtectedLoad(load_rep), base, p1,
+  Node* load0 = graph()->NewNode(machine()->TrappingLoad(load_rep), base, p1,
                                  base, start);
   Node* base16 = graph()->NewNode(machine()->Int64Add(), base, sixteen);
-  Node* load1 = graph()->NewNode(machine()->ProtectedLoad(load_rep), base16, p1,
+  Node* load1 = graph()->NewNode(machine()->TrappingLoad(load_rep), base16, p1,
                                  load0, start);
 
   // Load and shuffle for splat
-  Node* load2 = graph()->NewNode(machine()->ProtectedLoad(load_rep), base, p2,
+  Node* load2 = graph()->NewNode(machine()->TrappingLoad(load_rep), base, p2,
                                  load1, start);
   const uint8_t mask[16] = {4, 5, 6, 7, 4, 5, 6, 7, 4, 5, 6, 7, 4, 5, 6, 7};
   Node* shuffle = graph()->NewNode(machine()->I8x16Shuffle(mask), load2, load2);
@@ -550,15 +549,14 @@ void RevecTest::TestLoadSplat(
                                 offset, start, start);
 
   Node* loadSplat = graph()->NewNode(
-      machine()->LoadTransform(MemoryAccessKind::kProtectedByTrapHandler,
-                               load_transform),
+      machine()->LoadTransform(MemoryAccessKind::kTrapping, load_transform),
       base, a, base, start);
 
   LoadRepresentation load_rep(MachineType::Simd128());
-  Node* load0 = graph()->NewNode(machine()->ProtectedLoad(load_rep), base, b,
+  Node* load0 = graph()->NewNode(machine()->TrappingLoad(load_rep), base, b,
                                  loadSplat, start);
   Node* load1 = graph()->NewNode(
-      machine()->ProtectedLoad(load_rep),
+      machine()->TrappingLoad(load_rep),
       graph()->NewNode(machine()->Int64Add(), base, sixteen), b, load0, start);
 
   StoreRepresentation store_rep(MachineRepresentation::kSimd128,
@@ -627,20 +625,20 @@ TEST_F(RevecTest, StoreDependencyCheck) {
   Node* mem_buffer1 = graph()->NewNode(machine()->Int64Add(), load0, sixteen);
   Node* mem_buffer2 = graph()->NewNode(machine()->Int64Add(), load0, sixteen);
   Node* mem_store = graph()->NewNode(machine()->Int64Add(), load0, sixteen);
-  Node* load1 = graph()->NewNode(machine()->ProtectedLoad(load_rep), load0, p1,
+  Node* load1 = graph()->NewNode(machine()->TrappingLoad(load_rep), load0, p1,
                                  load0, start);
-  Node* load2 = graph()->NewNode(machine()->ProtectedLoad(load_rep),
-                                 mem_buffer1, p1, load1, start);
-  Node* load3 = graph()->NewNode(machine()->ProtectedLoad(load_rep), load0, p2,
+  Node* load2 = graph()->NewNode(machine()->TrappingLoad(load_rep), mem_buffer1,
+                                 p1, load1, start);
+  Node* load3 = graph()->NewNode(machine()->TrappingLoad(load_rep), load0, p2,
                                  load2, start);
-  Node* load4 = graph()->NewNode(machine()->ProtectedLoad(load_rep),
-                                 mem_buffer2, p2, load3, start);
+  Node* load4 = graph()->NewNode(machine()->TrappingLoad(load_rep), mem_buffer2,
+                                 p2, load3, start);
   Node* add1 = graph()->NewNode(machine()->F32x4Add(), load1, load3);
   Node* add2 = graph()->NewNode(machine()->F32x4Add(), load2, load4);
   Node* store1 = graph()->NewNode(machine()->Store(store_rep), load0, p3, add1,
                                   load4, start);
   Node* effect_intermediate = graph()->NewNode(
-      machine()->ProtectedLoad(load_rep), mem_buffer2, p2, store1, start);
+      machine()->TrappingLoad(load_rep), mem_buffer2, p2, store1, start);
   Node* store2 = graph()->NewNode(machine()->Store(store_rep), mem_store, p3,
                                   add2, effect_intermediate, start);
   Node* ret = graph()->NewNode(common()->Return(0), zero, store2, start);

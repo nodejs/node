@@ -44,7 +44,12 @@ TEST_F(WasmSignatureHashingTest, SignatureHashing) {
       // untagged params can be passed in registers; the 9th must be on the
       // stack.
       H({d, d, d, d, d, d, d, d, d}, {}),  // --
+#if !defined(V8_TARGET_ARCH_RISCV32) && !defined(V8_TARGET_ARCH_RISCV64) && \
+    !defined(V8_TARGET_ARCH_PPC64)
+      // These platforms have separate SIMD registers and thus doesn't use a
+      // slot.
       H({d, d, d, d, d, d, d, d, s}, {}),  // --
+#endif  // V8_TARGET_RISCV32 || V8_TARGET_RISCV64
 
 #if V8_TARGET_ARCH_32_BIT
       // Same, but only relevant for 32-bit platforms.

@@ -20,14 +20,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/js-array-buffer-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSArrayBuffer)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSArrayBufferView)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSDetachedTypedArray)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSTypedArray)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSDataViewOrRabGsabDataView)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSDataView)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSRabGsabDataView)
-
 ACCESSORS(JSTypedArray, base_pointer, Tagged<Object>, kBasePointerOffset)
 RELEASE_ACQUIRE_ACCESSORS(JSTypedArray, base_pointer, Tagged<Object>,
                           kBasePointerOffset)

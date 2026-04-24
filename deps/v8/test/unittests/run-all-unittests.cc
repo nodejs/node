@@ -8,6 +8,7 @@
 #include "include/libplatform/libplatform.h"
 #include "include/v8-initialization.h"
 #include "src/base/compiler-specific.h"
+#include "src/base/logging.h"
 #include "src/base/page-allocator.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -60,7 +61,7 @@ int main(int argc, char** argv) {
 
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   v8::V8::InitializeExternalStartupData(argv[0]);
-  v8::V8::InitializeICUDefaultLocation(argv[0]);
+  CHECK(v8::V8::InitializeICUDefaultLocation(argv[0]));
 
 #ifdef V8_ENABLE_FUZZTEST
   absl::ParseCommandLine(argc, argv);

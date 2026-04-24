@@ -191,7 +191,6 @@ absl_test("vlog_is_on_test") {
     ":vlog_is_on",
     "//third_party/abseil-cpp/absl/base:log_severity",
     "//third_party/abseil-cpp/absl/flags:flag",
-    "//third_party/abseil-cpp/absl/types:optional",
   ]
 }
 
@@ -336,7 +335,6 @@ absl_test("log_format_test") {
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:str_format",
     "//third_party/abseil-cpp/absl/strings:string_view",
-    "//third_party/abseil-cpp/absl/types:optional",
   ]
 }
 

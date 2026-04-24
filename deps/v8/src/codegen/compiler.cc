@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 
+#include "include/v8-script.h"
 #include "src/api/api-inl.h"
 #include "src/asmjs/asm-js.h"
 #include "src/ast/prettyprinter.h"
@@ -743,8 +744,10 @@ template <typename IsolateT>
 void EnsureInfosArrayOnScript(DirectHandle<Script> script,
                               ParseInfo* parse_info, IsolateT* isolate) {
   DCHECK(parse_info->flags().is_toplevel());
-  if (script->infos()->length() > 0) {
-    DCHECK_EQ(script->infos()->length(), parse_info->max_info_id() + 1);
+  uint32_t script_infos_len = script->infos()->ulength().value();
+  if (script_infos_len > 0) {
+    DCHECK_EQ(script_infos_len,
+              static_cast<uint32_t>(parse_info->max_info_id() + 1));
     return;
   }
   DirectHandle<WeakFixedArray> infos(isolate->factory()->NewWeakFixedArray(
@@ -1069,6 +1072,9 @@ bool CompileTurbofan_NotConcurrent(Isolate* isolate,
         isolate, *compilation_info->closure(), compilation_info->osr_offset(),
         *compilation_info->code(),
         compilation_info->function_context_specializing());
+  } else if (!compilation_info->function_context_specializing()) {
+    compilation_info->shared_info()->set_function_context_independent_compiled(
+        true);
   }
   job->RecordFunctionCompilation(LogEventListener::CodeTag::kFunction, isolate);
   return true;
@@ -1484,7 +1490,8 @@ void StressLazy(Isolate* isolate, Handle<Script> script) {
 
   HandleScope scope(isolate);
   DirectHandle<WeakFixedArray> infos(script->infos(), isolate);
-  for (int i = 0; i < infos->length(); ++i) {
+  const uint32_t infos_len = infos->length().value();
+  for (uint32_t i = 0; i < infos_len; ++i) {
     HandleScope loop_scope(isolate);
     Tagged<MaybeObject> maybe_obj = infos->get(i);
     Tagged<HeapObject> obj;
@@ -1788,7 +1795,8 @@ class MergeAssumptionChecker final : public ObjectVisitor {
                     &eval_from_shared_or_wrapped_arguments)) {
           visited_.insert(eval_from_shared_or_wrapped_arguments);
         }
-      } else if (Tagged<BytecodeArray> bytes; TryCast(current, &bytes)) {
+      } else if (Is<BytecodeArray>(current)) {
+        auto bytes = TrustedCast<BytecodeArray>(current);
         Tagged<HeapObject> constants = bytes->constant_pool();
         QueueVisit(constants, kConstantPool);
       }
@@ -1824,7 +1832,10 @@ class MergeAssumptionChecker final : public ObjectVisitor {
         } else if (IsScopeInfo(obj)) {
           CHECK((current_object_kind_ == kConstantPool && !is_weak) ||
                 (current_object_kind_ == kNormalObject && !is_weak) ||
-                (current_object_kind_ == kScriptInfosList && is_weak));
+                (current_object_kind_ == kScriptInfosList && is_weak) ||
+                (IsScript(host) &&
+                 current.address() ==
+                     host.address() + Script::kEvalFromScopeInfoOffset));
         } else if (IsScript(obj)) {
           CHECK(IsSharedFunctionInfo(host) &&
                 current == MaybeObjectSlot(host.address() +
@@ -1995,7 +2006,7 @@ void BackgroundCompileTask::Run(
     }
     parser.DeserializeScopeChain(
         isolate, &info, maybe_outer_scope_info,
-        Scope::DeserializationMode::kIncludingVariables);
+        Scope::DeserializationMode::kIncludingVariables, script_);
   }
 
   parser.ParseOnBackground(isolate, &info, script_, start_position_,
@@ -2182,7 +2193,7 @@ class ConstantPoolPointerForwarder {
     }
   }
   template <typename TArray>
-  void IterateConstantPoolEntry(Tagged<TArray> constant_pool, int i) {
+  void IterateConstantPoolEntry(Tagged<TArray> constant_pool, uint32_t i) {
     Tagged<Object> obj = constant_pool->get(i);
     if (IsSmi(obj)) return;
     Tagged<HeapObject> heap_obj = Cast<HeapObject>(obj);
@@ -2226,7 +2237,7 @@ class ConstantPoolPointerForwarder {
   }
 
   template <typename TArray>
-  void VisitSharedFunctionInfo(Tagged<TArray> constant_pool, int i,
+  void VisitSharedFunctionInfo(Tagged<TArray> constant_pool, uint32_t i,
                                Tagged<SharedFunctionInfo> sfi) {
     Tagged<MaybeObject> maybe_old_sfi =
         old_script_->infos()->get(sfi->function_literal_id(kRelaxedLoad));
@@ -2237,7 +2248,7 @@ class ConstantPoolPointerForwarder {
   }
 
   template <typename TArray>
-  void VisitScopeInfo(Tagged<TArray> constant_pool, int i,
+  void VisitScopeInfo(Tagged<TArray> constant_pool, uint32_t i,
                       Tagged<ScopeInfo> scope_info) {
     auto it = scope_infos_to_update_.find(scope_info->UniqueIdInScript());
     // Try to replace the scope info itself with an already existing version.
@@ -2261,13 +2272,15 @@ class ConstantPoolPointerForwarder {
   }
 
   void IterateConstantPool(Tagged<TrustedFixedArray> constant_pool) {
-    for (int i = 0, length = constant_pool->length(); i < length; ++i) {
+    uint32_t length = constant_pool->ulength().value();
+    for (uint32_t i = 0; i < length; ++i) {
       IterateConstantPoolEntry(constant_pool, i);
     }
   }
 
   void IterateConstantPoolNestedArray(Tagged<FixedArray> nested_array) {
-    for (int i = 0, length = nested_array->length(); i < length; ++i) {
+    uint32_t length = nested_array->ulength().value();
+    for (uint32_t i = 0; i < length; ++i) {
       IterateConstantPoolEntry(nested_array, i);
     }
   }
@@ -2324,7 +2337,8 @@ void VerifyCodeMerge(Isolate* isolate, DirectHandle<Script> script) {
   //   * All constant pool SFI entries point to an SFI referring to the old
   //     script (i.e. references were updated correctly).
   std::unordered_map<int, Tagged<ScopeInfo>> scope_infos;
-  for (int info_idx = 0; info_idx < script->infos()->length(); info_idx++) {
+  uint32_t script_infos_len = script->infos()->ulength().value();
+  for (uint32_t info_idx = 0; info_idx < script_infos_len; info_idx++) {
     Tagged<ScopeInfo> scope_info;
     if (!script->infos()->get(info_idx).IsWeak()) continue;
     Tagged<HeapObject> info =
@@ -2336,7 +2350,8 @@ void VerifyCodeMerge(Isolate* isolate, DirectHandle<Script> script) {
       if (sfi->HasBytecodeArray()) {
         Tagged<BytecodeArray> bytecode = sfi->GetBytecodeArray(isolate);
         Tagged<TrustedFixedArray> constant_pool = bytecode->constant_pool();
-        for (int constant_idx = 0; constant_idx < constant_pool->length();
+        uint32_t constant_pool_len = constant_pool->ulength().value();
+        for (uint32_t constant_idx = 0; constant_idx < constant_pool_len;
              ++constant_idx) {
           Tagged<Object> entry = constant_pool->get(constant_idx);
           if (Is<SharedFunctionInfo>(entry)) {
@@ -2423,8 +2438,10 @@ void BackgroundMergeTask::BeginMergeInBackground(
 
   // Iterate the SFI lists on both Scripts to set up the forwarding table and
   // follow-up worklists for the main thread.
-  CHECK_EQ(old_script->infos()->length(), new_script->infos()->length());
-  for (int i = 0; i < old_script->infos()->length(); ++i) {
+  uint32_t old_script_infos_len = old_script->infos()->ulength().value();
+  uint32_t new_script_infos_len = new_script->infos()->ulength().value();
+  CHECK_EQ(old_script_infos_len, new_script_infos_len);
+  for (uint32_t i = 0; i < old_script_infos_len; ++i) {
     DisallowGarbageCollection no_gc;
     Tagged<MaybeObject> maybe_new_sfi = new_script->infos()->get(i);
     Tagged<MaybeObject> maybe_old_info = old_script->infos()->get(i);
@@ -2536,7 +2553,8 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
   // need to be updated to point to the cached script's SFI instead. The cached
   // script's SFI's outer scope infos need to be used by the new script's outer
   // SFIs.
-  for (int i = 0; i < old_script->infos()->length(); ++i) {
+  uint32_t old_script_infos_len = old_script->infos()->ulength().value();
+  for (uint32_t i = 0; i < old_script_infos_len; ++i) {
     DisallowGarbageCollection no_gc;
     Tagged<MaybeObject> maybe_old_info = old_script->infos()->get(i);
     Tagged<MaybeObject> maybe_new_info = new_script->infos()->get(i);
@@ -2591,13 +2609,15 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
   // This is important because other background merge tasks as well as
   // concurrently running optimizing compile jobs might be looking at what we
   // release here.
-  for (int i = old_script->infos()->length() - 1; i >= 0; --i) {
+  for (uint32_t index = 0; index < old_script_infos_len; ++index) {
+    uint32_t i = old_script_infos_len - 1 - index;
     Tagged<MaybeObject> maybe_old_info = old_script->infos()->get(i);
     Tagged<MaybeObject> maybe_new_info = new_script->infos()->get(i);
     if (maybe_new_info == maybe_old_info) {
+      DCHECK_LE(i, kMaxInt);
       if (compiled_data_it != new_compiled_data_for_cached_sfis_.rend() &&
           compiled_data_it->cached_sfi->function_literal_id(kRelaxedLoad) >=
-              i) {
+              static_cast<int32_t>(i)) {
         CHECK_EQ(
             compiled_data_it->cached_sfi->function_literal_id(kRelaxedLoad), i);
         Tagged<SharedFunctionInfo> sfi = *compiled_data_it->cached_sfi;
@@ -2671,8 +2691,8 @@ MaybeHandle<SharedFunctionInfo> BackgroundCompileTask::FinalizeScript(
      Background Compilation related corner cases.
   */
   Tagged<WeakFixedArray> infos = script->infos();
-  int length = infos->length();
-  for (int i = 0; i < length; ++i) {
+  uint32_t length = infos->ulength().value();
+  for (uint32_t i = 0; i < length; ++i) {
     Tagged<MaybeObject> maybe_obj = infos->get(i);
     Tagged<HeapObject> obj;
     if (!maybe_obj.GetHeapObject(&obj)) continue;
@@ -2748,12 +2768,6 @@ bool BackgroundCompileTask::FinalizeFunction(
   DirectHandle<SharedFunctionInfo> input_shared_info =
       input_shared_info_.ToHandleChecked();
 
-  // The UncompiledData on the input SharedFunctionInfo will have a pointer to
-  // the LazyCompileDispatcher Job that launched this task, which will now be
-  // considered complete, so clear that regardless of whether the finalize
-  // succeeds or not.
-  input_shared_info->ClearUncompiledDataJobPointer(isolate);
-
   // We might not have been able to finalize all jobs on the background
   // thread (e.g. asm.js jobs), so finalize those deferred jobs now.
   if (FinalizeDeferredUnoptimizedCompilationJobs(
@@ -2779,15 +2793,6 @@ bool BackgroundCompileTask::FinalizeFunction(
   input_shared_info->CopyFrom(*result, isolate);
 
   return true;
-}
-
-void BackgroundCompileTask::AbortFunction() {
-  // The UncompiledData on the input SharedFunctionInfo will have a pointer to
-  // the LazyCompileDispatcher Job that launched this task, which is about to be
-  // deleted, so clear that to avoid the SharedFunctionInfo from pointing to
-  // deallocated memory.
-  input_shared_info_.ToHandleChecked()->ClearUncompiledDataJobPointer(
-      isolate_for_local_isolate_);
 }
 
 void BackgroundCompileTask::ReportStatistics(Isolate* isolate) {
@@ -3057,7 +3062,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
     // Log lazy function compilation.
     DirectHandle<ArrayList> list;
     if (IsUndefined(script->compiled_lazy_function_positions())) {
-      constexpr int kInitialLazyFunctionPositionListSize = 100;
+      constexpr uint32_t kInitialLazyFunctionPositionListSize = 100;
       list = ArrayList::New(isolate, kInitialLazyFunctionPositionListSize);
     } else {
       list = direct_handle(
@@ -3385,6 +3390,10 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
       }
     }
     script->set_eval_from_position(eval_position);
+    if (!maybe_outer_scope_info.is_null()) {
+      script->set_eval_from_scope_info(
+          *maybe_outer_scope_info.ToHandleChecked());
+    }
 
     if (!v8::internal::CompileToplevel(&parse_info, script,
                                        maybe_outer_scope_info, isolate,
@@ -3579,6 +3588,7 @@ struct ScriptCompileTimerScope {
     kNoCacheBecauseResourceWithNoCacheHandler,
     kHitIsolateCacheWhenStreamingSource,
     kNoCacheBecauseStaticCodeCache,
+    kNoCacheBecauseInlineScriptCacheTooCold,
     kCount
   };
 
@@ -3687,6 +3697,8 @@ struct ScriptCompileTimerScope {
         return CacheBehaviour::kProduceCodeCache;
       case ScriptCompiler::kNoCacheBecauseStaticCodeCache:
         return CacheBehaviour::kNoCacheBecauseStaticCodeCache;
+      case ScriptCompiler::kNoCacheBecauseInlineScriptCacheTooCold:
+        return CacheBehaviour::kNoCacheBecauseInlineScriptCacheTooCold;
       }
     UNREACHABLE();
   }
@@ -3721,6 +3733,7 @@ struct ScriptCompileTimerScope {
         return isolate_->counters()
             ->compile_script_no_cache_because_script_too_small();
       case CacheBehaviour::kNoCacheBecauseCacheTooCold:
+      case CacheBehaviour::kNoCacheBecauseInlineScriptCacheTooCold:
         return isolate_->counters()
             ->compile_script_no_cache_because_cache_too_cold();
 
@@ -4492,6 +4505,8 @@ void Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
               isolate, *compilation_info->closure(),
               compilation_info->osr_offset(), *compilation_info->code(),
               compilation_info->function_context_specializing());
+        } else if (!compilation_info->function_context_specializing()) {
+          shared->set_function_context_independent_compiled(true);
         }
         CompilerTracer::TraceCompletedJob(isolate, compilation_info);
         if (IsOSR(osr_offset)) {
@@ -4571,6 +4586,8 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
     if (IsOSR(osr_offset)) {
       OptimizedOSRCodeCache::Insert(isolate, *function, osr_offset, *code,
                                     job->specialize_to_function_context());
+    } else if (!job->specialize_to_function_context()) {
+      shared->set_function_context_independent_compiled(true);
     }
 
     RecordMaglevFunctionCompilation(isolate, function,

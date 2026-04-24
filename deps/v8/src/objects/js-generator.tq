@@ -41,6 +41,7 @@ extern class JSAsyncGeneratorObject extends JSGeneratorObject {
   is_awaiting: Smi;
 }
 
+@cppObjectLayoutDefinition
 extern class AsyncGeneratorRequest extends Struct {
   next: AsyncGeneratorRequest|Undefined;
   resume_mode: Smi;

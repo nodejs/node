@@ -69,8 +69,6 @@ const char* SectionName(SectionCode code) {
       return kBranchHintsString;
     case kCompilationPrioritySectionCode:
       return kCompilationPriorityString;
-    case kDescriptorsSectionCode:
-      return kDescriptorsString;
     default:
       return "<unknown>";
   }
@@ -573,7 +571,7 @@ class ValidateFunctionsTask : public JobTask {
                         WasmDetectedFeatures* detected_features) {
     const WasmFunction& function = module_->functions[func_index];
     DCHECK_LT(0, function.code.offset());
-    bool is_shared = module_->type(function.sig_index).is_shared;
+    SharedFlag is_shared = module_->type(function.sig_index).is_shared;
     FunctionBody body{function.sig, function.code.offset(),
                       wire_bytes_.begin() + function.code.offset(),
                       wire_bytes_.begin() + function.code.end_offset(),

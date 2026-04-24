@@ -62,8 +62,10 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   uint16_t parameter_count() const { return parameter_count_; }
   uint16_t max_arguments() const { return max_arguments_; }
 
-  void UpdateMaxArguments(uint16_t max_arguments) {
-    max_arguments_ = std::max(max_arguments_, max_arguments);
+  void UpdateMaxArguments(int max_arguments) {
+    CHECK_LE(max_arguments, Code::kMaxArguments);
+    max_arguments_ =
+        std::max(max_arguments_, static_cast<uint16_t>(max_arguments));
   }
 
   // Get the number of locals required for bytecode array.
@@ -113,10 +115,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
 
   // Load the object at |variable| at |depth| in the context chain starting
   // with |context| into the accumulator.
-  enum ContextSlotMutability { kImmutableSlot, kMutableSlot };
   BytecodeArrayBuilder& LoadContextSlot(Register context, Variable* variable,
-                                        int depth,
-                                        ContextSlotMutability immutable);
+                                        int depth);
 
   // Stores the object in the accumulator into |variable| at |depth| in the
   // context chain starting with |context|.
@@ -154,6 +154,13 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
                                                     Register enum_index,
                                                     Register cache_type,
                                                     int feedback_slot);
+
+  BytecodeArrayBuilder& GetPrivateField(Register context, int slot_index,
+                                        int depth, Register object,
+                                        int feedback_slot);
+  BytecodeArrayBuilder& SetPrivateField(Register context, int slot_index,
+                                        int depth, Register object,
+                                        int feedback_slot);
 
   // Named load property of the @@iterator symbol.
   BytecodeArrayBuilder& LoadIteratorProperty(Register object,

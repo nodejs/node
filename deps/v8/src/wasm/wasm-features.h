@@ -36,7 +36,9 @@
   V(mutable_globals)                     \
   V(non_trapping_float_to_int)           \
   V(sign_extension_ops)                  \
-  V(jspi)
+  V(jspi)                                \
+  V(exnref)                              \
+  V(branch_hinting)
 
 // All features, including features that do not have flags.
 #define FOREACH_WASM_FEATURE(V) \
@@ -169,6 +171,10 @@ class CompileTimeImports {
   CompileTimeImports& operator=(CompileTimeImports&& other) V8_NOEXCEPT {
     bits_ = other.bits_;
     constants_module_ = std::move(other.constants_module_);
+#if DEBUG
+    // Leaving {other} noticeably unusable can flush out bugs.
+    other.bits_.RemoveAll();
+#endif  // DEBUG
     return *this;
   }
 

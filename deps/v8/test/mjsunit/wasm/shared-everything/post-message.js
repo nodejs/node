@@ -11,8 +11,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let builder = new WasmModuleBuilder();
 
-  let struct = builder.addStruct([makeField(kWasmI32, true)], kNoSuperType,
-                                  false, true);
+  let struct = builder.addStruct(
+      {fields: [makeField(kWasmI32, true)], shared: true});
   let producer_sig = makeSig([kWasmI32], [wasmRefType(struct)]);
   builder.addFunction("producer", producer_sig)
     .addBody([kExprLocalGet, 0, kGCPrefix, kExprStructNew, struct])
@@ -30,8 +30,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
       let builder = new WasmModuleBuilder();
 
-      let struct = builder.addStruct([makeField(kWasmI32, true)], kNoSuperType,
-                                      false, true);
+      let struct = builder.addStruct(
+          {fields: [makeField(kWasmI32, true)], shared: true});
       let setter_sig = makeSig([wasmRefNullType(struct), kWasmI32], []);
       builder.addFunction("setter", setter_sig)
         .addBody([kExprLocalGet, 0, kExprLocalGet, 1,
@@ -62,8 +62,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
-  let struct = builder.addStruct([makeField(kWasmI32, true)], kNoSuperType,
-                                  false, false);
+  let struct = builder.addStruct([makeField(kWasmI32, true)]);
   let producer_sig = makeSig([kWasmI32], [wasmRefType(struct)]);
   builder.addFunction("producer", producer_sig)
     .addBody([kExprLocalGet, 0, kGCPrefix, kExprStructNew, struct])
@@ -81,8 +80,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
       let builder = new WasmModuleBuilder();
 
-      let struct = builder.addStruct([makeField(kWasmI32, true)], kNoSuperType,
-                                      false, false);
+      let struct = builder.addStruct([makeField(kWasmI32, true)]);
       let setter_sig = makeSig([wasmRefNullType(struct), kWasmI32], []);
       builder.addFunction("setter", setter_sig)
         .addBody([kExprLocalGet, 0, kExprLocalGet, 1,
@@ -107,7 +105,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
-  let array = builder.addArray(kWasmI32, true, kNoSuperType, false, true);
+  let array = builder.addArray(kWasmI32, {shared: true});
   let producer_sig = makeSig([kWasmI32], [wasmRefType(array)]);
   builder.addFunction("producer", producer_sig)
     .addBody([kExprLocalGet, 0, kGCPrefix, kExprArrayNewFixed, array, 1])
@@ -126,7 +124,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
       let builder = new WasmModuleBuilder();
 
-      let array = builder.addArray(kWasmI32, true, kNoSuperType, false, true);
+      let array = builder.addArray(kWasmI32, {shared: true});
       let setter_sig = makeSig([wasmRefNullType(array), kWasmI32], []);
       builder.addFunction("setter", setter_sig)
         .addBody([kExprLocalGet, 0, kExprI32Const, 0, kExprLocalGet, 1,
@@ -157,7 +155,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
-  let array = builder.addArray(kWasmI32, true, kNoSuperType, false, false);
+  let array = builder.addArray(kWasmI32);
   let producer_sig = makeSig([kWasmI32], [wasmRefType(array)]);
   builder.addFunction("producer", producer_sig)
     .addBody([kExprLocalGet, 0, kGCPrefix, kExprArrayNewFixed, array, 1])
@@ -176,7 +174,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
       let builder = new WasmModuleBuilder();
 
-      let array = builder.addArray(kWasmI32, true, kNoSuperType, false, false);
+      let array = builder.addArray(kWasmI32);
       let setter_sig = makeSig([wasmRefNullType(array), kWasmI32], []);
       builder.addFunction("setter", setter_sig)
         .addBody([kExprLocalGet, 0, kExprI32Const, 0, kExprLocalGet, 1,
@@ -203,8 +201,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let builder = new WasmModuleBuilder();
 
-  let struct = builder.addStruct([makeField(kWasmI32, true)], kNoSuperType,
-                                  false, true);
+  let struct = builder.addStruct(
+      {fields: [makeField(kWasmI32, true)], shared: true});
 
   let getter_sig = makeSig([wasmRefNullType(struct)], [kWasmI32]);
   builder.addFunction("getter", getter_sig)
@@ -219,8 +217,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
       let builder = new WasmModuleBuilder();
 
-      let struct = builder.addStruct([makeField(kWasmI32, true)], kNoSuperType,
-                                      false, true);
+      let struct = builder.addStruct(
+          {fields: [makeField(kWasmI32, true)], shared: true});
       let producer_sig = makeSig([kWasmI32], [wasmRefType(struct)])
       builder.addFunction("producer", producer_sig)
         .addBody([kExprLocalGet, 0, kGCPrefix, kExprStructNew, struct])

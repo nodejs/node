@@ -116,7 +116,8 @@ void MacroAssembler::GetLabelAddress(Register dest, Label* target) {
   // (InstructionStream::kHeaderSize - kHeapObjectTag) to a position of a label
   // in a "linked" state and thus making it usable only for mov_label_offset().
   // TODO(ishell): fix branch_offset() and re-implement
-  // RegExpMacroAssemblerARM::PushBacktrack() without mov_label_offset().
+  // regexp::RegExpMacroAssemblerARM::PushBacktrack() without
+  // mov_label_offset().
   mov_label_offset(dest, target);
   // mov_label_offset computes offset of the |target| relative to the "current
   // InstructionStream object pointer" which is essentially pc_offset() of the
@@ -2049,7 +2050,8 @@ void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
   // Load the feedback vector from the closure.
   LoadTaggedField(
       dst, FieldMemOperand(closure, JSFunction::kFeedbackCellOffset), r0);
-  LoadTaggedField(dst, FieldMemOperand(dst, FeedbackCell::kValueOffset), r0);
+  LoadTaggedField(dst, FieldMemOperand(dst, offsetof(FeedbackCell, value_)),
+                  r0);
 
   // Check if feedback vector is valid.
   LoadTaggedField(scratch, FieldMemOperand(dst, HeapObject::kMapOffset), r0);
@@ -5107,7 +5109,7 @@ void MacroAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
     // The entry references a CodeWrapper object. Unwrap it now.
     LoadTaggedField(
         scratch_and_result,
-        FieldMemOperand(scratch_and_result, CodeWrapper::kCodeOffset));
+        FieldMemOperand(scratch_and_result, offsetof(CodeWrapper, code_)));
 
     UseScratchRegisterScope temps(this);
     Register temp = temps.Acquire();

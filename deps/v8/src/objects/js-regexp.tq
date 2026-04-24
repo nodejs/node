@@ -17,7 +17,8 @@ bitfield struct JSRegExpFlags extends uint31 {
 @cppObjectDefinition
 extern class RegExpData extends ExposedTrustedObject {
   type_tag: Smi;
-  source: String;
+  original_source: String;
+  escaped_source: String;
   flags: Smi;
   wrapper: RegExpDataWrapper;
 }
@@ -55,7 +56,6 @@ extern class RegExpDataWrapper extends Struct {
 
 extern class JSRegExp extends JSObject {
   data: TrustedPointer<RegExpData>;
-  source: String|Undefined;
   flags: SmiTagged<JSRegExpFlags>|Undefined;
 }
 
@@ -76,8 +76,22 @@ extern operator '.lastIndex' macro RegExpBuiltinsAssembler::FastLoadLastIndex(
 extern operator '.lastIndex=' macro RegExpBuiltinsAssembler::FastStoreLastIndex(
     FastJSRegExp, Smi): void;
 
+const kJSRegExpRegExpDataOffset:
+    constexpr int31 generates 'JSRegExp::kDataOffset';
+const kRegExpDataIndirectPointerTag:
+    constexpr uint64 generates 'kRegExpDataIndirectPointerTag';
+
+extern macro RegExpBuiltinsAssembler::LoadRegExpDataFromObject(
+    HeapObject, constexpr int31): RegExpData;
+
+operator '.source' macro RegExpSource(regexp: JSRegExp): String {
+  const data: RegExpData =
+      LoadRegExpDataFromObject(regexp, kJSRegExpRegExpDataOffset);
+  return data.escaped_source;
+}
+
 @doNotGenerateCast
-extern class JSRegExpConstructor extends JSFunction
+extern class JSRegExpConstructor extends JSFunctionWithPrototype
     generates 'TNode<JSFunction>';
 
 extern shape JSRegExpResult extends JSArray {

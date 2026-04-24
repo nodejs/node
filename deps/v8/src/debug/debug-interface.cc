@@ -273,7 +273,8 @@ bool GetPrivateMembers(Local<Context> context, Local<Object> object, int filter,
   auto count_private_entry =
       [&](i::VariableMode mode, i::DirectHandle<i::String>,
           i::DirectHandle<i::Object>) { private_entries_count++; };
-  for (int i = 0; i < keys->length(); ++i) {
+  uint32_t keys_len = keys->ulength().value();
+  for (uint32_t i = 0; i < keys_len; ++i) {
     // Exclude the private brand symbols.
     i::DirectHandle<i::Symbol> key(i::Cast<i::Symbol>(keys->get(i)), isolate);
     if (key->is_private_brand()) {
@@ -332,7 +333,7 @@ bool GetPrivateMembers(Local<Context> context, Local<Object> object, int filter,
                         static_filter, add_private_entry);
   }
 
-  for (int i = 0; i < keys->length(); ++i) {
+  for (uint32_t i = 0; i < keys_len; ++i) {
     i::DirectHandle<i::Object> obj_key(keys->get(i), isolate);
     i::DirectHandle<i::Symbol> key(i::Cast<i::Symbol>(*obj_key), isolate);
     CHECK(key->is_any_private_name());
@@ -624,9 +625,10 @@ bool Script::GetPossibleBreakpoints(
   i::Handle<i::Script> script = Utils::OpenHandle(this);
 #if V8_ENABLE_WEBASSEMBLY
   if (script->type() == i::Script::Type::kWasm) {
-    i::wasm::NativeModule* native_module = script->wasm_native_module();
-    return i::WasmScript::GetPossibleBreakpoints(native_module, start, end,
-                                                 locations);
+    i::Managed<i::wasm::NativeModule>::Ptr native_module =
+        script->wasm_native_module();
+    return i::WasmScript::GetPossibleBreakpoints(native_module.raw(), start,
+                                                 end, locations);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -691,9 +693,11 @@ Maybe<int> Script::GetSourceOffset(const Location& location,
     }
     return {};
   }
-  if (line >= line_ends->length()) {
+  uint32_t lines_end_len = line_ends->ulength().value();
+  if (static_cast<uint32_t>(line) >= lines_end_len) {
     if (mode == GetSourceOffsetMode::kClamp) {
-      return Just(GetSmiValue(line_ends, line_ends->length() - 1));
+      DCHECK_GT(lines_end_len, 0);
+      return Just(GetSmiValue(line_ends, lines_end_len - 1));
     }
     return {};
   }
@@ -713,7 +717,9 @@ Maybe<int> Script::GetSourceOffset(const Location& location,
     // Be permissive with columns that don't exist,
     // as long as they are clearly within the range
     // of the script.
-    if (line < line_ends->length() - 1 || mode == GetSourceOffsetMode::kClamp) {
+    DCHECK_GT(lines_end_len, 0);
+    if (static_cast<uint32_t>(line) < lines_end_len - 1 ||
+        mode == GetSourceOffsetMode::kClamp) {
       return Just(line_end_offset);
     }
     return {};
@@ -831,7 +837,9 @@ std::vector<WasmScript::DebugSymbols> WasmScript::GetDebugSymbols() const {
   DCHECK_EQ(i::Script::Type::kWasm, script->type());
 
   std::vector<WasmScript::DebugSymbols> debug_symbols;
-  auto symbols = script->wasm_native_module()->module()->debug_symbols;
+  i::Managed<i::wasm::NativeModule>::Ptr native_module =
+      script->wasm_native_module();
+  auto symbols = native_module->module()->debug_symbols;
   for (size_t i = 0; i < symbols.size(); ++i) {
     const i::wasm::WasmDebugSymbols& symbol = symbols[i];
     Maybe<WasmScript::DebugSymbols::Type> type =
@@ -852,7 +860,8 @@ int WasmScript::NumFunctions() const {
   i::DisallowGarbageCollection no_gc;
   auto script = Utils::OpenDirectHandle(this);
   DCHECK_EQ(i::Script::Type::kWasm, script->type());
-  i::wasm::NativeModule* native_module = script->wasm_native_module();
+  i::Managed<i::wasm::NativeModule>::Ptr native_module =
+      script->wasm_native_module();
   const i::wasm::WasmModule* module = native_module->module();
   DCHECK_GE(i::kMaxInt, module->functions.size());
   return static_cast<int>(module->functions.size());
@@ -862,7 +871,8 @@ int WasmScript::NumImportedFunctions() const {
   i::DisallowGarbageCollection no_gc;
   auto script = Utils::OpenDirectHandle(this);
   DCHECK_EQ(i::Script::Type::kWasm, script->type());
-  i::wasm::NativeModule* native_module = script->wasm_native_module();
+  i::Managed<i::wasm::NativeModule>::Ptr native_module =
+      script->wasm_native_module();
   const i::wasm::WasmModule* module = native_module->module();
   DCHECK_GE(i::kMaxInt, module->num_imported_functions);
   return static_cast<int>(module->num_imported_functions);
@@ -872,7 +882,8 @@ std::pair<int, int> WasmScript::GetFunctionRange(int function_index) const {
   i::DisallowGarbageCollection no_gc;
   auto script = Utils::OpenDirectHandle(this);
   DCHECK_EQ(i::Script::Type::kWasm, script->type());
-  i::wasm::NativeModule* native_module = script->wasm_native_module();
+  i::Managed<i::wasm::NativeModule>::Ptr native_module =
+      script->wasm_native_module();
   const i::wasm::WasmModule* module = native_module->module();
   DCHECK_LE(0, function_index);
   DCHECK_GT(module->functions.size(), function_index);
@@ -887,7 +898,8 @@ int WasmScript::GetContainingFunction(int byte_offset) const {
   i::DisallowGarbageCollection no_gc;
   auto script = Utils::OpenDirectHandle(this);
   DCHECK_EQ(i::Script::Type::kWasm, script->type());
-  i::wasm::NativeModule* native_module = script->wasm_native_module();
+  i::Managed<i::wasm::NativeModule>::Ptr native_module =
+      script->wasm_native_module();
   const i::wasm::WasmModule* module = native_module->module();
   DCHECK_LE(0, byte_offset);
 
@@ -899,7 +911,8 @@ void WasmScript::Disassemble(DisassemblyCollector* collector,
   i::DisallowGarbageCollection no_gc;
   auto script = Utils::OpenDirectHandle(this);
   DCHECK_EQ(i::Script::Type::kWasm, script->type());
-  i::wasm::NativeModule* native_module = script->wasm_native_module();
+  i::Managed<i::wasm::NativeModule>::Ptr native_module =
+      script->wasm_native_module();
   const i::wasm::WasmModule* module = native_module->module();
   i::wasm::ModuleWireBytes wire_bytes(native_module->wire_bytes());
   i::wasm::Disassemble(module, wire_bytes, native_module->GetNamesProvider(),
@@ -916,7 +929,8 @@ uint32_t WasmScript::GetFunctionHash(int function_index) {
   i::DisallowGarbageCollection no_gc;
   auto script = Utils::OpenDirectHandle(this);
   DCHECK_EQ(i::Script::Type::kWasm, script->type());
-  i::wasm::NativeModule* native_module = script->wasm_native_module();
+  i::Managed<i::wasm::NativeModule>::Ptr native_module =
+      script->wasm_native_module();
   const i::wasm::WasmModule* module = native_module->module();
   DCHECK_LE(0, function_index);
   DCHECK_GT(module->functions.size(), function_index);
@@ -934,7 +948,8 @@ Maybe<v8::MemorySpan<const uint8_t>> WasmScript::GetModuleBuildId() const {
   i::DisallowGarbageCollection no_gc;
   auto script = Utils::OpenDirectHandle(this);
   DCHECK_EQ(i::Script::Type::kWasm, script->type());
-  i::wasm::NativeModule* native_module = script->wasm_native_module();
+  i::Managed<i::wasm::NativeModule>::Ptr native_module =
+      script->wasm_native_module();
   const i::wasm::WasmModule* wasm_module = native_module->module();
   const i::wasm::WireBytesRef& build_id = wasm_module->build_id;
   if (build_id.is_empty()) {
@@ -948,7 +963,8 @@ Maybe<v8::MemorySpan<const uint8_t>> WasmScript::GetModuleBuildId() const {
 int WasmScript::CodeOffset() const {
   auto script = Utils::OpenDirectHandle(this);
   DCHECK_EQ(i::Script::Type::kWasm, script->type());
-  i::wasm::NativeModule* native_module = script->wasm_native_module();
+  i::Managed<i::wasm::NativeModule>::Ptr native_module =
+      script->wasm_native_module();
   const i::wasm::WasmModule* module = native_module->module();
 
   // If the module contains at least one function, the code offset must have

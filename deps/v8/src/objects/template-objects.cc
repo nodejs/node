@@ -76,7 +76,9 @@ DirectHandle<JSArray> TemplateObjectDescription::GetTemplateObject(
       // Linear search over the cached template array list for a template
       // object matching the given function_literal_id + slot_id.
       // TODO(leszeks): Consider keeping this list sorted for faster lookup.
-      for (int i = 0; i < cached_templates->length(); i++) {
+      const uint32_t cached_templates_length =
+          cached_templates->ulength().value();
+      for (uint32_t i = 0; i < cached_templates_length; i++) {
         Tagged<JSArray> template_object =
             Cast<JSArray>(cached_templates->get(i));
         if (CachedTemplateMatches(isolate, *native_context, template_object,
@@ -126,7 +128,7 @@ DirectHandle<JSArray> TemplateObjectDescription::GetTemplateObject(
   DCHECK_EQ(Cast<EphemeronHashTable>(native_context->template_weakmap())
                 ->Lookup(isolate, script, hash),
             *cached_templates);
-  DCHECK_EQ(cached_templates->get(cached_templates->length() - 1),
+  DCHECK_EQ(cached_templates->get(cached_templates->ulength().value() - 1),
             *template_object);
 
   return template_object;

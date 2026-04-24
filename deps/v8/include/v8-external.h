@@ -28,10 +28,6 @@ constexpr ExternalPointerTypeTag kExternalPointerTypeTagDefault = 0;
  */
 class V8_EXPORT External : public Value {
  public:
-  V8_DEPRECATED("Use the version with the type tag.")
-  static Local<External> New(Isolate* isolate, void* value) {
-    return New(isolate, value, kExternalPointerTypeTagDefault);
-  }
   /**
    * Creates a new External object.
    *
@@ -50,9 +46,6 @@ class V8_EXPORT External : public Value {
 #endif
     return static_cast<External*>(value);
   }
-
-  V8_DEPRECATED("Use the version with the type tag.")
-  void* Value() const { return Value(kExternalPointerTypeTagDefault); }
 
   /**
    * Returns the value of the external pointer.

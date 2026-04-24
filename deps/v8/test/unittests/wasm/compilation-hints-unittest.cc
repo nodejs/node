@@ -29,7 +29,7 @@ class WasmCompilationHintsBuilder {
                            ModuleTypeIndex supertype = kNoSuperType,
                            bool is_final = false) {
     return HeapType::Index(builder_.ForceAddSignature(sig, is_final, supertype),
-                           kNotShared, RefTypeKind::kFunction);
+                           SharedFlag::kNo, RefTypeKind::kFunction);
   }
 
   uint8_t DefineFunction(FunctionSig* sig,

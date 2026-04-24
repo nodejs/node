@@ -370,7 +370,6 @@ class IA32OperandGenerator final : public OperandGenerator {
   }
 
   bool CanBeImmediate(OpIndex node) {
-    if (selector()->IsExternalConstant(node)) return true;
     if (const ConstantOp* constant = Get(node).TryCast<ConstantOp>()) {
       switch (constant->kind) {
         case ConstantOp::Kind::kWord32:
@@ -925,7 +924,7 @@ void InstructionSelector::VisitLoad(OpIndex node) {
   VisitLoad(node, node, GetLoadOpcode(load_rep));
 }
 
-void InstructionSelector::VisitProtectedLoad(OpIndex node) {
+void InstructionSelector::VisitTrappingLoad(OpIndex node) {
   // Trap handler is not supported on IA32.
   UNREACHABLE();
 }
@@ -1022,6 +1021,7 @@ void VisitStoreCommon(InstructionSelector* selector,
 
   WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
   MachineRepresentation rep = store_rep.representation();
+  const bool is_atomic = store.is_atomic();
   const bool is_seqcst =
       atomic_order && *atomic_order == AtomicMemoryOrder::kSeqCst;
 
@@ -1048,16 +1048,19 @@ void VisitStoreCommon(InstructionSelector* selector,
     size_t const temp_count = arraysize(temps);
     InstructionCode code;
     if (write_barrier_kind == kSkippedWriteBarrier) {
-      code = is_seqcst ? kArchAtomicStoreSkippedWriteBarrier
+      code = is_atomic ? kArchAtomicStoreSkippedWriteBarrier
                        : kArchStoreSkippedWriteBarrier;
     } else {
-      code = is_seqcst ? kArchAtomicStoreWithWriteBarrier
+      code = is_atomic ? kArchAtomicStoreWithWriteBarrier
                        : kArchStoreWithWriteBarrier;
       RecordWriteMode record_write_mode =
           WriteBarrierKindToRecordWriteMode(write_barrier_kind);
       code |= RecordWriteModeField::encode(record_write_mode);
     }
     code |= AddressingModeField::encode(addressing_mode);
+    if (atomic_order.has_value()) {
+      code |= AtomicMemoryOrderField::encode(*atomic_order);
+    }
     selector->Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
   } else {
     InstructionOperand inputs[4];
@@ -1116,7 +1119,7 @@ void InstructionSelector::VisitStore(OpIndex node) {
   VisitStoreCommon(this, this->store_view(node));
 }
 
-void InstructionSelector::VisitProtectedStore(OpIndex node) {
+void InstructionSelector::VisitTrappingStore(OpIndex node) {
   // Trap handler is not supported on IA32.
   UNREACHABLE();
 }
@@ -1715,6 +1718,10 @@ void InstructionSelector::VisitInt32Mul(OpIndex node) {
   }
 }
 
+void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::VisitInt32MulHigh(OpIndex node) {
   VisitMulHigh(this, node, kIA32ImulHigh);
 }
@@ -1831,9 +1838,7 @@ void InstructionSelector::EmitPrepareArguments(
         PushParameter input = (*arguments)[n];
         if (input.node.valid()) {
           int const slot = static_cast<int>(n);
-          // TODO(jkummerow): The next line should use `input.node`, but
-          // fixing it causes mksnapshot failures. Investigate.
-          InstructionOperand value = g.CanBeImmediate(node)
+          InstructionOperand value = g.CanBeImmediate(input.node)
                                          ? g.UseImmediate(input.node)
                                          : g.UseRegister(input.node);
           Emit(kIA32Poke | MiscField::encode(slot), g.NoOutput(), value);
@@ -3764,8 +3769,7 @@ void InstructionSelector::VisitF64x2PromoteLowF32x4(OpIndex node) {
 
   if (m.Is(LoadTransformation::kS128Load64Zero) && CanCover(node, input)) {
     // Trap handler is not supported on IA32.
-    DCHECK_NE(m.ResolvedValue().kind,
-              MemoryAccessKind::kProtectedByTrapHandler);
+    DCHECK_NE(m.ResolvedValue().kind, MemoryAccessKind::kTrapping);
     // LoadTransforms cannot be eliminated, so they are visited even if
     // unused. Mark it as defined so that we don't visit it.
     MarkAsDefined(input);

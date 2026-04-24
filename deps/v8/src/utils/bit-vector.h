@@ -13,10 +13,53 @@
 namespace v8 {
 namespace internal {
 
+class GrowableBitVector;
+
 class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
+ private:
+  class IteratorBase {
+   public:
+    int operator*() const {
+      DCHECK_NE(end_, ptr_);
+      DCHECK(target_->Contains(current_index_));
+      return current_index_;
+    }
+
+    bool operator==(const IteratorBase& other) const {
+      DCHECK_EQ(target_, other.target_);
+      DCHECK_EQ(end_, other.end_);
+      DCHECK_IMPLIES(current_index_ == other.current_index_,
+                     ptr_ == other.ptr_);
+      return current_index_ == other.current_index_;
+    }
+
+   protected:
+    IteratorBase(const BitVector* target, uintptr_t* ptr, uintptr_t* end,
+                 int current_index)
+        : ptr_(ptr),
+          end_(end),
+#ifdef DEBUG
+          target_(target),
+#endif
+          current_index_(current_index) {
+    }
+
+    static constexpr struct StartTag {
+    } kStartTag = {};
+    static constexpr struct EndTag {
+    } kEndTag = {};
+
+    uintptr_t* ptr_;
+    uintptr_t* end_;
+#ifdef DEBUG
+    const BitVector* target_;
+#endif
+    int current_index_;
+  };  // IteratorBase
+
  public:
   // Iterator for the elements of this BitVector.
-  class Iterator {
+  class Iterator : public IteratorBase {
    public:
     V8_EXPORT_PRIVATE inline void operator++() {
       int bit_in_word = current_index_ & (kDataBits - 1);
@@ -42,36 +85,9 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
       current_index_ += trailing_zeros;
     }
 
-    int operator*() const {
-      DCHECK_NE(end_, ptr_);
-      DCHECK(target_->Contains(current_index_));
-      return current_index_;
-    }
-
-    bool operator==(const Iterator& other) const {
-      DCHECK_EQ(target_, other.target_);
-      DCHECK_EQ(end_, other.end_);
-      DCHECK_IMPLIES(current_index_ == other.current_index_,
-                     ptr_ == other.ptr_);
-      return current_index_ == other.current_index_;
-    }
-
-    bool operator!=(const Iterator& other) const { return !(*this == other); }
-
    private:
-    static constexpr struct StartTag {
-    } kStartTag = {};
-    static constexpr struct EndTag {
-    } kEndTag = {};
-
     explicit Iterator(const BitVector* target, StartTag)
-        :
-#ifdef DEBUG
-          target_(target),
-#endif
-          ptr_(target->data_begin_),
-          end_(target->data_end_),
-          current_index_(0) {
+        : IteratorBase(target, target->data_begin_, target->data_end_, 0) {
       DCHECK_LT(ptr_, end_);
       while (*ptr_ == 0) {
         ++ptr_;
@@ -82,21 +98,58 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
     }
 
     explicit Iterator(const BitVector* target, EndTag)
-        :
-#ifdef DEBUG
-          target_(target),
-#endif
-          ptr_(target->data_end_),
-          end_(target->data_end_),
-          current_index_(target->data_length() * kDataBits) {
+        : IteratorBase(target, target->data_end_, target->data_end_,
+                       target->data_length() * kDataBits) {}
+
+    friend class BitVector;
+  };  // Iterator
+
+  // Iterates backwards (highest bit first).
+  class ReverseIterator : public IteratorBase {
+   public:
+    V8_EXPORT_PRIVATE inline void operator++() {
+      int bit_in_word = current_index_ & (kDataBits - 1);
+      if (bit_in_word > 0) {
+        DCHECK_NE(0, *ptr_ & (uintptr_t{1} << bit_in_word));
+        uintptr_t remaining_bits = *ptr_ << (kDataBits - bit_in_word);
+        if (remaining_bits) {
+          int next_bit_in_word = base::bits::CountLeadingZeros(remaining_bits);
+          current_index_ -= next_bit_in_word + 1;
+          return;
+        }
+      }
+
+      // Move {current_index_} down to the end of the next lower word, before
+      // starting to search for the next non-empty word.
+      current_index_ = RoundDown(current_index_, kDataBits) - 1;
+      --ptr_;
+      if (ptr_ == end_) return;
+      while (*ptr_ == 0) {
+        --ptr_;
+        current_index_ -= kDataBits;
+        if (ptr_ == end_) return;
+      }
+
+      uintptr_t leading_zeros = base::bits::CountLeadingZeros(*ptr_);
+      current_index_ -= leading_zeros;
     }
 
-#ifdef DEBUG
-    const BitVector* target_;
-#endif
-    uintptr_t* ptr_;
-    uintptr_t* end_;
-    int current_index_;
+   private:
+    explicit ReverseIterator(const BitVector* target, StartTag)
+        : IteratorBase(target, target->data_end_ - 1, target->data_begin_ - 1,
+                       target->data_length() * kDataBits - 1) {
+      DCHECK_GT(ptr_, end_);
+      while (*ptr_ == 0) {
+        --ptr_;
+        current_index_ -= kDataBits;
+        if (ptr_ == end_) return;
+      }
+      current_index_ -= base::bits::CountLeadingZeros(*ptr_);
+    }
+
+    explicit ReverseIterator(const BitVector* target, EndTag)
+        : IteratorBase(target, target->data_begin_ - 1, target->data_begin_ - 1,
+                       -1) {}
 
     friend class BitVector;
   };
@@ -188,10 +241,13 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
   }
 
   void AddAll() {
-    // TODO(leszeks): This sets bits outside of the length of this bit-vector,
-    // which is observable if we resize it or copy from it. If this is a
-    // problem, we should clear the high bits either on add, or on resize/copy.
-    memset(data_begin_, -1, sizeof(*data_begin_) * data_length());
+    if (V8_UNLIKELY(length() == 0)) return;
+    int partial_size = length() % kDataBits;
+    int bulk_size = data_length() - (partial_size != 0 ? 1 : 0);
+    std::fill_n(data_begin_, bulk_size, ~uintptr_t{0});
+    if (partial_size != 0) {
+      data_begin_[bulk_size] = ~uintptr_t{0} >> (kDataBits - partial_size);
+    }
   }
 
   void Remove(int i) {
@@ -200,16 +256,16 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
   }
 
   void Union(const BitVector& other) {
-    DCHECK_EQ(other.length(), length());
-    for (int i = 0; i < data_length(); i++) {
+    DCHECK_LE(other.length(), length());
+    for (int i = 0; i < other.data_length(); i++) {
       data_begin_[i] |= other.data_begin_[i];
     }
   }
 
   bool UnionIsChanged(const BitVector& other) {
-    DCHECK(other.length() == length());
+    DCHECK_LE(other.length(), length());
     bool changed = false;
-    for (int i = 0; i < data_length(); i++) {
+    for (int i = 0; i < other.data_length(); i++) {
       uintptr_t old_data = data_begin_[i];
       data_begin_[i] |= other.data_begin_[i];
       if (data_begin_[i] != old_data) changed = true;
@@ -264,15 +320,34 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
 
   int length() const { return length_; }
 
+  // For overallocated vectors, finds the last bit to determine the used length.
+  int UsedLength() const {
+    ReverseIterator last = rbegin();
+    if (last == rend()) return 0;
+    return *last + 1;
+  }
+
   Iterator begin() const { return Iterator(this, Iterator::kStartTag); }
 
   Iterator end() const { return Iterator(this, Iterator::kEndTag); }
+
+  ReverseIterator rbegin() const {
+    return ReverseIterator(this, ReverseIterator::kStartTag);
+  }
+
+  ReverseIterator rend() const {
+    return ReverseIterator(this, ReverseIterator::kEndTag);
+  }
 
 #ifdef DEBUG
   void Print() const;
 #endif
 
  private:
+  friend V8_EXPORT_PRIVATE BitVector* CompareAndCreateXorPatch(
+      Zone* zone, const GrowableBitVector& v1, const GrowableBitVector& v2,
+      uint32_t* common_prefix_bits);
+
   union DataStorage {
     uintptr_t* ptr_;    // valid if >1 machine word is needed
     uintptr_t inline_;  // valid if <=1 machine word is needed
@@ -312,6 +387,13 @@ class GrowableBitVector {
     bits_.Add(value);
   }
 
+  void Add(const GrowableBitVector& other, Zone* zone) {
+    if (V8_UNLIKELY(other.length() == 0)) return;
+    int max = other.length() - 1;
+    if (V8_UNLIKELY(!InBitsRange(max))) Grow(max, zone);
+    bits_.Union(other.bits_);
+  }
+
   bool IsEmpty() const { return bits_.IsEmpty(); }
 
   void Clear() { bits_.Clear(); }
@@ -326,7 +408,15 @@ class GrowableBitVector {
 
   BitVector::Iterator end() const { return bits_.end(); }
 
+  BitVector::ReverseIterator rbegin() const { return bits_.rbegin(); }
+
+  BitVector::ReverseIterator rend() const { return bits_.rend(); }
+
  private:
+  friend V8_EXPORT_PRIVATE BitVector* CompareAndCreateXorPatch(
+      Zone* zone, const GrowableBitVector& v1, const GrowableBitVector& v2,
+      uint32_t* common_prefix_bits);
+
   static constexpr int kInitialLength = 1024;
 
   // The allocated size is always a power of two, and needs to be strictly

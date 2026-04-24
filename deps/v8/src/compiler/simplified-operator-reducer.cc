@@ -176,6 +176,14 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       }
       break;
     }
+    case IrOpcode::kCheckedTaggedSignedToInt32: {
+      if (node->InputAt(0)->opcode() ==
+          IrOpcode::kConvertTaggedHoleToUndefined) {
+        node->ReplaceInput(0, node->InputAt(0)->InputAt(0));
+        return Changed(node);
+      }
+      break;
+    }
     case IrOpcode::kCheckedTaggedToTaggedPointer: {
       Node* const input = node->InputAt(0);
       switch (DecideObjectIsSmi(input)) {

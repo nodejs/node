@@ -83,13 +83,14 @@ Address MainAllocator::AlignTopForTesting(AllocationAlignment alignment,
 
 AllocationResult MainAllocator::AllocateRawForceAlignmentForTesting(
     int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
-  size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
+  SafeHeapObjectSize safe_size_in_bytes =
+      SafeHeapObjectSize(ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes));
 
   AllocationResult result =
-      AllocateFastAligned(size_in_bytes, nullptr, alignment, origin);
+      AllocateFastAligned(safe_size_in_bytes, nullptr, alignment, origin);
 
   return V8_UNLIKELY(result.IsFailure())
-             ? AllocateRawSlowAligned(size_in_bytes, alignment, origin)
+             ? AllocateRawSlow(safe_size_in_bytes, alignment, origin)
              : result;
 }
 
@@ -193,47 +194,26 @@ void MainAllocator::InvokeAllocationObservers(Address soon_object,
             allocation_counter().NextBytes());
 }
 
-AllocationResult MainAllocator::AllocateRawSlow(int size_in_bytes,
-                                                AllocationAlignment alignment,
-                                                AllocationOrigin origin) {
-  AllocationResult result =
-      alignment != kTaggedAligned
-          ? AllocateRawSlowAligned(size_in_bytes, alignment, origin)
-          : AllocateRawSlowUnaligned(size_in_bytes, origin);
-  return result;
-}
-
-AllocationResult MainAllocator::AllocateRawSlowUnaligned(
-    int size_in_bytes, AllocationOrigin origin) {
-  if (!EnsureAllocation(size_in_bytes, kTaggedAligned, origin)) {
-    return AllocationResult::Failure();
-  }
-
-  AllocationResult result = AllocateFastUnaligned(size_in_bytes, origin);
-  DCHECK(!result.IsFailure());
-
-  InvokeAllocationObservers(result.ToAddress(), size_in_bytes, size_in_bytes,
-                            size_in_bytes);
-
-  return result;
-}
-
-AllocationResult MainAllocator::AllocateRawSlowAligned(
-    int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
+AllocationResult MainAllocator::AllocateRawSlow(
+    SafeHeapObjectSize size_in_bytes, AllocationAlignment alignment,
+    AllocationOrigin origin) {
   if (!EnsureAllocation(size_in_bytes, alignment, origin)) {
     return AllocationResult::Failure();
   }
 
-  int max_aligned_size = size_in_bytes + Heap::GetMaximumFillToAlign(alignment);
-  int aligned_size_in_bytes;
+  SafeHeapObjectSize max_aligned_size = SafeHeapObjectSize(
+      size_in_bytes.value() +
+      static_cast<uint32_t>(Heap::GetMaximumFillToAlign(alignment)));
+  SafeHeapObjectSize aligned_size_in_bytes;
 
   AllocationResult result = AllocateFastAligned(
       size_in_bytes, &aligned_size_in_bytes, alignment, origin);
   DCHECK_GE(max_aligned_size, aligned_size_in_bytes);
   DCHECK(!result.IsFailure());
 
-  InvokeAllocationObservers(result.ToAddress(), size_in_bytes,
-                            aligned_size_in_bytes, max_aligned_size);
+  InvokeAllocationObservers(result.ToAddress(), size_in_bytes.value(),
+                            aligned_size_in_bytes.value(),
+                            max_aligned_size.value());
 
   return result;
 }
@@ -312,9 +292,11 @@ bool MainAllocator::IsPendingAllocation(Address object_address) {
   return top && top <= object_address && object_address < limit;
 }
 
-bool MainAllocator::EnsureAllocation(int size_in_bytes,
+bool MainAllocator::EnsureAllocation(SafeHeapObjectSize size_in_bytes,
                                      AllocationAlignment alignment,
                                      AllocationOrigin origin) {
+  CHECK_LT(size_in_bytes.value(), kRegularPageSize);
+
 #ifdef V8_RUNTIME_CALL_STATS
   std::optional<RuntimeCallTimerScope> rcs_scope;
   if (is_main_thread()) {
@@ -326,7 +308,8 @@ bool MainAllocator::EnsureAllocation(int size_in_bytes,
   if (is_main_thread()) {
     vmstate.emplace(isolate_heap()->isolate());
   }
-  return allocator_policy_->EnsureAllocation(size_in_bytes, alignment, origin);
+  return allocator_policy_->EnsureAllocation(size_in_bytes.value(), alignment,
+                                             origin);
 }
 
 void MainAllocator::FreeLinearAllocationArea() {
@@ -414,7 +397,7 @@ void MainAllocator::Verify() const {
 bool MainAllocator::EnsureAllocationForTesting(int size_in_bytes,
                                                AllocationAlignment alignment,
                                                AllocationOrigin origin) {
-  return EnsureAllocation(size_in_bytes, alignment, origin);
+  return EnsureAllocation(SafeHeapObjectSize(size_in_bytes), alignment, origin);
 }
 
 int MainAllocator::ObjectAlignment() const {

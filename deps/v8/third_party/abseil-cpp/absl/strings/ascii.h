@@ -60,7 +60,6 @@
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/nullability.h"
-#include "absl/strings/internal/resize_uninitialized.h"
 #include "absl/strings/resize_and_overwrite.h"
 #include "absl/strings/string_view.h"
 
@@ -131,7 +130,7 @@ inline bool ascii_iscntrl(unsigned char c) {
 // ascii_isxdigit()
 //
 // Determines whether the given character can be represented as a hexadecimal
-// digit character (i.e. {0-9} or {A-F}).
+// digit character (i.e. {0-9} or {A-F} or {a-f}).
 inline bool ascii_isxdigit(unsigned char c) {
   return (ascii_internal::kPropertyBits[c] & 0x80) != 0;
 }

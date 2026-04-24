@@ -138,6 +138,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Assert(Condition cc, AbortReason reason, Register rs,
               Operand rt) NOOP_UNLESS_DEBUG_CODE;
 
+  // Abort execution if argument is not a Map, enabled via --debug-code.
+  void AssertMap(Register object) NOOP_UNLESS_DEBUG_CODE;
+
   void AssertJSAny(Register object, Register map_tmp, Register tmp,
                    AbortReason abort_reason) NOOP_UNLESS_DEBUG_CODE;
 

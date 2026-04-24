@@ -118,6 +118,9 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
   static inline void ForJSDispatchHandle(
       Tagged<HeapObject> host, JSDispatchHandle handle,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  static inline void ForJSDispatchHandle(
+      HeapObjectLayout* host, JSDispatchHandle handle,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   // Executes generational and/or marking write barrier for a [start, end) range
   // of non-weak slots inside |object|.
   template <typename TSlot>

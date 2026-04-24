@@ -122,10 +122,9 @@ TEST(StatusMatcherTest, StatusIs) {
               StatusIs(absl::StatusCode::kInvalidArgument, "ungueltig"));
 
   auto m = StatusIs(absl::StatusCode::kInternal, "internal error");
-  EXPECT_THAT(
-      ::testing::DescribeMatcher<absl::Status>(m),
-      MatchesRegex(
-          "has a status code that .*, and has an error message that .*"));
+  EXPECT_THAT(::testing::DescribeMatcher<absl::Status>(m),
+              MatchesRegex("has a status code that is equal to INTERNAL, and "
+                           "has an error message that .*"));
   EXPECT_THAT(
       ::testing::DescribeMatcher<absl::Status>(m, /*negation=*/true),
       MatchesRegex(

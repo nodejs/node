@@ -256,7 +256,7 @@ Handle<JSObject> CreateImportObjectInternal(
       }
       case kExternalMemory: {
         // Memory
-        SharedFlag shared = SharedFlag::kNotShared;
+        SharedFlag shared = SharedFlag::kNo;
         int memory_initial = 1;
         int memory_maximum = 32;
         DirectHandle<WasmMemoryObject> memory_obj;
@@ -280,9 +280,8 @@ Handle<JSObject> CreateImportObjectInternal(
                                          false);
         MaybeDirectHandle<WasmGlobalObject> maybe_global_obj =
             WasmGlobalObject::New(isolate, trusted_data,
-                                  MaybeHandle<JSArrayBuffer>(),
-                                  MaybeHandle<FixedArray>(), global.type,
-                                  offset, global.mutability);
+                                  MaybeHandle<WasmGlobalObject::BufferType>(),
+                                  global.type, offset, global.mutability);
         DirectHandle<WasmGlobalObject> global_obj;
         if (maybe_global_obj.ToHandle(&global_obj)) {
           JSObject::DefinePropertyOrElementIgnoreAttributes(
@@ -382,6 +381,7 @@ std::vector<WasmValue> FastMakeDefaultInterpreterArguments(
       case kVoid:
       case kTop:
       case kBottom:
+      case kWaitQueue:
         UNREACHABLE();
     }
   }

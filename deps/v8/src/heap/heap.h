@@ -469,7 +469,7 @@ class Heap final {
   // Trim the given array from the left. Note that this relocates the object
   // start and hence is only valid if there is only a single reference to it.
   V8_EXPORT_PRIVATE Tagged<FixedArrayBase> LeftTrimFixedArray(
-      Tagged<FixedArrayBase> obj, int elements_to_trim);
+      Tagged<FixedArrayBase> obj, uint32_t elements_to_trim);
 
 #define RIGHT_TRIMMABLE_ARRAY_LIST(V) \
   V(ArrayList)                        \
@@ -654,7 +654,7 @@ class Heap final {
   V8_INLINE uint64_t external_memory() const;
   V8_EXPORT_PRIVATE uint64_t external_memory_limit_for_interrupt();
   V8_EXPORT_PRIVATE uint64_t external_memory_soft_limit();
-  uint64_t UpdateExternalMemory(int64_t delta);
+  V8_EXPORT_PRIVATE uint64_t UpdateExternalMemory(int64_t delta);
 
   uint64_t backing_store_bytes() const;
 
@@ -888,6 +888,8 @@ class Heap final {
       Tagged<Object> bytecode);
   V8_INLINE void SetSmiStringCache(Tagged<SmiStringCache> cache);
   V8_INLINE void SetDoubleStringCache(Tagged<DoubleStringCache> cache);
+  V8_INLINE void SetCachedBigIntDivisor(Tagged<BigInt> divisor);
+  V8_INLINE void SetNextCachedBigIntDivisor(Tagged<BigInt> divisor);
 
 #if V8_ENABLE_WEBASSEMBLY
   V8_INLINE void SetWasmCanonicalRtts(Tagged<WeakFixedArray> rtts);
@@ -990,13 +992,8 @@ class Heap final {
   // limit instead of crashing immediately, more and stronger GCs are performed
   // until eventually CollectAllAvailableGarbage() is invoked as last resort GC.
   V8_EXPORT_PRIVATE void CollectGarbageWithRetry(
-      AllocationSpace space, GCFlags gc_flags,
-      GarbageCollectionReason gc_reason,
-      const GCCallbackFlags gc_callback_flags);
-
-  // Reports and external memory pressure event, either performs a major GC or
-  // completes incremental marking in order to free external resources.
-  void HandleExternalMemoryInterrupt();
+      LocalHeap* local_heap, AllocationSpace space,
+      GarbageCollectionReason gc_reason);
 
   using GetExternallyAllocatedMemoryInBytesCallback =
       v8::Isolate::GetExternallyAllocatedMemoryInBytesCallback;
@@ -1034,7 +1031,6 @@ class Heap final {
   void IterateSmiRoots(RootVisitor* v);
   // Iterates over weak string tables.
   void IterateWeakRoots(RootVisitor* v, base::EnumSet<SkipRoot> options);
-  void IterateWeakGlobalHandles(RootVisitor* v);
   void IterateBuiltins(RootVisitor* v);
 
   void IterateStackRoots(RootVisitor* v);
@@ -1444,7 +1440,7 @@ class Heap final {
   V8_EXPORT_PRIVATE size_t EmbedderSizeOfObjects() const;
 
   // Returns the global size of objects (embedder + V8 non-new spaces).
-  V8_EXPORT_PRIVATE size_t GlobalSizeOfObjects() const;
+  V8_EXPORT_PRIVATE uint64_t GlobalSizeOfObjects() const;
 
   // Returns the global amount of wasted bytes.
   V8_EXPORT_PRIVATE size_t GlobalWastedBytes() const;
@@ -1888,7 +1884,6 @@ class Heap final {
 
   void CollectGarbageOnMemoryPressure();
 
-  void FlushLiftoffCode(GarbageCollectionReason gc_reason);
   void CompleteArrayBufferSweeping();
 
   bool InvokeNearHeapLimitCallback();
@@ -1937,17 +1932,6 @@ class Heap final {
   // ===========================================================================
   // GC statistics. ============================================================
   // ===========================================================================
-
-  inline uint64_t OldGenerationAllocationLimitConsumedBytes() const {
-    uint64_t bytes = OldGenerationConsumedBytes();
-    if (!v8_flags.external_memory_accounted_in_global_limit) {
-      // TODO(chromium:42203776): When not accounting external memory properly
-      // in the global limit, just add allocated external bytes towards the
-      // regular old gen bytes. This is historic behavior.
-      bytes += AllocatedExternalMemorySinceMarkCompact();
-    }
-    return bytes;
-  }
 
   V8_EXPORT_PRIVATE size_t OldGenerationSpaceAvailable();
   V8_EXPORT_PRIVATE size_t GlobalSpaceAvailable();
@@ -2078,8 +2062,8 @@ class Heap final {
   void FinalizePartialMap(Tagged<Map> map);
 
   void set_force_oom(bool value) { force_oom_ = value; }
-  void set_force_gc_on_next_allocation() {
-    force_gc_on_next_allocation_ = true;
+  void set_force_gc_on_next_allocation(bool value) {
+    force_gc_on_next_allocation_ = value;
   }
 
   // Helper for IsPendingAllocation.
@@ -2321,6 +2305,8 @@ class Heap final {
   StackState embedder_stack_state_ = StackState::kMayContainHeapPointers;
   std::optional<EmbedderStackStateOrigin> embedder_stack_state_origin_;
 
+  const void* stack_start_marker_ = nullptr;
+
   StrongRootsEntry* strong_roots_head_ = nullptr;
   base::Mutex strong_roots_mutex_;
 
@@ -2521,6 +2507,7 @@ class Heap final {
   friend class heap::HeapTester;
   FRIEND_TEST(SpacesTest, InlineAllocationObserverCadence);
   FRIEND_TEST(SpacesTest, AllocationObserver);
+  FRIEND_TEST(MinimalStackTest, MinimalStackInTurbofanAllocate);
   friend class HeapInternalsBase;
 };
 

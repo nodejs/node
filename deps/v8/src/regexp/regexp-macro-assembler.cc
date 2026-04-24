@@ -4,9 +4,13 @@
 
 #include "src/codegen/assembler.h"
 #include "src/codegen/label.h"
+#include "src/common/globals.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/pointer-authentication.h"
 #include "src/execution/simulator.h"
+#include "src/logging/log.h"
+#include "src/objects/abstract-code.h"
+#include "src/objects/js-regexp-inl.h"
 #include "src/regexp/regexp-macro-assembler-arch.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/regexp/special-case.h"
@@ -19,6 +23,7 @@
 
 namespace v8 {
 namespace internal {
+namespace regexp {
 
 RegExpMacroAssembler::RegExpMacroAssembler(Isolate* isolate, Zone* zone,
                                            Mode mode)
@@ -29,12 +34,21 @@ RegExpMacroAssembler::RegExpMacroAssembler(Isolate* isolate, Zone* zone,
       zone_(zone),
       mode_(mode) {}
 
+void RegExpMacroAssembler::LogCode(Isolate* isolate, DirectHandle<Code> code,
+                                   DirectHandle<RegExpData> re_data,
+                                   Flags flags) {
+  PROFILE(isolate,
+          RegExpCodeCreateEvent(
+              Cast<AbstractCode>(code),
+              direct_handle(re_data->escaped_source(), isolate), flags));
+}
+
 bool RegExpMacroAssembler::has_backtrack_limit() const {
   return backtrack_limit_ != JSRegExp::kNoBacktrackLimit;
 }
 
 int RegExpMacroAssembler::stack_limit_slack_slot_count() const {
-  return RegExpStack::kStackLimitSlackSlotCount;
+  return Stack::kStackLimitSlackSlotCount;
 }
 
 bool RegExpMacroAssembler::CanReadUnaligned() const {
@@ -58,8 +72,8 @@ int RegExpMacroAssembler::CaseInsensitiveCompareNonUnicode(Address byte_offset1,
   base::uc16* substring2 = reinterpret_cast<base::uc16*>(byte_offset2);
 
   for (size_t i = 0; i < length; i++) {
-    UChar32 c1 = RegExpCaseFolding::Canonicalize(substring1[i]);
-    UChar32 c2 = RegExpCaseFolding::Canonicalize(substring2[i]);
+    UChar32 c1 = CaseFolding::Canonicalize(substring1[i]);
+    UChar32 c2 = CaseFolding::Canonicalize(substring2[i]);
     if (c1 != c2) {
       return 0;
     }
@@ -132,8 +146,10 @@ constexpr base::uc32 MaskEndOfRangeMarker(base::uc32 c) {
   return c & 0xffff;
 }
 
-int RangeArrayLengthFor(const ZoneList<CharacterRange>* ranges) {
-  const int ranges_length = ranges->length();
+uint32_t RangeArrayLengthFor(const ZoneList<CharacterRange>* ranges) {
+  const int int_ranges_length = ranges->length();
+  DCHECK_GT(int_ranges_length, 0);
+  const uint32_t ranges_length = static_cast<uint32_t>(int_ranges_length);
   return MaskEndOfRangeMarker(ranges->at(ranges_length - 1).to()) == kMaxUInt16
              ? ranges_length * 2 - 1
              : ranges_length * 2;
@@ -141,12 +157,16 @@ int RangeArrayLengthFor(const ZoneList<CharacterRange>* ranges) {
 
 bool Equals(const ZoneList<CharacterRange>* lhs,
             const DirectHandle<FixedUInt16Array>& rhs) {
-  const int rhs_length = rhs->length();
+  const uint32_t rhs_length = rhs->length().value();
   if (rhs_length != RangeArrayLengthFor(lhs)) return false;
-  for (int i = 0; i < lhs->length(); i++) {
+  const int lhs_length = lhs->length();
+  DCHECK_GE(lhs_length, 0);
+  for (uint32_t i = 0; i < static_cast<uint32_t>(lhs_length); i++) {
     const CharacterRange& r = lhs->at(i);
+    DCHECK_LE(i, kMaxUInt32 / 2);
     if (rhs->get(i * 2 + 0) != r.from()) return false;
     if (i * 2 + 1 == rhs_length) break;
+    DCHECK_LE(i, (kMaxUInt32 - 1) / 2);
     if (rhs->get(i * 2 + 1) != r.to() + 1) return false;
   }
   return true;
@@ -154,13 +174,15 @@ bool Equals(const ZoneList<CharacterRange>* lhs,
 
 Handle<FixedUInt16Array> MakeRangeArray(
     Isolate* isolate, const ZoneList<CharacterRange>* ranges) {
-  const int ranges_length = ranges->length();
-  const int range_array_length = RangeArrayLengthFor(ranges);
+  const uint32_t ranges_length = static_cast<uint32_t>(ranges->length());
+  DCHECK_LE(ranges_length, kMaxInt);
+  const uint32_t range_array_length = RangeArrayLengthFor(ranges);
   Handle<FixedUInt16Array> range_array =
       FixedUInt16Array::New(isolate, range_array_length);
-  for (int i = 0; i < ranges_length; i++) {
+  for (uint32_t i = 0; i < ranges_length; i++) {
     const CharacterRange& r = ranges->at(i);
     DCHECK_LE(r.from(), kMaxUInt16);
+    DCHECK_LE(i, kMaxUInt32 / 2);
     range_array->set(i * 2 + 0, r.from());
     const base::uc32 to = MaskEndOfRangeMarker(r.to());
     if (i == ranges_length - 1 && to == kMaxUInt16) {
@@ -168,6 +190,7 @@ Handle<FixedUInt16Array> MakeRangeArray(
       break;  // Avoid overflow by leaving the last range open-ended.
     }
     DCHECK_LT(to, kMaxUInt16);
+    DCHECK_LE(i, (kMaxUInt32 - 1) / 2);
     range_array->set(i * 2 + 1, to + 1);  // Exclusive.
   }
   return range_array;
@@ -199,20 +222,21 @@ uint32_t RegExpMacroAssembler::IsCharacterInRangeArray(uint32_t current_char,
 
   Tagged<FixedUInt16Array> ranges =
       Cast<FixedUInt16Array>(Tagged<Object>(raw_byte_array));
-  DCHECK_GE(ranges->length(), 1);
+  const uint32_t ranges_len = ranges->length().value();
+  DCHECK_GE(ranges_len, 1);
 
   // Shortcut for fully out of range chars.
   if (current_char < ranges->get(0)) return kFalse;
-  if (current_char >= ranges->get(ranges->length() - 1)) {
+  if (current_char >= ranges->get(ranges_len - 1)) {
     // The last range may be open-ended.
-    return (ranges->length() % 2) == 0 ? kFalse : kTrue;
+    return (ranges_len % 2) == 0 ? kFalse : kTrue;
   }
 
   // Binary search for the matching range. `ranges` is encoded as
   // [from0, to0, from1, to1, ..., fromN, toN], or
   // [from0, to0, from1, to1, ..., fromN] (open-ended last interval).
-
-  int mid, lower = 0, upper = ranges->length();
+  DCHECK_LE(ranges_len, kMaxInt);
+  int mid, lower = 0, upper = static_cast<int>(ranges_len);
   do {
     mid = lower + (upper - lower) / 2;
     const base::uc16 elem = ranges->get(mid);
@@ -645,7 +669,7 @@ const uint8_t RegExpMacroAssembler::word_character_map_[] = {
 Address NativeRegExpMacroAssembler::GrowStack(Isolate* isolate) {
   DisallowGarbageCollection no_gc;
 
-  RegExpStack* regexp_stack = isolate->regexp_stack();
+  Stack* regexp_stack = isolate->regexp_stack();
   const size_t old_size = regexp_stack->memory_size();
 
 #ifdef DEBUG
@@ -661,5 +685,6 @@ Address NativeRegExpMacroAssembler::GrowStack(Isolate* isolate) {
   return regexp_stack->stack_pointer();
 }
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8

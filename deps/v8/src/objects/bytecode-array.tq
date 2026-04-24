@@ -23,10 +23,11 @@ extern class BytecodeArray extends ExposedTrustedObject {
 // A wrapper around a bytecode object that lives inside the sandbox. This can
 // be useful in cases where a tagged reference to a bytecode array is required,
 // for example because it is stored inside an array of tagged values.
-@cppObjectDefinition
+@cppObjectLayoutDefinition
 extern class BytecodeWrapper extends Struct {
   bytecode: TrustedPointer<BytecodeArray>;
 }
 
 extern class Code extends ExposedTrustedObject;
+
 extern class CodeWrapper extends Struct;

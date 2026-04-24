@@ -181,6 +181,11 @@ class ABSL_ATTRIBUTE_OWNER flat_hash_map
   //
   //   std::vector<std::pair<int, std::string>> v = {{1, "a"}, {2, "b"}};
   //   absl::flat_hash_map<int, std::string> map7(v.begin(), v.end());
+  //
+  // * from_range constructor (C++23)
+  //
+  //   std::vector<std::pair<int, std::string>> v = {{1, "a"}, {2, "b"}};
+  //   absl::flat_hash_map<int, std::string> map8(std::from_range, v);
   flat_hash_map() {}
   using Base::Base;
 

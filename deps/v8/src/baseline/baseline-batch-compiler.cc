@@ -302,7 +302,7 @@ void BaselineBatchCompiler::EnsureQueueCapacity() {
                                                 AllocationType::kOld));
     return;
   }
-  if (last_index_ >= compilation_queue_->length()) {
+  if (last_index_ >= compilation_queue_->ulength().value()) {
     DirectHandle<WeakFixedArray> new_queue =
         isolate_->factory()->CopyWeakFixedArrayAndGrow(compilation_queue_,
                                                        last_index_);
@@ -318,7 +318,7 @@ void BaselineBatchCompiler::CompileBatch(DirectHandle<JSFunction> function) {
     Compiler::CompileBaseline(isolate_, function, Compiler::CLEAR_EXCEPTION,
                               &is_compiled_scope);
   }
-  for (int i = 0; i < last_index_; i++) {
+  for (uint32_t i = 0; i < last_index_; i++) {
     Tagged<MaybeObject> maybe_sfi = compilation_queue_->get(i);
     MaybeCompileFunction(maybe_sfi);
     compilation_queue_->set(i, kClearedWeakValue);

@@ -8,6 +8,7 @@
 #include "src/base/iterator.h"
 #include "src/builtins/builtins-descriptors.h"
 #include "src/builtins/builtins-inl.h"
+#include "src/builtins/superspread.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/debug/debug.h"
@@ -313,8 +314,8 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
           {CODE_TYPE, &is_code},
 #endif
       });
-  // Fallthrough means none of the types matched. The destination register is
-  // zeroed.);
+  // Fallthrough means none of the types matched or the field was invalid.
+  // The destination register is zeroed.
   __ Branch(is_unavailable);
 
 #if !V8_JITLESS_BOOL
@@ -367,12 +368,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ Branch(&prepare_step_in_suspended_generator, eq, a1, Operand(a6));
   __ bind(&stepping_prepared);
 
-  // Check the stack for overflow. We are not trying to catch interruptions
-  // (i.e. debug break and preemption) here, so check the "real stack limit".
-  Label stack_overflow;
-  __ LoadStackLimit(kScratchReg, StackLimitKind::kRealStackLimit);
-  __ Branch(&stack_overflow, lo, sp, Operand(kScratchReg));
-
   Register argc = kJavaScriptCallArgCountRegister;
 
   // Compute actual arguments count value as a formal parameter count without
@@ -392,6 +387,14 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ BranchShort(&is_bigger, kGreaterThan, argc, Operand(JSParameterCount(0)));
   __ li(argc, Operand(JSParameterCount(0)));
   __ bind(&is_bigger);
+
+  // Check if we have enough stack space to push all arguments.
+  Label stack_overflow;
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch2 = temps.Acquire();
+    __ StackOverflowCheck(argc, scratch, scratch2, &stack_overflow);
+  }
 
   // ----------- S t a t e -------------
   //  -- a0    : actual arguments count
@@ -954,7 +957,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
                      FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
   __ LoadTaggedField(
       feedback_vector,
-      FieldMemOperand(feedback_cell, FeedbackCell::kValueOffset));
+      FieldMemOperand(feedback_cell, offsetof(FeedbackCell, value_)));
   {
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
@@ -1300,7 +1303,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 #endif  // !V8_JITLESS
 
   __ bind(&compile_lazy);
-  __ GenerateTailCallToReturnedCode(Runtime::kCompileLazy);
+  __ TailCallBuiltin(Builtin::kCompileLazy);
   // Unreachable code.
   __ break_(0xCC);
 
@@ -2389,7 +2392,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   {
     Label done, push, loop;
     Register src = a6;
-    Register scratch = len;
+    Register scratch = t0;
 
     __ addi_d(src, args, OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag);
     __ Branch(&done, eq, len, Operand(zero_reg));
@@ -2422,7 +2425,20 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   __ TailCallBuiltin(target_builtin);
 
   __ bind(&stack_overflow);
-  __ TailCallRuntime(Runtime::kThrowStackOverflow);
+  // Rewrite the stack frame to capture target, arguments list and length
+  // - receiver already on the stack.
+  // - target
+  // - arguments list
+  // - len of arguments list
+  static_assert(SuperSpreadArgs::kReceiverOffsetFromEnd == 4);
+  static_assert(SuperSpreadArgs::kTargetOffsetFromEnd == 3);
+  static_assert(SuperSpreadArgs::kArglistOffsetFromEnd == 2);
+  static_assert(SuperSpreadArgs::kArglistLengthOffsetFromEnd == 1);
+  __ SmiTag(len);
+  __ Push(a1, args, len);
+  // - adjust arg count
+  __ Add_d(a0, a0, SuperSpreadArgs::kNumExtraArgs - 1);
+  __ TailCallRuntime(Runtime::kVarargStackOverflow);
 }
 
 // static
@@ -2605,7 +2621,8 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
   // Load [[BoundArguments]] into a2 and length of that into a4.
   __ LoadTaggedField(
       a2, FieldMemOperand(a1, JSBoundFunction::kBoundArgumentsOffset));
-  __ SmiUntagField(a4, FieldMemOperand(a2, offsetof(FixedArray, length_)));
+  __ SmiUntagFieldUnsigned(a4,
+                           FieldMemOperand(a2, offsetof(FixedArray, length_)));
 
   // ----------- S t a t e -------------
   //  -- a0 : the number of arguments
@@ -2637,7 +2654,8 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
   // Push [[BoundArguments]].
   {
     Label loop, done_loop;
-    __ SmiUntagField(a4, FieldMemOperand(a2, offsetof(FixedArray, length_)));
+    __ SmiUntagFieldUnsigned(
+        a4, FieldMemOperand(a2, offsetof(FixedArray, length_)));
     __ Add_d(a0, a0, Operand(a4));
     __ Add_d(a2, a2,
              Operand(OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag));
@@ -2711,7 +2729,8 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
   // Load [[BoundArguments]] into a2 and length of that into a4.
   __ LoadTaggedField(
       a2, FieldMemOperand(a1, JSBoundFunction::kBoundArgumentsOffset));
-  __ SmiUntagField(a4, FieldMemOperand(a2, offsetof(FixedArray, length_)));
+  __ SmiUntagFieldUnsigned(a4,
+                           FieldMemOperand(a2, offsetof(FixedArray, length_)));
 
   // ----------- S t a t e -------------
   //  -- a0 : the number of arguments
@@ -2744,7 +2763,8 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
   // Push [[BoundArguments]].
   {
     Label loop, done_loop;
-    __ SmiUntagField(a4, FieldMemOperand(a2, offsetof(FixedArray, length_)));
+    __ SmiUntagFieldUnsigned(
+        a4, FieldMemOperand(a2, offsetof(FixedArray, length_)));
     __ Add_d(a0, a0, Operand(a4));
     __ Add_d(a2, a2,
              Operand(OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag));
@@ -3623,6 +3643,53 @@ void Builtins::Generate_WasmFXResumeThrow(MacroAssembler* masm) {
   __ Ret();
 }
 
+void Builtins::Generate_WasmFXResumeThrowRef(MacroAssembler* masm) {
+  __ EnterFrame(StackFrame::WASM_STACK_EXIT);
+  Register target_stack =
+      WasmFXResumeThrowRefDescriptor::GetRegisterParameter(0);
+  Register exnref = WasmFXResumeThrowRefDescriptor::GetRegisterParameter(1);
+  // If the target stack is in a suspended state, switch to it and throw the
+  // exception from there.
+  // If the stack has not been started yet, switching to it is invalid as it
+  // does not have a stack entry frame. Instead, retire it and throw the
+  // exception from the current stack.
+  // Both blocks exit with the exnref pushed on the stack.
+  Register scratch = t0;
+  Label throw_;
+  Label retire_and_throw;
+  __ Ld_d(scratch, MemOperand(target_stack, wasm::kStackFpOffset));
+  __ Branch(&retire_and_throw, eq, scratch, Operand(kNullAddress));
+  Label return_;
+  SwitchStacks(masm, ExternalReference::wasm_resume_wasmfx_stack(),
+               target_stack, &return_, no_reg, {target_stack, exnref});
+  // Switch to the target stack without restoring the PC.
+  LoadJumpBuffer(masm, target_stack, false, t1);
+  __ Push(exnref);
+  __ Branch(&throw_);
+
+  __ bind(&retire_and_throw);
+  __ Push(exnref);
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ PrepareCallCFunction(2, scratch);
+    __ li(kCArgRegs[0], ExternalReference::isolate_address());
+    __ Move(kCArgRegs[1], target_stack);
+    __ CallCFunction(ExternalReference::wasm_retire_stack(), 2);
+  }
+  __ bind(&throw_);
+  // Throw the exnref. The builtin expects to be called from a wasm frame, so
+  // leave this frame first and tail call WasmThrowRef.
+  __ Pop(WasmThrowRefDescriptor::GetRegisterParameter(0));
+  __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ TailCallBuiltin(Builtin::kWasmThrowRef);
+  __ Trap();
+  __ bind(&return_);
+  // Return the arg buffer.
+  __ Move(kReturnRegister0, WasmFXReturnDescriptor::GetRegisterParameter(0));
+  __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ Ret();
+}
+
 void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ EnterFrame(StackFrame::WASM_STACK_EXIT);
   Register tag = WasmFXSuspendDescriptor::GetRegisterParameter(0);
@@ -3665,6 +3732,65 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ Move(kReturnRegister0, WasmFXResumeDescriptor::GetRegisterParameter(1));
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
   __ Drop(WasmFXSuspendDescriptor::GetStackParameterCount());
+  __ Ret();
+}
+
+void Builtins::Generate_WasmFXSwitch(MacroAssembler* masm) {
+  __ EnterFrame(StackFrame::WASM_STACK_EXIT);
+  Register tag = WasmFXSwitchDescriptor::GetRegisterParameter(0);
+  Register cont = WasmFXSwitchDescriptor::GetRegisterParameter(1);
+  Register target_stack_reg = WasmFXSwitchDescriptor::GetRegisterParameter(2);
+  Register arg_buffer_reg = WasmFXSwitchDescriptor::GetRegisterParameter(3);
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+
+  MemOperand sig_op(fp, 2 * kSystemPointerSize);
+  Label resume;
+  __ Push(kContextRegister);
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    DCHECK(!AreAliased(kCArgRegs[4], cont, target_stack_reg));
+    DCHECK(!AreAliased(kCArgRegs[5], target_stack_reg));
+    DCHECK(!AreAliased(kCArgRegs[7], tag, cont, target_stack_reg));
+    __ PrepareCallCFunction(9, scratch);
+    __ Move(kCArgRegs[7], arg_buffer_reg);
+    __ Move(kCArgRegs[4], tag);
+    __ Move(kCArgRegs[5], cont);
+    __ Move(kCArgRegs[6], target_stack_reg);
+    __ Ld_d(scratch, sig_op);
+    __ St_d(scratch, MemOperand(sp, 0));
+    __ li(kCArgRegs[0], ExternalReference::isolate_address());
+    __ Move(kCArgRegs[1], sp);
+    __ Move(kCArgRegs[2], fp);
+    __ LoadLabelRelative(kCArgRegs[3], &resume);
+    __ CallCFunction(ExternalReference::wasm_switch_wasmfx_stack(), 9);
+  }
+
+  Label ok;
+  __ Branch(&ok, ne, kReturnRegister0, Operand(0));
+
+  // No handler found.
+  __ Pop(kContextRegister);  // Retrieve saved context.
+  __ CallRuntime(Runtime::kThrowWasmFXSuspendError);
+
+  __ bind(&ok);
+  // Drop saved context.
+  __ Drop(1);
+
+  Register target_stack = WasmFXResumeDescriptor::GetRegisterParameter(0);
+  __ Move(target_stack, kReturnRegister0);
+  // Load the arg buffer to set up resume of target stack
+  Register arg_buffer = WasmFXResumeDescriptor::GetRegisterParameter(1);
+  __ Ld_d(arg_buffer,
+          MemOperand(target_stack, wasm::StackMemory::arg_buffer_offset()));
+
+  DCHECK(!AreAliased(arg_buffer, target_stack, scratch, sp, fp));
+  LoadJumpBuffer(masm, target_stack, true, scratch);
+  __ Trap();
+  __ bind(&resume);
+  __ Move(kReturnRegister0, WasmFXResumeDescriptor::GetRegisterParameter(1));
+  __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ Drop(WasmFXSwitchDescriptor::GetStackParameterCount());
   __ Ret();
 }
 
@@ -5084,7 +5210,7 @@ void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
                      FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
   __ LoadTaggedField(
       feedback_vector,
-      FieldMemOperand(feedback_cell, FeedbackCell::kValueOffset));
+      FieldMemOperand(feedback_cell, offsetof(FeedbackCell, value_)));
 
   Label install_baseline_code;
   // Check if feedback vector is valid. If not, call prepare for baseline to

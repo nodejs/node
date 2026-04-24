@@ -29,6 +29,7 @@ load(
 
 default_package_visibility = [
     "//absl/random:__pkg__",
+    "//absl:friends",
 ]
 
 package(
@@ -399,7 +400,6 @@ cc_library(
         ":platform",
         ":randen_hwaes_impl",
         "//absl/base:config",
-        "//absl/types:optional",
     ],
 )
 

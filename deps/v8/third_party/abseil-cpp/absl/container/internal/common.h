@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <optional>
 #include <tuple>
 #include <type_traits>
 
@@ -146,7 +147,7 @@ class node_handle_base {
 
   void reset() {
     assert(alloc_.has_value());
-    alloc_ = absl::nullopt;
+    alloc_ = std::nullopt;
   }
 
   slot_type* slot() const {
@@ -156,7 +157,7 @@ class node_handle_base {
   allocator_type* alloc() { return std::addressof(*alloc_); }
 
  private:
-  absl::optional<allocator_type> alloc_ = {};
+  std::optional<allocator_type> alloc_ = {};
   alignas(slot_type) mutable unsigned char slot_space_[sizeof(slot_type)] = {};
 };
 

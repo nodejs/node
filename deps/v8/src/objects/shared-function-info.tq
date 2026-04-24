@@ -41,6 +41,7 @@ bitfield struct SharedFunctionInfoFlags extends uint32 {
   is_top_level: bool: 1 bit;
   properties_are_final: bool: 1 bit;
   private_name_lookup_skips_outer_class: bool: 1 bit;
+  is_hoisted_in_context: bool: 1 bit;
 
   // TODO(crbug.com/401059828): remove once crashes are gone.
   live_edited: bool: 1 bit;

@@ -25,15 +25,19 @@ namespace internal {
   }                                                                           \
   auto frame = Cast<CallSiteInfo>(it.GetDataValue())
 
+#define CHECK_SHADOW_REALM_OR_RETURN_FAILURE(isolate, native_context, method)  \
+  if (native_context->scope_info()->scope_type() == SHADOW_REALM_SCOPE) {      \
+    THROW_NEW_ERROR_RETURN_FAILURE(                                            \
+        isolate,                                                               \
+        NewTypeError(MessageTemplate::kCallSiteMethodUnsupportedInShadowRealm, \
+                     isolate->factory()->NewStringFromAsciiChecked(method)));  \
+  }
+
 namespace {
 
 Tagged<Object> PositiveNumberOrNull(int value, Isolate* isolate) {
   if (value > 0) return *isolate->factory()->NewNumberFromInt(value);
   return ReadOnlyRoots(isolate).null_value();
-}
-
-bool NativeContextIsForShadowRealm(Tagged<NativeContext> native_context) {
-  return native_context->scope_info()->scope_type() == SHADOW_REALM_SCOPE;
 }
 
 }  // namespace
@@ -77,15 +81,12 @@ BUILTIN(CallSitePrototypeGetFunction) {
   // ShadowRealms have a boundary: references to outside objects must not exist
   // in the ShadowRealm, and references to ShadowRealm objects must not exist
   // outside the ShadowRealm.
-  if (NativeContextIsForShadowRealm(isolate->raw_native_context()) ||
-      (IsJSFunction(frame->function()) &&
-       NativeContextIsForShadowRealm(
-           Cast<JSFunction>(frame->function())->native_context()))) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(
-            MessageTemplate::kCallSiteMethodUnsupportedInShadowRealm,
-            isolate->factory()->NewStringFromAsciiChecked(method_name)));
+  CHECK_SHADOW_REALM_OR_RETURN_FAILURE(isolate, isolate->raw_native_context(),
+                                       method_name);
+  if (IsJSFunction(frame->function())) {
+    CHECK_SHADOW_REALM_OR_RETURN_FAILURE(
+        isolate, Cast<JSFunction>(frame->function())->native_context(),
+        method_name);
   }
   if (frame->IsStrict() ||
       (IsJSFunction(frame->function()) &&
@@ -149,24 +150,21 @@ BUILTIN(CallSitePrototypeGetThis) {
   // ShadowRealms have a boundary: references to outside objects must not exist
   // in the ShadowRealm, and references to ShadowRealm objects must not exist
   // outside the ShadowRealm.
-  if (NativeContextIsForShadowRealm(isolate->raw_native_context()) ||
-      (IsJSFunction(frame->function()) &&
-       NativeContextIsForShadowRealm(
-           Cast<JSFunction>(frame->function())->native_context()))) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(
-            MessageTemplate::kCallSiteMethodUnsupportedInShadowRealm,
-            isolate->factory()->NewStringFromAsciiChecked(method_name)));
+  CHECK_SHADOW_REALM_OR_RETURN_FAILURE(isolate, isolate->raw_native_context(),
+                                       method_name);
+  if (IsJSFunction(frame->function())) {
+    CHECK_SHADOW_REALM_OR_RETURN_FAILURE(
+        isolate, Cast<JSFunction>(frame->function())->native_context(),
+        method_name);
   }
   if (frame->IsStrict()) return ReadOnlyRoots(isolate).undefined_value();
   isolate->CountUsage(v8::Isolate::kCallSiteAPIGetThisSloppyCall);
 #if V8_ENABLE_WEBASSEMBLY
   if (frame->IsAsmJsWasm()) {
-    return frame->GetWasmInstance()
-        ->trusted_data(isolate)
-        ->native_context()
-        ->global_proxy();
+    Tagged<NativeContext> native_context = Cast<NativeContext>(
+        frame->GetWasmInstance()->trusted_data(isolate)->native_context());
+    CHECK_SHADOW_REALM_OR_RETURN_FAILURE(isolate, native_context, method_name);
+    return native_context->global_proxy();
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   return frame->receiver_or_instance();
@@ -221,6 +219,7 @@ BUILTIN(CallSitePrototypeToString) {
 }
 
 #undef CHECK_CALLSITE
+#undef CHECK_SHADOW_REALM_OR_RETURN_FAILURE
 
 }  // namespace internal
 }  // namespace v8

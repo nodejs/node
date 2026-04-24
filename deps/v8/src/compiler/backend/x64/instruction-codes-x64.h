@@ -112,11 +112,11 @@ namespace compiler {
   V(X64Sub)                                          \
   V(X64Sub32)                                        \
   V(X64Imul)                                         \
+  V(X64ImulWide)                                     \
+  V(X64UmulWide)                                     \
   V(X64Imul32)                                       \
   V(X64ImulHigh32)                                   \
-  V(X64ImulHigh64)                                   \
   V(X64UmulHigh32)                                   \
-  V(X64UmulHigh64)                                   \
   V(X64Idiv)                                         \
   V(X64Idiv32)                                       \
   V(X64Udiv)                                         \

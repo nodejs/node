@@ -375,10 +375,10 @@ class RedundantStoreAnalysis {
                 DCHECK(!store0.index().valid());
                 DCHECK(!store1.index().valid());
 
-                const ConstantOp* c0 =
-                    graph_.Get(store0.value()).TryCast<Opmask::kHeapConstant>();
-                const ConstantOp* c1 =
-                    graph_.Get(store1.value()).TryCast<Opmask::kHeapConstant>();
+                std::optional<uint32_t> low =
+                    TryGetRawUint32Constant(store0.value());
+                std::optional<uint32_t> high =
+                    TryGetRawUint32Constant(store1.value());
 
                 // TODO(dmercadier): for now, we only apply this optimization
                 // when storing read-only values, because otherwise the GC will
@@ -387,16 +387,12 @@ class RedundantStoreAnalysis {
                 // this might work for any object. To do this, we might need to
                 // delay this optimization to later (instruction selector for
                 // instance).
-                if (store0.base() == store1.base() && c0 && c1 &&
-                    store1.offset - store0.offset == 4 &&
-                    HeapLayout::InReadOnlySpace(*c0->handle()) &&
-                    HeapLayout::InReadOnlySpace(*c1->handle())) {
-                  uint32_t high = static_cast<uint32_t>(c1->handle()->ptr());
-                  uint32_t low = static_cast<uint32_t>(c0->handle()->ptr());
+                if (store0.base() == store1.base() && high.has_value() &&
+                    low.has_value() && store1.offset - store0.offset == 4) {
 #if V8_TARGET_BIG_ENDIAN
-                  uint64_t merged = make_uint64(low, high);
+                  uint64_t merged = make_uint64(*low, *high);
 #else
-                  uint64_t merged = make_uint64(high, low);
+                  uint64_t merged = make_uint64(*high, *low);
 #endif
                   mergeable_store_pairs_->insert({index, merged});
 
@@ -442,6 +438,40 @@ class RedundantStoreAnalysis {
   }
 
  private:
+  // If {index} is a non-movable constant (ie, either a Int32/Smi or a read-only
+  // HeapObject), then returns its value as a uint32_t.
+  std::optional<uint32_t> TryGetRawUint32Constant(OpIndex index) {
+    const ConstantOp* cst = graph_.Get(index).TryCast<ConstantOp>();
+    if (!cst) return {};
+    switch (cst->kind) {
+      case ConstantOp::Kind::kWord32:
+        return cst->word32();
+      case ConstantOp::Kind::kSmi:
+        return cst->smi().ptr();
+      case ConstantOp::Kind::kHeapObject:
+      case ConstantOp::Kind::kCompressedHeapObject:
+        DCHECK(COMPRESS_POINTERS_BOOL);
+        if (HeapLayout::InReadOnlySpace(*cst->handle())) {
+          return static_cast<uint32_t>(cst->handle()->ptr());
+        } else {
+          return {};
+        }
+
+      case ConstantOp::Kind::kWord64:
+      case ConstantOp::Kind::kFloat32:
+      case ConstantOp::Kind::kFloat64:
+      case ConstantOp::Kind::kNumber:
+      case ConstantOp::Kind::kTaggedIndex:
+      case ConstantOp::Kind::kExternal:
+      case ConstantOp::Kind::kTrustedHeapObject:
+      case ConstantOp::Kind::kRelocatableWasmCall:
+      case ConstantOp::Kind::kRelocatableWasmStubCall:
+      case ConstantOp::Kind::kRelocatableWasmIndirectCallTarget:
+      case ConstantOp::Kind::kRelocatableWasmCanonicalSignatureId:
+        return {};
+    }
+  }
+
   const Graph& graph_;
   MaybeRedundantStoresTable table_;
   ZoneSet<OpIndex>* eliminable_stores_ = nullptr;
@@ -456,7 +486,9 @@ class StoreStoreEliminationReducer : public Next {
   TURBOSHAFT_REDUCER_BOILERPLATE(StoreStoreElimination)
 
   void Analyze() {
-    analysis_.Run(eliminable_stores_, mergeable_store_pairs_);
+    if (v8_flags.turbo_store_elimination) {
+      analysis_.Run(eliminable_stores_, mergeable_store_pairs_);
+    }
     Next::Analyze();
   }
 

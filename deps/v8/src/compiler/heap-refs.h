@@ -13,6 +13,7 @@
 #include "src/objects/feedback-vector.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/object-list-macros.h"
+#include "src/objects/property-details.h"
 #include "src/utils/boxed-float.h"
 #include "src/zone/zone-compact-set.h"
 
@@ -114,6 +115,8 @@ enum class RefSerializationKind {
   BACKGROUND_SERIALIZED(JSBoundFunction)                                      \
   BACKGROUND_SERIALIZED(JSDataView)                                           \
   BACKGROUND_SERIALIZED(JSFunction)                                           \
+  BACKGROUND_SERIALIZED(JSFunctionWithoutPrototype)                           \
+  BACKGROUND_SERIALIZED(JSFunctionWithPrototype)                              \
   BACKGROUND_SERIALIZED(JSGlobalObject)                                       \
   BACKGROUND_SERIALIZED(JSGlobalProxy)                                        \
   BACKGROUND_SERIALIZED(JSTypedArray)                                         \
@@ -160,6 +163,7 @@ enum class RefSerializationKind {
   NEVER_SERIALIZED(SourceTextModule)                                          \
   NEVER_SERIALIZED(TemplateObjectDescription)                                 \
   NEVER_SERIALIZED(Tuple2)                                                    \
+  NEVER_SERIALIZED(WeakHomomorphicFixedArray)                                 \
   /* Subtypes of Object */                                                    \
   BACKGROUND_SERIALIZED(HeapObject)
 
@@ -715,6 +719,20 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   JSDispatchHandle dispatch_handle() const;
 };
 
+class V8_EXPORT_PRIVATE JSFunctionWithoutPrototypeRef : public JSFunctionRef {
+ public:
+  DEFINE_REF_CONSTRUCTOR(JSFunctionWithoutPrototype, JSFunctionRef)
+
+  IndirectHandle<JSFunctionWithoutPrototype> object() const;
+};
+
+class V8_EXPORT_PRIVATE JSFunctionWithPrototypeRef : public JSFunctionRef {
+ public:
+  DEFINE_REF_CONSTRUCTOR(JSFunctionWithPrototype, JSFunctionRef)
+
+  IndirectHandle<JSFunctionWithPrototype> object() const;
+};
+
 class RegExpBoilerplateDescriptionRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(RegExpBoilerplateDescription, HeapObjectRef)
@@ -722,7 +740,6 @@ class RegExpBoilerplateDescriptionRef : public HeapObjectRef {
   IndirectHandle<RegExpBoilerplateDescription> object() const;
 
   HeapObjectRef data(JSHeapBroker* broker) const;
-  StringRef source(JSHeapBroker* broker) const;
   int flags() const;
 };
 
@@ -929,16 +946,15 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   int instance_size() const;
   InstanceType instance_type() const;
   int GetInObjectProperties() const;
-  int GetInObjectPropertiesStartInWords() const;
+  uint8_t GetInObjectPropertiesStartInWords() const;
   int NumberOfOwnDescriptors() const;
   int GetInObjectPropertyOffset(int index) const;
   int constructor_function_index() const;
-  int NextFreePropertyIndex() const;
+  FieldStorageLocation NextFreeFieldStorageLocation() const;
   int UnusedPropertyFields() const;
   ElementsKind elements_kind() const;
   bool is_stable() const;
   bool is_constructor() const;
-  bool has_prototype_slot() const;
   bool is_access_check_needed() const;
   bool is_deprecated() const;
   bool CanBeDeprecated() const;
@@ -1012,6 +1028,11 @@ struct HolderLookupResult {
   OptionalJSObjectRef holder;
 };
 
+struct CFunctionInfoWithDetails {
+  Address address;
+  const CFunctionInfo* signature;
+};
+
 class FunctionTemplateInfoRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(FunctionTemplateInfo, HeapObjectRef)
@@ -1028,8 +1049,8 @@ class FunctionTemplateInfoRef : public HeapObjectRef {
   Address callback(JSHeapBroker* broker) const;
   OptionalObjectRef callback_data(JSHeapBroker* broker) const;
 
-  ZoneVector<Address> c_functions(JSHeapBroker* broker) const;
-  ZoneVector<const CFunctionInfo*> c_signatures(JSHeapBroker* broker) const;
+  ZoneVector<CFunctionInfoWithDetails> c_functions_with_signatures(
+      JSHeapBroker* broker) const;
   HolderLookupResult LookupHolderOfExpectedType(JSHeapBroker* broker,
                                                 MapRef receiver_map);
 };
@@ -1048,7 +1069,7 @@ class ArrayBoilerplateDescriptionRef : public HeapObjectRef {
   using HeapObjectRef::HeapObjectRef;
   IndirectHandle<ArrayBoilerplateDescription> object() const;
 
-  int constants_elements_length() const;
+  uint32_t constants_elements_length() const;
 };
 
 class FixedArrayRef : public FixedArrayBaseRef {
@@ -1057,7 +1078,7 @@ class FixedArrayRef : public FixedArrayBaseRef {
 
   IndirectHandle<FixedArray> object() const;
 
-  OptionalObjectRef TryGet(JSHeapBroker* broker, int i) const;
+  OptionalObjectRef TryGet(JSHeapBroker* broker, uint32_t i) const;
 };
 
 class FixedDoubleArrayRef : public FixedArrayBaseRef {
@@ -1070,6 +1091,15 @@ class FixedDoubleArrayRef : public FixedArrayBaseRef {
   // immutable-after-initialization FixedDoubleArrays protected by
   // acquire-release semantics (such as boilerplate elements).
   Float64 GetFromImmutableFixedDoubleArray(int i) const;
+};
+
+class WeakHomomorphicFixedArrayRef : public HeapObjectRef {
+ public:
+  DEFINE_REF_CONSTRUCTOR(WeakHomomorphicFixedArray, HeapObjectRef)
+
+  IndirectHandle<WeakHomomorphicFixedArray> object() const;
+
+  SafeHeapObjectSize length() const;
 };
 
 class BytecodeArrayRef : public HeapObjectRef {
@@ -1095,7 +1125,7 @@ class BytecodeArrayRef : public HeapObjectRef {
 
   // Exception handler table.
   Address handler_table_address() const;
-  int handler_table_size() const;
+  uint32_t handler_table_size() const;
 };
 
 class ScriptContextTableRef : public FixedArrayBaseRef {
@@ -1147,13 +1177,20 @@ class ScopeInfoRef : public HeapObjectRef {
   IndirectHandle<ScopeInfo> object() const;
 
   int ContextLength() const;
+  int ContextHeaderLength() const;
+  int FunctionContextSlotIndex() const;
+  int ReceiverContextSlotIndex() const;
+  MaybeAssignedFlag ContextLocalMaybeAssignedFlag(int var) const;
+  VariableMode ContextLocalMode(int var) const;
   bool HasContext() const;
   bool HasOuterScopeInfo() const;
   bool HasContextExtensionSlot() const;
   bool SomeContextHasExtension() const;
   bool ClassScopeHasPrivateBrand() const;
   bool SloppyEvalCanExtendVars() const;
+  bool HasAllocatedReceiver() const;
   ScopeType scope_type() const;
+  FunctionKind function_kind() const;
 
   ScopeInfoRef OuterScopeInfo(JSHeapBroker* broker) const;
 };
@@ -1189,6 +1226,7 @@ class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
   OptionalFunctionTemplateInfoRef function_template_info(
       JSHeapBroker* broker) const;
   ScopeInfoRef scope_info(JSHeapBroker* broker) const;
+  bool is_toplevel() const;
 
   // TODO(370343328): The compiler should not rely on the parameter count
   // stored on the SFI but instead use the parameter count from the

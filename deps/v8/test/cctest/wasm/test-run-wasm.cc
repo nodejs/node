@@ -1023,21 +1023,25 @@ WASM_EXEC_TEST(Select_float_parameters) {
 
 WASM_EXEC_TEST(Select_s128_parameters) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
-  int32_t* g0 = r.builder().AddGlobal<int32_t>(kWasmS128);
-  int32_t* g1 = r.builder().AddGlobal<int32_t>(kWasmS128);
-  int32_t* output = r.builder().AddGlobal<int32_t>(kWasmS128);
+  const WasmGlobal* g0 = r.builder().AddGlobal(kWasmS128);
+  const WasmGlobal* g1 = r.builder().AddGlobal(kWasmS128);
+  const WasmGlobal* output = r.builder().AddGlobal(kWasmS128);
   // select(v128(0, 1, 2, 3), v128(4, 5, 6, 7), 1) == v128(0, 1, 2, 3)
+  std::array<int32_t, 4> g0_val, g1_val;
   for (int i = 0; i < 4; i++) {
-    LANE(g0, i) = i;
-    LANE(g1, i) = i + 4;
+    LANE(g0_val, i) = i;
+    LANE(g1_val, i) = i + 4;
   }
+  r.builder().WriteGlobal(*g0, WasmValue(Simd128(g0_val)));
+  r.builder().WriteGlobal(*g1, WasmValue(Simd128(g1_val)));
   r.Build(
       {WASM_GLOBAL_SET(2, WASM_SELECT(WASM_GLOBAL_GET(0), WASM_GLOBAL_GET(1),
                                       WASM_LOCAL_GET(0))),
        WASM_ONE});
   r.Call(1);
+  Simd128 actual = r.builder().ReadGlobal(*output).to_s128();
   for (int i = 0; i < 4; i++) {
-    CHECK_EQ(i, LANE(output, i));
+    CHECK_EQ(i, LANE(actual.to_i32x4(), i));
   }
 }
 
@@ -2414,17 +2418,18 @@ WASM_EXEC_TEST(Int32LoadInt16_zeroext) {
 
 WASM_EXEC_TEST(Int32Global) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
-  int32_t* global = r.builder().AddGlobal<int32_t>();
+  const WasmGlobal* global = r.builder().AddGlobal(kWasmI32);
   // global = global + p0
   r.Build(
       {WASM_GLOBAL_SET(0, WASM_I32_ADD(WASM_GLOBAL_GET(0), WASM_LOCAL_GET(0))),
        WASM_ZERO});
 
-  *global = 116;
+  r.builder().WriteGlobal(*global, WasmValue(int32_t{116}));
   for (int i = 9; i < 444444; i += 111111) {
-    int32_t expected = *global + i;
+    int32_t global_val = r.builder().ReadGlobal(*global).to_i32();
+    int32_t expected = global_val + i;
     r.Call(i);
-    CHECK_EQ(expected, *global);
+    CHECK_EQ(expected, r.builder().ReadGlobal(*global).to_i32());
   }
 }
 
@@ -2433,25 +2438,28 @@ WASM_EXEC_TEST(Int32Globals_DontAlias) {
   for (int g = 0; g < kNumGlobals; ++g) {
     // global = global + p0
     WasmRunner<int32_t, int32_t> r(execution_tier);
-    int32_t* globals[] = {r.builder().AddGlobal<int32_t>(),
-                          r.builder().AddGlobal<int32_t>(),
-                          r.builder().AddGlobal<int32_t>()};
+    const WasmGlobal* globals[] = {r.builder().AddGlobal(kWasmI32),
+                                   r.builder().AddGlobal(kWasmI32),
+                                   r.builder().AddGlobal(kWasmI32)};
 
     r.Build({WASM_GLOBAL_SET(
                  g, WASM_I32_ADD(WASM_GLOBAL_GET(g), WASM_LOCAL_GET(0))),
              WASM_GLOBAL_GET(g)});
 
     // Check that reading/writing global number {g} doesn't alter the others.
-    *(globals[g]) = 116 * g;
+    r.builder().WriteGlobal(*globals[g], WasmValue(int32_t{116 * g}));
     int32_t before[kNumGlobals];
     for (int i = 9; i < 444444; i += 111113) {
-      int32_t sum = *(globals[g]) + i;
-      for (int j = 0; j < kNumGlobals; ++j) before[j] = *(globals[j]);
+      int32_t global_g_val = r.builder().ReadGlobal(*globals[g]).to_i32();
+      int32_t sum = global_g_val + i;
+      for (int j = 0; j < kNumGlobals; ++j) {
+        before[j] = r.builder().ReadGlobal(*globals[j]).to_i32();
+      }
       int32_t result = r.Call(i);
       CHECK_EQ(sum, result);
       for (int j = 0; j < kNumGlobals; ++j) {
         int32_t expected = j == g ? sum : before[j];
-        CHECK_EQ(expected, *(globals[j]));
+        CHECK_EQ(expected, r.builder().ReadGlobal(*globals[j]).to_i32());
       }
     }
   }
@@ -2459,48 +2467,50 @@ WASM_EXEC_TEST(Int32Globals_DontAlias) {
 
 WASM_EXEC_TEST(Float32Global) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
-  float* global = r.builder().AddGlobal<float>();
+  const WasmGlobal* global = r.builder().AddGlobal(kWasmF32);
   // global = global + p0
   r.Build({WASM_GLOBAL_SET(
                0, WASM_F32_ADD(WASM_GLOBAL_GET(0),
                                WASM_F32_SCONVERT_I32(WASM_LOCAL_GET(0)))),
            WASM_ZERO});
 
-  *global = 1.25;
+  r.builder().WriteGlobal(*global, WasmValue(1.25f));
   for (int i = 9; i < 4444; i += 1111) {
-    volatile float expected = *global + i;
+    float global_val = r.builder().ReadGlobal(*global).to_f32();
+    volatile float expected = global_val + i;
     r.Call(i);
-    CHECK_EQ(expected, *global);
+    CHECK_EQ(expected, r.builder().ReadGlobal(*global).to_f32());
   }
 }
 
 WASM_EXEC_TEST(Float64Global) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
-  double* global = r.builder().AddGlobal<double>();
+  const WasmGlobal* global = r.builder().AddGlobal(kWasmF64);
   // global = global + p0
   r.Build({WASM_GLOBAL_SET(
                0, WASM_F64_ADD(WASM_GLOBAL_GET(0),
                                WASM_F64_SCONVERT_I32(WASM_LOCAL_GET(0)))),
            WASM_ZERO});
 
-  *global = 1.25;
+  r.builder().WriteGlobal(*global, WasmValue(1.25));
   for (int i = 9; i < 4444; i += 1111) {
-    volatile double expected = *global + i;
+    double global_val = r.builder().ReadGlobal(*global).to_f64();
+    volatile double expected = global_val + i;
     r.Call(i);
-    CHECK_EQ(expected, *global);
+    CHECK_EQ(expected, r.builder().ReadGlobal(*global).to_f64());
   }
 }
 
 WASM_EXEC_TEST(MixedGlobals) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
 
-  int32_t* unused = r.builder().AddGlobal<int32_t>();
+  const WasmGlobal* unused = r.builder().AddGlobal(kWasmI32);
   uint8_t* memory = r.builder().AddMemory(kWasmPageSize);
 
-  int32_t* var_int32 = r.builder().AddGlobal<int32_t>();
-  uint32_t* var_uint32 = r.builder().AddGlobal<uint32_t>();
-  float* var_float = r.builder().AddGlobal<float>();
-  double* var_double = r.builder().AddGlobal<double>();
+  const WasmGlobal* var_int32 = r.builder().AddGlobal(kWasmI32);
+  const WasmGlobal* var_uint32 = r.builder().AddGlobal(kWasmI32);
+  const WasmGlobal* var_float = r.builder().AddGlobal(kWasmF32);
+  const WasmGlobal* var_double = r.builder().AddGlobal(kWasmF64);
 
   r.Build({WASM_GLOBAL_SET(1, WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO)),
            WASM_GLOBAL_SET(2, WASM_LOAD_MEM(MachineType::Uint32(), WASM_ZERO)),
@@ -2518,10 +2528,14 @@ WASM_EXEC_TEST(MixedGlobals) {
   memory[7] = 0x99;
   r.Call(1);
 
-  CHECK_EQ(static_cast<int32_t>(0xEE55CCAA), *var_int32);
-  CHECK_EQ(static_cast<uint32_t>(0xEE55CCAA), *var_uint32);
-  CHECK_EQ(base::bit_cast<float>(0xEE55CCAA), *var_float);
-  CHECK_EQ(base::bit_cast<double>(0x99112233EE55CCAAULL), *var_double);
+  CHECK_EQ(static_cast<int32_t>(0xEE55CCAA),
+           r.builder().ReadGlobal(*var_int32).to_i32());
+  CHECK_EQ(static_cast<uint32_t>(0xEE55CCAA),
+           r.builder().ReadGlobal(*var_uint32).to_u32());
+  CHECK_EQ(base::bit_cast<float>(0xEE55CCAA),
+           r.builder().ReadGlobal(*var_float).to_f32());
+  CHECK_EQ(base::bit_cast<double>(0x99112233EE55CCAAULL),
+           r.builder().ReadGlobal(*var_double).to_f64());
 
   USE(unused);
 }
@@ -3887,7 +3901,8 @@ WASM_EXEC_TEST(IndirectNullTyped) {
   FunctionSig sig(1, 0, &kI32);
   ModuleTypeIndex sig_index = r.builder().AddSignature(&sig);
   r.builder().AddIndirectFunctionTable(
-      nullptr, 1, ValueType::RefNull(sig_index, false, RefTypeKind::kFunction));
+      nullptr, 1,
+      ValueType::RefNull(sig_index, SharedFlag::kNo, RefTypeKind::kFunction));
 
   r.Build({WASM_CALL_INDIRECT(sig_index, WASM_I32V(0))});
 

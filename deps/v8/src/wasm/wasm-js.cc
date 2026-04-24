@@ -1165,12 +1165,12 @@ template <typename... Args>
 Local<FixedArray> MakeInternalFixedArray(i::Isolate* i_isolate, Args... args) {
   i::DirectHandle<i::FixedArray> fixed_array =
       i_isolate->factory()->NewFixedArray(sizeof...(args));
-  int index = 0;
+  uint32_t index = 0;
   auto add = [&](Local<Data> obj) {
     fixed_array->set(index++, *Utils::OpenHandle(*obj));
   };
   (add(args), ...);
-  DCHECK_EQ(fixed_array->length(), index);
+  DCHECK_EQ(fixed_array->ulength().value(), index);
   return Utils::FixedArrayToLocal(fixed_array);
 }
 
@@ -1714,11 +1714,10 @@ void WebAssemblyMemoryImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return js_api_scope.AssertException();
   }
 
-  auto shared = value->BooleanValue(isolate) ? i::SharedFlag::kShared
-                                             : i::SharedFlag::kNotShared;
+  i::SharedFlag shared = i::SharedFlag(value->BooleanValue(isolate));
 
   // Throw TypeError if shared is true, and the descriptor has no "maximum".
-  if (shared == i::SharedFlag::kShared && !maybe_maximum.has_value()) {
+  if (shared == i::SharedFlag::kYes && !maybe_maximum.has_value()) {
     thrower.TypeError("If shared is true, maximum property should be defined.");
     return;
   }
@@ -1841,8 +1840,7 @@ std::optional<i::wasm::ValueType> GetValueType(
     return i::wasm::kWasmArrayRef;
   } else if (string->IsEqualTo(base::CStrVector("i31ref"))) {
     return i::wasm::kWasmI31Ref;
-  } else if (enabled_features.has_exnref() &&
-             string->IsEqualTo(base::CStrVector("exnref"))) {
+  } else if (string->IsEqualTo(base::CStrVector("exnref"))) {
     return i::wasm::kWasmExnRef;
   }
   // Unrecognized type.
@@ -1890,7 +1888,7 @@ bool ToF64(Local<v8::Value> value, Local<Context> context, double* f64_value) {
 }
 }  // namespace
 
-// WebAssembly.Global
+// new WebAssembly.Global(descriptor[, value])
 void WebAssemblyGlobalImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   WasmJSApiScope js_api_scope{info, "WebAssembly.Global()"};
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
@@ -1943,8 +1941,8 @@ void WebAssemblyGlobalImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   i::MaybeDirectHandle<i::WasmGlobalObject> maybe_global_obj =
       i::WasmGlobalObject::New(
           i_isolate, i::DirectHandle<i::WasmTrustedInstanceData>(),
-          i::MaybeDirectHandle<i::JSArrayBuffer>(),
-          i::MaybeDirectHandle<i::FixedArray>(), type, offset, is_mutable);
+          i::MaybeDirectHandle<i::WasmGlobalObject::BufferType>(), type, offset,
+          is_mutable);
 
   i::DirectHandle<i::WasmGlobalObject> global_obj;
   if (!maybe_global_obj.ToHandle(&global_obj)) {
@@ -2035,6 +2033,7 @@ void WebAssemblyGlobalImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     case i::wasm::kI8:
     case i::wasm::kI16:
     case i::wasm::kF16:
+    case i::wasm::kWaitQueue:
     case i::wasm::kVoid:
     case i::wasm::kTop:
     case i::wasm::kBottom:
@@ -2207,6 +2206,7 @@ V8_WARN_UNUSED_RESULT bool EncodeExceptionValues(
       case i::wasm::kI8:
       case i::wasm::kI16:
       case i::wasm::kF16:
+      case i::wasm::kWaitQueue:
       case i::wasm::kVoid:
       case i::wasm::kTop:
       case i::wasm::kBottom:
@@ -2322,7 +2322,6 @@ i::DirectHandle<i::JSFunction> NewPromisingWasmExportedFunction(
 
   int num_imported_functions = module->num_imported_functions;
   i::DirectHandle<i::TrustedObject> implicit_arg;
-  constexpr bool kShared = false;
   if (func_index >= num_imported_functions) {
     implicit_arg = trusted_instance_data;
   } else {
@@ -2331,15 +2330,15 @@ i::DirectHandle<i::JSFunction> NewPromisingWasmExportedFunction(
                           trusted_instance_data->dispatch_table_for_imports()
                               ->implicit_arg(func_index)),
                       i_isolate),
-        kShared);
+        i::SharedFlag::kNo);
   }
 
   i::DirectHandle<i::WasmInternalFunction> internal =
       i_isolate->factory()->NewWasmInternalFunction(
-          implicit_arg, func_index, kShared,
+          implicit_arg, func_index, i::SharedFlag::kNo,
           trusted_instance_data->GetCallTarget(func_index), sig);
   i::DirectHandle<i::WasmFuncRef> func_ref =
-      i_isolate->factory()->NewWasmFuncRef(internal, rtt, kShared);
+      i_isolate->factory()->NewWasmFuncRef(internal, rtt, i::SharedFlag::kNo);
   if (func_index < num_imported_functions) {
     i::TrustedCast<i::WasmImportData>(implicit_arg)->set_call_origin(*internal);
   }
@@ -2691,6 +2690,10 @@ V8_WARN_UNUSED_RESULT bool WasmObjectToJSReturnValue(
       default:
         break;
     }
+  } else if (unsafe_type.has_index() &&
+             unsafe_type.ref_type_kind() == i::wasm::RefTypeKind::kCont) {
+    thrower->TypeError("invalid type %s", unsafe_type.name().c_str());
+    return false;
   }
   return_value.Set(Utils::ToLocal(i::wasm::WasmToJSObject(isolate, value)));
   return true;
@@ -2902,7 +2905,6 @@ void WebAssemblyMemoryToResizableBufferImpl(
   WasmJSApiScope js_api_scope{info, "WebAssembly.Memory.toResizableBuffer()"};
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
   EXTRACT_THIS(receiver, WasmMemoryObject);
-  i_isolate->CountUsage(v8::Isolate::UseCounterFeature::kWasmResizableBuffers);
 
   if (!receiver->has_maximum_pages()) {
     thrower.TypeError("Memory must have a maximum");
@@ -2931,7 +2933,7 @@ void WebAssemblyMemoryType(const v8::FunctionCallbackInfo<v8::Value>& info) {
     DCHECK_LE(max_size64, std::numeric_limits<uint32_t>::max());
     max_size.emplace(static_cast<uint32_t>(max_size64));
   }
-  bool shared = backing_store->is_shared();
+  i::SharedFlag shared = i::SharedFlag(backing_store->is_shared());
   auto type = i::wasm::GetTypeForMemory(i_isolate, min_size, max_size, shared,
                                         memory->address_type());
   info.GetReturnValue().Set(Utils::ToLocal(type));
@@ -3042,6 +3044,7 @@ void WebAssemblyExceptionGetArgImpl(
       case i::wasm::kI8:
       case i::wasm::kI16:
       case i::wasm::kF16:
+      case i::wasm::kWaitQueue:
       case i::wasm::kVoid:
       case i::wasm::kTop:
       case i::wasm::kBottom:
@@ -3095,6 +3098,7 @@ void WebAssemblyExceptionGetArgImpl(
     case i::wasm::kI8:
     case i::wasm::kI16:
     case i::wasm::kF16:
+    case i::wasm::kWaitQueue:
     case i::wasm::kVoid:
     case i::wasm::kTop:
     case i::wasm::kBottom:
@@ -3117,6 +3121,15 @@ void WebAssemblyExceptionIsImpl(
     return js_api_scope.AssertException();
   }
   info.GetReturnValue().Set(tag_object->tag() == *tag);
+}
+
+void WebAssemblyExceptionGetStackImpl(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  WasmJSApiScope js_api_scope{info, "WebAssembly.Exception.stack()"};
+  auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
+  EXTRACT_THIS(exception, WasmExceptionPackage);
+
+  info.GetReturnValue().Set(v8::Undefined(isolate));
 }
 
 void WebAssemblyGlobalGetValueCommon(WasmJSApiScope& js_api_scope) {
@@ -3155,6 +3168,7 @@ void WebAssemblyGlobalGetValueCommon(WasmJSApiScope& js_api_scope) {
     case i::wasm::kI8:
     case i::wasm::kI16:
     case i::wasm::kF16:
+    case i::wasm::kWaitQueue:
     case i::wasm::kTop:
     case i::wasm::kBottom:
     case i::wasm::kVoid:
@@ -3187,17 +3201,14 @@ void WebAssemblyGlobalSetValueImpl(
     thrower.TypeError("Can't set the value of an immutable global.");
     return;
   }
-  if (info.Length() == 0) {
-    thrower.TypeError("Argument 0 is required");
-    return;
-  }
 
+  Local<Value> value = info[0];  // potentially `undefined`.
   Local<Context> context = isolate->GetCurrentContext();
   i::wasm::ValueType unsafe_type = receiver->unsafe_type();
   switch (unsafe_type.kind()) {
     case i::wasm::kI32: {
       int32_t i32_value = 0;
-      if (!info[0]->Int32Value(context).To(&i32_value)) {
+      if (!value->Int32Value(context).To(&i32_value)) {
         return js_api_scope.AssertException();
       }
       receiver->SetI32(i32_value);
@@ -3205,7 +3216,7 @@ void WebAssemblyGlobalSetValueImpl(
     }
     case i::wasm::kI64: {
       v8::Local<v8::BigInt> bigint_value;
-      if (!info[0]->ToBigInt(context).ToLocal(&bigint_value)) {
+      if (!value->ToBigInt(context).ToLocal(&bigint_value)) {
         return js_api_scope.AssertException();
       }
       receiver->SetI64(bigint_value->Int64Value());
@@ -3213,7 +3224,7 @@ void WebAssemblyGlobalSetValueImpl(
     }
     case i::wasm::kF32: {
       double f64_value = 0;
-      if (!info[0]->NumberValue(context).To(&f64_value)) {
+      if (!value->NumberValue(context).To(&f64_value)) {
         return js_api_scope.AssertException();
       }
       receiver->SetF32(i::DoubleToFloat32(f64_value));
@@ -3221,7 +3232,7 @@ void WebAssemblyGlobalSetValueImpl(
     }
     case i::wasm::kF64: {
       double f64_value = 0;
-      if (!info[0]->NumberValue(context).To(&f64_value)) {
+      if (!value->NumberValue(context).To(&f64_value)) {
         return js_api_scope.AssertException();
       }
       receiver->SetF64(f64_value);
@@ -3236,20 +3247,21 @@ void WebAssemblyGlobalSetValueImpl(
           receiver->has_trusted_data()
               ? receiver->trusted_data(i_isolate)->module()
               : nullptr;
-      i::DirectHandle<i::Object> value = Utils::OpenDirectHandle(*info[0]);
+      i::DirectHandle<i::Object> value_handle = Utils::OpenDirectHandle(*value);
       const char* error_message;
-      if (!i::wasm::JSToWasmObject(i_isolate, module, value, unsafe_type,
+      if (!i::wasm::JSToWasmObject(i_isolate, module, value_handle, unsafe_type,
                                    &error_message)
-               .ToHandle(&value)) {
+               .ToHandle(&value_handle)) {
         thrower.TypeError("%s", error_message);
         return;
       }
-      receiver->SetRef(value);
+      receiver->SetRef(value_handle);
       return;
     }
     case i::wasm::kI8:
     case i::wasm::kI16:
     case i::wasm::kF16:
+    case i::wasm::kWaitQueue:
     case i::wasm::kTop:
     case i::wasm::kBottom:
     case i::wasm::kVoid:
@@ -3521,6 +3533,10 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
     InstallFunc(isolate, memory_proto, "grow", wasm::WebAssemblyMemoryGrow, 1);
     InstallGetter(isolate, memory_proto, "buffer",
                   wasm::WebAssemblyMemoryGetBuffer);
+    InstallFunc(isolate, memory_proto, "toFixedLengthBuffer",
+                wasm::WebAssemblyMemoryToFixedLengthBuffer, 0);
+    InstallFunc(isolate, memory_proto, "toResizableBuffer",
+                wasm::WebAssemblyMemoryToResizableBuffer, 0);
   }
 
   // Create the Global object.
@@ -3562,6 +3578,7 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
   {
     DirectHandle<JSFunction> exception_constructor = InstallConstructorFunc(
         isolate, webassembly, "Exception", wasm::WebAssemblyException);
+    exception_constructor->shared()->set_length(2);
     SetDummyInstanceTemplate(isolate, exception_constructor);
     DirectHandle<JSObject> exception_proto = SetupConstructor(
         isolate, exception_constructor, WASM_EXCEPTION_PACKAGE_TYPE,
@@ -3571,22 +3588,27 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
                 wasm::WebAssemblyExceptionGetArg, 2);
     InstallFunc(isolate, exception_proto, "is", wasm::WebAssemblyExceptionIs,
                 1);
+    InstallGetter(isolate, exception_proto, "stack",
+                  wasm::WebAssemblyExceptionGetStack);
     native_context->set_wasm_exception_constructor(*exception_constructor);
 
     DirectHandle<Map> initial_map(exception_constructor->initial_map(),
                                   isolate);
     Map::EnsureDescriptorSlack(isolate, initial_map, 2);
     {
-      Descriptor d = Descriptor::DataField(
-          isolate, f->wasm_exception_tag_symbol(),
-          WasmExceptionPackage::kTagIndex, DONT_ENUM, Representation::Tagged());
+      Descriptor d =
+          Descriptor::DataField(isolate, f->wasm_exception_tag_symbol(),
+                                initial_map->GetInObjectPropertyOffset(
+                                    WasmExceptionPackage::kTagIndex),
+                                DONT_ENUM, Representation::Tagged(), true);
       initial_map->AppendDescriptor(isolate, &d);
     }
     {
       Descriptor d =
           Descriptor::DataField(isolate, f->wasm_exception_values_symbol(),
-                                WasmExceptionPackage::kValuesIndex, DONT_ENUM,
-                                Representation::Tagged());
+                                initial_map->GetInObjectPropertyOffset(
+                                    WasmExceptionPackage::kValuesIndex),
+                                DONT_ENUM, Representation::Tagged(), true);
       initial_map->AppendDescriptor(isolate, &d);
     }
   }
@@ -3748,10 +3770,6 @@ void WasmJs::Install(Isolate* isolate) {
     isolate->WasmInitJSPIFeature();
     InstallJSPromiseIntegration(isolate, native_context, webassembly);
     native_context->set_is_wasm_jspi_installed(Smi::FromInt(1));
-  }
-
-  if (enabled_features.has_rab_integration()) {
-    InstallResizableBufferIntegration(isolate, native_context, webassembly);
   }
 }
 
@@ -3928,23 +3946,6 @@ bool WasmJs::InstallTypeReflection(Isolate* isolate,
   // Make all exported functions an instance of {WebAssembly.Function}.
   context->set_wasm_exported_function_map(*function_map);
   return true;
-}
-
-// static
-void WasmJs::InstallResizableBufferIntegration(
-    Isolate* isolate, DirectHandle<NativeContext> context,
-    DirectHandle<JSObject> webassembly) {
-  // Extensibility of the `WebAssembly` object should already have been checked
-  // by the caller.
-  DCHECK(webassembly->map()->is_extensible());
-
-  DirectHandle<JSObject> memory_proto = direct_handle(
-      Cast<JSObject>(context->wasm_memory_constructor()->instance_prototype()),
-      isolate);
-  InstallFunc(isolate, memory_proto, "toFixedLengthBuffer",
-              wasm::WebAssemblyMemoryToFixedLengthBuffer, 0);
-  InstallFunc(isolate, memory_proto, "toResizableBuffer",
-              wasm::WebAssemblyMemoryToResizableBuffer, 0);
 }
 
 // static

@@ -12,6 +12,7 @@
 #include "src/base/bit-field.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
+#include "src/objects/intl-objects.h"
 #include "src/objects/js-segmenter.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects.h"
@@ -19,11 +20,6 @@
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
-
-namespace U_ICU_NAMESPACE {
-class BreakIterator;
-class UnicodeString;
-}  // namespace U_ICU_NAMESPACE
 
 namespace v8 {
 namespace internal {
@@ -33,13 +29,13 @@ namespace internal {
 class JSSegmentIterator
     : public TorqueGeneratedJSSegmentIterator<JSSegmentIterator, JSObject> {
  public:
-  // ecma402 #sec-CreateSegmentIterator
+  // https://tc39.es/ecma402/#sec-CreateSegmentIterator
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSSegmentIterator> Create(
       Isolate* isolate, DirectHandle<String> input_string,
-      DirectHandle<Managed<icu::BreakIterator>> incoming_break_iterator,
+      const icu::BreakIterator& incoming_break_iterator,
       JSSegmenter::Granularity granularity);
 
-  // ecma402 #sec-segment-iterator-prototype-next
+  // https://tc39.es/ecma402/#sec-segment-iterator-prototype-next
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSReceiver> Next(
       Isolate* isolate,
       DirectHandle<JSSegmentIterator> segment_iterator_holder);
@@ -47,9 +43,9 @@ class JSSegmentIterator
   Handle<String> GranularityAsString(Isolate* isolate) const;
 
   // SegmentIterator accessors.
-  DECL_ACCESSORS(icu_break_iterator, Tagged<Managed<icu::BreakIterator>>)
+  DECL_ACCESSORS(icu_iterator_with_text,
+                 Tagged<Managed<IcuBreakIteratorWithText>>)
   DECL_ACCESSORS(raw_string, Tagged<String>)
-  DECL_ACCESSORS(unicode_string, Tagged<Managed<icu::UnicodeString>>)
 
   DECL_PRINTER(JSSegmentIterator)
 

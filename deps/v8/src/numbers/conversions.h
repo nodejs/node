@@ -180,7 +180,7 @@ ImplicitOctalStringToDouble(base::Vector<const uint8_t> str);
 
 double StringToInt(Isolate* isolate, DirectHandle<String> string, int radix);
 
-// This follows https://tc39.github.io/proposal-bigint/#sec-string-to-bigint
+// This follows https://tc39.es/proposal-bigint/#sec-string-to-bigint
 // semantics: "" => 0n.
 MaybeHandle<BigInt> StringToBigInt(Isolate* isolate,
                                    DirectHandle<String> string);

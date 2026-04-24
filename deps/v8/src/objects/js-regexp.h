@@ -30,39 +30,41 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   DEFINE_TORQUE_GENERATED_JS_REG_EXP_FLAGS()
 
   V8_EXPORT_PRIVATE static MaybeDirectHandle<JSRegExp> New(
-      Isolate* isolate, DirectHandle<String> source, Flags flags,
+      Isolate* isolate, DirectHandle<String> original_source, Flags flags,
       uint32_t backtrack_limit = kNoBacktrackLimit);
 
   static MaybeDirectHandle<JSRegExp> Initialize(
       Isolate* isolate, DirectHandle<JSRegExp> regexp,
-      DirectHandle<String> source, Flags flags,
+      DirectHandle<String> original_source, Flags flags,
       uint32_t backtrack_limit = kNoBacktrackLimit);
   static MaybeDirectHandle<JSRegExp> Initialize(
       Isolate* isolate, DirectHandle<JSRegExp> regexp,
-      DirectHandle<String> source, DirectHandle<String> flags_string);
+      DirectHandle<String> original_source, DirectHandle<String> flags_string);
 
   DECL_ACCESSORS(last_index, Tagged<Object>)
 
   // Instance fields accessors.
-  inline Tagged<String> source() const;
+  // Returns the escaped source as specced by
+  // https://tc39.es/ecma262/#sec-escaperegexppattern.
+  inline Tagged<String> source(IsolateForSandbox isolate) const;
   inline Flags flags() const;
 
   DECL_TRUSTED_POINTER_ACCESSORS(data, RegExpData)
 
-  static constexpr Flag AsJSRegExpFlag(RegExpFlag f) {
+  static constexpr Flag AsJSRegExpFlag(regexp::Flag f) {
     return static_cast<Flag>(f);
   }
-  static constexpr Flags AsJSRegExpFlags(RegExpFlags f) {
+  static constexpr Flags AsJSRegExpFlags(regexp::Flags f) {
     return Flags{static_cast<int>(f)};
   }
-  static constexpr RegExpFlags AsRegExpFlags(Flags f) {
-    return RegExpFlags{static_cast<int>(f)};
+  static constexpr regexp::Flags AsRegExpFlags(Flags f) {
+    return regexp::Flags{static_cast<int>(f)};
   }
 
-  static std::optional<RegExpFlag> FlagFromChar(char c) {
-    std::optional<RegExpFlag> f = TryRegExpFlagFromChar(c);
+  static std::optional<regexp::Flag> FlagFromChar(char c) {
+    std::optional<regexp::Flag> f = regexp::TryFlagFromChar(c);
     if (!f.has_value()) return f;
-    if (f.value() == RegExpFlag::kLinear &&
+    if (f.value() == regexp::Flag::kLinear &&
         !v8_flags.enable_experimental_regexp_engine) {
       return {};
     }
@@ -70,22 +72,20 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   }
 
   static_assert(static_cast<int>(kNone) == v8::RegExp::kNone);
-#define V(_, Camel, ...)                                             \
-  static_assert(static_cast<int>(k##Camel) == v8::RegExp::k##Camel); \
-  static_assert(static_cast<int>(k##Camel) ==                        \
-                static_cast<int>(RegExpFlag::k##Camel));
+#define V(_, Camel, ...)                                                   \
+  static_assert(static_cast<int>(Flag::k##Camel) == v8::RegExp::k##Camel); \
+  static_assert(static_cast<int>(Flag::k##Camel) ==                        \
+                static_cast<int>(regexp::Flag::k##Camel));
   REGEXP_FLAG_LIST(V)
 #undef V
   static_assert(kFlagCount == v8::RegExp::kFlagCount);
-  static_assert(kFlagCount == kRegExpFlagCount);
+  static_assert(kFlagCount == regexp::kFlagCount);
 
   static std::optional<Flags> FlagsFromString(Isolate* isolate,
                                               DirectHandle<String> flags);
 
   V8_EXPORT_PRIVATE static DirectHandle<String> StringFromFlags(
       Isolate* isolate, Flags flags);
-
-  inline Tagged<String> EscapedPattern();
 
   // Each capture (including the match itself) needs two registers.
   static constexpr int RegistersForCaptureCount(int count) {
@@ -107,13 +107,10 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   /* This is already an in-object field. */
   // TODO(v8:8944): improve handling of in-object fields
   static constexpr int kLastIndexOffset = kHeaderSize;
+  static constexpr int kInObjectFieldCount = 1;
 
   // The initial value of the last_index field on a new JSRegExp instance.
   static constexpr int kInitialLastIndexValue = 0;
-
-  // In-object fields.
-  static constexpr int kLastIndexFieldIndex = 0;
-  static constexpr int kInObjectFieldCount = 1;
 
   // The actual object size including in-object fields.
   static constexpr int kSize = kHeaderSize + kInObjectFieldCount * kTaggedSize;
@@ -166,7 +163,8 @@ class RegExpData : public ExposedTrustedObject {
   inline Type type_tag() const;
   inline void set_type_tag(Type);
 
-  DECL_ACCESSORS(source, Tagged<String>)
+  DECL_ACCESSORS(original_source, Tagged<String>)
+  DECL_ACCESSORS(escaped_source, Tagged<String>)
 
   inline JSRegExp::Flags flags() const;
   inline void set_flags(JSRegExp::Flags flags);
@@ -184,12 +182,13 @@ class RegExpData : public ExposedTrustedObject {
   DECL_PRINTER(RegExpData)
   DECL_VERIFIER(RegExpData)
 
-#define FIELD_LIST(V)            \
-  V(kTypeTagOffset, kTaggedSize) \
-  V(kSourceOffset, kTaggedSize)  \
-  V(kFlagsOffset, kTaggedSize)   \
-  V(kWrapperOffset, kTaggedSize) \
-  V(kHeaderSize, 0)              \
+#define FIELD_LIST(V)                   \
+  V(kTypeTagOffset, kTaggedSize)        \
+  V(kOriginalSourceOffset, kTaggedSize) \
+  V(kEscapedSourceOffset, kTaggedSize)  \
+  V(kFlagsOffset, kTaggedSize)          \
+  V(kWrapperOffset, kTaggedSize)        \
+  V(kHeaderSize, 0)                     \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(ExposedTrustedObject::kHeaderSize, FIELD_LIST)
@@ -324,16 +323,8 @@ class JSRegExpResult
   // JSRegExpResult, and maybe JSRegExpResultIndices, but both have the same
   // instance type as JSArray.
 
-  // Indices of in-object properties.
-  static constexpr int kIndexIndex = 0;
-  static constexpr int kInputIndex = 1;
-  static constexpr int kGroupsIndex = 2;
-
-  // Private internal only fields.
-  static constexpr int kNamesIndex = 3;
-  static constexpr int kRegExpInputIndex = 4;
-  static constexpr int kRegExpLastIndex = 5;
-  static constexpr int kInObjectPropertyCount = 6;
+  static constexpr int kInObjectPropertyCount =
+      (kSize - JSArray::kHeaderSize) / kTaggedSize;
 
   static constexpr int kMapIndexInContext = Context::REGEXP_RESULT_MAP_INDEX;
 
@@ -344,11 +335,8 @@ class JSRegExpResultWithIndices
     : public TorqueGeneratedJSRegExpResultWithIndices<JSRegExpResultWithIndices,
                                                       JSRegExpResult> {
  public:
-  static_assert(
-      JSRegExpResult::kInObjectPropertyCount == 6,
-      "JSRegExpResultWithIndices must be a subclass of JSRegExpResult");
-  static constexpr int kIndicesIndex = 6;
-  static constexpr int kInObjectPropertyCount = 7;
+  static constexpr int kInObjectPropertyCount =
+      (kSize - JSRegExpResult::kHeaderSize) / kTaggedSize;
 
   TQ_OBJECT_CONSTRUCTORS(JSRegExpResultWithIndices)
 };
@@ -367,9 +355,8 @@ class JSRegExpResultIndices
       Isolate* isolate, DirectHandle<RegExpMatchInfo> match_info,
       DirectHandle<Object> maybe_names);
 
-  // Indices of in-object properties.
-  static constexpr int kGroupsIndex = 0;
-  static constexpr int kInObjectPropertyCount = 1;
+  static constexpr int kInObjectPropertyCount =
+      (kSize - JSArray::kHeaderSize) / kTaggedSize;
 
   // Descriptor index of groups.
   static constexpr int kGroupsDescriptorIndex = 1;

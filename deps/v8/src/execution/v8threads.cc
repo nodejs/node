@@ -161,7 +161,7 @@ static int ArchiveSpacePerThread() {
   return HandleScopeImplementer::ArchiveSpacePerThread() +
          Isolate::ArchiveSpacePerThread() + Debug::ArchiveSpacePerThread() +
          StackGuard::ArchiveSpacePerThread() +
-         RegExpStack::ArchiveSpacePerThread() +
+         regexp::Stack::ArchiveSpacePerThread() +
          Bootstrapper::ArchiveSpacePerThread() +
          Relocatable::ArchiveSpacePerThread();
 }

@@ -67,7 +67,7 @@ async function instantiateWasm() {
   var builder = new WasmModuleBuilder();
   builder.startRecGroup();
   let struct_type = builder.addStruct([makeField(kWasmI32, false)]);
-  let array_type = builder.addArray(kWasmI32);
+  let array_type = builder.addArray(kWasmI32, {mutable: false});
   let imported_ref_table =
       builder.addImportedTable('import', 'any_table', 4, 4, kWasmAnyRef);
   let imported_func_table =

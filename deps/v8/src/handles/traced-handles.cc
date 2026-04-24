@@ -820,17 +820,11 @@ Tagged<Object> TracedHandles::Mark(Address* location, MarkMode mark_mode) {
 }
 
 // static
-Tagged<Object> TracedHandles::MarkConservatively(
-    Address* inner_location, Address* traced_node_block_base,
-    MarkMode mark_mode) {
-  // Compute the `TracedNode` address based on its inner pointer.
-  const ptrdiff_t delta = reinterpret_cast<uintptr_t>(inner_location) -
-                          reinterpret_cast<uintptr_t>(traced_node_block_base);
-  const auto index = delta / sizeof(TracedNode);
-  TracedNode& node =
-      reinterpret_cast<TracedNode*>(traced_node_block_base)[index];
-  if (!node.is_in_use()) return Smi::zero();
-  return MarkObject(node.object(), node, mark_mode);
+Tagged<Object> TracedHandles::MarkConservatively(TracedNode* node,
+                                                 MarkMode mark_mode) {
+  DCHECK_NOT_NULL(node);
+  DCHECK(node->is_in_use());
+  return MarkObject(node->object(), *node, mark_mode);
 }
 
 bool TracedHandles::IsValidInUseNode(const Address* location) {
@@ -844,5 +838,39 @@ bool TracedHandles::IsValidInUseNode(const Address* location) {
 }
 
 bool TracedHandles::HasYoung() const { return !young_blocks_.empty(); }
+
+ConservativeTracedHandlesNodeScanner::ConservativeTracedHandlesNodeScanner(
+    Isolate* isolate)
+    : traced_node_bounds_(isolate->traced_handles()->GetNodeBounds()) {}
+
+// static
+TracedNode* ConservativeTracedHandlesNodeScanner::TryGetNodeFromInnerPointer(
+    Address* inner_location, Address* traced_node_block_base) {
+  // Compute the `TracedNode` address based on its inner pointer.
+  const ptrdiff_t delta = reinterpret_cast<uintptr_t>(inner_location) -
+                          reinterpret_cast<uintptr_t>(traced_node_block_base);
+  const auto index = delta / sizeof(TracedNode);
+  TracedNode& node =
+      reinterpret_cast<TracedNode*>(traced_node_block_base)[index];
+  if (!node.is_in_use()) return nullptr;
+  return &node;
+}
+
+TracedNode* ConservativeTracedHandlesNodeScanner::TryFindNode(
+    const void* hint) const {
+  const auto upper_it = std::upper_bound(
+      traced_node_bounds_.begin(), traced_node_bounds_.end(), hint,
+      [](const void* needle, const auto& pair) { return needle < pair.first; });
+  // Also checks emptiness as begin() == end() on empty bounds.
+  if (upper_it == traced_node_bounds_.begin()) return nullptr;
+
+  const auto bounds = std::next(upper_it, -1);
+  if (hint < bounds->second) {
+    return TryGetNodeFromInnerPointer(
+        const_cast<Address*>(reinterpret_cast<const Address*>(hint)),
+        const_cast<Address*>(reinterpret_cast<const Address*>(bounds->first)));
+  }
+  return nullptr;
+}
 
 }  // namespace v8::internal

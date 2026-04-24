@@ -58,7 +58,7 @@ base::uc32 NextCodePoint(Isolate* isolate, BuiltinArguments args, int index) {
 
 }  // namespace
 
-// ES6 section 21.1.2.2 String.fromCodePoint ( ...codePoints )
+// https://tc39.es/ecma262/#sec-string.fromcodepoint
 BUILTIN(StringFromCodePoint) {
   HandleScope scope(isolate);
   int const length = args.length() - 1;
@@ -124,8 +124,7 @@ BUILTIN(StringFromCodePoint) {
   return *result;
 }
 
-// ES6 section 21.1.3.9
-// String.prototype.lastIndexOf ( searchString [ , position ] )
+// https://tc39.es/ecma262/#sec-string.prototype.lastindexof
 BUILTIN(StringPrototypeLastIndexOf) {
   HandleScope handle_scope(isolate);
   return String::LastIndexOf(isolate, args.receiver(),
@@ -134,7 +133,7 @@ BUILTIN(StringPrototypeLastIndexOf) {
 }
 
 #ifndef V8_INTL_SUPPORT
-// ES6 section 21.1.3.10 String.prototype.localeCompare ( that )
+// https://tc39.es/ecma262/#sec-string.prototype.localecompare
 //
 // For now, we do not do anything locale specific.
 // If internationalization is enabled, then intl.js will override this function
@@ -431,7 +430,7 @@ BUILTIN(StringPrototypeToUpperCase) {
 }
 #endif  // !V8_INTL_SUPPORT
 
-// ES6 #sec-string.prototype.raw
+// https://tc39.es/ecma262/#sec-string.raw
 BUILTIN(StringRaw) {
   HandleScope scope(isolate);
   DirectHandle<Object> templ = args.atOrUndefined(isolate, 1);

@@ -183,6 +183,7 @@ class BaselineCompiler {
   BaselineAssembler basm_;
   interpreter::BytecodeArrayIterator iterator_;
   BytecodeOffsetTableBuilder bytecode_offset_table_builder_;
+  bool allow_sparkplug_plus_;
 
   // Mark location as a jump target reachable via indirect branches, required
   // for CFI.

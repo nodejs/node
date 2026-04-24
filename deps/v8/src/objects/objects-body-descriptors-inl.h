@@ -278,11 +278,34 @@ void BodyDescriptorBase::IterateTrustedPointer(
 #endif
 }
 
+template <typename ObjectVisitor, typename T, IndirectPointerTagRange kTagRange>
+void BodyDescriptorBase::IterateTrustedPointer(
+    Tagged<HeapObject> obj, TrustedPointerMember<T, kTagRange>* member,
+    ObjectVisitor* v, IndirectPointerMode mode) {
+#ifdef V8_ENABLE_SANDBOX
+  v->VisitIndirectPointer(obj, IndirectPointerSlot(member), mode);
+#else
+  if (mode == IndirectPointerMode::kStrong) {
+    v->VisitPointer(obj, ObjectSlot(member));
+  } else {
+    v->VisitCustomWeakPointer(obj, ObjectSlot(member));
+  }
+#endif
+}
+
 template <typename ObjectVisitor>
 void BodyDescriptorBase::IterateCodePointer(Tagged<HeapObject> obj, int offset,
                                             ObjectVisitor* v,
                                             IndirectPointerMode mode) {
   IterateTrustedPointer(obj, offset, v, mode, kCodeIndirectPointerTag);
+}
+
+template <typename ObjectVisitor>
+void BodyDescriptorBase::IterateCodePointer(
+    Tagged<HeapObject> obj,
+    TrustedPointerMember<Code, kCodeIndirectPointerTag>* member,
+    ObjectVisitor* v, IndirectPointerMode mode) {
+  IterateTrustedPointer(obj, member, v, mode);
 }
 
 template <typename ObjectVisitor>
@@ -390,7 +413,6 @@ class JSRegExp::BodyDescriptor final : public BodyDescriptorBase {
     IteratePointers(obj, kPropertiesOrHashOffset, JSObject::kHeaderSize, v);
     IterateTrustedPointer(obj, kDataOffset, v, IndirectPointerMode::kStrong,
                           kRegExpDataIndirectPointerTag);
-    IteratePointer(obj, kSourceOffset, v);
     IterateJSObjectBodyImpl(map, obj, kHeaderSize, object_size, v);
   }
 
@@ -411,7 +433,8 @@ class RegExpData::BodyDescriptor final : public BodyDescriptorBase {
     // class (once inheritance hierarchies are supported for indirect pointer
     // tags).
     IterateSelfIndirectPointer(obj, kRegExpDataIndirectPointerTag, v);
-    IteratePointer(obj, kSourceOffset, v);
+    IteratePointer(obj, kOriginalSourceOffset, v);
+    IteratePointer(obj, kEscapedSourceOffset, v);
     IteratePointer(obj, kWrapperOffset, v);
   }
 
@@ -427,7 +450,8 @@ class AtomRegExpData::BodyDescriptor final : public BodyDescriptorBase {
                                  int object_size, ObjectVisitor* v) {
     IterateSelfIndirectPointer(obj, kRegExpDataIndirectPointerTag, v);
 
-    IteratePointer(obj, kSourceOffset, v);
+    IteratePointer(obj, kOriginalSourceOffset, v);
+    IteratePointer(obj, kEscapedSourceOffset, v);
     IteratePointer(obj, kWrapperOffset, v);
 
     IteratePointer(obj, kPatternOffset, v);
@@ -445,7 +469,8 @@ class IrRegExpData::BodyDescriptor final : public BodyDescriptorBase {
                                  int object_size, ObjectVisitor* v) {
     IterateSelfIndirectPointer(obj, kRegExpDataIndirectPointerTag, v);
 
-    IteratePointer(obj, kSourceOffset, v);
+    IteratePointer(obj, kOriginalSourceOffset, v);
+    IteratePointer(obj, kEscapedSourceOffset, v);
     IteratePointer(obj, kWrapperOffset, v);
 
     IterateProtectedPointer(obj, kLatin1BytecodeOffset, v);
@@ -564,22 +589,19 @@ class AllocationSite::BodyDescriptor final : public BodyDescriptorBase {
 class JSFunction::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static const int kStartOffset = JSObject::BodyDescriptor::kStartOffset;
-  static const int kCodeFieldOffset = JSFunction::kDispatchHandleOffset;
+  static const int kDispatchHandleOffset = JSFunction::kDispatchHandleOffset;
 
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    // Iterate JSFunction header fields first.
-    int header_size = JSFunction::GetHeaderSize(map->has_prototype_slot());
-    DCHECK_GE(object_size, header_size);
-    IteratePointers(obj, kStartOffset, kCodeFieldOffset, v);
+    // Iterate JSFunction header fields up to dispatch handle field.
+    IteratePointers(obj, kStartOffset, kDispatchHandleOffset, v);
 
     IterateJSDispatchEntry(obj, kDispatchHandleOffset, v);
 
-    // Iterate rest of the header fields
-    IteratePointers(obj, kCodeFieldOffset + kTaggedSize, header_size, v);
-    // Iterate rest of the fields starting after the header.
-    IterateJSObjectBodyImpl(map, obj, header_size, object_size, v);
+    // Iterate rest of the header fields and JSObject body.
+    IterateJSObjectBodyImpl(map, obj, kDispatchHandleOffset + kTaggedSize,
+                            object_size, v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
@@ -709,6 +731,25 @@ class JSExternalObject::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class Foreign::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    Tagged<Foreign> foreign = UncheckedCast<Foreign>(obj);
+    ExternalPointerTagRange tag_range =
+        HeapLayout::InWritableSharedSpace(obj)
+            ? kAnySharedManagedExternalPointerTagRange
+            : kAnyForeignExternalPointerTagRange;
+    v->VisitExternalPointer(
+        obj, ExternalPointerSlot(&foreign->foreign_address_, tag_range));
+  }
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
+    return sizeof(Foreign);
+  }
+};
+
 template <typename Derived>
 class V8_EXPORT_PRIVATE SmallOrderedHashTable<Derived>::BodyDescriptor final
     : public BodyDescriptorBase {
@@ -784,12 +825,13 @@ class BytecodeWrapper::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    IterateTrustedPointer(obj, kBytecodeOffset, v, IndirectPointerMode::kStrong,
-                          kBytecodeArrayIndirectPointerTag);
+    Tagged<BytecodeWrapper> wrapper = UncheckedCast<BytecodeWrapper>(obj);
+    IterateTrustedPointer(obj, &wrapper->bytecode_, v,
+                          IndirectPointerMode::kStrong);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
-    return kSize;
+    return sizeof(BytecodeWrapper);
   }
 };
 
@@ -1139,8 +1181,7 @@ class WasmGlobalObject::BodyDescriptor final : public BodyDescriptorBase {
     IterateTrustedPointer(obj, kTrustedDataOffset, v,
                           IndirectPointerMode::kStrong,
                           kWasmTrustedInstanceDataIndirectPointerTag);
-    IteratePointer(obj, kUntaggedBufferOffset, v);
-    IteratePointer(obj, kTaggedBufferOffset, v);
+    IteratePointer(obj, kBufferOffset, v);
     IterateJSObjectBodyImpl(map, obj, kIsMutableOffset + kTaggedSize,
                             object_size, v);
   }
@@ -1221,9 +1262,14 @@ class WasmStruct::BodyDescriptor final : public BodyDescriptorBase {
       v->VisitPointer(wasm_struct, wasm_struct->RawField(0));
     }
     for (uint32_t i = 0; i < type->field_count(); i++) {
-      if (!type->field(i).is_ref()) continue;
       int offset = static_cast<int>(type->field_offset(i));
-      v->VisitPointer(wasm_struct, wasm_struct->RawField(offset));
+      if (type->field(i).is_ref()) {
+        v->VisitPointer(wasm_struct, wasm_struct->RawField(offset));
+      } else if (type->field(i) == wasm::kWasmWaitQueue) {
+        v->VisitPointer(
+            wasm_struct,
+            wasm_struct->RawField(offset + wasm::kWaitQueueManagedOffset));
+      }
     }
   }
 
@@ -1337,10 +1383,13 @@ class Map::BodyDescriptor final : public BodyDescriptorBase {
     IteratePointers(obj, Map::kStartOfStrongFieldsOffset,
                     Map::kEndOfStrongFieldsOffset, v);
     IterateMaybeWeakPointer(obj, kTransitionsOrPrototypeInfoOffset, v);
+    // Some maps have additional fields after the transitions or prototype
+    // info.
+    IteratePointers(obj, Map::kEndOfWeakFieldsOffset, object_size, v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
-    return Map::kSize;
+    return UncheckedCast<Map>(obj)->AllocatedSize();
   }
 };
 
@@ -1414,11 +1463,12 @@ class CodeWrapper::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    IterateCodePointer(obj, kCodeOffset, v, IndirectPointerMode::kStrong);
+    Tagged<CodeWrapper> wrapper = UncheckedCast<CodeWrapper>(obj);
+    IterateCodePointer(obj, &wrapper->code_, v, IndirectPointerMode::kStrong);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
-    return kSize;
+    return sizeof(CodeWrapper);
   }
 };
 
@@ -1516,7 +1566,9 @@ class InterceptorInfo::BodyDescriptor final : public BodyDescriptorBase {
                 InterceptorInfo::kEnumeratorOffset);
   static_assert(InterceptorInfo::kEnumeratorOffset <
                 InterceptorInfo::kDefinerOffset);
-  static_assert(InterceptorInfo::kDefinerOffsetEnd + 1 ==
+  static_assert(InterceptorInfo::kDefinerOffset <
+                InterceptorInfo::kIndexOfOffset);
+  static_assert(InterceptorInfo::kIndexOfOffsetEnd + 1 ==
                 InterceptorInfo::kSize);
 
   template <typename ObjectVisitor>
@@ -1527,15 +1579,23 @@ class InterceptorInfo::BodyDescriptor final : public BodyDescriptorBase {
 
     const bool is_named = Cast<InterceptorInfo>(obj)->is_named();
 
-#define VISIT_FIELD(Name, name)                                \
-  v->VisitExternalPointer(                                     \
-      obj, obj->RawExternalPointerField(                       \
-               InterceptorInfo::k##Name##Offset,               \
-               is_named ? kApiNamedProperty##Name##CallbackTag \
-                        : kApiIndexedProperty##Name##CallbackTag));
+#define VISIT_NAMED_FIELD(Name, name)                                \
+  v->VisitExternalPointer(obj, obj->RawExternalPointerField(         \
+                                   InterceptorInfo::k##Name##Offset, \
+                                   kApiNamedProperty##Name##CallbackTag));
 
-    INTERCEPTOR_INFO_CALLBACK_LIST(VISIT_FIELD)
-#undef VISIT_FIELD
+#define VISIT_INDEXED_FIELD(Name, name)                              \
+  v->VisitExternalPointer(obj, obj->RawExternalPointerField(         \
+                                   InterceptorInfo::k##Name##Offset, \
+                                   kApiIndexedProperty##Name##CallbackTag));
+
+    if (is_named) {
+      NAMED_INTERCEPTOR_INFO_CALLBACK_LIST(VISIT_NAMED_FIELD)
+    } else {
+      INDEXED_INTERCEPTOR_INFO_CALLBACK_LIST(VISIT_INDEXED_FIELD)
+    }
+#undef VISIT_NAMED_FIELD
+#undef VISIT_INDEXED_FIELD
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
@@ -1617,6 +1677,14 @@ class ArrayList::BodyDescriptor final
   }
 };
 
+class WeakArrayList::BodyDescriptor final
+    : public SuffixRangeWeakBodyDescriptor<HeapObject::kHeaderSize> {
+ public:
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
+    return UncheckedCast<WeakArrayList>(raw_object)->AllocatedSize();
+  }
+};
+
 class ObjectBoilerplateDescription::BodyDescriptor final
     : public SuffixRangeBodyDescriptor<HeapObject::kHeaderSize> {
  public:
@@ -1631,13 +1699,13 @@ class FeedbackCell::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    IteratePointer(obj, kValueOffset, v);
+    IteratePointer(obj, offsetof(FeedbackCell, value_), v);
 
-    IterateJSDispatchEntry(obj, kDispatchHandleOffset, v);
+    IterateJSDispatchEntry(obj, offsetof(FeedbackCell, dispatch_handle_), v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
-    return kAlignedSize;
+    return sizeof(FeedbackCell);
   }
 };
 
@@ -1662,6 +1730,15 @@ class WeakFixedArray::BodyDescriptor final
  public:
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
     return UncheckedCast<WeakFixedArray>(raw_object)->AllocatedSize();
+  }
+};
+
+class WeakHomomorphicFixedArray::BodyDescriptor final
+    : public SuffixRangeWeakBodyDescriptor<HeapObject::kHeaderSize> {
+ public:
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
+    return UncheckedCast<WeakHomomorphicFixedArray>(raw_object)
+        ->AllocatedSize();
   }
 };
 

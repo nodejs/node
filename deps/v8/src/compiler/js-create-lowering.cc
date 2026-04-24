@@ -999,7 +999,7 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   AllocationType allocation = AllocationType::kYoung;
 
   // Emit code to allocate the JSFunction instance.
-  static_assert(JSFunction::kSizeWithoutPrototype == 7 * kTaggedSize);
+  static_assert(JSFunctionWithoutPrototype::kHeaderSize == 7 * kTaggedSize);
   AllocationBuilder a(jsgraph(), broker(), effect, control);
   a.Allocate(function_map.instance_size(), allocation,
              Type::CallableFunction());
@@ -1013,11 +1013,12 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   a.Store(AccessBuilder::ForJSFunctionFeedbackCell(), feedback_cell);
   a.Store(AccessBuilder::ForJSFunctionDispatchHandleNoWriteBarrier(),
           dispatch_handle);
-  static_assert(JSFunction::kSizeWithoutPrototype == 7 * kTaggedSize);
-  if (function_map.has_prototype_slot()) {
+  static_assert(JSFunctionWithoutPrototype::kHeaderSize == 7 * kTaggedSize);
+  if (InstanceTypeChecker::IsJSFunctionWithPrototype(
+          function_map.instance_type())) {
     a.Store(AccessBuilder::ForJSFunctionPrototypeOrInitialMap(),
             jsgraph()->TheHoleConstant());
-    static_assert(JSFunction::kSizeWithPrototype == 8 * kTaggedSize);
+    static_assert(JSFunctionWithPrototype::kHeaderSize == 8 * kTaggedSize);
   }
   for (int i = 0; i < function_map.GetInObjectProperties(); i++) {
     a.Store(AccessBuilder::ForJSObjectInObjectProperty(function_map, i),
@@ -1989,9 +1990,7 @@ Node* JSCreateLowering::AllocateLiteralRegExp(
 
   // Sanity check that JSRegExp object layout hasn't changed.
   static_assert(JSRegExp::kDataOffset == JSObject::kHeaderSize);
-  static_assert(JSRegExp::kSourceOffset == JSRegExp::kDataOffset + kTaggedSize);
-  static_assert(JSRegExp::kFlagsOffset ==
-                JSRegExp::kSourceOffset + kTaggedSize);
+  static_assert(JSRegExp::kFlagsOffset == JSRegExp::kDataOffset + kTaggedSize);
   static_assert(JSRegExp::kHeaderSize == JSRegExp::kFlagsOffset + kTaggedSize);
   static_assert(JSRegExp::kLastIndexOffset == JSRegExp::kHeaderSize);
   DCHECK_EQ(JSRegExp::Size(), JSRegExp::kLastIndexOffset + kTaggedSize);
@@ -2006,8 +2005,6 @@ Node* JSCreateLowering::AllocateLiteralRegExp(
                 jsgraph()->EmptyFixedArrayConstant());
 
   builder.Store(AccessBuilder::ForJSRegExpData(), boilerplate.data(broker()));
-  builder.Store(AccessBuilder::ForJSRegExpSource(),
-                boilerplate.source(broker()));
   builder.Store(AccessBuilder::ForJSRegExpFlags(),
                 jsgraph()->SmiConstant(boilerplate.flags()));
   builder.Store(AccessBuilder::ForJSRegExpLastIndex(),

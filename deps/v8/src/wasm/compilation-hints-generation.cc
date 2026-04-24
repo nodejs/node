@@ -15,6 +15,10 @@ void EmitCompilationHintsToBuffer(ZoneBuffer& buffer,
                                   NativeModule* native_module) {
   const WasmModule* module = native_module->module();
 
+  base::MutexGuard compilation_hints_mutex_guard(
+      &module->compilation_hints_mutex);
+  base::MutexGuard type_feedback_mutex_guard(&module->type_feedback.mutex);
+
   // Do not emit the wasm-module prelude for now.
   // buffer.write_u32(kWasmMagic);
   // buffer.write_u32(kWasmVersion);
@@ -27,8 +31,6 @@ void EmitCompilationHintsToBuffer(ZoneBuffer& buffer,
     buffer.write_string(base::StaticCharVector(kCompilationPriorityString));
     uint32_t num_functions = 0;
     size_t num_functions_offset = buffer.reserve_u32v();
-    base::MutexGuard marked_for_tierup_mutex_guard(
-        &module->marked_for_tierup_mutex);
     for (uint32_t func_index = module->num_imported_functions;
          func_index < module->functions.size(); func_index++) {
       wasm::WasmCodeRefScope code_ref_scope;
@@ -62,7 +64,6 @@ void EmitCompilationHintsToBuffer(ZoneBuffer& buffer,
 
   // Emit the instruction-frequency section.
   {
-    base::MutexGuard mutex(&module->type_feedback.mutex);
     buffer.write_u8(kUnknownSectionCode);
     size_t section_size_offset = buffer.reserve_u32v();
     size_t section_body_begin = buffer.offset();
@@ -122,7 +123,6 @@ void EmitCompilationHintsToBuffer(ZoneBuffer& buffer,
 
   // Emit the call-targets section.
   {
-    base::MutexGuard mutex(&module->type_feedback.mutex);
     buffer.write_u8(kUnknownSectionCode);
     size_t section_size_offset = buffer.reserve_u32v();
     size_t section_body_begin = buffer.offset();

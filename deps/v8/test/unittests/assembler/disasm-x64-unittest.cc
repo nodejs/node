@@ -1624,6 +1624,198 @@ TEST_F(DisasmX64Test, DisasmX64YMMRegister) {
   }
 }
 
+#ifdef V8_ENABLE_APX_F
+TEST_F(DisasmX64Test, DisasmX64CheckOutputAPX) {
+  DisassemblerTester t;
+  std::string actual;
+
+  // --- REX2-based instructions ---
+
+  // pushpq / poppq
+  COMPARE_INSTR("pushpq rax", pushpq(rax));
+  COMPARE_INSTR("pushpq rbx", pushpq(rbx));
+  COMPARE_INSTR("poppq rax", poppq(rax));
+  COMPARE_INSTR("poppq rcx", poppq(rcx));
+
+  // jmpabs (11 bytes, exceeds kHexOffset, use COMPARE with hex)
+  COMPARE("d500a1f0debc9a78563412 jmpabs 0x123456789abcdef0",
+          jmpabs(Immediate64(0x123456789abcdef0)));
+
+  // --- EVEX-based push2/pop2 ---
+
+  // push2q / push2pq
+  COMPARE_INSTR("push2q rbx,rcx", push2q(rbx, rcx));
+  COMPARE_INSTR("push2pq rbx,rcx", push2pq(rbx, rcx));
+
+  // pop2q / pop2pq
+  COMPARE_INSTR("pop2q rbx,rcx", pop2q(rbx, rcx));
+  COMPARE_INSTR("pop2pq rbx,rcx", pop2pq(rbx, rcx));
+
+  // --- CCMP ---
+
+  // ccmpq reg, reg
+  COMPARE_INSTR("ccmpzq rdx,rcx", ccmpq(rdx, rcx, {}, equal));
+  COMPARE_INSTR("ccmplq rdx,rcx", ccmpq(rdx, rcx, {}, less));
+
+  // ccmpq reg, imm8 (sign-extended)
+  COMPARE_INSTR("ccmpzq rdx,0xc", ccmpq(rdx, Immediate(12), {}, equal));
+
+  // ccmpq reg, imm32
+  COMPARE_INSTR("ccmpzq rdx,0x3039", ccmpq(rdx, Immediate(12345), {}, equal));
+
+  // ccmpl reg, reg
+  COMPARE_INSTR("ccmpzl rdx,rcx", ccmpl(rdx, rcx, {}, equal));
+
+  // ccmpq Operand, reg
+  COMPARE_INSTR("ccmpzq [rbx],rcx", ccmpq(Operand(rbx, 0), rcx, {}, equal));
+
+  // --- CTEST ---
+
+  // ctestq reg, reg (disasm prints rm,reg order for opcode 0x85)
+  COMPARE_INSTR("ctestzq rcx,rdx", ctestq(rdx, rcx, {}, equal));
+
+  // ctestq reg, imm32
+  COMPARE_INSTR("ctestzq rdx,0x3039", ctestq(rdx, Immediate(12345), {}, equal));
+
+  // ctestl reg, reg (disasm prints rm,reg order for opcode 0x85)
+  COMPARE_INSTR("ctestzl rcx,rdx", ctestl(rdx, rcx, {}, equal));
+
+  // --- SETZUCC ---
+
+  COMPARE_INSTR("setzuz rdx", setzucc(equal, rdx));
+  COMPARE_INSTR("setzul rdx", setzucc(less, rdx));
+
+  // --- CMOVcc NDD (3-operand) ---
+
+  // cmovq with NDD: cmovzq ndd, reg, rm
+  COMPARE_INSTR("cmovzq rax,rdx,rcx", cmovq(equal, rax, rdx, rcx));
+  COMPARE_INSTR("cmovlq rax,rdx,rcx", cmovq(less, rax, rdx, rcx));
+  // cmovl with NDD
+  COMPARE_INSTR("cmovzl rax,rdx,rcx", cmovl(equal, rax, rdx, rcx));
+  // cmovq with NDD and Operand
+  COMPARE_INSTR("cmovzq rax,rdx,[rbx]",
+                cmovq(equal, rax, rdx, Operand(rbx, 0)));
+
+  // --- CFCMOVcc ---
+
+  // cfcmov 2-operand (reg, reg): ND=0, NF=0
+  COMPARE_INSTR("cfcmovzq rdx,rcx", cfcmovq(equal, rdx, rcx));
+  COMPARE_INSTR("cfcmovlq rdx,rcx", cfcmovq(less, rdx, rcx));
+
+  // cfcmov 2-operand (reg, Operand): ND=0, NF=0
+  COMPARE_INSTR("cfcmovzq rdx,[rbx]", cfcmovq(equal, rdx, Operand(rbx, 0)));
+
+  // cfcmov 2-operand (Operand, reg): ND=1, NF=0
+  COMPARE_INSTR("cfcmovzq [rbx],rdx", cfcmovq(equal, Operand(rbx, 0), rdx));
+
+  // cfcmov 3-operand NDD (ndd, reg, reg): ND=1, NF=1
+  COMPARE_INSTR("cfcmovzq rax,rdx,rcx", cfcmovq(equal, rax, rdx, rcx));
+
+  // cfcmov 3-operand NDD (ndd, reg, Operand): ND=1, NF=1
+  COMPARE_INSTR("cfcmovzq rax,rdx,[rbx]",
+                cfcmovq(equal, rax, rdx, Operand(rbx, 0)));
+
+  // cfcmovl variants
+  COMPARE_INSTR("cfcmovzl rdx,rcx", cfcmovl(equal, rdx, rcx));
+
+  // --- NDD Arithmetic ---
+
+  // addq NDD: 3-operand (dst, src1, src2)
+  COMPARE_INSTR("addq rax,rdx,rcx", addq(rax, rdx, rcx));
+  COMPARE_INSTR("addl rax,rdx,rcx", addl(rax, rdx, rcx));
+
+  // addq NDD with Operand
+  COMPARE_INSTR("addq rax,rdx,[rbx]", addq(rax, rdx, Operand(rbx, 0)));
+
+  // subq NDD
+  COMPARE_INSTR("subq rax,rdx,rcx", subq(rax, rdx, rcx));
+
+  // andq NDD
+  COMPARE_INSTR("andq rax,rdx,rcx", andq(rax, rdx, rcx));
+
+  // orq NDD
+  COMPARE_INSTR("orq rax,rdx,rcx", orq(rax, rdx, rcx));
+
+  // xorq NDD
+  COMPARE_INSTR("xorq rax,rdx,rcx", xorq(rax, rdx, rcx));
+
+  // --- NDD Immediate Arithmetic ---
+
+  // addq NDD with imm8
+  COMPARE_INSTR("addq rax,rdx,0xc", addq(rax, rdx, Immediate(12)));
+
+  // addq NDD with imm32
+  COMPARE_INSTR("addq rax,rdx,0x3039", addq(rax, rdx, Immediate(12345)));
+
+  // subq NDD with imm8
+  COMPARE_INSTR("subq rax,rdx,0xc", subq(rax, rdx, Immediate(12)));
+
+  // andq NDD with imm8
+  COMPARE_INSTR("andq rax,rdx,0x3", andq(rax, rdx, Immediate(3)));
+
+  // orq NDD with imm8
+  COMPARE_INSTR("orq rax,rdx,0x3", orq(rax, rdx, Immediate(3)));
+
+  // xorq NDD with imm8
+  COMPARE_INSTR("xorq rax,rdx,0x3", xorq(rax, rdx, Immediate(3)));
+
+  // --- NDD IMUL ---
+
+  // imulq NDD: 3-operand (dst, src1, src2)
+  COMPARE_INSTR("imulq rax,rdx,rcx", imulq(rax, rdx, rcx));
+  COMPARE_INSTR("imull rax,rdx,rcx", imull(rax, rdx, rcx));
+
+  // imulq NDD with Operand
+  COMPARE_INSTR("imulq rax,rdx,[rbx]", imulq(rax, rdx, Operand(rbx, 0)));
+  COMPARE_INSTR("imull rax,rdx,[rbx]", imull(rax, rdx, Operand(rbx, 0)));
+
+  // --- NDD NOT / NEG ---
+
+  // notq NDD
+  COMPARE_INSTR("notq rax,rdx", notq(rax, rdx));
+  COMPARE_INSTR("notl rax,rdx", notl(rax, rdx));
+  // notq NDD with Operand
+  COMPARE_INSTR("notq rax,[rbx]", notq(rax, Operand(rbx, 0)));
+
+  // negq NDD
+  COMPARE_INSTR("negq rax,rdx", negq(rax, rdx));
+  COMPARE_INSTR("negl rax,rdx", negl(rax, rdx));
+  // negq NDD with Operand
+  COMPARE_INSTR("negq rax,[rbx]", negq(rax, Operand(rbx, 0)));
+
+  // --- NDD Shift ---
+
+  // shlq NDD with immediate
+  COMPARE_INSTR("shlq rax,rdx,0x6", shlq(rax, rdx, Immediate(6)));
+  // shlq NDD with immediate 1 (special encoding)
+  COMPARE_INSTR("shlq rax,rdx,1", shlq(rax, rdx, Immediate(1)));
+  // shlq NDD with cl
+  COMPARE_INSTR("shlq rax,rdx,cl", shlq_cl(rax, rdx));
+  // shll NDD
+  COMPARE_INSTR("shll rax,rdx,0x6", shll(rax, rdx, Immediate(6)));
+
+  // shrq NDD
+  COMPARE_INSTR("shrq rax,rdx,0x7", shrq(rax, rdx, Immediate(7)));
+  COMPARE_INSTR("shrq rax,rdx,1", shrq(rax, rdx, Immediate(1)));
+  COMPARE_INSTR("shrq rax,rdx,cl", shrq_cl(rax, rdx));
+
+  // sarq NDD
+  COMPARE_INSTR("sarq rax,rdx,0x6", sarq(rax, rdx, Immediate(6)));
+  COMPARE_INSTR("sarq rax,rdx,1", sarq(rax, rdx, Immediate(1)));
+  COMPARE_INSTR("sarq rax,rdx,cl", sarq_cl(rax, rdx));
+
+  // rolq NDD
+  COMPARE_INSTR("rolq rax,rdx,0x3", rolq(rax, rdx, Immediate(3)));
+
+  // rorq NDD
+  COMPARE_INSTR("rorq rax,rdx,0x3", rorq(rax, rdx, Immediate(3)));
+
+  // Shift NDD with Operand
+  COMPARE_INSTR("shlq rax,[rbx],0x6", shlq(rax, Operand(rbx, 0), Immediate(6)));
+  COMPARE_INSTR("shlq rax,[rbx],cl", shlq_cl(rax, Operand(rbx, 0)));
+}
+#endif  // V8_ENABLE_APX_F
+
 #undef __
 
 }  // namespace internal

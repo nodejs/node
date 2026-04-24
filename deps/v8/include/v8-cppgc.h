@@ -53,6 +53,11 @@ struct V8_EXPORT CppHeapCreateParams {
    */
   cppgc::Heap::SweepingType sweeping_support =
       cppgc::Heap::SweepingType::kIncrementalAndConcurrent;
+  /**
+   * Optional marker representing the stack start of the thread creating the
+   * heap.
+   */
+  std::optional<cppgc::StackStartMarker> stack_start_marker = std::nullopt;
 };
 
 /**

@@ -68,6 +68,10 @@
 namespace v8 {
 namespace internal {
 
+namespace regexp {
+class RegExpMacroAssemblerRISCV;
+}
+
 // -----------------------------------------------------------------------------
 // Machine instruction Operands.
 constexpr int kSmiShift = kSmiTagSize + kSmiShiftSize;
@@ -631,15 +635,16 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
       // mf2 -> n is 1.
       // mf4 -> n is 2.
       // mf8 -> n is 3.
+      DCHECK_EQ(kRvvELEN, 64);
       switch (CpuFeatures::vlen()) {
         case 128:
           lmul = m1;
           break;
         case 256:
-          lmul = (sew + 1) > kRvvELEN ? m1 : mf2;
+          lmul = (sew + 1) > E64 ? m1 : mf2;
           break;
         case 512:
-          lmul = (sew + 2) > kRvvELEN ? m1 : mf4;
+          lmul = (sew + 2) > E64 ? m1 : mf4;
           break;
         default:
           static_assert(kMaxRvvVLEN <= 512, "Unsupported VLEN");
@@ -660,15 +665,16 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
     void SetSimd128Half(VSew sew, TailAgnosticType tail = ta) {
       Vlmul lmul;
+      DCHECK_EQ(kRvvELEN, 64);
       switch (CpuFeatures::vlen()) {
         case 128:
-          lmul = (sew + 1) > kRvvELEN ? m1 : mf2;
+          lmul = (sew + 1) > E64 ? m1 : mf2;
           break;
         case 256:
-          lmul = (sew + 2) > kRvvELEN ? m1 : mf4;
+          lmul = (sew + 2) > E64 ? (sew == E32 ? mf2 : m1) : mf4;
           break;
         case 512:
-          lmul = (sew + 3) > kRvvELEN ? m1 : mf8;
+          lmul = (sew + 3) > E64 ? (sew <= E32 ? mf2 : m1) : mf8;
           break;
         default:
           static_assert(kMaxRvvVLEN <= 512, "Unsupported VLEN");
@@ -689,6 +695,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
     void SetSimd128x2(VSew sew, TailAgnosticType tail = ta) {
       Vlmul lmul;
+      DCHECK_EQ(kRvvELEN, 64);
       switch (CpuFeatures::vlen()) {
         case 128:
           lmul = m2;
@@ -697,7 +704,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
           lmul = m1;
           break;
         case 512:
-          lmul = (sew + 1) > kRvvELEN ? m1 : mf2;
+          lmul = (sew + 1) > E64 ? m1 : mf2;
           break;
         default:
           static_assert(kMaxRvvVLEN <= 512, "Unsupported VLEN");
@@ -906,7 +913,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   friend class EnsureSpace;
   friend class ConstantPool;
   friend class RelocInfo;
-  friend class RegExpMacroAssemblerRISCV;
+  friend class regexp::RegExpMacroAssemblerRISCV;
 };
 
 class EnsureSpace {

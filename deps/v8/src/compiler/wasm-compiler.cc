@@ -168,7 +168,7 @@ bool WasmGraphBuilder::TryWasmInlining(int fct_index,
   }
   base::Vector<const uint8_t> bytes(native_module->wire_bytes().SubVector(
       inlinee.code.offset(), inlinee.code.end_offset()));
-  bool is_shared = module->type(inlinee.sig_index).is_shared;
+  SharedFlag is_shared = module->type(inlinee.sig_index).is_shared;
   const wasm::FunctionBody inlinee_body(inlinee.sig, inlinee.code.offset(),
                                         bytes.begin(), bytes.end(), is_shared);
   // If the inlinee was not validated before, do that now.
@@ -231,7 +231,8 @@ void WasmGraphBuilder::Start(unsigned params) {
     case kJSFunctionAbiMode: {
       Node* param = Param(Linkage::kJSCallClosureParamIndex, "%closure");
       if (v8_flags.debug_code) {
-        Assert(gasm_->HasInstanceType(param, JS_FUNCTION_TYPE),
+        Assert(gasm_->HasInstanceTypeInRange(param, FIRST_JS_FUNCTION_TYPE,
+                                             LAST_JS_FUNCTION_TYPE),
                AbortReason::kUnexpectedInstanceType);
       }
       instance_data_node_ = gasm_->LoadExportedFunctionInstanceData(
@@ -278,22 +279,6 @@ Node* WasmGraphBuilder::Int32Constant(int32_t value) {
 
 Node* WasmGraphBuilder::UndefinedValue() {
   return LOAD_ROOT(UndefinedValue, undefined_value);
-}
-
-// TODO(ahaas): Merge TrapId with TrapReason.
-TrapId WasmGraphBuilder::GetTrapIdForTrap(wasm::TrapReason reason) {
-  switch (reason) {
-#define TRAPREASON_TO_TRAPID(name)                                 \
-  case wasm::k##name:                                              \
-    static_assert(static_cast<int>(TrapId::k##name) ==             \
-                      static_cast<int>(Builtin::kThrowWasm##name), \
-                  "trap id mismatch");                             \
-    return TrapId::k##name;
-    FOREACH_WASM_TRAPREASON(TRAPREASON_TO_TRAPID)
-#undef TRAPREASON_TO_TRAPID
-    default:
-      UNREACHABLE();
-  }
 }
 
 Node* WasmGraphBuilder::Return(base::Vector<Node*> vals) {
@@ -762,7 +747,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* shared_function_info = gasm_->LoadSharedFunctionInfo(callable_node);
     Node* flags = gasm_->LoadFromObject(
         MachineType::Int32(), shared_function_info,
-        wasm::ObjectAccess::FlagsOffsetInSharedFunctionInfo());
+        wasm::ObjectAccess::ToTagged(SharedFunctionInfo::kFlagsOffset));
     Node* strict_check = gasm_->Word32And(
         flags, Int32Constant(SharedFunctionInfo::IsNativeBit::kMask |
                              SharedFunctionInfo::IsStrictBit::kMask));
@@ -886,13 +871,12 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     Tagged<SharedFunctionInfo> shared = target->shared();
     Tagged<FunctionTemplateInfo> api_func_data = shared->api_func_data();
-    const Address c_address = api_func_data->GetCFunction(isolate, 0);
-    const v8::CFunctionInfo* c_signature =
-        api_func_data->GetCSignature(isolate, 0);
+    const CFunctionWithSignature c_function =
+        api_func_data->GetCFunction(isolate, 0);
 
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
-    Address c_functions[] = {c_address};
-    const v8::CFunctionInfo* const c_signatures[] = {c_signature};
+    Address c_functions[] = {c_function.address};
+    const v8::CFunctionInfo* const c_signatures[] = {c_function.signature};
     isolate->simulator_data()->RegisterFunctionsAndSignatures(c_functions,
                                                               c_signatures, 1);
 #endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
@@ -907,18 +891,18 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                     wasm::ObjectAccess::ToTagged(
                         FunctionTemplateInfo::kCallbackDataOffset));
 
-    FastApiCallFunction c_function{c_address, c_signature};
+    FastApiCallFunction call_function{c_function.address, c_function.signature};
     Node* old_sp = BuildSwitchToTheCentralStackIfNeeded();
     Node* call = fast_api_call::BuildFastApiCall(
-        isolate, graph(), gasm_.get(), c_function, api_data_argument,
+        isolate, graph(), gasm_.get(), call_function, api_data_argument,
         // Load and convert parameters passed to C function
-        [this, c_signature, receiver_node](
+        [this, c_function, receiver_node](
             int param_index,
             GraphAssemblerLabel<0>* /* error label, unused */) {
           if (param_index == 0) {
             return gasm_->AdaptLocalArgument(receiver_node);
           }
-          switch (c_signature->ArgumentInfo(param_index).GetType()) {
+          switch (c_function.signature->ArgumentInfo(param_index).GetType()) {
             case CTypeInfo::Type::kV8Value:
               return gasm_->AdaptLocalArgument(Param(param_index));
             default:

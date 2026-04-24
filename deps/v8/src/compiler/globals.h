@@ -110,7 +110,7 @@ enum BaseTaggedness : uint8_t { kUntaggedBase, kTaggedBase };
 enum class MemoryAccessKind : uint8_t {
   kNormal,
   kUnaligned,
-  kProtectedByTrapHandler,
+  kTrapping,
 };
 
 size_t hash_value(MemoryAccessKind);

@@ -16,12 +16,12 @@
 #include "src/base/vector.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-constants.h"
-#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-result.h"
 
 namespace v8::internal::wasm {
 
 class NativeModule;
+class CompilationResultResolver;
 
 // This class is an interface for the StreamingDecoder to start the processing
 // of the incoming module bytes.

@@ -29,9 +29,6 @@ namespace v8::internal {
 
 #include "torque-generated/src/objects/feedback-vector-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(FeedbackVector)
-OBJECT_CONSTRUCTORS_IMPL(FeedbackMetadata, HeapObject)
-
 INT32_ACCESSORS(FeedbackMetadata, slot_count, kSlotCountOffset)
 
 INT32_ACCESSORS(FeedbackMetadata, create_closure_slot_count,
@@ -557,13 +554,13 @@ void FeedbackNexus::IterateMapsWithUnclearedHandler(F function) const {
   }
 }
 
-Builtin FeedbackNexus::GetLoadICHandlerForFieldIndex(int field_index,
-                                                     bool is_inobject,
-                                                     bool is_double) {
+Builtin FeedbackNexus::GetLoadICHandlerForStorageOffset(int storage_offset,
+                                                        bool is_inobject,
+                                                        bool is_double) {
   if (is_double) return Builtin::kLoadICDoubleFieldBaseline;
 
   if (is_inobject) {
-    int in_object_index = field_index - JSObject::kHeaderSize / kTaggedSize;
+    int in_object_index = storage_offset - JSObject::kHeaderSize / kTaggedSize;
     DCHECK_GE(in_object_index, 0);
     // Currently we have eight handlers that support loading in-object field
     // with fixed index 0~7.
@@ -579,7 +576,7 @@ Builtin FeedbackNexus::GetLoadICHandlerForFieldIndex(int field_index,
     return static_cast<Builtin>(builtin_id);
   } else {
     int out_of_object_index =
-        field_index - OFFSET_OF_DATA_START(FixedArray) / kTaggedSize;
+        storage_offset - OFFSET_OF_DATA_START(FixedArray) / kTaggedSize;
     DCHECK_GE(out_of_object_index, 0);
     // Currently we have four handlers that support loading out-of-object
     // field with fixed index 0~3.

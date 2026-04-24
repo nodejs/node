@@ -42,7 +42,7 @@ class JSProxy : public TorqueGeneratedJSProxy<JSProxy, JSReceiver> {
   V8_WARN_UNUSED_RESULT static Maybe<bool> IsExtensible(
       DirectHandle<JSProxy> proxy);
 
-  // ES6, #sec-isarray.  NOT to be confused with %_IsArray.
+  // https://tc39.es/ecma262/#sec-isarray.  NOT to be confused with %_IsArray.
   V8_WARN_UNUSED_RESULT static Maybe<bool> IsArray(DirectHandle<JSProxy> proxy);
 
   // ES6 9.5.4 (when passed kDontThrow)
@@ -129,15 +129,10 @@ class JSProxy : public TorqueGeneratedJSProxy<JSProxy, JSReceiver> {
 
 // JSProxyRevocableResult is just a JSObject with a specific initial map.
 // This initial map adds in-object properties for "proxy" and "revoke".
-// See https://tc39.github.io/ecma262/#sec-proxy.revocable
+// See https://tc39.es/ecma262/#sec-proxy.revocable
 class JSProxyRevocableResult
     : public TorqueGeneratedJSProxyRevocableResult<JSProxyRevocableResult,
                                                    JSObject> {
- public:
-  // Indices of in-object properties.
-  static const int kProxyIndex = 0;
-  static const int kRevokeIndex = 1;
-
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSProxyRevocableResult);
 };

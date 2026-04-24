@@ -1010,10 +1010,20 @@ class MachineLoweringReducer : public Next {
         break;
       }
       case ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kHeapNumber: {
-        DCHECK_EQ(input_rep, RegisterRepresentation::Float64());
-        DCHECK_EQ(input_interpretation,
-                  ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kDouble);
-        return AllocateHeapNumber(V<Float64>::Cast(input));
+        V<Float64> f64_input;
+        if (input_rep == RegisterRepresentation::Word32()) {
+          DCHECK_EQ(
+              input_interpretation,
+              ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned);
+          f64_input = __ ChangeInt32ToFloat64(V<Word32>::Cast(input));
+        } else {
+          DCHECK_EQ(input_rep, RegisterRepresentation::Float64());
+          DCHECK_EQ(
+              input_interpretation,
+              ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kDouble);
+          f64_input = V<Float64>::Cast(input);
+        }
+        return AllocateHeapNumber(f64_input);
       }
       case ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::
           kHeapNumberOrUndefined: {
@@ -1274,6 +1284,15 @@ class MachineLoweringReducer : public Next {
           }
 
           BIND(done, result);
+          return result;
+        } else if (input_assumptions == ConvertJSPrimitiveToUntaggedOp::
+                                            InputAssumptions::kSmiOrHole) {
+          ScopedVar<Float64> result(this);
+          IF (LIKELY(__ ObjectIsSmi(object))) {
+            result = __ ChangeInt32ToFloat64(__ UntagSmi(V<Smi>::Cast(object)));
+          } ELSE {
+            result = __ Float64Constant(i::Float64::FromBits(kHoleNanInt64));
+          }
           return result;
         } else if (input_assumptions == ConvertJSPrimitiveToUntaggedOp::
                                             InputAssumptions::kNumberOrHole) {
@@ -1571,6 +1590,18 @@ class MachineLoweringReducer : public Next {
       TruncateJSPrimitiveToUntaggedOp::InputAssumptions input_assumptions) {
     switch (kind) {
       case TruncateJSPrimitiveToUntaggedOp::UntaggedKind::kInt32: {
+        if (input_assumptions ==
+            TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kSmiOrHole) {
+          ScopedVar<Word32> result(this);
+          IF (LIKELY(__ ObjectIsSmi(object))) {
+            result = __ UntagSmi(V<Smi>::Cast(object));
+          } ELSE {
+            // Hole -> undefined -> NaN -> truncates to zero.
+            result = __ Word32Constant(0);
+          }
+          return result;
+        }
+
         DCHECK_EQ(input_assumptions,
                   any_of(TruncateJSPrimitiveToUntaggedOp::InputAssumptions::
                              kNumberOrOddball,

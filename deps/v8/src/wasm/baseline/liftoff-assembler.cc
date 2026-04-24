@@ -180,6 +180,9 @@ LiftoffAssembler::CacheState LiftoffAssembler::MergeIntoNewState(
   }
 
   uint32_t target_height = num_locals + stack_depth + arity;
+  // Can't copy more values than we have. If this fails, you may have passed
+  // a {stack_depth} that includes locals.
+  DCHECK_LE(target_height, cache_state_.stack_height());
 
   target.stack_state.resize_no_init(target_height);
 
@@ -858,6 +861,7 @@ constexpr LiftoffRegList AllReturnRegs() {
   LiftoffRegList result;
   for (Register r : kGpReturnRegisters) result.set(r);
   for (DoubleRegister r : kFpReturnRegisters) result.set(r);
+  for (Simd128Register r : kSimd128ReturnRegisters) result.set(r);
   return result;
 }
 }  // namespace
@@ -929,7 +933,10 @@ void LiftoffAssembler::Move(LiftoffRegister dst, LiftoffRegister src,
     Move(dst.low_fp(), src.low_fp(), kind);
   } else if (dst.is_gp()) {
     Move(dst.gp(), src.gp(), kind);
+  } else if (kHasIndependentSimd128Regs && dst.is_simd128()) {
+    Move(dst.simd128(), src.simd128(), kind);
   } else {
+    DCHECK(dst.is_fp());
     Move(dst.fp(), src.fp(), kind);
   }
 }
@@ -962,6 +969,8 @@ void LiftoffAssembler::MoveToReturnLocations(
     return_reg = LiftoffRegister::ForFpPair(kFpReturnRegisters[0]);
   } else if (reg_class_for(return_kind) == kFpReg) {
     return_reg = LiftoffRegister(kFpReturnRegisters[0]);
+  } else if (reg_class_for(return_kind) == kSimd128Reg) {
+    return_reg = LiftoffRegister(kSimd128ReturnRegisters[0]);
   } else {
     DCHECK_EQ(kGpReg, reg_class_for(return_kind));
   }

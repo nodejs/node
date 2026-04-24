@@ -510,11 +510,13 @@ FUNCTION_REFERENCE(verify_skipped_indirect_write_barrier,
 
 namespace {
 
-intptr_t DebugBreakAtEntry(Isolate* isolate, Address raw_sfi) {
+// Returns an smi if it needs to break, Code otherwise.
+Address DebugBreakAtEntry(Isolate* isolate, Address raw_sfi) {
   DisallowGarbageCollection no_gc;
   Tagged<SharedFunctionInfo> sfi =
       Cast<SharedFunctionInfo>(Tagged<Object>(raw_sfi));
-  return isolate->debug()->BreakAtEntry(sfi) ? 1 : 0;
+  return isolate->debug()->BreakAtEntry(sfi) ? Smi::zero().ptr()
+                                             : sfi->GetCode(isolate).ptr();
 }
 
 Address DebugGetCoverageInfo(Isolate* isolate, Address raw_sfi) {
@@ -602,6 +604,7 @@ FUNCTION_REFERENCE(wasm_suspend_stack, wasm::suspend_stack)
 FUNCTION_REFERENCE(wasm_resume_jspi_stack, wasm::resume_jspi_stack)
 FUNCTION_REFERENCE(wasm_resume_wasmfx_stack, wasm::resume_wasmfx_stack)
 FUNCTION_REFERENCE(wasm_suspend_wasmfx_stack, wasm::suspend_wasmfx_stack)
+FUNCTION_REFERENCE(wasm_switch_wasmfx_stack, wasm::switch_wasmfx_stack)
 FUNCTION_REFERENCE(wasm_return_jspi_stack, wasm::return_jspi_stack)
 FUNCTION_REFERENCE(wasm_return_wasmfx_stack, wasm::return_wasmfx_stack)
 FUNCTION_REFERENCE(wasm_retire_stack, wasm::retire_stack)
@@ -709,7 +712,10 @@ FUNCTION_REFERENCE_WITH_TYPE(wasm_string_to_f64, wasm::flat_string_to_f64,
 
 int32_t (&futex_emulation_wake)(void*, uint32_t) = FutexEmulation::Wake;
 FUNCTION_REFERENCE(wasm_atomic_notify, futex_emulation_wake)
-
+int32_t (&futex_emulation_managed_object_wait)(Address, int32_t,
+                                               uint32_t) = FutexEmulation::Wake;
+FUNCTION_REFERENCE(wasm_managed_object_notify,
+                   futex_emulation_managed_object_wait)
 #define V(Name) RAW_FUNCTION_REFERENCE(wasm_##Name, wasm::Name)
 WASM_JS_EXTERNAL_REFERENCE_LIST(V)
 #undef V
@@ -1039,9 +1045,10 @@ namespace {
 static uintptr_t BaselinePCForNextExecutedBytecode(Address raw_code_obj,
                                                    int bytecode_offset,
                                                    Address raw_bytecode_array) {
-  Tagged<Code> code_obj = SbxCast<Code>(Tagged<Object>(raw_code_obj));
-  Tagged<BytecodeArray> bytecode_array =
-      SbxCast<BytecodeArray>(Tagged<Object>(raw_bytecode_array));
+  Tagged<Code> code_obj =
+      SbxCast<Code>(TrustedCast<TrustedObject>(Tagged<Object>(raw_code_obj)));
+  Tagged<BytecodeArray> bytecode_array = SbxCast<BytecodeArray>(
+      TrustedCast<TrustedObject>(Tagged<Object>(raw_bytecode_array)));
   return code_obj->GetBaselinePCForNextExecutedBytecode(bytecode_offset,
                                                         bytecode_array);
 }
@@ -1102,23 +1109,32 @@ ExternalReference::invoke_named_interceptor_setter_callback() {
 }
 
 #if V8_TARGET_ARCH_X64
-#define re_stack_check_func RegExpMacroAssemblerX64::CheckStackGuardState
+#define re_stack_check_func \
+  regexp::RegExpMacroAssemblerX64::CheckStackGuardState
 #elif V8_TARGET_ARCH_IA32
-#define re_stack_check_func RegExpMacroAssemblerIA32::CheckStackGuardState
+#define re_stack_check_func \
+  regexp::RegExpMacroAssemblerIA32::CheckStackGuardState
 #elif V8_TARGET_ARCH_ARM64
-#define re_stack_check_func RegExpMacroAssemblerARM64::CheckStackGuardState
+#define re_stack_check_func \
+  regexp::RegExpMacroAssemblerARM64::CheckStackGuardState
 #elif V8_TARGET_ARCH_ARM
-#define re_stack_check_func RegExpMacroAssemblerARM::CheckStackGuardState
+#define re_stack_check_func \
+  regexp::RegExpMacroAssemblerARM::CheckStackGuardState
 #elif V8_TARGET_ARCH_PPC64
-#define re_stack_check_func RegExpMacroAssemblerPPC::CheckStackGuardState
+#define re_stack_check_func \
+  regexp::RegExpMacroAssemblerPPC::CheckStackGuardState
 #elif V8_TARGET_ARCH_MIPS64
-#define re_stack_check_func RegExpMacroAssemblerMIPS::CheckStackGuardState
+#define re_stack_check_func \
+  regexp::RegExpMacroAssemblerMIPS::CheckStackGuardState
 #elif V8_TARGET_ARCH_LOONG64
-#define re_stack_check_func RegExpMacroAssemblerLOONG64::CheckStackGuardState
+#define re_stack_check_func \
+  regexp::RegExpMacroAssemblerLOONG64::CheckStackGuardState
 #elif V8_TARGET_ARCH_S390X
-#define re_stack_check_func RegExpMacroAssemblerS390::CheckStackGuardState
+#define re_stack_check_func \
+  regexp::RegExpMacroAssemblerS390::CheckStackGuardState
 #elif V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
-#define re_stack_check_func RegExpMacroAssemblerRISCV::CheckStackGuardState
+#define re_stack_check_func \
+  regexp::RegExpMacroAssemblerRISCV::CheckStackGuardState
 #else
 UNREACHABLE();
 #endif
@@ -1126,30 +1142,34 @@ UNREACHABLE();
 FUNCTION_REFERENCE(re_check_stack_guard_state, re_stack_check_func)
 #undef re_stack_check_func
 
-FUNCTION_REFERENCE(re_grow_stack, NativeRegExpMacroAssembler::GrowStack)
+FUNCTION_REFERENCE(re_grow_stack, regexp::NativeRegExpMacroAssembler::GrowStack)
 
 FUNCTION_REFERENCE(re_match_for_call_from_js,
-                   IrregexpInterpreter::MatchForCallFromJs)
+                   regexp::IrregexpInterpreter::MatchForCallFromJs)
 
 FUNCTION_REFERENCE(re_experimental_match_for_call_from_js,
-                   ExperimentalRegExp::MatchForCallFromJs)
+                   regexp::ExperimentalRegExp::MatchForCallFromJs)
 
 FUNCTION_REFERENCE(re_atom_exec_raw, RegExp::AtomExecRaw)
 
-FUNCTION_REFERENCE(allocate_regexp_result_vector, RegExpResultVector::Allocate)
-FUNCTION_REFERENCE(free_regexp_result_vector, RegExpResultVector::Free)
+FUNCTION_REFERENCE(allocate_regexp_result_vector,
+                   regexp::ResultVector::Allocate)
+FUNCTION_REFERENCE(free_regexp_result_vector, regexp::ResultVector::Free)
 
-FUNCTION_REFERENCE(re_case_insensitive_compare_unicode,
-                   NativeRegExpMacroAssembler::CaseInsensitiveCompareUnicode)
+FUNCTION_REFERENCE(
+    re_case_insensitive_compare_unicode,
+    regexp::NativeRegExpMacroAssembler::CaseInsensitiveCompareUnicode)
 
-FUNCTION_REFERENCE(re_case_insensitive_compare_non_unicode,
-                   NativeRegExpMacroAssembler::CaseInsensitiveCompareNonUnicode)
+FUNCTION_REFERENCE(
+    re_case_insensitive_compare_non_unicode,
+    regexp::NativeRegExpMacroAssembler::CaseInsensitiveCompareNonUnicode)
 
 FUNCTION_REFERENCE(re_is_character_in_range_array,
-                   RegExpMacroAssembler::IsCharacterInRangeArray)
+                   regexp::RegExpMacroAssembler::IsCharacterInRangeArray)
 
 ExternalReference ExternalReference::re_word_character_map() {
-  return ExternalReference(RegExpMacroAssembler::word_character_map_address());
+  return ExternalReference(
+      regexp::RegExpMacroAssembler::word_character_map_address());
 }
 
 ExternalReference
@@ -1526,9 +1546,6 @@ FUNCTION_REFERENCE(replace_unpaired_surrogates, ReplaceUnpairedSurrogates)
 FUNCTION_REFERENCE(mutable_big_int_absolute_add_and_canonicalize_function,
                    MutableBigInt_AbsoluteAddAndCanonicalize)
 
-FUNCTION_REFERENCE(mutable_big_int_absolute_compare_function,
-                   MutableBigInt_AbsoluteCompare)
-
 FUNCTION_REFERENCE(mutable_big_int_absolute_sub_and_canonicalize_function,
                    MutableBigInt_AbsoluteSubAndCanonicalize)
 
@@ -1866,6 +1883,43 @@ void tsan_seq_cst_store_64_bits(Address addr, int64_t value) {
 #endif  // V8_TARGET_ARCH_X64
 }
 
+// Same as above, for release stores.
+void tsan_release_store_8_bits(Address addr, int64_t value) {
+#if V8_TARGET_ARCH_X64
+  base::Release_Store(reinterpret_cast<base::Atomic8*>(addr),
+                      static_cast<base::Atomic8>(value));
+#else
+  UNREACHABLE();
+#endif  // V8_TARGET_ARCH_X64
+}
+
+void tsan_release_store_16_bits(Address addr, int64_t value) {
+#if V8_TARGET_ARCH_X64
+  base::Release_Store(reinterpret_cast<base::Atomic16*>(addr),
+                      static_cast<base::Atomic16>(value));
+#else
+  UNREACHABLE();
+#endif  // V8_TARGET_ARCH_X64
+}
+
+void tsan_release_store_32_bits(Address addr, int64_t value) {
+#if V8_TARGET_ARCH_X64
+  base::Release_Store(reinterpret_cast<base::Atomic32*>(addr),
+                      static_cast<base::Atomic32>(value));
+#else
+  UNREACHABLE();
+#endif  // V8_TARGET_ARCH_X64
+}
+
+void tsan_release_store_64_bits(Address addr, int64_t value) {
+#if V8_TARGET_ARCH_X64
+  base::Release_Store(reinterpret_cast<base::Atomic64*>(addr),
+                      static_cast<base::Atomic64>(value));
+#else
+  UNREACHABLE();
+#endif  // V8_TARGET_ARCH_X64
+}
+
 // Same as above, for relaxed loads.
 base::Atomic32 tsan_relaxed_load_32_bits(Address addr, int64_t value) {
 #if V8_TARGET_ARCH_X64
@@ -1902,6 +1956,14 @@ IF_TSAN(FUNCTION_REFERENCE, tsan_seq_cst_store_function_32_bits,
         tsan_seq_cst_store_32_bits)
 IF_TSAN(FUNCTION_REFERENCE, tsan_seq_cst_store_function_64_bits,
         tsan_seq_cst_store_64_bits)
+IF_TSAN(FUNCTION_REFERENCE, tsan_release_store_function_8_bits,
+        tsan_release_store_8_bits)
+IF_TSAN(FUNCTION_REFERENCE, tsan_release_store_function_16_bits,
+        tsan_release_store_16_bits)
+IF_TSAN(FUNCTION_REFERENCE, tsan_release_store_function_32_bits,
+        tsan_release_store_32_bits)
+IF_TSAN(FUNCTION_REFERENCE, tsan_release_store_function_64_bits,
+        tsan_release_store_64_bits)
 IF_TSAN(FUNCTION_REFERENCE, tsan_relaxed_load_function_32_bits,
         tsan_relaxed_load_32_bits)
 IF_TSAN(FUNCTION_REFERENCE, tsan_relaxed_load_function_64_bits,

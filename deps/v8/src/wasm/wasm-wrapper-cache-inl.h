@@ -91,7 +91,7 @@ WasmCode* WasmWrapperCache<CacheKey>::ModificationScope::AddWrapper(
                                 code_comments_offset,
                                 jump_table_info_offset,
                                 instr_size,
-                                result.protected_instructions_data.as_vector(),
+                                result.trapping_instructions_data.as_vector(),
                                 reloc_info,
                                 result.source_positions.as_vector(),
                                 result.inlining_positions.as_vector(),

@@ -4,7 +4,7 @@
 
 #include "src/objects/simd.h"
 
-#include "src/base/cpu.h"
+#include "src/base/cpu/cpu.h"
 #include "src/codegen/cpu-features.h"
 #include "src/objects/compressed-slots.h"
 #include "src/objects/fixed-array-inl.h"

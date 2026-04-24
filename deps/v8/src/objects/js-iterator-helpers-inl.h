@@ -8,7 +8,7 @@
 #include "src/objects/js-iterator-helpers.h"
 // Include the non-inl header before the rest of the headers.
 
-#include "src/objects/oddball-inl.h"
+#include "src/objects/tagged-field-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -17,15 +17,6 @@ namespace v8 {
 namespace internal {
 
 #include "torque-generated/src/objects/js-iterator-helpers-tq-inl.inc"
-
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSIteratorHelper)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSIteratorHelperSimple)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSIteratorMapHelper)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSIteratorFilterHelper)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSIteratorTakeHelper)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSIteratorDropHelper)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSIteratorFlatMapHelper)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSIteratorConcatHelper)
 
 }  // namespace internal
 }  // namespace v8

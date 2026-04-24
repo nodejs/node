@@ -51,7 +51,7 @@ transitioning builtin RegExpSplit(
   return RegExpPrototypeSplitBody(regexp, string, sanitizedLimit);
 }
 
-// ES#sec-regexp.prototype-@@split
+// https://tc39.es/ecma262/#sec-regexp.prototype-@@split
 // RegExp.prototype [ @@split ] ( string, limit )
 transitioning javascript builtin RegExpPrototypeSplit(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {

@@ -33,7 +33,7 @@ MaybeDirectHandle<JSRawJson> JSRawJson::Create(Isolate* isolate,
   }
   DirectHandle<JSObject> result =
       isolate->factory()->NewJSObjectFromMap(isolate->js_raw_json_map());
-  result->InObjectPropertyAtPut(JSRawJson::kRawJsonInitialIndex, *flat);
+  result->InObjectPropertyPutAtOffset(JSRawJson::kRawJsonInitialOffset, *flat);
   JSObject::SetIntegrityLevel(isolate, result, FROZEN, kThrowOnError).Check();
   return Cast<JSRawJson>(result);
 }

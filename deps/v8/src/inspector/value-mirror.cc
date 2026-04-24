@@ -22,6 +22,7 @@
 #include "src/inspector/v8-deep-serializer.h"
 #include "src/inspector/v8-inspector-impl.h"
 #include "src/inspector/v8-serialization-duplicate-tracker.h"
+#include "src/inspector/v8-value-utils.h"
 
 namespace v8_inspector {
 
@@ -182,7 +183,8 @@ V8InternalValueType v8InternalValueTypeFrom(v8::Local<v8::Context> context,
   V8InspectorImpl* inspector = static_cast<V8InspectorImpl*>(
       v8::debug::GetInspector(v8::Isolate::GetCurrent()));
   int contextId = InspectedContext::contextId(context);
-  InspectedContext* inspectedContext = inspector->getContext(contextId);
+  std::shared_ptr<InspectedContext> inspectedContext =
+      inspector->getContext(contextId);
   if (!inspectedContext) return V8InternalValueType::kNone;
   return inspectedContext->getInternalType(value.As<v8::Object>());
 }
@@ -1396,19 +1398,17 @@ class ObjectMirror final : public ValueMirrorBase {
 };
 
 void nativeGetterCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  v8::Local<v8::Object> data = info.Data().As<v8::Object>();
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   v8::Local<v8::Value> name;
-  if (!data->GetRealNamedProperty(context, toV8String(isolate, "name"))
-           .ToLocal(&name)) {
-    return;
-  }
   v8::Local<v8::Value> object;
-  if (!data->GetRealNamedProperty(context, toV8String(isolate, "object"))
-           .ToLocal(&object) ||
-      !object->IsObject()) {
-    return;
+  {
+    v8::Isolate::DisallowJavascriptExecutionScope throwJs(
+        isolate,
+        v8::Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
+    v8::Local<v8::Array> data = info.Data().As<v8::Array>();
+    if (!data->Get(context, 0).ToLocal(&name)) return;
+    if (!data->Get(context, 1).ToLocal(&object) || !object->IsObject()) return;
   }
   v8::Local<v8::Value> value;
   if (!object.As<v8::Object>()->Get(context, name).ToLocal(&value)) return;
@@ -1421,13 +1421,9 @@ std::unique_ptr<ValueMirror> createNativeGetter(v8::Local<v8::Context> context,
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::TryCatch tryCatch(isolate);
 
-  v8::Local<v8::Object> data = v8::Object::New(isolate);
-  if (data->Set(context, toV8String(isolate, "name"), name).IsNothing()) {
-    return nullptr;
-  }
-  if (data->Set(context, toV8String(isolate, "object"), object).IsNothing()) {
-    return nullptr;
-  }
+  v8::Local<v8::Array> data = v8::Array::New(isolate, 2);
+  if (createDataProperty(context, data, 0, name).IsNothing()) return nullptr;
+  if (createDataProperty(context, data, 1, object).IsNothing()) return nullptr;
 
   v8::Local<v8::Function> function;
   if (!v8::Function::New(context, nativeGetterCallback, data, 0,
@@ -1440,19 +1436,17 @@ std::unique_ptr<ValueMirror> createNativeGetter(v8::Local<v8::Context> context,
 
 void nativeSetterCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (info.Length() < 1) return;
-  v8::Local<v8::Object> data = info.Data().As<v8::Object>();
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   v8::Local<v8::Value> name;
-  if (!data->GetRealNamedProperty(context, toV8String(isolate, "name"))
-           .ToLocal(&name)) {
-    return;
-  }
   v8::Local<v8::Value> object;
-  if (!data->GetRealNamedProperty(context, toV8String(isolate, "object"))
-           .ToLocal(&object) ||
-      !object->IsObject()) {
-    return;
+  {
+    v8::Isolate::DisallowJavascriptExecutionScope throwJs(
+        isolate,
+        v8::Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
+    v8::Local<v8::Array> data = info.Data().As<v8::Array>();
+    if (!data->Get(context, 0).ToLocal(&name)) return;
+    if (!data->Get(context, 1).ToLocal(&object) || !object->IsObject()) return;
   }
   if (!object.As<v8::Object>()->Set(context, name, info[0]).IsNothing()) return;
 }
@@ -1463,13 +1457,9 @@ std::unique_ptr<ValueMirror> createNativeSetter(v8::Local<v8::Context> context,
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::TryCatch tryCatch(isolate);
 
-  v8::Local<v8::Object> data = v8::Object::New(isolate);
-  if (data->Set(context, toV8String(isolate, "name"), name).IsNothing()) {
-    return nullptr;
-  }
-  if (data->Set(context, toV8String(isolate, "object"), object).IsNothing()) {
-    return nullptr;
-  }
+  v8::Local<v8::Array> data = v8::Array::New(isolate, 2);
+  if (createDataProperty(context, data, 0, name).IsNothing()) return nullptr;
+  if (createDataProperty(context, data, 1, object).IsNothing()) return nullptr;
 
   v8::Local<v8::Function> function;
   if (!v8::Function::New(context, nativeSetterCallback, data, 1,
@@ -1591,7 +1581,6 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
     bool configurable = false;
 
     bool isAccessorProperty = false;
-    bool isSideEffectFreeGetter = false;
     v8::TryCatch tryCatchAttributes(isolate);
     if (!iterator->attributes().To(&attributes)) {
       exceptionMirror =
@@ -1608,7 +1597,6 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
         enumerable = !(attributes & v8::PropertyAttribute::DontEnum);
         configurable = !(attributes & v8::PropertyAttribute::DontDelete);
         isAccessorProperty = getterMirror || setterMirror;
-        isSideEffectFreeGetter = true;
       } else {
         v8::TryCatch tryCatchDescriptor(isolate);
         v8::debug::PropertyDescriptor descriptor;
@@ -1639,7 +1627,6 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
                   v8::UnboundScript::kNoScriptId &&
               !doesAttributeHaveObservableSideEffectOnGet(context, object,
                                                           v8Name)) {
-            isSideEffectFreeGetter = true;
             v8::TryCatch tryCatchFunction(isolate);
             v8::Local<v8::Value> value;
             if (object->Get(context, v8Name).ToLocal(&value)) {
@@ -1657,15 +1644,6 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
       }
     }
     if (accessorPropertiesOnly && !isAccessorProperty) continue;
-    if (accessorPropertiesOnly && isAccessorProperty && !isOwn &&
-        isSideEffectFreeGetter) {
-      v8::Local<v8::Value> currentValue;
-      if (object->Get(context, v8Name).ToLocal(&currentValue)) {
-        if (!currentValue->ToBoolean(isolate)->Value()) {
-          continue;
-        }
-      }
-    }
     auto mirror = PropertyMirror{name,
                                  writable,
                                  configurable,

@@ -981,14 +981,14 @@ class BytecodeGenerator::TopLevelDeclarationsBuilder final : public ZoneObject {
     Handle<FixedArray> data =
         isolate->factory()->NewFixedArray(entry_slots_, AllocationType::kOld);
 
-    int array_index = 0;
+    uint32_t array_index = 0;
     if (info->scope()->is_module_scope()) {
       for (Declaration* decl : *info->scope()->declarations()) {
         Variable* var = decl->var();
         if (!var->is_used()) continue;
         if (var->location() != VariableLocation::MODULE) continue;
 #ifdef DEBUG
-        int start = array_index;
+        uint32_t start = array_index;
 #endif
         if (decl->IsFunctionDeclaration()) {
           FunctionLiteral* f = static_cast<FunctionDeclaration*>(decl)->fun();
@@ -1014,7 +1014,7 @@ class BytecodeGenerator::TopLevelDeclarationsBuilder final : public ZoneObject {
         if (!var->is_used()) continue;
         if (var->location() != VariableLocation::UNALLOCATED) continue;
 #ifdef DEBUG
-        int start = array_index;
+        uint32_t start = array_index;
 #endif
         if (decl->IsVariableDeclaration()) {
           data->set(array_index++, *var->raw_name()->string());
@@ -1033,7 +1033,7 @@ class BytecodeGenerator::TopLevelDeclarationsBuilder final : public ZoneObject {
         }
       }
     }
-    DCHECK_EQ(array_index, data->length());
+    DCHECK_EQ(array_index, data->ulength().value());
     return data;
   }
 
@@ -4754,21 +4754,17 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable,
         context_reg = execution_context()->reg();
       }
 
-      BytecodeArrayBuilder::ContextSlotMutability immutable =
-          (variable->maybe_assigned() == kNotAssigned)
-              ? BytecodeArrayBuilder::kImmutableSlot
-              : BytecodeArrayBuilder::kMutableSlot;
+      bool is_immutable = variable->maybe_assigned() == kNotAssigned;
       Register acc = Register::virtual_accumulator();
-      if (immutable == BytecodeArrayBuilder::kImmutableSlot &&
-          IsVariableInRegister(variable, acc)) {
+      if (is_immutable && IsVariableInRegister(variable, acc)) {
         return;
       }
 
-      builder()->LoadContextSlot(context_reg, variable, depth, immutable);
+      builder()->LoadContextSlot(context_reg, variable, depth);
       if (VariableNeedsHoleCheckInCurrentBlock(variable, hole_check_mode)) {
         BuildThrowIfHole(variable);
       }
-      if (immutable == BytecodeArrayBuilder::kImmutableSlot) {
+      if (is_immutable) {
         SetVariableInRegister(variable, acc);
       }
       break;
@@ -5037,8 +5033,7 @@ void BytecodeGenerator::BuildVariableAssignment(
         Register value_temp = register_allocator()->NewRegister();
         builder()
             ->StoreAccumulatorInRegister(value_temp)
-            .LoadContextSlot(context_reg, variable, depth,
-                             BytecodeArrayBuilder::kMutableSlot);
+            .LoadContextSlot(context_reg, variable, depth);
 
         BuildHoleCheckForVariableAssignment(variable, op);
         builder()->LoadAccumulatorWithRegister(value_temp);
@@ -5234,6 +5229,14 @@ BytecodeGenerator::AssignmentLhsData::KeyedSuperProperty(
   return AssignmentLhsData(KEYED_SUPER_PROPERTY, nullptr, super_property_args,
                            Register(), Register(), nullptr, nullptr);
 }
+// static
+BytecodeGenerator::AssignmentLhsData
+BytecodeGenerator::AssignmentLhsData::PrivateField(
+    Register object, int slot_index, int depth) {  // Changed from AstRawString*
+  return AssignmentLhsData(KEYED_PROPERTY, nullptr, RegisterList(), object,
+                           Register(), nullptr, nullptr, true, slot_index,
+                           depth);
+}
 
 BytecodeGenerator::AssignmentLhsData BytecodeGenerator::PrepareAssignmentLhs(
     Expression* lhs, AccumulatorPreservingMode accumulator_preserving_mode) {
@@ -5255,6 +5258,12 @@ BytecodeGenerator::AssignmentLhsData BytecodeGenerator::PrepareAssignmentLhs(
     case KEYED_PROPERTY: {
       AccumulatorPreservingScope scope(this, accumulator_preserving_mode);
       Register object = VisitForRegisterValue(property->obj());
+
+      if (v8_flags.private_field_bytecodes && property->IsPrivateReference()) {
+        Variable* var = property->key()->AsVariableProxy()->var();
+        int depth = execution_context()->ContextChainDepth(var->scope());
+        return AssignmentLhsData::PrivateField(object, var->index(), depth);
+      }
       Register key = VisitForRegisterValue(property->key());
       return AssignmentLhsData::KeyedProperty(object, key);
     }
@@ -5807,8 +5816,22 @@ void BytecodeGenerator::BuildAssignment(
         value = register_allocator()->NewRegister();
         builder()->StoreAccumulatorInRegister(value);
       }
-      builder()->SetKeyedProperty(lhs_data.object(), lhs_data.key(),
-                                  feedback_index(slot), language_mode());
+      if (v8_flags.private_field_bytecodes && lhs_data.is_private_field()) {
+        int depth = lhs_data.depth();
+        ContextScope* context = execution_context()->Previous(depth);
+        Register context_reg;
+        if (context) {
+          context_reg = context->reg();
+          depth = 0;
+        } else {
+          context_reg = execution_context()->reg();
+        }
+        builder()->SetPrivateField(context_reg, lhs_data.slot_index(), depth,
+                                   lhs_data.object(), feedback_index(slot));
+      } else {
+        builder()->SetKeyedProperty(lhs_data.object(), lhs_data.key(),
+                                    feedback_index(slot), language_mode());
+      }
       if (!execution_result()->IsEffect()) {
         builder()->LoadAccumulatorWithRegister(value);
       }
@@ -5893,6 +5916,20 @@ void BytecodeGenerator::VisitCompoundAssignment(CompoundAssignment* expr) {
     }
     case KEYED_PROPERTY: {
       FeedbackSlot slot = feedback_spec()->AddKeyedLoadICSlot();
+      if (v8_flags.private_field_bytecodes && lhs_data.is_private_field()) {
+        int depth = lhs_data.depth();
+        ContextScope* context = execution_context()->Previous(depth);
+        Register context_reg;
+        if (context) {
+          context_reg = context->reg();
+          depth = 0;
+        } else {
+          context_reg = execution_context()->reg();
+        }
+        builder()->GetPrivateField(context_reg, lhs_data.slot_index(), depth,
+                                   lhs_data.object(), feedback_index(slot));
+        break;
+      }
       builder()->LoadAccumulatorWithRegister(lhs_data.key());
       BuildLoadKeyedProperty(lhs_data.object(), slot);
       break;
@@ -6425,6 +6462,24 @@ void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* property) {
       break;
     }
     case KEYED_PROPERTY: {
+      if (v8_flags.private_field_bytecodes && property->IsPrivateReference()) {
+        builder()->SetExpressionPosition(property);
+        DCHECK(property->key()->IsVariableProxy());
+        Variable* var = property->key()->AsVariableProxy()->var();
+        int depth = execution_context()->ContextChainDepth(var->scope());
+        ContextScope* context = execution_context()->Previous(depth);
+        Register context_reg;
+        if (context) {
+          context_reg = context->reg();
+          depth = 0;
+        } else {
+          context_reg = execution_context()->reg();
+        }
+        builder()->GetPrivateField(
+            context_reg, var->index(), depth, obj,
+            feedback_index(feedback_spec()->AddKeyedLoadICSlot()));
+        break;
+      }
       VisitForAccumulatorValueAsPropertyKey(property->key());
       builder()->SetExpressionPosition(property);
       BuildLoadKeyedProperty(obj, feedback_spec()->AddKeyedLoadICSlot());
@@ -7425,6 +7480,22 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
     }
     case KEYED_PROPERTY: {
       object = VisitForRegisterValue(property->obj());
+      if (v8_flags.private_field_bytecodes && property->IsPrivateReference()) {
+        Variable* var = property->key()->AsVariableProxy()->var();
+        int depth = execution_context()->ContextChainDepth(var->scope());
+        ContextScope* context = execution_context()->Previous(depth);
+        Register context_reg;
+        if (context) {
+          context_reg = context->reg();
+          depth = 0;
+        } else {
+          context_reg = execution_context()->reg();
+        }
+        builder()->GetPrivateField(
+            context_reg, var->index(), depth, object,
+            feedback_index(feedback_spec()->AddKeyedLoadICSlot()));
+        break;
+      }
       // Use visit for accumulator here since we need the key in the accumulator
       // for the LoadKeyedProperty.
       key = register_allocator()->NewRegister();
@@ -7541,8 +7612,24 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
         value = register_allocator()->NewRegister();
         builder()->StoreAccumulatorInRegister(value);
       }
-      builder()->SetKeyedProperty(object, key, feedback_index(slot),
-                                  language_mode());
+      if (v8_flags.private_field_bytecodes && property->IsPrivateReference()) {
+        Variable* var = property->key()->AsVariableProxy()->var();
+        int depth = execution_context()->ContextChainDepth(var->scope());
+        ContextScope* context = execution_context()->Previous(depth);
+        Register context_reg;
+        if (context) {
+          context_reg = context->reg();
+          depth = 0;
+        } else {
+          context_reg = execution_context()->reg();
+        }
+        builder()->SetPrivateField(context_reg, var->index(), depth, object,
+                                   feedback_index(slot));
+        break;
+      } else {
+        builder()->SetKeyedProperty(object, key, feedback_index(slot),
+                                    language_mode());
+      }
       if (!execution_result()->IsEffect()) {
         builder()->LoadAccumulatorWithRegister(value);
       }

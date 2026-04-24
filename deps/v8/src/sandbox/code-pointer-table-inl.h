@@ -70,6 +70,11 @@ bool CodePointerTableEntry::IsFreelistEntry() const {
   return (entrypoint & kFreeEntryTag) == kFreeEntryTag;
 }
 
+void CodePointerTableEntry::MakeZappedEntry() {
+  entrypoint_.store(kFreeEntryTag, std::memory_order_relaxed);
+  code_.store(kNullAddress, std::memory_order_relaxed);
+}
+
 std::optional<uint32_t> CodePointerTableEntry::GetNextFreelistEntryIndex()
     const {
   auto entrypoint = entrypoint_.load(std::memory_order_relaxed);
@@ -132,6 +137,13 @@ void CodePointerTable::SetCodeObject(CodePointerHandle handle, Address value) {
   uint32_t index = HandleToIndex(handle);
   CFIMetadataWriteScope write_scope("CodePointerTable write");
   at(index).SetCodeObject(value);
+}
+
+void CodePointerTable::Zap(CodePointerHandle handle) {
+  if (handle == kNullCodePointerHandle) return;
+  uint32_t index = HandleToIndex(handle);
+  CFIMetadataWriteScope write_scope("CodePointerTable write");
+  at(index).MakeZappedEntry();
 }
 
 CodePointerHandle CodePointerTable::AllocateAndInitializeEntry(

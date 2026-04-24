@@ -109,7 +109,7 @@ const uint32_t kShortcutTypeMask =
     kIsNotStringMask | kIsNotInternalizedMask | kStringRepresentationMask;
 const uint32_t kShortcutTypeTag = kConsStringTag | kNotInternalizedTag;
 
-static inline bool IsShortcutCandidate(int type) {
+inline bool IsShortcutCandidate(int type) {
   return ((type & kShortcutTypeMask) == kShortcutTypeTag);
 }
 
@@ -182,6 +182,10 @@ enum InstanceType : uint16_t {
   FIRST_UNIQUE_NAME_TYPE = INTERNALIZED_TWO_BYTE_STRING_TYPE,
   LAST_UNIQUE_NAME_TYPE = SYMBOL_TYPE,
   FIRST_NONSTRING_TYPE = SYMBOL_TYPE,
+  // This is a convenience alias to minimize the code churn from splitting
+  // JSFunction into JSFunctionWithoutPrototype and JSFunctionWithPrototype.
+  // Prefer using it instead of JS_FUNCTION_WITH_PROTOTYPE_TYPE.
+  JS_FUNCTION_TYPE = JS_FUNCTION_WITH_PROTOTYPE_TYPE,
   // Callable JS Functions are all JS Functions except class constructors.
   FIRST_CALLABLE_JS_FUNCTION_TYPE = FIRST_JS_FUNCTION_TYPE,
   LAST_CALLABLE_JS_FUNCTION_TYPE = JS_CLASS_CONSTRUCTOR_TYPE - 1,
@@ -317,19 +321,21 @@ V8_EXPORT_PRIVATE std::string ToString(InstanceType instance_type);
 
 // This list must contain only maps that are shared by all objects of their
 // instance type.
-#define UNIQUE_INSTANCE_TYPE_MAP_LIST_GENERATOR(V, _)                 \
-  UNIQUE_LEAF_INSTANCE_TYPE_MAP_LIST_GENERATOR(V, _)                  \
-  V(_, ByteArrayMap, byte_array_map, ByteArray)                       \
-  V(_, ContextCellMap, context_cell_map, ContextCell)                 \
-  V(_, NameDictionaryMap, name_dictionary_map, NameDictionary)        \
-  V(_, OrderedNameDictionaryMap, ordered_name_dictionary_map,         \
-    OrderedNameDictionary)                                            \
-  V(_, GlobalDictionaryMap, global_dictionary_map, GlobalDictionary)  \
-  V(_, GlobalPropertyCellMap, global_property_cell_map, PropertyCell) \
-  V(_, HeapNumberMap, heap_number_map, HeapNumber)                    \
-  V(_, WeakFixedArrayMap, weak_fixed_array_map, WeakFixedArray)       \
-  V(_, ScopeInfoMap, scope_info_map, ScopeInfo)                       \
-  V(_, WeakArrayListMap, weak_array_list_map, WeakArrayList)          \
+#define UNIQUE_INSTANCE_TYPE_MAP_LIST_GENERATOR(V, _)                  \
+  UNIQUE_LEAF_INSTANCE_TYPE_MAP_LIST_GENERATOR(V, _)                   \
+  V(_, ByteArrayMap, byte_array_map, ByteArray)                        \
+  V(_, ContextCellMap, context_cell_map, ContextCell)                  \
+  V(_, NameDictionaryMap, name_dictionary_map, NameDictionary)         \
+  V(_, OrderedNameDictionaryMap, ordered_name_dictionary_map,          \
+    OrderedNameDictionary)                                             \
+  V(_, GlobalDictionaryMap, global_dictionary_map, GlobalDictionary)   \
+  V(_, GlobalPropertyCellMap, global_property_cell_map, PropertyCell)  \
+  V(_, HeapNumberMap, heap_number_map, HeapNumber)                     \
+  V(_, WeakFixedArrayMap, weak_fixed_array_map, WeakFixedArray)        \
+  V(_, WeakHomomorphicFixedArrayMap, weak_homomorphic_fixed_array_map, \
+    WeakHomomorphicFixedArray)                                         \
+  V(_, ScopeInfoMap, scope_info_map, ScopeInfo)                        \
+  V(_, WeakArrayListMap, weak_array_list_map, WeakArrayList)           \
   TORQUE_DEFINED_MAP_CSA_LIST_GENERATOR(V, _)
 
 #ifdef V8_ENABLE_SWISS_NAME_DICTIONARY

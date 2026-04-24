@@ -588,6 +588,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void SmiTag(Register reg) { SmiTag(reg, reg); }
 
+  void SmiUntag(Register reg) { SmiUntag(reg, reg); }
   void SmiUntag(Register dst, const MemOperand& src);
   void SmiUntag(Register dst, Register src) {
     if (SmiValuesAre32Bits()) {
@@ -598,7 +599,16 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     }
   }
 
-  void SmiUntag(Register reg) { SmiUntag(reg, reg); }
+  void SmiUntagUnsigned(Register reg) { SmiUntagUnsigned(reg, reg); }
+  void SmiUntagUnsigned(Register dst, const MemOperand& src);
+  void SmiUntagUnsigned(Register dst, Register src) {
+    if (SmiValuesAre32Bits()) {
+      srli_d(dst, src, kSmiShift);
+    } else {
+      DCHECK(SmiValuesAre31Bits());
+      srli_w(dst, src, kSmiShift);
+    }
+  }
 
   // Left-shifted from int32 equivalent of Smi.
   void SmiScale(Register dst, Register src, int scale) {
@@ -693,6 +703,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Exits with 'result' holding the answer.
   void TruncateDoubleToI(Isolate* isolate, Zone* zone, Register result,
                          DoubleRegister double_input, StubCallMode stub_mode);
+
+  void Float64Mod(DoubleRegister out, DoubleRegister left,
+                  DoubleRegister right);
 
   // Conditional move.
   void Movz(Register rd, Register rj, Register rk);
@@ -1006,6 +1019,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Loads a field containing smi value and untags it.
   void SmiUntagField(Register dst, const MemOperand& src);
+  void SmiUntagFieldUnsigned(Register dst, const MemOperand& src);
 
   // Compresses and stores tagged value to given on-heap location.
   void StoreTaggedField(Register src, const MemOperand& dst,
@@ -1056,12 +1070,16 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // As above, but for kUnknownIndirectPointerTag. The type of the loaded object
   // is unknown, so this helper will check for a series of expected types and
   // jump to the given labels if the loaded object has a matching type. If the
-  // object has none of the expected types, the destination register will be
-  // zeroed and execution continues as fall-through.
+  // field is null (with enabled sandbox) or a Smi (with disabled sandbox) and
+  // the provided is_unavailable label is not a nullptr, then the helper will
+  // jump there. If the field is valid and the object has one of the expected
+  // types, then the helper will jump to the corresponding label. In all other
+  // cases, the destination register will be zeroed and execution continues as
+  // fall-through.
   void LoadTrustedUnknownPointerField(
       Register destination, MemOperand field_operand, Register scratch,
-      const std::initializer_list<std::tuple<InstanceType, Label*>>& cases);
-
+      const std::initializer_list<std::tuple<InstanceType, Label*>>& cases,
+      Label* is_unavailable = nullptr);
   // Store a trusted pointer field.
   void StoreTrustedPointerField(Register value, MemOperand dst_field_operand);
 

@@ -620,12 +620,37 @@ constexpr auto SingleParameterOnStackDescriptor::registers() {
 }
 
 // static
+constexpr auto GeneratorNextLazyDeoptContinuationDescriptor::registers() {
+  return RegisterArray();
+}
+
+// static
 constexpr auto AsyncFunctionStackParameterDescriptor::registers() {
   return RegisterArray();
 }
 
 // static
 constexpr auto GetIteratorStackParameterDescriptor::registers() {
+  return RegisterArray();
+}
+
+// static
+constexpr auto ForOfNextResultDeoptContinuationDescriptor::registers() {
+  return RegisterArray();
+}
+
+// static
+constexpr auto ForOfNextLoadDoneLazyDeoptContinuationDescriptor::registers() {
+  return RegisterArray();
+}
+
+// static
+constexpr auto ForOfNextLoadValueLazyDeoptContinuationDescriptor::registers() {
+  return RegisterArray();
+}
+
+// static
+constexpr auto ForOfNextLoadValueEagerDeoptContinuationDescriptor::registers() {
   return RegisterArray();
 }
 
@@ -838,10 +863,28 @@ constexpr auto WasmFXResumeThrowDescriptor::registers() {
   return RegisterArray(wasm::kGpParamRegisters[0], wasm::kGpParamRegisters[1],
                        wasm::kGpParamRegisters[2], wasm::kGpParamRegisters[3]);
 }
+constexpr auto WasmFXResumeThrowRefDescriptor::registers() {
+  return RegisterArray(wasm::kGpParamRegisters[0], wasm::kGpParamRegisters[1]);
+}
 constexpr auto WasmFXSuspendDescriptor::registers() {
   // Reg 0 is the context register.
   return RegisterArray(wasm::kGpParamRegisters[1], wasm::kGpParamRegisters[2],
                        wasm::kGpParamRegisters[3]);
+}
+constexpr auto WasmFXSwitchDescriptor::registers() {
+#if defined(V8_TARGET_ARCH_IA32)
+  return RegisterArray(wasm::kGpParamRegisters[1], wasm::kGpParamRegisters[2],
+                       wasm::kGpParamRegisters[3], edi);
+#elif defined(V8_TARGET_ARCH_ARM)
+  return RegisterArray(wasm::kGpParamRegisters[1], wasm::kGpParamRegisters[2],
+                       wasm::kGpParamRegisters[3], r4);
+#elif defined(V8_TARGET_ARCH_S390X)
+  return RegisterArray(wasm::kGpParamRegisters[1], wasm::kGpParamRegisters[2],
+                       wasm::kGpParamRegisters[3], r7);
+#else
+  return RegisterArray(wasm::kGpParamRegisters[1], wasm::kGpParamRegisters[2],
+                       wasm::kGpParamRegisters[3], wasm::kGpParamRegisters[4]);
+#endif
 }
 constexpr auto WasmFXReturnDescriptor::registers() {
   return RegisterArray(wasm::kGpParamRegisters[0]);

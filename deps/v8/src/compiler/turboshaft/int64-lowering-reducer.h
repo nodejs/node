@@ -12,7 +12,6 @@
 #include "src/codegen/machine-type.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/operations.h"
-#include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/compiler/wasm-graph-assembler.h"
 #include "src/wasm/wasm-engine.h"
@@ -295,10 +294,10 @@ class Int64LoweringReducer : public Next {
     FATAL("%s", str.str().c_str());
   }
 
-  std::pair<OptionalV<Word32>, int32_t> IncreaseOffset(OptionalV<Word32> index,
-                                                       int32_t offset,
-                                                       int32_t add_offset,
-                                                       bool tagged_base) {
+  std::pair<OptionalV<Word32>, int32_t> IncreaseOffset(
+      OptionalV<Word32> index, int32_t offset, int32_t add_offset,
+      uint8_t element_size_log2, bool tagged_base) {
+    uint32_t element_size = 1 << element_size_log2;
     // Note that the offset will just wrap around. Still, we need to always
     // use an offset that is not std::numeric_limits<int32_t>::min() on tagged
     // loads.
@@ -308,13 +307,17 @@ class Int64LoweringReducer : public Next {
         static_cast<uint32_t>(offset) + static_cast<uint32_t>(add_offset);
     OptionalV<Word32> new_index = index;
     if (!LoadOp::OffsetIsValid(new_offset, tagged_base)) {
-      // We cannot encode the new offset so we use the old offset
-      // instead and use the Index to represent the extra offset.
-      new_offset = offset;
+      // We cannot encode the new offset because it has the one invalid value.
+      // We can choose any other value and the only requirement is that we end
+      // up at the same final location after calculating
+      // |  index * element_size + offset
+      // So we'll just subtract "one element" and increase the index by one.
+      // We could do this for almost any arbitrary value larger than 0.
+      new_offset -= element_size;
       if (index.has_value()) {
-        new_index = __ Word32Add(new_index.value(), add_offset);
+        new_index = __ Word32Add(new_index.value(), 1);
       } else {
-        new_index = __ Word32Constant(sizeof(int32_t));
+        new_index = __ Word32Constant(1);
       }
     }
     return {new_index, new_offset};
@@ -347,8 +350,8 @@ class Int64LoweringReducer : public Next {
     }
     if (loaded_rep == MemoryRepresentation::Int64() ||
         loaded_rep == MemoryRepresentation::Uint64()) {
-      auto [high_index, high_offset] =
-          IncreaseOffset(index, offset, sizeof(int32_t), kind.tagged_base);
+      auto [high_index, high_offset] = IncreaseOffset(
+          index, offset, sizeof(int32_t), element_scale, kind.tagged_base);
       return __ MakeTuple(
           Next::ReduceLoad(base, index, kind, MemoryRepresentation::Int32(),
                            RegisterRepresentation::Word32(), offset,
@@ -363,8 +366,9 @@ class Int64LoweringReducer : public Next {
 
   V<None> REDUCE(Store)(OpIndex base, OptionalOpIndex index, OpIndex value,
                         StoreOp::Kind kind, MemoryRepresentation stored_rep,
-                        WriteBarrierKind write_barrier, int32_t offset,
-                        uint8_t element_size_log2,
+                        WriteBarrierKind write_barrier,
+                        std::optional<AtomicMemoryOrder> memory_order,
+                        int32_t offset, uint8_t element_size_log2,
                         bool maybe_initializing_or_transitioning,
                         IndirectPointerTag maybe_indirect_pointer_tag) {
     if (stored_rep == MemoryRepresentation::Int64() ||
@@ -380,26 +384,29 @@ class Int64LoweringReducer : public Next {
         }
         // Manually subtract the pointer tag if present.
         offset -= kind.tagged_base;
+        // For now, we keep seqcst semantics for 8-byte stores on ia32.
+        // In future, if we want to improve performance on ia32, we will
+        // consider updating this part.
         return __ AtomicWord32PairStore(base, index, low, high, offset);
       }
       // low store
       Next::ReduceStore(base, index, low, kind, MemoryRepresentation::Int32(),
-                        write_barrier, offset, element_size_log2,
+                        write_barrier, memory_order, offset, element_size_log2,
                         maybe_initializing_or_transitioning,
                         maybe_indirect_pointer_tag);
       // high store
-      auto [high_index, high_offset] =
-          IncreaseOffset(index, offset, sizeof(int32_t), kind.tagged_base);
+      auto [high_index, high_offset] = IncreaseOffset(
+          index, offset, sizeof(int32_t), element_size_log2, kind.tagged_base);
       Next::ReduceStore(
           base, high_index, high, kind, MemoryRepresentation::Int32(),
-          write_barrier, high_offset, element_size_log2,
+          write_barrier, memory_order, high_offset, element_size_log2,
           maybe_initializing_or_transitioning, maybe_indirect_pointer_tag);
       return V<None>::Invalid();
     }
-    return Next::ReduceStore(base, index, value, kind, stored_rep,
-                             write_barrier, offset, element_size_log2,
-                             maybe_initializing_or_transitioning,
-                             maybe_indirect_pointer_tag);
+    return Next::ReduceStore(
+        base, index, value, kind, stored_rep, write_barrier, memory_order,
+        offset, element_size_log2, maybe_initializing_or_transitioning,
+        maybe_indirect_pointer_tag);
   }
 
   OpIndex REDUCE(AtomicRMW)(OpIndex base, OpIndex index, OpIndex value,

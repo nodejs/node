@@ -11,6 +11,7 @@
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/contexts-inl.h"
 #include "src/objects/foreign-inl.h"
+#include "src/objects/js-generator-inl.h"
 #include "src/objects/js-objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -47,9 +48,28 @@ void CallableTask::set_callable(Tagged<JSReceiver> value,
   callable_.store(this, value, mode);
 }
 
-Tagged<Context> CallableTask::context() const { return context_.load(); }
-void CallableTask::set_context(Tagged<Context> value, WriteBarrierMode mode) {
+Tagged<NativeContext> CallableTask::context() const { return context_.load(); }
+void CallableTask::set_context(Tagged<NativeContext> value,
+                               WriteBarrierMode mode) {
   context_.store(this, value, mode);
+}
+
+Tagged<JSGeneratorObject> AsyncResumeTask::generator() const {
+  return generator_.load();
+}
+void AsyncResumeTask::set_generator(Tagged<JSGeneratorObject> value,
+                                    WriteBarrierMode mode) {
+  generator_.store(this, value, mode);
+}
+
+Tagged<Object> AsyncResumeTask::value() const { return value_.load(); }
+void AsyncResumeTask::set_value(Tagged<Object> val, WriteBarrierMode mode) {
+  value_.store(this, val, mode);
+}
+
+int AsyncResumeTask::kind() const { return kind_.load().value(); }
+void AsyncResumeTask::set_kind(int kind) {
+  kind_.store(this, Smi::FromInt(kind));
 }
 
 }  // namespace internal

@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "include/v8-callbacks.h"
+#include "include/v8config.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/interpreter/bytecode-register.h"
@@ -74,7 +75,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
   explicit BytecodeArrayIterator(Handle<BytecodeArray> bytecode_array,
                                  int initial_offset = 0);
   BytecodeArrayIterator(Handle<BytecodeArray> bytecode_array,
-                        int initial_offset, DisallowGarbageCollection& no_gc);
+                        int initial_offset,
+                        DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND);
   ~BytecodeArrayIterator();
 
   BytecodeArrayIterator(const BytecodeArrayIterator&) = delete;

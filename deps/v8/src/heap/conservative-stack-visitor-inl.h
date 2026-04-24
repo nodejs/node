@@ -113,7 +113,12 @@ Address ConservativeStackVisitorBase<ConcreteVisitor>::FindBasePtr(
     if (!ConcreteVisitor::FilterNormalObject(obj, map_word, bitmap)) {
       return kNullAddress;
     }
-    const int size = obj->SizeFromMap(map_word.ToMap());
+    Tagged<Map> map = map_word.ToMap();
+    // If the following check ever fails, this most probably means that the page
+    // is not iterable and that we have missed some `Heap::MakeHeapIterable`
+    // before invoking CSS.
+    DCHECK(Is<Map>(map));
+    const int size = obj->SizeFromMap(map);
     DCHECK_LT(0, size);
     if (maybe_inner_ptr < base_ptr + size) {
       ConcreteVisitor::HandleObjectFound(obj, size, bitmap);

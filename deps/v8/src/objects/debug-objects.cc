@@ -94,7 +94,8 @@ bool DebugInfo::HasBreakPoint(Isolate* isolate, int source_position) {
 Tagged<Object> DebugInfo::GetBreakPointInfo(Isolate* isolate,
                                             int source_position) {
   DCHECK(HasBreakInfo());
-  for (int i = 0; i < break_points()->length(); i++) {
+  const uint32_t break_points_len = break_points()->ulength().value();
+  for (uint32_t i = 0; i < break_points_len; i++) {
     if (!IsUndefined(break_points()->get(i), isolate)) {
       Tagged<BreakPointInfo> break_point_info =
           Cast<BreakPointInfo>(break_points()->get(i));
@@ -110,7 +111,9 @@ bool DebugInfo::ClearBreakPoint(Isolate* isolate,
                                 DirectHandle<DebugInfo> debug_info,
                                 DirectHandle<BreakPoint> break_point) {
   DCHECK(debug_info->HasBreakInfo());
-  for (int i = 0; i < debug_info->break_points()->length(); i++) {
+  const uint32_t break_points_len =
+      debug_info->break_points()->ulength().value();
+  for (uint32_t i = 0; i < break_points_len; i++) {
     if (IsUndefined(debug_info->break_points()->get(i), isolate)) continue;
     DirectHandle<BreakPointInfo> break_point_info(
         Cast<BreakPointInfo>(debug_info->break_points()->get(i)), isolate);
@@ -137,36 +140,36 @@ void DebugInfo::SetBreakPoint(Isolate* isolate,
 
   // Adding a new break point for a code offset which did not have any
   // break points before. Try to find a free slot.
-  static const int kNoBreakPointInfo = -1;
-  int index = kNoBreakPointInfo;
-  for (int i = 0; i < debug_info->break_points()->length(); i++) {
+  std::optional<uint32_t> index;
+  const uint32_t break_points_len =
+      debug_info->break_points()->ulength().value();
+  for (uint32_t i = 0; i < break_points_len; i++) {
     if (IsUndefined(debug_info->break_points()->get(i), isolate)) {
       index = i;
       break;
     }
   }
-  if (index == kNoBreakPointInfo) {
+  if (!index) {
     // No free slot - extend break point info array.
     DirectHandle<FixedArray> old_break_points(debug_info->break_points(),
                                               isolate);
     DirectHandle<FixedArray> new_break_points =
         isolate->factory()->NewFixedArray(
-            old_break_points->length() +
-            DebugInfo::kEstimatedNofBreakPointsInFunction);
+            break_points_len + DebugInfo::kEstimatedNofBreakPointsInFunction);
 
     debug_info->set_break_points(*new_break_points);
-    for (int i = 0; i < old_break_points->length(); i++) {
+    for (uint32_t i = 0; i < break_points_len; i++) {
       new_break_points->set(i, old_break_points->get(i));
     }
-    index = old_break_points->length();
+    index = break_points_len;
   }
-  DCHECK_NE(index, kNoBreakPointInfo);
+  DCHECK(index.has_value());
 
   // Allocate new BreakPointInfo object and set the break point.
   DirectHandle<BreakPointInfo> new_break_point_info =
       isolate->factory()->NewBreakPointInfo(source_position);
   BreakPointInfo::SetBreakPoint(isolate, new_break_point_info, break_point);
-  debug_info->break_points()->set(index, *new_break_point_info);
+  debug_info->break_points()->set(*index, *new_break_point_info);
 }
 
 // Get the break point objects for a source position.
@@ -182,10 +185,11 @@ DirectHandle<Object> DebugInfo::GetBreakPoints(Isolate* isolate,
 }
 
 // Get the total number of break points.
-int DebugInfo::GetBreakPointCount(Isolate* isolate) {
+uint32_t DebugInfo::GetBreakPointCount(Isolate* isolate) {
   DCHECK(HasBreakInfo());
-  int count = 0;
-  for (int i = 0; i < break_points()->length(); i++) {
+  uint32_t count = 0;
+  uint32_t break_points_len = break_points()->ulength().value();
+  for (uint32_t i = 0; i < break_points_len; i++) {
     if (!IsUndefined(break_points()->get(i), isolate)) {
       Tagged<BreakPointInfo> break_point_info =
           Cast<BreakPointInfo>(break_points()->get(i));
@@ -199,7 +203,9 @@ DirectHandle<Object> DebugInfo::FindBreakPointInfo(
     Isolate* isolate, DirectHandle<DebugInfo> debug_info,
     DirectHandle<BreakPoint> break_point) {
   DCHECK(debug_info->HasBreakInfo());
-  for (int i = 0; i < debug_info->break_points()->length(); i++) {
+  const uint32_t break_points_len =
+      debug_info->break_points()->ulength().value();
+  for (uint32_t i = 0; i < break_points_len; i++) {
     if (!IsUndefined(debug_info->break_points()->get(i), isolate)) {
       DirectHandle<BreakPointInfo> break_point_info(
           Cast<BreakPointInfo>(debug_info->break_points()->get(i)), isolate);
@@ -260,10 +266,12 @@ void BreakPointInfo::ClearBreakPoint(
   DCHECK(IsFixedArray(break_point_info->break_points()));
   DirectHandle<FixedArray> old_array(
       Cast<FixedArray>(break_point_info->break_points()), isolate);
+  const uint32_t old_array_len = old_array->ulength().value();
+  DCHECK_GT(old_array_len, 0);
   DirectHandle<FixedArray> new_array =
-      isolate->factory()->NewFixedArray(old_array->length() - 1);
-  int found_count = 0;
-  for (int i = 0; i < old_array->length(); i++) {
+      isolate->factory()->NewFixedArray(old_array_len - 1);
+  uint32_t found_count = 0;
+  for (uint32_t i = 0; i < old_array_len; i++) {
     if (IsEqual(Cast<BreakPoint>(old_array->get(i)), *break_point)) {
       DCHECK_EQ(found_count, 0);
       found_count++;
@@ -300,15 +308,16 @@ void BreakPointInfo::SetBreakPoint(
   // If there was more than one break point before extend array.
   DirectHandle<FixedArray> old_array(
       Cast<FixedArray>(break_point_info->break_points()), isolate);
+  const uint32_t old_array_len = old_array->ulength().value();
   DirectHandle<FixedArray> new_array =
-      isolate->factory()->NewFixedArray(old_array->length() + 1);
-  for (int i = 0; i < old_array->length(); i++) {
+      isolate->factory()->NewFixedArray(old_array_len + 1);
+  for (uint32_t i = 0; i < old_array_len; i++) {
     // If the break point was there before just ignore.
     if (IsEqual(Cast<BreakPoint>(old_array->get(i)), *break_point)) return;
     new_array->set(i, old_array->get(i));
   }
   // Add the new break point.
-  new_array->set(old_array->length(), *break_point);
+  new_array->set(old_array_len, *break_point);
   break_point_info->set_break_points(*new_array);
 }
 
@@ -326,7 +335,8 @@ bool BreakPointInfo::HasBreakPoint(
   }
   // Multiple break points.
   Tagged<FixedArray> array = Cast<FixedArray>(break_point_info->break_points());
-  for (int i = 0; i < array->length(); i++) {
+  const uint32_t array_len = array->ulength().value();
+  for (uint32_t i = 0; i < array_len; i++) {
     if (IsEqual(Cast<BreakPoint>(array->get(i)), *break_point)) {
       return true;
     }
@@ -352,7 +362,8 @@ MaybeDirectHandle<BreakPoint> BreakPointInfo::GetBreakPointById(
     // Multiple break points.
     Tagged<FixedArray> array =
         Cast<FixedArray>(break_point_info->break_points());
-    for (int i = 0; i < array->length(); i++) {
+    const uint32_t array_len = array->ulength().value();
+    for (uint32_t i = 0; i < array_len; i++) {
       Tagged<BreakPoint> breakpoint = Cast<BreakPoint>(array->get(i));
       if (breakpoint->id() == breakpoint_id) {
         return direct_handle(breakpoint, isolate);
@@ -363,13 +374,13 @@ MaybeDirectHandle<BreakPoint> BreakPointInfo::GetBreakPointById(
 }
 
 // Get the number of break points.
-int BreakPointInfo::GetBreakPointCount(Isolate* isolate) {
+uint32_t BreakPointInfo::GetBreakPointCount(Isolate* isolate) {
   // No break point.
   if (IsUndefined(break_points(), isolate)) return 0;
   // Single break point.
   if (!IsFixedArray(break_points())) return 1;
   // Multiple break points.
-  return Cast<FixedArray>(break_points())->length();
+  return Cast<FixedArray>(break_points())->ulength().value();
 }
 
 void CoverageInfo::InitializeSlot(int slot_index, int from_pos, int to_pos) {
@@ -419,7 +430,10 @@ int StackFrameInfo::GetSourcePosition(DirectHandle<StackFrameInfo> info) {
   return source_position;
 }
 
-int StackTraceInfo::length() const { return frames()->length(); }
+int StackTraceInfo::length() const {
+  // TODO(375937549): Convert to uint32_t.
+  return static_cast<int>(frames()->ulength().value());
+}
 
 Tagged<StackFrameInfo> StackTraceInfo::get(int index) const {
   return Cast<StackFrameInfo>(frames()->get(index));

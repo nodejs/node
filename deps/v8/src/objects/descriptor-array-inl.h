@@ -32,8 +32,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/descriptor-array-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(DescriptorArray)
-
 Tagged<FixedArray> EnumCache::keys() const { return keys_.load(); }
 void EnumCache::set_keys(Tagged<FixedArray> value, WriteBarrierMode mode) {
   keys_.store(this, value, mode);
@@ -153,25 +151,6 @@ InternalIndex DescriptorArray::Search(Tagged<Name> name, Tagged<Map> map,
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors == 0) return InternalIndex::NotFound();
   return Search(name, number_of_own_descriptors, concurrent_search);
-}
-
-InternalIndex DescriptorArray::Search(int field_index, int valid_descriptors) {
-  for (int desc_index = field_index; desc_index < valid_descriptors;
-       ++desc_index) {
-    PropertyDetails details = GetDetails(InternalIndex(desc_index));
-    if (details.location() != PropertyLocation::kField) continue;
-    if (field_index == details.field_index()) {
-      return InternalIndex(desc_index);
-    }
-    DCHECK_LT(details.field_index(), field_index);
-  }
-  return InternalIndex::NotFound();
-}
-
-InternalIndex DescriptorArray::Search(int field_index, Tagged<Map> map) {
-  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
-  if (number_of_own_descriptors == 0) return InternalIndex::NotFound();
-  return Search(field_index, number_of_own_descriptors);
 }
 
 InternalIndex DescriptorArray::SearchWithCache(Isolate* isolate,
@@ -314,9 +293,9 @@ void DescriptorArray::SetDetails(InternalIndex descriptor_number,
   // (GeneralizeAllFields()).
 }
 
-int DescriptorArray::GetFieldIndex(InternalIndex descriptor_number) {
+int DescriptorArray::GetOffsetInWords(InternalIndex descriptor_number) {
   DCHECK_EQ(GetDetails(descriptor_number).location(), PropertyLocation::kField);
-  return GetDetails(descriptor_number).field_index();
+  return GetDetails(descriptor_number).field_offset();
 }
 
 Tagged<FieldType> DescriptorArray::GetFieldType(

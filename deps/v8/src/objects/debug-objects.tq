@@ -102,10 +102,10 @@ extern class StackTraceInfo extends Struct {
 // (2) A valid JavaScript object and StackTraceInfo once
 //     error.stack was accessed.
 extern class ErrorStackData extends Struct {
-  // This holds either the FixedArray of CallSiteInfo instances or
-  // the formatted stack value (usually a string) that's returned
-  // from the error.stack property.
-  call_site_infos_or_formatted_stack: FixedArray|JSAny;
+  // This holds either the FixedArray of raw data for constructing the
+  // CallSiteInfo instances or the formatted stack value (usually a string)
+  // that's returned from the error.stack property.
+  raw_data_for_call_site_infos_or_formatted_stack: FixedArray|JSAny;
   // This holds the StackTraceInfo for inspector stack trace.
   stack_trace: StackTraceInfo;
 }

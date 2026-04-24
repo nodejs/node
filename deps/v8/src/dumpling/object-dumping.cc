@@ -4,7 +4,9 @@
 
 #include "src/dumpling/object-dumping.h"
 
+#include <algorithm>
 #include <iostream>
+#include <vector>
 
 #include "src/objects/instance-type.h"
 #include "src/objects/objects-inl.h"
@@ -16,6 +18,38 @@ namespace v8::internal {
 
 namespace {
 
+void PrintSanitizedChar(uint16_t c, StringStream* accumulator) {
+  if (c == '\n') {
+    accumulator->Add("\\n");
+  } else if (c == '\r') {
+    accumulator->Add("\\r");
+  } else if (c == '\\') {
+    accumulator->Add("\\\\");
+  } else if (c >= 32 && c <= 126) {
+    accumulator->Put(static_cast<char>(c));
+  } else {
+    if (c <= 0xFF) {
+      accumulator->Add("\\x%02x", c);
+    } else {
+      accumulator->Add("\\u%04x", c);
+    }
+  }
+}
+
+void PrintSanitizedCString(const char* input, StringStream* accumulator) {
+  for (const char* c = input; *c != '\0'; ++c) {
+    PrintSanitizedChar(*c, accumulator);
+  }
+}
+
+void FuzzingStringShortPrint(Tagged<String> string, StringStream* accumulator) {
+  int length = string->length();
+
+  for (int i = 0; i < length; i++) {
+    PrintSanitizedChar(string->Get(i), accumulator);
+  }
+}
+
 void JSObjectFuzzingPrintInternalIndexRange(Tagged<JSObject> obj,
                                             StringStream* accumulator,
                                             int depth, bool is_fast_object) {
@@ -25,29 +59,40 @@ void JSObjectFuzzingPrintInternalIndexRange(Tagged<JSObject> obj,
   Tagged<DescriptorArray> descriptors =
       obj->map()->instance_descriptors(isolate);
 
-  InternalIndex::Range index_range(0);
-
   std::optional<Tagged<NameDictionary>> dict;
-  std::optional<Tagged<GlobalDictionary>> dict_global;
   std::optional<ReadOnlyRoots> roots;
 
+  std::vector<InternalIndex> indices;
+
   if (is_fast_object) {
-    index_range = obj->map()->IterateOwnDescriptors();
-  } else {
-    roots = GetReadOnlyRoots();
-    if (IsJSGlobalObject(*obj)) {
-      dict_global = Cast<JSGlobalObject>(*obj)->global_dictionary(kAcquireLoad);
-      index_range = dict_global.value()->IterateEntries();
-    } else {
-      dict = obj->property_dictionary();
-      index_range = dict.value()->IterateEntries();
+    for (InternalIndex i : obj->map()->IterateOwnDescriptors()) {
+      indices.push_back(i);
     }
+  } else {
+    CHECK(!IsJSGlobalObject(*obj));
+    CHECK(!IsJSGlobalProxy(*obj));
+    roots = GetReadOnlyRoots();
+    dict = obj->property_dictionary();
+    // We want to print out the properties in the same order they'd be in e.g.,
+    // Object.getOwnPropertyDescriptors. We'd like to use IterationIndices here,
+    // but cannot allocate. The code below does what IterationIndices would do,
+    // just without allocating.
+    for (InternalIndex i : dict.value()->IterateEntries()) {
+      Tagged<Object> k;
+      if (!dict.value()->ToKey(roots.value(), i, &k)) continue;
+      indices.push_back(i);
+    }
+    std::sort(indices.begin(), indices.end(),
+              [&](InternalIndex a, InternalIndex b) {
+                return dict.value()->DetailsAt(a).dictionary_index() <
+                       dict.value()->DetailsAt(b).dictionary_index();
+              });
   }
 
   bool first_property = true;
   accumulator->Add("{");
 
-  for (InternalIndex i : index_range) {
+  for (InternalIndex i : indices) {
     Handle<Name> key_name;
 
     PropertyDetails details = PropertyDetails::Empty();
@@ -57,13 +102,9 @@ void JSObjectFuzzingPrintInternalIndexRange(Tagged<JSObject> obj,
 
       if (is_fast_object) {
         key = descriptors->GetKey(i);
-      } else if (dict_global.has_value()) {
-        Tagged<Object> k;
-        if (!dict_global.value()->ToKey(roots.value(), i, &k)) continue;
-        key = Cast<Name>(k);
       } else {
         Tagged<Object> k;
-        if (!dict.value()->ToKey(roots.value(), i, &k)) continue;
+        CHECK(dict.value()->ToKey(roots.value(), i, &k));
         key = Cast<Name>(k);
       }
 
@@ -80,9 +121,13 @@ void JSObjectFuzzingPrintInternalIndexRange(Tagged<JSObject> obj,
       accumulator->Add(", ");
     }
 
-    base::ScopedVector<char> name_buffer(100);
-    key_name->NameShortPrint(name_buffer);
-    accumulator->Add("%s", name_buffer.begin());
+    if (IsString(*key_name)) {
+      FuzzingStringShortPrint(Cast<String>(*key_name), accumulator);
+    } else {
+      auto name_buffer = base::OwnedVector<char>::NewForOverwrite(100);
+      key_name->NameShortPrint(name_buffer.as_vector());
+      PrintSanitizedCString(name_buffer.begin(), accumulator);
+    }
 
     std::stringstream attributes_stream;
     attributes_stream << details.attributes();
@@ -122,18 +167,18 @@ void JSObjectFuzzingPrintFastProperties(Tagged<JSObject> obj,
 
 void JSObjectFuzzingPrintDictProperties(Tagged<JSObject> obj,
                                         StringStream* accumulator, int depth) {
-  if (!IsJSGlobalObject(obj)) {
-    if (obj->property_dictionary()->Capacity() == 0) {
-      accumulator->Add("{}");
-    } else {
-      JSObjectFuzzingPrintInternalIndexRange(obj, accumulator, depth, false);
-    }
+  CHECK(!IsJSGlobalProxy(obj));
+  CHECK(!IsJSGlobalObject(obj));
+  if (obj->property_dictionary()->Capacity() == 0) {
+    accumulator->Add("{}");
+  } else {
+    JSObjectFuzzingPrintInternalIndexRange(obj, accumulator, depth, false);
   }
 }
 
-void JSObjectFuzzingPrintPrototype(Tagged<JSObject> obj,
-                                   StringStream* accumulator, int depth) {
-  Tagged<HeapObject> proto = Tagged<HeapObject>::cast(obj->map()->prototype());
+void JSObjectFuzzingPrintPrototype(Tagged<Map> map, StringStream* accumulator,
+                                   int depth) {
+  Tagged<HeapObject> proto = Tagged<HeapObject>::cast(map->prototype());
 
   // This is to avoid printing Object.prototype
   if (proto->map()->instance_type() == JS_OBJECT_PROTOTYPE_TYPE) {
@@ -156,170 +201,166 @@ void JSObjectFuzzingPrintElements(Tagged<JSObject> obj,
   auto process_elements = [](auto& elements, Isolate* isolate,
                              StringStream* accumulator,
                              std::function<std::string(int)> format_element) {
-    int dump_len = elements->length();
-    if (dump_len == 0) return;
+    const uint32_t dump_len = elements->length().value();
 
-    accumulator->Add("[");
-    int hole_range_start = -1;
+    // We have this var because we print elements for all JSObjects and most
+    // often the array will be just empty or not empty but every element will be
+    // a hole. This way empty/full of holes JSArray will be printed without [],
+    // which might be confusing but still less confusing than JSObjects printed
+    // with [].
+    bool printed_open_bracket = false;
+    std::optional<uint32_t> hole_range_start;
     // We output consecutive holes as hole_range_start-hole_range_end:the_hole
-    for (int i = 0; i < dump_len; i++) {
+    for (uint32_t i = 0; i < dump_len; i++) {
       if (elements->is_the_hole(isolate, i)) {
-        if (hole_range_start == -1) {
+        if (!hole_range_start.has_value()) {
           hole_range_start = i;
         }
       } else {
-        if (hole_range_start != -1) {
-          accumulator->Add("%d-%d:the_hole,", hole_range_start, i - 1);
-          hole_range_start = -1;
+        if (!printed_open_bracket) {
+          accumulator->Add("[");
+          printed_open_bracket = true;
+        }
+
+        if (hole_range_start.has_value()) {
+          accumulator->Add("%d-%d:the_hole,", *hole_range_start, i - 1);
+          hole_range_start.reset();
         }
         accumulator->Add("%s,", format_element(i).c_str());
       }
     }
     // We specifically not add trailing holes, because elements capacity can be
     // somewhat arbitrary.
-    accumulator->Add("]");
+    if (printed_open_bracket) {
+      accumulator->Add("]");
+    }
   };
 
-  if (elements_kind == PACKED_SMI_ELEMENTS ||
-      elements_kind == HOLEY_SMI_ELEMENTS || elements_kind == PACKED_ELEMENTS ||
-      elements_kind == HOLEY_ELEMENTS) {
-    Tagged<FixedArray> elements = Cast<FixedArray>(obj->elements());
-    process_elements(elements, isolate, accumulator, [&](int i) {
-      return DifferentialFuzzingPrint(elements->get(i), depth - 1);
-    });
-  } else if (elements_kind == PACKED_DOUBLE_ELEMENTS ||
-             elements_kind == HOLEY_DOUBLE_ELEMENTS) {
-    if (obj->elements() == ReadOnlyRoots(isolate).empty_fixed_array()) {
-      return;
+  switch (elements_kind) {
+    case PACKED_SMI_ELEMENTS:
+    case PACKED_ELEMENTS:
+    case PACKED_FROZEN_ELEMENTS:
+    case PACKED_SEALED_ELEMENTS:
+    case PACKED_NONEXTENSIBLE_ELEMENTS:
+    case HOLEY_SMI_ELEMENTS:
+    case HOLEY_FROZEN_ELEMENTS:
+    case HOLEY_SEALED_ELEMENTS:
+    case HOLEY_NONEXTENSIBLE_ELEMENTS:
+    case HOLEY_ELEMENTS: {
+      Tagged<FixedArray> elements = Cast<FixedArray>(obj->elements());
+      process_elements(elements, isolate, accumulator, [&](int i) {
+        return DifferentialFuzzingPrint(elements->get(i), depth - 1);
+      });
+      break;
     }
-    Tagged<FixedDoubleArray> elements = Cast<FixedDoubleArray>(obj->elements());
-    process_elements(elements, isolate, accumulator, [&](int i) {
-      return std::to_string(elements->get_scalar(i));
-    });
+
+    case HOLEY_DOUBLE_ELEMENTS:
+    case PACKED_DOUBLE_ELEMENTS: {
+      if (obj->elements() == ReadOnlyRoots(isolate).empty_fixed_array()) {
+        return;
+      }
+      Tagged<FixedDoubleArray> elements =
+          Cast<FixedDoubleArray>(obj->elements());
+      process_elements(elements, isolate, accumulator, [&](int i) {
+        double number = elements->get_scalar(i);
+        if (IsUndefinedNan(number)) {
+          return std::string("<undefined>");
+        }
+        static const int kBufferSize = 100;
+        char chars[kBufferSize];
+        base::Vector<char> buffer(chars, kBufferSize);
+        return std::string(DoubleToStringView(number, buffer));
+      });
+      break;
+    }
+
+    case DICTIONARY_ELEMENTS: {
+      Tagged<NumberDictionary> dict = obj->element_dictionary();
+      ReadOnlyRoots roots(isolate);
+
+      struct Entry {
+        int index;
+        InternalIndex entry;
+      };
+      std::vector<Entry> sorted;
+      sorted.reserve(dict->NumberOfElements());
+
+      for (InternalIndex i : dict->IterateEntries()) {
+        Tagged<Object> key = dict->KeyAt(isolate, i);
+        if (!dict->IsKey(roots, key)) continue;
+        int index = Object::NumberValue(Cast<Number>(key));
+        sorted.push_back({index, i});
+      }
+
+      // We sort the entries by their index (key).
+      // This is required because dictionaries do not guarantee iteration order
+      // matches the index order.
+      std::sort(
+          sorted.begin(), sorted.end(),
+          [](const Entry& a, const Entry& b) { return a.index < b.index; });
+
+      bool printed_open_bracket = false;
+      int prev_index = -1;
+
+      for (const Entry& entry : sorted) {
+        if (!printed_open_bracket) {
+          accumulator->Add("[");
+          printed_open_bracket = true;
+        }
+
+        // Not really a hole, but to comply with output format have to do this.
+        if (entry.index > prev_index + 1) {
+          accumulator->Add("%d-%d:the_hole,", prev_index + 1, entry.index - 1);
+        }
+
+        Tagged<Object> value = dict->ValueAt(entry.entry);
+        accumulator->Add("%s,",
+                         DifferentialFuzzingPrint(value, depth - 1).c_str());
+
+        prev_index = entry.index;
+      }
+
+      if (printed_open_bracket) {
+        accumulator->Add("]");
+      }
+      break;
+    }
+
+    default:
+      break;
   }
 }
 
 void JSObjectFuzzingPrint(Tagged<JSObject> obj, int depth,
                           StringStream* accumulator) {
-  InstanceType instance_type = obj->map()->instance_type();
+  if (IsJSGlobalProxy(obj)) {
+    accumulator->Add("<global object>");
+    return;
+  }
+  CHECK(!IsJSGlobalObject(obj));
 
-  switch (instance_type) {
-    case JS_ARRAY_TYPE: {
-      accumulator->Add("<JSArray>");
-      break;
-    }
-    case JS_BOUND_FUNCTION_TYPE: {
-      accumulator->Add("<JSBoundFunction>");
-      break;
-    }
-    case JS_WEAK_MAP_TYPE: {
-      accumulator->Add("<JSWeakMap>");
-      break;
-    }
-    case JS_WEAK_SET_TYPE: {
-      accumulator->Add("<JSWeakSet>");
-      break;
-    }
-    case JS_REG_EXP_TYPE: {
-      accumulator->Add("<JSRegExp");
-      Tagged<JSRegExp> regexp = Cast<JSRegExp>(obj);
-      if (IsString(regexp->source())) {
-        accumulator->Add(" ");
-        Cast<String>(regexp->source())->StringShortPrint(accumulator);
-      }
-      accumulator->Add(">");
-
-      break;
-    }
-    case JS_PROMISE_CONSTRUCTOR_TYPE:
-    case JS_REG_EXP_CONSTRUCTOR_TYPE:
-    case JS_ARRAY_CONSTRUCTOR_TYPE:
-#define TYPED_ARRAY_CONSTRUCTORS_SWITCH(Type, type, TYPE, Ctype) \
-  case TYPE##_TYPED_ARRAY_CONSTRUCTOR_TYPE:
-      TYPED_ARRAYS(TYPED_ARRAY_CONSTRUCTORS_SWITCH)
-#undef TYPED_ARRAY_CONSTRUCTORS_SWITCH
-    case JS_CLASS_CONSTRUCTOR_TYPE:
-    case JS_FUNCTION_TYPE: {
-      Tagged<JSFunction> function = Cast<JSFunction>(obj);
-      std::unique_ptr<char[]> fun_name = function->shared()->DebugNameCStr();
-      if (fun_name[0] != '\0') {
-        accumulator->Add("<JSFunction ");
-        accumulator->Add(fun_name.get());
-      } else {
-        accumulator->Add("<JSFunction");
-      }
-      accumulator->Put('>');
-      break;
-    }
-    case JS_GENERATOR_OBJECT_TYPE: {
-      accumulator->Add("<JSGenerator>");
-      break;
-    }
-    case JS_ASYNC_FUNCTION_OBJECT_TYPE: {
-      accumulator->Add("<JSAsyncFunctionObject>");
-      break;
-    }
-    case JS_ASYNC_GENERATOR_OBJECT_TYPE: {
-      accumulator->Add("<JS AsyncGenerator>");
-      break;
-    }
-    case JS_SHARED_ARRAY_TYPE:
-      accumulator->Add("<JSSharedArray>");
-      break;
-    case JS_SHARED_STRUCT_TYPE:
-      accumulator->Add("<JSSharedStruct>");
-      break;
-    case JS_ATOMICS_MUTEX_TYPE:
-      accumulator->Add("<JSAtomicsMutex>");
-      break;
-    case JS_ATOMICS_CONDITION_TYPE:
-      accumulator->Add("<JSAtomicsCondition>");
-      break;
-    case JS_MESSAGE_OBJECT_TYPE:
-      accumulator->Add("<JSMessageObject>");
-      break;
-    case JS_EXTERNAL_OBJECT_TYPE:
-      accumulator->Add("<JSExternalObject>");
-      break;
-    case CPP_HEAP_EXTERNAL_OBJECT_TYPE:
-      accumulator->Add("<CppHeapExternalObject>");
-      break;
-
-    default: {
-      Tagged<Map> map_of_this = obj->map();
-      Tagged<Object> constructor = map_of_this->GetConstructor();
-      bool printed = false;
-      bool is_global_proxy = IsJSGlobalProxy(obj);
-      if (IsJSFunction(constructor)) {
-        Tagged<SharedFunctionInfo> sfi =
-            Cast<JSFunction>(constructor)->shared();
-        Tagged<String> constructor_name = sfi->Name();
-        if (constructor_name->length() > 0) {
-          accumulator->Add(is_global_proxy ? "<GlobalObject " : "<");
-          accumulator->Put(constructor_name);
-          printed = true;
-        }
-      } else if (IsFunctionTemplateInfo(constructor)) {
-        accumulator->Add("<RemoteObject>");
+  if (IsJSFunction(obj)) {
+    Tagged<JSFunction> func = Cast<JSFunction>(obj);
+    accumulator->Add("<JSFunction pos:%d>", func->shared()->StartPosition());
+  } else if (IsJSArray(obj)) {
+    accumulator->Add("<JSArray>");
+  } else {
+    Tagged<Map> map = obj->map();
+    Tagged<Object> constructor = map->GetConstructor();
+    bool printed = false;
+    if (IsJSFunction(constructor)) {
+      Tagged<SharedFunctionInfo> sfi = Cast<JSFunction>(constructor)->shared();
+      Tagged<String> constructor_name = sfi->Name();
+      if (constructor_name->length() > 0) {
+        accumulator->Add("<");
+        accumulator->Put(constructor_name);
         printed = true;
       }
-      if (!printed) {
-        accumulator->Add("<JS");
-        if (is_global_proxy) {
-          accumulator->Add("GlobalProxy");
-        } else if (IsJSGlobalObject(obj)) {
-          accumulator->Add("GlobalObject");
-        } else {
-          accumulator->Add("Object");
-        }
-      }
-      if (IsJSPrimitiveWrapper(obj)) {
-        accumulator->Add(" value = ");
-        ShortPrint(Cast<JSPrimitiveWrapper>(obj)->value(), accumulator);
-      }
-      accumulator->Put('>');
-      break;
     }
+    if (!printed) {
+      accumulator->Add("<JSObject");
+    }
+    accumulator->Put('>');
   }
 
   Isolate* isolate = Isolate::Current();
@@ -331,7 +372,7 @@ void JSObjectFuzzingPrint(Tagged<JSObject> obj, int depth,
       } else {
         JSObjectFuzzingPrintDictProperties(obj, accumulator, depth);
       }
-      JSObjectFuzzingPrintPrototype(obj, accumulator, depth);
+      JSObjectFuzzingPrintPrototype(obj->map(), accumulator, depth);
       JSObjectFuzzingPrintElements(obj, accumulator, depth);
     }
   }
@@ -340,11 +381,10 @@ void JSObjectFuzzingPrint(Tagged<JSObject> obj, int depth,
 void HeapObjectFuzzingPrint(Tagged<HeapObject> obj, int depth,
                             std::ostream& os) {
   PtrComprCageBase cage_base = GetPtrComprCageBase();
-
   if (IsString(obj, cage_base)) {
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);
-    Cast<String>(obj)->StringShortPrint(&accumulator);
+    FuzzingStringShortPrint(Cast<String>(obj), &accumulator);
     os << accumulator.ToCString().get();
     return;
   }
@@ -363,16 +403,15 @@ void HeapObjectFuzzingPrint(Tagged<HeapObject> obj, int depth,
   // quickly lead to out-of-sandbox segfaults and so fuzzers will complain.
   if (InstanceTypeChecker::IsTrustedObject(instance_type) &&
       !OutsideSandboxOrInReadonlySpace(obj)) {
-    os << "<Invalid TrustedObject (outside trusted space)>\n";
+    os << "<Invalid TrustedObject (outside trusted space)>";
     return;
   }
 
   switch (instance_type) {
     case MAP_TYPE: {
       Tagged<Map> map = Cast<Map>(obj);
-      if (map->instance_type() == MAP_TYPE) {
-        // This is one of the meta maps, print only relevant fields.
-        os << "<MetaMap (" << Brief(map->native_context_or_null()) << ")>";
+      if (IsMetaMapMap(map)) {
+        os << "<MetaMap>";
       } else {
         os << "<Map";
         os << "(";
@@ -423,10 +462,7 @@ void HeapObjectFuzzingPrint(Tagged<HeapObject> obj, int depth,
       break;
     }
     case ACCESSOR_INFO_TYPE: {
-      Tagged<AccessorInfo> info = Cast<AccessorInfo>(obj);
-      os << "<AccessorInfo ";
-      os << "name= " << Brief(info->name());
-      os << ">";
+      os << "<AccessorInfo>";
       break;
     }
     case ACCESSOR_PAIR_TYPE: {
@@ -442,7 +478,9 @@ void HeapObjectFuzzingPrint(Tagged<HeapObject> obj, int depth,
       break;
     }
     case BIG_INT_BASE_TYPE: {
-      Cast<BigIntBase>(obj)->BigIntBasePrint(os);
+      os << "<BigIntBase ";
+      Cast<BigIntBase>(obj)->BigIntBaseShortPrint(os);
+      os << ">";
       break;
     }
     case FUNCTION_CONTEXT_TYPE: {
@@ -458,7 +496,7 @@ void HeapObjectFuzzingPrint(Tagged<HeapObject> obj, int depth,
       break;
     }
     case CLASS_POSITIONS_TYPE: {
-      Cast<ClassPositions>(obj)->ClassPositionsPrint(os);
+      os << "<ClassPositions>";
       break;
     }
     case SYMBOL_TYPE: {
@@ -467,11 +505,11 @@ void HeapObjectFuzzingPrint(Tagged<HeapObject> obj, int depth,
       break;
     }
     case CLASS_BOILERPLATE_TYPE: {
-      os << "<ClassBoilerplateType>";
+      os << "<ClassBoilerplate>";
       break;
     }
     case SCRIPT_TYPE: {
-      os << "<ScriptType>";
+      os << "<Script>";
       break;
     }
     case FEEDBACK_VECTOR_TYPE: {
@@ -487,36 +525,45 @@ void HeapObjectFuzzingPrint(Tagged<HeapObject> obj, int depth,
 
 }  // namespace
 
+class TranslatedValuePrinter {
+ public:
+  TranslatedValuePrinter() {}
+
+  std::string Print(TranslatedValue* obj, int depth) {
+    // TODO(marja): Implement actual translated value printing.
+    return "<non-materialized>";
+  }
+};
+
 void DifferentialFuzzingPrint(Tagged<Object> obj, std::ostream& os) {
   os << DifferentialFuzzingPrint(obj, v8_flags.dumpling_depth);
 }
 
+void DifferentialFuzzingPrint(ObjectOrNonMaterializedObject obj,
+                              std::ostream& os) {
+  if (TranslatedValue** value = std::get_if<TranslatedValue*>(&obj)) {
+    TranslatedValuePrinter printer;
+    os << printer.Print(*value, v8_flags.dumpling_depth);
+  } else {
+    CHECK(std::holds_alternative<Tagged<Object>>(obj));
+    os << DifferentialFuzzingPrint(std::get<Tagged<Object>>(obj),
+                                   v8_flags.dumpling_depth);
+  }
+}
+
 std::string DifferentialFuzzingPrint(Tagged<Object> obj, int depth) {
   std::ostringstream os;
-
-  Tagged<HeapObject> heap_object;
-
-  DCHECK(!obj.IsCleared());
-
-  if (!IsAnyHole(obj) && IsNumber(obj)) {
-    static const int kBufferSize = 100;
-    char chars[kBufferSize];
-    base::Vector<char> buffer(chars, kBufferSize);
-    if (IsSmi(obj)) {
-      os << IntToStringView(obj.ToSmi().value(), buffer);
-    } else {
-      double number = Cast<HeapNumber>(obj)->value();
-      os << DoubleToStringView(number, buffer);
-    }
-  } else if (obj.GetHeapObjectIfWeak(&heap_object)) {
-    os << "[weak] ";
-    HeapObjectFuzzingPrint(heap_object, depth, os);
-  } else if (obj.GetHeapObjectIfStrong(&heap_object)) {
-    HeapObjectFuzzingPrint(heap_object, depth, os);
+  static const int kBufferSize = 100;
+  char chars[kBufferSize];
+  base::Vector<char> buffer(chars, kBufferSize);
+  if (IsSmi(obj)) {
+    os << IntToStringView(obj.ToSmi().value(), buffer);
+  } else if (IsHeapNumber(obj)) {
+    double number = Cast<HeapNumber>(obj)->value();
+    os << DoubleToStringView(number, buffer);
   } else {
-    UNREACHABLE();
+    HeapObjectFuzzingPrint(Tagged<HeapObject>::cast(obj), depth, os);
   }
-
   return os.str();
 }
 

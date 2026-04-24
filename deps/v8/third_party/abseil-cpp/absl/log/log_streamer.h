@@ -24,6 +24,7 @@
 
 #include <ios>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <utility>
@@ -131,7 +132,7 @@ class LogStreamer final {
   std::string buf_;
   // A disengaged `stream_` indicates a moved-from `LogStreamer` that should not
   // `LOG` upon destruction.
-  absl::optional<absl::strings_internal::OStringStream> stream_;
+  std::optional<absl::strings_internal::OStringStream> stream_;
 };
 
 // LogInfoStreamer()

@@ -122,14 +122,22 @@ V8_OBJECT class AccessCheckInfo : public StructLayout {
   TaggedMember<Object> data_;
 } V8_OBJECT_END;
 
-#define INTERCEPTOR_INFO_CALLBACK_LIST(V) \
-  V(Getter, getter)                       \
-  V(Setter, setter)                       \
-  V(Query, query)                         \
-  V(Descriptor, descriptor)               \
-  V(Deleter, deleter)                     \
-  V(Enumerator, enumerator)               \
+// Interceptor callbacks that exist in both named and indexed interceptors.
+#define COMMON_INTERCEPTOR_INFO_CALLBACK_LIST(V) \
+  V(Getter, getter)                              \
+  V(Setter, setter)                              \
+  V(Query, query)                                \
+  V(Descriptor, descriptor)                      \
+  V(Deleter, deleter)                            \
+  V(Enumerator, enumerator)                      \
   V(Definer, definer)
+
+#define NAMED_INTERCEPTOR_INFO_CALLBACK_LIST(V) \
+  COMMON_INTERCEPTOR_INFO_CALLBACK_LIST(V)
+
+#define INDEXED_INTERCEPTOR_INFO_CALLBACK_LIST(V) \
+  COMMON_INTERCEPTOR_INFO_CALLBACK_LIST(V)        \
+  V(IndexOf, index_of)
 
 class InterceptorInfo
     : public TorqueGeneratedInterceptorInfo<InterceptorInfo, HeapObject> {
@@ -142,6 +150,8 @@ class InterceptorInfo
   inline bool has_deleter() const;
   inline bool has_enumerator() const;
   inline bool has_definer() const;
+
+  inline bool has_index_of() const;
 
   // Accessor callbacks for named interceptors.
   DECL_LAZY_REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST(named_getter,
@@ -175,9 +185,13 @@ class InterceptorInfo
   DECL_LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(indexed_definer,
                                                             Address)
 
+  // Indexed interceptor-only callbacks.
+  DECL_LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(indexed_index_of,
+                                                            Address)
+
   DECL_BOOLEAN_ACCESSORS(can_intercept_symbols)
   DECL_BOOLEAN_ACCESSORS(non_masking)
-  DECL_BOOLEAN_ACCESSORS(is_named)
+  inline bool is_named() const;
   DECL_BOOLEAN_ACCESSORS(has_no_side_effect)
   // TODO(ishell): remove support for old signatures once they go through
   // Api deprecation process.

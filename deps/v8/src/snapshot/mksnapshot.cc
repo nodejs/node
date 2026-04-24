@@ -249,7 +249,10 @@ int main(int argc, char** argv) {
   }
 
   i::CpuFeatures::Probe(true);
-  v8::V8::InitializeICUDefaultLocation(argv[0]);
+  if (!v8::V8::InitializeICUDefaultLocation(argv[0])) {
+    i::PrintF(stderr, "%s: Failed to initialize ICU\n", argv[0]);
+    return 1;
+  }
   std::unique_ptr<v8::Platform> platform = v8::platform::NewDefaultPlatform();
   v8::V8::InitializePlatform(platform.get());
   v8::V8::Initialize();

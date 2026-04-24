@@ -10,12 +10,11 @@
 #include "src/compiler/wasm-compiler.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/objects.h"
+#include "src/wasm/canonical-types.h"
 #include "src/wasm/jump-table-assembler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/std-object-sizes.h"
 #include "src/wasm/wasm-code-manager.h"
-#include "src/wasm/wasm-engine.h"
-#include "src/wasm/wasm-init-expr.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-module-builder.h"  // For {ZoneBuffer}.
 #include "src/wasm/wasm-objects-inl.h"
@@ -347,7 +346,8 @@ DirectHandle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
 
 DirectHandle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
                                         std::optional<uint64_t> max_size,
-                                        bool shared, AddressType address_type) {
+                                        SharedFlag shared,
+                                        AddressType address_type) {
   Factory* factory = isolate->factory();
 
   DirectHandle<JSFunction> object_function = isolate->object_function();
@@ -372,7 +372,7 @@ DirectHandle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
     JSObject::AddProperty(isolate, object, maximum_string, max, NONE);
   }
   JSObject::AddProperty(isolate, object, shared_string,
-                        factory->ToBoolean(shared), NONE);
+                        factory->ToBoolean(shared == SharedFlag::kYes), NONE);
 
   JSObject::AddProperty(
       isolate, object, address_string,
@@ -436,7 +436,8 @@ DirectHandle<JSArray> GetImports(Isolate* isolate,
   DirectHandle<String> tag_string = factory->InternalizeUtf8String("tag");
 
   // Create the result array.
-  NativeModule* native_module = module_object->native_module();
+  Managed<wasm::NativeModule>::Ptr native_module =
+      module_object->native_module();
   const WasmModule* module = native_module->module();
   base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
   int num_imports = static_cast<int>(module->import_table.size());
@@ -566,7 +567,8 @@ DirectHandle<JSArray> GetExports(Isolate* isolate,
   DirectHandle<String> tag_string = factory->InternalizeUtf8String("tag");
 
   // Create the result array.
-  NativeModule* native_module = module_object->native_module();
+  Managed<wasm::NativeModule>::Ptr native_module =
+      module_object->native_module();
   const WasmModule* module = native_module->module();
   int num_exports = static_cast<int>(module->export_table.size());
   DirectHandle<JSArray> array_object =
@@ -724,13 +726,12 @@ int GetSourcePosition(const WasmModule* module, uint32_t func_index,
 size_t WasmModule::EstimateStoredSize() const {
   UPDATE_WHEN_CLASS_CHANGES(WasmModule,
 #if V8_ENABLE_DRUMBRAKE
-                            912
+                            920
 #else   // V8_ENABLE_DRUMBRAKE
-                            880
+                            888
 #endif  // V8_ENABLE_DRUMBRAKE
   );
   return sizeof(WasmModule) +                            // --
-         signature_storage.TotalReservedSize() +         // --
          ContentSize(types) +                            // --
          ContentSize(isorecursive_canonical_type_ids) +  // --
          ContentSize(functions) +                        // --
@@ -805,12 +806,17 @@ size_t TypeFeedbackStorage::EstimateCurrentMemoryConsumption() const {
 size_t WasmModule::EstimateCurrentMemoryConsumption() const {
   UPDATE_WHEN_CLASS_CHANGES(WasmModule,
 #if V8_ENABLE_DRUMBRAKE
-                            912
+                            920
 #else   // V8_ENABLE_DRUMBRAKE
-                            880
+                            888
 #endif  // V8_ENABLE_DRUMBRAKE
   );
   size_t result = EstimateStoredSize();
+
+  {
+    base::MutexGuard lock{&signature_storage_mutex};
+    result += signature_storage.TotalReservedSize();
+  }
 
   result += type_feedback.EstimateCurrentMemoryConsumption();
   // For type_feedback.well_known_imports:
@@ -818,8 +824,11 @@ size_t WasmModule::EstimateCurrentMemoryConsumption() const {
 
   result += lazily_generated_names.EstimateCurrentMemoryConsumption();
 
-  result += ContentSize(marked_for_tierup);
-  result += ContentSize(feedback_slots_to_wire_byte_offsets);
+  {
+    base::MutexGuard compilation_hints_mutex_guard(&compilation_hints_mutex);
+    result += ContentSize(marked_for_tierup);
+    result += ContentSize(feedback_slots_to_wire_byte_offsets);
+  }
 
   if (v8_flags.trace_wasm_offheap_memory) {
     PrintF("WasmModule: %zu\n", result);

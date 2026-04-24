@@ -24,6 +24,7 @@
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
 #include "src/roots/roots.h"
+#include "src/sandbox/indirect-pointer-inl.h"
 #include "src/strings/string-builder-inl.h"
 
 namespace v8 {
@@ -154,11 +155,11 @@ void MessageHandler::ReportMessageNoExceptions(
 
   DirectHandle<ArrayList> global_listeners =
       isolate->factory()->message_listeners();
-  int global_length = global_listeners->length();
+  const uint32_t global_length = global_listeners->ulength().value();
   if (global_length == 0) {
     DefaultMessageReport(isolate, loc, message);
   } else {
-    for (int i = 0; i < global_length; i++) {
+    for (uint32_t i = 0; i < global_length; i++) {
       HandleScope scope(isolate);
       if (IsUndefined(global_listeners->get(i), isolate)) continue;
       Tagged<FixedArray> listener = Cast<FixedArray>(global_listeners->get(i));
@@ -202,15 +203,16 @@ namespace {
 
 // Convert the raw frames as written by Isolate::CaptureSimpleStackTrace into
 // a JSArray of JSCallSite objects.
-MaybeDirectHandle<JSArray> GetStackFrames(Isolate* isolate,
-                                          DirectHandle<FixedArray> frames) {
-  int frame_count = frames->length();
+MaybeDirectHandle<JSArray> GetStackFrames(
+    Isolate* isolate, DirectHandle<FixedArray> raw_data_for_call_site_infos) {
+  uint32_t frame_count = raw_data_for_call_site_infos->ulength().value() /
+                         CallSiteInfo::Fields::kCount;
   DirectHandle<JSFunction> constructor = isolate->callsite_function();
   DirectHandle<FixedArray> sites =
       isolate->factory()->NewFixedArray(frame_count);
-  for (int i = 0; i < frame_count; ++i) {
-    DirectHandle<CallSiteInfo> frame(Cast<CallSiteInfo>(frames->get(i)),
-                                     isolate);
+  for (uint32_t i = 0; i < frame_count; ++i) {
+    DirectHandle<CallSiteInfo> frame = CallSiteInfo::ConstructFromRawData(
+        isolate, raw_data_for_call_site_infos, i);
     DirectHandle<JSObject> site;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, site,
                                JSObject::New(constructor, constructor,
@@ -292,7 +294,7 @@ MaybeDirectHandle<Object> ErrorUtils::FormatStackTrace(
     return isolate->factory()->empty_string();
   }
   DCHECK(IsFixedArray(*raw_stack));
-  auto elems = Cast<FixedArray>(raw_stack);
+  auto raw_data_for_call_site_infos = Cast<FixedArray>(raw_stack);
 
   const bool in_recursion = isolate->formatting_stack_trace();
   const bool has_overflowed = i::StackLimitCheck{isolate}.HasOverflowed();
@@ -303,8 +305,9 @@ MaybeDirectHandle<Object> ErrorUtils::FormatStackTrace(
       PrepareStackTraceScope scope(isolate);
 
       DirectHandle<JSArray> sites;
-      ASSIGN_RETURN_ON_EXCEPTION(isolate, sites,
-                                 GetStackFrames(isolate, elems));
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, sites,
+          GetStackFrames(isolate, raw_data_for_call_site_infos));
 
       DirectHandle<Object> result;
       ASSIGN_RETURN_ON_EXCEPTION(
@@ -329,8 +332,9 @@ MaybeDirectHandle<Object> ErrorUtils::FormatStackTrace(
         isolate->CountUsage(v8::Isolate::kErrorPrepareStackTrace);
 
         DirectHandle<JSArray> sites;
-        ASSIGN_RETURN_ON_EXCEPTION(isolate, sites,
-                                   GetStackFrames(isolate, elems));
+        ASSIGN_RETURN_ON_EXCEPTION(
+            isolate, sites,
+            GetStackFrames(isolate, raw_data_for_call_site_infos));
 
         constexpr int argc = 2;
         std::array<DirectHandle<Object>, argc> args;
@@ -359,12 +363,16 @@ MaybeDirectHandle<Object> ErrorUtils::FormatStackTrace(
 
   RETURN_ON_EXCEPTION(isolate, AppendErrorString(isolate, error, &builder));
 
-  for (int i = 0; i < elems->length(); ++i) {
+  uint32_t elems_len = raw_data_for_call_site_infos->ulength().value() /
+                       CallSiteInfo::Fields::kCount;
+  for (uint32_t i = 0; i < elems_len; ++i) {
     builder.AppendCStringLiteral("\n    at ");
 
-    DirectHandle<CallSiteInfo> frame(Cast<CallSiteInfo>(elems->get(i)),
-                                     isolate);
+    DirectHandle<CallSiteInfo> frame = CallSiteInfo::ConstructFromRawData(
+        isolate, raw_data_for_call_site_infos, i);
 
+    // TODO(marja): Avoid CallSiteInfo creation since we serialize it right
+    // away.
     v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
     SerializeCallSiteInfo(isolate, frame, &builder);
 
@@ -1160,12 +1168,13 @@ MaybeDirectHandle<Object> ErrorUtils::GetFormattedStack(
 
     DirectHandle<JSObject> error_object =
         lookup.error_stack_symbol_holder.ToHandleChecked();
+    Handle<FixedArray> expanded = CallSiteInfo::ExpandDeferredFrames(
+        isolate,
+        handle(error_stack_data->raw_data_for_call_site_infos(), isolate));
     DirectHandle<Object> formatted_stack;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, formatted_stack,
-        FormatStackTrace(
-            isolate, error_object,
-            direct_handle(error_stack_data->call_site_infos(), isolate)));
+        FormatStackTrace(isolate, error_object, expanded));
     error_stack_data->set_formatted_stack(*formatted_stack);
     return formatted_stack;
   }
@@ -1173,11 +1182,12 @@ MaybeDirectHandle<Object> ErrorUtils::GetFormattedStack(
   if (IsFixedArray(*lookup.error_stack)) {
     DirectHandle<JSObject> error_object =
         lookup.error_stack_symbol_holder.ToHandleChecked();
+    Handle<FixedArray> expanded = CallSiteInfo::ExpandDeferredFrames(
+        isolate, handle(Cast<FixedArray>(*lookup.error_stack), isolate));
     DirectHandle<Object> formatted_stack;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, formatted_stack,
-        FormatStackTrace(isolate, error_object,
-                         Cast<FixedArray>(lookup.error_stack)));
+        FormatStackTrace(isolate, error_object, expanded));
     RETURN_ON_EXCEPTION(
         isolate, Object::SetProperty(isolate, error_object,
                                      isolate->factory()->error_stack_symbol(),

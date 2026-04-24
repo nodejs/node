@@ -255,7 +255,7 @@ transitioning macro FastArrayMap(
   return vector.CreateJSArray(len);
 }
 
-// https://tc39.github.io/ecma262/#sec-array.prototype.map
+// https://tc39.es/ecma262/#sec-array.prototype.map
 transitioning javascript builtin ArrayMap(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   try {

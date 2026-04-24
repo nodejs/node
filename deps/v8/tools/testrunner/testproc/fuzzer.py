@@ -66,12 +66,15 @@ EXTRA_FLAGS = [
     (0.1, '--stress-lazy-source-positions'),
     (0.1, '--stress-maglev'),
     (0.1, '--stress-wasm-code-gc'),
-    (0.1, '--turbolev'),
+    (0.7, '--turbolev'),
     (0.1, '--turbo-instruction-scheduling'),
     (0.1, '--turbo-stress-instruction-scheduling'),
     (0.2, '--turboshaft-verify-load-elimination'),
     (0.2, '--turboshaft-verify-load-store-taggedness'),
     (0.1, '--turboshaft-verify-reductions'),
+    (0.1, '--maglev-assert-types'),
+    (0.5, '--maglev-untagged-phis'),
+    (0.1, '--no-maglev-loop-peeling'),
     (0.1, '--stress-wasm-memory-moving'),
     (0.1, '--stress-scavenger-conservative-object-pinning-random'),
     (0.1, '--conservative-stack-scanning'),
@@ -81,8 +84,8 @@ EXTRA_FLAGS = [
     (0.25, '--experimental-wasm-revectorize'),
     (0.1, '--no-memory-pool'),
     (0.1, '--wasm-assert-types'),
-    (0.5, '--proto-assign-seq-opt'),
-    (0.1, '--proto-assign-seq-opt --proto-assign-seq-opt-count=1'),
+    (0.5, '--private-field-bytecodes'),
+    (0.5, '--proto-assign-seq-lazy-func-opt --proto-assign-seq-opt-count=1'),
 ]
 
 MIN_DEOPT = 1

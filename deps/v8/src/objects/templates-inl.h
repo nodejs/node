@@ -22,12 +22,90 @@ namespace internal {
 
 #include "torque-generated/src/objects/templates-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(TemplateInfo)
-TQ_OBJECT_CONSTRUCTORS_IMPL(TemplateInfoWithProperties)
-TQ_OBJECT_CONSTRUCTORS_IMPL(FunctionTemplateInfo)
-TQ_OBJECT_CONSTRUCTORS_IMPL(ObjectTemplateInfo)
-TQ_OBJECT_CONSTRUCTORS_IMPL(FunctionTemplateRareData)
-TQ_OBJECT_CONSTRUCTORS_IMPL(DictionaryTemplateInfo)
+Tagged<UnionOf<Undefined, ObjectTemplateInfo>>
+FunctionTemplateRareData::prototype_template() const {
+  return prototype_template_.load();
+}
+void FunctionTemplateRareData::set_prototype_template(
+    Tagged<UnionOf<Undefined, ObjectTemplateInfo>> value,
+    WriteBarrierMode mode) {
+  prototype_template_.store(this, value, mode);
+}
+
+Tagged<UnionOf<Undefined, FunctionTemplateInfo>>
+FunctionTemplateRareData::prototype_provider_template() const {
+  return prototype_provider_template_.load();
+}
+void FunctionTemplateRareData::set_prototype_provider_template(
+    Tagged<UnionOf<Undefined, FunctionTemplateInfo>> value,
+    WriteBarrierMode mode) {
+  prototype_provider_template_.store(this, value, mode);
+}
+
+Tagged<UnionOf<Undefined, FunctionTemplateInfo>>
+FunctionTemplateRareData::parent_template() const {
+  return parent_template_.load();
+}
+void FunctionTemplateRareData::set_parent_template(
+    Tagged<UnionOf<Undefined, FunctionTemplateInfo>> value,
+    WriteBarrierMode mode) {
+  parent_template_.store(this, value, mode);
+}
+
+Tagged<UnionOf<Undefined, InterceptorInfo>>
+FunctionTemplateRareData::named_property_handler() const {
+  return named_property_handler_.load();
+}
+void FunctionTemplateRareData::set_named_property_handler(
+    Tagged<UnionOf<Undefined, InterceptorInfo>> value, WriteBarrierMode mode) {
+  named_property_handler_.store(this, value, mode);
+}
+
+Tagged<UnionOf<Undefined, InterceptorInfo>>
+FunctionTemplateRareData::indexed_property_handler() const {
+  return indexed_property_handler_.load();
+}
+void FunctionTemplateRareData::set_indexed_property_handler(
+    Tagged<UnionOf<Undefined, InterceptorInfo>> value, WriteBarrierMode mode) {
+  indexed_property_handler_.store(this, value, mode);
+}
+
+Tagged<UnionOf<Undefined, ObjectTemplateInfo>>
+FunctionTemplateRareData::instance_template() const {
+  return instance_template_.load();
+}
+void FunctionTemplateRareData::set_instance_template(
+    Tagged<UnionOf<Undefined, ObjectTemplateInfo>> value,
+    WriteBarrierMode mode) {
+  instance_template_.store(this, value, mode);
+}
+
+Tagged<UnionOf<Undefined, FunctionTemplateInfo>>
+FunctionTemplateRareData::instance_call_handler() const {
+  return instance_call_handler_.load();
+}
+void FunctionTemplateRareData::set_instance_call_handler(
+    Tagged<UnionOf<Undefined, FunctionTemplateInfo>> value,
+    WriteBarrierMode mode) {
+  instance_call_handler_.store(this, value, mode);
+}
+
+Tagged<UnionOf<Undefined, AccessCheckInfo>>
+FunctionTemplateRareData::access_check_info() const {
+  return access_check_info_.load();
+}
+void FunctionTemplateRareData::set_access_check_info(
+    Tagged<UnionOf<Undefined, AccessCheckInfo>> value, WriteBarrierMode mode) {
+  access_check_info_.store(this, value, mode);
+}
+
+Tagged<FixedArray> FunctionTemplateRareData::c_function_overloads() const {
+  return c_function_overloads_.load();
+}
+void FunctionTemplateRareData::set_c_function_overloads(
+    Tagged<FixedArray> value, WriteBarrierMode mode) {
+  c_function_overloads_.store(this, value, mode);
+}
 
 BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag,
                is_object_template_call_handler,

@@ -96,6 +96,53 @@ std::unique_ptr<T> WrapUnique(T* ptr) {
 // should use `std::make_unique`.
 using std::make_unique;
 
+namespace memory_internal {
+
+// Traits to select proper overload and return type for
+// `absl::make_unique_for_overwrite<>`.
+template <typename T>
+struct MakeUniqueResult {
+  using scalar = std::unique_ptr<T>;
+};
+template <typename T>
+struct MakeUniqueResult<T[]> {
+  using array = std::unique_ptr<T[]>;
+};
+template <typename T, size_t N>
+struct MakeUniqueResult<T[N]> {
+  using invalid = void;
+};
+
+}  // namespace memory_internal
+
+// These are make_unique_for_overwrite variants modeled after
+// http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2020/p1973r1.pdf
+// Unlike absl::make_unique, values are default initialized rather than value
+// initialized.
+//
+// `absl::make_unique_for_overwrite` overload for non-array types.
+template <typename T>
+typename memory_internal::MakeUniqueResult<T>::scalar
+    make_unique_for_overwrite() {
+  return std::unique_ptr<T>(new T);
+}
+
+// `absl::make_unique_for_overwrite` overload for an array T[] of unknown
+// bounds. The array allocation needs to use the `new T[size]` form and cannot
+// take element constructor arguments. The `std::unique_ptr` will manage
+// destructing these array elements.
+template <typename T>
+typename memory_internal::MakeUniqueResult<T>::array
+    make_unique_for_overwrite(size_t n) {
+  return std::unique_ptr<T>(new typename absl::remove_extent_t<T>[n]);
+}
+
+// `absl::make_unique_for_overwrite` overload for an array T[N] of known bounds.
+// This construction will be rejected.
+template <typename T, typename... Args>
+typename memory_internal::MakeUniqueResult<T>::invalid
+    make_unique_for_overwrite(Args&&... /* args */) = delete;
+
 // -----------------------------------------------------------------------------
 // Function Template: RawPtr()
 // -----------------------------------------------------------------------------

@@ -166,6 +166,10 @@ const DISALLOWED_FLAGS = [
 
     /^--random-seed.*/,
 
+    // Setting the stack size too low can cause startup issues, setting it too
+    // large causes stack-overflow crashes.
+    /^--stack-size=.*/,
+
     // Disallowed due to false positives.
     '--check-handle-count',
     '--expose-debug-as',

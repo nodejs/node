@@ -690,8 +690,9 @@ class TestEnvironment : public HandleAndZoneScope {
   // environment.
   Handle<FixedArray> GenerateInitialState() {
     Handle<FixedArray> state = main_isolate()->factory()->NewFixedArray(
-        static_cast<int>(setup_layout_.size()));
-    for (int i = 0; i < state->length(); i++) {
+        static_cast<uint32_t>(setup_layout_.size()));
+    const uint32_t state_len = state->length().value();
+    for (uint32_t i = 0; i < state_len; i++) {
       switch (setup_layout_[i].representation()) {
         case MachineRepresentation::kTagged:
           state->set(i, Smi::FromInt(rng_->NextInt(Smi::kMaxValue)));
@@ -733,7 +734,7 @@ class TestEnvironment : public HandleAndZoneScope {
   DirectHandle<FixedArray> Run(Handle<Code> test, Handle<FixedArray> state_in) {
     DirectHandle<FixedArray> state_out =
         main_isolate()->factory()->NewFixedArray(
-            static_cast<int>(TeardownLayout().size()));
+            static_cast<uint32_t>(TeardownLayout().size()));
     {
 #ifdef ENABLE_SLOW_DCHECKS
       // The "setup" and "teardown" functions are relatively big, and with
@@ -754,9 +755,10 @@ class TestEnvironment : public HandleAndZoneScope {
       FunctionTester ft(setup, 2);
       DirectHandle<FixedArray> result =
           ft.CallChecked<FixedArray>(test, state_in);
-      CHECK_EQ(result->length(), state_in->length());
+      const uint32_t result_len = result->length().value();
+      CHECK_EQ(result_len, state_in->length().value());
       FixedArray::CopyElements(main_isolate(), *state_out, 0, *result, 0,
-                               result->length());
+                               result_len);
     }
     return state_out;
   }
@@ -827,11 +829,12 @@ class TestEnvironment : public HandleAndZoneScope {
       ParallelMove* moves, DirectHandle<FixedArray> state_in) {
     DirectHandle<FixedArray> state_out =
         main_isolate()->factory()->NewFixedArray(
-            static_cast<int>(setup_layout_.size()));
+            static_cast<uint32_t>(setup_layout_.size()));
     // We do not want to modify `state_in` in place so perform the moves on a
     // copy.
+    const uint32_t state_in_len = state_in->length().value();
     FixedArray::CopyElements(main_isolate(), *state_out, 0, *state_in, 0,
-                             state_in->length());
+                             state_in_len);
     DCHECK_EQ(kPreserveLayout, layout_mode_);
     for (auto move : *moves) {
       int to_index = OperandToStatePosition(
@@ -848,7 +851,7 @@ class TestEnvironment : public HandleAndZoneScope {
       ParallelMove* moves, DirectHandle<FixedArray> state_in) {
     DirectHandle<FixedArray> state_out =
         main_isolate()->factory()->NewFixedArray(
-            static_cast<int>(teardown_layout_.size()));
+            static_cast<uint32_t>(teardown_layout_.size()));
     for (auto move : *moves) {
       int to_index = OperandToStatePosition(
           TeardownLayout(), AllocatedOperand::cast(move->destination()));
@@ -873,11 +876,12 @@ class TestEnvironment : public HandleAndZoneScope {
                                          DirectHandle<FixedArray> state_in) {
     DirectHandle<FixedArray> state_out =
         main_isolate()->factory()->NewFixedArray(
-            static_cast<int>(setup_layout_.size()));
+            static_cast<uint32_t>(setup_layout_.size()));
     // We do not want to modify `state_in` in place so perform the swaps on a
     // copy.
+    const uint32_t state_in_len = state_in->length().value();
     FixedArray::CopyElements(main_isolate(), *state_out, 0, *state_in, 0,
-                             state_in->length());
+                             state_in_len);
     for (auto swap : *swaps) {
       int lhs_index = OperandToStatePosition(
           setup_layout_, AllocatedOperand::cast(swap->destination()));
@@ -1454,15 +1458,16 @@ TEST(FuzzAssembleMoveAndSwap) {
   TestEnvironment env;
 
   Handle<FixedArray> state_in = env.GenerateInitialState();
+  const uint32_t state_in_len = state_in->length().value();
   DirectHandle<FixedArray> expected =
-      env.main_isolate()->factory()->NewFixedArray(state_in->length());
+      env.main_isolate()->factory()->NewFixedArray(state_in_len);
 
   // Test small and potentially large ranges separately.
   for (int extra_space : {0, kExtraSpace}) {
     CodeGeneratorTester c(&env, extra_space);
 
     FixedArray::CopyElements(env.main_isolate(), *expected, 0, *state_in, 0,
-                             state_in->length());
+                             state_in_len);
 
     for (int i = 0; i < 1000; i++) {
       // Randomly alternate between swaps and moves.

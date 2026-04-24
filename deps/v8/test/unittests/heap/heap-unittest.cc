@@ -808,8 +808,9 @@ TEST_F(HeapTest, Regress978156) {
   SimulateFullSpace(heap->new_space(), &arrays);
   // 3. Trim the last array by one word thus creating a one-word filler.
   DirectHandle<FixedArray> last = arrays.back();
-  CHECK_GT(last->length(), 0);
-  heap->RightTrimArray(*last, last->length() - 1, last->length());
+  const uint32_t last_len = last->length().value();
+  CHECK_GT(last_len, 0);
+  heap->RightTrimArray(*last, last_len - 1, last_len);
   // 4. Get the last filler on the page.
   Tagged<HeapObject> filler = HeapObject::FromAddress(
       MutablePage::FromHeapObject(isolate(), *last)->area_end() - kTaggedSize);
@@ -1017,6 +1018,33 @@ TEST_F(HeapTest, ContainsSlow) {
   CHECK(heap->lo_space()->ContainsSlow(
       MemoryChunk::FromAddress(large_arr->address())->address()));
   CHECK(!heap->lo_space()->ContainsSlow(0));
+}
+
+TEST_F(HeapTest, ReadOnlySpaceContainsSlowRejectsAddressPastAreaEnd) {
+  // After ShrinkToHighWaterMark, memory past area_end is decommitted,
+  // so reporting it as "contained" simply because it's within the chunk
+  // can be incorrect and lead to crashes when callers dereference it.
+  Heap* heap = isolate()->heap();
+  ReadOnlySpace* ro_space = heap->read_only_space();
+  const auto& pages = ro_space->pages();
+  CHECK(!pages.empty());
+
+  for (ReadOnlyPage* page : pages) {
+    Address area_start = page->area_start();
+    Address area_end = page->area_end();
+    Address chunk_end = page->ChunkAddress() + kRegularPageSize;
+
+    // Addresses within the committed area must be reported as contained.
+    CHECK(ro_space->ContainsSlow(area_start));
+    CHECK(ro_space->ContainsSlow(area_end - 1));
+
+    // Addresses past area_end but still within the original chunk range must
+    // NOT be reported as contained — that memory may be decommitted.
+    if (area_end < chunk_end) {
+      CHECK(!ro_space->ContainsSlow(area_end));
+      CHECK(!ro_space->ContainsSlow(chunk_end - 1));
+    }
+  }
 }
 
 TEST_F(

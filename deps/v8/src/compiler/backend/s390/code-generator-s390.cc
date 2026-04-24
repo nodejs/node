@@ -282,6 +282,38 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   Zone* zone_;
 };
 
+#if V8_ENABLE_WEBASSEMBLY
+class OutOfLineTrap final : public OutOfLineCode {
+ public:
+  OutOfLineTrap(CodeGenerator* gen, Instruction* instr)
+      : OutOfLineCode(gen), instr_(instr), gen_(gen) {}
+
+  void Generate() final {
+    S390OperandConverter i(gen_, instr_);
+    TrapId trap_id =
+        static_cast<TrapId>(i.InputInt32(instr_->InputCount() - 1));
+    GenerateCallToTrap(trap_id);
+  }
+
+ private:
+  void GenerateCallToTrap(TrapId trap_id) {
+    gen_->AssembleSourcePosition(instr_);
+    // A direct call to a wasm runtime stub defined in this module.
+    // Just encode the stub index. This will be patched when the code
+    // is added to the native module and copied into wasm code space.
+    __ Call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
+    ReferenceMap* reference_map = gen_->zone()->New<ReferenceMap>(gen_->zone());
+    gen_->RecordSafepoint(reference_map);
+    if (v8_flags.debug_code) {
+      __ stop();
+    }
+  }
+
+  Instruction* instr_;
+  CodeGenerator* gen_;
+};
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
   switch (condition) {
     case kEqual:
@@ -1461,6 +1493,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ b(exit->label());
       break;
     }
+#if V8_ENABLE_WEBASSEMBLY
+    case kArchTrap:
+      __ b(zone()->New<OutOfLineTrap>(this, instr)->entry());
+      break;
+#endif  // V8_ENABLE_WEBASSEMBLY
     case kArchRet:
       AssembleReturn(instr->InputAt(0));
       break;
@@ -1608,79 +1645,43 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kS390_And32:
       // zero-ext
-      if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
         ASSEMBLE_BIN32_OP(RRRInstr(nrk), RM32Instr(And), RIInstr(nilf));
-      } else {
-        ASSEMBLE_BIN32_OP(RRInstr(nr), RM32Instr(And), RIInstr(nilf));
-      }
       break;
     case kS390_And64:
-      if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
         ASSEMBLE_BIN_OP(RRRInstr(ngrk), RM64Instr(ng), nullInstr);
-      } else {
-        ASSEMBLE_BIN_OP(RRInstr(ngr), RM64Instr(ng), nullInstr);
-      }
       break;
     case kS390_Or32:
       // zero-ext
-      if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
         ASSEMBLE_BIN32_OP(RRRInstr(ork), RM32Instr(Or), RIInstr(oilf));
-      } else {
-        ASSEMBLE_BIN32_OP(RRInstr(or_z), RM32Instr(Or), RIInstr(oilf));
-      }
       break;
     case kS390_Or64:
-      if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
         ASSEMBLE_BIN_OP(RRRInstr(ogrk), RM64Instr(og), nullInstr);
-      } else {
-        ASSEMBLE_BIN_OP(RRInstr(ogr), RM64Instr(og), nullInstr);
-      }
       break;
     case kS390_Xor32:
       // zero-ext
-      if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
         ASSEMBLE_BIN32_OP(RRRInstr(xrk), RM32Instr(Xor), RIInstr(xilf));
-      } else {
-        ASSEMBLE_BIN32_OP(RRInstr(xr), RM32Instr(Xor), RIInstr(xilf));
-      }
       break;
     case kS390_Xor64:
-      if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
         ASSEMBLE_BIN_OP(RRRInstr(xgrk), RM64Instr(xg), nullInstr);
-      } else {
-        ASSEMBLE_BIN_OP(RRInstr(xgr), RM64Instr(xg), nullInstr);
-      }
       break;
     case kS390_ShiftLeft32:
       // zero-ext
-      if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
         ASSEMBLE_BIN32_OP(RRRInstr(ShiftLeftU32), nullInstr,
                           RRIInstr(ShiftLeftU32));
-      } else {
-        ASSEMBLE_BIN32_OP(RRInstr(sll), nullInstr, RIInstr(sll));
-      }
       break;
     case kS390_ShiftLeft64:
       ASSEMBLE_BIN_OP(RRRInstr(sllg), nullInstr, RRIInstr(sllg));
       break;
     case kS390_ShiftRight32:
       // zero-ext
-      if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
         ASSEMBLE_BIN32_OP(RRRInstr(srlk), nullInstr, RRIInstr(srlk));
-      } else {
-        ASSEMBLE_BIN32_OP(RRInstr(srl), nullInstr, RIInstr(srl));
-      }
       break;
     case kS390_ShiftRight64:
       ASSEMBLE_BIN_OP(RRRInstr(srlg), nullInstr, RRIInstr(srlg));
       break;
     case kS390_ShiftRightArith32:
       // zero-ext
-      if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
         ASSEMBLE_BIN32_OP(RRRInstr(srak), nullInstr, RRIInstr(srak));
-      } else {
-        ASSEMBLE_BIN32_OP(RRInstr(sra), nullInstr, RIInstr(sra));
-      }
       break;
     case kS390_ShiftRightArith64:
       ASSEMBLE_BIN_OP(RRRInstr(srag), nullInstr, RRIInstr(srag));
@@ -1708,71 +1709,40 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     // TODO(john.yan): clean up kS390_RotLeftAnd...
-    case kS390_RotLeftAndClear64:
-      if (CpuFeatures::IsSupported(GENERAL_INSTR_EXT)) {
-        int shiftAmount = i.InputInt32(1);
-        int endBit = 63 - shiftAmount;
-        int startBit = 63 - i.InputInt32(2);
-        __ RotateInsertSelectBits(i.OutputRegister(), i.InputRegister(0),
-                                  Operand(startBit), Operand(endBit),
-                                  Operand(shiftAmount), true);
-      } else {
-        int shiftAmount = i.InputInt32(1);
-        int clearBit = 63 - i.InputInt32(2);
-        __ rllg(i.OutputRegister(), i.InputRegister(0), Operand(shiftAmount));
-        __ sllg(i.OutputRegister(), i.OutputRegister(), Operand(clearBit));
-        __ srlg(i.OutputRegister(), i.OutputRegister(),
-                Operand(clearBit + shiftAmount));
-        __ sllg(i.OutputRegister(), i.OutputRegister(), Operand(shiftAmount));
-      }
+    case kS390_RotLeftAndClear64: {
+      int shiftAmount = i.InputInt32(1);
+      int endBit = 63 - shiftAmount;
+      int startBit = 63 - i.InputInt32(2);
+      __ RotateInsertSelectBits(i.OutputRegister(), i.InputRegister(0),
+                                Operand(startBit), Operand(endBit),
+                                Operand(shiftAmount), true);
       break;
-    case kS390_RotLeftAndClearLeft64:
-      if (CpuFeatures::IsSupported(GENERAL_INSTR_EXT)) {
-        int shiftAmount = i.InputInt32(1);
-        int endBit = 63;
-        int startBit = 63 - i.InputInt32(2);
-        __ RotateInsertSelectBits(i.OutputRegister(), i.InputRegister(0),
-                                  Operand(startBit), Operand(endBit),
-                                  Operand(shiftAmount), true);
-      } else {
-        int shiftAmount = i.InputInt32(1);
-        int clearBit = 63 - i.InputInt32(2);
-        __ rllg(i.OutputRegister(), i.InputRegister(0), Operand(shiftAmount));
-        __ sllg(i.OutputRegister(), i.OutputRegister(), Operand(clearBit));
-        __ srlg(i.OutputRegister(), i.OutputRegister(), Operand(clearBit));
-      }
+    }
+    case kS390_RotLeftAndClearLeft64: {
+      int shiftAmount = i.InputInt32(1);
+      int endBit = 63;
+      int startBit = 63 - i.InputInt32(2);
+      __ RotateInsertSelectBits(i.OutputRegister(), i.InputRegister(0),
+                                Operand(startBit), Operand(endBit),
+                                Operand(shiftAmount), true);
       break;
-    case kS390_RotLeftAndClearRight64:
-      if (CpuFeatures::IsSupported(GENERAL_INSTR_EXT)) {
-        int shiftAmount = i.InputInt32(1);
-        int endBit = 63 - i.InputInt32(2);
-        int startBit = 0;
-        __ RotateInsertSelectBits(i.OutputRegister(), i.InputRegister(0),
-                                  Operand(startBit), Operand(endBit),
-                                  Operand(shiftAmount), true);
-      } else {
-        int shiftAmount = i.InputInt32(1);
-        int clearBit = i.InputInt32(2);
-        __ rllg(i.OutputRegister(), i.InputRegister(0), Operand(shiftAmount));
-        __ srlg(i.OutputRegister(), i.OutputRegister(), Operand(clearBit));
-        __ sllg(i.OutputRegister(), i.OutputRegister(), Operand(clearBit));
-      }
+    }
+    case kS390_RotLeftAndClearRight64: {
+      int shiftAmount = i.InputInt32(1);
+      int endBit = 63 - i.InputInt32(2);
+      int startBit = 0;
+      __ RotateInsertSelectBits(i.OutputRegister(), i.InputRegister(0),
+                                Operand(startBit), Operand(endBit),
+                                Operand(shiftAmount), true);
       break;
+    }
     case kS390_Add32: {
       // zero-ext
-      if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
         ASSEMBLE_BIN32_OP(RRRInstr(ark), RM32Instr(AddS32), RRIInstr(AddS32));
-      } else {
-        ASSEMBLE_BIN32_OP(RRInstr(ar), RM32Instr(AddS32), RIInstr(AddS32));
-      }
       break;
     }
     case kS390_Add64:
-      if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
         ASSEMBLE_BIN_OP(RRRInstr(agrk), RM64Instr(ag), RRIInstr(AddS64));
-      } else {
-        ASSEMBLE_BIN_OP(RRInstr(agr), RM64Instr(ag), RIInstr(agfi));
-      }
       break;
     case kS390_AddFloat:
       ASSEMBLE_BIN_OP(DDInstr(aebr), DMTInstr(AddFloat32), nullInstr);
@@ -1782,18 +1752,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kS390_Sub32:
       // zero-ext
-      if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
         ASSEMBLE_BIN32_OP(RRRInstr(srk), RM32Instr(SubS32), RRIInstr(SubS32));
-      } else {
-        ASSEMBLE_BIN32_OP(RRInstr(sr), RM32Instr(SubS32), RIInstr(SubS32));
-      }
       break;
     case kS390_Sub64:
-      if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
         ASSEMBLE_BIN_OP(RRRInstr(sgrk), RM64Instr(sg), RRIInstr(SubS64));
-      } else {
-        ASSEMBLE_BIN_OP(RRInstr(sgr), RM64Instr(sg), RIInstr(SubS64));
-      }
       break;
     case kS390_SubFloat:
       ASSEMBLE_BIN_OP(DDInstr(sebr), DMTInstr(SubFloat32), nullInstr);
@@ -1803,11 +1765,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kS390_Mul32:
       // zero-ext
-      if (CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
         ASSEMBLE_BIN32_OP(RRRInstr(msrkc), RM32Instr(msc), RIInstr(MulS32));
-      } else {
-        ASSEMBLE_BIN32_OP(RRInstr(MulS32), RM32Instr(MulS32), RIInstr(MulS32));
-      }
       break;
     case kS390_Mul32WithOverflow:
       // zero-ext
@@ -1821,19 +1779,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_Mul64WithOverflow: {
       Register dst = i.OutputRegister(), src1 = i.InputRegister(0),
                src2 = i.InputRegister(1);
-      CHECK(!AreAliased(dst, src1, src2));
-      if (CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
         __ msgrkc(dst, src1, src2);
-      } else {
-        // Mul high.
-        __ MulHighS64(r1, src1, src2);
-        // Mul low.
-        __ mov(dst, src1);
-        __ MulS64(dst, src2);
-        // Test whether {high} is a sign-extension of {result}.
-        __ ShiftRightS64(r0, dst, Operand(63));
-        __ CmpU64(r1, r0);
-      }
       break;
     }
     case kS390_MulHigh32:
@@ -3440,36 +3386,6 @@ void CodeGenerator::AssembleArchJumpRegardlessOfAssemblyOrder(
 #if V8_ENABLE_WEBASSEMBLY
 void CodeGenerator::AssembleArchTrap(Instruction* instr,
                                      FlagsCondition condition) {
-  class OutOfLineTrap final : public OutOfLineCode {
-   public:
-    OutOfLineTrap(CodeGenerator* gen, Instruction* instr)
-        : OutOfLineCode(gen), instr_(instr), gen_(gen) {}
-
-    void Generate() final {
-      S390OperandConverter i(gen_, instr_);
-      TrapId trap_id =
-          static_cast<TrapId>(i.InputInt32(instr_->InputCount() - 1));
-      GenerateCallToTrap(trap_id);
-    }
-
-   private:
-    void GenerateCallToTrap(TrapId trap_id) {
-      gen_->AssembleSourcePosition(instr_);
-      // A direct call to a wasm runtime stub defined in this module.
-      // Just encode the stub index. This will be patched when the code
-      // is added to the native module and copied into wasm code space.
-      __ Call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
-      ReferenceMap* reference_map =
-          gen_->zone()->New<ReferenceMap>(gen_->zone());
-      gen_->RecordSafepoint(reference_map);
-      if (v8_flags.debug_code) {
-        __ stop();
-      }
-    }
-
-    Instruction* instr_;
-    CodeGenerator* gen_;
-  };
   auto ool = zone()->New<OutOfLineTrap>(this, instr);
   Label* tlabel = ool->entry();
   Label end;

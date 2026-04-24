@@ -91,6 +91,21 @@ TEST(LinkedHashSetTest, Assign) {
   FAIL() << "Assigned set's find method returned an invalid iterator.";
 }
 
+// Tests that self-assignment works.
+TEST(LinkedHashSetTest, SelfAssign) {
+  linked_hash_set<int> a{1, 2, 3};
+  auto& a_ref = a;
+  a = a_ref;
+
+  EXPECT_TRUE(a.contains(2));
+  auto found = a.find(2);
+  ASSERT_TRUE(found != a.end());
+  for (auto iter = a.begin(); iter != a.end(); ++iter) {
+    if (iter == found) return;
+  }
+  FAIL() << "Assigned set's find method returned an invalid iterator.";
+}
+
 // Tests that move constructor works.
 TEST(LinkedHashSetTest, Move) {
   // Use unique_ptr as an example of a non-copyable type.
@@ -99,6 +114,14 @@ TEST(LinkedHashSetTest, Move) {
   m.insert(std::make_unique<int>(3));
   linked_hash_set<std::unique_ptr<int>> n = std::move(m);
   EXPECT_THAT(n, ElementsAre(Pointee(2), Pointee(3)));
+}
+
+// Tests that self-moving works.
+TEST(LinkedHashSetTest, SelfMove) {
+  linked_hash_set<int> a{1, 2, 3};
+  auto& a_ref = a;
+  a = std::move(a_ref);
+  EXPECT_THAT(a, ElementsAre(1, 2, 3));
 }
 
 struct IntUniquePtrHash {
@@ -519,6 +542,13 @@ TEST(LinkedHashSetTest, Swap) {
   m1.swap(m2);
   ASSERT_EQ(1, m1.size());
   ASSERT_EQ(2, m2.size());
+}
+
+TEST(LinkedHashSetTest, SelfSwap) {
+  linked_hash_set<int> a{1, 2, 3};
+  using std::swap;
+  swap(a, a);
+  EXPECT_THAT(a, ElementsAre(1, 2, 3));
 }
 
 TEST(LinkedHashSetTest, InitializerList) {

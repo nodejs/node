@@ -343,6 +343,7 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitTrustedPointerTableEntry(
 template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::VisitJSDispatchTableEntry(
     Tagged<HeapObject> host, JSDispatchHandle handle) {
+  DCHECK(!Is<InstructionStream>(host));
   JSDispatchTable& jdt = heap_->isolate()->js_dispatch_table();
 #ifdef DEBUG
   JSDispatchTable::Space* space = heap_->js_dispatch_table_space();
@@ -354,20 +355,35 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitJSDispatchTableEntry(
     return;
   }
 
-  if (Tagged<InstructionStream> istream; TryCast(host, &istream)) {
-    Tagged<Code> code = UncheckedCast<Code>(istream->raw_code(kAcquireLoad));
-    if (code->IsWeakObjectInOptimizedCode(handle)) {
-      local_weak_objects_->weak_dispatch_handles_in_code_local.Push(
-          DispatchHandleAndCode{handle, code});
-      return;
-    }
-  }
-
   jdt.Mark(handle);
 
   // The code objects referenced from a dispatch table entry are treated as weak
   // references for the purpose of bytecode/baseline flushing, so they are not
   // marked here. See also VisitJSFunction below.
+}
+
+template <typename ConcreteVisitor>
+void MarkingVisitorBase<ConcreteVisitor>::VisitJSDispatchTableEntry(
+    Tagged<InstructionStream> host, JSDispatchHandle handle) {
+  JSDispatchTable& jdt = heap_->isolate()->js_dispatch_table();
+#ifdef DEBUG
+  JSDispatchTable::Space* space = heap_->js_dispatch_table_space();
+  JSDispatchTable::Space* ro_space = heap_->read_only_js_dispatch_table_space();
+  jdt.VerifyEntry(handle, space, ro_space);
+#endif  // DEBUG
+
+  if (jdt.IsMarked(handle)) {
+    return;
+  }
+
+  Tagged<Code> code = UncheckedCast<Code>(host->raw_code(kAcquireLoad));
+  if (code->IsWeakObjectInOptimizedCode(handle)) {
+    local_weak_objects_->weak_dispatch_handles_in_code_local.Push(
+        DispatchHandleAndCode{handle, code});
+    return;
+  }
+
+  jdt.Mark(handle);
 }
 
 // ===========================================================================
@@ -420,7 +436,7 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
     }
     // Code is synchronized via acq/release pair here and in the dispatch table
     // if enabled.
-    Tagged<Object> maybe_code =
+    Tagged<Union<Smi, Code>> maybe_code =
         js_function->raw_code(heap_->isolate(), kAcquireLoad);
     Tagged<Code> code;
     if (!TryCast(maybe_code, &code)) {

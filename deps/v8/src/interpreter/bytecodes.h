@@ -176,6 +176,9 @@ namespace interpreter {
   V(GetEnumeratedKeyedProperty, ImplicitRegisterUse::kReadWriteAccumulator,    \
     OperandType::kReg, OperandType::kReg, OperandType::kReg,                   \
     OperandType::kFeedbackSlot)                                                \
+  V(GetPrivateField, ImplicitRegisterUse::kWriteAccumulator,                   \
+    OperandType::kReg, OperandType::kContextSlot, OperandType::kUImm,          \
+    OperandType::kReg, OperandType::kFeedbackSlot)                             \
                                                                                \
   /* Operations on module variables */                                         \
   V(LdaModuleVariable, ImplicitRegisterUse::kWriteAccumulator,                 \
@@ -202,6 +205,9 @@ namespace interpreter {
     OperandType::kFeedbackSlot)                                                \
   V(SetPrototypeProperties, ImplicitRegisterUse::kReadAndClobberAccumulator,   \
     OperandType::kConstantPoolIndex, OperandType::kFeedbackSlot)               \
+  V(SetPrivateField, ImplicitRegisterUse::kReadAndClobberAccumulator,          \
+    OperandType::kReg, OperandType::kContextSlot, OperandType::kUImm,          \
+    OperandType::kReg, OperandType::kFeedbackSlot)                             \
                                                                                \
   /* Binary Operators */                                                       \
   V(Add, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg,        \

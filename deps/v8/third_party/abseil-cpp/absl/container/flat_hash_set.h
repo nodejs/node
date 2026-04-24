@@ -177,6 +177,11 @@ class ABSL_ATTRIBUTE_OWNER flat_hash_set
   //
   //   std::vector<std::string> v = {"a", "b"};
   //   absl::flat_hash_set<std::string> set7(v.begin(), v.end());
+  //
+  // * from_range constructor (C++23)
+  //
+  //   std::vector<std::string> v = {"a", "b"};
+  //   absl::flat_hash_set<std::string> set8(std::from_range, v);
   flat_hash_set() {}
   using Base::Base;
 

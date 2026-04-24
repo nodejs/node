@@ -22,8 +22,8 @@ class WasmMemoryObject;
 // Whether this is Wasm memory, and if 32 or 64 bit.
 enum class WasmMemoryFlag : uint8_t { kNotWasm, kWasmMemory32, kWasmMemory64 };
 
-// Whether the backing store is shared or not.
-enum class SharedFlag : uint8_t { kNotShared, kShared };
+// To indicate whether the backing store is shared or not, we reuse the global
+// SharedFlag enum.
 
 // Whether the backing store is resizable or not.
 enum class ResizableFlag : uint8_t { kNotResizable, kResizable };

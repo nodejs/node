@@ -171,6 +171,11 @@ class ABSL_ATTRIBUTE_OWNER node_hash_set
   //
   //   std::vector<std::string> v = {"a", "b"};
   //   absl::node_hash_set<std::string> set7(v.begin(), v.end());
+  //
+  // * from_range constructor (C++23)
+  //
+  //   std::vector<std::string> v = {"a", "b"};
+  //   absl::node_hash_set<std::string> set8(std::from_range, v);
   node_hash_set() {}
   using Base::Base;
 

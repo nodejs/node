@@ -14,7 +14,7 @@ namespace internal {
 
 namespace {
 
-// ES#sec-canonicalnumericindexstring
+// https://tc39.es/ecma262/#sec-canonicalnumericindexstring
 // Returns true if the lookup_key represents a valid index string.
 bool CanonicalNumericIndexString(Isolate* isolate,
                                  const PropertyKey& lookup_key,
@@ -51,7 +51,7 @@ void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
     // Count usage may lead to a blink allocation, through the callback, which
     // may trigger a GC. It is important to delay this, until the array buffer
     // is properly initialized.
-    if (shared == SharedFlag::kShared) {
+    if (shared == SharedFlag::kYes) {
       isolate->CountUsage(
           v8::Isolate::UseCounterFeature::kSharedArrayBufferConstructed);
     }
@@ -60,9 +60,9 @@ void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
   init_extension();
   set_views_or_detach_key(views);
   set_bit_field(0);
-  set_is_shared(shared == SharedFlag::kShared);
+  set_is_shared(shared == SharedFlag::kYes);
   set_is_resizable_by_js(resizable == ResizableFlag::kResizable);
-  set_is_detachable(shared != SharedFlag::kShared);
+  set_is_detachable(shared == SharedFlag::kNo);
   SetupLazilyInitializedCppHeapPointerField(
       JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset);
   for (int i = 0; i < v8::ArrayBuffer::kEmbedderFieldCount; i++) {
@@ -184,6 +184,7 @@ void JSTypedArray::MarkDetached(DirectHandle<JSTypedArray> typed_array,
       MapUpdater::InstanceTypeChange::kTypedArrayDetaching);
   JSObject::MigrateToMap(isolate, typed_array, new_map);
   typed_array->WriteBoundedSizeField(kRawLengthOffset, 0);
+  typed_array->WriteBoundedSizeField(kRawByteLengthOffset, 0);
   // TODO(olivf, 467645277): Set the buffer to a canonical detached ab value.
 }
 
@@ -235,6 +236,18 @@ void JSArrayBuffer::DetachInternal(DirectHandle<JSArrayBuffer> array_buffer,
   DCHECK(!array_buffer->is_shared());
   array_buffer->set_backing_store(isolate, EmptyBackingStoreBuffer());
   array_buffer->set_byte_length(0);
+}
+
+void JSArrayBuffer::MakeImmutable(Isolate* isolate) {
+  if (is_immutable()) return;
+  DCHECK(!was_detached());
+  set_is_immutable(true);
+  if (auto backing_store = GetBackingStore()) {
+    backing_store->set_is_immutable(true);
+  }
+  if (Protectors::IsArrayBufferMutableIntact(isolate)) {
+    Protectors::InvalidateArrayBufferMutable(isolate);
+  }
 }
 
 size_t JSArrayBuffer::GsabByteLength(Isolate* isolate,
@@ -344,9 +357,8 @@ Handle<JSArrayBuffer> JSTypedArray::GetBuffer(Isolate* isolate) {
 
   // Allocate a new backing store and attach it to the existing array buffer.
   size_t byte_length = self->byte_length();
-  auto backing_store =
-      BackingStore::Allocate(isolate, byte_length, SharedFlag::kNotShared,
-                             InitializedFlag::kUninitialized);
+  auto backing_store = BackingStore::Allocate(
+      isolate, byte_length, SharedFlag::kNo, InitializedFlag::kUninitialized);
 
   if (!backing_store) {
     isolate->heap()->FatalProcessOutOfMemory("JSTypedArray::GetBuffer");
@@ -363,7 +375,7 @@ Handle<JSArrayBuffer> JSTypedArray::GetBuffer(Isolate* isolate) {
                  array_buffer->views().GetHeapObject() == *self);
 
   // Attach the backing store to the array buffer.
-  array_buffer->Setup(SharedFlag::kNotShared, ResizableFlag::kNotResizable,
+  array_buffer->Setup(SharedFlag::kNo, ResizableFlag::kNotResizable,
                       std::move(backing_store), isolate, array_buffer->views());
 
   // Clear the elements of the typed array.
@@ -374,7 +386,7 @@ Handle<JSArrayBuffer> JSTypedArray::GetBuffer(Isolate* isolate) {
   return array_buffer;
 }
 
-// ES#sec-integer-indexed-exotic-objects-defineownproperty-p-desc
+// https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects-defineownproperty-p-desc
 // static
 Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
                                             DirectHandle<JSTypedArray> o,

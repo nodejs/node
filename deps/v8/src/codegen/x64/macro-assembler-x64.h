@@ -858,12 +858,17 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // As above, but for kUnknownIndirectPointerTag. The type of the loaded object
   // is unknown, so this helper will check for a series of expected types and
   // jump to the given labels if the loaded object has a matching type. If the
-  // object has none of the expected types, the destination register will be
-  // zeroed and execution continues as fall-through.
+  // field is null (with enabled sandbox) or a Smi (with disabled sandbox) and
+  // the provided is_unavailable label is not a nullptr, then the helper will
+  // jump there. If the field is valid and the object has one of the expected
+  // types, then the helper will jump to the corresponding label. In all other
+  // cases, the destination register will be zeroed and execution continues as
+  // fall-through.
   void LoadTrustedUnknownPointerField(
       Register destination, Operand field_operand, Register scratch,
       const std::initializer_list<
-          std::tuple<InstanceType, Label*, Label::Distance>>& cases);
+          std::tuple<InstanceType, Label*, Label::Distance>>& cases,
+      Label* is_unavailable = nullptr);
   // Store a trusted pointer field.
   void StoreTrustedPointerField(Operand dst_field_operand, Register value);
 

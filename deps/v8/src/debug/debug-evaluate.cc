@@ -291,7 +291,8 @@ void DebugEvaluate::ContextBuilder::UpdateValues() {
                                   ENUMERABLE_STRINGS)
               .ToHandleChecked();
 
-      for (int i = 0; i < keys->length(); i++) {
+      uint32_t keys_len = keys->ulength().value();
+      for (uint32_t i = 0; i < keys_len; i++) {
         DCHECK(IsString(keys->get(i)));
         Handle<String> key(Cast<String>(keys->get(i)), isolate_);
         DirectHandle<Object> value = JSReceiver::GetDataProperty(

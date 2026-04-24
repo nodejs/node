@@ -1071,3 +1071,319 @@ d8.file.execute('test/mjsunit/value-helper.js');
   const wasm = builder.instantiate().exports;
   assertEquals(wasm.simd(0), 0);
 })();
+
+(function ExtMulLowWithTwoExtracts() {
+  print(arguments.callee.name);
+
+  const builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1, false);
+  builder.exportMemoryAs('memory');
+  builder.addFunction('extract', kSig_i_ii).addLocals(kWasmS128, 3)
+      .addBody([
+        kExprLocalGet, 0,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kExprLocalTee, 2,
+        kExprLocalGet, 1,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kExprLocalTee, 3,
+        kSimdPrefix, kExprI8x16Shuffle,
+        8, 9, 10, 11, 12, 13, 14, 15,
+        16, 17, 18, 19, 20, 21, 22, 23,
+        kExprLocalGet, 2,
+        kExprLocalGet, 3,
+        kSimdPrefix, kExprI8x16Shuffle,
+        8, 9, 10, 11, 12, 13, 14, 15,
+        0, 1, 2, 3, 4, 5, 6, 7,
+        // ExtMulLow on the two shuffled vectors.
+        ...SimdInstr(kExprI16x8ExtMulLowI8x16S),
+        kExprLocalTee, 4,
+        // Two lane-0 extracts of the ExtMulLow result.
+        kSimdPrefix, kExprI16x8ExtractLaneS, 0,
+        kExprLocalGet, 4,
+        kSimdPrefix, kExprI16x8ExtractLaneS, 0,
+        kExprI32Add,
+      ])
+      .exportFunc();
+
+  builder.addFunction('scalar', kSig_i_ii).addLocals(kWasmI32, 1)
+      .addBody([
+        kExprLocalGet, 0,
+        kExprI32LoadMem8S, 0, 8,
+        kExprLocalTee, 2,
+        kExprLocalGet, 2,
+        kExprI32Mul,
+        kExprI32Const, 2,
+        kExprI32Mul,
+      ])
+      .exportFunc();
+
+  const wasm = builder.instantiate().exports;
+  const mem = new Uint8Array(wasm.memory.buffer);
+  const base0 = 0;
+  const base1 = 32;
+  for (let i = 0; i < 64; ++i) {
+    mem[i] = int8_array[i % int8_array.length];
+  }
+
+  assertEquals(wasm.scalar(base0, base1), wasm.extract(base0, base1));
+})();
+
+(function StoreLaneDemandedBytes() {
+  print(arguments.callee.name);
+
+  const left = [
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+  ];
+  const right = [
+    0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+    0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+  ];
+
+  const shuffle = [
+    20, 5, 21, 4, 22, 3, 23, 2,
+    0, 1, 2, 3, 4, 5, 6, 7,
+  ];
+
+  const expectedLane = function(bits) {
+    const source = new Uint8Array([...left, ...right]);
+    const out = new Uint8Array(16);
+    for (let i = 0; i < 16; ++i) out[i] = source[shuffle[i]];
+    const view = new DataView(out.buffer);
+    switch (bits) {
+      case 8:
+        return out[0];
+      case 16:
+        return view.getUint16(0, true);
+      case 32:
+        return view.getUint32(0, true);
+      case 64:
+        return view.getBigUint64(0, true);
+      default:
+        throw new Error('Unsupported lane width');
+    }
+  }
+
+  const makeStoreLaneBody = function(storeOpcode, loadOpcode) {
+    return [
+      ...wasmI32Const(0),
+      ...wasmS128Const(left),
+      ...wasmS128Const(right),
+      kSimdPrefix, kExprI8x16Shuffle, ...shuffle,
+      kSimdPrefix, storeOpcode, 0, 0, 0,
+      ...wasmI32Const(0),
+      loadOpcode, 0, 0,
+    ];
+  }
+
+  const builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1);
+
+  builder.addFunction('store8', kSig_i_v)
+      .addBody(makeStoreLaneBody(kExprS128Store8Lane, kExprI32LoadMem8U))
+      .exportFunc();
+
+  builder.addFunction('store16', kSig_i_v)
+      .addBody(makeStoreLaneBody(kExprS128Store16Lane, kExprI32LoadMem16U))
+      .exportFunc();
+
+  builder.addFunction('store32', kSig_i_v)
+      .addBody(makeStoreLaneBody(kExprS128Store32Lane, kExprI32LoadMem))
+      .exportFunc();
+
+  builder.addFunction('store64', kSig_l_v)
+      .addBody(makeStoreLaneBody(kExprS128Store64Lane, kExprI64LoadMem))
+      .exportFunc();
+
+  const wasm = builder.instantiate().exports;
+
+  assertEquals(expectedLane(8), wasm.store8());
+  assertEquals(expectedLane(16), wasm.store16());
+  assertEquals(expectedLane(32), wasm.store32());
+  assertEquals(expectedLane(64), wasm.store64());
+})();
+
+function RunOneShuffleMaxIndexTest(name, outerShuffle) {
+  print(name);
+  const builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1, false);
+  builder.exportMemoryAs('memory');
+
+  const innerShuffle = [
+    0, 1, 2, 3, 4, 5, 6, 7,
+    8, 9, 10, 11, 12, 13, 14, 15,
+  ];
+
+  builder.addFunction('one_input_shuffle', makeSig(
+    [kWasmI32, kWasmI32, kWasmI32], [])).addLocals(kWasmS128, 1)
+      .addBody([
+        kExprLocalGet, 2,
+        kExprLocalGet, 0,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kExprLocalGet, 1,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kSimdPrefix, kExprI8x16Shuffle, ...innerShuffle,
+        kExprLocalTee, 3,
+        kExprLocalGet, 3,
+        kSimdPrefix, kExprI8x16Shuffle, ...outerShuffle,
+        kSimdPrefix, kExprS128StoreMem, 0, 0,
+      ])
+      .exportFunc();
+
+  const instance = builder.instantiate();
+  const memory = new Uint8Array(instance.exports.memory.buffer);
+  const leftAddr = 0;
+  const rightAddr = 16;
+  const dstAddr = 64;
+
+  const srcAddrs = [leftAddr, rightAddr];
+  for (let i = 0; i < dstAddr; ++i) {
+    memory[i] = int8_array[i % int8_array.length];
+  }
+  memory.fill(0, dstAddr, dstAddr + 16);
+
+  instance.exports.one_input_shuffle(leftAddr, rightAddr, dstAddr);
+
+  const applyShuffle = (input, shuf) => Uint8Array.from(shuf.map(i => input[i]));
+  const input = memory.slice(leftAddr, leftAddr + 32);
+  const innerResult = applyShuffle(input, innerShuffle);
+
+  const expected = new Uint8Array(16);
+  for (let i = 0; i < 16; ++i) {
+    const idx = outerShuffle[i];
+    expected[i] = innerResult[idx % 16];
+  }
+
+  for (let i = 0; i < 16; ++i) {
+    assertEquals(expected[i], memory[dstAddr + i]);
+  }
+}
+
+function RunTwoShufflesMaxIndexTest(name, outerShuffle) {
+  print(name);
+  const builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1, false);
+  builder.exportMemoryAs('memory');
+
+  const innerShuffle = [
+    0, 1, 2, 3, 4, 5, 6, 7,
+    8, 9, 10, 11, 12, 13, 14, 15,
+  ];
+
+  builder.addFunction('two_input_shuffles', makeSig(
+    [kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32], []))
+      .addBody([
+        kExprLocalGet, 4,
+        kExprLocalGet, 0,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kExprLocalGet, 1,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kSimdPrefix, kExprI8x16Shuffle, ...innerShuffle,
+        kExprLocalGet, 2,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kExprLocalGet, 3,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kSimdPrefix, kExprI8x16Shuffle, ...innerShuffle,
+        kSimdPrefix, kExprI8x16Shuffle, ...outerShuffle,
+        kSimdPrefix, kExprS128StoreMem, 0, 0,
+      ])
+      .exportFunc();
+
+  const instance = builder.instantiate();
+  const memory = new Uint8Array(instance.exports.memory.buffer);
+  const leftAAddr = 0;
+  const rightAAddr = 16;
+  const leftBAddr = 32;
+  const rightBAddr = 48;
+  const dstAddr = 64;
+
+  const srcAddrs = [leftAAddr, rightAAddr, leftBAddr, rightBAddr];
+  for (let i = 0; i < dstAddr; ++i) {
+    memory[i] = int8_array[i % int8_array.length];
+  }
+  memory.fill(0, dstAddr, dstAddr + 16);
+
+  instance.exports.two_input_shuffles(
+      leftAAddr, rightAAddr, leftBAddr, rightBAddr, dstAddr);
+
+  const applyShuffle = (input, shuf) => Uint8Array.from(shuf.map(i => input[i]));
+  const inputA = memory.slice(leftAAddr, leftAAddr + 32);
+  const inputB = memory.slice(leftBAddr, leftBAddr + 32);
+  const innerResultA = applyShuffle(inputA, innerShuffle);
+  const innerResultB = applyShuffle(inputB, innerShuffle);
+
+  const expected = new Uint8Array(16);
+  for (let i = 0; i < 16; ++i) {
+    const idx = outerShuffle[i];
+    expected[i] = idx < 16 ? innerResultA[idx] : innerResultB[idx - 16];
+  }
+
+  for (let i = 0; i < 16; ++i) {
+    assertEquals(expected[i], memory[dstAddr + i]);
+  }
+}
+
+function RunMaxIndexTests(name, outerShuffle) {
+  RunOneShuffleMaxIndexTest(name, outerShuffle);
+  RunTwoShufflesMaxIndexTest(name, outerShuffle);
+}
+
+// Both inner shuffles should be reduced to I8x2 (max index 1/17).
+RunMaxIndexTests(
+    'ShuffleMaxIndex_ReduceToI8x2_Positive',
+    [
+      0, 16, 1, 17,
+      0, 16, 1, 17,
+      0, 16, 1, 17,
+      0, 16, 1, 17,
+    ]);
+
+// Both inner shuffles should be reduced to I8x4 (max index 3/19).
+RunMaxIndexTests(
+    'ShuffleMaxIndex_ReduceToI8x4_Positive',
+    [
+      0, 16, 1, 17,
+      2, 18, 3, 19,
+      0, 16, 1, 17,
+      2, 18, 3, 19,
+    ]);
+
+// Both inner shuffles should be reduced to I8x8 (max index 7/23).
+RunMaxIndexTests(
+    'ShuffleMaxIndex_ReduceToI8x8_Positive',
+    [
+      0, 16, 1, 17,
+      2, 18, 3, 19,
+      4, 20, 5, 21,
+      6, 22, 7, 23,
+    ]);
+
+// Includes index 2/18, so can be reduced to I8x4.
+RunMaxIndexTests(
+    'ShuffleMaxIndex_NoReduceToI8x2_Negative',
+    [
+      0, 16, 1, 17,
+      2, 18, 0, 16,
+      1, 17, 2, 18,
+      0, 16, 1, 17,
+    ]);
+
+// Includes index 4/20, so can be reduced to I8x8.
+RunMaxIndexTests(
+    'ShuffleMaxIndex_NoReduceToI8x4_Negative',
+    [
+      0, 16, 1, 17,
+      2, 18, 3, 19,
+      4, 20, 2, 18,
+      3, 19, 0, 16,
+    ]);
+
+// Includes index 8/24, so it won't be reduced.
+RunMaxIndexTests(
+    'ShuffleMaxIndex_NoReduceToI8x8_Negative',
+    [
+      0, 16, 1, 17,
+      2, 18, 3, 19,
+      4, 20, 5, 21,
+      6, 22, 8, 24,
+    ]);

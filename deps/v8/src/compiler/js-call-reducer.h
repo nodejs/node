@@ -134,6 +134,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceArrayIterator(Node* node, ArrayIteratorKind array_kind,
                                 IterationKind iteration_kind);
   Reduction ReduceArrayIteratorPrototypeNext(Node* node);
+  Reduction ReduceGeneratorPrototypeNext(Node* node);
   Reduction ReduceFastArrayIteratorNext(InstanceType type, Node* node,
                                         IterationKind kind);
 

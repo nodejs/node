@@ -1,14 +1,13 @@
 /* unzip.c -- IO for uncompress .zip files using zlib
-   Version 1.1, February 14h, 2010
-   part of the MiniZip project - ( http://www.winimage.com/zLibDll/minizip.html )
+   part of the MiniZip project - ( https://www.winimage.com/zLibDll/minizip.html )
 
-         Copyright (C) 1998-2010 Gilles Vollant (minizip) ( http://www.winimage.com/zLibDll/minizip.html )
+         Copyright (C) 1998-2026 Gilles Vollant (minizip) ( https://www.winimage.com/zLibDll/minizip.html )
 
          Modifications of Unzip for Zip64
          Copyright (C) 2007-2008 Even Rouault
 
          Modifications for Zip64 support on both zip and unzip
-         Copyright (C) 2009-2010 Mathias Svensson ( http://result42.com )
+         Copyright (C) 2009-2010 Mathias Svensson ( https://result42.com )
 
          For more info read MiniZip_info.txt
 
@@ -69,6 +68,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef ZLIB_DLL
+#  undef ZLIB_DLL
+#endif
 #include "zlib.h"
 #include "unzip.h"
 
@@ -112,7 +114,7 @@
 
 
 const char unz_copyright[] =
-   " unzip 1.01 Copyright 1998-2004 Gilles Vollant - http://www.winimage.com/zLibDll";
+   " unzip 1.01 Copyright 1998-2004 Gilles Vollant - https://www.winimage.com/zLibDll/minizip.html";
 
 /* unz_file_info64_internal contain internal info about a file in zipfile*/
 typedef struct unz_file_info64_internal_s
@@ -444,12 +446,28 @@ local ZPOS64_T unz64local_SearchCentralDir64(const zlib_filefunc64_32_def* pzlib
         if (ZREAD64(*pzlib_filefunc_def,filestream,buf,uReadSize)!=uReadSize)
             break;
 
-        for (i=(int)uReadSize-3; (i--)>0;)
+        /* Search for the non-zip64 EoCDR and confirm zip64 EoCDL is 20 bytes
+           earlier. This avoids false positives if the file is a non-zip64 zip
+           but contains an uncompressed zip64 near its end. Note: zip64 EoCDL is
+           20 bytes long. */
+        for (i=(int)uReadSize-3; (i--)>20;)
+            // End of central directory record signature (PK\5\6)
             if (((*(buf+i))==0x50) && ((*(buf+i+1))==0x4b) &&
-                ((*(buf+i+2))==0x06) && ((*(buf+i+3))==0x07))
+                ((*(buf+i+2))==0x05) && ((*(buf+i+3))==0x06))
             {
-                uPosFound = uReadPos+(unsigned)i;
-                break;
+                // Zip64 end of central directory locator signature (PK\6\7)
+                if (((*(buf+i-20))==0x50) && ((*(buf+i+1-20))==0x4b) &&
+                    ((*(buf+i+2-20))==0x06) && ((*(buf+i+3-20))==0x07))
+                {
+                    uPosFound = uReadPos+(unsigned)i-20;
+                    break;
+                }
+                else
+                {
+                  /* This is a non-zip64 zip; abandon the search. */
+                  free(buf);
+                  return CENTRALDIRINVALID;
+                }
             }
 
         if (uPosFound!=CENTRALDIRINVALID)
@@ -744,6 +762,7 @@ extern unzFile ZEXPORT unzOpen2_64(const void *path,
     {
         zlib_filefunc64_32_def zlib_filefunc64_32_def_fill;
         zlib_filefunc64_32_def_fill.zfile_func64 = *pzlib_filefunc_def;
+        zlib_filefunc64_32_def_fill.zopen32_file = NULL;
         zlib_filefunc64_32_def_fill.ztell32_file = NULL;
         zlib_filefunc64_32_def_fill.zseek32_file = NULL;
         return unzOpenInternal(path, &zlib_filefunc64_32_def_fill, 1);
@@ -904,7 +923,7 @@ local int unz64local_GetCurrentFileInfoInternal(unzFile file,
     if (unz64local_getLong(&s->z_filefunc, s->filestream,&file_info.external_fa) != UNZ_OK)
         err=UNZ_ERRNO;
 
-                // relative offset of local header
+                /* relative offset of local header */
     if (unz64local_getLong(&s->z_filefunc, s->filestream,&uL) != UNZ_OK)
         err=UNZ_ERRNO;
     file_info_internal.offset_curfile = uL;
@@ -940,7 +959,7 @@ local int unz64local_GetCurrentFileInfoInternal(unzFile file,
         lSeek -= file_info.size_filename;
     }
 
-    // Read extrafield
+    /* Read extrafield */
     if ((err==UNZ_OK) && (extraField!=NULL))
     {
         ZPOS64_T uSizeRead ;
@@ -971,7 +990,7 @@ local int unz64local_GetCurrentFileInfoInternal(unzFile file,
     {
                                 uLong acc = 0;
 
-        // since lSeek now points to after the extra field we need to move back
+        /* since lSeek now points to after the extra field we need to move back */
         lSeek -= file_info.size_file_extra;
 
         if (lSeek!=0)
@@ -1671,10 +1690,10 @@ extern ZPOS64_T ZEXPORT unzGetCurrentFileZStreamPos64(unzFile file) {
     file_in_zip64_read_info_s* pfile_in_zip_read_info;
     s=(unz64_s*)file;
     if (file==NULL)
-        return 0; //UNZ_PARAMERROR;
+        return 0; /* UNZ_PARAMERROR; */
     pfile_in_zip_read_info=s->pfile_in_zip_read;
     if (pfile_in_zip_read_info==NULL)
-        return 0; //UNZ_PARAMERROR;
+        return 0; /* UNZ_PARAMERROR; */
     return pfile_in_zip_read_info->pos_in_zipfile +
                          pfile_in_zip_read_info->byte_before_the_zipfile;
 }
@@ -1838,7 +1857,7 @@ extern int ZEXPORT unzReadCurrentFile(unzFile file, voidp buf, unsigned len) {
             if (err!=BZ_OK)
               break;
 #endif
-        } // end Z_BZIP2ED
+        } /* end Z_BZIP2ED */
         else
         {
             ZPOS64_T uTotalOutBefore,uTotalOutAfter;
@@ -2081,7 +2100,7 @@ extern ZPOS64_T ZEXPORT unzGetOffset64(unzFile file) {
     unz64_s* s;
 
     if (file==NULL)
-          return 0; //UNZ_PARAMERROR;
+          return 0; /* UNZ_PARAMERROR; */
     s=(unz64_s*)file;
     if (!s->current_file_ok)
       return 0;
@@ -2095,7 +2114,7 @@ extern uLong ZEXPORT unzGetOffset(unzFile file) {
     ZPOS64_T offset64;
 
     if (file==NULL)
-          return 0; //UNZ_PARAMERROR;
+          return 0; /* UNZ_PARAMERROR; */
     offset64 = unzGetOffset64(file);
     return (uLong)offset64;
 }

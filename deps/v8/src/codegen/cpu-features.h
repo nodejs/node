@@ -63,6 +63,8 @@ enum CpuFeature {
   CSSC,
   // Standardization of memory operations
   MOPS,
+  // Scalable Vector Bit Permutes instructions
+  SVEBITPERM,
 
 #elif V8_TARGET_ARCH_MIPS64
   FPU,
