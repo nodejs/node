@@ -1707,7 +1707,7 @@ are not guaranteed to reflect any correct state of the event loop.
 added: v11.10.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/XXXXX
+    pr-url: https://github.com/nodejs/node/pull/62934
     description: Added the `native` option.
 -->
 
