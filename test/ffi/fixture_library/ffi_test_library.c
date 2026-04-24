@@ -233,9 +233,37 @@ FFI_EXPORT void store_sum_2_i32(int32_t a, int32_t b) {
   global_scratch = a + b;
 }
 
+FFI_EXPORT void store_i32(int32_t a) {
+  global_scratch = a;
+}
+
+FFI_EXPORT void store_sum_3_i32(int32_t a, int32_t b, int32_t c) {
+  global_scratch = a + b + c;
+}
+
+FFI_EXPORT void store_sum_4_i32(int32_t a, int32_t b, int32_t c, int32_t d) {
+  global_scratch = a + b + c + d;
+}
+
+FFI_EXPORT void store_sum_5_i32(
+    int32_t a, int32_t b, int32_t c, int32_t d, int32_t e) {
+  global_scratch = a + b + c + d + e;
+}
+
 FFI_EXPORT void store_sum_6_i32(
     int32_t a, int32_t b, int32_t c, int32_t d, int32_t e, int32_t f) {
   global_scratch = a + b + c + d + e + f;
+}
+
+FFI_EXPORT void store_sum_8_i32(int32_t a,
+                                int32_t b,
+                                int32_t c,
+                                int32_t d,
+                                int32_t e,
+                                int32_t f,
+                                int32_t g,
+                                int32_t h) {
+  global_scratch = a + b + c + d + e + f + g + h;
 }
 
 FFI_EXPORT int32_t get_scratch(void) {

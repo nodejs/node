@@ -484,34 +484,179 @@ test('void-return 0-arg wrapper branch', () => {
   }
 });
 
-test('void-return wrapper at arity 2 and 6 observes side effects', () => {
+test('void-return wrapper at every specialized arity observes side effects', () => {
   // The arity ladder has a separate void-return closure for each arity.
   // A wiring bug in a mid-arity void specialization would not be caught
-  // by the 0-arg void test above, so exercise the side effects directly.
+  // by the 0-arg void test above, so exercise the side effects directly
+  // at every arity the ladder specializes (1..6) plus the 7+ rest-params
+  // fallback.
   const { lib, functions } = ffi.dlopen(libraryPath, {
+    store_i32: { result: 'void', parameters: ['i32'] },
     store_sum_2_i32: { result: 'void', parameters: ['i32', 'i32'] },
+    store_sum_3_i32: { result: 'void', parameters: ['i32', 'i32', 'i32'] },
+    store_sum_4_i32: {
+      result: 'void',
+      parameters: ['i32', 'i32', 'i32', 'i32'],
+    },
+    store_sum_5_i32: {
+      result: 'void',
+      parameters: ['i32', 'i32', 'i32', 'i32', 'i32'],
+    },
     store_sum_6_i32: {
       result: 'void',
       parameters: ['i32', 'i32', 'i32', 'i32', 'i32', 'i32'],
     },
+    store_sum_8_i32: {
+      result: 'void',
+      parameters: ['i32', 'i32', 'i32', 'i32', 'i32', 'i32', 'i32', 'i32'],
+    },
     get_scratch: { result: 'i32', parameters: [] },
   });
   try {
+    // Powers-of-two summands detect a dropped or duplicated slot at each
+    // arity.
+    assert.strictEqual(functions.store_i32(7), undefined);
+    assert.strictEqual(functions.get_scratch(), 7);
+
     assert.strictEqual(functions.store_sum_2_i32(10, 32), undefined);
     assert.strictEqual(functions.get_scratch(), 42);
 
-    // Powers-of-two summands detect a dropped or duplicated slot.
+    assert.strictEqual(functions.store_sum_3_i32(1, 2, 4), undefined);
+    assert.strictEqual(functions.get_scratch(), 7);
+
+    assert.strictEqual(functions.store_sum_4_i32(1, 2, 4, 8), undefined);
+    assert.strictEqual(functions.get_scratch(), 15);
+
+    assert.strictEqual(functions.store_sum_5_i32(1, 2, 4, 8, 16), undefined);
+    assert.strictEqual(functions.get_scratch(), 31);
+
     assert.strictEqual(
       functions.store_sum_6_i32(1, 2, 4, 8, 16, 32), undefined);
     assert.strictEqual(functions.get_scratch(), 63);
 
-    // Validation still runs on the void-return branch.
+    // 7+ args takes the generic rest-params void branch rather than a
+    // per-arity specialization.
+    assert.strictEqual(
+      functions.store_sum_8_i32(1, 2, 4, 8, 16, 32, 64, 128), undefined);
+    assert.strictEqual(functions.get_scratch(), 255);
+
+    // Validation still runs on every void-return branch, including the
+    // rest-params fallback.
+    assert.throws(
+      () => functions.store_i32(1.5),
+      { code: 'ERR_INVALID_ARG_VALUE' });
     assert.throws(
       () => functions.store_sum_2_i32(1.5, 2),
       { code: 'ERR_INVALID_ARG_VALUE' });
     assert.throws(
+      () => functions.store_sum_3_i32(1, 1.5, 3),
+      { code: 'ERR_INVALID_ARG_VALUE' });
+    assert.throws(
+      () => functions.store_sum_4_i32(1, 2, 1.5, 4),
+      { code: 'ERR_INVALID_ARG_VALUE' });
+    assert.throws(
+      () => functions.store_sum_5_i32(1, 2, 3, 1.5, 5),
+      { code: 'ERR_INVALID_ARG_VALUE' });
+    assert.throws(
       () => functions.store_sum_6_i32(1, 2, 3, 4, 5),
       { code: 'ERR_INVALID_ARG_VALUE' });
+    assert.throws(
+      () => functions.store_sum_8_i32(1, 2, 3, 4, 5, 6, 7, 1.5),
+      { code: 'ERR_INVALID_ARG_VALUE' });
+
+    // Wrong arity hits the `throwFFIArgCountError` branch inside each
+    // specialization (1..6 and the 7+ rest-params fallback).
+    for (const [name, expected, badArgs] of [
+      ['store_i32', 1, []],
+      ['store_sum_2_i32', 2, [1]],
+      ['store_sum_3_i32', 3, [1, 2]],
+      ['store_sum_4_i32', 4, [1, 2, 3]],
+      ['store_sum_5_i32', 5, [1, 2, 3, 4]],
+      ['store_sum_6_i32', 6, [1, 2, 3, 4, 5]],
+      ['store_sum_8_i32', 8, [1, 2, 3, 4, 5, 6, 7]],
+    ]) {
+      assert.throws(
+        () => functions[name](...badArgs),
+        {
+          code: 'ERR_INVALID_ARG_VALUE',
+          message: new RegExp(`expected ${expected}, got ${badArgs.length}`),
+        });
+    }
+  } finally {
+    lib.close();
+  }
+});
+
+test('value-return wrapper arity mismatch hits every specialized branch', () => {
+  // `sum_7_i32` already exercises the 7+ rest-params branch elsewhere;
+  // this test targets the per-arity `throwFFIArgCountError` call in the
+  // value-return closures for arities 1..6 so each specialization's
+  // argument-count guard runs at least once.
+  const { lib, functions } = ffi.dlopen(libraryPath, {
+    logical_not: { result: 'i32', parameters: ['i32'] },
+    add_i32: { result: 'i32', parameters: ['i32', 'i32'] },
+    sum_3_i32: { result: 'i32', parameters: ['i32', 'i32', 'i32'] },
+    sum_4_i32: { result: 'i32', parameters: ['i32', 'i32', 'i32', 'i32'] },
+    sum_five_i32: {
+      result: 'i32',
+      parameters: ['i32', 'i32', 'i32', 'i32', 'i32'],
+    },
+    sum_6_i32: {
+      result: 'i32',
+      parameters: ['i32', 'i32', 'i32', 'i32', 'i32', 'i32'],
+    },
+  });
+  try {
+    for (const [name, expected, badArgs] of [
+      ['logical_not', 1, []],
+      ['add_i32', 2, [1]],
+      ['sum_3_i32', 3, [1, 2]],
+      ['sum_4_i32', 4, [1, 2, 3]],
+      ['sum_five_i32', 5, [1, 2, 3, 4]],
+      ['sum_6_i32', 6, [1, 2, 3, 4, 5]],
+    ]) {
+      assert.throws(
+        () => functions[name](...badArgs),
+        {
+          code: 'ERR_INVALID_ARG_VALUE',
+          message: new RegExp(`expected ${expected}, got ${badArgs.length}`),
+        });
+    }
+
+    // Sanity-check that a correct call still returns a value at each
+    // arity — a bug that swallowed the return on the value-return path
+    // would be caught here.
+    assert.strictEqual(functions.logical_not(0), 1);
+    assert.strictEqual(functions.add_i32(1, 2), 3);
+    assert.strictEqual(functions.sum_3_i32(1, 2, 4), 7);
+    assert.strictEqual(functions.sum_4_i32(1, 2, 4, 8), 15);
+    assert.strictEqual(functions.sum_five_i32(1, 2, 4, 8, 16), 31);
+    assert.strictEqual(functions.sum_6_i32(1, 2, 4, 8, 16, 32), 63);
+  } finally {
+    lib.close();
+  }
+});
+
+test('pointer-dispatch wrapper rejects wrong-arity calls', () => {
+  // Pointer signatures share a single rest-params wrapper rather than the
+  // per-arity ladder, but it still has its own `throwFFIArgCountError`
+  // branch that needs to be exercised.
+  const { lib, functions } = ffi.dlopen(libraryPath, {
+    identity_pointer: { result: 'pointer', parameters: ['pointer'] },
+  });
+  try {
+    assert.throws(
+      () => functions.identity_pointer(),
+      {
+        code: 'ERR_INVALID_ARG_VALUE',
+        message: /expected 1, got 0/,
+      });
+    assert.throws(
+      () => functions.identity_pointer(0n, 0n),
+      {
+        code: 'ERR_INVALID_ARG_VALUE',
+        message: /expected 1, got 2/,
+      });
   } finally {
     lib.close();
   }
