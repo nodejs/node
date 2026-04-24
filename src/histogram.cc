@@ -68,6 +68,10 @@ CFunction IntervalHistogram::fast_start_(
     CFunction::Make(&IntervalHistogram::FastStart));
 CFunction IntervalHistogram::fast_stop_(
     CFunction::Make(&IntervalHistogram::FastStop));
+CFunction ELDHistogram::fast_start_(
+    CFunction::Make(&ELDHistogram::FastStart));
+CFunction ELDHistogram::fast_stop_(
+    CFunction::Make(&ELDHistogram::FastStop));
 
 void HistogramImpl::AddMethods(Isolate* isolate, Local<FunctionTemplate> tmpl) {
   // TODO(@jasnell): The bigint API variations do not yet support fast
@@ -444,6 +448,173 @@ void IntervalHistogram::FastStop(Local<Value> receiver) {
   histogram->OnStop();
 }
 
+Local<FunctionTemplate> ELDHistogram::GetConstructorTemplate(
+    Environment* env) {
+  Local<FunctionTemplate> tmpl = env->eldhistogram_constructor_template();
+  if (tmpl.IsEmpty()) {
+    Isolate* isolate = env->isolate();
+    tmpl = NewFunctionTemplate(isolate, nullptr);
+    tmpl->Inherit(HandleWrap::GetConstructorTemplate(env));
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "Histogram"));
+    auto instance = tmpl->InstanceTemplate();
+    instance->SetInternalFieldCount(ELDHistogram::kInternalFieldCount);
+    HistogramImpl::AddMethods(isolate, tmpl);
+    SetFastMethod(isolate, instance, "start", Start, &fast_start_);
+    SetFastMethod(isolate, instance, "stop", Stop, &fast_stop_);
+    env->set_eldhistogram_constructor_template(tmpl);
+  }
+  return tmpl;
+}
+
+void ELDHistogram::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(Start);
+  registry->Register(Stop);
+  registry->Register(fast_start_);
+  registry->Register(fast_stop_);
+  HistogramImpl::RegisterExternalReferences(registry);
+}
+
+ELDHistogram::ELDHistogram(
+    Environment* env,
+    Local<Object> wrap,
+    AsyncWrap::ProviderType type,
+    const Histogram::Options& options)
+    : HandleWrap(
+          env,
+          wrap,
+          reinterpret_cast<uv_handle_t*>(&check_handle_),
+          type),
+      HistogramImpl(options) {
+  MakeWeak();
+  wrap->SetAlignedPointerInInternalField(
+      HistogramImpl::InternalFields::kImplField,
+      static_cast<HistogramImpl*>(this),
+      EmbedderDataTag::kDefault);
+  uv_check_init(env->event_loop(), &check_handle_);
+  uv_prepare_init(env->event_loop(), &prepare_handle_);
+  uv_unref(reinterpret_cast<uv_handle_t*>(&check_handle_));
+  uv_unref(reinterpret_cast<uv_handle_t*>(&prepare_handle_));
+  prepare_handle_.data = this;
+}
+
+BaseObjectPtr<ELDHistogram> ELDHistogram::Create(
+    Environment* env,
+    const Histogram::Options& options) {
+  Local<Object> obj;
+  if (!GetConstructorTemplate(env)
+          ->InstanceTemplate()
+          ->NewInstance(env->context()).ToLocal(&obj)) {
+    return nullptr;
+  }
+
+  return MakeBaseObject<ELDHistogram>(
+      env,
+      obj,
+      AsyncWrap::PROVIDER_ELDHISTOGRAM,
+      options);
+}
+
+void ELDHistogram::PrepareCB(uv_prepare_t* handle) {
+  ELDHistogram* self = static_cast<ELDHistogram*>(handle->data);
+  if (!self->enabled_) return;
+  self->prepare_time_ = uv_hrtime();
+  self->timeout_ = uv_backend_timeout(handle->loop);
+}
+
+void ELDHistogram::CheckCB(uv_check_t* handle) {
+  ELDHistogram* self =
+      ContainerOf(&ELDHistogram::check_handle_, handle);
+  if (!self->enabled_) return;
+
+  uint64_t check_time = uv_hrtime();
+  uint64_t poll_time = check_time - self->prepare_time_;
+  uint64_t latency = self->prepare_time_ - self->check_time_;
+
+  if (self->timeout_ >= 0) {
+    uint64_t timeout_ns = static_cast<uint64_t>(self->timeout_) * 1000 * 1000;
+    if (poll_time > timeout_ns) {
+      latency += poll_time - timeout_ns;
+    }
+  }
+
+  self->histogram()->Record(latency == 0 ? 1 : latency);
+  self->check_time_ = check_time;
+}
+
+void ELDHistogram::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("histogram", histogram());
+}
+
+void ELDHistogram::OnStart(StartFlags flags) {
+  if (enabled_ || IsHandleClosing()) return;
+  enabled_ = true;
+  if (flags == StartFlags::RESET)
+    histogram()->Reset();
+  check_time_ = uv_hrtime();
+  prepare_time_ = check_time_;
+  timeout_ = 0;
+  uv_check_start(&check_handle_, CheckCB);
+  uv_prepare_start(&prepare_handle_, PrepareCB);
+  uv_unref(reinterpret_cast<uv_handle_t*>(&check_handle_));
+  uv_unref(reinterpret_cast<uv_handle_t*>(&prepare_handle_));
+}
+
+void ELDHistogram::OnStop() {
+  if (!enabled_ || IsHandleClosing()) return;
+  enabled_ = false;
+  uv_check_stop(&check_handle_);
+  uv_prepare_stop(&prepare_handle_);
+}
+
+void ELDHistogram::PrepareCloseCB(uv_handle_t* handle) {
+  ELDHistogram* self = static_cast<ELDHistogram*>(handle->data);
+  uv_close(reinterpret_cast<uv_handle_t*>(&self->check_handle_),
+           HandleWrap::OnClose);
+}
+
+void ELDHistogram::Close(Local<Value> close_callback) {
+  if (IsHandleClosing()) return;
+  OnStop();
+  state_ = kClosing;
+
+  if (!close_callback.IsEmpty() && close_callback->IsFunction() &&
+      !persistent().IsEmpty()) {
+    object()->Set(env()->context(),
+                  env()->handle_onclose_symbol(),
+                  close_callback).Check();
+  }
+
+  uv_close(reinterpret_cast<uv_handle_t*>(&prepare_handle_),
+           PrepareCloseCB);
+}
+
+void ELDHistogram::Start(const FunctionCallbackInfo<Value>& args) {
+  ELDHistogram* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.This());
+  histogram->OnStart(args[0]->IsTrue() ? StartFlags::RESET : StartFlags::NONE);
+}
+
+void ELDHistogram::FastStart(Local<Value> receiver, bool reset) {
+  TRACK_V8_FAST_API_CALL("histogram.start");
+  ELDHistogram* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, receiver);
+  histogram->OnStart(reset ? StartFlags::RESET : StartFlags::NONE);
+}
+
+void ELDHistogram::Stop(const FunctionCallbackInfo<Value>& args) {
+  ELDHistogram* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.This());
+  histogram->OnStop();
+}
+
+void ELDHistogram::FastStop(Local<Value> receiver) {
+  TRACK_V8_FAST_API_CALL("histogram.stop");
+  ELDHistogram* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, receiver);
+  histogram->OnStop();
+}
+
 void HistogramImpl::GetCount(const FunctionCallbackInfo<Value>& args) {
   HistogramImpl* histogram = HistogramImpl::FromJSObject(args.This());
   double value = static_cast<double>((*histogram)->Count());
@@ -605,6 +776,11 @@ HistogramImpl* HistogramImpl::FromJSObject(Local<Value> value) {
   DCHECK_GE(obj->InternalFieldCount(), HistogramImpl::kInternalFieldCount);
   return static_cast<HistogramImpl*>(obj->GetAlignedPointerFromInternalField(
       HistogramImpl::kImplField, EmbedderDataTag::kDefault));
+}
+
+std::unique_ptr<worker::TransferData>
+ELDHistogram::CloneForMessaging() const {
+  return std::make_unique<HistogramBase::HistogramTransferData>(histogram());
 }
 
 std::unique_ptr<worker::TransferData>
