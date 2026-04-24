@@ -150,6 +150,27 @@ NetworkAgent::createResponseFromObject(v8::Local<v8::Context> context,
       .build();
 }
 
+std::unique_ptr<protocol::Network::WebSocketRequest>
+NetworkAgent::createWebSocketRequest(v8::Local<v8::Context> context,
+                                     Local<Object> request) {
+  HandleScope handle_scope(Isolate::GetCurrent());
+  Isolate* isolate = env_->isolate();
+  Local<Object> headers_obj;
+  if (!ObjectGetObject(context, request, "headers").ToLocal(&headers_obj)) {
+    ThrowEventError(isolate, "Missing request.headers in event");
+    return {};
+  }
+  std::unique_ptr<protocol::Network::Headers> headers =
+      createHeadersFromObject(context, headers_obj);
+  if (!headers) {
+    return {};
+  }
+
+  return protocol::Network::WebSocketRequest::create()
+      .setHeaders(std::move(headers))
+      .build();
+}
+
 std::unique_ptr<protocol::Network::WebSocketResponse>
 NetworkAgent::createWebSocketResponse(v8::Local<v8::Context> context,
                                       Local<Object> response) {
@@ -184,6 +205,35 @@ NetworkAgent::createWebSocketResponse(v8::Local<v8::Context> context,
       .build();
 }
 
+std::unique_ptr<protocol::Network::WebSocketFrame>
+NetworkAgent::createWebSocketFrame(v8::Local<v8::Context> context,
+                                   Local<Object> response) {
+  HandleScope handle_scope(Isolate::GetCurrent());
+  Isolate* isolate = env_->isolate();
+  double opcode;
+  if (!ObjectGetDouble(context, response, "opcode").To(&opcode)) {
+    ThrowEventError(isolate, "Missing response.opcode in event");
+    return {};
+  }
+  bool mask;
+  if (!ObjectGetBool(context, response, "mask").To(&mask)) {
+    ThrowEventError(isolate, "Missing response.mask in event");
+    return {};
+  }
+  protocol::String payload_data;
+  if (!ObjectGetProtocolString(context, response, "payloadData")
+           .To(&payload_data)) {
+    ThrowEventError(isolate, "Missing response.payloadData in event");
+    return {};
+  }
+
+  return protocol::Network::WebSocketFrame::create()
+      .setOpcode(opcode)
+      .setMask(mask)
+      .setPayloadData(payload_data)
+      .build();
+}
+
 NetworkAgent::NetworkAgent(
     NetworkInspector* inspector,
     v8_inspector::V8Inspector* v8_inspector,
@@ -201,9 +251,14 @@ NetworkAgent::NetworkAgent(
   event_notifier_map_["dataSent"] = &NetworkAgent::dataSent;
   event_notifier_map_["dataReceived"] = &NetworkAgent::dataReceived;
   event_notifier_map_["webSocketCreated"] = &NetworkAgent::webSocketCreated;
+  event_notifier_map_["webSocketWillSendHandshakeRequest"] =
+      &NetworkAgent::webSocketWillSendHandshakeRequest;
   event_notifier_map_["webSocketClosed"] = &NetworkAgent::webSocketClosed;
   event_notifier_map_["webSocketHandshakeResponseReceived"] =
       &NetworkAgent::webSocketHandshakeResponseReceived;
+  event_notifier_map_["webSocketFrameReceived"] =
+      &NetworkAgent::webSocketFrameReceived;
+  event_notifier_map_["webSocketFrameSent"] = &NetworkAgent::webSocketFrameSent;
 }
 
 void NetworkAgent::webSocketCreated(v8::Local<v8::Context> context,
@@ -226,6 +281,37 @@ void NetworkAgent::webSocketCreated(v8::Local<v8::Context> context,
               v8_inspector_->captureStackTrace(true)->buildInspectorObject(0))
           .build();
   frontend_->webSocketCreated(request_id, url, std::move(initiator));
+}
+
+void NetworkAgent::webSocketWillSendHandshakeRequest(
+    v8::Local<v8::Context> context, v8::Local<v8::Object> params) {
+  Isolate* isolate = env_->isolate();
+  protocol::String request_id;
+  if (!ObjectGetProtocolString(context, params, "requestId").To(&request_id)) {
+    ThrowEventError(isolate, "Missing requestId in event");
+    return;
+  }
+  double timestamp;
+  if (!ObjectGetDouble(context, params, "timestamp").To(&timestamp)) {
+    ThrowEventError(isolate, "Missing timestamp in event");
+    return;
+  }
+  double wall_time;
+  if (!ObjectGetDouble(context, params, "wallTime").To(&wall_time)) {
+    ThrowEventError(isolate, "Missing wallTime in event");
+    return;
+  }
+  Local<Object> request_obj;
+  if (!ObjectGetObject(context, params, "request").ToLocal(&request_obj)) {
+    ThrowEventError(isolate, "Missing request in event");
+    return;
+  }
+  auto request = createWebSocketRequest(context, request_obj);
+  if (!request) {
+    return;
+  }
+  frontend_->webSocketWillSendHandshakeRequest(
+      request_id, timestamp, wall_time, std::move(request));
 }
 
 void NetworkAgent::webSocketClosed(v8::Local<v8::Context> context,
@@ -268,6 +354,56 @@ void NetworkAgent::webSocketHandshakeResponseReceived(
   }
   frontend_->webSocketHandshakeResponseReceived(
       request_id, timestamp, std::move(response));
+}
+
+void NetworkAgent::webSocketFrameReceived(v8::Local<v8::Context> context,
+                                          v8::Local<v8::Object> params) {
+  Isolate* isolate = env_->isolate();
+  protocol::String request_id;
+  if (!ObjectGetProtocolString(context, params, "requestId").To(&request_id)) {
+    ThrowEventError(isolate, "Missing requestId in event");
+    return;
+  }
+  double timestamp;
+  if (!ObjectGetDouble(context, params, "timestamp").To(&timestamp)) {
+    ThrowEventError(isolate, "Missing timestamp in event");
+    return;
+  }
+  Local<Object> response_obj;
+  if (!ObjectGetObject(context, params, "response").ToLocal(&response_obj)) {
+    ThrowEventError(isolate, "Missing response in event");
+    return;
+  }
+  auto response = createWebSocketFrame(context, response_obj);
+  if (!response) {
+    return;
+  }
+  frontend_->webSocketFrameReceived(request_id, timestamp, std::move(response));
+}
+
+void NetworkAgent::webSocketFrameSent(v8::Local<v8::Context> context,
+                                      v8::Local<v8::Object> params) {
+  Isolate* isolate = env_->isolate();
+  protocol::String request_id;
+  if (!ObjectGetProtocolString(context, params, "requestId").To(&request_id)) {
+    ThrowEventError(isolate, "Missing requestId in event");
+    return;
+  }
+  double timestamp;
+  if (!ObjectGetDouble(context, params, "timestamp").To(&timestamp)) {
+    ThrowEventError(isolate, "Missing timestamp in event");
+    return;
+  }
+  Local<Object> response_obj;
+  if (!ObjectGetObject(context, params, "response").ToLocal(&response_obj)) {
+    ThrowEventError(isolate, "Missing response in event");
+    return;
+  }
+  auto response = createWebSocketFrame(context, response_obj);
+  if (!response) {
+    return;
+  }
+  frontend_->webSocketFrameSent(request_id, timestamp, std::move(response));
 }
 
 void NetworkAgent::emitNotification(v8::Local<v8::Context> context,

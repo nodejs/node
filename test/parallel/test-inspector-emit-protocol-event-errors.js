@@ -78,6 +78,18 @@ function webSocketClosed(overrides = {}) {
   };
 }
 
+function webSocketRequest(overrides = {}) {
+  return {
+    requestId: 'websocket-request-id',
+    timestamp: 1000,
+    wallTime: 1000,
+    request: {
+      headers: {},
+    },
+    ...overrides,
+  };
+}
+
 function webSocketResponse(overrides = {}) {
   return {
     requestId: 'websocket-response-id',
@@ -86,6 +98,19 @@ function webSocketResponse(overrides = {}) {
       status: 101,
       statusText: 'Switching Protocols',
       headers: {},
+    },
+    ...overrides,
+  };
+}
+
+function webSocketFrame(overrides = {}) {
+  return {
+    requestId: 'websocket-frame-id',
+    timestamp: 1000,
+    response: {
+      opcode: 1,
+      mask: false,
+      payloadData: 'hello',
     },
     ...overrides,
   };
@@ -258,6 +283,34 @@ const NETWORK_ERROR_CASES = [
   ['webSocketCreated', omit(webSocketCreated(), 'url'), 'Missing url in event'],
 
   [
+    'webSocketWillSendHandshakeRequest',
+    omit(webSocketRequest(), 'requestId'),
+    'Missing requestId in event',
+  ],
+  [
+    'webSocketWillSendHandshakeRequest',
+    omit(webSocketRequest(), 'timestamp'),
+    'Missing timestamp in event',
+  ],
+  [
+    'webSocketWillSendHandshakeRequest',
+    omit(webSocketRequest(), 'wallTime'),
+    'Missing wallTime in event',
+  ],
+  [
+    'webSocketWillSendHandshakeRequest',
+    omit(webSocketRequest(), 'request'),
+    'Missing request in event',
+  ],
+  [
+    'webSocketWillSendHandshakeRequest',
+    webSocketRequest({
+      request: omit(webSocketRequest().request, 'headers'),
+    }),
+    'Missing request.headers in event',
+  ],
+
+  [
     'webSocketClosed',
     omit(webSocketClosed(), 'requestId'),
     'Missing requestId in event',
@@ -303,6 +356,79 @@ const NETWORK_ERROR_CASES = [
       response: omit(webSocketResponse().response, 'headers'),
     }),
     'Missing response.headers in event',
+  ],
+
+  [
+    'webSocketFrameReceived',
+    omit(webSocketFrame(), 'requestId'),
+    'Missing requestId in event',
+  ],
+  [
+    'webSocketFrameReceived',
+    omit(webSocketFrame(), 'timestamp'),
+    'Missing timestamp in event',
+  ],
+  [
+    'webSocketFrameReceived',
+    omit(webSocketFrame(), 'response'),
+    'Missing response in event',
+  ],
+  [
+    'webSocketFrameReceived',
+    webSocketFrame({
+      response: omit(webSocketFrame().response, 'opcode'),
+    }),
+    'Missing response.opcode in event',
+  ],
+  [
+    'webSocketFrameReceived',
+    webSocketFrame({
+      response: omit(webSocketFrame().response, 'mask'),
+    }),
+    'Missing response.mask in event',
+  ],
+  [
+    'webSocketFrameReceived',
+    webSocketFrame({
+      response: omit(webSocketFrame().response, 'payloadData'),
+    }),
+    'Missing response.payloadData in event',
+  ],
+  [
+    'webSocketFrameSent',
+    omit(webSocketFrame(), 'requestId'),
+    'Missing requestId in event',
+  ],
+  [
+    'webSocketFrameSent',
+    omit(webSocketFrame(), 'timestamp'),
+    'Missing timestamp in event',
+  ],
+  [
+    'webSocketFrameSent',
+    omit(webSocketFrame(), 'response'),
+    'Missing response in event',
+  ],
+  [
+    'webSocketFrameSent',
+    webSocketFrame({
+      response: omit(webSocketFrame().response, 'opcode'),
+    }),
+    'Missing response.opcode in event',
+  ],
+  [
+    'webSocketFrameSent',
+    webSocketFrame({
+      response: omit(webSocketFrame().response, 'mask'),
+    }),
+    'Missing response.mask in event',
+  ],
+  [
+    'webSocketFrameSent',
+    webSocketFrame({
+      response: omit(webSocketFrame().response, 'payloadData'),
+    }),
+    'Missing response.payloadData in event',
   ],
 ];
 
