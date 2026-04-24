@@ -995,8 +995,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
   if (needle_length == 0) {
     // Match String#indexOf() and String#lastIndexOf() behavior,
     // but clamp to search_end.
-    int64_t clamped =
-        std::min(opt_offset, static_cast<int64_t>(search_end));
+    int64_t clamped = std::min(opt_offset, static_cast<int64_t>(search_end));
     args.GetReturnValue().Set(static_cast<double>(clamped));
     return;
   }
@@ -1123,8 +1122,7 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
   if (needle_length == 0) {
     // Match String#indexOf() and String#lastIndexOf() behavior,
     // but clamp to search_end.
-    int64_t clamped =
-        std::min(opt_offset, static_cast<int64_t>(search_end));
+    int64_t clamped = std::min(opt_offset, static_cast<int64_t>(search_end));
     args.GetReturnValue().Set(static_cast<double>(clamped));
     return;
   }
