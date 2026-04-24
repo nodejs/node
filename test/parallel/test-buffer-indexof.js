@@ -691,3 +691,38 @@ assert.strictEqual(reallyLong.lastIndexOf(pattern), 0);
 
   assert.strictEqual(buf.includes('c'), true);
 }
+
+{
+  const buf = Buffer.from('abcabc');
+
+  // Negative end should be treated as 0 (no match possible).
+  assert.strictEqual(buf.indexOf('a', 0, -1), -1);
+  assert.strictEqual(buf.indexOf('a', 0, -100), -1);
+  assert.strictEqual(buf.indexOf(0x61, 0, -1), -1);
+  assert.strictEqual(buf.lastIndexOf('a', 5, -1), -1);
+  assert.strictEqual(buf.lastIndexOf(0x61, 5, -1), -1);
+  assert.strictEqual(buf.includes('a', 0, -1), false);
+  assert.strictEqual(buf.indexOf(Buffer.from('a'), 0, -1), -1);
+  assert.strictEqual(buf.lastIndexOf(Buffer.from('a'), 5, -1), -1);
+
+  // End = 0 means empty search range.
+  assert.strictEqual(buf.indexOf('a', 0, 0), -1);
+  assert.strictEqual(buf.indexOf(0x61, 0, 0), -1);
+  assert.strictEqual(buf.lastIndexOf('a', 5, 0), -1);
+  assert.strictEqual(buf.lastIndexOf(0x61, 5, 0), -1);
+
+  // End greater than buffer length should be clamped.
+  assert.strictEqual(buf.indexOf('c', 0, 100), 2);
+  assert.strictEqual(buf.indexOf(0x63, 0, 100), 2);
+  assert.strictEqual(buf.lastIndexOf('c', 5, 100), 5);
+  assert.strictEqual(buf.lastIndexOf(0x63, 5, 100), 5);
+  assert.strictEqual(buf.indexOf(Buffer.from('c'), 0, 100), 2);
+
+  // Empty needle with end parameter should clamp to search_end.
+  assert.strictEqual(buf.indexOf('', 0, 3), 0);
+  assert.strictEqual(buf.indexOf('', 5, 3), 3);
+  assert.strictEqual(buf.indexOf(Buffer.from(''), 5, 3), 3);
+  assert.strictEqual(buf.indexOf('', 0, 0), 0);
+  assert.strictEqual(buf.lastIndexOf('', 5, 3), 3);
+  assert.strictEqual(buf.lastIndexOf(Buffer.from(''), 5, 3), 3);
+}
