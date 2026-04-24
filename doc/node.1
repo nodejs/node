@@ -623,12 +623,16 @@ It is possible to run code containing inline types unless the
 .It Fl -experimental-addon-modules
 Enable experimental import support for \fB.node\fR addons.
 .
-.It Fl -experimental-config-file= Ns Ar config , Fl -experimental-config-file , Fl -experimental-default-config-file
+.It Fl f , Fl -experimental-config-file= Ns Ar config , Fl -experimental-config-file , Fl -experimental-default-config-file
 If present, Node.js will look for a configuration file at the specified path.
 If the path is not specified, Node.js will look for a \fBnode.config.json\fR file
 in the current working directory.
-To specify a custom path, use the \fB--experimental-config-file=\fR\fBpath\fR form.
-The space-separated \fB--experimental-config-file path\fR form is not supported.
+The short alias \fB-f\fR is equivalent to \fB--experimental-config-file\fR.
+To specify a custom path, use the \fB-f=\fR\fBpath\fR or
+\fB--experimental-config-file=\fR\fBpath\fR form.
+The space-separated \fB-f path\fR and
+\fB--experimental-config-file path\fR forms are not supported for specifying a
+config file path.
 Node.js will read the configuration file and apply the settings. The
 configuration file should be a JSON file with the following structure. \fBvX.Y.Z\fR
 in the \fB$schema\fR must be replaced with the version of Node.js you are using.

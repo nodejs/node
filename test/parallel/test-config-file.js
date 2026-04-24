@@ -358,11 +358,25 @@ test('should use node.config.json when --experimental-config-file has no argumen
        assert.strictEqual(result.code, 0);
      });
 
+test('should use node.config.json when -f has no argument',
+     onlyIfNodeOptionsSupport, async () => {
+       const result = await spawnPromisified(process.execPath, [
+         '--no-warnings',
+         '-f',
+         '-p', 'http.maxHeaderSize',
+       ], {
+         cwd: fixtures.path('rc/default'),
+       });
+       assert.strictEqual(result.stderr, '');
+       assert.strictEqual(result.stdout, '10\n');
+       assert.strictEqual(result.code, 0);
+     });
+
 test('should not treat the script path as a config file argument',
      onlyIfNodeOptionsSupport, async () => {
        const result = await spawnPromisified(process.execPath, [
          '--no-warnings',
-         '--experimental-config-file',
+         '-f',
          fixtures.path('printA.js'),
        ], {
          cwd: fixtures.path('rc/default'),
@@ -390,11 +404,36 @@ test('should treat a space-separated config file path as the script',
        assert.strictEqual(result.code, 1);
      });
 
+test('should work with -f=path',
+     onlyIfNodeOptionsSupport, async () => {
+       const result = await spawnPromisified(process.execPath, [
+         '--no-warnings',
+         `-f=${fixtures.path('rc/default/node.config.json')}`,
+         '-p', 'http.maxHeaderSize',
+       ]);
+       assert.strictEqual(result.stderr, '');
+       assert.strictEqual(result.stdout, '10\n');
+       assert.strictEqual(result.code, 0);
+     });
+
 test('should error when --experimental-config-file= has empty argument',
      onlyIfNodeOptionsSupport, async () => {
        const result = await spawnPromisified(process.execPath, [
          '--no-warnings',
          '--experimental-config-file=',
+         '-p', 'http.maxHeaderSize',
+       ], {
+         cwd: fixtures.path('rc/default'),
+       });
+       assert.match(result.stderr, /--experimental-config-file= requires an argument/);
+       assert.strictEqual(result.code, 9);
+     });
+
+test('should error when -f= has empty argument',
+     onlyIfNodeOptionsSupport, async () => {
+       const result = await spawnPromisified(process.execPath, [
+         '--no-warnings',
+         '-f=',
          '-p', 'http.maxHeaderSize',
        ], {
          cwd: fixtures.path('rc/default'),
