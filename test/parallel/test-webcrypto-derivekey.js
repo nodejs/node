@@ -265,6 +265,36 @@ const { KeyObject } = require('crypto');
   })().then(common.mustCall());
 }
 
+if (hasOpenSSL(3)) {
+  (async () => {
+    const derivedKeyAlgorithm = { name: 'KMAC128', length: 0 };
+    const usages = ['sign'];
+    for (const [algorithm, baseKeyAlgorithm] of [
+      [
+        { name: 'HKDF', salt: new Uint8Array(), info: new Uint8Array(), hash: 'SHA-256' },
+        { name: 'HKDF' },
+      ],
+      [
+        { name: 'PBKDF2', salt: new Uint8Array(), hash: 'SHA-256', iterations: 20 },
+        { name: 'PBKDF2' },
+      ],
+    ]) {
+      const baseKey = await subtle.importKey(
+        'raw',
+        new Uint8Array(),
+        baseKeyAlgorithm,
+        false,
+        ['deriveKey']);
+      await assert.rejects(
+        subtle.deriveKey(algorithm, baseKey, derivedKeyAlgorithm, false, usages),
+        {
+          name: 'DataError',
+          message: /KmacImportParams\.length cannot be 0/,
+        });
+    }
+  })().then(common.mustCall());
+}
+
 // Test X25519 and X448 key derivation
 {
   async function test(name) {
