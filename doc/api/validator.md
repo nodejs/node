@@ -92,20 +92,20 @@ added: REPLACEME
 The following error codes are returned in the `code` field of validation
 error objects. They are also available as properties of the `codes` export.
 
-| Code | Description |
-| ---- | ----------- |
-| `INVALID_TYPE` | Value type does not match the declared type |
-| `MISSING_REQUIRED` | A required property is missing |
-| `STRING_TOO_SHORT` | String is shorter than `minLength` |
-| `STRING_TOO_LONG` | String is longer than `maxLength` |
-| `PATTERN_MISMATCH` | String does not match the `pattern` regex |
-| `ENUM_MISMATCH` | Value is not one of the allowed `enum` values |
-| `NUMBER_TOO_SMALL` | Number is below `minimum` or `exclusiveMinimum` |
-| `NUMBER_TOO_LARGE` | Number is above `maximum` or `exclusiveMaximum` |
-| `NUMBER_NOT_MULTIPLE` | Number is not a multiple of `multipleOf` |
-| `NOT_INTEGER` | Value is not an integer when `type` is `'integer'` |
-| `ARRAY_TOO_SHORT` | Array has fewer items than `minItems` |
-| `ARRAY_TOO_LONG` | Array has more items than `maxItems` |
+| Code                  | Description                                                                             |
+| --------------------- | --------------------------------------------------------------------------------------- |
+| `INVALID_TYPE`        | Value type does not match the declared type                                             |
+| `MISSING_REQUIRED`    | A required property is missing                                                          |
+| `STRING_TOO_SHORT`    | String is shorter than `minLength`                                                      |
+| `STRING_TOO_LONG`     | String is longer than `maxLength`                                                       |
+| `PATTERN_MISMATCH`    | String does not match the `pattern` regex                                               |
+| `ENUM_MISMATCH`       | Value is not one of the allowed `enum` values                                           |
+| `NUMBER_TOO_SMALL`    | Number is below `minimum` or `exclusiveMinimum`                                         |
+| `NUMBER_TOO_LARGE`    | Number is above `maximum` or `exclusiveMaximum`                                         |
+| `NUMBER_NOT_MULTIPLE` | Number is not a multiple of `multipleOf`                                                |
+| `NOT_INTEGER`         | Value is not an integer when `type` is `'integer'`                                      |
+| `ARRAY_TOO_SHORT`     | Array has fewer items than `minItems`                                                   |
+| `ARRAY_TOO_LONG`      | Array has more items than `maxItems`                                                    |
 | `ADDITIONAL_PROPERTY` | Object has a property not listed in `properties` when `additionalProperties` is `false` |
 
 Compare the `code` field of a validation error against the `codes` export
