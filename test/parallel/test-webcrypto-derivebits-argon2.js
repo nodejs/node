@@ -119,7 +119,7 @@ for (const { algorithm, length, password, params, tag } of vectors) {
       subtle.deriveBits({ ...algorithm, passes: 0 }, key, 256),
       {
         name: 'OperationError',
-        message: 'The operation failed for an operation-specific reason',
+        message: 'passes must be > 0',
       });
   })().then(common.mustCall());
 }
