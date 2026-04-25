@@ -13,6 +13,7 @@
 
 #include <openssl/evp.h>
 
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -234,8 +235,8 @@ class NativeKeyObject : public BaseObject {
 };
 
 // NativeCryptoKey is the native base class for the Web Crypto
-// `CryptoKey`. It holds the internal slots - `[[type]]`,
-// `[[extractable]]`, `[[algorithm]]`, `[[usages]]`, and the
+// `CryptoKey`. It holds the internal slots - `[[type]]` as an enum,
+// `[[extractable]]`, `[[algorithm]]`, `[[usages]]` as a mask, and the
 // underlying KeyObjectData. The public `type`, `extractable`,
 // `algorithm`, and `usages` accessors on `CryptoKey.prototype` are
 // user-configurable per Web IDL, so internal consumers read these
@@ -246,7 +247,6 @@ class NativeCryptoKey : public BaseObject {
  public:
   enum InternalFields {
     kAlgorithmField = BaseObject::kInternalFieldCount,
-    kUsagesField,
     kInternalFieldCount,
   };
 
@@ -262,7 +262,7 @@ class NativeCryptoKey : public BaseObject {
   // Used by `GetSlots` to validate its receiver.
   static bool HasInstance(Environment* env, v8::Local<v8::Value> value);
 
-  // Returns [type, extractable, algorithm, usages, handle] in one call
+  // Returns [type, extractable, algorithm, usages mask, handle] in one call
   // so JS can prime a per-instance cache on first access.
   static void GetSlots(const v8::FunctionCallbackInfo<v8::Value>& args);
 
@@ -274,11 +274,11 @@ class NativeCryptoKey : public BaseObject {
    public:
     CryptoKeyTransferData(const KeyObjectData& data,
                           v8::Global<v8::Object>&& algorithm,
-                          v8::Global<v8::Array>&& usages,
+                          uint32_t usages_mask,
                           bool extractable)
         : data_(data.addRef()),
           algorithm_(std::move(algorithm)),
-          usages_(std::move(usages)),
+          usages_mask_(usages_mask),
           extractable_(extractable) {}
 
     BaseObjectPtr<BaseObject> Deserialize(
@@ -297,7 +297,7 @@ class NativeCryptoKey : public BaseObject {
    private:
     KeyObjectData data_;
     v8::Global<v8::Object> algorithm_;
-    v8::Global<v8::Array> usages_;
+    uint32_t usages_mask_;
     bool extractable_;
   };
 
@@ -318,6 +318,7 @@ class NativeCryptoKey : public BaseObject {
   }
 
   KeyObjectData handle_data_;
+  uint32_t usages_mask_ = 0;
   bool extractable_ = false;
 };
 

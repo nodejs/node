@@ -1822,12 +1822,12 @@ void NativeCryptoKey::New(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 4);
   // args[0] is a KeyObjectHandle; we keep its KeyObjectData directly.
   // args[1] is the algorithm dictionary object.
-  // args[2] is the usages array of strings.
+  // args[2] is the usages mask.
   // args[3] is the extractable boolean.
   //
   // args[1] is undefined only when called from
   // CryptoKeyTransferData::Deserialize for a partially-initialized
-  // CryptoKey: algorithm/usages/extractable get filled in afterwards
+  // CryptoKey: algorithm/usages mask/extractable get filled in afterwards
   // by FinalizeTransferRead before any JS can see the object.
   //
   // This constructor is not exposed to user JS - the public CryptoKey
@@ -1841,10 +1841,10 @@ void NativeCryptoKey::New(const FunctionCallbackInfo<Value>& args) {
 
   if (!args[1]->IsUndefined()) {
     CHECK(args[1]->IsObject());
-    CHECK(args[2]->IsArray());
+    CHECK(args[2]->IsUint32());
     CHECK(args[3]->IsBoolean());
     args.This()->SetInternalField(kAlgorithmField, args[1]);
-    args.This()->SetInternalField(kUsagesField, args[2]);
+    native->usages_mask_ = args[2].As<Uint32>()->Value();
     native->extractable_ = args[3]->IsTrue();
   }
 }
@@ -1885,7 +1885,7 @@ void NativeCryptoKey::CreateCryptoKeyClass(
 }
 
 // Returns all of the key's internal slot values as a single Array:
-// [type enum, extractable, algorithm, usages, handle]. JS-side helpers
+// [type enum, extractable, algorithm, usages mask, handle]. JS-side helpers
 // call this once per key to prime a per-instance cache, so subsequent
 // reads don't need to cross into C++ at all.
 void NativeCryptoKey::GetSlots(const FunctionCallbackInfo<Value>& args) {
@@ -1895,7 +1895,6 @@ void NativeCryptoKey::GetSlots(const FunctionCallbackInfo<Value>& args) {
     THROW_ERR_INVALID_THIS(env, "Value of \"this\" must be of type CryptoKey");
     return;
   }
-  Isolate* isolate = env->isolate();
   Local<Object> obj = args[0].As<Object>();
   NativeCryptoKey* native = Unwrap<NativeCryptoKey>(obj);
 
@@ -1905,14 +1904,13 @@ void NativeCryptoKey::GetSlots(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Value> algorithm = obj->GetInternalField(kAlgorithmField).As<Value>();
-  Local<Value> usages = obj->GetInternalField(kUsagesField).As<Value>();
   CHECK(algorithm->IsObject());
-  CHECK(usages->IsArray());
+  Isolate* isolate = env->isolate();
   Local<Value> slots[] = {
       Uint32::NewFromUnsigned(isolate, native->handle_data_.GetKeyType()),
       v8::Boolean::New(isolate, native->extractable_),
       algorithm,
-      usages,
+      Uint32::NewFromUnsigned(isolate, native->usages_mask_),
       handle,
   };
   args.GetReturnValue().Set(Array::New(isolate, slots, arraysize(slots)));
@@ -1927,15 +1925,10 @@ std::unique_ptr<worker::TransferData> NativeCryptoKey::CloneForMessaging()
   Isolate* isolate = env()->isolate();
   Local<Object> obj = object();
   Local<Value> algorithm_v = obj->GetInternalField(kAlgorithmField).As<Value>();
-  Local<Value> usages_v = obj->GetInternalField(kUsagesField).As<Value>();
   CHECK(algorithm_v->IsObject());
-  CHECK(usages_v->IsArray());
   v8::Global<Object> algorithm_copy(isolate, algorithm_v.As<Object>());
-  v8::Global<Array> usages_copy(isolate, usages_v.As<Array>());
-  return std::make_unique<CryptoKeyTransferData>(handle_data_,
-                                                 std::move(algorithm_copy),
-                                                 std::move(usages_copy),
-                                                 extractable_);
+  return std::make_unique<CryptoKeyTransferData>(
+      handle_data_, std::move(algorithm_copy), usages_mask_, extractable_);
 }
 
 Maybe<void> NativeCryptoKey::FinalizeTransferRead(
@@ -1950,10 +1943,8 @@ Maybe<void> NativeCryptoKey::FinalizeTransferRead(
   Local<Object> obj = object();
 
   // The partially-initialized object produced by
-  // CryptoKeyTransferData::Deserialize should not have algorithm/usages
-  // set yet.
+  // CryptoKeyTransferData::Deserialize should not have algorithm set yet.
   CHECK(obj->GetInternalField(kAlgorithmField).As<Value>()->IsUndefined());
-  CHECK(obj->GetInternalField(kUsagesField).As<Value>()->IsUndefined());
 
   Local<Value> algorithm_v;
   if (!bundle->Get(context, FIXED_ONE_BYTE_STRING(isolate, "algorithm"))
@@ -1968,8 +1959,8 @@ Maybe<void> NativeCryptoKey::FinalizeTransferRead(
            .ToLocal(&usages_v)) {
     return Nothing<void>();
   }
-  CHECK(usages_v->IsArray());
-  obj->SetInternalField(kUsagesField, usages_v);
+  CHECK(usages_v->IsUint32());
+  usages_mask_ = usages_v.As<Uint32>()->Value();
 
   Local<Value> extractable_v;
   if (!bundle->Get(context, FIXED_ONE_BYTE_STRING(isolate, "extractable"))
@@ -1986,15 +1977,16 @@ Maybe<bool> NativeCryptoKey::CryptoKeyTransferData::FinalizeTransferWrite(
     Local<Context> context, v8::ValueSerializer* serializer) {
   Isolate* isolate = Isolate::GetCurrent();
   CHECK(!algorithm_.IsEmpty());
-  CHECK(!usages_.IsEmpty());
   Local<Object> bundle = Object::New(isolate);
   Local<Value> algorithm_v = PersistentToLocal::Strong(algorithm_);
-  Local<Value> usages_v = PersistentToLocal::Strong(usages_);
   if (bundle
           ->Set(
               context, FIXED_ONE_BYTE_STRING(isolate, "algorithm"), algorithm_v)
           .IsNothing() ||
-      bundle->Set(context, FIXED_ONE_BYTE_STRING(isolate, "usages"), usages_v)
+      bundle
+          ->Set(context,
+                FIXED_ONE_BYTE_STRING(isolate, "usages"),
+                Uint32::NewFromUnsigned(isolate, usages_mask_))
           .IsNothing() ||
       bundle
           ->Set(context,
@@ -2005,7 +1997,6 @@ Maybe<bool> NativeCryptoKey::CryptoKeyTransferData::FinalizeTransferWrite(
   }
   auto ret = serializer->WriteValue(context, bundle);
   algorithm_.Reset();
-  usages_.Reset();
   return ret;
 }
 
@@ -2024,23 +2015,23 @@ BaseObjectPtr<BaseObject> NativeCryptoKey::CryptoKeyTransferData::Deserialize(
 
   // Make sure internal/crypto/keys has been loaded so that the
   // CryptoKey constructor is registered with the Environment.
-  Local<Value> arg =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "internal/crypto/keys");
+  Isolate* isolate = env->isolate();
+  Local<Value> arg = FIXED_ONE_BYTE_STRING(isolate, "internal/crypto/keys");
   if (env->builtin_module_require()
-          ->Call(context, Null(env->isolate()), 1, &arg)
+          ->Call(context, Null(isolate), 1, &arg)
           .IsEmpty()) {
     return {};
   }
 
   // Construct a partially-initialized InternalCryptoKey; algorithm,
-  // usages and extractable are filled in via FinalizeTransferRead.
+  // usages mask and extractable are filled in via FinalizeTransferRead.
   Local<Function> cryptokey_ctor = env->crypto_internal_cryptokey_constructor();
   CHECK(!cryptokey_ctor.IsEmpty());
   Local<Value> ctor_args[] = {
       handle,
-      Undefined(env->isolate()),
-      Undefined(env->isolate()),
-      Undefined(env->isolate()),
+      Undefined(isolate),
+      Undefined(isolate),
+      Undefined(isolate),
   };
   Local<Value> cryptokey;
   if (!cryptokey_ctor->NewInstance(context, 4, ctor_args).ToLocal(&cryptokey)) {
@@ -2059,7 +2050,6 @@ void NativeCryptoKey::CryptoKeyTransferData::MemoryInfo(
     MemoryTracker* tracker) const {
   tracker->TrackField("data", data_);
   tracker->TrackField("algorithm", algorithm_);
-  tracker->TrackField("usages", usages_);
 }
 
 namespace Keys {
