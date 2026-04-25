@@ -564,7 +564,7 @@ SignConfiguration& SignConfiguration::operator=(
 
 void SignConfiguration::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("key", key);
-  if (job_mode == kCryptoJobAsync) {
+  if (IsCryptoJobAsync(job_mode)) {
     tracker->TrackFieldWithSize("data", data.size());
     tracker->TrackFieldWithSize("signature", signature.size());
     tracker->TrackFieldWithSize("context_string", context_string.size());
@@ -603,9 +603,7 @@ Maybe<void> SignTraits::AdditionalConfig(
     THROW_ERR_OUT_OF_RANGE(env, "data is too big");
     return Nothing<void>();
   }
-  params->data = mode == kCryptoJobAsync
-      ? data.ToCopy()
-      : data.ToByteSource();
+  params->data = IsCryptoJobAsync(mode) ? data.ToCopy() : data.ToByteSource();
 
   if (args[offset + 7]->IsString()) {
     Utf8Value digest(env->isolate(), args[offset + 7]);
@@ -642,7 +640,7 @@ Maybe<void> SignTraits::AdditionalConfig(
       return Nothing<void>();
     }
     params->flags |= SignConfiguration::kHasContextString;
-    params->context_string = mode == kCryptoJobAsync
+    params->context_string = IsCryptoJobAsync(mode)
                                  ? context_string.ToCopy()
                                  : context_string.ToByteSource();
   }
@@ -660,9 +658,8 @@ Maybe<void> SignTraits::AdditionalConfig(
     if (UseP1363Encoding(akey, params->dsa_encoding)) {
       params->signature = ConvertSignatureToDER(akey, signature.ToByteSource());
     } else {
-      params->signature = mode == kCryptoJobAsync
-          ? signature.ToCopy()
-          : signature.ToByteSource();
+      params->signature = IsCryptoJobAsync(mode) ? signature.ToCopy()
+                                                 : signature.ToByteSource();
     }
   }
 
