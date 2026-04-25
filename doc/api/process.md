@@ -4350,6 +4350,9 @@ Sets the process title. This is equivalent to assigning a string to
 [`process.title`][]. See [`process.title`][] for restrictions and platform
 limitations.
 
+If `title` is not a string, `setTitle()` throws a `TypeError`. This differs
+from assigning to [`process.title`][], which coerces the value to a string.
+
 ```mjs
 import { setTitle } from 'node:process';
 
