@@ -10,6 +10,11 @@
     "continue-on-error": false
   },
   {
+    "version": "3.5.5",
+    "attr": "openssl_3_5",
+    "continue-on-error": false
+  },
+  {
     "version": "3.0.19",
     "attr": "openssl_3",
     "continue-on-error": false

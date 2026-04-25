@@ -27,15 +27,7 @@ TMP_FILE=$(mktemp)
 sed "s/$CURRENT_VERSION_SHA1/$NEW_UPSTREAM_SHA1/;s/$CURRENT_TARBALL_HASH/$NEW_TARBALL_HASH/" "$NIXPKGS_PIN_FILE" > "$TMP_FILE"
 mv "$TMP_FILE" "$NIXPKGS_PIN_FILE"
 
-SUPPORTED_OPENSSL_VERSION=$(sed -nE "s/^[[:space:]]*SUPPORTED_OPENSSL_VERSION:[[:space:]]*'([^']+)'[[:space:]]*$/\1/p" "$TEST_SHARED_WORKFLOW_FILE" | head -n1)
-
-if [ -z "$SUPPORTED_OPENSSL_VERSION" ]; then
-	echo "Could not resolve SUPPORTED_OPENSSL_VERSION from $TEST_SHARED_WORKFLOW_FILE" >&2
-	exit 1
-fi
-
-SUPPORTED_OPENSSL_VERSION="$SUPPORTED_OPENSSL_VERSION" \
-	"$BASE_DIR/tools/nix/collect-openssl-matrix.sh" | jq . > "$OPENSSL_MATRIX_FILE"
+"$BASE_DIR/tools/nix/collect-openssl-matrix.sh" | jq . > "$OPENSSL_MATRIX_FILE"
 
 cat -<<EOF
 All done!
