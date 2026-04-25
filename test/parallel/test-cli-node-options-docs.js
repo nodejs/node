@@ -39,7 +39,7 @@ for (const [, envVar] of manPageText.matchAll(/\.It Fl (-[a-zA-Z0-9._-]+)/g)) {
 }
 
 for (const [, envVar, config] of nodeOptionsCC.matchAll(addOptionRE)) {
-  // detect default_is_true by anchoring to the env_setting parameter position;
+  // Detect default_is_true by anchoring to the env_setting parameter position;
   // a trailing `true` after OptionNamespaces:: would be affects_snapshot, not default_is_true
   const hasTrueAsDefaultValue = /,\s*k(?:Allowed|Disallowed)InEnvvar\s*,\s*(?:true|HAVE_[A-Z_]+)/.test(config);
   const isInNodeOption = config.includes('kAllowedInEnvvar') && !config.includes('kDisallowedInEnvvar');

@@ -21,7 +21,6 @@ const fixtureC = fixtures.path('printC.js');
 const fixtureD = fixtures.path('define-global.js');
 const fixtureE = fixtures.path('intrinsic-mutation.js');
 const fixtureF = fixtures.path('print-intrinsic-mutation-name.js');
-const fixtureG = fixtures.path('worker-from-argv.js');
 const fixtureThrows = fixtures.path('throws_error4.js');
 const fixtureIsPreloading = fixtures.path('ispreloading.js');
 

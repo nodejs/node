@@ -478,14 +478,13 @@ class OptionsParser {
   // Options struct instead.
   // affects_snapshot marks that the flag's effective value must match between
   // snapshot build and load time.
-  void AddOption(
-      const char* name,
-      const char* help_text,
-      bool Options::*field,
-      OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
-      bool default_is_true = false,
-      OptionNamespaces namespace_id = OptionNamespaces::kNoNamespace,
-      bool affects_snapshot = false);
+  void AddOption(const char* name,
+                 const char* help_text,
+                 bool Options::*field,
+                 OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
+                 bool default_is_true = false,
+                 OptionNamespaces namespace_id = OptionNamespaces::kNoNamespace,
+                 bool affects_snapshot = false);
   void AddOption(
       const char* name,
       const char* help_text,
@@ -712,9 +711,9 @@ std::vector<std::string> ParseNodeOptionsEnvVar(
 
 // Describes one snapshot-affecting boolean option.
 struct SnapshotFlagInfo {
-  std::string name;       // canonical CLI flag name
-  bool value;             // current effective value
-  bool default_is_true;   // true if the flag defaults to on (--no-* form)
+  std::string name;      // canonical CLI flag name
+  bool value;            // current effective value
+  bool default_is_true;  // true if the flag defaults to on (--no-* form)
 };
 
 // Returns every boolean EnvironmentOption marked affects_snapshot=true,

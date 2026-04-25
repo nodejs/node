@@ -745,19 +745,15 @@ bool SnapshotData::Check() const {
         if (options[i].default_is_true) {
           // --no-<flag> form is what's passed when the feature is off.
           std::string negated = std::string("--no-") + (flag_name + 2);
-          snap_desc = in_snapshot
-              ? (std::string("with ") + flag_name)
-              : (std::string("with ") + negated);
-          curr_desc = in_current
-              ? (std::string("with ") + flag_name)
-              : (std::string("with ") + negated);
+          snap_desc = in_snapshot ? (std::string("with ") + flag_name)
+                                  : (std::string("with ") + negated);
+          curr_desc = in_current ? (std::string("with ") + flag_name)
+                                 : (std::string("with ") + negated);
         } else {
-          snap_desc = in_snapshot
-              ? (std::string("with ") + flag_name)
-              : (std::string("without ") + flag_name);
-          curr_desc = in_current
-              ? (std::string("with ") + flag_name)
-              : (std::string("without ") + flag_name);
+          snap_desc = in_snapshot ? (std::string("with ") + flag_name)
+                                  : (std::string("without ") + flag_name);
+          curr_desc = in_current ? (std::string("with ") + flag_name)
+                                 : (std::string("without ") + flag_name);
         }
         fprintf(stderr,
                 "Failed to load the startup snapshot because it was built "
