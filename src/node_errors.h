@@ -53,7 +53,6 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED, Error)                             \
   V(ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS, Error)                                \
   V(ERR_CRYPTO_INITIALIZATION_FAILED, Error)                                   \
-  V(ERR_CRYPTO_INVALID_ARGON2_PARAMS, TypeError)                               \
   V(ERR_CRYPTO_INVALID_AUTH_TAG, TypeError)                                    \
   V(ERR_CRYPTO_INVALID_COUNTER, TypeError)                                     \
   V(ERR_CRYPTO_INVALID_CURVE, TypeError)                                       \
@@ -198,7 +197,6 @@ ERRORS_WITH_CODE(V)
   V(ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS,                                       \
     "The selected key encoding is incompatible with the key type")             \
   V(ERR_CRYPTO_INITIALIZATION_FAILED, "Initialization failed")                 \
-  V(ERR_CRYPTO_INVALID_ARGON2_PARAMS, "Invalid Argon2 params")                 \
   V(ERR_CRYPTO_INVALID_AUTH_TAG, "Invalid authentication tag")                 \
   V(ERR_CRYPTO_INVALID_COUNTER, "Invalid counter")                             \
   V(ERR_CRYPTO_INVALID_CURVE, "Invalid EC curve name")                         \
