@@ -16,6 +16,7 @@ namespace node {
 
 using ncrypto::EVPKeyPointer;
 using v8::Array;
+using v8::ArrayBufferView;
 using v8::FunctionCallbackInfo;
 using v8::Local;
 using v8::Maybe;
@@ -41,7 +42,7 @@ KEMConfiguration& KEMConfiguration::operator=(
 
 void KEMConfiguration::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("key", key);
-  if (job_mode == kCryptoJobAsync) {
+  if (IsCryptoJobAsync(job_mode)) {
     tracker->TrackFieldWithSize("ciphertext", ciphertext.size());
   }
 }
@@ -173,6 +174,23 @@ MaybeLocal<Value> KEMEncapsulateTraits::EncodeOutput(
     return MaybeLocal<Value>();
   }
 
+  if (params.job_mode == kCryptoJobWebCrypto) {
+    Local<Object> result = Object::New(env->isolate());
+    if (result
+            ->Set(env->context(),
+                  OneByteString(env->isolate(), "sharedKey"),
+                  shared_key_obj.As<ArrayBufferView>()->Buffer())
+            .IsNothing() ||
+        result
+            ->Set(env->context(),
+                  OneByteString(env->isolate(), "ciphertext"),
+                  ciphertext_obj.As<ArrayBufferView>()->Buffer())
+            .IsNothing()) {
+      return MaybeLocal<Value>();
+    }
+    return result;
+  }
+
   // Return an array [sharedKey, ciphertext].
   Local<Array> result = Array::New(env->isolate(), 2);
   if (result->Set(env->context(), 0, shared_key_obj).IsNothing() ||
@@ -209,7 +227,7 @@ Maybe<void> KEMDecapsulateTraits::AdditionalConfig(
   }
 
   params->ciphertext =
-      mode == kCryptoJobAsync ? ciphertext.ToCopy() : ciphertext.ToByteSource();
+      IsCryptoJobAsync(mode) ? ciphertext.ToCopy() : ciphertext.ToByteSource();
 
   return v8::JustVoid();
 }

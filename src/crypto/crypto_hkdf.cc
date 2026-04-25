@@ -77,13 +77,9 @@ Maybe<void> HKDFTraits::AdditionalConfig(
     return Nothing<void>();
   }
 
-  params->salt = mode == kCryptoJobAsync
-      ? salt.ToCopy()
-      : salt.ToByteSource();
+  params->salt = IsCryptoJobAsync(mode) ? salt.ToCopy() : salt.ToByteSource();
 
-  params->info = mode == kCryptoJobAsync
-      ? info.ToCopy()
-      : info.ToByteSource();
+  params->info = IsCryptoJobAsync(mode) ? info.ToCopy() : info.ToByteSource();
 
   params->length = args[offset + 4].As<Uint32>()->Value();
   // HKDF-Expand computes up to 255 HMAC blocks, each having as many bits as the
@@ -130,7 +126,7 @@ bool HKDFTraits::DeriveBits(Environment* env,
 void HKDFConfig::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("key", key);
   // If the job is sync, then the HKDFConfig does not own the data
-  if (mode == kCryptoJobAsync) {
+  if (IsCryptoJobAsync(mode)) {
     tracker->TrackFieldWithSize("salt", salt.size());
     tracker->TrackFieldWithSize("info", info.size());
   }
