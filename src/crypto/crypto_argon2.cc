@@ -36,7 +36,7 @@ Argon2Config& Argon2Config::operator=(Argon2Config&& other) noexcept {
 }
 
 void Argon2Config::MemoryInfo(MemoryTracker* tracker) const {
-  if (mode == kCryptoJobAsync) {
+  if (IsCryptoJobAsync(mode)) {
     tracker->TrackFieldWithSize("pass", pass.size());
     tracker->TrackFieldWithSize("salt", salt.size());
     tracker->TrackFieldWithSize("secret", secret.size());
@@ -84,7 +84,7 @@ Maybe<void> Argon2Traits::AdditionalConfig(
     return Nothing<void>();
   }
 
-  const bool isAsync = mode == kCryptoJobAsync;
+  const bool isAsync = IsCryptoJobAsync(mode);
   config->pass = isAsync ? pass.ToCopy() : pass.ToByteSource();
   config->salt = isAsync ? salt.ToCopy() : salt.ToByteSource();
   config->secret = isAsync ? secret.ToCopy() : secret.ToByteSource();

@@ -265,7 +265,7 @@ RSACipherConfig::RSACipherConfig(RSACipherConfig&& other) noexcept
       digest(other.digest) {}
 
 void RSACipherConfig::MemoryInfo(MemoryTracker* tracker) const {
-  if (mode == kCryptoJobAsync)
+  if (IsCryptoJobAsync(mode))
     tracker->TrackFieldWithSize("label", label.size());
 }
 
