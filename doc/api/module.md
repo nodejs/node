@@ -1965,11 +1965,13 @@ Creates a new `sourceMap` instance.
 generated code.
 
 #### `sourceMap.payload`
+
 <!-- YAML
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/62830
     description: The object is frozen.
+-->
 
 * Returns: {Object}
 
