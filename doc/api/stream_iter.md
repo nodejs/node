@@ -1840,7 +1840,7 @@ console.log(ready); // Promise { true } -- no backpressure
 * Value: `Symbol.for('Stream.shareProtocol')`
 
 The value must be a function. When called by `Share.from()`, it receives the
-options passed to `Share.from()` and must return an object conforming the the
+options passed to `Share.from()` and must return an object conforming to the
 {Share} interface. The implementation is fully custom -- it can manage the shared
 source, consumers, buffering, and backpressure however it wants.
 
