@@ -149,24 +149,32 @@ core key objects.
 #### `KeyObjectData`
 
 `KeyObjectData` is an internal thread-safe structure used to wrap either
-a `EVPKeyPointer` (for Public or Private keys) or a `ByteSource` containing
-a Secret key.
+an `EVPKeyPointer` (for Public or Private keys) or a `ByteSource` containing
+a Secret key. It is the shared backing representation used by `KeyObject`,
+`CryptoKey`, and native crypto jobs that operate on key material.
 
 #### `KeyObjectHandle`
 
-The `KeyObjectHandle` provides the interface between the native C++ code
-handling keys and the public JavaScript `KeyObject` API.
+`KeyObjectHandle` is the JavaScript-visible C++ handle for a
+`KeyObjectData`. It exposes operations that internal JavaScript uses to
+initialize, inspect, compare, and export key material. Native code passes
+`KeyObjectData` across threads and jobs; a `KeyObjectHandle` is created when
+JavaScript needs access to those operations.
 
 #### `KeyObject`
 
-A `KeyObject` is the public Node.js-specific API for keys. A single
-`KeyObject` wraps exactly one `KeyObjectHandle`.
+A `KeyObject` is the public Node.js-specific API for keys. It extends a
+native `NativeKeyObject`, which stores `KeyObjectData` for structured
+cloning, and it owns one `KeyObjectHandle` used by the JavaScript API
+surface.
 
 #### `CryptoKey`
 
-A `CryptoKey` is the Web Crypto API's alternative to `KeyObject`. In the
-Node.js implementation, `CryptoKey` is a thin wrapper around the
-`KeyObject` and it is largely possible to use them interchangeably.
+A `CryptoKey` is the Web Crypto API key type. In the Node.js implementation,
+public `CryptoKey` instances are backed by a native `NativeCryptoKey`, not by
+a `KeyObject`. `NativeCryptoKey` stores the same `KeyObjectData`
+representation as `KeyObject`, plus the Web Crypto internal slots
+(`[[extractable]]`, `[[algorithm]]`, and `[[usages]]`).
 
 ### `CryptoJob`
 
