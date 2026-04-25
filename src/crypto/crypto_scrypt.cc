@@ -38,7 +38,7 @@ ScryptConfig& ScryptConfig::operator=(ScryptConfig&& other) noexcept {
 }
 
 void ScryptConfig::MemoryInfo(MemoryTracker* tracker) const {
-  if (mode == kCryptoJobAsync) {
+  if (IsCryptoJobAsync(mode)) {
     tracker->TrackFieldWithSize("pass", pass.size());
     tracker->TrackFieldWithSize("salt", salt.size());
   }
@@ -72,13 +72,9 @@ Maybe<void> ScryptTraits::AdditionalConfig(
     return Nothing<void>();
   }
 
-  params->pass = mode == kCryptoJobAsync
-      ? pass.ToCopy()
-      : pass.ToByteSource();
+  params->pass = IsCryptoJobAsync(mode) ? pass.ToCopy() : pass.ToByteSource();
 
-  params->salt = mode == kCryptoJobAsync
-      ? salt.ToCopy()
-      : salt.ToByteSource();
+  params->salt = IsCryptoJobAsync(mode) ? salt.ToCopy() : salt.ToByteSource();
 
   CHECK(args[offset + 2]->IsUint32());  // N
   CHECK(args[offset + 3]->IsUint32());  // r

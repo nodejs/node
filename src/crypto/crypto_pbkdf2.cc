@@ -35,7 +35,7 @@ PBKDF2Config& PBKDF2Config::operator=(PBKDF2Config&& other) noexcept {
 
 void PBKDF2Config::MemoryInfo(MemoryTracker* tracker) const {
   // The job is sync, the PBKDF2Config does not own the data.
-  if (mode == kCryptoJobAsync) {
+  if (IsCryptoJobAsync(mode)) {
     tracker->TrackFieldWithSize("pass", pass.size());
     tracker->TrackFieldWithSize("salt", salt.size());
   }
@@ -76,13 +76,9 @@ Maybe<void> PBKDF2Traits::AdditionalConfig(
     return Nothing<void>();
   }
 
-  params->pass = mode == kCryptoJobAsync
-      ? pass.ToCopy()
-      : pass.ToByteSource();
+  params->pass = IsCryptoJobAsync(mode) ? pass.ToCopy() : pass.ToByteSource();
 
-  params->salt = mode == kCryptoJobAsync
-      ? salt.ToCopy()
-      : salt.ToByteSource();
+  params->salt = IsCryptoJobAsync(mode) ? salt.ToCopy() : salt.ToByteSource();
 
   CHECK(args[offset + 2]->IsInt32());  // iteration_count
   CHECK(args[offset + 3]->IsInt32());  // length

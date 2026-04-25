@@ -428,9 +428,7 @@ bool ValidateIV(
     THROW_ERR_OUT_OF_RANGE(env, "iv is too big");
     return false;
   }
-  params->iv = (mode == kCryptoJobAsync)
-      ? iv.ToCopy()
-      : iv.ToByteSource();
+  params->iv = (IsCryptoJobAsync(mode)) ? iv.ToCopy() : iv.ToByteSource();
   return true;
 }
 
@@ -476,9 +474,9 @@ bool ValidateAdditionalData(
       THROW_ERR_OUT_OF_RANGE(env, "additionalData is too big");
       return false;
     }
-    params->additional_data = mode == kCryptoJobAsync
-        ? additional.ToCopy()
-        : additional.ToByteSource();
+    params->additional_data = IsCryptoJobAsync(mode)
+                                  ? additional.ToCopy()
+                                  : additional.ToByteSource();
   }
   return true;
 }
@@ -505,7 +503,7 @@ AESCipherConfig& AESCipherConfig::operator=(AESCipherConfig&& other) noexcept {
 void AESCipherConfig::MemoryInfo(MemoryTracker* tracker) const {
   // If mode is sync, then the data in each of these properties
   // is not owned by the AESCipherConfig, so we ignore it.
-  if (mode == kCryptoJobAsync) {
+  if (IsCryptoJobAsync(mode)) {
     tracker->TrackFieldWithSize("iv", iv.size());
     tracker->TrackFieldWithSize("additional_data", additional_data.size());
   }
