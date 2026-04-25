@@ -50,7 +50,7 @@ const server = http.createServer(common.mustCall(function(request, response) {
 server.listen(0, common.mustCall(function() {
   http.get({ port: this.address().port }, common.mustCall((res) => {
     assert.strictEqual(res.statusCode, 200);
-    assert.deepStrictEqual(res.headers, { date: 'coffee o clock' });
+    assert.deepStrictEqual(res.headers, { __proto__: null, date: 'coffee o clock' });
 
     let response = '';
     res.setEncoding('ascii');

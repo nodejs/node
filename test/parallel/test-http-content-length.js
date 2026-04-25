@@ -4,20 +4,17 @@ const assert = require('assert');
 const http = require('http');
 const Countdown = require('../common/countdown');
 
-const expectedHeadersMultipleWrites = {
-  'connection': 'keep-alive',
-  'transfer-encoding': 'chunked',
-};
+const expectedHeadersMultipleWrites = { '__proto__': null,
+                                        'connection': 'keep-alive',
+                                        'transfer-encoding': 'chunked' };
 
-const expectedHeadersEndWithData = {
-  'connection': 'keep-alive',
-  'content-length': String('hello world'.length),
-};
+const expectedHeadersEndWithData = { '__proto__': null,
+                                     'connection': 'keep-alive',
+                                     'content-length': String('hello world'.length) };
 
-const expectedHeadersEndNoData = {
-  'connection': 'keep-alive',
-  'content-length': '0',
-};
+const expectedHeadersEndNoData = { '__proto__': null,
+                                   'connection': 'keep-alive',
+                                   'content-length': '0' };
 
 
 const countdown = new Countdown(3, () => server.close());
@@ -62,7 +59,9 @@ server.listen(0, common.mustCall(function() {
   req.write('hello ');
   req.end('world');
   req.on('response', common.mustCall((res) => {
-    assert.deepStrictEqual(res.headers, { ...expectedHeadersMultipleWrites, 'keep-alive': 'timeout=1' });
+    assert.deepStrictEqual(res.headers, {
+      '__proto__': null, ...expectedHeadersMultipleWrites, 'keep-alive': 'timeout=1',
+    });
     res.resume();
   }));
 
@@ -74,7 +73,9 @@ server.listen(0, common.mustCall(function() {
   req.removeHeader('Date');
   req.end('hello world');
   req.on('response', common.mustCall((res) => {
-    assert.deepStrictEqual(res.headers, { ...expectedHeadersEndWithData, 'keep-alive': 'timeout=1' });
+    assert.deepStrictEqual(res.headers, {
+      '__proto__': null, ...expectedHeadersEndWithData, 'keep-alive': 'timeout=1',
+    });
     res.resume();
   }));
 
@@ -86,7 +87,7 @@ server.listen(0, common.mustCall(function() {
   req.removeHeader('Date');
   req.end();
   req.on('response', common.mustCall((res) => {
-    assert.deepStrictEqual(res.headers, { ...expectedHeadersEndNoData, 'keep-alive': 'timeout=1' });
+    assert.deepStrictEqual(res.headers, { '__proto__': null, ...expectedHeadersEndNoData, 'keep-alive': 'timeout=1' });
     res.resume();
   }));
 

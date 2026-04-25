@@ -24,7 +24,7 @@ server.on('upgrade', common.mustCall(function(req, socket, upgradeHead) {
   req.on('end', common.mustCall(() => {
     assert.strictEqual(reqBodyLength, EXPECTED_BODY_LENGTH);
 
-    assert.deepStrictEqual(req.trailers, { 'extra-data': 'abc' });
+    assert.deepStrictEqual(req.trailers, { '__proto__': null, 'extra-data': 'abc' });
 
     // Defer upgrade stream read slightly to make sure it doesn't start
     // streaming along with the request body, until we actually read it:

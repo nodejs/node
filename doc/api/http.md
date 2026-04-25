@@ -2864,6 +2864,9 @@ The request/response headers object.
 
 Key-value pairs of header names and values. Header names are lower-cased.
 
+The object has a null prototype and should not be accessed using the `in`
+operator.
+
 ```js
 // Prints something like:
 //
@@ -2900,6 +2903,9 @@ added:
 
 Similar to [`message.headers`][], but there is no join logic and the values are
 always arrays of strings, even for headers received just once.
+
+The object has a null prototype and should not be accessed using the `in`
+operator.
 
 ```js
 // Prints something like:
@@ -3087,6 +3093,9 @@ added: v0.3.0
 
 The request/response trailers object. Only populated at the `'end'` event.
 
+The object has a null prototype and should not be accessed using the `in`
+operator.
+
 ### `message.trailersDistinct`
 
 <!-- YAML
@@ -3100,6 +3109,9 @@ added:
 Similar to [`message.trailers`][], but there is no join logic and the values are
 always arrays of strings, even for headers received just once.
 Only populated at the `'end'` event.
+
+The object has a null prototype and should not be accessed using the `in`
+operator.
 
 ### `message.url`
 
