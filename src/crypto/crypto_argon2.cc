@@ -104,20 +104,6 @@ Maybe<void> Argon2Traits::AdditionalConfig(
   config->type =
       static_cast<ncrypto::Argon2Type>(args[offset + 8].As<Uint32>()->Value());
 
-  if (!ncrypto::argon2(config->pass,
-                       config->salt,
-                       config->lanes,
-                       config->keylen,
-                       config->memcost,
-                       config->iter,
-                       config->version,
-                       config->secret,
-                       config->ad,
-                       config->type)) {
-    THROW_ERR_CRYPTO_INVALID_ARGON2_PARAMS(env);
-    return Nothing<void>();
-  }
-
   return JustVoid();
 }
 
