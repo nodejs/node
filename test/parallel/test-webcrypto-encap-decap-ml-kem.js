@@ -40,6 +40,7 @@ async function testEncapsulateKey({ name, publicKeyPem, privateKeyPem, results }
     ['deriveBits']
   );
 
+  assert.strictEqual(Object.getPrototypeOf(encapsulated), Object.prototype);
   assert(encapsulated.sharedKey instanceof CryptoKey);
   assert(encapsulated.ciphertext instanceof ArrayBuffer);
   assert.strictEqual(encapsulated.sharedKey.type, 'secret');
@@ -59,6 +60,7 @@ async function testEncapsulateKey({ name, publicKeyPem, privateKeyPem, results }
     ['sign', 'verify']
   );
 
+  assert.strictEqual(Object.getPrototypeOf(encapsulated2), Object.prototype);
   assert(encapsulated2.sharedKey instanceof CryptoKey);
   assert.strictEqual(encapsulated2.sharedKey.algorithm.name, 'HMAC');
   assert.strictEqual(encapsulated2.sharedKey.extractable, false);
@@ -93,6 +95,7 @@ async function testEncapsulateBits({ name, publicKeyPem, privateKeyPem, results 
   // Test successful encapsulation
   const encapsulated = await subtle.encapsulateBits({ name }, publicKey);
 
+  assert.strictEqual(Object.getPrototypeOf(encapsulated), Object.prototype);
   assert(encapsulated.sharedKey instanceof ArrayBuffer);
   assert(encapsulated.ciphertext instanceof ArrayBuffer);
   assert.strictEqual(encapsulated.sharedKey.byteLength, 32); // ML-KEM shared secret is 32 bytes

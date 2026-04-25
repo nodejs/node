@@ -32,7 +32,9 @@ using ncrypto::DataPointer;
 using ncrypto::EnginePointer;
 #endif  // !OPENSSL_NO_ENGINE
 using ncrypto::SSLPointer;
+using v8::Array;
 using v8::ArrayBuffer;
+using v8::ArrayBufferView;
 using v8::BackingStore;
 using v8::BackingStoreInitializationMode;
 using v8::BackingStoreOnFailureMode;
@@ -40,6 +42,7 @@ using v8::BigInt;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Exception;
+using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
@@ -709,8 +712,62 @@ Maybe<void> SetEncodedValue(Environment* env,
 CryptoJobMode GetCryptoJobMode(v8::Local<v8::Value> args) {
   CHECK(args->IsUint32());
   uint32_t mode = args.As<v8::Uint32>()->Value();
-  CHECK_LE(mode, kCryptoJobSync);
+  CHECK_LE(mode, kCryptoJobWebCrypto);
   return static_cast<CryptoJobMode>(mode);
+}
+
+bool IsCryptoJobAsync(CryptoJobMode mode) {
+  return mode == kCryptoJobAsync || mode == kCryptoJobWebCrypto;
+}
+
+MaybeLocal<Value> CreateWebCryptoJobError(Environment* env,
+                                          Local<Value> cause) {
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  Local<Object> per_context_bindings;
+  Local<Value> domexception_ctor;
+  if (!GetPerContextExports(context).ToLocal(&per_context_bindings) ||
+      !per_context_bindings
+           ->Get(context, FIXED_ONE_BYTE_STRING(isolate, "DOMException"))
+           .ToLocal(&domexception_ctor)) {
+    return {};
+  }
+  CHECK(domexception_ctor->IsFunction());
+
+  Local<Object> options = Object::New(isolate);
+  if (options
+          ->Set(context,
+                FIXED_ONE_BYTE_STRING(isolate, "name"),
+                FIXED_ONE_BYTE_STRING(isolate, "OperationError"))
+          .IsNothing() ||
+      options->Set(context, FIXED_ONE_BYTE_STRING(isolate, "cause"), cause)
+          .IsNothing()) {
+    return {};
+  }
+
+  Local<Value> argv[] = {
+      FIXED_ONE_BYTE_STRING(isolate,
+                            "The operation failed for an operation-specific "
+                            "reason"),
+      options,
+  };
+
+  return domexception_ctor.As<Function>()->NewInstance(
+      context, arraysize(argv), argv);
+}
+
+MaybeLocal<Value> ToWebCryptoJobResult(Environment* env, Local<Value> value) {
+  if (value->IsArrayBuffer()) {
+    return value;
+  }
+
+  if (Buffer::HasInstance(value)) {
+    return value.As<ArrayBufferView>()->Buffer();
+  }
+
+  CHECK(value->IsBoolean() || (value->IsObject() && !value->IsArray() &&
+                               !value->IsArrayBufferView()));
+  return value;
 }
 
 namespace {
@@ -780,6 +837,7 @@ void Initialize(Environment* env, Local<Object> target) {
 
   NODE_DEFINE_CONSTANT(target, kCryptoJobAsync);
   NODE_DEFINE_CONSTANT(target, kCryptoJobSync);
+  NODE_DEFINE_CONSTANT(target, kCryptoJobWebCrypto);
 
   SetMethod(context, target, "secureBuffer", SecureBuffer);
   SetMethodNoSideEffect(context, target, "secureHeapUsed", SecureHeapUsed);
