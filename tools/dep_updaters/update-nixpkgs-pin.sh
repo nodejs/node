@@ -6,7 +6,6 @@ set -ex
 BASE_DIR=$(cd "$(dirname "$0")/../.." && pwd)
 NIXPKGS_PIN_FILE="$BASE_DIR/tools/nix/pkgs.nix"
 OPENSSL_MATRIX_FILE="$BASE_DIR/tools/nix/openssl-matrix.json"
-TEST_SHARED_WORKFLOW_FILE="$BASE_DIR/.github/workflows/test-shared.yml"
 
 NIXPKGS_REPO=$(grep 'repo =' "$NIXPKGS_PIN_FILE" | awk -F'"' '{ print $2 }')
 CURRENT_VERSION_SHA1=$(grep 'rev =' "$NIXPKGS_PIN_FILE" | awk -F'"' '{ print $2 }')
