@@ -22,6 +22,7 @@
 #include <string_view>
 #include <vector>
 
+using v8::Array;
 using v8::Boolean;
 using v8::Context;
 using v8::FunctionCallbackInfo;
@@ -586,39 +587,55 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental EventSource API",
             &EnvironmentOptions::experimental_eventsource,
             kAllowedInEnvvar,
-            false);
+            false,
+            OptionNamespaces::kNoNamespace,
+            true);
   AddOption("--experimental-fetch", "", NoOp{}, kAllowedInEnvvar);
 #if HAVE_FFI
   AddOption("--experimental-ffi",
             "experimental node:ffi module",
             &EnvironmentOptions::experimental_ffi,
             kAllowedInEnvvar,
-            false);
+            false,
+            OptionNamespaces::kNoNamespace,
+            true);
 #endif  // HAVE_FFI
   AddOption("--experimental-websocket",
             "experimental WebSocket API",
             &EnvironmentOptions::experimental_websocket,
             kAllowedInEnvvar,
+            true,
+            OptionNamespaces::kNoNamespace,
             true);
   AddOption("--experimental-global-customevent", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-sqlite",
             "experimental node:sqlite module",
             &EnvironmentOptions::experimental_sqlite,
             kAllowedInEnvvar,
-            HAVE_SQLITE);
+            HAVE_SQLITE,
+            OptionNamespaces::kNoNamespace,
+            true);
   AddOption("--experimental-stream-iter",
             "experimental iterable streams API (node:stream/iter)",
             &EnvironmentOptions::experimental_stream_iter,
-            kAllowedInEnvvar);
-  AddOption("--experimental-quic",
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kNoNamespace,
+            true);
 #ifndef OPENSSL_NO_QUIC
+  AddOption("--experimental-quic",
             "experimental QUIC support",
             &EnvironmentOptions::experimental_quic,
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kNoNamespace,
+            true);
 #else
+  AddOption("--experimental-quic",
             "" /* undocumented when no-op */,
             NoOp{},
-#endif
             kAllowedInEnvvar);
+#endif
   AddOption("--experimental-webstorage",
             "experimental Web Storage API",
             &EnvironmentOptions::webstorage,
@@ -720,7 +737,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--experimental-vm-modules",
             "experimental ES Module support in vm module",
             &EnvironmentOptions::experimental_vm_modules,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kNoNamespace,
+            true);
   AddOption("--experimental-worker", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-report", "", NoOp{}, kAllowedInEnvvar);
   AddOption(
@@ -731,11 +751,20 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::async_context_frame,
             kAllowedInEnvvar,
             true);
-  AddOption("--expose-internals", "", &EnvironmentOptions::expose_internals);
+  AddOption("--expose-internals",
+            "",
+            &EnvironmentOptions::expose_internals,
+            kDisallowedInEnvvar,
+            false,
+            OptionNamespaces::kNoNamespace,
+            true);
   AddOption("--frozen-intrinsics",
             "experimental frozen intrinsics support",
             &EnvironmentOptions::frozen_intrinsics,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kNoNamespace,
+            true);
   AddOption("--heapsnapshot-signal",
             "Generate heap snapshot on specified signal",
             &EnvironmentOptions::heap_snapshot_signal,
@@ -763,6 +792,8 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "silence deprecation warnings",
             &EnvironmentOptions::deprecation,
             kAllowedInEnvvar,
+            true,
+            OptionNamespaces::kNoNamespace,
             true);
   AddOption("--force-async-hooks-checks",
             "disable checks for async_hooks",
@@ -789,6 +820,8 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "silence all process warnings",
             &EnvironmentOptions::warnings,
             kAllowedInEnvvar,
+            true,
+            OptionNamespaces::kNoNamespace,
             true);
   AddOption("--disable-warning",
             "silence specific process warnings",
@@ -801,7 +834,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--pending-deprecation",
             "emit pending deprecation warnings",
             &EnvironmentOptions::pending_deprecation,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kNoNamespace,
+            true);
   AddOption("--use-env-proxy",
             "parse proxy settings from HTTP_PROXY/HTTPS_PROXY/NO_PROXY"
             "environment variables and apply the setting in global HTTP/HTTPS "
@@ -1043,11 +1079,17 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--throw-deprecation",
             "throw an exception on deprecations",
             &EnvironmentOptions::throw_deprecation,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kNoNamespace,
+            true);
   AddOption("--trace-deprecation",
             "show stack traces on deprecations",
             &EnvironmentOptions::trace_deprecation,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kNoNamespace,
+            true);
   AddOption("--trace-exit",
             "show stack trace when an environment exits",
             &EnvironmentOptions::trace_exit,
@@ -1068,7 +1110,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--trace-warnings",
             "show stack traces on process warnings",
             &EnvironmentOptions::trace_warnings,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kNoNamespace,
+            true);
   AddOption("--trace-promises",
             "show stack traces on promise initialization and resolution",
             &EnvironmentOptions::trace_promises,
@@ -2017,6 +2062,34 @@ void GetNamespaceOptionsInputType(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(namespaces_metadata);
 }
 
+// Return an array of {name, defaultIsTrue} for every boolean option marked
+// affects_snapshot=true, sorted alphabetically.
+void GetSnapshotAffectingFlags(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  Environment* env = Environment::GetCurrent(context);
+
+  Mutex::ScopedLock lock(per_process::cli_options_mutex);
+
+  auto options = node::GetSnapshotAffectingOptions(*env->options());
+
+  Local<Array> result = Array::New(isolate, options.size());
+  for (size_t i = 0; i < options.size(); i++) {
+    Local<Object> obj = Object::New(isolate);
+    obj->Set(context,
+             FIXED_ONE_BYTE_STRING(isolate, "name"),
+             ToV8Value(context, options[i].name).ToLocalChecked())
+        .Check();
+    obj->Set(context,
+             FIXED_ONE_BYTE_STRING(isolate, "defaultIsTrue"),
+             Boolean::New(isolate, options[i].default_is_true))
+        .Check();
+    result->Set(context, i, obj).Check();
+  }
+
+  args.GetReturnValue().Set(result);
+}
+
 // Return an array containing all currently active options as flag
 // strings from all sources (command line, NODE_OPTIONS, config file)
 void GetOptionsAsFlags(const FunctionCallbackInfo<Value>& args) {
@@ -2139,6 +2212,8 @@ void Initialize(Local<Object> target,
   SetMethodNoSideEffect(
       context, target, "getCLIOptionsInfo", GetCLIOptionsInfo);
   SetMethodNoSideEffect(
+      context, target, "getSnapshotAffectingFlags", GetSnapshotAffectingFlags);
+  SetMethodNoSideEffect(
       context, target, "getOptionsAsFlags", GetOptionsAsFlags);
   SetMethodNoSideEffect(
       context, target, "getEmbedderOptions", GetEmbedderOptions);
@@ -2172,6 +2247,7 @@ void Initialize(Local<Object> target,
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetCLIOptionsValues);
   registry->Register(GetCLIOptionsInfo);
+  registry->Register(GetSnapshotAffectingFlags);
   registry->Register(GetOptionsAsFlags);
   registry->Register(GetEmbedderOptions);
   registry->Register(GetEnvOptionsInputType);
@@ -2246,6 +2322,20 @@ std::vector<std::string> ParseNodeOptionsEnvVar(
   }
   return env_argv;
 }
+std::vector<SnapshotFlagInfo> GetSnapshotAffectingOptions(
+    const EnvironmentOptions& opts) {
+  std::vector<SnapshotFlagInfo> result;
+  options_parser::_eop_instance.ForEachSnapshotAffecting(
+      const_cast<EnvironmentOptions*>(&opts),
+      [&](const std::string& name, bool val, bool default_is_true) {
+        result.push_back({name, val, default_is_true});
+      });
+  std::sort(result.begin(), result.end(), [](const auto& a, const auto& b) {
+    return a.name < b.name;
+  });
+  return result;
+}
+
 }  // namespace node
 
 NODE_BINDING_CONTEXT_AWARE_INTERNAL(options, node::options_parser::Initialize)
