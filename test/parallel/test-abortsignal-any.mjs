@@ -16,7 +16,7 @@ describe('AbortSignal.any()', { concurrency: !process.env.TEST_PARALLEL }, () =>
       () => AbortSignal.any([AbortSignal.abort(), undefined]),
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        message: 'The "signals[1]" argument must be an instance of AbortSignal. Received undefined'
+        message: 'signals[1] is not of type AbortSignal.',
       },
     );
   });

@@ -37,6 +37,19 @@ async function main() {
     globalThis,
     cacheMode,
   ];
+
+  assert.throws(() => performance.setResourceTimingBufferSize(1n), {
+    name: 'TypeError',
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'maxSize is a BigInt and cannot be converted to a number.',
+  });
+
+  assert.throws(() => performance.setResourceTimingBufferSize(Symbol()), {
+    name: 'TypeError',
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'maxSize is a Symbol and cannot be converted to a number.',
+  });
+
   // Invalid buffer size values are converted to 0.
   const invalidValues = [ null, undefined, true, false, -1, 0.5, Infinity, NaN, '', 'foo', {}, [], () => {} ];
   for (const value of invalidValues) {
