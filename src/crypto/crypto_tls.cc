@@ -438,7 +438,9 @@ TLSWrap::TLSWrap(Environment* env,
 }
 
 TLSWrap::~TLSWrap() {
-  Destroy();
+  // Destructors can run from V8 weak callbacks during garbage collection.
+  // Do not invoke JS-visible write callbacks from here.
+  Destroy(false);
 }
 
 MaybeLocal<ArrayBufferView> TLSWrap::ocsp_response() const {
@@ -1307,15 +1309,21 @@ void TLSWrap::DestroySSL(const FunctionCallbackInfo<Value>& args) {
   Debug(wrap, "DestroySSL() finished");
 }
 
-void TLSWrap::Destroy() {
+void TLSWrap::Destroy(bool invoke_queued) {
   if (!ssl_)
     return;
 
-  // If there is a write happening, mark it as finished.
-  write_callback_scheduled_ = true;
+  if (invoke_queued) {
+    // If there is a write happening, mark it as finished.
+    write_callback_scheduled_ = true;
 
-  // And destroy
-  InvokeQueued(UV_ECANCELED, "Canceled because of SSL destruction");
+    // And destroy
+    InvokeQueued(UV_ECANCELED, "Canceled because of SSL destruction");
+  } else {
+    current_write_.reset();
+    current_empty_write_.reset();
+    write_callback_scheduled_ = false;
+  }
 
   env()->external_memory_accounter()->Decrease(env()->isolate(), kExternalSize);
   ssl_.reset();

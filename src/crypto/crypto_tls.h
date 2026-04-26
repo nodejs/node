@@ -159,7 +159,7 @@ class TLSWrap : public AsyncWrap,
   void EncOut();  // Write encrypted data from enc_out_ to underlying stream.
   void ClearIn();  // SSL_write() clear data "in" to SSL.
   void ClearOut();  // SSL_read() clear text "out" from SSL.
-  void Destroy();
+  void Destroy(bool invoke_queued = true);
 
   // Call Done() on outstanding WriteWrap request.
   void InvokeQueued(int status, const char* error_str = nullptr);
