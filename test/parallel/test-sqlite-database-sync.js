@@ -343,6 +343,94 @@ suite('DatabaseSync.prototype.close()', () => {
     });
     t.assert.strictEqual(db.isOpen, false);
   });
+
+  test('invalidates prepared statements', (t) => {
+    const db = new DatabaseSync(nextDb());
+    db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER);
+      INSERT INTO data (key, val) VALUES (1, 2);
+    `);
+
+    const select = db.prepare('SELECT * FROM data');
+    const insert = db.prepare('INSERT INTO data (key, val) VALUES (?, ?)');
+
+    t.assert.strictEqual(db.close(), undefined);
+    t.assert.strictEqual(db.isOpen, false);
+
+    for (const method of ['prepare', 'exec']) {
+      t.assert.throws(() => {
+        db[method]('SELECT 1');
+      }, {
+        code: 'ERR_INVALID_STATE',
+        message: /database is not open/,
+      });
+    }
+
+    t.assert.throws(() => {
+      select.get();
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+    t.assert.throws(() => {
+      select.all();
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+    t.assert.throws(() => {
+      insert.run(2, 4);
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+  });
+
+  test('keeps prepared statements invalid after reopening', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => {
+      if (db.isOpen) db.close();
+    });
+
+    db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER);
+      INSERT INTO data (key, val) VALUES (1, 2);
+    `);
+
+    const select = db.prepare('SELECT * FROM data');
+    const insert = db.prepare('INSERT INTO data (key, val) VALUES (?, ?)');
+
+    db.close();
+    db.open();
+
+    t.assert.throws(() => {
+      select.get();
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+    t.assert.throws(() => {
+      select.all();
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+    t.assert.throws(() => {
+      insert.run(2, 4);
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+
+    t.assert.deepStrictEqual(
+      db.prepare('SELECT * FROM data').all(),
+      [{ __proto__: null, key: 1, val: 2 }],
+    );
+    t.assert.strictEqual(
+      db.exec('INSERT INTO data (key, val) VALUES (2, 4)'),
+      undefined,
+    );
+  });
 });
 
 suite('DatabaseSync.prototype.prepare()', () => {

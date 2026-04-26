@@ -30,4 +30,46 @@ suite('DatabaseSync.prototype[Symbol.dispose]()', () => {
       db.close();
     }, /database is not open/);
   });
+
+  test('invalidates prepared statements', () => {
+    const db = new DatabaseSync(nextDb());
+    db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER);
+      INSERT INTO data (key, val) VALUES (1, 2);
+    `);
+
+    const select = db.prepare('SELECT * FROM data');
+    const insert = db.prepare('INSERT INTO data (key, val) VALUES (?, ?)');
+
+    db[Symbol.dispose]();
+    assert.strictEqual(db.isOpen, false);
+
+    for (const method of ['prepare', 'exec']) {
+      assert.throws(() => {
+        db[method]('SELECT 1');
+      }, {
+        code: 'ERR_INVALID_STATE',
+        message: /database is not open/,
+      });
+    }
+
+    assert.throws(() => {
+      select.get();
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+    assert.throws(() => {
+      select.all();
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+    assert.throws(() => {
+      insert.run(2, 4);
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+  });
 });
