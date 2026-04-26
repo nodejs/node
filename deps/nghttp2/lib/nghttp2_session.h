@@ -107,8 +107,8 @@ typedef struct {
 #define NGHTTP2_DEFAULT_STREAM_RESET_RATE 33
 
 /* The default values for glitch rate limiter. */
-#define NGHTTP2_DEFAULT_GLITCH_BURST 1000
-#define NGHTTP2_DEFAULT_GLITCH_RATE 33
+#define NGHTTP2_DEFAULT_GLITCH_BURST 10000
+#define NGHTTP2_DEFAULT_GLITCH_RATE 330
 
 /* The default max number of CONTINUATION frames following an incoming
    HEADER frame. */
