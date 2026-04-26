@@ -24,6 +24,7 @@ HKDFConfig::HKDFConfig(HKDFConfig&& other) noexcept
       length(other.length),
       digest(other.digest),
       key(std::move(other.key)),
+      key_data(std::move(other.key_data)),
       salt(std::move(other.salt)),
       info(std::move(other.info)) {}
 
@@ -49,7 +50,8 @@ Maybe<void> HKDFTraits::AdditionalConfig(
   params->mode = mode;
 
   CHECK(args[offset]->IsString());  // Hash
-  CHECK(args[offset + 1]->IsObject());  // Key
+  CHECK(KeyObjectHandle::HasInstance(env, args[offset + 1]) ||
+        IsAnyBufferSource(args[offset + 1]));  // Key
   CHECK(IsAnyBufferSource(args[offset + 2]));  // Salt
   CHECK(IsAnyBufferSource(args[offset + 3]));  // Info
   CHECK(args[offset + 4]->IsUint32());  // Length
@@ -61,9 +63,19 @@ Maybe<void> HKDFTraits::AdditionalConfig(
     return Nothing<void>();
   }
 
-  KeyObjectHandle* key;
-  ASSIGN_OR_RETURN_UNWRAP(&key, args[offset + 1], Nothing<void>());
-  params->key = key->Data().addRef();
+  if (KeyObjectHandle::HasInstance(env, args[offset + 1])) {
+    KeyObjectHandle* key;
+    ASSIGN_OR_RETURN_UNWRAP(&key, args[offset + 1], Nothing<void>());
+    params->key = key->Data().addRef();
+  } else {
+    ArrayBufferOrViewContents<char> key_data(args[offset + 1]);
+    if (!key_data.CheckSizeInt32()) [[unlikely]] {
+      THROW_ERR_OUT_OF_RANGE(env, "key is too big");
+      return Nothing<void>();
+    }
+    params->key_data =
+        IsCryptoJobAsync(mode) ? key_data.ToCopy() : key_data.ToByteSource();
+  }
 
   ArrayBufferOrViewContents<char> salt(args[offset + 2]);
   ArrayBufferOrViewContents<char> info(args[offset + 3]);
@@ -98,12 +110,16 @@ bool HKDFTraits::DeriveBits(Environment* env,
                             ByteSource* out,
                             CryptoJobMode mode,
                             CryptoErrorStore* errors) {
+  const ncrypto::Buffer<const unsigned char> key_data{
+      .data = params.key ? reinterpret_cast<const unsigned char*>(
+                               params.key.GetSymmetricKey())
+                         : params.key_data.data<unsigned char>(),
+      .len = params.key ? params.key.GetSymmetricKeySize()
+                        : params.key_data.size(),
+  };
+
   auto dp = ncrypto::hkdf(params.digest,
-                          ncrypto::Buffer<const unsigned char>{
-                              .data = reinterpret_cast<const unsigned char*>(
-                                  params.key.GetSymmetricKey()),
-                              .len = params.key.GetSymmetricKeySize(),
-                          },
+                          key_data,
                           ncrypto::Buffer<const unsigned char>{
                               .data = params.info.data<const unsigned char>(),
                               .len = params.info.size(),
@@ -124,9 +140,10 @@ bool HKDFTraits::DeriveBits(Environment* env,
 }
 
 void HKDFConfig::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackField("key", key);
+  if (key) tracker->TrackField("key", key);
   // If the job is sync, then the HKDFConfig does not own the data
   if (IsCryptoJobAsync(mode)) {
+    if (!key) tracker->TrackFieldWithSize("key", key_data.size());
     tracker->TrackFieldWithSize("salt", salt.size());
     tracker->TrackFieldWithSize("info", info.size());
   }
