@@ -5,6 +5,7 @@ set -ex
 
 BASE_DIR=$(cd "$(dirname "$0")/../.." && pwd)
 NIXPKGS_PIN_FILE="$BASE_DIR/tools/nix/pkgs.nix"
+OPENSSL_MATRIX_FILE="$BASE_DIR/tools/nix/openssl-matrix.json"
 
 NIXPKGS_REPO=$(grep 'repo =' "$NIXPKGS_PIN_FILE" | awk -F'"' '{ print $2 }')
 CURRENT_VERSION_SHA1=$(grep 'rev =' "$NIXPKGS_PIN_FILE" | awk -F'"' '{ print $2 }')
@@ -25,12 +26,14 @@ TMP_FILE=$(mktemp)
 sed "s/$CURRENT_VERSION_SHA1/$NEW_UPSTREAM_SHA1/;s/$CURRENT_TARBALL_HASH/$NEW_TARBALL_HASH/" "$NIXPKGS_PIN_FILE" > "$TMP_FILE"
 mv "$TMP_FILE" "$NIXPKGS_PIN_FILE"
 
+"$BASE_DIR/tools/nix/collect-openssl-matrix.sh" | jq . > "$OPENSSL_MATRIX_FILE"
+
 cat -<<EOF
 All done!
 
 Please git add and commit the new version:
 
-$ git add $NIXPKGS_PIN_FILE
+$ git add $NIXPKGS_PIN_FILE $OPENSSL_MATRIX_FILE
 $ git commit -m 'tools: bump nixpkgs-unstable pin to $NEW_VERSION'
 EOF
 
