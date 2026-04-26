@@ -1,0 +1,27 @@
+[
+  {
+    "version": "4.0.0",
+    "attr": "openssl_4_0",
+    "continue-on-error": false
+  },
+  {
+    "version": "3.6.1",
+    "attr": "openssl_3_6",
+    "continue-on-error": false
+  },
+  {
+    "version": "3.5.5",
+    "attr": "openssl_3_5",
+    "continue-on-error": false
+  },
+  {
+    "version": "3.0.19",
+    "attr": "openssl_3",
+    "continue-on-error": false
+  },
+  {
+    "version": "1.1.1w",
+    "attr": "openssl_1_1",
+    "continue-on-error": false
+  }
+]
