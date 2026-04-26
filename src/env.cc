@@ -1414,6 +1414,15 @@ void Environment::RunAndClearInterrupts() {
 void Environment::RunAndClearNativeImmediates(bool only_refed) {
   TRACE_EVENT0(TRACING_CATEGORY_NODE1(environment),
                "RunAndClearNativeImmediates");
+  // Skip the callback scope on the common empty path. These are the only
+  // queues drained by this function. If a threadsafe immediate is queued
+  // concurrently after this check, uv_async_send() schedules another drain.
+  if (native_immediates_.size() == 0 &&
+      native_immediates_threadsafe_.size() == 0 &&
+      native_immediates_interrupts_.size() == 0) {
+    return;
+  }
+
   HandleScope handle_scope(isolate_);
   // In case the Isolate is no longer accessible just use an empty Local. This
   // is not an issue for InternalCallbackScope as this case is already handled
