@@ -56,3 +56,17 @@ assert.strictEqual(convertToInt('x', 0xFFFF_FFFF, 32), 0xFFFF_FFFF);
 // Out of range, step 11.
 assert.strictEqual(convertToInt('x', 0x8000_0000, 32, { signed: true }), -0x8000_0000);
 assert.strictEqual(convertToInt('x', 0xFFF_FFFF, 32, { signed: true }), 0xFFF_FFFF);
+
+// Negative values must wrap as two's-complement, matching typed-array behavior.
+assert.strictEqual(convertToInt('x', -3, 8), 253);
+assert.strictEqual(convertToInt('x', -3, 8), new Uint8Array([-3])[0]);
+assert.strictEqual(convertToInt('x', -1, 32), 0xFFFF_FFFF);
+assert.strictEqual(convertToInt('x', -1, 32), new Uint32Array([-1])[0]);
+assert.strictEqual(convertToInt('x', -200, 8, { signed: true }), 56);
+assert.strictEqual(convertToInt('x', -200, 8, { signed: true }), new Int8Array([-200])[0]);
+
+assert.strictEqual(convertToInt('x', -8192, 64), 2 ** 64 - 8192);
+assert.strictEqual(convertToInt('x', -8192, 64, { signed: true }), -8192);
+assert.strictEqual(convertToInt('x', -8193, 64, { signed: true }), -8193);
+assert.strictEqual(convertToInt('x', 2 ** 64 + 8192, 64), 8192);
+assert.strictEqual(convertToInt('x', 2 ** 64 + 8192, 64, { signed: true }), 8192);
