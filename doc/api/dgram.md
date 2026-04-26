@@ -968,6 +968,9 @@ changes:
     specified by the NAT.
   * `sendBlockList` {net.BlockList} `sendBlockList` can be used for disabling outbound
     access to specific IP addresses, IP ranges, or IP subnets.
+  * `recvErr` {boolean} When `true` the socket will emit an error event
+    if the peer is unreachable(On Linux only).
+    **Default:** `false`.
 * `callback` {Function} Attached as a listener for `'message'` events. Optional.
 * Returns: {dgram.Socket}
 
