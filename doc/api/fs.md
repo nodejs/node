@@ -2213,7 +2213,7 @@ passed to it. For performance sensitive code consider using
 [`fs.createWriteStream()`][] or [`filehandle.createWriteStream()`][].
 
 It is possible to use an {AbortSignal} to cancel an `fsPromises.writeFile()`.
-Cancelation is "best effort", and some amount of data is likely still
+Cancellation is "best effort", and some amount of data is likely still
 to be written.
 
 ```mjs
@@ -5562,7 +5562,7 @@ performs multiple `write` calls internally to write the buffer passed to it.
 For performance sensitive code consider using [`fs.createWriteStream()`][].
 
 It is possible to use an {AbortSignal} to cancel an `fs.writeFile()`.
-Cancelation is "best effort", and some amount of data is likely still
+Cancellation is "best effort", and some amount of data is likely still
 to be written.
 
 ```mjs
