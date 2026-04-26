@@ -34,10 +34,7 @@
 #include "nghttp2_buf.h"
 
 #define NGHTTP2_STREAM_ID_MASK ((1u << 31) - 1)
-#define NGHTTP2_PRI_GROUP_ID_MASK ((1u << 31) - 1)
-#define NGHTTP2_PRIORITY_MASK ((1u << 31) - 1)
 #define NGHTTP2_WINDOW_SIZE_INCREMENT_MASK ((1u << 31) - 1)
-#define NGHTTP2_SETTINGS_ID_MASK ((1 << 24) - 1)
 
 /* The number of bytes of frame header. */
 #define NGHTTP2_FRAME_HDLEN 9

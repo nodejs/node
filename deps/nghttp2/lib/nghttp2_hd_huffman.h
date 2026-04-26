@@ -34,9 +34,9 @@
 typedef enum {
   /* FSA accepts this state as the end of huffman encoding
      sequence. */
-  NGHTTP2_HUFF_ACCEPTED = 1 << 14,
+  NGHTTP2_HUFF_ACCEPTED = 1,
   /* This state emits symbol */
-  NGHTTP2_HUFF_SYM = 1 << 15,
+  NGHTTP2_HUFF_SYM = 1 << 1,
 } nghttp2_huff_decode_flag;
 
 typedef struct {
@@ -48,6 +48,7 @@ typedef struct {
      a special node and it is a terminal state that means decoding
      failed. */
   uint16_t fstate;
+  uint8_t flags;
   /* symbol if NGHTTP2_HUFF_SYM flag set */
   uint8_t sym;
 } nghttp2_huff_decode;
@@ -57,6 +58,7 @@ typedef nghttp2_huff_decode huff_decode_table_type[16];
 typedef struct {
   /* fstate is the current huffman decoding state. */
   uint16_t fstate;
+  uint8_t flags;
 } nghttp2_hd_huff_decode_context;
 
 typedef struct {
@@ -68,5 +70,13 @@ typedef struct {
 
 extern const nghttp2_huff_sym huff_sym_table[];
 extern const nghttp2_huff_decode huff_decode_table[][16];
+
+/*
+ * nghttp2_huff_estimate_decode_length returns the estimated decoded
+ * length of the huffman encoded string of length |len|.
+ */
+static inline size_t nghttp2_huff_estimate_decode_length(size_t len) {
+  return len * 8 / 5;
+}
 
 #endif /* !defined(NGHTTP2_HD_HUFFMAN_H) */
