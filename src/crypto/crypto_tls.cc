@@ -1317,15 +1317,24 @@ void TLSWrap::Destroy() {
   // And destroy
   InvokeQueued(UV_ECANCELED, "Canceled because of SSL destruction");
 
-  env()->external_memory_accounter()->Decrease(env()->isolate(), kExternalSize);
-  ssl_.reset();
-
-  enc_in_ = nullptr;
-  enc_out_ = nullptr;
-
+  // Detach from the underlying stream before releasing the SSL context.
   if (underlying_stream() != nullptr)
     underlying_stream()->RemoveStreamListener(this);
 
+  // EncOut() passes pointers into the enc_out_ BIO internal buffer to the
+  // underlying stream via uv_write().  write_size_ is non-zero while that
+  // write is in flight.  Freeing the SSL context would turn those pointers
+  // into dangling references (use-after-free when libuv completes the
+  // write).  Release ownership without freeing so the BIO data stays alive.
+  if (write_size_ != 0) {
+    ssl_.release();
+  } else {
+    ssl_.reset();
+  }
+
+  env()->external_memory_accounter()->Decrease(env()->isolate(), kExternalSize);
+  enc_in_ = nullptr;
+  enc_out_ = nullptr;
   sc_.reset();
 }
 
