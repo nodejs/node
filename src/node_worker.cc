@@ -923,6 +923,7 @@ void Worker::StartCpuProfile(const FunctionCallbackInfo<Value>& args) {
   Worker* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
   Environment* env = w->env();
+  CpuProfileOptions options = ParseCpuProfileOptions(args);
 
   AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(w);
   Local<Object> wrap;
@@ -935,9 +936,9 @@ void Worker::StartCpuProfile(const FunctionCallbackInfo<Value>& args) {
   BaseObjectPtr<WorkerCpuProfileTaker> taker =
       MakeDetachedBaseObject<WorkerCpuProfileTaker>(env, wrap);
 
-  bool scheduled = w->RequestInterrupt([taker = std::move(taker),
-                                        env](Environment* worker_env) mutable {
-    CpuProfilingResult result = worker_env->StartCpuProfile();
+  bool scheduled = w->RequestInterrupt([taker = std::move(taker), env, options](
+                                           Environment* worker_env) mutable {
+    CpuProfilingResult result = worker_env->StartCpuProfile(options);
     env->SetImmediateThreadsafe(
         [taker = std::move(taker), result = result](Environment* env) mutable {
           Isolate* isolate = env->isolate();
