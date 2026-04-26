@@ -50,6 +50,7 @@ function main({ n, script, nFiles, prefixPath }) {
   const optionsWithScript = [
     '--permission',
     `--allow-fs-read=${script}`,
+    '--allow-env=*',
     ...mockFiles(nFiles, prefixPath).map((file) => '--allow-fs-read=' + file),
     script,
   ];

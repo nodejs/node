@@ -14,6 +14,7 @@ const options = {
     '--permission',
     `--allow-fs-read=${rootPath}`,
     '--allow-child-process',
+    '--allow-env=*',
     '--no-warnings',
   ],
 };
