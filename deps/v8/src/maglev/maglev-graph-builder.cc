@@ -4125,9 +4125,16 @@ ReduceResult MaglevGraphBuilder::BuildCheckSmi(ValueNode* object,
       value_as_phi->SetUseRequires31BitValue();
     }
   }
-  // For constants, we may be able to skip the runtime check.
-  if (std::optional<int32_t> constant_value = TryGetInt32Constant(object)) {
-    if (Smi::IsValid(constant_value.value())) return object;
+  // For non-tagged constants, we may be able to skip the runtime check: every
+  // non-tagged arm of the switch below emits a value-range check, which is
+  // exactly what `Smi::IsValid` proves. For tagged inputs the runtime check
+  // (CheckSmi) is a tag-bit check, and value-equivalence (e.g. via the
+  // checked_value alternative, which may hold a HeapNumber constant) does not
+  // imply Smi tagging.
+  if (object->value_representation() != ValueRepresentation::kTagged) {
+    if (std::optional<int32_t> constant_value = TryGetInt32Constant(object)) {
+      if (Smi::IsValid(constant_value.value())) return object;
+    }
   }
   switch (object->value_representation()) {
     case ValueRepresentation::kInt32:
