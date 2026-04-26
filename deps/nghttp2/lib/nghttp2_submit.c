@@ -57,7 +57,7 @@ static int32_t submit_headers_shared(nghttp2_session *session, uint8_t flags,
 
   nghttp2_outbound_item_init(item);
 
-  if (dpw != NULL && dpw->data_prd.read_callback != NULL) {
+  if (dpw != NULL && nghttp2_data_provider_wrap_contains_read_callback(dpw)) {
     item->aux_data.headers.dpw = *dpw;
   }
 
@@ -649,7 +649,7 @@ fail_item_malloc:
 
 static uint8_t set_request_flags(const nghttp2_data_provider_wrap *dpw) {
   uint8_t flags = NGHTTP2_FLAG_NONE;
-  if (dpw == NULL || dpw->data_prd.read_callback == NULL) {
+  if (dpw == NULL || !nghttp2_data_provider_wrap_contains_read_callback(dpw)) {
     flags |= NGHTTP2_FLAG_END_STREAM;
   }
 
@@ -700,7 +700,7 @@ int32_t nghttp2_submit_request2(nghttp2_session *session,
 
 static uint8_t set_response_flags(const nghttp2_data_provider_wrap *dpw) {
   uint8_t flags = NGHTTP2_FLAG_NONE;
-  if (dpw == NULL || dpw->data_prd.read_callback == NULL) {
+  if (dpw == NULL || !nghttp2_data_provider_wrap_contains_read_callback(dpw)) {
     flags |= NGHTTP2_FLAG_END_STREAM;
   }
   return flags;
