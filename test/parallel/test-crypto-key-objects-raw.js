@@ -42,7 +42,7 @@ const { hasOpenSSL } = require('../common/crypto');
   const rawPub = pubKeyObj.export({ format: 'raw-public' });
   const rawPriv = privKeyObj.export({ format: 'raw-private' });
 
-  for (const encoding of ['hex', 'base64']) {
+  for (const encoding of ['hex', 'base64', 'utf8', 'latin1', 'ascii']) {
     assert.throws(() => crypto.createPublicKey({
       key: rawPub.toString(encoding),
       encoding,
