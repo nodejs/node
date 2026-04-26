@@ -3,8 +3,9 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "crypto/crypto_util.h"
 #include "async_wrap.h"
+#include "crypto/crypto_keys.h"
+#include "crypto/crypto_util.h"
 #include "env.h"
 #include "memory_tracker.h"
 #include "v8.h"
@@ -26,6 +27,7 @@ namespace crypto {
 
 struct PBKDF2Config final : public MemoryRetainer {
   CryptoJobMode mode;
+  KeyObjectData key;
   ByteSource pass;
   ByteSource salt;
   int32_t iterations;

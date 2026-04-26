@@ -3,6 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "crypto/crypto_keys.h"
 #include "crypto/crypto_util.h"
 
 namespace node::crypto {
@@ -22,6 +23,7 @@ namespace node::crypto {
 
 struct Argon2Config final : public MemoryRetainer {
   CryptoJobMode mode;
+  KeyObjectData key;
   ByteSource pass;
   ByteSource salt;
   ByteSource secret;
