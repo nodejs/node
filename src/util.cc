@@ -894,4 +894,18 @@ HeapProfileOptions ParseHeapProfileOptions(
   return options;
 }
 
+CpuProfileOptions ParseCpuProfileOptions(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  CpuProfileOptions options;
+  CHECK_LE(args.Length(), 2);
+  if (args.Length() > 0) {
+    CHECK(args[0]->IsInt32());
+    options.sampling_interval_us = args[0].As<v8::Int32>()->Value();
+  }
+  if (args.Length() > 1) {
+    CHECK(args[1]->IsUint32());
+    options.max_samples = args[1].As<v8::Uint32>()->Value();
+  }
+  return options;
+}
 }  // namespace node
