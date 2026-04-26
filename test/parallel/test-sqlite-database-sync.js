@@ -353,6 +353,7 @@ suite('DatabaseSync.prototype.close()', () => {
 
     const select = db.prepare('SELECT * FROM data');
     const insert = db.prepare('INSERT INTO data (key, val) VALUES (?, ?)');
+    const iterator = select.iterate();
 
     t.assert.strictEqual(db.close(), undefined);
     t.assert.strictEqual(db.isOpen, false);
@@ -379,7 +380,19 @@ suite('DatabaseSync.prototype.close()', () => {
       message: /statement has been finalized/,
     });
     t.assert.throws(() => {
+      select.iterate();
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+    t.assert.throws(() => {
       insert.run(2, 4);
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+    t.assert.throws(() => {
+      iterator.next();
     }, {
       code: 'ERR_INVALID_STATE',
       message: /statement has been finalized/,
@@ -399,6 +412,7 @@ suite('DatabaseSync.prototype.close()', () => {
 
     const select = db.prepare('SELECT * FROM data');
     const insert = db.prepare('INSERT INTO data (key, val) VALUES (?, ?)');
+    const iterator = select.iterate();
 
     db.close();
     db.open();
@@ -416,7 +430,19 @@ suite('DatabaseSync.prototype.close()', () => {
       message: /statement has been finalized/,
     });
     t.assert.throws(() => {
+      select.iterate();
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+    t.assert.throws(() => {
       insert.run(2, 4);
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+    t.assert.throws(() => {
+      iterator.next();
     }, {
       code: 'ERR_INVALID_STATE',
       message: /statement has been finalized/,

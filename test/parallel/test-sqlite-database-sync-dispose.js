@@ -40,6 +40,7 @@ suite('DatabaseSync.prototype[Symbol.dispose]()', () => {
 
     const select = db.prepare('SELECT * FROM data');
     const insert = db.prepare('INSERT INTO data (key, val) VALUES (?, ?)');
+    const iterator = select.iterate();
 
     db[Symbol.dispose]();
     assert.strictEqual(db.isOpen, false);
@@ -66,7 +67,19 @@ suite('DatabaseSync.prototype[Symbol.dispose]()', () => {
       message: /statement has been finalized/,
     });
     assert.throws(() => {
+      select.iterate();
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+    assert.throws(() => {
       insert.run(2, 4);
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+    assert.throws(() => {
+      iterator.next();
     }, {
       code: 'ERR_INVALID_STATE',
       message: /statement has been finalized/,
