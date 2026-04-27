@@ -3280,7 +3280,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       }
       if (catch_case.kind == kCatchRef || catch_case.kind == kCatchAllRef) {
         stack_.EnsureMoreCapacity(1, this->zone_);
-        Push(kWasmExnRef);
+        Push(ValueType::Ref(HeapType::kExn));
         push_count += 1;
       }
       Control* target = control_at(catch_case.br_imm.depth);
@@ -3306,14 +3306,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
   DECODE(ThrowRef) {
     this->detected_->Add(kFeature_exnref);
-    Value value = Pop();
-    if (!VALIDATE(
-            (value.type.kind() == kRef || value.type.kind() == kRefNull) &&
-            value.type.heap_type() == HeapType::kExn)) {
-      this->DecodeError("invalid type for throw_ref: expected exnref, found %s",
-                        value.type.name().c_str());
-      return 0;
-    }
+    Value value = Pop(kWasmExnRef);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(ThrowRef, &value);
     MarkMightThrow();
     EndControl();
@@ -3490,7 +3483,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         if (!VALIDATE(TypeCheckOneArmedIf(c))) return 0;
       }
       if (c->is_try_table()) {
-        current_catch_ = c->previous_catch;
+        // "Pop" the {current_catch_} index. We did not push it if the block has
+        // no handler, so also skip it here in this case.
+        if (c->catch_cases.size() > 0) {
+          current_catch_ = c->previous_catch;
+        }
         FallThrough();
         // Temporarily set the reachability for the catch handlers, and restore
         // it before we actually exit the try block.
@@ -3509,7 +3506,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           }
           if (catch_case.kind == kCatchRef || catch_case.kind == kCatchAllRef) {
             stack_.EnsureMoreCapacity(1, this->zone_);
-            Push(kWasmExnRef);
+            Push(ValueType::Ref(HeapType::kExn));
             push_count += 1;
           }
           base::Vector<Value> values(
@@ -4659,7 +4656,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
            ((!null_succeeds || !obj.type.is_nullable()) &&
             (expected_type.representation() == HeapType::kNone ||
              expected_type.representation() == HeapType::kNoFunc ||
-             expected_type.representation() == HeapType::kNoExtern));
+             expected_type.representation() == HeapType::kNoExtern ||
+             expected_type.representation() == HeapType::kNoExn));
   }
   bool TypeCheckAlwaysFails(Value obj, uint32_t ref_index) {
     // All old casts / checks treat null as failure.

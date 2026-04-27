@@ -931,8 +931,7 @@ class LiftoffCompiler {
           ValueType type = decoder->local_types_[local_index];
           if (type.is_reference()) {
             __ Spill(__ cache_state()->stack_state[local_index].offset(),
-                     IsSubtypeOf(type, kWasmExternRef, decoder->module_) ||
-                             IsSubtypeOf(type, kWasmExnRef, decoder->module_)
+                     IsSubtypeOf(type, kWasmExternRef, decoder->module_)
                          ? LiftoffRegister(null_ref_reg)
                          : LiftoffRegister(wasm_null_ref_reg),
                      type.kind());
@@ -1548,23 +1547,104 @@ class LiftoffCompiler {
                          wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
                              catch_case.maybe_tag.tag_imm.index));
 
+    VarState exn = __ cache_state() -> stack_state.back();
+
     CODE_COMMENT("compare tags");
-    {
-      FREEZE_STATE(frozen);
-      Label caught;
-      __ emit_cond_jump(kEqual, &caught, kRefNull, imm_tag, caught_tag.gp(),
-                        frozen);
-      // The tags don't match, merge the current state into the catch state
-      // and jump to the next handler.
-      __ MergeFullStackWith(block->try_info->catch_state);
-      __ emit_jump(&block->try_info->catch_label);
-      __ bind(&caught);
+    if (catch_case.maybe_tag.tag_imm.tag->sig->parameter_count() == 1 &&
+        catch_case.maybe_tag.tag_imm.tag->sig->GetParam(0) == kWasmExternRef) {
+      // Check for the special case where the tag is WebAssembly.JSTag and the
+      // exception is not a WebAssembly.Exception. In this case the exception is
+      // caught and pushed on the operand stack.
+      // Only perform this check if the tag signature is the same as
+      // the JSTag signature, i.e. a single externref, otherwise we know
+      // statically that it cannot be the JSTag.
+      LiftoffRegister undefined =
+          pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+      __ LoadFullPointer(
+          undefined.gp(), kRootRegister,
+          IsolateData::root_slot_offset(RootIndex::kUndefinedValue));
+      LiftoffRegister js_tag = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+      LOAD_TAGGED_PTR_INSTANCE_FIELD(js_tag.gp(), NativeContext, pinned);
+      __ LoadTaggedPointer(
+          js_tag.gp(), js_tag.gp(), no_reg,
+          NativeContext::SlotOffset(Context::WASM_JS_TAG_INDEX));
+      __ LoadTaggedPointer(
+          js_tag.gp(), js_tag.gp(), no_reg,
+          wasm::ObjectAccess::ToTagged(WasmTagObject::kTagOffset));
+      {
+        LiftoffAssembler::CacheState initial_state(zone_);
+        LiftoffAssembler::CacheState end_state(zone_);
+        Label js_exception;
+        Label done;
+        Label uncaught;
+        initial_state.Split(*__ cache_state());
+        {
+          FREEZE_STATE(state_merged_explicitly);
+          // If the tag is undefined, this is not a wasm exception. Go to a
+          // different block to process the JS exception. Otherwise compare it
+          // with the expected tag.
+          __ emit_cond_jump(kEqual, &js_exception, kRefNull, caught_tag.gp(),
+                            undefined.gp(), state_merged_explicitly);
+          __ emit_cond_jump(kNotEqual, &uncaught, kRefNull, imm_tag,
+                            caught_tag.gp(), state_merged_explicitly);
+        }
+        // Case 1: A wasm exception with a matching tag.
+        CODE_COMMENT("unpack exception");
+        GetExceptionValues(decoder, __ cache_state()->stack_state.back(),
+                           catch_case.maybe_tag.tag_imm.tag);
+        // GetExceptionValues modified the cache state. Remember the new state
+        // to merge the end state of case 2 into it.
+        end_state.Steal(*__ cache_state());
+        __ emit_jump(&done);
+
+        __ bind(&js_exception);
+        __ cache_state() -> Split(initial_state);
+        {
+          FREEZE_STATE(state_merged_explicitly);
+          __ emit_cond_jump(kNotEqual, &uncaught, kRefNull, imm_tag,
+                            js_tag.gp(), state_merged_explicitly);
+        }
+        // Case 2: A JS exception, and the expected tag is JSTag.
+        // TODO(thibaudm): Can we avoid some state splitting/stealing by
+        // reserving this register earlier and not modifying the state in this
+        // block?
+        CODE_COMMENT("JS exception caught by JSTag");
+        LiftoffRegister exception = __ PeekToRegister(0, pinned);
+        __ PushRegister(kRefNull, exception);
+        // The exception is now on the stack twice: once as an implicit operand
+        // for rethrow, and once as the "unpacked" value.
+        __ MergeFullStackWith(end_state);
+        __ emit_jump(&done);
+
+        // Case 3: Either a wasm exception with a mismatching tag, or a JS
+        // exception but the expected tag is not JSTag.
+        __ bind(&uncaught);
+        __ cache_state() -> Steal(initial_state);
+        __ MergeFullStackWith(block->try_info->catch_state);
+        __ emit_jump(&block->try_info->catch_label);
+
+        __ bind(&done);
+        __ cache_state() -> Steal(end_state);
+      }
+    } else {
+      {
+        FREEZE_STATE(frozen);
+        Label caught;
+        __ emit_cond_jump(kEqual, &caught, kRefNull, imm_tag, caught_tag.gp(),
+                          frozen);
+        // The tags don't match, merge the current state into the catch state
+        // and jump to the next handler.
+        __ MergeFullStackWith(block->try_info->catch_state);
+        __ emit_jump(&block->try_info->catch_label);
+        __ bind(&caught);
+      }
+
+      CODE_COMMENT("unpack exception");
+      pinned = {};
+      GetExceptionValues(decoder, __ cache_state()->stack_state.back(),
+                         catch_case.maybe_tag.tag_imm.tag);
     }
 
-    CODE_COMMENT("unpack exception");
-    pinned = {};
-    VarState exn = __ cache_state()->stack_state.back();
-    GetExceptionValues(decoder, exn, catch_case.maybe_tag.tag_imm.tag);
     if (catch_case.kind == kCatchRef) {
       // Append the exception on the operand stack.
       DCHECK(exn.is_stack());
@@ -1587,7 +1667,7 @@ class LiftoffCompiler {
   void ThrowRef(FullDecoder* decoder, Value*) {
     // Like Rethrow, but pops the exception from the stack.
     VarState exn = __ PopVarState();
-    CallBuiltin(Builtin::kWasmRethrow, MakeSig::Params(kRef), {exn},
+    CallBuiltin(Builtin::kWasmThrowRef, MakeSig::Params(kRef), {exn},
                 decoder->position());
     int pc_offset = __ pc_offset();
     MaybeOSR();
@@ -2541,8 +2621,7 @@ class LiftoffCompiler {
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
     if (null_check_strategy_ == compiler::NullCheckStrategy::kExplicit ||
         IsSubtypeOf(kWasmI31Ref.AsNonNull(), arg.type, decoder->module_) ||
-        IsSubtypeOf(arg.type, kWasmExternRef, decoder->module_) ||
-        IsSubtypeOf(arg.type, kWasmExnRef, decoder->module_)) {
+        IsSubtypeOf(arg.type, kWasmExternRef, decoder->module_)) {
       // Use an explicit null check if
       // (1) we cannot use trap handler or
       // (2) the object might be a Smi or
@@ -6580,6 +6659,7 @@ class LiftoffCompiler {
       case HeapType::kNone:
       case HeapType::kNoExtern:
       case HeapType::kNoFunc:
+      case HeapType::kNoExn:
         DCHECK(null_succeeds);
         return AssertNullTypecheck(decoder, obj, result_val);
       case HeapType::kAny:
@@ -6674,6 +6754,7 @@ class LiftoffCompiler {
       case HeapType::kNone:
       case HeapType::kNoExtern:
       case HeapType::kNoFunc:
+      case HeapType::kNoExn:
         DCHECK(null_succeeds);
         return BrOnNull(decoder, obj, depth, /*pass_null_along_branch*/ true,
                         nullptr);
@@ -6707,6 +6788,7 @@ class LiftoffCompiler {
       case HeapType::kNone:
       case HeapType::kNoExtern:
       case HeapType::kNoFunc:
+      case HeapType::kNoExn:
         DCHECK(null_succeeds);
         return BrOnNonNull(decoder, obj, nullptr, depth,
                            /*drop_null_on_fallthrough*/ false);
@@ -8169,11 +8251,9 @@ class LiftoffCompiler {
   }
 
   void LoadNullValue(Register null, ValueType type) {
-    // TODO(thibaudm): Can we use wasm null for exnref?
     __ LoadFullPointer(
         null, kRootRegister,
-        type == kWasmExternRef || type == kWasmNullExternRef ||
-                type == kWasmExnRef || type == kWasmNullExnRef
+        type == kWasmExternRef || type == kWasmNullExternRef
             ? IsolateData::root_slot_offset(RootIndex::kNullValue)
             : IsolateData::root_slot_offset(RootIndex::kWasmNull));
   }
@@ -8186,8 +8266,7 @@ class LiftoffCompiler {
                                ValueType type) {
 #if V8_STATIC_ROOTS_BOOL
     // TODO(14616): Extend this for shared types.
-    bool is_wasm_null = type != kWasmExternRef && type != kWasmNullExternRef &&
-                        type != kWasmExnRef && type != kWasmNullExnRef;
+    bool is_wasm_null = type != kWasmExternRef && type != kWasmNullExternRef;
     uint32_t value = is_wasm_null ? StaticReadOnlyRoot::kWasmNull
                                   : StaticReadOnlyRoot::kNullValue;
     __ LoadConstant(LiftoffRegister(null),

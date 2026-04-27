@@ -373,7 +373,12 @@ builtin WasmThrow(tag: Object, values: FixedArray): JSAny {
 }
 
 builtin WasmRethrow(exception: Object): JSAny {
-  if (exception == Null) tail ThrowWasmTrapRethrowNull();
+  dcheck(exception != kWasmNull);
+  tail runtime::WasmReThrow(LoadContextFromFrame(), exception);
+}
+
+builtin WasmThrowRef(exception: Object): JSAny {
+  if (exception == kWasmNull) tail ThrowWasmTrapRethrowNull();
   tail runtime::WasmReThrow(LoadContextFromFrame(), exception);
 }
 

@@ -2994,7 +2994,7 @@ TEST_F(FunctionBodyDecoderTest, TryTable) {
        U32V_1(1), CatchKind::kCatchAllRef, U32V_1(0), kExprEnd,
        kExprUnreachable, kExprEnd, kExprDrop},
       kAppendEnd);
-  // // Duplicate catch-all.
+  // Duplicate catch-all.
   ExpectValidates(
       sigs.v_v(),
       {kExprBlock, kExnRefCode, WASM_TRY_TABLE_OP, U32V_1(4),
@@ -3002,11 +3002,20 @@ TEST_F(FunctionBodyDecoderTest, TryTable) {
        CatchKind::kCatchAllRef, U32V_1(0), CatchKind::kCatchAllRef, U32V_1(0),
        kExprEnd, kExprUnreachable, kExprEnd, kExprDrop},
       kAppendEnd);
-  // // Catch-all before catch.
+  // Catch-all before catch.
   ExpectValidates(
       sigs.v_v(),
       {WASM_TRY_TABLE_OP, U32V_1(2), CatchKind::kCatchAll, U32V_1(0),
        CatchKind::kCatch, ex, U32V_1(0), kExprEnd, kExprUnreachable},
+      kAppendEnd);
+  // Non-nullable exnref.
+  ValueType kNonNullableExnRef = ValueType::Ref(HeapType::kExn);
+  auto sig = FixedSizeSignature<ValueType>::Returns(kNonNullableExnRef);
+  uint8_t sig_id = builder.AddSignature(&sig);
+  ExpectValidates(
+      sigs.v_v(),
+      {kExprBlock, sig_id, WASM_TRY_TABLE_OP, U32V_1(1), CatchKind::kCatchRef,
+       ex, U32V_1(0), kExprEnd, kExprUnreachable, kExprEnd, kExprDrop},
       kAppendEnd);
 
   constexpr uint8_t kInvalidCatchKind = kLastCatchKind + 1;

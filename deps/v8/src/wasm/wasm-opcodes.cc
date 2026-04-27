@@ -38,6 +38,8 @@ bool IsJSCompatibleSignature(const FunctionSig* sig) {
         case HeapType::kStringViewWtf8:
         case HeapType::kStringViewWtf16:
         case HeapType::kStringViewIter:
+        case HeapType::kExn:
+        case HeapType::kNoExn:
           return false;
         default:
           break;

@@ -1281,9 +1281,12 @@ i::Handle<i::HeapObject> DefaultReferenceValue(i::Isolate* isolate,
   DCHECK(type.is_object_reference());
   // Use undefined for JS type (externref) but null for wasm types as wasm does
   // not know undefined.
-  if (type.heap_representation() == i::wasm::HeapType::kExtern ||
-      type.heap_representation() == i::wasm::HeapType::kNoExtern) {
+  if (type.heap_representation() == i::wasm::HeapType::kExtern) {
     return isolate->factory()->undefined_value();
+  } else if (type.heap_representation() == i::wasm::HeapType::kNoExtern ||
+             type.heap_representation() == i::wasm::HeapType::kExn ||
+             type.heap_representation() == i::wasm::HeapType::kNoExn) {
+    return isolate->factory()->null_value();
   }
   return isolate->factory()->wasm_null();
 }
@@ -1852,7 +1855,8 @@ void WebAssemblyTagImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
       i::wasm::GetWasmEngine()->type_canonicalizer()->AddRecursiveGroup(&sig);
 
   i::Handle<i::JSObject> tag_object =
-      i::WasmTagObject::New(i_isolate, &sig, canonical_type_index, tag);
+      i::WasmTagObject::New(i_isolate, &sig, canonical_type_index, tag,
+                            i_isolate->factory()->undefined_value());
   info.GetReturnValue().Set(Utils::ToLocal(tag_object));
 }
 
@@ -1898,6 +1902,7 @@ uint32_t GetEncodedSize(i::Handle<i::WasmTagObject> tag_object) {
 
 void EncodeExceptionValues(v8::Isolate* isolate,
                            i::Handle<i::PodArray<i::wasm::ValueType>> signature,
+                           i::Handle<i::WasmTagObject> tag_object,
                            const Local<Value>& arg, ErrorThrower* thrower,
                            i::Handle<i::FixedArray> values_out) {
   Local<Context> context = isolate->GetCurrentContext();
@@ -1955,6 +1960,19 @@ void EncodeExceptionValues(v8::Isolate* isolate,
       case i::wasm::kRefNull: {
         const char* error_message;
         i::Handle<i::Object> value_handle = Utils::OpenHandle(*value);
+
+        if (type.has_index()) {
+          // Canonicalize the type using the tag's original module.
+          i::Tagged<i::HeapObject> maybe_instance = tag_object->instance();
+          CHECK(!i::IsUndefined(maybe_instance));
+          auto instance = i::WasmInstanceObject::cast(maybe_instance);
+          const i::wasm::WasmModule* module = instance->module();
+          uint32_t canonical_index =
+              module->isorecursive_canonical_type_ids[type.ref_index()];
+          type = i::wasm::ValueType::RefMaybeNull(canonical_index,
+                                                  type.nullability());
+        }
+
         if (!internal::wasm::JSToWasmObject(i_isolate, value_handle, type,
                                             &error_message)
                  .ToHandle(&value_handle)) {
@@ -1964,12 +1982,14 @@ void EncodeExceptionValues(v8::Isolate* isolate,
         values_out->set(index++, *value_handle);
         break;
       }
+      case i::wasm::kS128:
+        thrower->TypeError("Invalid type v128");
+        return;
       case i::wasm::kRtt:
       case i::wasm::kI8:
       case i::wasm::kI16:
       case i::wasm::kVoid:
       case i::wasm::kBottom:
-      case i::wasm::kS128:
         UNREACHABLE();
     }
   }
@@ -2001,6 +2021,11 @@ void WebAssemblyExceptionImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
       i::Handle<i::WasmTagObject>::cast(arg0);
   i::Handle<i::WasmExceptionTag> tag(
       i::WasmExceptionTag::cast(tag_object->tag()), i_isolate);
+  auto js_tag = i::WasmTagObject::cast(i_isolate->context()->wasm_js_tag());
+  if (*tag == js_tag->tag()) {
+    thrower.TypeError("Argument 0 cannot be WebAssembly.JSTag");
+    return;
+  }
   uint32_t size = GetEncodedSize(tag_object);
   i::Handle<i::WasmExceptionPackage> runtime_exception =
       i::WasmExceptionPackage::New(i_isolate, tag, size);
@@ -2010,7 +2035,8 @@ void WebAssemblyExceptionImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
                                                   runtime_exception));
   i::Handle<i::PodArray<i::wasm::ValueType>> signature(
       tag_object->serialized_signature(), i_isolate);
-  EncodeExceptionValues(isolate, signature, info[1], &thrower, values);
+  EncodeExceptionValues(isolate, signature, tag_object, info[1], &thrower,
+                        values);
   if (thrower.error()) return;
 
   // Third argument: optional ExceptionOption ({traceStack: <bool>}).
@@ -2022,11 +2048,12 @@ void WebAssemblyExceptionImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     Local<Context> context = isolate->GetCurrentContext();
     Local<Object> trace_stack_obj = Local<Object>::Cast(info[2]);
     Local<String> trace_stack_key = v8_str(isolate, "traceStack");
-    v8::MaybeLocal<v8::Value> maybe_trace_stack =
-        trace_stack_obj->Get(context, trace_stack_key);
     v8::Local<Value> trace_stack_value;
-    if (maybe_trace_stack.ToLocal(&trace_stack_value) &&
-        trace_stack_value->BooleanValue(isolate)) {
+    if (!trace_stack_obj->Get(context, trace_stack_key)
+             .ToLocal(&trace_stack_value)) {
+      return;
+    }
+    if (trace_stack_value->BooleanValue(isolate)) {
       auto caller = Utils::OpenHandle(*info.NewTarget());
 
       i::Handle<i::Object> capture_result;
@@ -2445,9 +2472,9 @@ void WebAssemblyTableGrowImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
 namespace {
 void WasmObjectToJSReturnValue(v8::ReturnValue<v8::Value>& return_value,
                                i::Handle<i::Object> value,
-                               i::wasm::HeapType type, i::Isolate* isolate,
+                               i::wasm::ValueType type, i::Isolate* isolate,
                                ErrorThrower* thrower) {
-  switch (type.representation()) {
+  switch (type.heap_type().representation()) {
     case internal::wasm::HeapType::kStringViewWtf8:
       thrower->TypeError("%s", "stringview_wtf8 has no JS representation");
       break;
@@ -2456,6 +2483,10 @@ void WasmObjectToJSReturnValue(v8::ReturnValue<v8::Value>& return_value,
       break;
     case internal::wasm::HeapType::kStringViewIter:
       thrower->TypeError("%s", "stringview_iter has no JS representation");
+      break;
+    case internal::wasm::HeapType::kExn:
+    case internal::wasm::HeapType::kNoExn:
+      thrower->TypeError("invalid type %s", type.name().c_str());
       break;
     default: {
       return_value.Set(Utils::ToLocal(i::wasm::WasmToJSObject(isolate, value)));
@@ -2490,8 +2521,8 @@ void WebAssemblyTableGetImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
       i::WasmTableObject::Get(i_isolate, receiver, index);
 
   v8::ReturnValue<v8::Value> return_value = info.GetReturnValue();
-  WasmObjectToJSReturnValue(return_value, result, receiver->type().heap_type(),
-                            i_isolate, &thrower);
+  WasmObjectToJSReturnValue(return_value, result, receiver->type(), i_isolate,
+                            &thrower);
 }
 
 // WebAssembly.Table.set(num, any)
@@ -2723,12 +2754,14 @@ void WebAssemblyExceptionGetArgImpl(
       case i::wasm::kRefNull:
         decode_index++;
         break;
+      case i::wasm::kS128:
+        decode_index += 8;
+        break;
       case i::wasm::kRtt:
       case i::wasm::kI8:
       case i::wasm::kI16:
       case i::wasm::kVoid:
       case i::wasm::kBottom:
-      case i::wasm::kS128:
         UNREACHABLE();
     }
   }
@@ -2767,16 +2800,17 @@ void WebAssemblyExceptionGetArgImpl(
     case i::wasm::kRefNull: {
       i::Handle<i::Object> obj = handle(values->get(decode_index), i_isolate);
       ReturnValue<Value> return_value = info.GetReturnValue();
-      return WasmObjectToJSReturnValue(return_value, obj,
-                                       signature->get(index).heap_type(),
+      return WasmObjectToJSReturnValue(return_value, obj, signature->get(index),
                                        i_isolate, &thrower);
     }
+    case i::wasm::kS128:
+      thrower.TypeError("Invalid type v128");
+      return;
     case i::wasm::kRtt:
     case i::wasm::kI8:
     case i::wasm::kI16:
     case i::wasm::kVoid:
     case i::wasm::kBottom:
-    case i::wasm::kS128:
       UNREACHABLE();
   }
   info.GetReturnValue().Set(result);
@@ -2836,8 +2870,7 @@ void WebAssemblyGlobalGetValueCommon(
     case i::wasm::kRef:
     case i::wasm::kRefNull: {
       WasmObjectToJSReturnValue(return_value, receiver->GetRef(),
-                                receiver->type().heap_type(), i_isolate,
-                                &thrower);
+                                receiver->type(), i_isolate, &thrower);
       break;
     }
     case i::wasm::kRtt:
@@ -3224,9 +3257,9 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
     // Note the canonical_type_index is reset in WasmJs::Install s.t.
     // type_canonicalizer bookkeeping remains valid.
     static constexpr uint32_t kInitialCanonicalTypeIndex = 0;
-    Handle<JSObject> js_tag_object =
-        WasmTagObject::New(isolate, &kWasmExceptionTagSignature,
-                           kInitialCanonicalTypeIndex, js_tag);
+    Handle<JSObject> js_tag_object = WasmTagObject::New(
+        isolate, &kWasmExceptionTagSignature, kInitialCanonicalTypeIndex,
+        js_tag, isolate->factory()->undefined_value());
     native_context->set_wasm_js_tag(*js_tag_object);
     JSObject::AddProperty(isolate, webassembly, "JSTag", js_tag_object,
                           ro_attributes);

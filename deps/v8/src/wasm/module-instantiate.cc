@@ -2655,8 +2655,10 @@ void InstanceBuilder::ProcessExports(
               isolate_);
           uint32_t canonical_sig_index =
               module_->isorecursive_canonical_type_ids[tag.sig_index];
+          Handle<WasmInstanceObject> instance =
+              handle(trusted_instance_data->instance_object(), isolate_);
           wrapper = WasmTagObject::New(isolate_, tag.sig, canonical_sig_index,
-                                       tag_object);
+                                       tag_object, instance);
           tags_wrappers_[exp.index] = wrapper;
         }
         value = wrapper;
