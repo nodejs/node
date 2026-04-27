@@ -73,8 +73,9 @@ jobs:
             ':(exclude)CHANGELOG.md' \
             ':(exclude)src/node_version.h' \
             ':(exclude)test/parallel/test-process-release.js' \
+            ':(exclude)doc/abi_version_registry.json' \
             ':(exclude)doc/api/' \
-            ":(exclude)doc/changelogs/CHANGELOG_V$MAJOR.md")" ]
+            ":(exclude)doc/changelogs/")" ]
       - name: Validate CHANGELOG
         id: releaser-info
         run: |
