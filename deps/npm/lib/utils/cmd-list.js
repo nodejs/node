@@ -98,6 +98,7 @@ const aliases = {
   i: 'install',
   it: 'install-test',
   cit: 'install-ci-test',
+  u: 'update',
   up: 'update',
   c: 'config',
   s: 'search',
