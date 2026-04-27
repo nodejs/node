@@ -70,17 +70,5 @@ for (const hash of hashesWithFips) {
 setFips(false);
 assert.strictEqual(getFips(), 0);
 
-assert.deepStrictEqual(
-  getCiphers(),
-  ciphersWithoutFips,
-  'getCiphers() should match pre-FIPS list after setFips(false)'
-);
-assert.deepStrictEqual(
-  getHashes(),
-  hashesWithoutFips,
-  'getHashes() should match pre-FIPS list after setFips(false)'
-);
-
-// Restore the original FIPS state.
-if (initialFips)
-  setFips(true);
+assert.deepStrictEqual(getCiphers(), ciphersWithoutFips);
+assert.deepStrictEqual(getHashes(), hashesWithoutFips);
