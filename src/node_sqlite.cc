@@ -97,7 +97,12 @@ void BindingData::CreatePerContextProperties(Local<Object> target,
                                              Local<Context> context,
                                              void* priv) {
   Realm* realm = Realm::GetCurrent(context);
-  realm->AddBindingData<BindingData>(target);
+  Environment* env = realm->env();
+  Realm* principal = env->principal_realm();
+
+  if (principal->GetBindingData<BindingData>() != nullptr) return;
+
+  principal->AddBindingData<BindingData>(target);
 }
 
 #define CHECK_ERROR_OR_THROW(isolate, db, expr, expected, ret)                 \
