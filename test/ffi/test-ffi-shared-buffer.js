@@ -82,13 +82,13 @@ test('i64/u64 BigInt round-trip', () => {
 });
 
 test('zero-arg function', () => {
-  const { lib, functions } = ffi.dlopen(null, {
-    uv_os_getpid: { result: 'i32', parameters: [] },
+  const { lib, functions } = ffi.dlopen(libraryPath, {
+    char_is_signed: { result: 'i32', parameters: [] },
   });
   try {
-    const pid = functions.uv_os_getpid();
-    assert.strictEqual(typeof pid, 'number');
-    assert.ok(pid > 0);
+    const result = functions.char_is_signed();
+    assert.strictEqual(typeof result, 'number');
+    assert.ok(result === 0 || result === 1);
   } finally {
     lib.close();
   }
