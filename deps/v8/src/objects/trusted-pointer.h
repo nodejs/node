@@ -99,9 +99,9 @@ class TrustedPointerField {
   // Like ReadTrustedPointerField, but if the field is cleared, this will
   // return Smi::zero().
   template <IndirectPointerTagRange tag_range>
-  static inline Tagged<Object> ReadMaybeEmptyTrustedPointerField(
-      Tagged<HeapObject> host, size_t offset, IsolateForSandbox isolate,
-      AcquireLoadTag);
+  static inline Tagged<Union<Smi, TrustedTypeFor<tag_range>>>
+  ReadMaybeEmptyTrustedPointerField(Tagged<HeapObject> host, size_t offset,
+                                    IsolateForSandbox isolate, AcquireLoadTag);
 
   template <IndirectPointerTagRange tag_range>
   static inline void WriteTrustedPointerField(
@@ -137,23 +137,43 @@ class TrustedPointerField {
 // TODO(leszeks): Remove TrustedPointerField (and update these comments) when
 // all objects are ported.
 template <typename T, IndirectPointerTagRange kTagRange>
-class TrustedPointerMember {
+class TrustedPointerMember
+#ifndef V8_ENABLE_SANDBOX
+    // On non-sandbox builds, TrustedPointerMember is just a TaggedMember with
+    // custom accessors, which allows it to be passed to Slots same as a
+    // TaggedMember.
+    : public TaggedMember<T>
+#endif
+{
  public:
   constexpr TrustedPointerMember() = default;
 
   inline Tagged<T> load(IsolateForSandbox isolate) const;
-  inline Tagged<Object> load_maybe_empty(IsolateForSandbox isolate,
-                                         AcquireLoadTag) const;
+  inline Tagged<Object> load_maybe_empty(IsolateForSandbox isolate) const;
   inline void store(HeapObjectLayout* host, Tagged<T> value,
                     WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void store_no_write_barrier(HeapObjectLayout* host, Tagged<T> value);
+
+  inline Tagged<T> Acquire_Load(IsolateForSandbox isolate) const;
+  inline Tagged<Object> Acquire_Load_maybe_empty(
+      IsolateForSandbox isolate) const;
+  inline void Release_Store(HeapObjectLayout* host, Tagged<T> value,
+                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void Release_Store_no_write_barrier(HeapObjectLayout* host,
+                                             Tagged<T> value);
+
+  inline bool is_empty() const;
   inline void clear(HeapObjectLayout* host);
 
  private:
 #ifdef V8_ENABLE_SANDBOX
+  friend class IndirectPointerSlot;
+
+  inline Address storage_address() const;
+
   std::atomic<IndirectPointerHandle> handle_;
 #else
-  TaggedMember<T> member_;
+  using Base = TaggedMember<T>;
 #endif
 };
 

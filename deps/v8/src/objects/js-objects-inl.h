@@ -44,22 +44,6 @@ namespace v8::internal {
 
 #include "torque-generated/src/objects/js-objects-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSReceiver)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSObject)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSObjectWithEmbedderSlots)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSAPIObjectWithEmbedderSlots)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSCustomElementsObject)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSSpecialObject)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSAsyncFromSyncIterator)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSDate)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSGlobalObject)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSGlobalProxy)
-JSIteratorResult::JSIteratorResult(Address ptr) : JSObject(ptr) {}
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSMessageObject)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSPrimitiveWrapper)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSStringIterator)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSValidIteratorWrapper)
-
 DEF_GETTER(JSObject, elements, Tagged<FixedArrayBase>) {
   return TaggedField<FixedArrayBase, kElementsOffset>::load(cage_base, *this);
 }
@@ -320,9 +304,8 @@ int JSObject::GetHeaderSize(Tagged<Map> map) {
   // falling into the generic switch. This speeds up the internal
   // field operations considerably on average.
   InstanceType instance_type = map->instance_type();
-  return instance_type == JS_OBJECT_TYPE
-             ? JSObject::kHeaderSize
-             : GetHeaderSize(instance_type, map->has_prototype_slot());
+  return instance_type == JS_OBJECT_TYPE ? JSObject::kHeaderSize
+                                         : GetHeaderSize(instance_type);
 }
 
 // static
@@ -590,15 +573,25 @@ int JSObject::GetInObjectPropertyOffset(int index) {
   return map()->GetInObjectPropertyOffset(index);
 }
 
-Tagged<Object> JSObject::InObjectPropertyAt(int index) {
-  int offset = GetInObjectPropertyOffset(index);
+Tagged<Object> JSObject::InObjectPropertyAtOffset(int offset) {
+  DCHECK_GE(offset, GetInObjectPropertyOffset(0));
+  DCHECK_LT(offset, Size());
   return TaggedField<Object>::load(*this, offset);
 }
 
-Tagged<Object> JSObject::InObjectPropertyAtPut(int index, Tagged<Object> value,
-                                               WriteBarrierMode mode) {
+Tagged<Object> JSObject::InObjectPropertyPutAtIndex(int index,
+                                                    Tagged<Object> value,
+                                                    WriteBarrierMode mode) {
   // Adjust for the number of properties stored in the object.
-  int offset = GetInObjectPropertyOffset(index);
+  return InObjectPropertyPutAtOffset(GetInObjectPropertyOffset(index), value,
+                                     mode);
+}
+
+Tagged<Object> JSObject::InObjectPropertyPutAtOffset(int offset,
+                                                     Tagged<Object> value,
+                                                     WriteBarrierMode mode) {
+  DCHECK_GE(offset, GetInObjectPropertyOffset(0));
+  DCHECK_LT(offset, Size());
   WRITE_FIELD(*this, offset, value);
   CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
   return value;
@@ -686,8 +679,6 @@ JSObject::DefineOwnPropertyIgnoreAttributes(LookupIterator* it,
       semantics));
   return value;
 }
-
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSExternalObject)
 
 void* JSExternalObject::value(ExternalPointerTagRange tag_range) const {
   i::IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
@@ -890,6 +881,10 @@ RELEASE_ACQUIRE_ACCESSORS_CHECKED2(JSGlobalObject, global_dictionary,
                                    kPropertiesOrHashOffset,
                                    !HasFastProperties(cage_base), true)
 
+DEF_GETTER(JSGlobalObject, raw_global_proxy, Tagged<HeapObject>) {
+  return TaggedField<HeapObject, kGlobalProxyOffset>::load(cage_base, *this);
+}
+
 DEF_GETTER(JSObject, element_dictionary, Tagged<NumberDictionary>) {
   DCHECK(HasDictionaryElements(cage_base) ||
          HasSlowStringWrapperElements(cage_base));
@@ -973,7 +968,7 @@ void JSObject::EnsureWritableFastElements(Isolate* isolate,
   }
 }
 
-std::optional<Tagged<NativeContext>> JSReceiver::GetCreationContext() {
+std::optional<Tagged<NativeContext>> JSReceiver::GetCreationContext() const {
   DisallowGarbageCollection no_gc;
   Tagged<Map> meta_map = map()->map();
   DCHECK(IsMapMap(meta_map));
@@ -984,7 +979,7 @@ std::optional<Tagged<NativeContext>> JSReceiver::GetCreationContext() {
 }
 
 MaybeDirectHandle<NativeContext> JSReceiver::GetCreationContext(
-    Isolate* isolate) {
+    Isolate* isolate) const {
   DisallowGarbageCollection no_gc;
   std::optional<Tagged<NativeContext>> maybe_context = GetCreationContext();
   if (!maybe_context.has_value()) return {};
@@ -1013,7 +1008,7 @@ Maybe<bool> JSReceiver::HasPropertyOrElement(Isolate* isolate,
 
 Maybe<bool> JSReceiver::HasOwnProperty(Isolate* isolate,
                                        DirectHandle<JSReceiver> object,
-                                       uint32_t index) {
+                                       size_t index) {
   if (IsJSObject(*object)) {  // Shortcut.
     LookupIterator it(isolate, object, index, object, LookupIterator::OWN);
     return HasProperty(&it);
@@ -1042,7 +1037,7 @@ Maybe<PropertyAttributes> JSReceiver::GetOwnPropertyAttributes(
 }
 
 Maybe<PropertyAttributes> JSReceiver::GetOwnPropertyAttributes(
-    Isolate* isolate, DirectHandle<JSReceiver> object, uint32_t index) {
+    Isolate* isolate, DirectHandle<JSReceiver> object, size_t index) {
   LookupIterator it(isolate, object, index, object, LookupIterator::OWN);
   return GetPropertyAttributes(&it);
 }
@@ -1069,6 +1064,14 @@ bool JSGlobalObject::IsDetached() {
 
 bool JSGlobalProxy::IsDetachedFrom(Tagged<JSGlobalObject> global) const {
   return map()->prototype() != global;
+}
+
+bool JSGlobalProxy::IsDetached() const {
+  // Currently we expect a non-detached global proxy to have a non-null
+  // hidden prototype.
+  bool is_detached = IsNull(map()->prototype());
+  DCHECK_IMPLIES(is_detached, !GetCreationContext().has_value());
+  return is_detached;
 }
 
 inline int JSGlobalProxy::SizeWithEmbedderFields(int embedder_field_count) {

@@ -7,8 +7,7 @@
 #include "src/handles/global-handles-inl.h"
 #include "src/sandbox/external-pointer-table-inl.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 namespace {
 // Called by the GC in its second pass when a Managed<CppType> is
@@ -19,8 +18,12 @@ void ManagedObjectFinalizerSecondPass(const v8::WeakCallbackInfo<void>& data) {
   Isolate* isolate = reinterpret_cast<Isolate*>(data.GetIsolate());
   isolate->UnregisterManagedPtrDestructor(destructor);
   destructor->destructor_(destructor->shared_ptr_ptr_);
+  Isolate* accounter_isolate = destructor->shared_ == SharedFlag::kYes
+                                   ? isolate->shared_space_isolate()
+                                   : isolate;
   destructor->external_memory_accounter_.Decrease(
-      reinterpret_cast<v8::Isolate*>(isolate), destructor->estimated_size_);
+      reinterpret_cast<v8::Isolate*>(accounter_isolate),
+      destructor->estimated_size_);
 #ifdef V8_ENABLE_SANDBOX
   destructor->ZapExternalPointerTableEntry();
 #endif  // V8_ENABLE_SANDBOX
@@ -28,8 +31,21 @@ void ManagedObjectFinalizerSecondPass(const v8::WeakCallbackInfo<void>& data) {
 }
 }  // namespace
 
-// Called by the GC in its first pass when a Managed<CppType> is
-// garbage collected.
+void ManagedPtrDestructor::UpdateEstimatedSize(size_t new_estimated_size,
+                                               Isolate* isolate) {
+  if (estimated_size_ == new_estimated_size) return;
+
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+  if (estimated_size_ < new_estimated_size) {
+    external_memory_accounter_.Increase(v8_isolate,
+                                        new_estimated_size - estimated_size_);
+  } else {
+    external_memory_accounter_.Decrease(v8_isolate,
+                                        estimated_size_ - new_estimated_size);
+  }
+  estimated_size_ = new_estimated_size;
+}
+
 void ManagedObjectFinalizer(const v8::WeakCallbackInfo<void>& data) {
   auto destructor =
       reinterpret_cast<ManagedPtrDestructor*>(data.GetParameter());
@@ -40,5 +56,4 @@ void ManagedObjectFinalizer(const v8::WeakCallbackInfo<void>& data) {
   data.SetSecondPassCallback(&ManagedObjectFinalizerSecondPass);
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

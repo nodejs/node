@@ -143,7 +143,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     var builder = new WasmModuleBuilder();
     let super_struct = builder.addStruct([makeField(kWasmI32, true)]);
     let sub_struct = builder.addStruct(
-      [makeField(kWasmI32, true), makeField(kWasmI64, true)], super_struct);
+        {fields: [makeField(kWasmI32, true), makeField(kWasmI64, true)],
+         supertype: super_struct});
     let super_sig = builder.addType(makeSig([wasmRefNullType(sub_struct)],
                                             [kWasmI32]), kNoSuperType, false)
     let sub_sig = builder.addType(makeSig([wasmRefNullType(super_struct)],
@@ -160,7 +161,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   // These should canonicalize to the same types as the exporting instance.
   let super_struct = builder.addStruct([makeField(kWasmI32, true)]);
   let sub_struct = builder.addStruct(
-    [makeField(kWasmI32, true), makeField(kWasmI64, true)], super_struct);
+      {fields: [makeField(kWasmI32, true), makeField(kWasmI64, true)],
+       supertype: super_struct});
   let super_sig = builder.addType(
     makeSig([wasmRefNullType(sub_struct)], [kWasmI32]), kNoSuperType, false);
   builder.addImport("m", "f", super_sig);

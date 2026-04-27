@@ -43,7 +43,7 @@
 #if V8_TARGET_ARCH_PPC64
 
 #include "src/base/bits.h"
-#include "src/base/cpu.h"
+#include "src/base/cpu/cpu.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/ppc/assembler-ppc-inl.h"
 #include "src/deoptimizer/deoptimizer.h"

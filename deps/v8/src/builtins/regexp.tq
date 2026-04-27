@@ -38,7 +38,7 @@ macro IsFastRegExpPermissive(implicit context: Context)(
   BranchIfFastRegExp_Permissive(o) otherwise return true, return false;
 }
 
-// ES#sec-regexpexec Runtime Semantics: RegExpExec ( R, S )
+// https://tc39.es/ecma262/#sec-regexpexec
 @export
 transitioning macro RegExpExec(
     implicit context: Context)(receiver: JSReceiver, string: String): JSAny {
@@ -77,7 +77,7 @@ extern macro RegExpBuiltinsAssembler::RegExpExecInternal_Single(
     implicit context: Context)(JSRegExp, String,
     Number): RegExpMatchInfo labels IfDidNotMatch;
 
-// ES#sec-regexp.prototype.exec
+// https://tc39.es/ecma262/#sec-regexp.prototype.exec
 // RegExp.prototype.exec ( string )
 // Implements the core of RegExp.prototype.exec but without actually
 // constructing the JSRegExpResult. Returns a fixed array containing match
@@ -135,7 +135,7 @@ transitioning macro RegExpPrototypeExecBodyWithoutResultFast(
       otherwise IfDidNotMatch;
 }
 
-// ES#sec-regexp.prototype.exec
+// https://tc39.es/ecma262/#sec-regexp.prototype.exec
 // RegExp.prototype.exec ( string )
 transitioning macro RegExpPrototypeExecBody(
     implicit context: Context)(receiver: JSReceiver, string: String,
@@ -219,7 +219,7 @@ macro FlagGetter(
 }
 
 // ES6 21.2.5.4.
-// ES #sec-get-regexp.prototype.global
+// https://tc39.es/ecma262/#sec-get-regexp.prototype.global
 transitioning javascript builtin RegExpPrototypeGlobalGetter(
     js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
   return FlagGetter(
@@ -227,7 +227,7 @@ transitioning javascript builtin RegExpPrototypeGlobalGetter(
 }
 
 // ES6 21.2.5.5.
-// ES #sec-get-regexp.prototype.ignorecase
+// https://tc39.es/ecma262/#sec-get-regexp.prototype.ignorecase
 transitioning javascript builtin RegExpPrototypeIgnoreCaseGetter(
     js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
   return FlagGetter(
@@ -236,7 +236,7 @@ transitioning javascript builtin RegExpPrototypeIgnoreCaseGetter(
 }
 
 // ES6 21.2.5.7.
-// ES #sec-get-regexp.prototype.multiline
+// https://tc39.es/ecma262/#sec-get-regexp.prototype.multiline
 transitioning javascript builtin RegExpPrototypeMultilineGetter(
     js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
   return FlagGetter(
@@ -257,7 +257,7 @@ transitioning javascript builtin RegExpPrototypeLinearGetter(
       receiver, Flag::kLinear, kNoCounterFlagGetter, 'RegExp.prototype.linear');
 }
 
-// ES #sec-get-regexp.prototype.dotAll
+// https://tc39.es/ecma262/#sec-get-regexp.prototype.dotAll
 transitioning javascript builtin RegExpPrototypeDotAllGetter(
     js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
   return FlagGetter(
@@ -265,7 +265,7 @@ transitioning javascript builtin RegExpPrototypeDotAllGetter(
 }
 
 // ES6 21.2.5.12.
-// ES #sec-get-regexp.prototype.sticky
+// https://tc39.es/ecma262/#sec-get-regexp.prototype.sticky
 transitioning javascript builtin RegExpPrototypeStickyGetter(
     js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
   return FlagGetter(
@@ -274,7 +274,7 @@ transitioning javascript builtin RegExpPrototypeStickyGetter(
 }
 
 // ES6 21.2.5.15.
-// ES #sec-get-regexp.prototype.unicode
+// https://tc39.es/ecma262/#sec-get-regexp.prototype.unicode
 transitioning javascript builtin RegExpPrototypeUnicodeGetter(
     js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
   return FlagGetter(
@@ -283,7 +283,7 @@ transitioning javascript builtin RegExpPrototypeUnicodeGetter(
 }
 
 // ES2023 22.2.5.14
-// ES #sec-get-regexp.prototype.unicodeSets
+// https://tc39.es/ecma262/#sec-get-regexp.prototype.unicodeSets
 transitioning javascript builtin RegExpPrototypeUnicodeSetsGetter(
     js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
   return FlagGetter(
@@ -304,7 +304,7 @@ transitioning macro SlowFlagsGetter(
   return FlagsGetter(receiver, false);
 }
 
-// ES #sec-get-regexp.prototype.flags
+// https://tc39.es/ecma262/#sec-get-regexp.prototype.flags
 // TFJ(RegExpPrototypeFlagsGetter, 0, kReceiver) \
 transitioning javascript builtin RegExpPrototypeFlagsGetter(
     js-implicit context: NativeContext, receiver: JSAny)(): String {
@@ -381,7 +381,7 @@ const kRegExpMatchIsFalseishOnJSRegExp: constexpr UseCounterFeature
 const kRegExpExecCalledOnSlowRegExp: constexpr UseCounterFeature
     generates 'v8::Isolate::kRegExpExecCalledOnSlowRegExp';
 
-// ES#sec-isregexp IsRegExp ( argument )
+// https://tc39.es/ecma262/#sec-isregexp IsRegExp ( argument )
 @export
 transitioning macro IsRegExp(implicit context: Context)(obj: JSAny): bool {
   const receiver = Cast<JSReceiver>(obj) otherwise return false;
@@ -423,8 +423,6 @@ transitioning macro RegExpCreate(
 }
 
 extern macro ClearTrustedPointerField(HeapObject, constexpr int31): void;
-const kJSRegExpRegExpDataOffset:
-    constexpr int31 generates 'JSRegExp::kDataOffset';
 
 @export
 transitioning macro RegExpCreate(

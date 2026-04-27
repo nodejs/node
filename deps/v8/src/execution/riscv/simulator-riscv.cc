@@ -1299,7 +1299,7 @@ struct type_sew_t<128> {
   set_rvv_vstart(0);                                                           \
   if (v8_flags.trace_sim) {                                                    \
     int trace_offset = snprintf_vreg(rvv_vd_reg());                            \
-    SNPrintF(trace_buf_.SubVector(trace_offset, trace_buf_.length()),          \
+    SNPrintF(trace_buf_.SubVector(trace_offset, trace_buf_.size()),            \
              "    (%" PRId64 ")    vlen:%" PRId64 " <-- [addr: %" REGIx_FORMAT \
              "]",                                                              \
              icount_, rvv_vlen(), (sreg_t)(get_register(rs1_reg())));          \
@@ -1326,7 +1326,7 @@ struct type_sew_t<128> {
   set_rvv_vstart(0);                                                           \
   if (v8_flags.trace_sim) {                                                    \
     int trace_offset = snprintf_vreg(rvv_vd_reg());                            \
-    SNPrintF(trace_buf_.SubVector(trace_offset, trace_buf_.length()),          \
+    SNPrintF(trace_buf_.SubVector(trace_offset, trace_buf_.size()),            \
              "    (%" PRId64 ")    vlen:%" PRId64 " --> [addr: %" REGIx_FORMAT \
              "]",                                                              \
              icount_, rvv_vlen(), (sreg_t)(get_register(rs1_reg())));          \
@@ -8744,15 +8744,14 @@ void Simulator::CallImpl(Address entry, CallArgument* args) {
   // Remaining arguments passed on stack.
   int64_t original_stack = get_register(sp);
   // Compute position of stack on entry to generated code.
-  int64_t stack_args_size =
-      stack_args.size() * sizeof(stack_args[0]) + kCArgsSlotsSize;
+  int64_t stack_args_size = stack_args.size() * sizeof(stack_args[0]);
   int64_t entry_stack = original_stack - stack_args_size;
   if (base::OS::ActivationFrameAlignment() != 0) {
     entry_stack &= -base::OS::ActivationFrameAlignment();
   }
   // Store remaining arguments on stack, from low to high memory.
   char* stack_argument = reinterpret_cast<char*>(entry_stack);
-  memcpy(stack_argument + kCArgSlotCount, stack_args.data(),
+  memcpy(stack_argument, stack_args.data(),
          stack_args.size() * sizeof(int64_t));
   set_register(sp, entry_stack);
   CallInternal(entry);
@@ -8789,14 +8788,14 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
   sreg_t original_stack = get_register(sp);
   // Compute position of stack on entry to generated code.
   int stack_args_count = argument_count - reg_arg_count;
-  int stack_args_size = stack_args_count * sizeof(*arguments) + kCArgsSlotsSize;
+  int stack_args_size = stack_args_count * sizeof(*arguments);
   sreg_t entry_stack = original_stack - stack_args_size;
   if (base::OS::ActivationFrameAlignment() != 0) {
     entry_stack &= -base::OS::ActivationFrameAlignment();
   }
   // Store remaining arguments on stack, from low to high memory.
   intptr_t* stack_argument = reinterpret_cast<intptr_t*>(entry_stack);
-  memcpy(stack_argument + kCArgSlotCount, arguments + reg_arg_count,
+  memcpy(stack_argument, arguments + reg_arg_count,
          stack_args_count * sizeof(*arguments));
   set_register(sp, entry_stack);
   CallInternal(entry);
@@ -9007,6 +9006,7 @@ void Simulator::DoSwitchStackLimit(Instruction* instr) {
 }
 
 void Simulator::CheckMemoryAccess(uintptr_t address, uintptr_t stack) {
+#ifdef V8_COMPRESS_POINTERS
   if ((address >= stack_limit_) && (address < stack)) {
     PrintF("ACCESS BELOW STACK POINTER:\n");
     PrintF("  sp is here:          0x%016" PRIx64 "\n",
@@ -9017,6 +9017,7 @@ void Simulator::CheckMemoryAccess(uintptr_t address, uintptr_t stack) {
            static_cast<uint64_t>(stack_limit_));
     FATAL("ACCESS BELOW STACK POINTER");
   }
+#endif
 }
 
 }  // namespace internal

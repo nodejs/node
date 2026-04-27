@@ -5,6 +5,7 @@
 #include "src/base/logging.h"
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
+#include "src/builtins/superspread.h"
 #include "src/codegen/code-factory.h"
 #include "src/common/assert-scope.h"
 #include "src/debug/debug.h"
@@ -367,6 +368,7 @@ V8_WARN_UNUSED_RESULT bool TryFastArrayFill(
 }
 }  // namespace
 
+// https://tc39.es/ecma262/#sec-array.prototype.fill
 BUILTIN(ArrayPrototypeFill) {
   HandleScope scope(isolate);
 
@@ -416,13 +418,11 @@ BUILTIN(ArrayPrototypeFill) {
 }
 
 namespace {
-V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayPush(Isolate* isolate,
-                                                      BuiltinArguments* args) {
-  // 1. Let O be ? ToObject(this value).
-  DirectHandle<JSReceiver> receiver;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, receiver, Object::ToObject(isolate, args->receiver()));
 
+template <typename ElementProvider>
+V8_WARN_UNUSED_RESULT Tagged<Object> CommonArrayPush(
+    Isolate* isolate, DirectHandle<JSReceiver> receiver, uint32_t total_args,
+    ElementProvider&& element_provider) {
   // 2. Let len be ? ToLength(? Get(O, "length")).
   DirectHandle<Object> raw_length_number;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -432,38 +432,44 @@ V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayPush(Isolate* isolate,
   // 3. Let args be a List whose elements are, in left to right order,
   //    the arguments that were passed to this function invocation.
   // 4. Let arg_count be the number of elements in args.
-  int arg_count = args->length() - 1;
+  // (Handled by caller)
 
   // 5. If len + arg_count > 2^53-1, throw a TypeError exception.
   double length = Object::NumberValue(*raw_length_number);
-  if (arg_count > kMaxSafeInteger - length) {
+  if (total_args > kMaxSafeInteger - length) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kPushPastSafeLength,
-                              isolate->factory()->NewNumberFromInt(arg_count),
+                              isolate->factory()->NewNumberFromInt(total_args),
                               raw_length_number));
   }
 
   // 6. Repeat, while args is not empty.
-  for (int i = 0; i < arg_count; ++i) {
-    // a. Remove the first element from args and let E be the value of the
-    //    element.
-    DirectHandle<Object> element = args->at(i + 1);
+  // Use an outer loop to not waste too much time on creating HandleScopes.
+  uint32_t offset = 0;
+  while (offset < total_args) {
+    HandleScope loop_scope(isolate);
+    offset += 100;
+    for (uint32_t i = offset - 100; i < offset && i < total_args; ++i) {
+      // a. Remove the first element from args and let E be the value of the
+      //    element.
+      DirectHandle<Object> element = element_provider(i);
 
-    // b. Perform ? Set(O, ! ToString(len), E, true).
-    if (length <= JSObject::kMaxElementIndex) {
-      RETURN_FAILURE_ON_EXCEPTION(
-          isolate, Object::SetElement(isolate, receiver, length, element,
-                                      ShouldThrow::kThrowOnError));
-    } else {
-      PropertyKey key(isolate, length);
-      LookupIterator it(isolate, receiver, key);
-      MAYBE_RETURN(Object::SetProperty(&it, element, StoreOrigin::kMaybeKeyed,
-                                       Just(ShouldThrow::kThrowOnError)),
-                   ReadOnlyRoots(isolate).exception());
+      // b. Perform ? Set(O, ! ToString(len), E, true).
+      if (length <= JSObject::kMaxElementIndex) {
+        RETURN_FAILURE_ON_EXCEPTION(
+            isolate, Object::SetElement(isolate, receiver, length, element,
+                                        ShouldThrow::kThrowOnError));
+      } else {
+        PropertyKey key(isolate, length);
+        LookupIterator it(isolate, receiver, key);
+        MAYBE_RETURN(Object::SetProperty(&it, element, StoreOrigin::kMaybeKeyed,
+                                         Just(ShouldThrow::kThrowOnError)),
+                     ReadOnlyRoots(isolate).exception());
+      }
+
+      // c. Let len be len+1.
+      ++length;
     }
-
-    // c. Let len be len+1.
-    ++length;
   }
 
   // 7. Perform ? Set(O, "length", len, true).
@@ -477,8 +483,24 @@ V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayPush(Isolate* isolate,
   // 8. Return len.
   return *final_length;
 }
+
+V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayPush(Isolate* isolate,
+                                                      BuiltinArguments* args) {
+  // 1. Let O be ? ToObject(this value).
+  DirectHandle<JSReceiver> receiver;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, receiver, Object::ToObject(isolate, args->receiver()));
+
+  // 3. Let args be a List whose elements are, in left to right order,
+  //    the arguments that were passed to this function invocation.
+  // 4. Let arg_count be the number of elements in args.
+  int arg_count = args->length() - 1;
+  auto element_provider = [&](uint32_t i) { return args->at(i + 1); };
+  return CommonArrayPush(isolate, receiver, arg_count, element_provider);
+}
 }  // namespace
 
+// https://tc39.es/ecma262/#sec-array.prototype.push
 BUILTIN(ArrayPush) {
   HandleScope scope(isolate);
   DirectHandle<Object> receiver = args.receiver();
@@ -512,6 +534,33 @@ BUILTIN(ArrayPush) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, new_length, accessor->Push(isolate, array, &args, to_add));
   return *isolate->factory()->NewNumberFromUint((new_length));
+}
+
+V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayPushVararg(
+    Isolate* isolate, RuntimeArguments& args) {
+  int nargs = args.length();
+  DirectHandle<JSReceiver> receiver =
+      args.at<JSReceiver>(nargs - SuperSpreadArgs::kReceiverOffsetFromEnd);
+  auto arglist =
+      args.at<FixedArray>(nargs - SuperSpreadArgs::kArglistOffsetFromEnd);
+  int args_length =
+      args.smi_value_at(nargs - SuperSpreadArgs::kArglistLengthOffsetFromEnd);
+  int stack_arg_count = nargs - SuperSpreadArgs::kNumExtraArgs;
+
+  CHECK_GE(arglist->length().value(), static_cast<uint32_t>(args_length));
+
+  uint32_t total_args = stack_arg_count + args_length;
+  auto element_provider = [&](uint32_t i) -> DirectHandle<Object> {
+    if (i < static_cast<uint32_t>(stack_arg_count)) {
+      return args.at(stack_arg_count - i - 1);
+    }
+    DirectHandle<Object> element(arglist->get(i - stack_arg_count), isolate);
+    if (IsTheHole(*element, isolate)) {
+      return isolate->factory()->undefined_value();
+    }
+    return element;
+  };
+  return CommonArrayPush(isolate, receiver, total_args, element_provider);
 }
 
 namespace {
@@ -574,6 +623,7 @@ V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayPop(Isolate* isolate,
 
 }  // namespace
 
+// https://tc39.es/ecma262/#sec-array.prototype.pop
 BUILTIN(ArrayPop) {
   HandleScope scope(isolate);
   DirectHandle<Object> receiver = args.receiver();
@@ -691,6 +741,7 @@ V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayShift(
 }
 }  // namespace
 
+// https://tc39.es/ecma262/#sec-array.prototype.shift
 BUILTIN(ArrayShift) {
   HandleScope scope(isolate);
 
@@ -723,6 +774,7 @@ BUILTIN(ArrayShift) {
   return GenericArrayShift(isolate, receiver, length);
 }
 
+// https://tc39.es/ecma262/#sec-array.prototype.unshift
 BUILTIN(ArrayUnshift) {
   HandleScope scope(isolate);
   DCHECK(IsJSArray(*args.receiver()));
@@ -812,7 +864,7 @@ class ArrayConcatVisitor {
     }
 
     if (fast_elements()) {
-      if (index < static_cast<uint32_t>(storage_fixed_array()->length())) {
+      if (index < storage_fixed_array()->ulength().value()) {
         storage_fixed_array()->set(index, *elm);
         return true;
       }
@@ -851,8 +903,7 @@ class ArrayConcatVisitor {
     // but the array blowing the limit didn't contain elements beyond the
     // provided-for index range, go to dictionary mode now.
     if (fast_elements() &&
-        index_offset_ >
-            static_cast<uint32_t>(Cast<FixedArrayBase>(*storage_)->length())) {
+        index_offset_ > Cast<FixedArrayBase>(*storage_)->ulength().value()) {
       SetDictionaryMode();
     }
   }
@@ -900,9 +951,9 @@ class ArrayConcatVisitor {
   void SetDictionaryMode() {
     DCHECK(fast_elements() && is_fixed_array());
     DirectHandle<FixedArray> current_storage = storage_fixed_array();
+    uint32_t current_length = current_storage->ulength().value();
     DirectHandle<NumberDictionary> slow_storage =
-        NumberDictionary::New(isolate_, current_storage->length());
-    uint32_t current_length = static_cast<uint32_t>(current_storage->length());
+        NumberDictionary::New(isolate_, current_length);
     FOR_WITH_HANDLE_SCOPE(isolate_, uint32_t i = 0, i, i < current_length,
                           i++) {
       DirectHandle<Object> element(current_storage->get(i), isolate_);
@@ -990,7 +1041,7 @@ uint32_t EstimateElementCount(Isolate* isolate, DirectHandle<JSArray> array) {
       static_assert(static_cast<int32_t>(FixedDoubleArray::kMaxLength) >= 0);
       int fast_length = static_cast<int>(length);
       if (IsFixedArray(array->elements())) {
-        DCHECK_EQ(Cast<FixedArray>(array->elements())->length(), 0);
+        DCHECK_EQ(Cast<FixedArray>(array->elements())->ulength().value(), 0);
         break;
       }
       Tagged<FixedDoubleArray> elements =
@@ -1051,7 +1102,7 @@ void CollectElementIndices(Isolate* isolate, DirectHandle<JSObject> object,
     case HOLEY_ELEMENTS: {
       DisallowGarbageCollection no_gc;
       Tagged<FixedArray> elements = Cast<FixedArray>(object->elements());
-      uint32_t length = static_cast<uint32_t>(elements->length());
+      uint32_t length = elements->ulength().value();
       if (range < length) length = range;
       for (uint32_t i = 0; i < length; i++) {
         if (!IsTheHole(elements->get(i), isolate)) {
@@ -1063,12 +1114,12 @@ void CollectElementIndices(Isolate* isolate, DirectHandle<JSObject> object,
     case HOLEY_DOUBLE_ELEMENTS:
     case PACKED_DOUBLE_ELEMENTS: {
       if (IsFixedArray(object->elements())) {
-        DCHECK_EQ(object->elements()->length(), 0);
+        DCHECK_EQ(object->elements()->ulength().value(), 0);
         break;
       }
       DirectHandle<FixedDoubleArray> elements(
           Cast<FixedDoubleArray>(object->elements()), isolate);
-      uint32_t length = static_cast<uint32_t>(elements->length());
+      uint32_t length = elements->ulength().value();
       if (range < length) length = range;
       for (uint32_t i = 0; i < length; i++) {
         if (!elements->is_the_hole(i)) {
@@ -1152,7 +1203,8 @@ void CollectElementIndices(Isolate* isolate, DirectHandle<JSObject> object,
       // TODO(ishell): implement
       UNIMPLEMENTED();
     case SHARED_ARRAY_ELEMENTS: {
-      uint32_t length = Cast<JSSharedArray>(object)->elements()->length();
+      uint32_t length =
+          Cast<JSSharedArray>(object)->elements()->ulength().value();
       if (range <= length) {
         length = range;
         indices->clear();
@@ -1255,9 +1307,8 @@ bool IterateElements(Isolate* isolate, DirectHandle<JSReceiver> receiver,
       // to check the prototype for missing elements.
       DirectHandle<FixedArray> elements(Cast<FixedArray>(array->elements()),
                                         isolate);
-      int fast_length = static_cast<int>(length);
-      DCHECK(fast_length <= elements->length());
-      FOR_WITH_HANDLE_SCOPE(isolate, int j = 0, j, j < fast_length, j++) {
+      DCHECK_LE(length, elements->ulength().value());
+      FOR_WITH_HANDLE_SCOPE(isolate, uint32_t j = 0, j, j < length, j++) {
         DirectHandle<Object> element_value(elements->get(j), isolate);
         if (!IsTheHole(*element_value, isolate)) {
           if (!visitor->visit(j, element_value)) return false;
@@ -1286,14 +1337,13 @@ bool IterateElements(Isolate* isolate, DirectHandle<JSReceiver> receiver,
       // Run through the elements FixedArray and use HasElement and GetElement
       // to check the prototype for missing elements.
       if (IsFixedArray(array->elements())) {
-        DCHECK_EQ(array->elements()->length(), 0);
+        DCHECK_EQ(array->elements()->ulength().value(), 0);
         break;
       }
       DirectHandle<FixedDoubleArray> elements(
           Cast<FixedDoubleArray>(array->elements()), isolate);
-      int fast_length = static_cast<int>(length);
-      DCHECK(fast_length <= elements->length());
-      FOR_WITH_HANDLE_SCOPE(isolate, int j = 0, j, j < fast_length, j++) {
+      DCHECK_LE(length, elements->ulength().value());
+      FOR_WITH_HANDLE_SCOPE(isolate, uint32_t j = 0, j, j < length, j++) {
         if (elements->is_the_hole(j)) {
           Maybe<bool> maybe = JSReceiver::HasElement(isolate, array, j);
           if (maybe.IsNothing()) return false;
@@ -1463,7 +1513,7 @@ Tagged<Object> Slow_ArrayConcat(BuiltinArguments* args,
   if (fast_case && kind == PACKED_DOUBLE_ELEMENTS) {
     DirectHandle<FixedArrayBase> storage =
         isolate->factory()->NewFixedDoubleArray(estimate_result_length);
-    int j = 0;
+    uint32_t j = 0;
     bool failure = false;
     if (estimate_result_length > 0) {
       auto double_storage = Cast<FixedDoubleArray>(storage);
@@ -1663,13 +1713,13 @@ MaybeDirectHandle<JSArray> Fast_ArrayConcat(Isolate* isolate,
     return {};
   }
   // We shouldn't overflow when adding another len.
-  const int kHalfOfMaxInt = 1 << (kBitsPerInt - 2);
+  const uint32_t kHalfOfMaxInt = 1 << (kBitsPerInt - 2);
   static_assert(FixedArray::kMaxLength < kHalfOfMaxInt);
   static_assert(FixedDoubleArray::kMaxLength < kHalfOfMaxInt);
   USE(kHalfOfMaxInt);
 
   int n_arguments = args->length();
-  int result_len = 0;
+  uint32_t result_len = 0;
   {
     DisallowGarbageCollection no_gc;
     // Iterate through all the arguments performing checks
@@ -1690,8 +1740,7 @@ MaybeDirectHandle<JSArray> Fast_ArrayConcat(Isolate* isolate,
       }
       // The Array length is guaranteed to be <= kHalfOfMaxInt thus we won't
       // overflow.
-      result_len += Smi::ToInt(array->length());
-      DCHECK_GE(result_len, 0);
+      result_len += Smi::ToUInt(array->length());
       // Throw an Error if we overflow the FixedArray limits
       if (FixedDoubleArray::kMaxLength < result_len ||
           FixedArray::kMaxLength < result_len) {

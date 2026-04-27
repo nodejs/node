@@ -223,7 +223,6 @@ absl_source_set("randen_hwaes") {
     ":platform",
     ":randen_hwaes_impl",
     "//third_party/abseil-cpp/absl/base:config",
-    "//third_party/abseil-cpp/absl/types:optional",
   ]
   visibility = [ "//third_party/abseil-cpp/absl/random/*" ]
 }

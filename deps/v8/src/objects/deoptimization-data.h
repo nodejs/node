@@ -348,7 +348,7 @@ class DeoptimizationData : public ProtectedFixedArray {
 
   inline void SetBytecodeOffset(int i, BytecodeOffset value);
 
-  inline int DeoptCount() const;
+  inline uint32_t DeoptCount() const;
 
   static const int kNotInlinedIndex = -1;
 

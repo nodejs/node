@@ -231,6 +231,7 @@ struct Field {
 
   bool custom_weak_marking;
   bool const_qualified;
+  bool index_is_constant;
   FieldSynchronization synchronization;
 };
 

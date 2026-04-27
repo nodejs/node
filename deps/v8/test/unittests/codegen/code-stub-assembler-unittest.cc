@@ -64,9 +64,10 @@ namespace {
 
 void ExpectArrayListsEqual(DirectHandle<ArrayList> array1,
                            DirectHandle<ArrayList> array2) {
+  const uint32_t array1_len = array1->ulength().value();
   EXPECT_EQ(array1->capacity(), array2->capacity());
-  EXPECT_EQ(array1->length(), array2->length());
-  for (int i = 0; i < array1->length(); i++) {
+  EXPECT_EQ(array1_len, array2->ulength().value());
+  for (uint32_t i = 0; i < array1_len; i++) {
     EXPECT_EQ(array1->get(i), array2->get(i));
   }
 }
@@ -74,7 +75,7 @@ void ExpectArrayListsEqual(DirectHandle<ArrayList> array1,
 }  // namespace
 
 TARGET_TEST_F(CodeStubAssemblerTest, ArrayListAllocateEquivalent) {
-  constexpr int L = 1;
+  constexpr uint32_t L = 1;
 
   // Tests that the CSA implementation of ArrayList behave the same as the C++
   // implementation.
@@ -82,7 +83,8 @@ TARGET_TEST_F(CodeStubAssemblerTest, ArrayListAllocateEquivalent) {
   {
     compiler::CodeAssemblerTester tester(i_isolate(), JSParameterCount(0));
     CodeStubAssembler assembler(tester.state());
-    TNode<ArrayList> array = __ AllocateArrayList(__ SmiConstant(L));
+    TNode<ArrayList> array =
+        __ AllocateArrayList(__ SmiConstant(Smi::FromUInt(L)));
     __ ArrayListSet(array, __ SmiConstant(0), __ UndefinedConstant());
     __ Return(array);
     allocate_arraylist_in_csa = tester.GenerateCodeCloseAndEscape();
@@ -95,7 +97,7 @@ TARGET_TEST_F(CodeStubAssemblerTest, ArrayListAllocateEquivalent) {
 }
 
 TARGET_TEST_F(CodeStubAssemblerTest, ArrayListAddEquivalent) {
-  constexpr int L = 1;
+  constexpr uint32_t L = 1;
 
   // Tests that the CSA implementation of ArrayList behave the same as the C++
   // implementation.
@@ -103,7 +105,8 @@ TARGET_TEST_F(CodeStubAssemblerTest, ArrayListAddEquivalent) {
   {
     compiler::CodeAssemblerTester tester(i_isolate(), JSParameterCount(0));
     CodeStubAssembler assembler(tester.state());
-    TNode<ArrayList> array = __ AllocateArrayList(__ SmiConstant(L));
+    TNode<ArrayList> array =
+        __ AllocateArrayList(__ SmiConstant(Smi::FromUInt(L)));
     array = __ ArrayListAdd(array, __ SmiConstant(0));
     array = __ ArrayListAdd(array, __ SmiConstant(1));
     array = __ ArrayListAdd(array, __ SmiConstant(2));
@@ -123,7 +126,7 @@ TARGET_TEST_F(CodeStubAssemblerTest, ArrayListAddEquivalent) {
 }
 
 TARGET_TEST_F(CodeStubAssemblerTest, ArrayListElementsEquivalent) {
-  constexpr int L = 1;
+  constexpr uint32_t L = 1;
 
   // Tests that the CSA implementation of ArrayList behave the same as the C++
   // implementation.
@@ -131,7 +134,8 @@ TARGET_TEST_F(CodeStubAssemblerTest, ArrayListElementsEquivalent) {
   {
     compiler::CodeAssemblerTester tester(i_isolate(), JSParameterCount(0));
     CodeStubAssembler assembler(tester.state());
-    TNode<ArrayList> list = __ AllocateArrayList(__ SmiConstant(L));
+    TNode<ArrayList> list =
+        __ AllocateArrayList(__ SmiConstant(Smi::FromUInt(L)));
     list = __ ArrayListAdd(list, __ SmiConstant(0));
     list = __ ArrayListAdd(list, __ SmiConstant(1));
     list = __ ArrayListAdd(list, __ SmiConstant(2));
@@ -149,8 +153,10 @@ TARGET_TEST_F(CodeStubAssemblerTest, ArrayListElementsEquivalent) {
       ArrayList::ToFixedArray(i_isolate(), array1);
   compiler::FunctionTester ft(i_isolate(), allocate_arraylist_in_csa, 0);
   DirectHandle<FixedArray> elements2 = ft.CallChecked<FixedArray>();
-  EXPECT_EQ(elements1->length(), elements2->length());
-  for (int i = 0; i < elements1->length(); i++) {
+  const uint32_t elements1_len = elements1->length().value();
+  const uint32_t elements2_len = elements2->length().value();
+  EXPECT_EQ(elements1_len, elements2_len);
+  for (uint32_t i = 0; i < elements1_len; i++) {
     EXPECT_EQ(elements1->get(i), elements2->get(i));
   }
 }

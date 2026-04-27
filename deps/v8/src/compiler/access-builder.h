@@ -218,9 +218,6 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSRegExp::last_index() field.
   static FieldAccess ForJSRegExpLastIndex();
 
-  // Provides access to JSRegExp::source() field.
-  static FieldAccess ForJSRegExpSource();
-
   // Provides access to FixedArray::length() field.
   static FieldAccess ForFixedArrayLength();
 

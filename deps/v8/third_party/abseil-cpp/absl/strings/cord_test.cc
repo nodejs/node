@@ -24,6 +24,7 @@
 #include <iostream>
 #include <iterator>
 #include <limits>
+#include <optional>
 #include <random>
 #include <set>
 #include <sstream>
@@ -61,7 +62,6 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/compare.h"
-#include "absl/types/optional.h"
 
 // convenience local constants
 static constexpr auto FLAT = absl::cord_internal::FLAT;
@@ -416,7 +416,7 @@ TEST_P(CordTest, Assignment) {
   absl::Cord x(absl::string_view("hi there"));
   absl::Cord y(x);
   MaybeHarden(y);
-  ASSERT_EQ(x.ExpectedChecksum(), absl::nullopt);
+  ASSERT_EQ(x.ExpectedChecksum(), std::nullopt);
   ASSERT_EQ(std::string(x), "hi there");
   ASSERT_EQ(std::string(y), "hi there");
   ASSERT_TRUE(x == y);
@@ -618,7 +618,7 @@ TEST_P(CordTest, Subcord) {
                 std::string(sa))
           << a;
       if (pos != 0 || end_pos != a.size()) {
-        ASSERT_EQ(sa.ExpectedChecksum(), absl::nullopt);
+        ASSERT_EQ(sa.ExpectedChecksum(), std::nullopt);
       }
     }
   }
@@ -662,7 +662,7 @@ TEST_P(CordTest, Swap) {
   MaybeHarden(x);
   swap(x, y);
   if (UseCrc()) {
-    ASSERT_EQ(x.ExpectedChecksum(), absl::nullopt);
+    ASSERT_EQ(x.ExpectedChecksum(), std::nullopt);
     ASSERT_EQ(y.ExpectedChecksum(), 1);
   }
   ASSERT_EQ(x, absl::Cord(b));
@@ -670,7 +670,7 @@ TEST_P(CordTest, Swap) {
   x.swap(y);
   if (UseCrc()) {
     ASSERT_EQ(x.ExpectedChecksum(), 1);
-    ASSERT_EQ(y.ExpectedChecksum(), absl::nullopt);
+    ASSERT_EQ(y.ExpectedChecksum(), std::nullopt);
   }
   ASSERT_EQ(x, absl::Cord(a));
   ASSERT_EQ(y, absl::Cord(b));
@@ -1072,7 +1072,7 @@ TEST_P(CordTest, TryFlatSubstrFlat) {
 TEST_P(CordTest, TryFlatConcat) {
   absl::Cord c = absl::MakeFragmentedCord({"hel", "lo"});
   MaybeHarden(c);
-  EXPECT_EQ(c.TryFlat(), absl::nullopt);
+  EXPECT_EQ(c.TryFlat(), std::nullopt);
 }
 
 TEST_P(CordTest, TryFlatExternal) {
@@ -1757,6 +1757,34 @@ TEST_P(CordTest, ConstructFromExternalMoveOnlyReleaser) {
     explicit Releaser(bool* invoked) : invoked(invoked) {}
     Releaser(Releaser&& other) noexcept : invoked(other.invoked) {}
     void operator()(absl::string_view) const { *invoked = true; }
+
+    bool* invoked;
+  };
+
+  bool invoked = false;
+  (void)MaybeHardened(absl::MakeCordFromExternal("dummy", Releaser(&invoked)));
+  EXPECT_TRUE(invoked);
+}
+
+TEST_P(CordTest, ConstructFromExternalNonConstReleaser) {
+  struct Releaser {
+    explicit Releaser(bool* invoked) : invoked(invoked) {}
+    // Non const method.
+    void operator()(absl::string_view) { *invoked = true; }
+
+    bool* invoked;
+  };
+
+  bool invoked = false;
+  (void)MaybeHardened(absl::MakeCordFromExternal("dummy", Releaser(&invoked)));
+  EXPECT_TRUE(invoked);
+}
+
+TEST_P(CordTest, ConstructFromExternalNonConstNoArgReleaser) {
+  struct Releaser {
+    explicit Releaser(bool* invoked) : invoked(invoked) {}
+    // Non const method.
+    void operator()() { *invoked = true; }
 
     bool* invoked;
   };
@@ -3138,13 +3166,13 @@ TEST_P(CordTest, ExpectedChecksum) {
           continue;
         }
 
-        EXPECT_EQ(c2.ExpectedChecksum(), absl::nullopt);
+        EXPECT_EQ(c2.ExpectedChecksum(), std::nullopt);
 
         if (mutator.CanUndo()) {
           // Undoing an operation should not restore the checksum
           mutator.Undo(c2);
           EXPECT_EQ(c2, base_value);
-          EXPECT_EQ(c2.ExpectedChecksum(), absl::nullopt);
+          EXPECT_EQ(c2.ExpectedChecksum(), std::nullopt);
         }
       }
 
@@ -3254,7 +3282,7 @@ TEST_P(CordTest, ChecksummedEmptyCord) {
       // Not a mutation
       continue;
     }
-    EXPECT_EQ(c2.ExpectedChecksum(), absl::nullopt);
+    EXPECT_EQ(c2.ExpectedChecksum(), std::nullopt);
 
     if (mutator.CanUndo()) {
       mutator.Undo(c2);

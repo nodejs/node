@@ -20,7 +20,10 @@
 #include "src/numbers/ieee754.h"
 #include "src/roots/roots-inl.h"
 #include "src/utils/memcopy.h"
-#include "src/wasm/wasm-engine.h"
+#include "src/wasm/canonical-types.h"
+#include "src/wasm/leb-helper.h"
+#include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-engine-globals.h"
 #include "src/wasm/wasm-objects-inl.h"
 
 #if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
@@ -719,7 +722,7 @@ V ReadAndIncrementOffset(Address data, size_t* offset) {
   return result;
 }
 
-constexpr int32_t kSuccess = 1;
+constexpr int32_t kMemOpSuccess = 1;
 constexpr int32_t kOutOfBounds = 0;
 }  // namespace
 
@@ -752,7 +755,7 @@ int32_t memory_init_wrapper(Address trusted_data_addr, uint32_t mem_index,
       trusted_data->native_module()->wire_bytes();
   const uint8_t* start = wire_bytes.data() + segment_source.offset() + src;
   std::memcpy(EffectiveAddress(trusted_data, mem_index, dst), start, size);
-  return kSuccess;
+  return kMemOpSuccess;
 }
 
 int32_t memory_copy_wrapper(Address trusted_data_addr, uint32_t dst_mem_index,
@@ -771,7 +774,7 @@ int32_t memory_copy_wrapper(Address trusted_data_addr, uint32_t dst_mem_index,
   // Use std::memmove, because the ranges can overlap.
   std::memmove(EffectiveAddress(trusted_data, dst_mem_index, dst),
                EffectiveAddress(trusted_data, src_mem_index, src), size);
-  return kSuccess;
+  return kMemOpSuccess;
 }
 
 int32_t memory_fill_wrapper(Address trusted_data_addr, uint32_t mem_index,
@@ -785,7 +788,7 @@ int32_t memory_fill_wrapper(Address trusted_data_addr, uint32_t mem_index,
   if (!base::IsInBounds<uint64_t>(dst, size, mem_size)) return kOutOfBounds;
 
   std::memset(EffectiveAddress(trusted_data, mem_index, dst), value, size);
-  return kSuccess;
+  return kMemOpSuccess;
 }
 
 namespace {
@@ -923,6 +926,8 @@ void array_fill_wrapper(Address raw_array, uint32_t index, uint32_t length,
       DCHECK_EQ(base::ReadUnalignedValue<int64_t>(initial_value_addr), 0);
       std::memset(initial_element_address, 0, bytes_to_set);
       return;
+    case kWaitQueue:
+      UNIMPLEMENTED();
     case kVoid:
     case kTop:
     case kBottom:
@@ -959,14 +964,59 @@ double flat_string_to_f64(Address string_address) {
                             std::numeric_limits<double>::quiet_NaN());
 }
 
+namespace {
+V8_INLINE void ResumeStack(Isolate* isolate, wasm::StackMemory* from,
+                           wasm::StackMemory* to, Address sp, Address fp,
+                           Address pc) {
+  isolate->SwitchStacks<JumpBuffer::Inactive, JumpBuffer::Suspended>(
+      from, to, sp, fp, pc);
+  DCHECK(!to->jmpbuf()->is_on_central_stack);
+#if V8_TARGET_OS_WIN
+  if (from->jmpbuf()->is_on_central_stack) {
+    base::Stack::SaveStackLimit();
+  }
+  base::Stack::SetCurrentThreadStackBounds(to->limit(), to->base());
+#endif
+}
+
+V8_INLINE void SuspendStack(Isolate* isolate, wasm::StackMemory* from,
+                            wasm::StackMemory* to, Address sp, Address fp,
+                            Address pc) {
+  isolate->SwitchStacks<JumpBuffer::Suspended, JumpBuffer::Inactive>(
+      from, to, sp, fp, pc);
+  DCHECK(!from->jmpbuf()->is_on_central_stack);
+#if V8_TARGET_OS_WIN
+  if (to->jmpbuf()->is_on_central_stack) {
+    base::Stack::SetCurrentThreadStackBounds(base::Stack::GetStackLimit(),
+                                             base::Stack::GetStackStart());
+  } else {
+    base::Stack::SetCurrentThreadStackBounds(to->limit(), to->base());
+  }
+#endif
+}
+
+V8_INLINE void ReturnStack(Isolate* isolate, wasm::StackMemory* from,
+                           wasm::StackMemory* to) {
+  isolate->SwitchStacks<JumpBuffer::Retired, JumpBuffer::Inactive>(
+      from, to, kNullAddress, kNullAddress, kNullAddress);
+#if V8_TARGET_OS_WIN
+  if (to->jmpbuf()->is_on_central_stack) {
+    base::Stack::SetCurrentThreadStackBounds(base::Stack::GetStackLimit(),
+                                             base::Stack::GetStackStart());
+  } else {
+    base::Stack::SetCurrentThreadStackBounds(to->limit(), to->base());
+  }
+#endif
+}
+}  // namespace
+
 void start_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
                  Address fp, Address pc) {
   wasm::StackMemory* from = isolate->isolate_data()->active_stack();
   if (v8_flags.trace_wasm_stack_switching) {
     PrintF("Switch from stack %d to %d (start)\n", from->id(), to->id());
   }
-  isolate->SwitchStacks<JumpBuffer::Inactive, JumpBuffer::Suspended>(
-      from, to, sp, fp, pc);
+  ResumeStack(isolate, from, to, sp, fp, pc);
 }
 
 // The active stack is checked inline in the wasm-to-js wrapper. This only
@@ -975,6 +1025,11 @@ int32_t suspender_has_js_frames(Isolate* isolate) {
   wasm::StackMemory* from_stack = isolate->isolate_data()->active_stack();
   Tagged<WasmSuspenderObject> suspender =
       isolate->isolate_data()->active_suspender();
+  if (!suspender->has_parent()) {
+    // This is the sentinel suspender. It only exists to represent the parent of
+    // the first actual suspender, but it is not suspendable.
+    return true;
+  }
   Tagged<WasmSuspenderObject> parent = suspender->parent();
   wasm::StackMemory* to_stack = parent->stack();
   for (wasm::StackMemory* stack = from_stack; stack != to_stack;
@@ -991,11 +1046,11 @@ void suspend_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
   wasm::StackMemory* from = isolate->isolate_data()->active_stack();
   auto suspender = isolate->isolate_data()->active_suspender();
   suspender->set_stack(isolate, from);
+  suspender->clear_parent();
   if (v8_flags.trace_wasm_stack_switching) {
     PrintF("Switch from stack %d to %d (suspend)\n", from->id(), to->id());
   }
-  isolate->SwitchStacks<JumpBuffer::Suspended, JumpBuffer::Inactive>(
-      from, to, sp, fp, pc);
+  SuspendStack(isolate, from, to, sp, fp, pc);
 }
 
 void resume_jspi_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
@@ -1010,8 +1065,7 @@ void resume_jspi_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
     PrintF("Switch from stack %d to %d (resume)\n", from->id(), to->id());
   }
   isolate->isolate_data()->set_active_suspender(suspender);
-  isolate->SwitchStacks<JumpBuffer::Inactive, JumpBuffer::Suspended>(
-      from, to, sp, fp, pc);
+  ResumeStack(isolate, from, to, sp, fp, pc);
 }
 
 void resume_wasmfx_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
@@ -1023,71 +1077,149 @@ void resume_wasmfx_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
   if (v8_flags.trace_wasm_stack_switching) {
     PrintF("Switch from stack %d to %d (resume)\n", from->id(), to->id());
   }
-  isolate->SwitchStacks<JumpBuffer::Inactive, JumpBuffer::Suspended>(
-      from, to, sp, fp, pc);
+  ResumeStack(isolate, from, to, sp, fp, pc);
 }
 
-Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
-                             Address pc, Address wanted_tag_raw,
-                             Address cont_raw, Address arg_buffer,
-                             const CanonicalSig* sig) {
+namespace {
+wasm::StackMemory* find_wasmfx_handler_stack(Isolate* isolate,
+                                             Address wanted_tag_raw,
+                                             bool is_switch, Address& target_sp,
+                                             Address& target_fp,
+                                             Address& target_pc) {
   Tagged<Object> tag_obj(wanted_tag_raw);
   auto wanted_tag = TrustedCast<WasmExceptionTag>(tag_obj);
-  Tagged<Object> cont_obj(cont_raw);
-  auto cont = TrustedCast<WasmContinuationObject>(cont_obj);
   wasm::StackMemory* from = isolate->isolate_data()->active_stack();
-  DCHECK(from->Contains(arg_buffer));
-  from->set_arg_buffer(arg_buffer);
-  cont->set_stack(isolate, from);
-  from->set_current_continuation(cont);
-  from->set_param_types(sig->returns());
   wasm::StackMemory* to = from->jmpbuf()->parent;
-  bool found = false;
   // Search the innermost effect handler with a matching tag.
   // Unlike exception handling, we don't need to look at each frame. Only the
   // top frame of each stack can have an effect handler.
   while (true) {
-    StackFrameIterator it(isolate, to);
-    CHECK_EQ(it.frame()->type(), StackFrame::WASM_STACK_EXIT);
-    it.Advance();
-    CHECK(it.frame()->is_wasm());
+    // The first frame must be the WasmFXResume, WasmFXResumeThrow or
+    // WasmFXResumeThrowRef builtin with type WASM_STACK_EXIT.
+    target_fp = to->jmpbuf()->fp;
+    StackFrame::Type type = StackFrame::MarkerToType(base::Memory<intptr_t>(
+        target_fp + CommonFrameConstants::kContextOrFrameTypeOffset));
+    if (type != StackFrame::WASM_STACK_EXIT) {
+      // Only a WasmFX or JSPI builtin frame can appear at the top of a stack.
+      // If this is a JSPI frame, we are about to suspend past JS frames which
+      // is not allowed, stop the search.
+      CHECK_EQ(type, StackFrame::WASM_JSPI);
+      break;
+    }
+
+    // The caller frame is the WASM frame that contains the handler table.
+    target_pc = StackFrame::ReadPC(reinterpret_cast<Address*>(
+        target_fp + CommonFrameConstants::kCallerPCOffset));
+    target_sp = target_fp + CommonFrameConstants::kCallerSPOffset;
+    target_fp = base::Memory<Address>(target_fp +
+                                      CommonFrameConstants::kCallerFPOffset);
+    type = StackFrame::MarkerToType(base::Memory<intptr_t>(
+        target_fp + CommonFrameConstants::kContextOrFrameTypeOffset));
+    CHECK_EQ(type, StackFrame::WASM);
+
+    // Get the handler table and search for a matching tag.
     WasmCode* wasm_code =
-        wasm::GetWasmCodeManager()->LookupCode(isolate, it.frame()->pc());
-    base::Vector<const WasmCode::EffectHandler> effect_handlers =
-        wasm_code->effect_handlers();
+        wasm::GetWasmCodeManager()->LookupCode(isolate, target_pc);
+
+    base::Vector<const uint8_t> effect_handlers = wasm_code->effect_handlers();
     Tagged<Object> trusted_instance_data_obj(base::Memory<Address>(
-        it.frame()->fp() + WasmFrameConstants::kWasmInstanceDataOffset));
+        target_fp + WasmFrameConstants::kWasmInstanceDataOffset));
     auto trusted_instance_data =
         TrustedCast<WasmTrustedInstanceData>(trusted_instance_data_obj);
-    for (const auto& handler : effect_handlers) {
-      auto tag = trusted_instance_data->tags_table()->get(handler.tag_index);
-      if (wasm_code->instruction_start() + handler.call_offset ==
-              it.frame()->pc() &&
-          tag == wanted_tag) {
-        found = true;
-        to->jmpbuf()->pc =
-            wasm_code->instruction_start() + handler.handler_offset;
-        to->jmpbuf()->sp = it.frame()->sp();
-        to->jmpbuf()->fp = it.frame()->fp();
-        break;
+    const uint8_t* effect_handlers_ptr = effect_handlers.data();
+    while (effect_handlers_ptr != effect_handlers.end()) {
+      uint32_t call_offset = LEBHelper::read_u32v(&effect_handlers_ptr);
+      EffectHandlerTagIndex tag_index{
+          LEBHelper::read_u32v(&effect_handlers_ptr)};
+      if (!tag_index.is_switch()) {
+        uint32_t handler_offset = LEBHelper::read_u32v(&effect_handlers_ptr);
+        auto tag = trusted_instance_data->tags_table()->get(tag_index.index());
+        if (wasm_code->instruction_start() + call_offset == target_pc &&
+            tag == wanted_tag && !is_switch) {
+          to->jmpbuf()->pc = wasm_code->instruction_start() + handler_offset;
+          to->jmpbuf()->sp = target_sp;
+          to->jmpbuf()->fp = target_fp;
+          return to;
+        }
+      } else if (tag_index.is_switch() && is_switch) {
+        auto tag = trusted_instance_data->tags_table()->get(tag_index.index());
+        if (wasm_code->instruction_start() + call_offset == target_pc &&
+            tag == wanted_tag) {
+          return to;
+        }
       }
     }
-    if (found) break;
     if (to->jmpbuf()->is_on_central_stack) {
       // We are about to skip JS/C++ frames.
-      return kNullAddress;
+      break;
     }
     to = to->jmpbuf()->parent;
   }
-  if (!found) {
-    return kNullAddress;
-  }
+  return nullptr;
+}
+}  // namespace
+
+Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
+                             Address pc, Address wanted_tag_raw,
+                             Address cont_raw, Address arg_buffer,
+                             const uint32_t sig_index) {
+  Address target_sp, target_fp, target_pc;
+  Tagged<Object> cont_obj(cont_raw);
+  auto cont = TrustedCast<WasmContinuationObject>(cont_obj);
+  wasm::StackMemory* from = isolate->isolate_data()->active_stack();
+  cont->set_stack_obj(from->stack_obj());
+  wasm::StackMemory* to = find_wasmfx_handler_stack(
+      isolate, wanted_tag_raw, false, target_sp, target_fp, target_pc);
+  if (to == nullptr) return kNullAddress;
+
+  DCHECK(from->Contains(arg_buffer));
+  from->set_arg_buffer(arg_buffer);
+  from->set_current_continuation(cont);
+
+  const CanonicalSig* sig = GetTypeCanonicalizer()->LookupFunctionSignature(
+      CanonicalTypeIndex{sig_index});
+
+  from->set_param_types(sig->returns());
+
   if (v8_flags.trace_wasm_stack_switching) {
     PrintF("Switch from stack %d to %d (suspend)\n", from->id(), to->id());
   }
-  isolate->SwitchStacks<JumpBuffer::Suspended, JumpBuffer::Inactive>(
-      from, to, sp, fp, pc);
+  SuspendStack(isolate, from, to, sp, fp, pc);
   return reinterpret_cast<Address>(to);
+}
+
+Address switch_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
+                            Address pc, Address wanted_tag_raw,
+                            Address cont_raw, wasm::StackMemory* target_stack,
+                            Address arg_buffer, const uint32_t sig_index) {
+  Address target_sp, target_fp, target_pc;
+  Tagged<Object> cont_obj(cont_raw);
+  auto cont = TrustedCast<WasmContinuationObject>(cont_obj);
+  wasm::StackMemory* from = isolate->isolate_data()->active_stack();
+
+  cont->set_stack_obj(from->stack_obj());
+  wasm::StackMemory* parent = find_wasmfx_handler_stack(
+      isolate, wanted_tag_raw, true, target_sp, target_fp, target_pc);
+  if (!parent) return kNullAddress;
+
+  if (v8_flags.trace_wasm_stack_switching) {
+    PrintF("Switch from stack %d to %d\n", from->id(), target_stack->id());
+    PrintF("parent is %d\n", parent->id());
+  }
+
+  const CanonicalSig* return_sig =
+      GetTypeCanonicalizer()->LookupFunctionSignature(
+          CanonicalTypeIndex{sig_index});
+
+  target_stack->set_current_continuation({});
+
+  from->set_arg_buffer(arg_buffer);
+  from->set_current_continuation(cont);
+  from->set_param_types(return_sig->parameters());
+  SuspendStack(isolate, from, parent, sp, fp, pc);
+  ResumeStack(isolate, parent, target_stack, parent->jmpbuf()->sp,
+              parent->jmpbuf()->fp, parent->jmpbuf()->pc);
+  return reinterpret_cast<Address>(target_stack);
 }
 
 void return_stack(Isolate* isolate, wasm::StackMemory* to) {
@@ -1096,8 +1228,7 @@ void return_stack(Isolate* isolate, wasm::StackMemory* to) {
   if (v8_flags.trace_wasm_stack_switching) {
     PrintF("Switch from stack %d to %d (return)\n", from->id(), to->id());
   }
-  isolate->SwitchStacks<JumpBuffer::Retired, JumpBuffer::Inactive>(
-      from, to, kNullAddress, kNullAddress, kNullAddress);
+  ReturnStack(isolate, from, to);
   isolate->RetireWasmStack(from);
 }
 
@@ -1106,17 +1237,12 @@ void return_jspi_stack(Isolate* isolate, wasm::StackMemory* to) {
       isolate->isolate_data()->active_suspender();
   // Clear the external stack pointer to avoid a UAF.
   suspender->set_stack(isolate, nullptr);
+  // Also unpublish the trusted suspender object just in case.
+  suspender->Unpublish(isolate);
   return_stack(isolate, to);
 }
 
 void return_wasmfx_stack(Isolate* isolate, wasm::StackMemory* to) {
-  // TODO(thibaudm): We should clear the EPT entry(ies) for this stack here to
-  // avoid UAF. Unlike JSPI, we don't have a single trusted object that owns the
-  // stack. It could be referenced from multiple continuation objects.
-  // Continuation objects could point to a single heap object that owns the
-  // stack instead, and we would clear the unique EPT on return. This has also
-  // been measured to improve performance by avoiding unnecessary EPT entry
-  // management.
   return_stack(isolate, to);
 }
 
@@ -1132,6 +1258,10 @@ intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t current_sp) {
 
   stack_guard->SetStackLimitForStackSwitching(
       thread_local_top->central_stack_limit_);
+#if V8_TARGET_OS_WIN
+  base::Stack::SetCurrentThreadStackBounds(base::Stack::GetStackLimit(),
+                                           base::Stack::GetStackStart());
+#endif
 
   thread_local_top->secondary_stack_limit_ = secondary_stack_limit;
   thread_local_top->secondary_stack_sp_ = current_sp;
@@ -1156,6 +1286,14 @@ void switch_from_the_central_stack(Isolate* isolate) {
 
   StackGuard* stack_guard = isolate->stack_guard();
   stack_guard->SetStackLimitForStackSwitching(secondary_stack_limit);
+#if V8_TARGET_OS_WIN
+  // The Windows stack limit may have changed after running on the central
+  // stack, record it.
+  base::Stack::SaveStackLimit();
+  wasm::StackMemory* active_stack = isolate->isolate_data()->active_stack();
+  base::Stack::SetCurrentThreadStackBounds(active_stack->limit(),
+                                           active_stack->base());
+#endif
 }
 
 intptr_t switch_to_the_central_stack_for_js(Isolate* isolate, Address fp) {
@@ -1167,6 +1305,10 @@ intptr_t switch_to_the_central_stack_for_js(Isolate* isolate, Address fp) {
   stack->set_stack_switch_info(fp, central_stack_sp);
   stack_guard->SetStackLimitForStackSwitching(
       thread_local_top->central_stack_limit_);
+#if V8_TARGET_OS_WIN
+  base::Stack::SetCurrentThreadStackBounds(base::Stack::GetStackLimit(),
+                                           base::Stack::GetStackStart());
+#endif
   thread_local_top->is_on_central_stack_flag_ = true;
   return central_stack_sp;
 }
@@ -1180,6 +1322,12 @@ void switch_from_the_central_stack_for_js(Isolate* isolate) {
   StackGuard* stack_guard = isolate->stack_guard();
   stack_guard->SetStackLimitForStackSwitching(
       reinterpret_cast<uintptr_t>(stack->jslimit()));
+#if V8_TARGET_OS_WIN
+  // The Windows stack limit may have changed after running on the central
+  // stack, record it.
+  base::Stack::SaveStackLimit();
+  base::Stack::SetCurrentThreadStackBounds(stack->limit(), stack->base());
+#endif
 }
 
 // frame_size includes param slots area and extra frame slots above FP.

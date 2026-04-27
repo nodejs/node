@@ -14,11 +14,11 @@
 
 #include "absl/strings/has_ostream_operator.h"
 
+#include <optional>
 #include <ostream>
 #include <string>
 
 #include "gtest/gtest.h"
-#include "absl/types/optional.h"
 
 namespace {
 
@@ -33,7 +33,7 @@ struct TypeWithOstreamOp {
 TEST(HasOstreamOperatorTest, Works) {
   EXPECT_TRUE(absl::HasOstreamOperator<int>::value);
   EXPECT_TRUE(absl::HasOstreamOperator<std::string>::value);
-  EXPECT_FALSE(absl::HasOstreamOperator<absl::optional<int>>::value);
+  EXPECT_FALSE(absl::HasOstreamOperator<std::optional<int>>::value);
   EXPECT_FALSE(absl::HasOstreamOperator<TypeWithoutOstreamOp>::value);
   EXPECT_TRUE(absl::HasOstreamOperator<TypeWithOstreamOp>::value);
 }

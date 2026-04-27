@@ -205,8 +205,12 @@ void resume_wasmfx_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
                          Address fp, Address pc);
 Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
                              Address pc, Address wanted_tag_raw,
-                             Address cont_raw, Address return_buffer,
-                             const CanonicalSig* sig);
+                             Address cont_raw, Address arg_buffer,
+                             const uint32_t sig_index);
+Address switch_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
+                            Address pc, Address wanted_tag_raw,
+                            Address cont_raw, wasm::StackMemory* target_stack,
+                            Address arg_buffer, const uint32_t sig_index);
 void return_jspi_stack(Isolate* isolate, wasm::StackMemory* to);
 void return_wasmfx_stack(Isolate* isolate, wasm::StackMemory* to);
 void retire_stack(Isolate* isolate, wasm::StackMemory* stack);

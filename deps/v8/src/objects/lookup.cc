@@ -94,13 +94,28 @@ void LookupIterator::Next() {
 }
 
 template <bool is_element>
-void LookupIterator::NextInternal(Tagged<Map> map, Tagged<JSReceiver> holder) {
+void LookupIterator::NextInternal(Tagged<Map> orig_map,
+                                  Tagged<JSReceiver> holder) {
+  Tagged<Map> map = orig_map;
   do {
     Tagged<JSReceiver> maybe_holder = NextHolder(map);
     if (maybe_holder.is_null()) {
-      if (interceptor_state_ == InterceptorState::kSkipNonMasking) {
-        RestartLookupForNonMaskingInterceptors<is_element>();
-        return;
+      switch (interceptor_state_) {
+        case InterceptorState::kSkipNonMasking:
+          // If we've found a non-masking interceptor, but we're not checking
+          // the prototype chain, we need to do this now.
+          if (!check_prototype_chain()) {
+            interceptor_state_ = InterceptorState::kSkipNonMaskingOwnProperty;
+            continue;
+          }
+          [[fallthrough]];
+        // We're at the end of the chain, and haven't found anything, so
+        // non-masking interceptors can be applied.
+        case InterceptorState::kSkipNonMaskingOwnProperty:
+          RestartLookupForNonMaskingInterceptors<is_element>();
+          return;
+        default:
+          break;
       }
       state_ = NOT_FOUND;
       if (holder != *holder_) holder_ = direct_handle(holder, isolate_);
@@ -109,7 +124,37 @@ void LookupIterator::NextInternal(Tagged<Map> map, Tagged<JSReceiver> holder) {
     holder = maybe_holder;
     map = holder->map(isolate_);
     state_ = LookupInHolder<is_element>(map, holder);
+    if (interceptor_state_ == InterceptorState::kSkipNonMaskingOwnProperty &&
+        IsFound()) {
+      // In theory we also need to check JSPROXY but since the iterator doesn't
+      // know which question to ask, we assume the lookup succeeds.
+      switch (state_) {
+        // https://webidl.spec.whatwg.org/#dfn-named-property-visibility says a
+        // second interceptor on the prototype chain is invisible.
+        case INTERCEPTOR:
+          continue;
+        case ACCESS_CHECK: {
+          // If an access check fails, we assume the lookup succeeds.
+          if (HasAccess()) {
+            continue;
+          }
+          break;
+        }
+        default:
+          break;
+      }
+      // We need fully reset state, since this is not a true hit.
+      number_ = InternalIndex::NotFound();
+      property_details_ = PropertyDetails::Empty();
+      state_ = NOT_FOUND;
+      if (holder != *holder_) holder_ = direct_handle(holder, isolate_);
+      return;
+    }
   } while (!IsFound());
+
+  if (V8_UNLIKELY(is_element && IsJSArrayMap(*orig_map))) {
+    isolate_->CountUsage(v8::Isolate::kHoleyArrayReadthrough);
+  }
 
   holder_ = direct_handle(holder, isolate_);
 }
@@ -893,7 +938,7 @@ void LookupIterator::TransitionToAccessorPair(DirectHandle<Object> pair,
     if (receiver->HasSlowArgumentsElements(isolate_)) {
       Tagged<SloppyArgumentsElements> parameter_map =
           Cast<SloppyArgumentsElements>(receiver->elements(isolate_));
-      uint32_t length = parameter_map->length();
+      const uint32_t length = parameter_map->ulength().value();
       if (number_.is_found() && number_.as_uint32() < length) {
         parameter_map->set_mapped_entries(
             number_.as_int(), ReadOnlyRoots(isolate_).the_hole_value());
@@ -1053,21 +1098,20 @@ bool LookupIterator::DictCanStayConst(Tagged<Object> value) const {
   return IsUninitializedHole(current_value, isolate());
 }
 
-int LookupIterator::GetFieldDescriptorIndex() const {
+InternalIndex LookupIterator::GetFieldDescriptorIndex() const {
   DCHECK(has_property_);
   DCHECK(holder_->HasFastProperties());
   DCHECK_EQ(PropertyLocation::kField, property_details_.location());
   DCHECK_EQ(PropertyKind::kData, property_details_.kind());
-  // TODO(jkummerow): Propagate InternalIndex further.
-  return descriptor_number().as_int();
+  return descriptor_number();
 }
 
-int LookupIterator::GetAccessorIndex() const {
+InternalIndex LookupIterator::GetAccessorIndex() const {
   DCHECK(has_property_);
   DCHECK(holder_->HasFastProperties(isolate_));
   DCHECK_EQ(PropertyLocation::kDescriptor, property_details_.location());
   DCHECK_EQ(PropertyKind::kAccessor, property_details_.kind());
-  return descriptor_number().as_int();
+  return descriptor_number();
 }
 
 FieldIndex LookupIterator::GetFieldIndex() const {
@@ -1273,6 +1317,8 @@ bool LookupIterator::SkipInterceptor(Tagged<JSObject> holder) {
       case InterceptorState::kUninitialized:
         interceptor_state_ = InterceptorState::kSkipNonMasking;
         [[fallthrough]];
+      case InterceptorState::kSkipNonMaskingOwnProperty:
+        [[fallthrough]];
       case InterceptorState::kSkipNonMasking:
         return true;
       case InterceptorState::kProcessNonMasking:
@@ -1287,7 +1333,10 @@ Tagged<JSReceiver> LookupIterator::NextHolder(Tagged<Map> map) {
   if (map->prototype(isolate_) == ReadOnlyRoots(isolate_).null_value()) {
     return JSReceiver();
   }
-  if (!check_prototype_chain() && !IsJSGlobalProxyMap(map)) {
+  bool check_prototype_chain =
+      this->check_prototype_chain() ||
+      interceptor_state_ == InterceptorState::kSkipNonMaskingOwnProperty;
+  if (!check_prototype_chain && !IsJSGlobalProxyMap(map)) {
     return JSReceiver();
   }
   return Cast<JSReceiver>(map->prototype(isolate_));
@@ -1561,7 +1610,8 @@ std::optional<Tagged<Object>> ConcurrentLookupIterator::TryGetOwnCowElement(
   // The former is the source of truth, but due to concurrent reads it may not
   // match the given `array_elements`.
   if (index >= static_cast<size_t>(array_length)) return {};
-  if (index >= static_cast<size_t>(array_elements->length())) return {};
+  if (index >= static_cast<size_t>(array_elements->ulength().value()))
+    return {};
 
   Tagged<Object> result = array_elements->get(static_cast<int>(index));
 
@@ -1609,10 +1659,11 @@ ConcurrentLookupIterator::TryGetOwnConstantElement(
   if (IsFrozenElementsKind(elements_kind)) {
     if (!IsFixedArray(elements)) return kGaveUp;
     Tagged<FixedArray> elements_fixed_array = Cast<FixedArray>(elements);
-    if (index >= static_cast<uint32_t>(elements_fixed_array->length())) {
+    if (index >= elements_fixed_array->ulength().value()) {
       return kGaveUp;
     }
-    Tagged<Object> result = elements_fixed_array->get(static_cast<int>(index));
+    Tagged<Object> result =
+        elements_fixed_array->get(static_cast<uint32_t>(index));
     if (IsHoleyElementsKindForRead(elements_kind) &&
         result == ReadOnlyRoots(isolate).the_hole_value()) {
       return kNotPresent;

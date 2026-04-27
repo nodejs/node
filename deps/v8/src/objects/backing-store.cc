@@ -76,7 +76,13 @@ size_t BackingStore::GetWasmReservationSize(bool has_guard_regions,
   if (has_guard_regions) {
     if (is_wasm_memory64) {
       DCHECK_LE(byte_capacity, wasm::kMaxMemory64Size);
+#if V8_TARGET_ARCH_ARM64
+      // Reserving an extra guard page simplifies bounds checking in the common
+      // case.
+      return wasm::kMaxMemory64Size + AllocatePageSize();
+#else
       return wasm::kMaxMemory64Size;
+#endif  // V8_TARGET_ARCH_ARM64
     } else {
       static_assert(kFullGuardSize32 >= size_t{4} * GB);
       DCHECK_LE(byte_capacity, size_t{4} * GB);
@@ -124,7 +130,7 @@ BackingStore::BackingStore(void* buffer_start, size_t byte_length,
   CHECK_IMPLIES(is_wasm_memory, byte_capacity != 0);
 
   base::EnumSet<Flag, uint16_t> flags;
-  if (shared == SharedFlag::kShared) flags.Add(kIsShared);
+  if (shared == SharedFlag::kYes) flags.Add(kIsShared);
   if (resizable == ResizableFlag::kResizable) flags.Add(kIsResizableByJs);
   if (immutable == ImmutableFlag::kImmutable) flags.Add(kIsImmutable);
   if (is_wasm_memory) flags.Add(kIsWasmMemory);
@@ -176,6 +182,10 @@ BackingStore::~BackingStore() {
     TRACE_BS(
         "BSw:free  bs=%p mem=%p (length=%zu, capacity=%zu, reservation=%zu)\n",
         this, buffer_start_, byte_length(), byte_capacity_, reservation_size);
+    if (has_guard_regions()) {
+      trap_handler::UnregisterCoveredMemory(
+          reinterpret_cast<uintptr_t>(buffer_start_), reservation_size);
+    }
     if (is_shared()) {
       // Deallocate the list of attached memory objects.
       SharedWasmMemoryData* shared_data = get_shared_wasm_memory_data();
@@ -221,7 +231,7 @@ std::unique_ptr<BackingStore> BackingStore::Allocate(
     if (mb_length > 0) {
       counters->array_buffer_big_allocations()->AddSample(mb_length);
     }
-    if (shared == SharedFlag::kShared) {
+    if (shared == SharedFlag::kYes) {
       counters->shared_array_allocations()->AddSample(mb_length);
     }
     auto allocate_buffer = [allocator, initialized](size_t byte_length) {
@@ -317,7 +327,8 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
     // Collect garbage and retry.
     did_retry = true;
     return isolate->heap()->allocator()->RetryCustomAllocate(
-        fn, internal::AllocationType::kOld);
+        fn, internal::AllocationType::kOld,
+        GarbageCollectionReason::kAllocationFailure);
   };
 
   size_t byte_capacity = maximum_pages * page_size;
@@ -444,7 +455,7 @@ std::unique_ptr<BackingStore> BackingStore::AllocateWasmMemory(
         isolate, initial_pages * wasm::kWasmPageSize,
         maximum_pages * wasm::kWasmPageSize, wasm::kWasmPageSize, initial_pages,
         maximum_pages, wasm_memory, shared, has_guard_regions);
-    if (result && shared == SharedFlag::kShared) {
+    if (result && shared == SharedFlag::kYes) {
       result->type_specific_data_.shared_wasm_memory_data =
           new SharedWasmMemoryData();
     }
@@ -466,6 +477,19 @@ std::unique_ptr<BackingStore> BackingStore::AllocateWasmMemory(
       if (backing_store) break;
     }
   }
+
+  if (backing_store && has_guard_regions) {
+    size_t reservation_size = GetWasmReservationSize(
+        backing_store->has_guard_regions(), backing_store->byte_capacity(),
+        backing_store->is_wasm_memory64());
+    if (!trap_handler::RegisterCoveredMemory(
+            reinterpret_cast<uintptr_t>(backing_store->buffer_start()),
+            reservation_size)) {
+      V8::FatalProcessOutOfMemory(
+          isolate, "Failed to register memory with the trap handler");
+    }
+  }
+
   return backing_store;
 }
 
@@ -476,8 +500,7 @@ std::unique_ptr<BackingStore> BackingStore::CopyWasmMemory(
   // but since Wasm memories are allocated by the page allocator, the zeroing
   // cost is already built-in.
   auto new_backing_store = BackingStore::AllocateWasmMemory(
-      isolate, new_pages, max_pages, wasm_memory,
-      is_shared() ? SharedFlag::kShared : SharedFlag::kNotShared);
+      isolate, new_pages, max_pages, wasm_memory, SharedFlag(is_shared()));
 
   if (!new_backing_store ||
       new_backing_store->has_guard_regions() != has_guard_regions()) {
@@ -897,12 +920,18 @@ void GlobalBackingStoreRegistry::UpdateSharedWasmMemoryObjects(
     Isolate* isolate) {
   // We call here from the stack guard at loop back edges, where we don't want
   // GC to get in the way of loop-related compiler optimizations.
+  // TODO(clemensb): This prevents us from updating the external memory via
+  // memory_object->managed_backing_store()->UpdateEstimatedSize(...). Hence we
+  // report too little memory for shared memory in other isolates. We might need
+  // a second interrupt type just for updating the external memory.
   DisallowHeapAllocation no_gc;
   SealHandleScope seal_handle_scope{isolate};
   Tagged<WeakArrayList> shared_wasm_memories =
       Cast<WeakArrayList>(isolate->root(RootIndex::kSharedWasmMemories));
 
-  for (int i = 0, e = shared_wasm_memories->length(); i < e; ++i) {
+  const uint32_t shared_wasm_memories_len =
+      shared_wasm_memories->length().value();
+  for (uint32_t i = 0; i < shared_wasm_memories_len; ++i) {
     Tagged<HeapObject> obj;
     if (!shared_wasm_memories->Get(i).GetHeapObject(&obj)) continue;
 
@@ -915,10 +944,13 @@ void GlobalBackingStoreRegistry::UpdateSharedWasmMemoryObjects(
       // Clear the JSArrayBuffer such that we allocate a fresh one on the next
       // access. Check that the stored backing store is correct, because that
       // will be used to create the new JSArrayBuffer.
-      // TODO(jkummerow): Wouldn't it be nice to only refresh those array
-      // buffers whose associated Wasm memory actually grew?
+      // Only refresh array buffers whose associated Wasm memory actually grew.
       DCHECK_EQ(shared_ab->GetBackingStore(), memory_object->backing_store());
-      memory_object->set_array_buffer(ReadOnlyRoots{isolate}.undefined_value());
+      if (shared_ab->byte_length() <
+          memory_object->backing_store()->byte_length()) {
+        memory_object->set_array_buffer(
+            ReadOnlyRoots{isolate}.undefined_value());
+      }
     }
   }
 }

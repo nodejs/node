@@ -41,14 +41,13 @@ Tagged<HeapObject> CallSiteInfo::code_object(IsolateForSandbox isolate) const {
   // the kUnknownIndirectPointerTag. Since we can then no longer rely on the
   // type-checking mechanism of trusted pointers we need to perform manual type
   // checks afterwards.
-  Tagged<Object> object = code_object_.load_maybe_empty(isolate, kAcquireLoad);
+  Tagged<Object> object = code_object_.Acquire_Load_maybe_empty(isolate);
   return CheckedCast<Union<Code, BytecodeArray>>(object);
 }
 
-void CallSiteInfo::set_code_object(Tagged<HeapObject> maybe_code,
-                                   WriteBarrierMode mode) {
-  DCHECK(IsCode(maybe_code) || IsBytecodeArray(maybe_code) ||
-         IsUndefined(maybe_code));
+void CallSiteInfo::set_code_object(
+    Tagged<Union<Code, BytecodeArray, Undefined>> maybe_code,
+    WriteBarrierMode mode) {
   if (Tagged<Union<Code, BytecodeArray>> code; TryCast(maybe_code, &code)) {
     code_object_.store(this, code, mode);
   } else {
@@ -84,14 +83,6 @@ void CallSiteInfo::set_code_offset_or_source_position(int value,
 int CallSiteInfo::flags() const { return flags_.load().value(); }
 void CallSiteInfo::set_flags(int value) {
   flags_.store(this, Smi::FromInt(value));
-}
-
-Tagged<FixedArray> CallSiteInfo::parameters() const {
-  return parameters_.load();
-}
-void CallSiteInfo::set_parameters(Tagged<FixedArray> value,
-                                  WriteBarrierMode mode) {
-  parameters_.store(this, value, mode);
 }
 
 }  // namespace internal

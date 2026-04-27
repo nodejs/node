@@ -119,6 +119,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::base
+    absl::core_headers
     absl::status
     absl::statusor
     absl::strings

@@ -93,8 +93,8 @@ HandleType<String> Factory::NewSubString(HandleType<T> str, uint32_t begin,
 Handle<JSArray> Factory::NewJSArrayWithElements(
     DirectHandle<FixedArrayBase> elements, ElementsKind elements_kind,
     AllocationType allocation) {
-  return NewJSArrayWithElements(elements, elements_kind, elements->length(),
-                                allocation);
+  return NewJSArrayWithElements(elements, elements_kind,
+                                elements->ulength().value(), allocation);
 }
 
 Handle<JSObject> Factory::NewFastOrSlowJSObjectFromMap(
@@ -119,7 +119,7 @@ template <ExternalPointerTag tag>
 Handle<Foreign> Factory::NewForeign(Address addr,
                                     AllocationType allocation_type) {
   // Statically ensure that it is safe to allocate foreigns in paged spaces.
-  static_assert(Foreign::kSize <= kMaxRegularHeapObjectSize);
+  static_assert(sizeof(Foreign) <= kMaxRegularHeapObjectSize);
   Tagged<Map> map = *foreign_map();
   Tagged<Foreign> foreign = Cast<Foreign>(
       AllocateRawWithImmortalMap(map->instance_size(), allocation_type, map));

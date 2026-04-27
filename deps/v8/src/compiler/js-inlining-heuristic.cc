@@ -4,6 +4,7 @@
 
 #include "src/compiler/js-inlining-heuristic.h"
 
+#include "src/codegen/machine-type.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/js-heap-broker.h"
@@ -31,6 +32,29 @@ bool IsSmallWithHeapNumberParam(int const size) {
   return size <= v8_flags.max_inlined_bytecode_size_small_with_heapnum_in_out;
 }
 
+bool HasNumberInputsAndOutputs(IrOpcode::Value opcode) {
+  switch (opcode) {
+    case IrOpcode::kSpeculativeNumberAdd:
+    case IrOpcode::kSpeculativeNumberSubtract:
+    case IrOpcode::kSpeculativeNumberMultiply:
+    case IrOpcode::kSpeculativeNumberPow:
+    case IrOpcode::kSpeculativeNumberDivide:
+    case IrOpcode::kSpeculativeNumberModulus:
+    case IrOpcode::kSpeculativeNumberBitwiseAnd:
+    case IrOpcode::kSpeculativeNumberBitwiseOr:
+    case IrOpcode::kSpeculativeNumberBitwiseXor:
+    case IrOpcode::kSpeculativeNumberShiftLeft:
+    case IrOpcode::kSpeculativeNumberShiftRight:
+    case IrOpcode::kSpeculativeNumberShiftRightLogical:
+    case IrOpcode::kSpeculativeAdditiveSafeIntegerAdd:
+    case IrOpcode::kSpeculativeAdditiveSafeIntegerSubtract:
+      return true;
+
+    default:
+      return false;
+  }
+}
+
 bool HasHeapNumberInputOrOutput(Node* node) {
   int input_count = node->InputCount();
   for (int j = 2; j < input_count; ++j) {
@@ -42,31 +66,18 @@ bool HasHeapNumberInputOrOutput(Node* node) {
       }
     } else if (input->opcode() == IrOpcode::kChangeFloat64HoleToTagged) {
       return true;
+    } else if (input->opcode() == IrOpcode::kLoadField &&
+               FieldAccessOf(input->op()).machine_type.representation() ==
+                   MachineRepresentation::kFloat64) {
+      return true;
+    } else if (HasNumberInputsAndOutputs(input->opcode())) {
+      return true;
     }
   }
 
   for (Edge const edge : node->use_edges()) {
     if (!NodeProperties::IsValueEdge(edge)) continue;
-    switch (edge.from()->opcode()) {
-      case IrOpcode::kSpeculativeNumberAdd:
-      case IrOpcode::kSpeculativeNumberSubtract:
-      case IrOpcode::kSpeculativeNumberMultiply:
-      case IrOpcode::kSpeculativeNumberPow:
-      case IrOpcode::kSpeculativeNumberDivide:
-      case IrOpcode::kSpeculativeNumberModulus:
-      case IrOpcode::kSpeculativeNumberBitwiseAnd:
-      case IrOpcode::kSpeculativeNumberBitwiseOr:
-      case IrOpcode::kSpeculativeNumberBitwiseXor:
-      case IrOpcode::kSpeculativeNumberShiftLeft:
-      case IrOpcode::kSpeculativeNumberShiftRight:
-      case IrOpcode::kSpeculativeNumberShiftRightLogical:
-      case IrOpcode::kSpeculativeAdditiveSafeIntegerAdd:
-      case IrOpcode::kSpeculativeAdditiveSafeIntegerSubtract:
-        return true;
-
-      default:
-        break;
-    }
+    if (HasNumberInputsAndOutputs(edge.from()->opcode())) return true;
   }
 
   return false;

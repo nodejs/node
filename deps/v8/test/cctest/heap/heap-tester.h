@@ -102,13 +102,13 @@ class HeapTester {
   static void ResetWeakHandle(bool global_gc);
 
   // test-heap.cc
-  static AllocationResult AllocateByteArrayForTest(Heap* heap, int length,
+  static AllocationResult AllocateByteArrayForTest(Heap* heap, uint32_t length,
                                                    AllocationType allocation);
   static bool CodeEnsureLinearAllocationArea(Heap* heap, int size_in_bytes);
 
   // test-mark-compact.cc
   static AllocationResult AllocateMapForTest(v8::internal::Isolate* isolate);
-  static AllocationResult AllocateFixedArrayForTest(Heap* heap, int length,
+  static AllocationResult AllocateFixedArrayForTest(Heap* heap, uint32_t length,
                                                     AllocationType allocation);
 
   static void UncommitUnusedMemory(Heap* heap);

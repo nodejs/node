@@ -18,35 +18,43 @@
 namespace v8 {
 namespace internal {
 
+template <ExternalPointerTagRange kTagRange>
 template <ExternalPointerTag tag>
-inline void ExternalPointerMember<tag>::Init(Address host_address,
-                                             IsolateForSandbox isolate,
-                                             Address value) {
+inline void ExternalPointerMember<kTagRange>::Init(Address host_address,
+                                                   IsolateForSandbox isolate,
+                                                   Address value) {
+  static_assert(kTagRange.Contains(tag));
   InitExternalPointerField<tag>(
       host_address, reinterpret_cast<Address>(storage_), isolate, value);
 }
 
-template <ExternalPointerTag tag>
-inline Address ExternalPointerMember<tag>::load(
+template <ExternalPointerTagRange kTagRange>
+template <ExternalPointerTagRange tag_range>
+inline Address ExternalPointerMember<kTagRange>::load(
     const IsolateForSandbox isolate) const {
-  return ReadExternalPointerField<tag>(reinterpret_cast<Address>(storage_),
-                                       isolate);
+  static_assert(kTagRange.Contains(tag_range));
+  return ReadExternalPointerField<tag_range>(
+      reinterpret_cast<Address>(storage_), isolate);
 }
 
+template <ExternalPointerTagRange kTagRange>
 template <ExternalPointerTag tag>
-inline void ExternalPointerMember<tag>::store(IsolateForSandbox isolate,
-                                              Address value) {
+inline void ExternalPointerMember<kTagRange>::store(IsolateForSandbox isolate,
+                                                    Address value) {
+  static_assert(kTagRange.Contains(tag));
   WriteExternalPointerField<tag>(reinterpret_cast<Address>(storage_), isolate,
                                  value);
 }
 
-template <ExternalPointerTag tag>
-inline ExternalPointer_t ExternalPointerMember<tag>::load_encoded() const {
+template <ExternalPointerTagRange kTagRange>
+inline ExternalPointer_t ExternalPointerMember<kTagRange>::load_encoded()
+    const {
   return base::bit_cast<ExternalPointer_t>(storage_);
 }
 
-template <ExternalPointerTag tag>
-inline void ExternalPointerMember<tag>::store_encoded(ExternalPointer_t value) {
+template <ExternalPointerTagRange kTagRange>
+inline void ExternalPointerMember<kTagRange>::store_encoded(
+    ExternalPointer_t value) {
   memcpy(storage_, &value, sizeof(ExternalPointer_t));
 }
 

@@ -12,7 +12,7 @@
 #include "src/objects/js-collator.h"
 // Include the non-inl header before the rest of the headers.
 
-#include "src/objects/objects-inl.h"
+#include "src/objects/tagged-field-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -21,8 +21,6 @@ namespace v8 {
 namespace internal {
 
 #include "torque-generated/src/objects/js-collator-tq-inl.inc"
-
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSCollator)
 
 ACCESSORS(JSCollator, icu_collator, Tagged<Managed<icu::Collator>>,
           kIcuCollatorOffset)

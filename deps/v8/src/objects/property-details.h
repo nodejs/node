@@ -240,6 +240,8 @@ class Representation {
 };
 
 static const int kDescriptorIndexBitCount = 10;
+// The maximum bits to describe the first offset of the first field in an
+// object. Limits the header size of JSObjects.
 static const int kFirstInobjectPropertyOffsetBitCount = 7;
 // The maximum number of descriptors we want in a descriptor array.  It should
 // fit in a page and also the following should hold:
@@ -260,6 +262,48 @@ enum class PropertyCellType {
   kInTransition,
   // Value for dictionaries not holding cells, must be 0:
   kNoCell = kMutable,
+};
+
+struct FieldStorageLocation {
+  // We don't have PropertyArray::kHeaderSize here so hard-code the value 2 (map
+  // + length). This is asserted elsewhere.
+  static constexpr uint16_t kFirstOutOfObjectOffsetInWords = 2;
+
+  // Offset from the start of the field storage, whether it's the JSObject for
+  // in-object properties or the PropertyArray for out-of-object properties.
+  uint16_t offset_in_words;
+  bool is_in_object;
+
+  bool operator==(const FieldStorageLocation& other) const {
+    return offset_in_words == other.offset_in_words &&
+           is_in_object == other.is_in_object;
+  }
+
+  static FieldStorageLocation First(uint8_t in_object_start_in_words,
+                                    int instance_size_in_words) {
+    // If there is any room in the object, the first field is an in-object
+    // field, otherwise it's out-of-object.
+    if (in_object_start_in_words < instance_size_in_words) {
+      return {in_object_start_in_words, true};
+    } else {
+      return {kFirstOutOfObjectOffsetInWords, false};
+    }
+  }
+
+  FieldStorageLocation Next(int instance_size_in_words,
+                            int field_width_in_words) const {
+    uint16_t next_offset_in_words = offset_in_words + field_width_in_words;
+
+    if (!is_in_object) {
+      return {next_offset_in_words, false};
+    }
+    if (next_offset_in_words == instance_size_in_words) {
+      // The next property would overflow the in-object fields so it has to
+      // move out-of-object.
+      return {kFirstOutOfObjectOffsetInWords, false};
+    }
+    return {next_offset_in_words, true};
+  }
 };
 
 // PropertyDetails captures type and attributes for a property.
@@ -295,13 +339,30 @@ class PropertyDetails {
   constexpr PropertyDetails(PropertyKind kind, PropertyAttributes attributes,
                             PropertyLocation location,
                             PropertyConstness constness,
-                            Representation representation, int field_index = 0)
+                            Representation representation, int field_offset,
+                            bool in_object)
       : value_(
             KindField::encode(kind) | AttributesField::encode(attributes) |
             LocationField::encode(location) |
             ConstnessField::encode(constness) |
             RepresentationField::encode(EncodeRepresentation(representation)) |
-            FieldIndexField::encode(field_index)) {}
+            OffsetInWordsField::encode(field_offset / kTaggedSize) |
+            InObjectField::encode(in_object)) {
+    DCHECK(IsAligned(field_offset, kTaggedSize));
+  }
+
+  // Property details describing a fast mode property without specifying its
+  // actual index.
+  constexpr PropertyDetails(PropertyKind kind, PropertyAttributes attributes,
+                            PropertyLocation location,
+                            PropertyConstness constness,
+                            Representation representation)
+      : value_(
+            KindField::encode(kind) | AttributesField::encode(attributes) |
+            LocationField::encode(location) |
+            ConstnessField::encode(constness) |
+            RepresentationField::encode(EncodeRepresentation(representation))) {
+  }
 
   static constexpr PropertyDetails Empty(
       PropertyCellType cell_type = PropertyCellType::kNoCell) {
@@ -383,7 +444,7 @@ class PropertyDetails {
     return DecodeRepresentation(RepresentationField::decode(value_));
   }
 
-  int field_index() const { return FieldIndexField::decode(value_); }
+  uint16_t field_offset() const { return OffsetInWordsField::decode(value_); }
 
   inline int field_width_in_words() const;
 
@@ -397,6 +458,12 @@ class PropertyDetails {
   bool IsEnumerable() const { return !IsDontEnum(); }
   PropertyCellType cell_type() const {
     return PropertyCellTypeField::decode(value_);
+  }
+
+  bool is_in_object() const { return InObjectField::decode(value_); }
+
+  FieldStorageLocation storage_location() const {
+    return {field_offset(), is_in_object()};
   }
 
   // Bit fields in value_ (type, shift, size). Must be public so the
@@ -420,12 +487,14 @@ class PropertyDetails {
   using RepresentationField = LocationField::Next<uint32_t, 3>;
   using DescriptorPointer =
       RepresentationField::Next<uint32_t, kDescriptorIndexBitCount>;
-  using FieldIndexField =
-      DescriptorPointer::Next<uint32_t, kDescriptorIndexBitCount>;
+  // Add an extra bit to account for the storage header included in the offset.
+  using OffsetInWordsField =
+      DescriptorPointer::Next<uint16_t, kDescriptorIndexBitCount + 1>;
+  using InObjectField = OffsetInWordsField::Next<bool, 1>;
 
   // All bits for both fast and slow objects must fit in a smi.
   static_assert(DictionaryStorageField::kLastUsedBit < 31);
-  static_assert(FieldIndexField::kLastUsedBit < 31);
+  static_assert(InObjectField::kLastUsedBit < 31);
 
   // DictionaryStorageField must be the last field, so that overflowing it
   // doesn't overwrite other fields.
@@ -450,11 +519,11 @@ class PropertyDetails {
 
   enum PrintMode {
     kPrintAttributes = 1 << 0,
-    kPrintFieldIndex = 1 << 1,
+    kPrintOffsetInWords = 1 << 1,
     kPrintRepresentation = 1 << 2,
     kPrintPointer = 1 << 3,
 
-    kForProperties = kPrintFieldIndex | kPrintAttributes,
+    kForProperties = kPrintOffsetInWords | kPrintAttributes,
     kForTransitions = kPrintAttributes,
     kPrintFull = -1,
   };

@@ -6,6 +6,9 @@
 
 #include <stdarg.h>
 
+#include <algorithm>
+#include <string_view>
+
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/scopes.h"
 #include "src/base/strings.h"
@@ -1281,30 +1284,38 @@ void AstPrinter::PrintObjectProperties(
     ObjectLiteral::Property* property = properties->at(i);
     const char* prop_kind = nullptr;
     switch (property->kind()) {
-      case ObjectLiteral::Property::CONSTANT:
-        prop_kind = "CONSTANT";
-        break;
-      case ObjectLiteral::Property::COMPUTED:
-        prop_kind = "COMPUTED";
-        break;
-      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
-        prop_kind = "MATERIALIZED_LITERAL";
-        break;
-      case ObjectLiteral::Property::PROTOTYPE:
-        prop_kind = "PROTOTYPE";
-        break;
-      case ObjectLiteral::Property::GETTER:
-        prop_kind = "GETTER";
-        break;
-      case ObjectLiteral::Property::SETTER:
-        prop_kind = "SETTER";
-        break;
-      case ObjectLiteral::Property::SPREAD:
-        prop_kind = "SPREAD";
-        break;
+#define CASE(kind)                    \
+  case ObjectLiteral::Property::kind: \
+    prop_kind = #kind;                \
+    break;
+      OBJECT_LITERAL_PROPERTY_KIND_LIST(CASE)
+#undef CASE
     }
-    base::EmbeddedVector<char, 128> buf;
-    SNPrintF(buf, "PROPERTY - %s", prop_kind);
+
+    // Calculate the max print size for the buffer.
+    constexpr size_t kMaxKindLen = std::max({
+#define KIND_LEN(kind) std::string_view(#kind).size(),
+        OBJECT_LITERAL_PROPERTY_KIND_LIST(KIND_LEN)
+#undef KIND_LEN
+    });
+    constexpr int kMaxIntLen = 11;
+    constexpr int kPrintMaxLen = static_cast<int>(
+        std::string_view("PROPERTY - ").size() + kMaxKindLen +
+        std::string_view(" (no emit store, first instance, last at )").size() +
+        kMaxIntLen + 1);
+
+    base::EmbeddedVector<char, kPrintMaxLen> buf;
+    int pos = SNPrintF(buf, "PROPERTY - %s", prop_kind);
+    if (!property->emit_store()) {
+      if (property->is_first_instance_of_key()) {
+        pos +=
+            SNPrintF(buf + pos, " (no emit store, first instance, last at %d)",
+                     property->last_instance_index());
+      } else {
+        pos += SNPrintF(buf + pos, " (no emit store)");
+      }
+    }
+
     IndentedScope prop(this, buf.begin());
     PrintIndentedVisit("KEY", properties->at(i)->key());
     PrintIndentedVisit("VALUE", properties->at(i)->value());

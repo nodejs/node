@@ -95,6 +95,7 @@ class RegisteredExtension {
   V(ToLocal, Module, Module)                                            \
   V(ToLocal, Name, Name)                                                \
   V(ToLocal, String, String)                                            \
+  V(ToLocal, InternalizedString, String)                                \
   V(ToLocal, Symbol, Symbol)                                            \
   V(ToLocal, JSDate, Object)                                            \
   V(ToLocal, JSRegExp, RegExp)                                          \

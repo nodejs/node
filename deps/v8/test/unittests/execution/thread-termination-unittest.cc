@@ -797,8 +797,13 @@ TEST_F(ThreadTerminationTest, TerminateInMicrotask) {
 }
 
 void TerminationMicrotask(void* data) {
-  Isolate::GetCurrent()->TerminateExecution();
-  CompileRun(Isolate::GetCurrent()->GetCurrentContext(), "");
+  v8::Isolate* isolate = Isolate::GetCurrent();
+  // Make sure the C++ microtask executes code it the right context.
+  CHECK(isolate->GetCurrentContext().IsEmpty());
+  Local<Context> context = *(reinterpret_cast<Local<Context>*>(data));
+  isolate->TerminateExecution();
+  Context::Scope context_scope(context);
+  CompileRun(context, "");
 }
 
 void UnreachableMicrotask(void* data) { UNREACHABLE(); }
@@ -812,10 +817,13 @@ TEST_F(ThreadTerminationTest, TerminateInApiMicrotask) {
   Local<Context> context = Context::New(isolate(), nullptr, global);
   {
     TryCatch try_catch(isolate());
-    Context::Scope context_scope(context);
-    CHECK(!isolate()->IsExecutionTerminating());
-    isolate()->EnqueueMicrotask(TerminationMicrotask);
-    isolate()->EnqueueMicrotask(UnreachableMicrotask);
+    {
+      Context::Scope context_scope(context);
+      CHECK(!isolate()->IsExecutionTerminating());
+      isolate()->EnqueueMicrotask(TerminationMicrotask, &context);
+      isolate()->EnqueueMicrotask(UnreachableMicrotask);
+    }
+    // Trigger microtask checkpoint without active context.
     isolate()->PerformMicrotaskCheckpoint();
     CHECK(try_catch.HasCaught());
     CHECK(try_catch.HasTerminated());

@@ -100,7 +100,7 @@ TF_BUILTIN(TypedArrayBaseConstructor, TypedArrayBuiltinsAssembler) {
                  "TypedArray");
 }
 
-// ES #sec-typedarray-constructors
+// https://tc39.es/ecma262/#sec-typedarray-constructors
 TF_BUILTIN(TypedArrayConstructor, TypedArrayBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto target = Parameter<JSFunction>(Descriptor::kJSTarget);
@@ -114,7 +114,7 @@ TF_BUILTIN(TypedArrayConstructor, TypedArrayBuiltinsAssembler) {
 
   // If NewTarget is undefined, throw a TypeError exception.
   // All the TypedArray constructors have this as the first step:
-  // https://tc39.github.io/ecma262/#sec-typedarray-constructors
+  // https://tc39.es/ecma262/#sec-typedarray-constructors
   Label throwtypeerror(this, Label::kDeferred);
   GotoIf(IsUndefined(new_target), &throwtypeerror);
 
@@ -131,7 +131,7 @@ TF_BUILTIN(TypedArrayConstructor, TypedArrayBuiltinsAssembler) {
   }
 }
 
-// ES6 #sec-get-%typedarray%.prototype.bytelength
+// https://tc39.es/ecma262/#sec-get-%typedarray%.prototype.bytelength
 TF_BUILTIN(TypedArrayPrototypeByteLength, TypedArrayBuiltinsAssembler) {
   const char* const kMethodName = "get TypedArray.prototype.byteLength";
   auto context = Parameter<Context>(Descriptor::kContext);
@@ -165,7 +165,7 @@ TF_BUILTIN(TypedArrayPrototypeByteLength, TypedArrayBuiltinsAssembler) {
   Return(SmiConstant(0));
 }
 
-// ES6 #sec-get-%typedarray%.prototype.byteoffset
+// https://tc39.es/ecma262/#sec-get-%typedarray%.prototype.byteoffset
 TF_BUILTIN(TypedArrayPrototypeByteOffset, TypedArrayBuiltinsAssembler) {
   const char* const kMethodName = "get TypedArray.prototype.byteOffset";
   auto context = Parameter<Context>(Descriptor::kContext);
@@ -187,7 +187,7 @@ TF_BUILTIN(TypedArrayPrototypeByteOffset, TypedArrayBuiltinsAssembler) {
       ChangeUintPtrToTagged(LoadJSArrayBufferViewByteOffset(CAST(receiver))));
 }
 
-// ES6 #sec-get-%typedarray%.prototype.length
+// https://tc39.es/ecma262/#sec-get-%typedarray%.prototype.length
 TF_BUILTIN(TypedArrayPrototypeLength, TypedArrayBuiltinsAssembler) {
   const char* const kMethodName = "get TypedArray.prototype.length";
   auto context = Parameter<Context>(Descriptor::kContext);
@@ -576,7 +576,7 @@ void TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromPreparedValue(
   // the TypedArray out of bounds.
   TNode<UintPtrT> length = LoadJSTypedArrayLengthAndValidate(
       typed_array, TypedArrayAccessMode::kWrite,
-      if_detached_or_immutable_or_out_of_bounds);
+      if_detached_or_immutable_or_out_of_bounds, Int32Constant(elements_kind));
 
   GotoIf(UintPtrGreaterThanOrEqual(index, length),
          if_detached_or_immutable_or_out_of_bounds);
@@ -642,7 +642,7 @@ void TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromTagged(
   }
 }
 
-// ES #sec-get-%typedarray%.prototype-@@tostringtag
+// https://tc39.es/ecma262/#sec-get-%typedarray%.prototype-@@tostringtag
 TF_BUILTIN(TypedArrayPrototypeToStringTag, TypedArrayBuiltinsAssembler) {
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   Label if_receiverisheapobject(this), return_undefined(this);

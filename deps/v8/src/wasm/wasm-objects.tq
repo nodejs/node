@@ -180,6 +180,12 @@ extern class WasmSuspenderObject extends ExposedTrustedObject {
 }
 
 extern class WasmContinuationObject extends HeapObject {
+  stack_obj: WasmStackObject;
+}
+
+// Wrapper around the C++ StackMemory object.
+// 1:N relationship with WasmContinuationObject.
+extern class WasmStackObject extends HeapObject {
   stack: ExternalPointer;
 }
 
@@ -270,8 +276,14 @@ extern class WasmGlobalObject extends JSObject {
   // This field is not set if the global is defined outside any Wasm module,
   // i.e., through the JS API (WebAssembly.Global).
   trusted_data: TrustedPointer<WasmTrustedInstanceData>;
-  untagged_buffer: JSArrayBuffer|Undefined;
-  tagged_buffer: FixedArray|Undefined;
+  // The value of the global is stored at `offset` in the `buffer`. The buffer
+  // is either allocated by the instance owning the global (the common case),
+  // or is a single-use buffer if the global is created via the JS API.
+  // For ref-typed globals this will be a FixedArray, otherwise a ByteArray.
+  buffer: ByteArray|FixedArray;
+  // offset into `buffer`, shifted and scaled to be used as a direct offset from
+  // the buffer (tagged, oncompressed) pointer (compatible with offsets stored
+  // in `WasmTrustedInstanceData::imported_mutable_globals_offsets`).
   offset: Smi;
   raw_type: Smi;
   // TODO(14034): If we encode mutability in raw_type, turn this into a boolean

@@ -85,9 +85,9 @@ class V8_EXPORT_PRIVATE StubCache {
   // the static_assert below, in {entry(...)}).
   static const int kCacheIndexShift = Name::HashBits::kShift;
 
-  static const int kPrimaryTableBits = 11;
+  static const int kPrimaryTableBits = 12;
   static const int kPrimaryTableSize = (1 << kPrimaryTableBits);
-  static const int kSecondaryTableBits = 9;
+  static const int kSecondaryTableBits = 10;
   static const int kSecondaryTableSize = (1 << kSecondaryTableBits);
 
   static int PrimaryOffsetForTesting(Tagged<Name> name, Tagged<Map> map);

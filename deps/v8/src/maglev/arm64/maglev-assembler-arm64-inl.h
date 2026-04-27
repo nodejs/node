@@ -7,6 +7,7 @@
 
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
+#include "src/codegen/register.h"
 #include "src/common/globals.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/maglev/maglev-assembler.h"
@@ -607,6 +608,7 @@ inline void MaglevAssembler::SetSlotAddressForTaggedField(Register slot_reg,
 }
 inline void MaglevAssembler::SetSlotAddressForFixedArrayElement(
     Register slot_reg, Register object, Register index) {
+  DCHECK(!AreAliased(slot_reg, index));
   Add(slot_reg, object, OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag);
   Add(slot_reg, slot_reg, Operand(index, LSL, kTaggedSizeLog2));
 }
@@ -702,8 +704,16 @@ inline void MaglevAssembler::AddInt32(Register reg, Register other) {
   Add(reg.W(), reg.W(), other.W());
 }
 
+inline void MaglevAssembler::AddInt32(Register dst, Register src, int amount) {
+  Add(dst.W(), src.W(), Immediate(amount));
+}
+
 inline void MaglevAssembler::AndInt32(Register reg, int mask) {
   And(reg.W(), reg.W(), Immediate(mask));
+}
+
+inline void MaglevAssembler::AndInt32(Register dst, Register src, int mask) {
+  And(dst.W(), src.W(), Immediate(mask));
 }
 
 inline void MaglevAssembler::OrInt32(Register reg, int mask) {
@@ -729,6 +739,10 @@ inline void MaglevAssembler::IncrementAddress(Register reg, int32_t delta) {
 inline void MaglevAssembler::LoadAddress(Register dst, MemOperand location) {
   DCHECK(location.IsImmediateOffset());
   Add(dst.X(), location.base(), Immediate(location.offset()));
+}
+
+inline void MaglevAssembler::MakeWeak(Register dst, Register src) {
+  Orr(dst.X(), src.X(), Immediate(kWeakHeapObjectTag));
 }
 
 inline void MaglevAssembler::EmitEnterExitFrame(int extra_slots,
@@ -1275,6 +1289,29 @@ void MaglevAssembler::JumpIfNotNan(DoubleRegister value, Label* target,
                                    Label::Distance distance) {
   Fcmp(value, value);
   JumpIf(NegateCondition(ConditionForNaN()), target, distance);
+}
+
+inline void MaglevAssembler::SubInt32(Register dst, Register src) {
+  Sub(dst.W(), dst.W(), src.W());
+}
+
+inline void MaglevAssembler::SubInt32(Register dst, Register src1,
+                                      Register src2) {
+  Sub(dst.W(), src1.W(), src2.W());
+}
+
+inline void MaglevAssembler::ShiftRightLogical32(Register dst, int32_t value) {
+  Lsr(dst.W(), dst.W(), value);
+}
+
+inline void MaglevAssembler::ShiftRightLogical32(Register dst, Register src,
+                                                 int32_t value) {
+  Lsr(dst.W(), src.W(), value);
+}
+
+inline void MaglevAssembler::LoadBitsFromWord32(Register dst, Register src,
+                                                int width, int shift) {
+  Ubfx(dst.W(), src.W(), shift, width);
 }
 
 inline void MaglevAssembler::CompareInt32AndJumpIf(Register r1, Register r2,

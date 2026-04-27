@@ -40,6 +40,7 @@
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/simplified-optimization-reducer.h"
+#include "src/compiler/turboshaft/value-numbering-reducer.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
 #include "src/flags/flags.h"
 #include "src/heap/factory-inl.h"
@@ -68,8 +69,9 @@ struct GraphBuilder {
   Isolate* isolate;
   JSHeapBroker* broker;
   Zone* graph_zone;
-  using AssemblerT = Assembler<ExplicitTruncationReducer,
-                               SimplifiedOptimizationReducer, VariableReducer>;
+  using AssemblerT =
+      Assembler<ExplicitTruncationReducer, SimplifiedOptimizationReducer,
+                VariableReducer, ValueNumberingReducer>;
   AssemblerT assembler;
   SourcePositionTable* source_positions;
   NodeOriginTable* origins;
@@ -1056,6 +1058,10 @@ OpIndex GraphBuilder::Process(
       CONVERT_OBJECT_TO_PRIMITIVE_CASE(ChangeTaggedSignedToInt32, Int32, Smi)
       CONVERT_OBJECT_TO_PRIMITIVE_CASE(ChangeTaggedSignedToInt64, Int64, Smi)
       CONVERT_OBJECT_TO_PRIMITIVE_CASE(ChangeTaggedToBit, Bit, Boolean)
+      CONVERT_OBJECT_TO_PRIMITIVE_CASE(ChangeSmiOrHoleToFloat64, Float64,
+                                       SmiOrHole)
+      CONVERT_OBJECT_TO_PRIMITIVE_CASE(ChangeNumberOrHoleToFloat64, Float64,
+                                       NumberOrHole)
       CONVERT_OBJECT_TO_PRIMITIVE_CASE(ChangeTaggedToInt32, Int32,
                                        NumberOrOddball)
       CONVERT_OBJECT_TO_PRIMITIVE_CASE(ChangeTaggedToUint32, Uint32,
@@ -1064,10 +1070,9 @@ OpIndex GraphBuilder::Process(
                                        NumberOrOddball)
       CONVERT_OBJECT_TO_PRIMITIVE_CASE(ChangeTaggedToFloat64, Float64,
                                        NumberOrOddball)
-      CONVERT_OBJECT_TO_PRIMITIVE_CASE(ChangeNumberOrHoleToFloat64, Float64,
-                                       NumberOrHole)
       CONVERT_OBJECT_TO_PRIMITIVE_CASE(TruncateTaggedToFloat64, Float64,
                                        NumberOrOddball)
+
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
       CONVERT_OBJECT_TO_PRIMITIVE_CASE(TruncateTaggedToFloat64PreserveUndefined,
                                        HoleyFloat64, NumberOrOddball)
@@ -1083,12 +1088,14 @@ OpIndex GraphBuilder::Process(
             k##input_assumptions);
       TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(TruncateNumberOrOddballToWord32, Int32,
                                         NumberOrOddball)
-      TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(TruncateNumberOrOddballOrHoleToWord32,
-                                        Int32, NumberOrOddballOrHole)
       TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(TruncateBigIntToWord64, Int64, BigInt)
       TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(TruncateTaggedToBit, Bit, Object)
       TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(TruncateTaggedPointerToBit, Bit,
                                         HeapObject)
+      TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(TruncateSmiOrHoleToWord32, Int32,
+                                        SmiOrHole)
+      TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(TruncateNumberOrOddballOrHoleToWord32,
+                                        Int32, NumberOrOddballOrHole)
 #undef TRUNCATE_OBJECT_TO_PRIMITIVE_CASE
 
     case IrOpcode::kCheckedTruncateTaggedToWord32:
@@ -1304,11 +1311,11 @@ OpIndex GraphBuilder::Process(
       return __ Load(Map(base), Map(index), kind, loaded_rep, offset,
                      element_size_log2);
     }
-    case IrOpcode::kProtectedLoad: {
+    case IrOpcode::kTrappingLoad: {
       MemoryRepresentation loaded_rep =
           MemoryRepresentation::FromMachineType(LoadRepresentationOf(op));
       return __ Load(Map(node->InputAt(0)), Map(node->InputAt(1)),
-                     LoadOp::Kind::Protected(), loaded_rep);
+                     LoadOp::Kind::Trapping(), loaded_rep);
     }
 
     case IrOpcode::kStore:
@@ -1363,11 +1370,11 @@ OpIndex GraphBuilder::Process(
                initializing_transitioning);
       return OpIndex::Invalid();
     }
-    case IrOpcode::kProtectedStore:
-      // We don't mark ProtectedStores as initialzing even when inside regions,
+    case IrOpcode::kTrappingStore:
+      // We don't mark TrappingStores as initializing even when inside regions,
       // since we don't store-store eliminate them because they have a raw base.
       __ Store(Map(node->InputAt(0)), Map(node->InputAt(1)),
-               Map(node->InputAt(2)), StoreOp::Kind::Protected(),
+               Map(node->InputAt(2)), StoreOp::Kind::Trapping(),
                MemoryRepresentation::FromMachineRepresentation(
                    OpParameter<MachineRepresentation>(node->op())),
                WriteBarrierKind::kNoWriteBarrier);
@@ -2498,8 +2505,8 @@ OpIndex GraphBuilder::Process(
           break;
         case MemoryAccessKind::kUnaligned:
           UNREACHABLE();
-        case MemoryAccessKind::kProtectedByTrapHandler:
-          kind = LoadOp::Kind::RawAligned().Atomic().Protected();
+        case MemoryAccessKind::kTrapping:
+          kind = LoadOp::Kind::RawAligned().Atomic().Trapping();
           break;
       }
       RegisterRepresentation result_rep =
@@ -2541,14 +2548,14 @@ OpIndex GraphBuilder::Process(
           break;
         case MemoryAccessKind::kUnaligned:
           UNREACHABLE();
-        case MemoryAccessKind::kProtectedByTrapHandler:
-          kind = StoreOp::Kind::RawAligned().Atomic().Protected();
+        case MemoryAccessKind::kTrapping:
+          kind = StoreOp::Kind::RawAligned().Atomic().Trapping();
           break;
       }
       __ Store(
           base, offset, value, kind,
           MemoryRepresentation::FromMachineRepresentation(p.representation()),
-          p.write_barrier_kind(), 0, 0, true);
+          p.write_barrier_kind(), p.order(), 0, 0, true);
       return OpIndex::Invalid();
     }
 

@@ -10,7 +10,6 @@
 
 #include <optional>
 
-
 // Include other inline headers *after* including js-function.h, such that e.g.
 // the definition of JSFunction is available (and this comment prevents
 // clang-format from merging that include into the following ones).
@@ -34,11 +33,6 @@ namespace v8::internal {
 
 #include "torque-generated/src/objects/js-function-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSFunctionOrBoundFunctionOrWrappedFunction)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSBoundFunction)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSWrappedFunction)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSFunction)
-
 ACCESSORS(JSFunction, raw_feedback_cell, Tagged<FeedbackCell>,
           kFeedbackCellOffset)
 RELEASE_ACQUIRE_ACCESSORS(JSFunction, raw_feedback_cell, Tagged<FeedbackCell>,
@@ -46,7 +40,7 @@ RELEASE_ACQUIRE_ACCESSORS(JSFunction, raw_feedback_cell, Tagged<FeedbackCell>,
 
 DEF_GETTER(JSFunction, feedback_vector, Tagged<FeedbackVector>) {
   DCHECK(has_feedback_vector(cage_base));
-  return Cast<FeedbackVector>(raw_feedback_cell(cage_base)->value(cage_base));
+  return Cast<FeedbackVector>(raw_feedback_cell(cage_base)->value());
 }
 
 Tagged<ClosureFeedbackCellArray> JSFunction::closure_feedback_cell_array()
@@ -75,7 +69,7 @@ Tagged<AbstractCode> JSFunction::abstract_code(IsolateT* isolate) {
   }
 }
 
-int JSFunction::length() { return shared()->length(); }
+uint32_t JSFunction::length() { return shared()->length(); }
 
 void JSFunction::UpdateOptimizedCode(Isolate* isolate, Tagged<Code> code,
                                      WriteBarrierMode mode) {
@@ -141,25 +135,23 @@ Tagged<Code> JSFunction::code(IsolateForSandbox isolate,
   return Isolate::Current()->js_dispatch_table().GetCode(dispatch_handle(tag));
 }
 
-Tagged<Object> JSFunction::raw_code(IsolateForSandbox isolate) const {
+Tagged<Union<Smi, Code>> JSFunction::raw_code(IsolateForSandbox isolate) const {
   JSDispatchHandle handle = dispatch_handle();
   if (handle == kNullJSDispatchHandle) return Smi::zero();
   return Isolate::Current()->js_dispatch_table().GetCode(handle);
 }
 
-Tagged<Object> JSFunction::raw_code(IsolateForSandbox isolate,
-                                    AcquireLoadTag tag) const {
+Tagged<Union<Smi, Code>> JSFunction::raw_code(IsolateForSandbox isolate,
+                                              AcquireLoadTag tag) const {
   JSDispatchHandle handle = dispatch_handle(tag);
   if (handle == kNullJSDispatchHandle) return Smi::zero();
   return Isolate::Current()->js_dispatch_table().GetCode(handle);
 }
 
 // static
-JSDispatchHandle JSFunction::AllocateDispatchHandle(Handle<JSFunction> function,
-                                                    Isolate* isolate,
-                                                    uint16_t parameter_count,
-                                                    DirectHandle<Code> code,
-                                                    WriteBarrierMode mode) {
+JSDispatchHandle JSFunction::AllocateDispatchHandle(
+    DirectHandle<JSFunction> function, Isolate* isolate,
+    uint16_t parameter_count, DirectHandle<Code> code, WriteBarrierMode mode) {
   DCHECK_EQ(function->raw_feedback_cell()->dispatch_handle(),
             kNullJSDispatchHandle);
   return AllocateAndInstallJSDispatchHandle(
@@ -322,11 +314,8 @@ void JSFunction::SetTieringInProgress(Isolate* isolate, bool in_progress,
                                       BytecodeOffset osr_offset) {
   if (!has_feedback_vector()) return;
   if (osr_offset.IsNone()) {
-    bool was_in_progress = tiering_in_progress();
     feedback_vector()->set_tiering_in_progress(in_progress);
-    if (!in_progress && was_in_progress) {
-      SetInterruptBudget(isolate, BudgetModification::kReduce);
-    }
+    SetInterruptBudget(isolate, BudgetModification::kReset);
   } else {
     feedback_vector()->set_osr_tiering_in_progress(in_progress);
   }
@@ -339,8 +328,7 @@ bool JSFunction::osr_tiering_in_progress() {
 
 DEF_GETTER(JSFunction, has_feedback_vector, bool) {
   return shared(cage_base)->is_compiled() &&
-         IsFeedbackVector(raw_feedback_cell(cage_base)->value(cage_base),
-                          cage_base);
+         IsFeedbackVector(raw_feedback_cell(cage_base)->value(), cage_base);
 }
 
 bool JSFunction::has_closure_feedback_cell_array() const {
@@ -368,13 +356,19 @@ Tagged<NativeContext> JSFunction::native_context() {
   return context()->native_context();
 }
 
-RELEASE_ACQUIRE_ACCESSORS_CHECKED(JSFunction, prototype_or_initial_map,
-                                  (Tagged<UnionOf<JSPrototype, Map, TheHole>>),
-                                  kPrototypeOrInitialMapOffset,
-                                  map()->has_prototype_slot())
+RELEASE_ACQUIRE_ACCESSORS(JSFunctionWithPrototype, prototype_or_initial_map,
+                          (Tagged<UnionOf<JSPrototype, Map, TheHole>>),
+                          kPrototypeOrInitialMapOffset)
+
+RELEASE_ACQUIRE_ACCESSORS_CHECKED(
+    JSFunction, prototype_or_initial_map,
+    (Tagged<UnionOf<JSPrototype, Map, TheHole>>),
+    JSFunctionWithPrototype::kPrototypeOrInitialMapOffset, has_prototype_slot())
 
 DEF_GETTER(JSFunction, has_prototype_slot, bool) {
-  return map(cage_base)->has_prototype_slot();
+  // It's slightly cheaper to check for JSFunctionWithoutPrototype because
+  // there's only one such instance type.
+  return !IsJSFunctionWithoutPrototypeMap(*map(cage_base));
 }
 
 DEF_GETTER(JSFunction, initial_map, Tagged<Map>) {

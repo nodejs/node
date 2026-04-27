@@ -44,6 +44,9 @@ extern runtime WasmI32AtomicWait(
     Context, WasmTrustedInstanceData, Smi, Number, Number, BigInt): Smi;
 extern runtime WasmI64AtomicWait(
     Context, WasmTrustedInstanceData, Smi, Number, BigInt, BigInt): Smi;
+extern runtime WasmManagedObjectWait(Context, HeapObject, Smi, Number, BigInt):
+    Smi;
+extern runtime WasmAllocateWaitQueue(Context, WasmStruct, Smi): Smi;
 extern runtime WasmArrayCopy(Context, WasmArray, Smi, WasmArray, Smi, Smi):
     JSAny;
 extern runtime WasmAllocateDescriptorStruct(
@@ -57,11 +60,12 @@ extern runtime WasmArrayInitSegment(
 extern runtime WasmStringNewWtf8(
     Context, WasmTrustedInstanceData, Smi, Smi, Number, Number): String
     |WasmNull;
-extern runtime WasmStringNewWtf8Array(Context, Smi, WasmArray, Smi, Smi): String
-    |WasmNull;
+extern runtime WasmStringNewWtf8Array(Context, Smi, WasmArray, Smi, Smi, Smi):
+    String|WasmNull;
 extern runtime WasmStringNewWtf16(
     Context, WasmTrustedInstanceData, Smi, Number, Number): String;
-extern runtime WasmStringNewWtf16Array(Context, WasmArray, Smi, Smi): String;
+extern runtime WasmStringNewWtf16Array(Context, WasmArray, Smi, Smi, Smi):
+    String;
 extern runtime WasmStringConst(Context, WasmTrustedInstanceData, Smi): String;
 extern runtime WasmStringMeasureUtf8(Context, String): Number;
 extern runtime WasmStringMeasureWtf8(Context, String): Number;
@@ -69,7 +73,7 @@ extern runtime WasmStringEncodeWtf8(
     Context, WasmTrustedInstanceData, Smi, Smi, String, Number): Number;
 extern runtime WasmStringEncodeWtf8Array(
     Context, Smi, String, WasmArray, Number): Number;
-extern runtime WasmStringToUtf8Array(Context, String): WasmArray;
+extern runtime WasmStringToUtf8Array(Context, String, Smi): WasmArray;
 extern runtime WasmStringEncodeWtf16(
     Context, WasmTrustedInstanceData, Smi, String, Number, Smi, Smi): JSAny;
 extern runtime WasmStringAsWtf8(Context, String): ByteArray;
@@ -78,10 +82,9 @@ extern runtime WasmStringViewWtf8Encode(
     Smi): JSAny;
 extern runtime WasmStringViewWtf8Slice(Context, ByteArray, Number, Number):
     String;
-extern runtime WasmStringFromCodePoint(Context, Number): String;
+extern runtime WasmStringFromCodePoint(Context, Number, Smi): String;
 extern runtime WasmStringHash(NoContext, String): Smi;
 extern runtime WasmSubstring(Context, String, Smi, Smi): String;
-extern runtime WasmJSToWasmObject(Context, JSAny, Smi): JSAny;
 extern runtime WasmLiftoffDeoptFinish(NoContext, WasmTrustedInstanceData):
     Undefined;
 
@@ -744,6 +747,23 @@ builtin WasmI64AtomicWait(
   return Unsigned(SmiToInt32(result));
 }
 
+builtin WasmManagedObjectWait(
+    object: HeapObject, fieldOffset: int32, expectedValue: int32,
+    timeout: BigInt): uint32 {
+  const result: Smi = runtime::WasmManagedObjectWait(
+      LoadContextFromFrame(), object, SmiFromInt32(fieldOffset),
+      ChangeInt32ToTagged(expectedValue), timeout);
+  return Unsigned(SmiToInt32(result));
+}
+
+// It's convenient for Liftoff to return {structValue} back.
+builtin WasmAllocateWaitQueue(structValue: WasmStruct, rawFieldOffset: int32):
+    WasmStruct {
+  runtime::WasmAllocateWaitQueue(
+      LoadContextFromFrame(), structValue, SmiFromInt32(rawFieldOffset));
+  return structValue;
+}
+
 // Type feedback collection support for `call_ref` and `call_indirect`.
 
 // See {TransitiveTypeFeedbackProcessor::ProcessFunction} for the vector layout.
@@ -985,6 +1005,14 @@ builtin ThrowWasmTrapResume(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapResume));
 }
 
+builtin ThrowWasmTrapSuspend(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapSuspend));
+}
+
+builtin ThrowWasmTrapSwitch(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapSwitch));
+}
+
 macro GetRefAt<T: type, From: type>(base: From, offset: intptr): &T {
   return torque_internal::unsafe::NewOffHeapReference<T>(
       %RawDownCast<RawPtr<T>>(base + offset));
@@ -1002,15 +1030,16 @@ builtin WasmStringNewWtf8(
       WasmUint32ToNumber(size));
 }
 builtin WasmStringNewWtf8Array(
-    start: uint32, end: uint32, array: WasmArray, utf8Variant: Smi): String
-    |WasmNull {
+    start: uint32, end: uint32, array: WasmArray, utf8Variant: Smi,
+    shared: Smi): String|WasmNull {
   // This can be called from Wasm and from "JS String Builtins".
   const context = LoadContextFromWasmOrJsFrame();
   try {
     if (array.length < end) goto OffsetOutOfRange;
     if (end < start) goto OffsetOutOfRange;
     tail runtime::WasmStringNewWtf8Array(
-        context, utf8Variant, array, SmiFromUint32(start), SmiFromUint32(end));
+        context, utf8Variant, array, SmiFromUint32(start), SmiFromUint32(end),
+        shared);
   } label OffsetOutOfRange deferred {
     const error = MessageTemplate::kWasmTrapArrayOutOfBounds;
     runtime::ThrowWasmError(context, SmiConstant(error));
@@ -1139,7 +1168,31 @@ builtin WasmStringNewWtf16Array(array: WasmArray, start: uint32, end: uint32):
   } label Runtime deferred {
     const context = LoadContextFromWasmOrJsFrame();
     tail runtime::WasmStringNewWtf16Array(
-        context, array, SmiFromUint32(start), SmiFromUint32(end));
+        context, array, SmiFromUint32(start), SmiFromUint32(end),
+        SmiConstant(0) /* shared */);
+  }
+}
+
+builtin WasmStringNewWtf16ArrayShared(
+    array: WasmArray, start: uint32, end: uint32): String {
+  try {
+    if (array.length < end) goto OffsetOutOfRange;
+    if (end < start) goto OffsetOutOfRange;
+    const length: uint32 = end - start;
+    if (length == 0) return kEmptyString;
+    // TODO(448741522): Inline creation of Strings of size 1 and small size
+    // (<32);
+    goto Runtime;
+  } label OffsetOutOfRange deferred {
+    // This can be called from Wasm and from "JS String Builtins".
+    const context = LoadContextFromWasmOrJsFrame();
+    const error = MessageTemplate::kWasmTrapArrayOutOfBounds;
+    runtime::ThrowWasmError(context, SmiConstant(error));
+  } label Runtime deferred {
+    const context = LoadContextFromWasmOrJsFrame();
+    tail runtime::WasmStringNewWtf16Array(
+        context, array, SmiFromUint32(start), SmiFromUint32(end),
+        SmiConstant(1) /* shared */);
   }
 }
 
@@ -1211,8 +1264,9 @@ builtin WasmStringEncodeWtf8Array(
       WasmUint32ToNumber(start));
   return NumberToUint32(result);
 }
-builtin WasmStringToUtf8Array(string: String): WasmArray {
-  return runtime::WasmStringToUtf8Array(LoadContextFromFrame(), string);
+builtin WasmStringToUtf8Array(string: String, shared: int32): WasmArray {
+  return runtime::WasmStringToUtf8Array(
+      LoadContextFromFrame(), string, SmiFromInt32(shared));
 }
 builtin WasmStringEncodeWtf16(string: String, offset: uintptr, memory: uint32):
     uint32 {
@@ -1617,9 +1671,9 @@ builtin WasmStringToDouble(s: String): float64 {
   return StringToFloat64(Flatten(s));
 }
 
-builtin WasmStringFromCodePoint(codePoint: uint32): String {
+builtin WasmStringFromCodePoint(codePoint: uint32, shared: Smi): String {
   tail runtime::WasmStringFromCodePoint(
-      LoadContextFromFrame(), WasmUint32ToNumber(codePoint));
+      LoadContextFromFrame(), WasmUint32ToNumber(codePoint), shared);
 }
 
 builtin WasmStringHash(string: String): int32 {

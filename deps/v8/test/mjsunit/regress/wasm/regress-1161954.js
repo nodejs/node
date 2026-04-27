@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-staging
-
 // This test is manually reduced from a fuzzer test case at
 // https://crbug.com/1161954. This exercises a bug in IA32 instruction
 // selection for v128.select, in the AVX case it was too flexible and allowed

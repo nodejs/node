@@ -227,8 +227,8 @@ void StartupSerializer::CheckNoDirtyFinalizationRegistries() {
 }
 
 void SerializedHandleChecker::AddToSet(Tagged<FixedArray> serialized) {
-  int length = serialized->length();
-  for (int i = 0; i < length; i++) serialized_.insert(serialized->get(i));
+  uint32_t length = serialized->ulength().value();
+  for (uint32_t i = 0; i < length; i++) serialized_.insert(serialized->get(i));
 }
 
 void SerializedHandleChecker::VisitRootPointers(Root root,

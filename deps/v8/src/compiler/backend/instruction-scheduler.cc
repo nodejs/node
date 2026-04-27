@@ -289,6 +289,8 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
       // Instructions that load or set the stack pointer must not be reordered
       // with instructions with side effects or with each other.
       return kHasSideEffect;
+    case kArchTrap:
+      return kHasSideEffect;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     case kArchPrepareCallCFunction:

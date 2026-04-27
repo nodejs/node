@@ -31,7 +31,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
   DCHECK_GE(func_index_, static_cast<int>(env->module->num_imported_functions));
   const WasmFunction* func = &env->module->functions[func_index_];
   base::Vector<const uint8_t> code = wire_bytes_storage->GetCode(func->code);
-  bool is_shared = env->module->type(func->sig_index).is_shared;
+  SharedFlag is_shared = env->module->type(func->sig_index).is_shared;
   wasm::FunctionBody func_body{func->sig, func->code.offset(), code.begin(),
                                code.end(), is_shared};
 
@@ -78,8 +78,11 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
       // The --wasm-tier-mask-for-testing flag can force functions to be
       // compiled with TurboFan, and the --wasm-debug-mask-for-testing can force
       // them to be compiled for debugging, see documentation.
+      // Tiering is not supported when we are generating compilation hints.
       bool try_liftoff = true;
-      if (V8_UNLIKELY(v8_flags.wasm_tier_mask_for_testing != 0)) {
+      if (V8_UNLIKELY(v8_flags.wasm_tier_mask_for_testing != 0 &&
+                      !v8_flags.wasm_generate_compilation_hints &&
+                      !v8_flags.trace_wasm_generate_compilation_hints)) {
         bool must_use_liftoff =
             v8_flags.liftoff_only ||
             for_debugging_ != ForDebugging::kNotForDebugging;
@@ -176,7 +179,8 @@ void WasmCompilationUnit::CompileWasmFunction(NativeModule* native_module,
                                               const WasmFunction* function,
                                               ExecutionTier tier) {
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
-  bool is_shared = native_module->module()->type(function->sig_index).is_shared;
+  SharedFlag is_shared =
+      native_module->module()->type(function->sig_index).is_shared;
   FunctionBody function_body{function->sig, function->code.offset(),
                              wire_bytes.start() + function->code.offset(),
                              wire_bytes.start() + function->code.end_offset(),

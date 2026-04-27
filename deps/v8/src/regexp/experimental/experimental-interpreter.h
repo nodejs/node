@@ -11,9 +11,11 @@
 namespace v8 {
 namespace internal {
 
-class TrustedByteArray;
 class String;
+class TrustedByteArray;
 class Zone;
+
+namespace regexp {
 
 class ExperimentalRegExpInterpreter final : public AllStatic {
  public:
@@ -30,6 +32,7 @@ class ExperimentalRegExpInterpreter final : public AllStatic {
                          Zone* zone);
 };
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8
 

@@ -75,7 +75,7 @@ macro GetDerivedMap(
     newTarget: JSReceiver): Map {
   try {
     const constructor =
-        Cast<JSFunctionWithPrototypeSlot>(newTarget) otherwise SlowPath;
+        Cast<JSFunctionWithPrototype>(newTarget) otherwise SlowPath;
     dcheck(IsConstructor(constructor));
     if (Is<TheHole>(constructor.prototype_or_initial_map)) goto SlowPath;
     const map =

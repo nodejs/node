@@ -712,13 +712,22 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
     CallDescriptor* call_descriptor =
         Linkage::GetStubCallDescriptor(graph()->zone(), cid, arity_ + kReceiver,
                                        CallDescriptor::kNeedsFrameState);
+    const ZoneVector<CFunctionInfoWithDetails> overloads =
+        function_template_info_.c_functions_with_signatures(broker());
+    const size_t overloads_count = overloads.size();
+    ZoneVector<Address> c_functions(overloads_count, graph()->zone());
+    ZoneVector<const CFunctionInfo*> c_signatures(overloads_count,
+                                                  graph()->zone());
+    for (size_t i = 0; i < overloads_count; ++i) {
+      c_functions[i] = overloads[i].address;
+      c_signatures[i] = overloads[i].signature;
+    }
+
     ApiFunction api_function(function_template_info_.callback(broker()));
     ExternalReference function_reference = ExternalReference::Create(
         isolate(), &api_function, ExternalReference::DIRECT_API_CALL,
-        function_template_info_.c_functions(broker()).data(),
-        function_template_info_.c_signatures(broker()).data(),
-        static_cast<unsigned>(
-            function_template_info_.c_functions(broker()).size()));
+        c_functions.data(), c_signatures.data(),
+        static_cast<unsigned>(overloads_count));
 
     // LINT.IfChange
     // TODO(crbug.com/418936518): Support deopt for functions with return value.
@@ -2833,7 +2842,7 @@ Reduction JSCallReducer::ReduceBooleanConstructor(Node* node) {
   return Replace(value);
 }
 
-// ES section #sec-object-constructor
+// https://tc39.es/ecma262/#sec-object-constructor
 Reduction JSCallReducer::ReduceObjectConstructor(Node* node) {
   JSCallNode n(node);
   if (n.ArgumentCount() < 1) return NoChange();
@@ -2987,7 +2996,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
   return Replace(value);
 }
 
-// ES section #sec-function.prototype.bind
+// https://tc39.es/ecma262/#sec-function.prototype.bind
 Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -3235,7 +3244,7 @@ Reduction JSCallReducer::ReduceObjectGetPrototypeOf(Node* node) {
   return ReduceObjectGetPrototype(node, object);
 }
 
-// ES section #sec-object.is
+// https://tc39.es/ecma262/#sec-object.is
 Reduction JSCallReducer::ReduceObjectIs(Node* node) {
   JSCallNode n(node);
   Node* lhs = n.ArgumentOrUndefined(0, jsgraph());
@@ -3251,7 +3260,7 @@ Reduction JSCallReducer::ReduceObjectPrototypeGetProto(Node* node) {
   return ReduceObjectGetPrototype(node, n.receiver());
 }
 
-// ES #sec-object.prototype.hasownproperty
+// https://tc39.es/ecma262/#sec-object.prototype.hasownproperty
 Reduction JSCallReducer::ReduceObjectPrototypeHasOwnProperty(Node* node) {
   JSCallNode call_node(node);
   Node* receiver = call_node.receiver();
@@ -3388,7 +3397,7 @@ Reduction JSCallReducer::ReduceObjectPrototypeHasOwnProperty(Node* node) {
   return NoChange();
 }
 
-// ES #sec-object.prototype.isprototypeof
+// https://tc39.es/ecma262/#sec-object.prototype.isprototypeof
 Reduction JSCallReducer::ReduceObjectPrototypeIsPrototypeOf(Node* node) {
   JSCallNode n(node);
   Node* receiver = n.receiver();
@@ -3479,7 +3488,8 @@ Reduction JSCallReducer::ReduceReflectGetPrototypeOf(Node* node) {
   return ReduceObjectGetPrototype(node, target);
 }
 
-// ES6 section #sec-object.create Object.create(proto, properties)
+// ES6 section https://tc39.es/ecma262/#sec-object.create Object.create(proto,
+// properties)
 Reduction JSCallReducer::ReduceObjectCreate(Node* node) {
   JSCallNode n(node);
   Node* properties = n.ArgumentOrUndefined(1, jsgraph());
@@ -3500,14 +3510,15 @@ Reduction JSCallReducer::ReduceObjectCreate(Node* node) {
   return Changed(node);
 }
 
-// ES section #sec-reflect.get
+// https://tc39.es/ecma262/#sec-reflect.get
 Reduction JSCallReducer::ReduceReflectGet(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
   int arity = p.arity_without_implicit_args();
-  if (arity != 2) return NoChange();
+  if (arity != 2 && arity != 3) return NoChange();
   Node* target = n.Argument(0);
   Node* key = n.Argument(1);
+  Node* receiver = arity == 3 ? n.Argument(2) : nullptr;
   Node* context = n.context();
   FrameState frame_state = n.frame_state();
   Effect effect = n.effect();
@@ -3530,20 +3541,35 @@ Reduction JSCallReducer::ReduceReflectGet(Node* node) {
         frame_state, efalse, if_false);
   }
 
-  // Otherwise just use the existing GetPropertyStub.
+  // Otherwise just use the existing GetPropertyStub or GetPropertyWithReceiver.
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
   Node* etrue = effect;
   Node* vtrue;
   {
-    Callable callable = Builtins::CallableFor(isolate(), Builtin::kGetProperty);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        graph()->zone(), callable.descriptor(),
-        callable.descriptor().GetStackParameterCount(),
-        CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
-    Node* stub_code = jsgraph()->HeapConstantNoHole(callable.code());
-    vtrue = etrue = if_true =
-        graph()->NewNode(common()->Call(call_descriptor), stub_code, target,
-                         key, context, frame_state, etrue, if_true);
+    if (arity == 3) {
+      Callable callable =
+          Builtins::CallableFor(isolate(), Builtin::kGetPropertyWithReceiver);
+      auto call_descriptor = Linkage::GetStubCallDescriptor(
+          graph()->zone(), callable.descriptor(),
+          callable.descriptor().GetStackParameterCount(),
+          CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
+      Node* stub_code = jsgraph()->HeapConstantNoHole(callable.code());
+      Node* on_non_existent = jsgraph()->SmiConstant(1);  // kReturnUndefined
+      vtrue = etrue = if_true = graph()->NewNode(
+          common()->Call(call_descriptor), stub_code, target, key, receiver,
+          on_non_existent, context, frame_state, etrue, if_true);
+    } else {
+      Callable callable =
+          Builtins::CallableFor(isolate(), Builtin::kGetProperty);
+      auto call_descriptor = Linkage::GetStubCallDescriptor(
+          graph()->zone(), callable.descriptor(),
+          callable.descriptor().GetStackParameterCount(),
+          CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
+      Node* stub_code = jsgraph()->HeapConstantNoHole(callable.code());
+      vtrue = etrue = if_true =
+          graph()->NewNode(common()->Call(call_descriptor), stub_code, target,
+                           key, context, frame_state, etrue, if_true);
+    }
   }
 
   // Rewire potential exception edges.
@@ -3574,7 +3600,7 @@ Reduction JSCallReducer::ReduceReflectGet(Node* node) {
   return Changed(vtrue);
 }
 
-// ES section #sec-reflect.has
+// https://tc39.es/ecma262/#sec-reflect.has
 Reduction JSCallReducer::ReduceReflectHas(Node* node) {
   JSCallNode n(node);
   Node* target = n.ArgumentOrUndefined(0, jsgraph());
@@ -3863,7 +3889,7 @@ Reduction JSCallReducer::ReduceArrayEvery(Node* node,
 }
 
 // ES7 Array.prototype.inludes(searchElement[, fromIndex])
-// #sec-array.prototype.includes
+// https://tc39.es/ecma262/#sec-array.prototype.includes
 Reduction JSCallReducer::ReduceArrayIncludes(Node* node) {
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
   if (!h.can_reduce()) return h.inference()->NoChange();
@@ -3877,7 +3903,7 @@ Reduction JSCallReducer::ReduceArrayIncludes(Node* node) {
 }
 
 // ES6 Array.prototype.indexOf(searchElement[, fromIndex])
-// #sec-array.prototype.indexof
+// https://tc39.es/ecma262/#sec-array.prototype.indexof
 Reduction JSCallReducer::ReduceArrayIndexOf(Node* node) {
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
   if (!h.can_reduce()) return h.inference()->NoChange();
@@ -3974,7 +4000,7 @@ Reduction JSCallReducer::ReduceCallWasmFunction(Node* node,
   }
 
   // Read the trusted object only once to ensure a consistent view on it.
-  Tagged<Object> trusted_data = shared.object()->GetTrustedData(isolate());
+  auto trusted_data = shared.object()->GetTrustedData(isolate());
   Tagged<WasmExportedFunctionData> function_data;
   if (!TryCast(trusted_data, &function_data)) return NoChange();
 
@@ -5061,6 +5087,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
                                  IterationKind::kValues);
     case Builtin::kArrayIteratorPrototypeNext:
       return ReduceArrayIteratorPrototypeNext(node);
+    case Builtin::kGeneratorPrototypeNext:
+      return ReduceGeneratorPrototypeNext(node);
     case Builtin::kArrayIsArray:
       return ReduceArrayIsArray(node);
     case Builtin::kArrayBufferIsView:
@@ -5764,8 +5792,8 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
   return NoChange();
 }
 
-// ES #sec-string.prototype.indexof
-// ES #sec-string.prototype.includes
+// https://tc39.es/ecma262/#sec-string.prototype.indexof
+// https://tc39.es/ecma262/#sec-string.prototype.includes
 Reduction JSCallReducer::ReduceStringPrototypeIndexOfIncludes(
     Node* node, StringIndexOfIncludesVariant variant) {
   JSCallNode n(node);
@@ -5823,7 +5851,7 @@ Reduction JSCallReducer::ReduceStringPrototypeIndexOfIncludes(
   return NoChange();
 }
 
-// ES #sec-string.prototype.substring
+// https://tc39.es/ecma262/#sec-string.prototype.substring
 Reduction JSCallReducer::ReduceStringPrototypeSubstring(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -5837,7 +5865,7 @@ Reduction JSCallReducer::ReduceStringPrototypeSubstring(Node* node) {
   return ReplaceWithSubgraph(&a, subgraph);
 }
 
-// ES #sec-string.prototype.slice
+// https://tc39.es/ecma262/#sec-string.prototype.slice
 Reduction JSCallReducer::ReduceStringPrototypeSlice(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -5851,7 +5879,7 @@ Reduction JSCallReducer::ReduceStringPrototypeSlice(Node* node) {
   return ReplaceWithSubgraph(&a, subgraph);
 }
 
-// ES #sec-string.prototype.substr
+// https://tc39.es/ecma262/#sec-string.prototype.substr
 Reduction JSCallReducer::ReduceStringPrototypeSubstr(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -6755,7 +6783,197 @@ Reduction JSCallReducer::ReduceArrayIterator(Node* node,
   return Changed(node);
 }
 
-// ES #sec-%arrayiteratorprototype%.next
+// https://tc39.es/ecma262/#sec-generator.prototype.next
+Reduction JSCallReducer::ReduceGeneratorPrototypeNext(Node* node) {
+  JSCallNode n(node);
+  CallParameters const& p = n.Parameters();
+  Node* receiver = n.receiver();
+  Node* value = n.ArgumentOrUndefined(0, jsgraph());
+  Node* context = n.context();
+  Effect effect = n.effect();
+  Control control = n.control();
+
+  if (p.speculation_mode() != SpeculationMode::kAllowSpeculation) {
+    return NoChange();
+  }
+
+  MapInference inference(broker(), receiver, effect);
+  if (inference.HaveMaps() &&
+      inference.AllOfInstanceTypesAre(JS_GENERATOR_OBJECT_TYPE)) {
+    inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
+                                        control, p.feedback());
+  } else {
+    // If we have no reliable map feedback (e.g. megamorphic next() calls),
+    // we can still inline the generator resume by emitting a dynamic
+    // instance type check, and deoptimizing if it's not a generator.
+
+    // 1. Check if receiver is a Smi.
+    Node* is_smi = graph()->NewNode(simplified()->ObjectIsSmi(), receiver);
+    Node* is_not_smi = graph()->NewNode(simplified()->BooleanNot(), is_smi);
+    effect = graph()->NewNode(
+        simplified()->CheckIf(DeoptimizeReason::kSmi, p.feedback()), is_not_smi,
+        effect, control);
+
+    // 2. Check if receiver's InstanceType is JS_GENERATOR_OBJECT_TYPE.
+    Node* receiver_map = effect =
+        graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                         receiver, effect, control);
+    Node* receiver_instance_type = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForMapInstanceType()),
+        receiver_map, effect, control);
+    Node* is_generator =
+        graph()->NewNode(simplified()->NumberEqual(), receiver_instance_type,
+                         jsgraph()->ConstantNoHole(JS_GENERATOR_OBJECT_TYPE));
+    effect = graph()->NewNode(
+        simplified()->CheckIf(DeoptimizeReason::kWrongInstanceType,
+                              p.feedback()),
+        is_generator, effect, control);
+  }
+
+  // Check if the {receiver} is running or already closed.
+  Node* receiver_continuation = effect =
+      graph()->NewNode(simplified()->LoadField(
+                           AccessBuilder::ForJSGeneratorObjectContinuation()),
+                       receiver, effect, control);
+
+  Node* closed = jsgraph()->ConstantNoHole(JSGeneratorObject::kGeneratorClosed);
+  Node* check_closed = graph()->NewNode(simplified()->NumberEqual(),
+                                        receiver_continuation, closed);
+
+  Node* branch_closed = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                         check_closed, control);
+  Node* if_receiverisclosed =
+      graph()->NewNode(common()->IfTrue(), branch_closed);
+  Node* if_receiverisrunning =
+      graph()->NewNode(common()->IfFalse(), branch_closed);
+
+  // If closed: return {value: undefined, done: true}
+  Node* e_receiverisclosed = effect;
+  Node* v_receiverisclosed = e_receiverisclosed = graph()->NewNode(
+      javascript()->CreateIterResultObject(), jsgraph()->UndefinedConstant(),
+      jsgraph()->TrueConstant(), context, e_receiverisclosed);
+
+  // If not closed, check if executing.
+  Node* executing =
+      jsgraph()->ConstantNoHole(JSGeneratorObject::kGeneratorExecuting);
+  Node* check_executing = graph()->NewNode(simplified()->NumberEqual(),
+                                           receiver_continuation, executing);
+
+  // A throwing/deopting check is better here, since executing generators are
+  // extremely rare. We can just deoptimize if it's executing.
+  Node* e_receiverisrunning = graph()->NewNode(
+      simplified()->CheckIf(DeoptimizeReason::kWrongCallTarget, p.feedback()),
+      graph()->NewNode(simplified()->BooleanNot(), check_executing), effect,
+      if_receiverisrunning);
+
+  // Set resume_mode to kNext.
+  e_receiverisrunning = graph()->NewNode(
+      simplified()->StoreField(AccessBuilder::ForJSGeneratorObjectResumeMode()),
+      receiver, jsgraph()->ConstantNoHole(JSGeneratorObject::kNext),
+      e_receiverisrunning, if_receiverisrunning);
+
+  // Emit Call to ResumeGeneratorTrampoline
+  Callable callable =
+      Builtins::CallableFor(isolate(), Builtin::kResumeGeneratorTrampoline);
+  CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
+      graph()->zone(), callable.descriptor(),
+      callable.descriptor().GetStackParameterCount(),
+      CallDescriptor::kNeedsFrameState);
+
+  // Use a GeneratorNextLazyDeoptContinuation to wrap the yielded value
+  // correctly in case of a lazy deopt.
+  Node* lazy_deopt_parameters[] = {receiver};
+  Node* frame_state = CreateStubBuiltinContinuationFrameState(
+      jsgraph(), Builtin::kGeneratorNextLazyDeoptContinuation, context,
+      lazy_deopt_parameters, arraysize(lazy_deopt_parameters), n.frame_state(),
+      ContinuationFrameStateMode::LAZY);
+
+  Node* result = e_receiverisrunning = if_receiverisrunning = graph()->NewNode(
+      common()->Call(descriptor),
+      jsgraph()->HeapConstantNoHole(callable.code()), value, receiver, context,
+      frame_state, e_receiverisrunning, if_receiverisrunning);
+
+  // Close the generator if there was an exception.
+  Node* if_exception = graph()->NewNode(
+      common()->IfException(), e_receiverisrunning, if_receiverisrunning);
+  Node* e_exception = if_exception;
+  if_receiverisrunning =
+      graph()->NewNode(common()->IfSuccess(), if_receiverisrunning);
+
+  e_exception =
+      graph()->NewNode(simplified()->StoreField(
+                           AccessBuilder::ForJSGeneratorObjectContinuation()),
+                       receiver, closed, e_exception, if_exception);
+
+  Node* on_exception = nullptr;
+  if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
+    // Replace the original exception handler with our new exception path.
+    ReplaceWithValue(on_exception, if_exception, e_exception, if_exception);
+  } else {
+    // We must physically rethrow the exception.
+    Node* rethrow = e_exception = graph()->NewNode(
+        javascript()->CallRuntime(Runtime::kReThrow, 1), if_exception, context,
+        n.frame_state(), e_exception, if_exception);
+    Node* throw_node = graph()->NewNode(common()->Throw(), rethrow, rethrow);
+    MergeControlToEnd(graph(), common(), throw_node);
+  }
+
+  // The generator could have returned or yielded. JSResumeGenerator returns the
+  // yielded value. Check the generator's state again to see if it's executing
+  // (meaning it naturally returned).
+  Node* result_continuation = e_receiverisrunning =
+      graph()->NewNode(simplified()->LoadField(
+                           AccessBuilder::ForJSGeneratorObjectContinuation()),
+                       receiver, e_receiverisrunning, if_receiverisrunning);
+
+  Node* check_returned = graph()->NewNode(simplified()->NumberEqual(),
+                                          result_continuation, executing);
+
+  Node* branch_returned =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check_returned,
+                       if_receiverisrunning);
+  Node* if_final_return = graph()->NewNode(common()->IfTrue(), branch_returned);
+  Node* if_yielded = graph()->NewNode(common()->IfFalse(), branch_returned);
+
+  // If it returned, close it.
+  Node* e_final_return =
+      graph()->NewNode(simplified()->StoreField(
+                           AccessBuilder::ForJSGeneratorObjectContinuation()),
+                       receiver, closed, e_receiverisrunning, if_final_return);
+
+  // Wrap the returned value in an IterResult object: {value: result, done:
+  // true}
+  Node* v_final_return = e_final_return =
+      graph()->NewNode(javascript()->CreateIterResultObject(), result,
+                       jsgraph()->TrueConstant(), context, e_final_return);
+
+  // If it yielded, the value is already wrapped by the generator.
+  Node* v_yielded = result;
+  Node* e_yielded = e_receiverisrunning;
+
+  // Merge the returned and yielded paths.
+  Node* control_after_resume =
+      graph()->NewNode(common()->Merge(2), if_final_return, if_yielded);
+  Node* e_after_resume = graph()->NewNode(
+      common()->EffectPhi(2), e_final_return, e_yielded, control_after_resume);
+  Node* v_after_resume =
+      graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                       v_final_return, v_yielded, control_after_resume);
+
+  // Merge the originally closed path and the running path.
+  control = graph()->NewNode(common()->Merge(2), if_receiverisclosed,
+                             control_after_resume);
+  effect = graph()->NewNode(common()->EffectPhi(2), e_receiverisclosed,
+                            e_after_resume, control);
+  Node* final_value =
+      graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                       v_receiverisclosed, v_after_resume, control);
+
+  ReplaceWithValue(node, final_value, effect, control);
+  return Replace(final_value);
+}
+
+// https://tc39.es/ecma262/#sec-%arrayiteratorprototype%.next
 Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -7211,7 +7429,7 @@ Reduction JSCallReducer::ReduceStringPrototypeToUpperCaseIntl(Node* node) {
 
 #endif  // V8_INTL_SUPPORT
 
-// ES #sec-string.fromcharcode
+// https://tc39.es/ecma262/#sec-string.fromcharcode
 Reduction JSCallReducer::ReduceStringFromCharCode(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -7236,7 +7454,7 @@ Reduction JSCallReducer::ReduceStringFromCharCode(Node* node) {
   return NoChange();
 }
 
-// ES #sec-string.fromcodepoint
+// https://tc39.es/ecma262/#sec-string.fromcodepoint
 Reduction JSCallReducer::ReduceStringFromCodePoint(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -7411,7 +7629,7 @@ Reduction JSCallReducer::ReduceStringIteratorPrototypeNext(Node* node) {
   return Replace(value);
 }
 
-// ES #sec-string.prototype.concat
+// https://tc39.es/ecma262/#sec-string.prototype.concat
 Reduction JSCallReducer::ReduceStringPrototypeConcat(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -7562,7 +7780,7 @@ bool JSCallReducer::DoPromiseChecks(MapInference* inference) {
   return true;
 }
 
-// ES section #sec-promise.prototype.catch
+// https://tc39.es/ecma262/#sec-promise.prototype.catch
 Reduction JSCallReducer::ReducePromisePrototypeCatch(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -7615,7 +7833,7 @@ Node* JSCallReducer::CreateClosureFromBuiltinSharedFunctionInfo(
                           effect, control);
 }
 
-// ES section #sec-promise.prototype.finally
+// https://tc39.es/ecma262/#sec-promise.prototype.finally
 Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -7797,7 +8015,7 @@ Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
   return Replace(promise);
 }
 
-// ES section #sec-promise.resolve
+// https://tc39.es/ecma262/#sec-promise.resolve
 Reduction JSCallReducer::ReducePromiseResolveTrampoline(Node* node) {
   JSCallNode n(node);
   Node* receiver = n.receiver();
@@ -7825,7 +8043,7 @@ Reduction JSCallReducer::ReducePromiseResolveTrampoline(Node* node) {
   return Changed(node);
 }
 
-// ES #sec-typedarray-constructors
+// https://tc39.es/ecma262/#sec-typedarray-constructors
 Reduction JSCallReducer::ReduceTypedArrayConstructor(
     Node* node, SharedFunctionInfoRef shared) {
   JSConstructNode n(node);
@@ -7857,7 +8075,7 @@ Reduction JSCallReducer::ReduceTypedArrayConstructor(
   return Replace(result);
 }
 
-// ES #sec-get-%typedarray%.prototype-@@tostringtag
+// https://tc39.es/ecma262/#sec-get-%typedarray%.prototype-@@tostringtag
 Reduction JSCallReducer::ReduceTypedArrayPrototypeToStringTag(Node* node) {
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -8088,7 +8306,7 @@ Reduction JSCallReducer::ReduceTypedArrayPrototypeLength(Node* node) {
   return ReplaceWithSubgraph(&a, length);
 }
 
-// ES #sec-number.isfinite
+// https://tc39.es/ecma262/#sec-number.isfinite
 Reduction JSCallReducer::ReduceNumberIsFinite(Node* node) {
   JSCallNode n(node);
   if (n.ArgumentCount() < 1) {
@@ -8102,7 +8320,7 @@ Reduction JSCallReducer::ReduceNumberIsFinite(Node* node) {
   return Replace(value);
 }
 
-// ES #sec-number.isfinite
+// https://tc39.es/ecma262/#sec-number.isfinite
 Reduction JSCallReducer::ReduceNumberIsInteger(Node* node) {
   JSCallNode n(node);
   if (n.ArgumentCount() < 1) {
@@ -8116,7 +8334,7 @@ Reduction JSCallReducer::ReduceNumberIsInteger(Node* node) {
   return Replace(value);
 }
 
-// ES #sec-number.issafeinteger
+// https://tc39.es/ecma262/#sec-number.issafeinteger
 Reduction JSCallReducer::ReduceNumberIsSafeInteger(Node* node) {
   JSCallNode n(node);
   if (n.ArgumentCount() < 1) {
@@ -8130,7 +8348,7 @@ Reduction JSCallReducer::ReduceNumberIsSafeInteger(Node* node) {
   return Replace(value);
 }
 
-// ES #sec-number.isnan
+// https://tc39.es/ecma262/#sec-number.isnan
 Reduction JSCallReducer::ReduceNumberIsNaN(Node* node) {
   JSCallNode n(node);
   if (n.ArgumentCount() < 1) {
@@ -8771,7 +8989,14 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
   // if we anyways have to load it (to reduce register pressure).
   Node* buffer_or_receiver = receiver;
 
-  if (!dependencies()->DependOnArrayBufferDetachingProtector()) {
+  bool depend_on_detaching =
+      dependencies()->DependOnArrayBufferDetachingProtector();
+  bool depend_on_mutable =
+      access == DataViewAccess::kSet
+          ? dependencies()->DependOnArrayBufferMutableProtector()
+          : true;
+
+  if (!depend_on_detaching || !depend_on_mutable) {
     // Get the underlying buffer and check that it has not been detached.
     Node* buffer = effect = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
@@ -9087,7 +9312,7 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
   return Changed(node);
 }
 
-// ES section #sec-number-constructor
+// https://tc39.es/ecma262/#sec-number-constructor
 Reduction JSCallReducer::ReduceNumberConstructor(Node* node) {
   JSCallNode n(node);
   Node* target = n.target();
@@ -9109,7 +9334,7 @@ Reduction JSCallReducer::ReduceNumberConstructor(Node* node) {
   return Changed(node);
 }
 
-// ES section #sec-bigint-constructor
+// https://tc39.es/ecma262/#sec-bigint-constructor
 Reduction JSCallReducer::ReduceBigIntConstructor(Node* node) {
   if (!jsgraph()->machine()->Is64()) return NoChange();
 

@@ -60,7 +60,6 @@ StatusOr<std::string> MarshalHashtableProfile(
   const auto capacity_id = builder.InternString("capacity");
   const auto size_id = builder.InternString("size");
   const auto num_erases_id = builder.InternString("num_erases");
-  const auto num_insert_hits_id = builder.InternString("num_insert_hits");
   const auto num_rehashes_id = builder.InternString("num_rehashes");
   const auto max_probe_length_id = builder.InternString("max_probe_length");
   const auto total_probe_length_id = builder.InternString("total_probe_length");
@@ -89,9 +88,6 @@ StatusOr<std::string> MarshalHashtableProfile(
         add_label(size_id, info.size.load(std::memory_order_relaxed));
         add_label(num_erases_id,
                   info.num_erases.load(std::memory_order_relaxed));
-        // TODO(b/436909492): Revisit whether this value is useful.
-        add_label(num_insert_hits_id,
-                  info.num_insert_hits.load(std::memory_order_relaxed));
         add_label(num_rehashes_id,
                   info.num_rehashes.load(std::memory_order_relaxed));
         add_label(max_probe_length_id,

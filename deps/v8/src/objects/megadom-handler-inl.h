@@ -8,7 +8,7 @@
 #include "src/objects/megadom-handler.h"
 // Include the non-inl header before the rest of the headers.
 
-#include "src/objects/objects-inl.h"  // Needed for write barriers
+#include "src/objects/tagged-field-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -17,8 +17,6 @@ namespace v8 {
 namespace internal {
 
 #include "torque-generated/src/objects/megadom-handler-tq-inl.inc"
-
-TQ_OBJECT_CONSTRUCTORS_IMPL(MegaDomHandler)
 
 RELEASE_ACQUIRE_ACCESSORS(MegaDomHandler, accessor, Tagged<MaybeObject>,
                           kAccessorOffset)

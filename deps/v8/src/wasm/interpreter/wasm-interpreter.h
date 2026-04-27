@@ -1340,9 +1340,21 @@ struct WasmInstruction {
     uint8_t simd_lane : 4;
     struct SimdLaneLoad {
       uint8_t lane : 4;
-      uint8_t : 0;
+      uint32_t memory_index : 28;
       uint64_t offset : 48;
     } simd_loadstore_lane;
+    struct MemoryInit {
+      uint32_t memory_index;
+      uint32_t data_segment_index;
+    } memory_init;
+    struct MemoryCopy {
+      uint32_t dst_memory_index;
+      uint32_t src_memory_index;
+    } memory_copy;
+    struct MemoryAccess {
+      uint64_t offset;
+      uint32_t memory_index;
+    } memory_access;
     struct GC_FieldImmediate {
       uint32_t struct_index;
       uint32_t field_index;
@@ -1599,7 +1611,7 @@ class WasmBytecodeGenerator {
 
   inline void I32Push(bool emit = true);
   inline void I64Push(bool emit = true);
-  inline void MemIndexPush(bool emit = true) { (this->*int_mem_push_)(emit); }
+  inline void MemIndexPush(bool is_memory64, bool emit = true);
   inline void ITableIndexPush(bool is_table64, bool emit = true);
   inline void F32Push(bool emit = true);
   inline void F64Push(bool emit = true);
@@ -1609,7 +1621,13 @@ class WasmBytecodeGenerator {
 
   inline void I32Pop(bool emit = true) { Pop(kI32, emit); }
   inline void I64Pop(bool emit = true) { Pop(kI64, emit); }
-  inline void MemIndexPop(bool emit = true) { (this->*int_mem_pop_)(emit); }
+  inline void MemIndexPop(bool is_memory64, bool emit = true) {
+    if (V8_UNLIKELY(is_memory64)) {
+      I64Pop(emit);
+    } else {
+      I32Pop(emit);
+    }
+  }
   inline void F32Pop(bool emit = true) { Pop(kF32, emit); }
   inline void F64Pop(bool emit = true) { Pop(kF64, emit); }
   inline void S128Pop(bool emit = true) { Pop(kS128, emit); }
@@ -1689,6 +1707,13 @@ class WasmBytecodeGenerator {
     } else {
       DCHECK_EQ(handler_size_, InstrHandlerSize::Large);
       Emit(&value, sizeof(value));
+    }
+  }
+  inline void EmitMemoryIndex(int32_t value) {
+    if (V8_UNLIKELY(is_multi_memory_)) {
+      EmitI32Const(value);
+    } else {
+      DCHECK_EQ(value, 0);
     }
   }
 
@@ -2021,10 +2046,6 @@ class WasmBytecodeGenerator {
   static bool HasSideEffects(WasmOpcode opcode);
 #endif  // DEBUG
 
-  MemIndexPushFunc int_mem_push_;
-  MemIndexPopFunc int_mem_pop_;
-  bool is_memory64_;
-
   std::vector<uint8_t> const_slots_values_;
   uint32_t const_slot_offset_;
   absl::flat_hash_map<int32_t, uint32_t> i32_const_cache_;
@@ -2103,6 +2124,8 @@ class WasmBytecodeGenerator {
 
   std::vector<BlockData> blocks_;
   int32_t current_block_index_;
+
+  const bool is_multi_memory_;
 
   bool is_instruction_reachable_;
   uint32_t unreachable_block_count_;

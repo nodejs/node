@@ -109,6 +109,10 @@ class ReadOnlyHeap final {
   bool roots_init_complete_ = false;
   ReadOnlySpace* read_only_space_ = nullptr;
 
+#if V8_ENABLE_WEBASSEMBLY
+  Address wasm_null_payload_ = kNullAddress;
+#endif
+
 #ifdef V8_ENABLE_SANDBOX
   // The read-only heap has its own code pointer space. Entries in this space
   // are never deallocated.

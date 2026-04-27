@@ -622,6 +622,7 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
                                  std::memory_order_release);
   return embedded_blob_code_copy;
 }
+#undef TRACE
 
 }  // namespace internal
 }  // namespace v8

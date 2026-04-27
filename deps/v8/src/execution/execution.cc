@@ -14,7 +14,8 @@
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/wasm-compiler.h"  // Only for static asserts.
 #include "src/wasm/code-space-access.h"
-#include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-engine-globals.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
@@ -217,7 +218,7 @@ MaybeDirectHandle<Context> NewScriptContext(
         if (!((mode == lookup.mode && IsLexicalVariableMode(mode)) &&
               scope_info->IsReplModeScope() &&
               context->scope_info()->IsReplModeScope())) {
-          // ES#sec-globaldeclarationinstantiation 5.b:
+          // https://tc39.es/ecma262/#sec-globaldeclarationinstantiation 5.b:
           // If envRec.HasLexicalDeclaration(name) is true, throw a SyntaxError
           // exception.
           MessageLocation location(script, 0, 1);
@@ -238,10 +239,10 @@ MaybeDirectHandle<Context> NewScriptContext(
       // skipping interceptors.
       CHECK(!maybe.IsNothing());
       if ((maybe.FromJust() & DONT_DELETE) != 0) {
-        // ES#sec-globaldeclarationinstantiation 5.a:
+        // https://tc39.es/ecma262/#sec-globaldeclarationinstantiation 5.a:
         // If envRec.HasVarDeclaration(name) is true, throw a SyntaxError
         // exception.
-        // ES#sec-globaldeclarationinstantiation 5.d:
+        // https://tc39.es/ecma262/#sec-globaldeclarationinstantiation 5.d:
         // If hasRestrictedGlobal is true, throw a SyntaxError exception.
         MessageLocation location(script, 0, 1);
         isolate->ThrowAt(isolate->factory()->NewSyntaxError(
@@ -364,6 +365,21 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
     GRACEFUL_FATAL("Invoke in DisallowJavascriptExecutionScope");
   }
   if (!ThrowOnJavascriptExecution::IsAllowed(isolate)) {
+    // TODO(http://crbug.com/486958027): temporary measure for figuring out
+    // who tries to throw exceptions in C++ microtasks.
+    {
+      Tagged<Object> maybe_microtask = *isolate->factory()->current_microtask();
+      if (IsCallbackTask(maybe_microtask)) {
+        Tagged<Map> maybe_microtask_map;
+        if (IsHeapObject(maybe_microtask)) {
+          maybe_microtask_map = Cast<HeapObject>(maybe_microtask)->map();
+        }
+        isolate->PushStackTraceAndContinue(
+            reinterpret_cast<void*>((*params.target).ptr()),
+            reinterpret_cast<void*>(maybe_microtask.ptr()),
+            reinterpret_cast<void*>(maybe_microtask_map.ptr()));
+      }
+    }
     isolate->ThrowIllegalOperation();
     isolate->ReportPendingMessages(params.message_handling ==
                                    Execution::MessageHandling::kReport);
@@ -386,6 +402,23 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
       v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
       callback(api_isolate, api_context);
       DCHECK(!isolate->has_exception());
+      // TODO(http://crbug.com/486958027): temporary measure for figuring out
+      // who tries to throw exceptions in C++ microtasks.
+      {
+        Tagged<Object> maybe_microtask =
+            *isolate->factory()->current_microtask();
+        if (IsCallbackTask(maybe_microtask)) {
+          Tagged<Map> maybe_microtask_map;
+          if (IsHeapObject(maybe_microtask)) {
+            maybe_microtask_map = Cast<HeapObject>(maybe_microtask)->map();
+          }
+          isolate->PushStackTraceAndContinue(
+              reinterpret_cast<void*>((*params.target).ptr()),
+              reinterpret_cast<void*>(maybe_microtask.ptr()),
+              reinterpret_cast<void*>(maybe_microtask_map.ptr()),
+              reinterpret_cast<void*>(callback));
+        }
+      }
       // Always throw an exception to abort execution, if callback exists.
       isolate->ThrowIllegalOperation();
       return MaybeHandle<Object>();

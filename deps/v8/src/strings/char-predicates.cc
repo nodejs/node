@@ -14,7 +14,7 @@
 namespace v8 {
 namespace internal {
 
-// ES#sec-names-and-keywords Names and Keywords
+// https://tc39.es/ecma262/#sec-names-and-keywords Names and Keywords
 // UnicodeIDStart, '$', '_' and '\'
 bool IsIdentifierStartSlow(base::uc32 c) {
   // cannot use u_isIDStart because it does not work for
@@ -23,7 +23,7 @@ bool IsIdentifierStartSlow(base::uc32 c) {
          (c < 0x60 && (c == '$' || c == '\\' || c == '_'));
 }
 
-// ES#sec-names-and-keywords Names and Keywords
+// https://tc39.es/ecma262/#sec-names-and-keywords Names and Keywords
 // UnicodeIDContinue, '$', '_', '\', ZWJ, and ZWNJ
 bool IsIdentifierPartSlow(base::uc32 c) {
   // Can't use u_isIDPart because it does not work for
@@ -33,7 +33,7 @@ bool IsIdentifierPartSlow(base::uc32 c) {
          c == 0x200D;
 }
 
-// ES#sec-white-space White Space
+// https://tc39.es/ecma262/#sec-white-space White Space
 // gC=Zs, U+0009, U+000B, U+000C, U+FEFF
 bool IsWhiteSpaceSlow(base::uc32 c) {
   return (u_charType(c) == U_SPACE_SEPARATOR) ||

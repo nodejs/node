@@ -97,23 +97,25 @@ class ObjectPreProcessor final {
   void PreProcessInterceptorInfo(Tagged<InterceptorInfo> o) {
     const bool is_named = o->is_named();
 
-#define PROCESS_FIELD(Name, name)                             \
-  EncodeExternalPointerSlot(                                  \
-      o->RawExternalPointerField(                             \
-          InterceptorInfo::k##Name##Offset,                   \
-          is_named ? kApiNamedProperty##Name##CallbackTag     \
-                   : kApiIndexedProperty##Name##CallbackTag), \
-      is_named /* Pass the non-redirected value. */           \
-          ? o->named_##name(isolate_)                         \
-          : o->indexed_##name(isolate_));
+#define PROCESS_NAMED_FIELD(Name, name)                                 \
+  EncodeExternalPointerSlot(                                            \
+      o->RawExternalPointerField(InterceptorInfo::k##Name##Offset,      \
+                                 kApiNamedProperty##Name##CallbackTag), \
+      o->named_##name(isolate_) /* non-redirected */);
 
-    // Hoist |is_named| checks out.
+#define PROCESS_INDEXED_FIELD(Name, name)                                 \
+  EncodeExternalPointerSlot(                                              \
+      o->RawExternalPointerField(InterceptorInfo::k##Name##Offset,        \
+                                 kApiIndexedProperty##Name##CallbackTag), \
+      o->indexed_##name(isolate_) /* non-redirected */);
+
     if (is_named) {
-      INTERCEPTOR_INFO_CALLBACK_LIST(PROCESS_FIELD)
+      NAMED_INTERCEPTOR_INFO_CALLBACK_LIST(PROCESS_NAMED_FIELD)
     } else {
-      INTERCEPTOR_INFO_CALLBACK_LIST(PROCESS_FIELD)
+      INDEXED_INTERCEPTOR_INFO_CALLBACK_LIST(PROCESS_INDEXED_FIELD)
     }
-#undef PROCESS_FIELD
+#undef PROCESS_NAMED_FIELD
+#undef PROCESS_INDEXED_FIELD
   }
   void PreProcessJSExternalObject(Tagged<JSExternalObject> o) {
     ExternalPointerSlot value_slot = o->RawExternalPointerField(

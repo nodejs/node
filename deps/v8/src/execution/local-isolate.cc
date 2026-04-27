@@ -58,10 +58,38 @@ bool LocalIsolate::has_active_deserializer() const {
 
 int LocalIsolate::GetNextScriptId() { return isolate_->GetNextScriptId(); }
 
+class LocalBigIntPlatform final : public bigint::Platform {
+ public:
+  using digit_t = bigint::digit_t;
+
+  bool InterruptRequested() final { return false; }
+
+  ~LocalBigIntPlatform() final = default;
+
+#if V8_ENABLE_SANDBOX
+  LocalBigIntPlatform()
+      : allocator_(
+            IsolateGroup::GetDefault()->GetSandboxedArrayBufferAllocator()) {}
+
+  digit_t* Allocate(size_t count) final {
+    return static_cast<digit_t*>(
+        allocator_->AllocateUninitializedOrCrash(count * sizeof(digit_t)));
+  }
+  void Free(digit_t* ptr) final { allocator_->Free(ptr); }
+
+ private:
+  SandboxedArrayBufferAllocatorBase* allocator_;
+#else
+  LocalBigIntPlatform() {}
+  digit_t* Allocate(size_t count) final { return new digit_t[count]; }
+  void Free(digit_t* ptr) final { delete[] ptr; }
+#endif  // V8_ENABLE_SANDBOX
+};
+
 // Used for lazy initialization, based on an assumption that most
 // LocalIsolates won't be used to parse any BigInt literals.
 void LocalIsolate::InitializeBigIntProcessor() {
-  bigint_processor_ = bigint::Processor::New(new bigint::Platform());
+  bigint_processor_ = bigint::Processor::New(new LocalBigIntPlatform());
 }
 
 // static

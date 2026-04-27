@@ -66,6 +66,13 @@ declare_args() {
   # Use static libraries instead of source_sets.
   v8_static_library = false
 
+  # Enable cluster build. This build mode compiles multiple .cc files in one
+  # compilation unit. These are files where the C++ compiler spends most of its
+  # time processing the same long list of .h files, which means they can be
+  # compiled together in almost the same time that just one of them would have
+  # taken.
+  v8_enable_cluster_build = false
+
   # Enable monolithic static library for embedders.
   v8_monolithic = false
 
@@ -102,25 +109,40 @@ declare_args() {
   # Enable Wasm interpreter tracing.
   v8_enable_drumbrake_tracing = false
 
+  # Use host CPU ARM features when compiling ARM/ARM64 snapshots
+  # (using mksnapshot). When true, use both CPU features from
+  # the target's CPU, and the host's CPU.
+  # Since mksnapshot's output runs on the target device, this is not
+  # desirable in general to take the CPU features of the host compiler.
+  # However, the default is true in order to preserve existing behavior,
+  # and ensure all necessary CPU features are available in certain scenarios
+  #(where target and host have the same CPU architecture but different CPUs).
+  v8_use_host_cpu_arm_features = true
+
   # On non-Desktop platforms, enable explicit bounds checks in the Wasm
   # interpreter, where the bounds checking is done in the instruction handler,
   # not using an unhandled exception filter (which also doesn't work with
   # Win-ASAN).
-  # Also enables explicit bounds checks on component builds in platforms other
-  # than Windows because of a problem with function name mangling for vectorcall
-  # ABI on ELF (The vectorcall calling convention requires a mangling that
-  # includes @@, but on ELF an @ indicates that the part after it is the version
-  # of the symbol, with @@ indicating the default symbol version to link against
-  # when none is specified by the caller and this causes linker errors). As a
-  # workaround, we need to disable the vectorcall calling convention for
-  # component builds on Linux and Mac, which means that we cannot use DrumBrake
-  # builtins for Load/Store instruction handlers, because of the different
-  # calling convention.
-  # Windows component builds are also enabled to support cross-compilation.
+  # Trap-handler based Load/Store builtins are supported on x64 and arm64.
+  # On x64, also enables explicit bounds checks on component builds in platforms
+  # other than Windows because of a problem with function name mangling for
+  # vectorcall ABI on ELF (The vectorcall calling convention requires a mangling
+  # that includes @@, but on ELF an @ indicates that the part after it is the
+  # version of the symbol, with @@ indicating the default symbol version to link
+  # against when none is specified by the caller and this causes linker errors).
+  # As a workaround, we need to disable the vectorcall calling convention for
+  # x64 component builds on Linux and Mac, which means that we cannot use
+  # DrumBrake builtins for Load/Store instruction handlers on x64 component
+  # builds because of the different calling convention.
+  # Windows component builds are also affected to support cross-compilation.
+  # While arm64 uses the standard AAPCS64 calling convention, component builds
+  # work without this restriction only on iOS due to platform-specific
+  # build constraints.
   v8_drumbrake_bounds_checks =
       (is_win && (is_asan || is_ubsan || is_msan || is_tsan)) ||
-      !(is_win || is_linux || is_mac) || v8_current_cpu != "x64" || !is_clang ||
-      is_component_build
+      !(is_win || is_linux || is_mac || is_ios) ||
+      (v8_current_cpu != "x64" && v8_current_cpu != "arm64") || !is_clang ||
+      (is_component_build && target_os != "ios")
 
   # Enable the Turbofan compiler.
   # Sets -dV8_ENABLE_TURBOFAN.
@@ -202,7 +224,9 @@ declare_args() {
   # GC.
   cppgc_enable_slim_write_barrier = true
 
-  # Enable pointer compression in cppgc.
+  # Enable pointer compression in cppgc. Note: this is automatically turned on
+  # by cppgc_enable_caged_heap on 64-bit platforms. To unconditionally disable
+  # pointer compression, set cppgc_enable_caged_heap = false.
   cppgc_enable_pointer_compression = false
 
   # Enable support for larger cages, up to 16GB.
@@ -368,7 +392,6 @@ v8_add_configs = [
   v8_path_prefix + ":features",
   v8_path_prefix + ":toolchain",
   v8_path_prefix + ":strict_warnings",
-  v8_path_prefix + ":sanitizer_defines",
 ]
 
 if (v8_force_optimize_speed) {

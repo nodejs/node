@@ -198,6 +198,10 @@ using AccessorNameGetterCallback =
  * See Object::SetNativeDataProperty and
  * ObjectTemplate::SetNativeDataProperty methods.
  */
+using AccessorNameSetterCallbackV2 =
+    void (*)(Local<Name> property, Local<Value> value,
+             const PropertyCallbackInfo<Boolean>& info);
+// TODO(https://crbug.com/348660658): deprecate and remove.
 using AccessorNameSetterCallback =
     void (*)(Local<Name> property, Local<Value> value,
              const PropertyCallbackInfo<void>& info);
@@ -402,11 +406,29 @@ class V8_EXPORT Object : public Value {
    */
   V8_WARN_UNUSED_RESULT Maybe<bool> SetNativeDataProperty(
       Local<Context> context, Local<Name> name,
-      AccessorNameGetterCallback getter,
-      AccessorNameSetterCallback setter = nullptr,
+      AccessorNameGetterCallback getter, AccessorNameSetterCallbackV2 setter,
       Local<Value> data = Local<Value>(), PropertyAttribute attributes = None,
       SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
       SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
+  V8_WARN_UNUSED_RESULT Maybe<bool> SetNativeDataProperty(
+      Local<Context> context, Local<Name> name,
+      AccessorNameGetterCallback getter, AccessorNameSetterCallback setter,
+      Local<Value> data = Local<Value>(), PropertyAttribute attributes = None,
+      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
+      SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
+  // TODO(https://crbug.com/348660658): remove once AccessorNameSetterCallback
+  // is removed.
+  V8_WARN_UNUSED_RESULT Maybe<bool> SetNativeDataProperty(
+      Local<Context> context, Local<Name> name,
+      AccessorNameGetterCallback getter, std::nullptr_t setter = nullptr,
+      Local<Value> data = Local<Value>(), PropertyAttribute attributes = None,
+      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
+      SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect) {
+    return SetNativeDataProperty(
+        context, name, getter,
+        static_cast<AccessorNameSetterCallbackV2>(setter), data, attributes,
+        getter_side_effect_type, setter_side_effect_type);
+  }
 
   /**
    * Attempts to create a property with the given name which behaves like a data
@@ -469,17 +491,24 @@ class V8_EXPORT Object : public Value {
   /**
    * Get the prototype object (same as calling Object.getPrototypeOf(..)).
    * This does not consult the security handler.
-   * TODO(http://crbug.com/333672197): rename back to GetPrototype().
    */
-  Local<Value> GetPrototypeV2();
+  Local<Value> GetPrototype();
+  // TODO(http://crbug.com/333672197): deprecate and remove.
+  V8_DEPRECATE_SOON("Use GetPrototype().")
+  inline Local<Value> GetPrototypeV2() { return GetPrototype(); }
 
   /**
    * Set the prototype object (same as calling Object.setPrototypeOf(..)).
    * This does not consult the security handler.
-   * TODO(http://crbug.com/333672197): rename back to SetPrototype().
    */
+  V8_WARN_UNUSED_RESULT Maybe<bool> SetPrototype(Local<Context> context,
+                                                 Local<Value> prototype);
+  // TODO(http://crbug.com/333672197): deprecate and remove.
+  V8_DEPRECATE_SOON("Use SetPrototype().")
   V8_WARN_UNUSED_RESULT Maybe<bool> SetPrototypeV2(Local<Context> context,
-                                                   Local<Value> prototype);
+                                                   Local<Value> prototype) {
+    return SetPrototype(context, prototype);
+  }
 
   /**
    * Finds an instance of the given function template in the prototype

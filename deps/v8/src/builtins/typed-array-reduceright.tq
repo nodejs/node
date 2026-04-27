@@ -8,7 +8,7 @@ namespace typed_array {
 const kBuiltinNameReduceRight: constexpr string =
     '%TypedArray%.prototype.reduceRight';
 
-// https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.reduceright
+// https://tc39.es/ecma262/#sec-%typedarray%.prototype.reduceright
 transitioning macro ReduceRightAllElements(
     implicit context: Context)(
     attachedArrayAndLength: typed_array::ValidJSTypedArrayAndLength,
@@ -48,7 +48,7 @@ transitioning macro ReduceRightAllElements(
   }
 }
 
-// https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.reduceright
+// https://tc39.es/ecma262/#sec-%typedarray%.prototype.reduceright
 transitioning javascript builtin TypedArrayPrototypeReduceRight(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   // arguments[0] = callback

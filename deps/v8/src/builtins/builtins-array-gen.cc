@@ -66,7 +66,7 @@ void ArrayBuiltinsAssembler::TypedArrayMapResultGenerator() {
   a_ = a;
 }
 
-// See tc39.github.io/ecma262/#sec-%typedarray%.prototype.map.
+// See https://tc39.es/ecma262/#sec-%typedarray%.prototype.map.
 TNode<JSAny> ArrayBuiltinsAssembler::TypedArrayMapProcessor(
     TNode<Object> k_value, TNode<UintPtrT> k) {
   // 7c. Let mapped_value be ? Call(callbackfn, T, « kValue, k, O »).
@@ -77,12 +77,12 @@ TNode<JSAny> ArrayBuiltinsAssembler::TypedArrayMapProcessor(
 
   // 7d. Perform ? Set(A, Pk, mapped_value, true).
   // Since we know that A is a TypedArray, this always ends up in
-  // #sec-integer-indexed-exotic-objects-set-p-v-receiver and then
-  // tc39.github.io/ecma262/#sec-integerindexedelementset .
+  // https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects-set-p-v-receiver
+  // and then https://tc39.es/ecma262/#sec-integerindexedelementset .
   Branch(fast_typed_array_target_, &fast, &slow);
 
   BIND(&fast);
-  // #sec-integerindexedelementset
+  // https://tc39.es/ecma262/#sec-integerindexedelementset
   // 2. If arrayTypeName is "BigUint64Array" or "BigInt64Array", let
   // numValue be ? ToBigInt(v).
   // 3. Otherwise, let numValue be ? ToNumber(value).
@@ -145,7 +145,7 @@ void ArrayBuiltinsAssembler::GenerateIteratingTypedArrayBuiltinBody(
     const CallResultProcessor& processor, ForEachDirection direction) {
   name_ = name;
 
-  // ValidateTypedArray: tc39.github.io/ecma262/#sec-validatetypedarray
+  // ValidateTypedArray: https://tc39.es/ecma262/#sec-validatetypedarray
 
   Label throw_not_typed_array(this, Label::kDeferred);
 
@@ -1320,6 +1320,7 @@ void ArrayIncludesIndexofAssembler::GenerateHoleyDoubles(
   }
 }
 
+// https://tc39.es/ecma262/#sec-array.prototype.includes
 TF_BUILTIN(ArrayIncludes, ArrayIncludesIndexofAssembler) {
   TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
       UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount));
@@ -1372,6 +1373,7 @@ TF_BUILTIN(ArrayIncludesHoleyDoubles, ArrayIncludesIndexofAssembler) {
                        from_index);
 }
 
+// https://tc39.es/ecma262/#sec-array.prototype.indexof
 TF_BUILTIN(ArrayIndexOf, ArrayIncludesIndexofAssembler) {
   TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
       UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount));
@@ -1424,7 +1426,7 @@ TF_BUILTIN(ArrayIndexOfHoleyDoubles, ArrayIncludesIndexofAssembler) {
                        from_index);
 }
 
-// ES #sec-array.prototype.values
+// https://tc39.es/ecma262/#sec-array.prototype.values
 TF_BUILTIN(ArrayPrototypeValues, CodeStubAssembler) {
   auto context = Parameter<NativeContext>(Descriptor::kContext);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
@@ -1432,7 +1434,7 @@ TF_BUILTIN(ArrayPrototypeValues, CodeStubAssembler) {
                              IterationKind::kValues));
 }
 
-// ES #sec-array.prototype.entries
+// https://tc39.es/ecma262/#sec-array.prototype.entries
 TF_BUILTIN(ArrayPrototypeEntries, CodeStubAssembler) {
   auto context = Parameter<NativeContext>(Descriptor::kContext);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
@@ -1440,7 +1442,7 @@ TF_BUILTIN(ArrayPrototypeEntries, CodeStubAssembler) {
                              IterationKind::kEntries));
 }
 
-// ES #sec-array.prototype.keys
+// https://tc39.es/ecma262/#sec-array.prototype.keys
 TF_BUILTIN(ArrayPrototypeKeys, CodeStubAssembler) {
   auto context = Parameter<NativeContext>(Descriptor::kContext);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
@@ -1448,7 +1450,7 @@ TF_BUILTIN(ArrayPrototypeKeys, CodeStubAssembler) {
                              IterationKind::kKeys));
 }
 
-// ES #sec-%arrayiteratorprototype%.next
+// https://tc39.es/ecma262/#sec-%arrayiteratorprototype%.next
 TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
   const char* method_name = "Array Iterator.prototype.next";
 
@@ -1540,19 +1542,17 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
 
   BIND(&if_other);
   {
+    GotoIf(InstanceTypeEqual(array_type, JS_DETACHED_TYPED_ARRAY_TYPE),
+           &if_detached_typed_array);
     // We cannot enter here with either JSArray's or JSTypedArray's.
     CSA_DCHECK(this, Word32BinaryNot(IsJSArrayInstanceType(array_type)));
-    CSA_DCHECK(this,
-               Word32BinaryNot(
-                   IsJSTypedArrayInstanceTypeMaybeFalseIfDetached(array_type)));
-
-    Label if_oob(this);
+    CSA_DCHECK(this, Word32BinaryNot(IsJSTypedArrayInstanceType(array_type)));
 
     // Check that the {index} is within the bounds of the {array}s "length".
     TNode<Number> length = CAST(
         CallBuiltin(Builtin::kToLength, context,
                     GetProperty(context, array, factory()->length_string())));
-    GotoIfNumberGreaterThanOrEqual(index, length, &if_oob);
+    GotoIfNumberGreaterThanOrEqual(index, length, &set_done);
 
     // Detached typed array must have length 0.
     CSA_DCHECK(this, Word32BinaryNot(InstanceTypeEqual(
@@ -1566,11 +1566,6 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
                            iterator, JSArrayIterator::kKindOffset),
                        Int32Constant(static_cast<int>(IterationKind::kKeys))),
            &allocate_iterator_result, &if_generic);
-
-    BIND(&if_oob);
-    GotoIf(InstanceTypeEqual(array_type, JS_DETACHED_TYPED_ARRAY_TYPE),
-           &if_detached_typed_array);
-    Goto(&set_done);
   }
 
   BIND(&set_done);
@@ -1835,8 +1830,7 @@ TF_BUILTIN(ArrayConstructorImpl, ArrayBuiltinsAssembler) {
       Parameter<HeapObject>(Descriptor::kAllocationSite);
 
   // Initial map for the builtin Array functions should be Map.
-  CSA_DCHECK(this, IsMap(CAST(LoadObjectField(
-                       target, JSFunction::kPrototypeOrInitialMapOffset))));
+  CSA_DCHECK(this, IsMap(LoadJSFunctionPrototypeOrInitialMap(target)));
 
   // We should either have undefined or a valid AllocationSite
   CSA_DCHECK(this, Word32Or(IsUndefined(maybe_allocation_site),

@@ -64,6 +64,10 @@ namespace internal {
 
 class SafepointTableBuilder;
 
+namespace regexp {
+class RegExpMacroAssemblerS390;
+}
+
 // -----------------------------------------------------------------------------
 // Machine instruction Operands
 
@@ -1468,7 +1472,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   int WriteCodeComments();
 
-  friend class RegExpMacroAssemblerS390;
+  friend class regexp::RegExpMacroAssemblerS390;
   friend class RelocInfo;
   friend class EnsureSpace;
   friend class UseScratchRegisterScope;

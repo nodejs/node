@@ -339,7 +339,7 @@ class TurbolevEarlyLoweringReducer : public Next {
       }
       // Skip over in-object fields.
       // TODO(leszeks): We could make this smarter, like a binary search.
-      if (details.field_index() < in_object_length) {
+      if (details.is_in_object()) {
         continue;
       }
       first_out_of_object_descriptor = i;
@@ -363,9 +363,10 @@ class TurbolevEarlyLoweringReducer : public Next {
         ++descriptor;
         details = descs.GetPropertyDetails(descriptor);
       }
-      DCHECK_EQ(i, details.field_index() - in_object_length);
-
+      DCHECK(!details.is_in_object());
+      DCHECK_EQ(i, PropertyArray::OffsetInWordsToIndex(details.field_offset()));
       Representation repr = details.representation();
+
       MapRef field_owner_map = old_map.FindFieldOwner(broker_, descriptor);
       broker_->dependencies()->DependOnFieldRepresentation(
           old_map, field_owner_map, descriptor, repr);

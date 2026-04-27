@@ -145,7 +145,7 @@ class Object : public AllStatic {
     kToNumeric  // Numeric = Smi or HeapNumber or BigInt
   };
 
-  // ES6, #sec-isarray.  NOT to be confused with %_IsArray.
+  // https://tc39.es/ecma262/#sec-isarray.  NOT to be confused with %_IsArray.
   V8_INLINE
   V8_WARN_UNUSED_RESULT static Maybe<bool> IsArray(DirectHandle<Object> object);
 

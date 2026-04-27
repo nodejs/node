@@ -9,6 +9,7 @@
 #ifndef V8_BASE_SMALL_MAP_H_
 #define V8_BASE_SMALL_MAP_H_
 
+#include "include/v8config.h"
 #include "src/base/macros.h"
 
 namespace v8::base {
@@ -318,7 +319,7 @@ class SmallMap {
     typename NormalMap::const_iterator map_iter_;
   };
 
-  iterator find(const key_type& key) {
+  iterator find(const key_type& key) V8_LIFETIME_BOUND {
     key_equal compare;
 
     if (UsingFullMap()) {
@@ -333,7 +334,7 @@ class SmallMap {
     return iterator(array_ + size_);
   }
 
-  const_iterator find(const key_type& key) const {
+  const_iterator find(const key_type& key) const V8_LIFETIME_BOUND {
     key_equal compare;
 
     if (UsingFullMap()) {
@@ -349,7 +350,7 @@ class SmallMap {
   }
 
   // Invalidates iterators.
-  data_type& operator[](const key_type& key) {
+  data_type& operator[](const key_type& key) V8_LIFETIME_BOUND {
     key_equal compare;
 
     if (UsingFullMap()) {
@@ -375,7 +376,7 @@ class SmallMap {
   }
 
   // Invalidates iterators.
-  std::pair<iterator, bool> insert(const value_type& x) {
+  std::pair<iterator, bool> insert(const value_type& x) V8_LIFETIME_BOUND {
     key_equal compare;
 
     if (UsingFullMap()) {
@@ -411,7 +412,7 @@ class SmallMap {
 
   // Invalidates iterators.
   template <typename... Args>
-  std::pair<iterator, bool> emplace(Args&&... args) {
+  std::pair<iterator, bool> emplace(Args&&... args) V8_LIFETIME_BOUND {
     key_equal compare;
 
     if (UsingFullMap()) {
@@ -441,7 +442,8 @@ class SmallMap {
 
   // Invalidates iterators.
   template <typename... Args>
-  std::pair<iterator, bool> try_emplace(const key_type& key, Args&&... args) {
+  std::pair<iterator, bool> try_emplace(const key_type& key,
+                                        Args&&... args) V8_LIFETIME_BOUND {
     key_equal compare;
 
     if (UsingFullMap()) {
@@ -468,20 +470,20 @@ class SmallMap {
     return std::make_pair(iterator(array_ + size_++), true);
   }
 
-  iterator begin() {
+  iterator begin() V8_LIFETIME_BOUND {
     return UsingFullMap() ? iterator(map_.begin()) : iterator(array_);
   }
 
-  const_iterator begin() const {
+  const_iterator begin() const V8_LIFETIME_BOUND {
     return UsingFullMap() ? const_iterator(map_.begin())
                           : const_iterator(array_);
   }
 
-  iterator end() {
+  iterator end() V8_LIFETIME_BOUND {
     return UsingFullMap() ? iterator(map_.end()) : iterator(array_ + size_);
   }
 
-  const_iterator end() const {
+  const_iterator end() const V8_LIFETIME_BOUND {
     return UsingFullMap() ? const_iterator(map_.end())
                           : const_iterator(array_ + size_);
   }
@@ -498,7 +500,7 @@ class SmallMap {
   }
 
   // Invalidates iterators. Returns iterator following the last removed element.
-  iterator erase(const iterator& position) {
+  iterator erase(const iterator& position) V8_LIFETIME_BOUND {
     if (UsingFullMap()) {
       return iterator(map_.erase(position.map_iter_));
     }
@@ -538,12 +540,12 @@ class SmallMap {
   // representation.
   bool UsingFullMap() const { return size_ == kUsingFullMapSentinel; }
 
-  V8_INLINE NormalMap* map() {
+  V8_INLINE NormalMap* map() V8_LIFETIME_BOUND {
     CHECK(UsingFullMap());
     return &map_;
   }
 
-  V8_INLINE const NormalMap* map() const {
+  V8_INLINE const NormalMap* map() const V8_LIFETIME_BOUND {
     CHECK(UsingFullMap());
     return &map_;
   }

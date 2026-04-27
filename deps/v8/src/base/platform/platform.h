@@ -683,6 +683,16 @@ class V8_BASE_EXPORT Stack {
   // Gets the start of the stack of the current thread.
   static StackSlot GetStackStart();
 
+  // On Windows, the TEB's StackLimit changes during execution as the stack
+  // grows. So do not cache it like we do for the stack start, but expose
+  // functions to explicitly save it and restore it as needed. Used by wasm JSPI
+  // / stack switching to switch to and from the central stack.
+  static void SaveStackLimit();
+  static StackSlot GetStackLimit();
+
+  // Sets the TEB's StackLimit and StackBase on Windows.
+  static void SetCurrentThreadStackBounds(uintptr_t limit, uintptr_t base);
+
   // Returns the current stack top. Works correctly with ASAN and SafeStack.
   //
   // GetCurrentStackPosition() should not be inlined, because it works on stack
@@ -729,6 +739,7 @@ class V8_BASE_EXPORT Stack {
   // Return the current thread stack start pointer.
   static StackSlot GetStackStartUnchecked();
   static Stack::StackSlot ObtainCurrentThreadStackStart();
+  static Stack::StackSlot ObtainCurrentThreadStackLimit();
 
   friend class heap::base::Stack;
 };

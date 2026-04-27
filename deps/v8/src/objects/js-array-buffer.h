@@ -86,6 +86,8 @@ class JSArrayBuffer
   // [is_immutable]: true if this is an ImmutableArrayBuffer.
   DECL_BOOLEAN_ACCESSORS(is_immutable)
 
+  V8_EXPORT_PRIVATE void MakeImmutable(Isolate* isolate);
+
   // An ArrayBuffer is empty if its BackingStore is empty or if there is none.
   // An empty ArrayBuffer will have a byte_length of zero but not necessarily a
   // nullptr backing_store. An ArrayBuffer with a byte_length of zero may not

@@ -313,9 +313,9 @@ try:
   print("# Checking gcert status for googlers")
   subprocess.check_call("gcertstatus >&/dev/null || gcert", shell=True)
   has_gcert = True
-
+  # TOOD: use -symbolize=local again once http://b/487399967 is fixed
   cmd = [
-      "pprof", "-symbolize=local", "-flame",
+      "pprof", "-symbolize=force", "-flame",
       f"-add_comment={shlex.join(sys.argv)}"
   ]
   print("# Processing and uploading largest pprof result")
@@ -331,6 +331,6 @@ except subprocess.CalledProcessError as e:
   if has_gcert:
     raise Exception("Could not generate pprof results") from e
   print("# Please run `gcert` for generating pprof results")
-  print(f"pprof -symbolize=local -flame {' '.join(rel_path_strings)}")
+  print(shlex.join(["pprof", "-symbolize=force", "-flame", *rel_path_strings]))
 except KeyboardInterrupt:
   exit(1)

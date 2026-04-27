@@ -11,6 +11,7 @@
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-tracer.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -72,8 +73,7 @@ class Graph final : public ZoneObject {
         constants_(zone()),
         trusted_constants_(zone()),
         inlined_functions_(zone()),
-        inlining_tree_debug_info_(nullptr),
-        scope_infos_(zone()) {}
+        inlining_tree_debug_info_(nullptr) {}
 
   BasicBlock* operator[](int i) { return blocks_[i]; }
   const BasicBlock* operator[](int i) const { return blocks_[i]; }
@@ -172,7 +172,7 @@ class Graph final : public ZoneObject {
   }
 
   ZoneVector<InitialValue*>& osr_values() { return osr_values_; }
-  ZoneVector<InitialValue*>& parameters() { return parameters_; }
+  ZoneVector<ValueNode*>& parameters() { return parameters_; }
 
   MaglevCallSiteCandidates& inlineable_calls() { return inlineable_calls_; }
 
@@ -254,15 +254,8 @@ class Graph final : public ZoneObject {
 
   // Resolve the scope info of a context value.
   // An empty result means we don't statically know the context's scope.
-  compiler::OptionalScopeInfoRef TryGetScopeInfo(ValueNode* context,
-                                                 bool for_suspend = false);
   bool ContextMayAlias(ValueNode* context,
                        compiler::OptionalScopeInfoRef scope_info);
-
-  void record_scope_info(ValueNode* context,
-                         compiler::OptionalScopeInfoRef scope_info) {
-    scope_infos_[context] = scope_info;
-  }
 
   SmiConstant* GetSmiConstant(int constant) {
     DCHECK(Smi::IsValid(constant));
@@ -352,7 +345,7 @@ class Graph final : public ZoneObject {
   ZoneMap<uint64_t, Float64Constant*> float64_constants_;
   ZoneMap<uint64_t, HoleyFloat64Constant*> holey_float64_constants_;
   ZoneMap<uint64_t, Constant*> heap_number_constants_;
-  ZoneVector<InitialValue*> parameters_;
+  ZoneVector<ValueNode*> parameters_;
   ZoneAbslFlatHashSet<DeoptFrame*> eager_deopt_top_frames_;
   ZoneAbslFlatHashMap<DeoptFrame*, std::pair<interpreter::Register, int>>
       lazy_deopt_top_frames_;
@@ -376,7 +369,6 @@ class Graph final : public ZoneObject {
   bool has_resumable_generator_ = false;
   bool may_have_unreachable_blocks_ = false;
   bool may_have_truncation_ = false;
-  ZoneUnorderedMap<ValueNode*, compiler::OptionalScopeInfoRef> scope_infos_;
   BasicBlock::Id max_block_id_ = 0;
   std::unique_ptr<MaglevGraphLabeller> graph_labeller_ = {};
 
@@ -384,15 +376,14 @@ class Graph final : public ZoneObject {
   NodeT* CreateNewConstantNode(Args&&... args) const {
     static_assert(IsConstantNode(Node::opcode_of<NodeT>));
     NodeT* node = NodeBase::New<NodeT>(zone(), std::forward<Args>(args)...);
-    static_assert(!NodeT::kProperties.can_eager_deopt());
+    static_assert(!NodeT::kProperties.has_eager_deopt_info());
     static_assert(!NodeT::kProperties.can_lazy_deopt());
     static_assert(!NodeT::kProperties.can_throw());
     static_assert(!NodeT::kProperties.can_write());
     if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
     if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
                     is_tracing_enabled())) {
-      std::cout << "  " << node << "  " << PrintNodeLabel(node) << ": "
-                << PrintNode(node) << std::endl;
+      TraceLogger(Tracer(compilation_info())) << TraceNewNode{node};
     }
     return node;
   }
@@ -407,9 +398,6 @@ class Graph final : public ZoneObject {
     }
     return it->second;
   }
-
-  compiler::OptionalScopeInfoRef TryGetScopeInfoForContextLoad(
-      ValueNode* context, int offset);
 
   template <typename Function>
   void IterateGraphAndSweepDeadBlocks(Function&& is_dead);

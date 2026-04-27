@@ -24,6 +24,12 @@ namespace v8::internal {
 V8_EXPORT_PRIVATE constexpr Tagged<Smi>
     SharedFunctionInfo::kNoSharedNameSentinel;
 
+Tagged<Union<Smi, TrustedObject>> SharedFunctionInfo::GetTrustedData(
+    IsolateForSandbox isolate) const {
+  return ReadMaybeEmptyTrustedPointerField<kTrustedDataIndirectPointerRange>(
+      kTrustedFunctionDataOffset, isolate, kAcquireLoad);
+}
+
 uint32_t SharedFunctionInfo::Hash() {
   // Hash SharedFunctionInfo based on its start position and script id. Note: we
   // don't use the function's literal id since getting that is slow for compiled
@@ -73,68 +79,69 @@ void SharedFunctionInfo::Init(ReadOnlyRoots ro_roots, int unique_id) {
 
 // LINT.IfChange(GetSharedFunctionInfoCode)
 Tagged<Code> SharedFunctionInfo::GetCode(Isolate* isolate) const {
-  Tagged<Object> data = GetTrustedData(isolate);
-  if (data != Smi::zero()) {
-    DCHECK(HasTrustedData());
+  if (HasTrustedData()) {
+    Tagged<Union<Smi, TrustedObject>> trusted_data = GetTrustedData(isolate);
+    DCHECK(trusted_data != Smi::zero());
 
-    if (IsBytecodeArray(data)) {
+    if (IsBytecodeArray(trusted_data)) {
       // Having a bytecode array means we are a compiled, interpreted function.
       DCHECK(HasBytecodeArray());
       return isolate->builtins()->code(Builtin::kInterpreterEntryTrampoline);
     }
-    if (Tagged<Code> code; TryCast(data, &code)) {
+    if (Tagged<Code> code; TryCast(trusted_data, &code)) {
       // Having baseline Code means we are a compiled, baseline function.
       DCHECK(HasBaselineCode());
       SBXCHECK_EQ(code->kind(), CodeKind::BASELINE);
       return code;
     }
-    if (IsInterpreterData(data)) {
+    if (IsInterpreterData(trusted_data)) {
       Tagged<Code> code = InterpreterTrampoline(isolate);
       DCHECK(IsCode(code));
       DCHECK(code->is_interpreter_trampoline_builtin());
       return code;
     }
-    if (IsUncompiledData(data)) {
+    if (IsUncompiledData(trusted_data)) {
       // Having uncompiled data (with or without scope) means we need to
       // compile.
       DCHECK(HasUncompiledData(isolate));
       return isolate->builtins()->code(Builtin::kCompileLazy);
     }
 #if V8_ENABLE_WEBASSEMBLY
-    if (IsWasmExportedFunctionData(data)) {
+    if (IsWasmExportedFunctionData(trusted_data)) {
       // Having a WasmExportedFunctionData means the code is in there.
       DCHECK(HasWasmExportedFunctionData(isolate));
       return wasm_exported_function_data()->wrapper_code(isolate);
     }
-    if (IsWasmJSFunctionData(data)) {
+    if (IsWasmJSFunctionData(trusted_data)) {
       return wasm_js_function_data()->wrapper_code(isolate);
     }
-    if (IsWasmCapiFunctionData(data)) {
+    if (IsWasmCapiFunctionData(trusted_data)) {
       return wasm_capi_function_data()->wrapper_code(isolate);
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
   } else {
     DCHECK(HasUntrustedData());
-    data = GetUntrustedData();
+    Tagged<Object> untrusted_data = GetUntrustedData();
 
-    if (IsSmi(data)) {
+    if (IsSmi(untrusted_data)) {
       // Holding a Smi means we are a builtin.
       DCHECK(HasBuiltinId());
       return isolate->builtins()->code(builtin_id());
     }
-    if (IsFunctionTemplateInfo(data)) {
+    if (IsFunctionTemplateInfo(untrusted_data)) {
       // Having a function template info means we are an API function.
       DCHECK(IsApiFunction());
       return isolate->builtins()->code(Builtin::kHandleApiCallOrConstruct);
     }
 #if V8_ENABLE_WEBASSEMBLY
-    if (IsAsmWasmData(data)) {
+    if (IsAsmWasmData(untrusted_data)) {
       // Having AsmWasmData means we are an asm.js/wasm function.
       DCHECK(HasAsmWasmData());
       return isolate->builtins()->code(Builtin::kInstantiateAsmJs);
     }
-    if (IsWasmResumeData(data)) {
-      if (static_cast<wasm::OnResume>(wasm_resume_data()->on_resume()) ==
+    if (IsWasmResumeData(untrusted_data)) {
+      if (static_cast<wasm::OnResume>(
+              Cast<WasmResumeData>(untrusted_data)->on_resume()) ==
           wasm::OnResume::kContinue) {
         return isolate->builtins()->code(Builtin::kWasmResume);
       } else {
@@ -156,7 +163,8 @@ SharedFunctionInfo::ScriptIterator::ScriptIterator(Handle<WeakFixedArray> infos)
     : infos_(infos), index_(0) {}
 
 Tagged<SharedFunctionInfo> SharedFunctionInfo::ScriptIterator::Next() {
-  while (index_ < infos_->length()) {
+  const uint32_t infos_len = infos_->ulength().value();
+  while (index_ < infos_len) {
     Tagged<MaybeObject> raw = infos_->get(index_++);
     Tagged<HeapObject> heap_object;
     if (!raw.GetHeapObject(&heap_object) ||
@@ -197,7 +205,8 @@ void SharedFunctionInfo::SetScript(IsolateForSandbox isolate,
     Tagged<Script> script = Cast<Script>(script_object);
     Tagged<WeakFixedArray> list = script->infos();
 #ifdef DEBUG
-    DCHECK_LT(function_literal_id, list->length());
+    DCHECK_LT(static_cast<uint32_t>(function_literal_id),
+              list->ulength().value());
     Tagged<MaybeObject> maybe_object = list->get(function_literal_id);
     Tagged<HeapObject> heap_object;
     if (maybe_object.GetHeapObjectIfWeak(&heap_object)) {
@@ -214,7 +223,7 @@ void SharedFunctionInfo::SetScript(IsolateForSandbox isolate,
     // Due to liveedit, it might happen that the old_script doesn't know
     // about the SharedFunctionInfo, so we have to guard against that.
     Tagged<WeakFixedArray> infos = old_script->infos();
-    if (function_literal_id < infos->length()) {
+    if (static_cast<uint32_t>(function_literal_id) < infos->ulength().value()) {
       Tagged<MaybeObject> raw = old_script->infos()->get(function_literal_id);
       Tagged<HeapObject> heap_object;
       if (raw.GetHeapObjectIfWeak(&heap_object) && heap_object == *this) {
@@ -475,8 +484,8 @@ Handle<Object> SharedFunctionInfo::GetSourceCodeHarmony(
   builder.AppendCharacter('(');
   DirectHandle<FixedArray> args(
       Cast<Script>(shared->script())->wrapped_arguments(), isolate);
-  int argc = args->length();
-  for (int i = 0; i < argc; i++) {
+  const uint32_t argc = args->ulength().value();
+  for (uint32_t i = 0; i < argc; i++) {
     if (i > 0) builder.AppendCStringLiteral(", ");
     builder.AppendString(
         DirectHandle<String>(Cast<String>(args->get(i)), isolate));
@@ -577,6 +586,8 @@ void SharedFunctionInfo::InitFromFunctionLiteral(IsolateT* isolate,
                    IsClassConstructor(lit->kind()));
     raw_sfi->set_has_static_private_methods_or_accessors(
         lit->has_static_private_methods_or_accessors());
+
+    raw_sfi->set_is_hoisted_in_context(lit->scope()->is_hoisted_in_context());
 
     raw_sfi->set_is_toplevel(is_toplevel);
     DCHECK(IsTheHole(raw_sfi->outer_scope_info()));
@@ -728,8 +739,18 @@ int SharedFunctionInfo::StartPosition() const {
     // Works with or without scope.
     return uncompiled_data(isolate)->start_position();
   }
-  if (IsApiFunction() || HasBuiltinId()) {
-    DCHECK_IMPLIES(HasBuiltinId(), builtin_id() != Builtin::kCompileLazy);
+  if (IsApiFunction()) {
+    return 0;
+  }
+  if (HasBuiltinId()) {
+    // A newly allocated SharedFunctionInfo without UncompiledData attached
+    // holds the builtin ID kCompileLazy. Since the source positions are not
+    // known at this point, we return kNoSourcePosition. This allows the heap
+    // snapshot generator to safely iterate over such an SFI in this transient
+    // state (e.g. when a GC is triggered during its creation).
+    if (builtin_id() == Builtin::kCompileLazy) {
+      return kNoSourcePosition;
+    }
     return 0;
   }
 #if V8_ENABLE_WEBASSEMBLY
@@ -757,8 +778,18 @@ int SharedFunctionInfo::EndPosition() const {
     // Works with or without scope.
     return uncompiled_data(isolate)->end_position();
   }
-  if (IsApiFunction() || HasBuiltinId()) {
-    DCHECK_IMPLIES(HasBuiltinId(), builtin_id() != Builtin::kCompileLazy);
+  if (IsApiFunction()) {
+    return 0;
+  }
+  if (HasBuiltinId()) {
+    // A newly allocated SharedFunctionInfo without UncompiledData attached
+    // holds the builtin ID kCompileLazy. Since the source positions are not
+    // known at this point, we return kNoSourcePosition. This allows the heap
+    // snapshot generator to safely iterate over such an SFI in this transient
+    // state (e.g. when a GC is triggered during its creation).
+    if (builtin_id() == Builtin::kCompileLazy) {
+      return kNoSourcePosition;
+    }
     return 0;
   }
 #if V8_ENABLE_WEBASSEMBLY
@@ -807,6 +838,7 @@ void SharedFunctionInfo::UpdateFromFunctionLiteralForLiveEdit(
   }
   SetFunctionTokenPosition(lit->function_token_position(),
                            lit->start_position());
+  set_is_hoisted_in_context(lit->scope()->is_hoisted_in_context());
 }
 
 CachedTieringDecision SharedFunctionInfo::cached_tiering_decision() {

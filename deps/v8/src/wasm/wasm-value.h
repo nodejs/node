@@ -82,6 +82,22 @@ class WasmValue {
         reinterpret_cast<Address>(bit_pattern_), ref);
   }
 
+  // TODO(manoskouk): Do we have to somehow also represent a waitqueue's Managed
+  // object?
+  static WasmValue WaitQueue(int32_t value) {
+    // kWasmWaitQueue has value_kind_size() larger than sizeof(int32_t),
+    // so we cannot pass &value directly to the raw-bytes constructor.
+    // Zero-initialize a buffer of sufficient size and copy only the int32.
+    uint8_t buf[kMaxValueTypeSize] = {};
+    memcpy(buf, &value, sizeof(value));
+    return WasmValue(buf, kWasmWaitQueue);
+  }
+
+  int32_t to_wait_queue_value() const {
+    DCHECK_EQ(type_, kWasmWaitQueue);
+    return to_i32_unchecked();
+  }
+
   DirectHandle<Object> to_ref() const {
     DCHECK(type_.is_ref());
     return base::ReadUnalignedValue<DirectHandle<Object>>(
@@ -107,7 +123,7 @@ class WasmValue {
     memcpy(to, bit_pattern_, type_.value_kind_size());
   }
 
-  // If {packed_type.is_packed()}, create a new value of {packed_type()}.
+  // If {packed_type.is_packed()}, create a new value of {packed_type}.
   // Otherwise, return this object.
   WasmValue Packed(ValueType packed_type) const {
     if (packed_type == kWasmI8) {
@@ -117,6 +133,10 @@ class WasmValue {
     if (packed_type == kWasmI16) {
       DCHECK_EQ(type_, kWasmI32);
       return WasmValue(static_cast<int16_t>(to_i32()));
+    }
+    if (packed_type == kWasmWaitQueue) {
+      DCHECK_EQ(type_, kWasmI32);
+      return WaitQueue(to_i32());
     }
     return *this;
   }
@@ -163,6 +183,8 @@ class WasmValue {
         }
         return stream.str();
       }
+      case kWaitQueue:
+        return "WaitQueue[" + std::to_string(to_wait_queue_value()) + "]";
       case kRefNull:
       case kRef:
         return "DirectHandle [" + std::to_string(to_ref().address()) + "]";

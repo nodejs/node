@@ -29,7 +29,7 @@ let memory_corruption_worker = new Worker(workerFunc, {type: 'function'});
 let memory = new DataView(new Sandbox.MemoryView(0, 0x100000000));
 function DigitCount(bigint) {
   let addr = Sandbox.getAddressOf(bigint);
-  return memory.getUint32(addr + 4, true) >> 1;
+  return memory.getUint32(addr + 4, true) >> 8;
 }
 
 // Matches ToStringFormatter's "chunk_divisor_".

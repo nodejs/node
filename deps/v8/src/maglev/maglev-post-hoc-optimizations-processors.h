@@ -382,7 +382,7 @@ class AnyUseMarkingProcessor {
       auto* alloc = it.first;
       if (alloc->HasBeenAnalysed()) continue;
       // Check if all its uses are non escaping.
-      if (alloc->IsEscaping()) {
+      if (alloc->HasEscapingUses()) {
         // Escape this allocation and all its dependencies.
         EscapeAllocation(graph, alloc, it.second);
       } else {

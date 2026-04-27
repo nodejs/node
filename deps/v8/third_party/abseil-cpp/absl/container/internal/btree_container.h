@@ -22,7 +22,7 @@
 #include <utility>
 
 #include "absl/base/attributes.h"
-#include "absl/base/internal/throw_delegate.h"
+#include "absl/base/throw_delegate.h"
 #include "absl/container/internal/btree.h"  // IWYU pragma: export
 #include "absl/container/internal/common.h"
 #include "absl/hash/internal/weakly_mixed_integer.h"
@@ -651,16 +651,14 @@ class btree_map_container : public btree_set_container<Tree> {
   template <typename K = key_type>
   mapped_type &at(const key_arg<K> &key) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     auto it = this->find(key);
-    if (it == this->end())
-      base_internal::ThrowStdOutOfRange("absl::btree_map::at");
+    if (it == this->end()) ThrowStdOutOfRange("absl::btree_map::at");
     return it->second;
   }
   template <typename K = key_type>
   const mapped_type &at(const key_arg<K> &key) const
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
     auto it = this->find(key);
-    if (it == this->end())
-      base_internal::ThrowStdOutOfRange("absl::btree_map::at");
+    if (it == this->end()) ThrowStdOutOfRange("absl::btree_map::at");
     return it->second;
   }
 

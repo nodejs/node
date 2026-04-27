@@ -830,6 +830,12 @@ class V8_EXPORT AllocationProfile {
      * what samples were added or removed between two snapshots.
      */
     uint64_t sample_id;
+
+    /**
+     * Indicates whether the sampled allocation is still live or has already
+     * been collected by GC.
+     */
+    bool is_live;
   };
 
   /**
@@ -1063,7 +1069,8 @@ class V8_EXPORT HeapProfiler {
    *
    * This interface will soon be deprecated in favour of ContextNameResolver.
    */
-  class ObjectNameResolver {
+  class V8_DEPRECATE_SOON("Use ContextNameResolver instead.")
+      ObjectNameResolver {
    public:
     /**
      * Returns name to be used in the heap snapshot for given node. Returned
@@ -1121,24 +1128,13 @@ class V8_EXPORT HeapProfiler {
     // NOLINTNEXTLINE
     HeapSnapshotOptions() {}
 
-    // TODO(https://crbug.com/333672197): remove once ObjectNameResolver is
-    // removed.
-    ALLOW_COPY_AND_MOVE_WITH_DEPRECATED_FIELDS(HeapSnapshotOptions)
-
     /**
      * The control used to report intermediate progress to.
      */
     ActivityControl* control = nullptr;
     /**
-     * The resolver used by the snapshot generator to get names for V8 objects.
-     */
-    V8_DEPRECATED("Use context_name_resolver callback instead.")
-    ObjectNameResolver* global_object_name_resolver = nullptr;
-    /**
      * The resolver used by the snapshot generator to get names for v8::Context
      * objects.
-     * In case both this and |global_object_name_resolver| callbacks are
-     * provided, this one will be used.
      */
     ContextNameResolver* context_name_resolver = nullptr;
     /**
@@ -1170,18 +1166,8 @@ class V8_EXPORT HeapProfiler {
    *
    * \returns the snapshot.
    */
-  V8_DEPRECATED("Use overload with ContextNameResolver* resolver instead.")
-  const HeapSnapshot* TakeHeapSnapshot(
-      ActivityControl* control, ObjectNameResolver* global_object_name_resolver,
-      bool hide_internals = true, bool capture_numeric_value = false);
   const HeapSnapshot* TakeHeapSnapshot(ActivityControl* control,
-                                       ContextNameResolver* resolver,
-                                       bool hide_internals = true,
-                                       bool capture_numeric_value = false);
-  // TODO(333672197): remove this version once ObjectNameResolver* overload
-  // is removed.
-  const HeapSnapshot* TakeHeapSnapshot(ActivityControl* control,
-                                       std::nullptr_t resolver = nullptr,
+                                       ContextNameResolver* resolver = nullptr,
                                        bool hide_internals = true,
                                        bool capture_numeric_value = false);
 

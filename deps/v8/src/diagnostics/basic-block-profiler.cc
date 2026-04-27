@@ -66,9 +66,6 @@ DirectHandle<String> CopyStringToJSHeap(const std::string& source,
   return isolate->factory()->NewStringFromAsciiChecked(source.c_str(),
                                                        AllocationType::kOld);
 }
-
-constexpr int kBlockIdSlotSize = kInt32Size;
-constexpr int kBlockCountSlotSize = kInt32Size;
 }  // namespace
 
 BasicBlockProfilerData::BasicBlockProfilerData(
@@ -89,16 +86,19 @@ void BasicBlockProfilerData::CopyFromJSHeap(
   code_ = js_heap_data->code()->ToStdString();
   Tagged<FixedUInt32Array> counts =
       Cast<FixedUInt32Array>(js_heap_data->counts());
-  for (int i = 0; i < counts->length() / kBlockCountSlotSize; ++i) {
+  const uint32_t counts_len = counts->length().value();
+  for (uint32_t i = 0; i < counts_len; ++i) {
     counts_.push_back(counts->get(i));
   }
   Tagged<FixedInt32Array> block_ids(js_heap_data->block_ids());
-  for (int i = 0; i < block_ids->length() / kBlockIdSlotSize; ++i) {
+  const uint32_t blocks_ids_len = block_ids->length().value();
+  for (uint32_t i = 0; i < blocks_ids_len; ++i) {
     block_ids_.push_back(block_ids->get(i));
   }
   Tagged<PodArray<std::pair<int32_t, int32_t>>> branches =
       js_heap_data->branches();
-  for (int i = 0; i < branches->length(); ++i) {
+  const uint32_t branches_len = branches->length().value();
+  for (uint32_t i = 0; i < branches_len; ++i) {
     branches_.push_back(branches->get(i));
   }
   CHECK_EQ(block_ids_.size(), counts_.size());
@@ -107,31 +107,24 @@ void BasicBlockProfilerData::CopyFromJSHeap(
 
 DirectHandle<OnHeapBasicBlockProfilerData> BasicBlockProfilerData::CopyToJSHeap(
     Isolate* isolate) {
-  int id_array_size_in_bytes = static_cast<int>(n_blocks() * kBlockIdSlotSize);
-  CHECK(id_array_size_in_bytes >= 0 &&
-        static_cast<size_t>(id_array_size_in_bytes) / kBlockIdSlotSize ==
-            n_blocks());  // Overflow
-  DirectHandle<FixedInt32Array> block_ids = FixedInt32Array::New(
-      isolate, id_array_size_in_bytes, AllocationType::kOld);
-  for (int i = 0; i < static_cast<int>(n_blocks()); ++i) {
+  const uint32_t blocks_count = static_cast<uint32_t>(n_blocks());
+  DirectHandle<FixedInt32Array> block_ids =
+      FixedInt32Array::New(isolate, blocks_count, AllocationType::kOld);
+  for (uint32_t i = 0; i < blocks_count; ++i) {
     block_ids->set(i, block_ids_[i]);
   }
 
-  int counts_array_size_in_bytes =
-      static_cast<int>(n_blocks() * kBlockCountSlotSize);
-  CHECK(counts_array_size_in_bytes >= 0 &&
-        static_cast<size_t>(counts_array_size_in_bytes) / kBlockCountSlotSize ==
-            n_blocks());  // Overflow
-  DirectHandle<FixedUInt32Array> counts = FixedUInt32Array::New(
-      isolate, counts_array_size_in_bytes, AllocationType::kOld);
-  for (int i = 0; i < static_cast<int>(n_blocks()); ++i) {
+  DirectHandle<FixedUInt32Array> counts =
+      FixedUInt32Array::New(isolate, blocks_count, AllocationType::kOld);
+  for (uint32_t i = 0; i < blocks_count; ++i) {
     counts->set(i, counts_[i]);
   }
 
+  const uint32_t branches_size = static_cast<uint32_t>(branches_.size());
   DirectHandle<PodArray<std::pair<int32_t, int32_t>>> branches =
-      PodArray<std::pair<int32_t, int32_t>>::New(
-          isolate, static_cast<int>(branches_.size()), AllocationType::kOld);
-  for (int i = 0; i < static_cast<int>(branches_.size()); ++i) {
+      PodArray<std::pair<int32_t, int32_t>>::New(isolate, branches_size,
+                                                 AllocationType::kOld);
+  for (uint32_t i = 0; i < branches_size; ++i) {
     branches->set(i, branches_[i]);
   }
   DirectHandle<String> name = CopyStringToJSHeap(function_name_, isolate);
@@ -150,10 +143,12 @@ void BasicBlockProfiler::ResetCounts(Isolate* isolate) {
   HandleScope scope(isolate);
   DirectHandle<ArrayList> list(isolate->heap()->basic_block_profiling_data(),
                                isolate);
-  for (int i = 0; i < list->length(); ++i) {
+  const uint32_t list_length = list->ulength().value();
+  for (uint32_t i = 0; i < list_length; ++i) {
     DirectHandle<FixedUInt32Array> counts(
         Cast<OnHeapBasicBlockProfilerData>(list->get(i))->counts(), isolate);
-    for (int j = 0; j < counts->length() / kBlockCountSlotSize; ++j) {
+    const uint32_t counts_len = counts->length().value();
+    for (uint32_t j = 0; j < counts_len; ++j) {
       counts->set(j, 0);
     }
   }
@@ -161,7 +156,7 @@ void BasicBlockProfiler::ResetCounts(Isolate* isolate) {
 
 bool BasicBlockProfiler::HasData(Isolate* isolate) {
   return !data_list_.empty() ||
-         isolate->heap()->basic_block_profiling_data()->length() > 0;
+         isolate->heap()->basic_block_profiling_data()->ulength().value() > 0;
 }
 
 void BasicBlockProfiler::Print(Isolate* isolate, std::ostream& os) {
@@ -172,8 +167,9 @@ void BasicBlockProfiler::Print(Isolate* isolate, std::ostream& os) {
   HandleScope scope(isolate);
   DirectHandle<ArrayList> list(isolate->heap()->basic_block_profiling_data(),
                                isolate);
+  const uint32_t list_length = list->ulength().value();
   std::unordered_set<std::string> builtin_names;
-  for (int i = 0; i < list->length(); ++i) {
+  for (uint32_t i = 0; i < list_length; ++i) {
     BasicBlockProfilerData data(
         direct_handle(Cast<OnHeapBasicBlockProfilerData>(list->get(i)),
                       isolate),
@@ -190,8 +186,9 @@ void BasicBlockProfiler::Log(Isolate* isolate, std::ostream& os) {
   HandleScope scope(isolate);
   DirectHandle<ArrayList> list(isolate->heap()->basic_block_profiling_data(),
                                isolate);
+  const uint32_t list_length = list->ulength().value();
   std::unordered_set<std::string> builtin_names;
-  for (int i = 0; i < list->length(); ++i) {
+  for (uint32_t i = 0; i < list_length; ++i) {
     BasicBlockProfilerData data(
         direct_handle(Cast<OnHeapBasicBlockProfilerData>(list->get(i)),
                       isolate),
@@ -207,8 +204,8 @@ std::vector<bool> BasicBlockProfiler::GetCoverageBitmap(Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   Tagged<ArrayList> list(isolate->heap()->basic_block_profiling_data());
   std::vector<bool> out;
-  int list_length = list->length();
-  for (int i = 0; i < list_length; ++i) {
+  const uint32_t list_length = list->ulength().value();
+  for (uint32_t i = 0; i < list_length; ++i) {
     BasicBlockProfilerData data(
         Cast<OnHeapBasicBlockProfilerData>(list->get(i)));
     for (size_t j = 0; j < data.n_blocks(); ++j) {

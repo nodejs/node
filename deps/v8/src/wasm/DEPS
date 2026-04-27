@@ -48,6 +48,9 @@ specific_include_rules = {
     # The LiftoffAssembler needs to know CallDescriptors.
     "+src/compiler/linkage.h",
   ],
+  "liftoff-assembler\.h": [
+    "+src/compiler/write-barrier-kind.h",
+  ],
   "liftoff-assembler-(x64|arm64|loong64|mips64|riscv)-inl\.h": [
     # The LiftoffAssembler needs to know CallDescriptors.
     "+src/compiler/linkage.h",
@@ -56,6 +59,10 @@ specific_include_rules = {
     "-src/compiler",
     "+src/compiler/access-builder.h",
     "+src/compiler/wasm-compiler.h",
+  ],
+  "liftoff-compiler\.h": [
+    "-src/compiler",
+    "+src/compiler/write-barrier-kind.h",
   ],
   "module-instantiate\.cc": [
     "+src/compiler/fast-api-calls.h",

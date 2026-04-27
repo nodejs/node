@@ -70,7 +70,7 @@ void BytecodeVerifier::VerifyLight(IsolateForSandbox isolate,
   Check(seen_jumps.IsSubsetOf(valid_offsets), "Invalid control-flow");
 
   HandlerTable table(*bytecode);
-  for (int i = 0; i < table.NumberOfRangeEntries(); ++i) {
+  for (uint32_t i = 0; i < table.NumberOfRangeEntries(); ++i) {
     unsigned start = table.GetRangeStart(i);
     unsigned end = table.GetRangeEnd(i);
     unsigned handler = table.GetRangeHandler(i);
@@ -128,7 +128,7 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
     VerifyRegister(incoming_new_target_or_generator, false);
   }
 
-  unsigned constant_pool_length = bytecode->constant_pool()->length();
+  uint32_t constant_pool_length = bytecode->constant_pool()->ulength().value();
 
   interpreter::BytecodeArrayIterator iterator(bytecode);
   interpreter::Bytecode previous_bytecode = interpreter::Bytecode::kIllegal;
@@ -187,7 +187,7 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
           break;
         }
         case interpreter::OperandType::kConstantPoolIndex: {
-          unsigned index = iterator.GetConstantPoolIndexOperand(i);
+          uint32_t index = iterator.GetConstantPoolIndexOperand(i);
           Check(index < constant_pool_length,
                 "Constant pool index out of bounds");
           break;
@@ -261,6 +261,8 @@ bool BytecodeVerifier::IsAllowedRuntimeFunction(Runtime::FunctionId id) {
   switch (id) {
 #if V8_ENABLE_WEBASSEMBLY
     case Runtime::kWasmTriggerTierUp:
+    case Runtime::kWasmTraceEnter:
+    case Runtime::kWasmTraceExit:
       return false;
 #endif  // V8_ENABLE_WEBASSEMBLY
     default:

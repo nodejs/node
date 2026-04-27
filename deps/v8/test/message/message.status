@@ -84,6 +84,8 @@
   # Skip tests that require Wasm experimental features not supported by the
   # Wasm interpreter, or that explicitly require compilation.
 
+  'wasm-debug-trace-minimal': [SKIP],
+
   # Tests that require compilation
   'fail/wasm-async-compile-fail': [SKIP],
   'js-wasm-wrapper-inlining-turbolev*': [SKIP],
@@ -99,6 +101,8 @@
   # Different error message
   'fail/wasm-async-instantiate-fail': [SKIP],
 
+  # Tests using %WasmTierUpFunction()
+  'wasm-trace-deopt-64': [SKIP],
 }],  # has_webassembly and variant == jitless
 
 ################################################################################
@@ -150,7 +154,6 @@
 ['variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev, turbolev_future, stress_turbolev_future)', {
   # Maglev doesn't support inlining of Wasm code.
   'wasm-inlining-into-js': [FAIL],
-  'wasm-in-js-inlining-turboshaft': [FAIL],
 }],  # variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev_future, stress_turbolev_future)
 
 ##############################################################################
@@ -182,7 +185,6 @@
 # which is not supported on 32 bit platforms.
 ['arch != x64 and arch != arm64', {
   'js-wasm-wrapper-inlining-turbolev-64': [SKIP],
-  'wasm-in-js-inlining-turboshaft': [SKIP],
 }],
 ['(arch != ia32 and arch != arm)', {
   'js-wasm-wrapper-inlining-turbolev-32': [SKIP],
@@ -193,5 +195,11 @@
   # https://crbug.com/v8/14397
   'wasm-finish-compilation': [PASS, FAIL],
 }],  # 'verify_predictable'
+
+##############################################################################
+['dumpling', {
+  # Unexpected output.
+  'wasm-debug-trace-minimal': [FAIL],
+}],
 
 ]

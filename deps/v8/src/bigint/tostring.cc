@@ -5,11 +5,11 @@
 #include <cstring>
 #include <limits>
 
+#include "src/bigint/bigint-inl.h"
 #include "src/bigint/bigint-internal.h"
-#include "src/bigint/digit-arithmetic.h"
-#include "src/bigint/div-helpers.h"
+#include "src/bigint/div-helpers-inl.h"
 #include "src/bigint/util.h"
-#include "src/bigint/vector-arithmetic.h"
+#include "src/bigint/vector-arithmetic-inl.h"
 
 namespace v8 {
 namespace bigint {
@@ -126,7 +126,8 @@ class ToStringFormatter {
         out_start_(out),
         out_end_(out + chars_available),
         out_(out_end_),
-        processor_(processor) {
+        processor_(processor),
+        platform_(processor->platform()) {
     digits_.Normalize();
     DCHECK(chars_available >= ToStringResultLength(digits_, radix_, sign_));
   }
@@ -145,7 +146,7 @@ class ToStringFormatter {
     }
     // {rest} holds the part of the BigInt that we haven't looked at yet.
     // Not to be confused with "remainder"!
-    ScratchDigits rest(digits_.len());
+    ScratchDigits rest(digits_.len(), platform_);
     // In the first round, divide the input, allocating a new BigInt for
     // the result == rest; from then on divide the rest in-place.
     Digits dividend = digits_;
@@ -156,7 +157,7 @@ class ToStringFormatter {
         MAYBE_INTERRUPT(processor_->AddWorkEstimate(rest.len() * 2));
       } else {
         digit_t chunk;
-        processor_->DivideSingle(rest, &chunk, dividend, chunk_divisor_);
+        DivideSingle(rest, &chunk, dividend, chunk_divisor_);
         out_ = BasecaseMiddle(chunk, out_);
         // Assume that a division is about ten times as expensive as a
         // multiplication.
@@ -212,6 +213,7 @@ class ToStringFormatter {
   char* out_;
   digit_t chunk_divisor_ = 0;
   ProcessorImpl* processor_;
+  Platform* platform_;
 };
 
 #undef MAYBE_INTERRUPT
@@ -329,14 +331,14 @@ class RecursionLevel {
 
  private:
   friend class ToStringFormatter;
-  RecursionLevel(digit_t base_divisor, int base_char_count)
-      : char_count_(base_char_count), divisor_(1) {
+  RecursionLevel(digit_t base_divisor, int base_char_count, Platform* platform)
+      : char_count_(base_char_count), divisor_(1, platform) {
     divisor_[0] = base_divisor;
   }
-  explicit RecursionLevel(RecursionLevel* next)
+  RecursionLevel(RecursionLevel* next, Platform* platform)
       : char_count_(next->char_count_ * 2),
         next_(next),
-        divisor_(next->divisor_.len() * 2) {
+        divisor_(next->divisor_.len() * 2, platform) {
     next->is_toplevel_ = false;
   }
 
@@ -360,7 +362,9 @@ RecursionLevel* RecursionLevel::CreateLevels(digit_t base_divisor,
                                              int base_char_count,
                                              uint32_t target_bit_length,
                                              ProcessorImpl* processor) {
-  RecursionLevel* level = new RecursionLevel(base_divisor, base_char_count);
+  Platform* platform = processor->platform();
+  RecursionLevel* level =
+      new RecursionLevel(base_divisor, base_char_count, platform);
   // We can stop creating levels when the next level's divisor, which is the
   // square of the current level's divisor, would be strictly bigger (in terms
   // of its numeric value) than the input we're formatting. Since computing that
@@ -373,7 +377,7 @@ RecursionLevel* RecursionLevel::CreateLevels(digit_t base_divisor,
   //   but usually we "lose" a bit (e.g. 0b10² == 0b100).
   while (BitLength(level->divisor_) * 2 - 1 <= target_bit_length) {
     RecursionLevel* prev = level;
-    level = new RecursionLevel(prev);
+    level = new RecursionLevel(prev, platform);
     processor->Multiply(level->divisor_, prev->divisor_, prev->divisor_);
     if (processor->should_terminate()) {
       delete level;
@@ -401,8 +405,9 @@ void RecursionLevel::ComputeInverse(ProcessorImpl* processor,
     DCHECK(inverse_len <= divisor_.len());
   }
   uint32_t scratch_len = InvertScratchSpace(inverse_len);
-  ScratchDigits scratch(scratch_len);
-  Storage* inv_storage = new Storage(inverse_len + 1);
+  Platform* platform = processor->platform();
+  ScratchDigits scratch(scratch_len, platform);
+  Storage* inv_storage = new Storage(inverse_len + 1, platform);
   inverse_storage_.reset(inv_storage);
   RWDigits inverse_initializer(inv_storage->get(), inverse_len + 1);
   Digits input(divisor_, divisor_.len() - inverse_len, inverse_len);
@@ -475,7 +480,7 @@ char* ToStringFormatter::ProcessLevel(RecursionLevel* level, Digits chunk,
   // Step 2: Prepare the chunk.
   bool allow_inplace_modification = chunk.digits() != digits_.digits();
   Digits original_chunk = chunk;
-  ShiftedDigits chunk_shifted(chunk, level->leading_zero_shift_,
+  ShiftedDigits chunk_shifted(chunk, platform_, level->leading_zero_shift_,
                               allow_inplace_modification);
   chunk = chunk_shifted;
   chunk.Normalize();
@@ -507,19 +512,20 @@ char* ToStringFormatter::ProcessLevel(RecursionLevel* level, Digits chunk,
   }
   // Step 3: Allocate space for the results.
   // Allocate one extra digit so the next level can left-shift in-place.
-  ScratchDigits right(level->divisor_.len() + 1);
+  // TODO(jkummerow): Consider caching the allocation on {level}.
+  ScratchDigits right(level->divisor_.len() + 1, platform_);
   // Allocate one extra digit because DivideBarrett requires it.
-  ScratchDigits left(chunk.len() - level->divisor_.len() + 1);
+  ScratchDigits left(chunk.len() - level->divisor_.len() + 1, platform_);
 
   // Step 4: Divide to split {chunk} into {left} and {right}.
   uint32_t inverse_len = chunk.len() - level->divisor_.len();
   if (inverse_len == 0) {
     processor_->DivideSchoolbook(left, right, chunk, level->divisor_);
   } else if (level->divisor_.len() == 1) {
-    processor_->DivideSingle(left, right.digits(), chunk, level->divisor_[0]);
+    DivideSingle(left, right.digits(), chunk, level->divisor_[0]);
     for (uint32_t i = 1; i < right.len(); i++) right[i] = 0;
   } else {
-    ScratchDigits scratch(DivideBarrettScratchSpace(chunk.len()));
+    ScratchDigits scratch(DivideBarrettScratchSpace(chunk.len()), platform_);
     // The top level only computes its inverse when {chunk.len()} is
     // available. Other levels have precomputed theirs.
     if (level->is_toplevel_) {
@@ -555,14 +561,14 @@ char* ToStringFormatter::ProcessLevel(RecursionLevel* level, Digits chunk,
 
 }  // namespace
 
-void ProcessorImpl::ToString(char* out, uint32_t* out_length, Digits X,
+void ProcessorImpl::ToString(char* out, uint32_t* out_length, Digits& X,
                              int radix, bool sign) {
-  const bool use_fast_algorithm = X.len() >= kToStringFastThreshold;
+  const bool use_fast_algorithm = X.len() >= config::kToStringFastThreshold;
   ToStringImpl(out, out_length, X, radix, sign, use_fast_algorithm);
 }
 
 // Factored out so that tests can call it.
-void ProcessorImpl::ToStringImpl(char* out, uint32_t* out_length, Digits X,
+void ProcessorImpl::ToStringImpl(char* out, uint32_t* out_length, Digits& X,
                                  int radix, bool sign, bool fast) {
 #if DEBUG
   for (uint32_t i = 0; i < *out_length; i++) out[i] = kStringZapValue;
@@ -587,8 +593,8 @@ void ProcessorImpl::ToStringImpl(char* out, uint32_t* out_length, Digits X,
   memset(out + *out_length, 0, excess);
 }
 
-Status Processor::ToString(char* out, uint32_t* out_length, Digits X, int radix,
-                           bool sign) {
+Status Processor::ToString(char* out, uint32_t* out_length, Digits& X,
+                           int radix, bool sign) {
   ProcessorImpl* impl = static_cast<ProcessorImpl*>(this);
   impl->ToString(out, out_length, X, radix, sign);
   return impl->get_and_clear_status();

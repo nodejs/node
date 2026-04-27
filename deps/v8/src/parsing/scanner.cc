@@ -946,7 +946,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
     // Check that the literal is within our limits for BigInt length.
     // For simplicity, use 4 bits per character to calculate the maximum
     // allowed literal length.
-    static const int kMaxBigIntCharacters = BigInt::kMaxLengthBits / 4;
+    static const int kMaxBigIntCharacters = BigInt::kMaxBits / 4;
     int length = source_pos() - start_pos - (kind != DECIMAL ? 2 : 0);
     if (length > kMaxBigIntCharacters) {
       ReportScannerError(Location(start_pos, source_pos()),
@@ -1104,15 +1104,15 @@ bool Scanner::ScanRegExpPattern() {
   return true;
 }
 
-std::optional<RegExpFlags> Scanner::ScanRegExpFlags() {
+std::optional<regexp::Flags> Scanner::ScanRegExpFlags() {
   DCHECK_EQ(Token::kRegExpLiteral, next().token);
 
-  RegExpFlags flags;
+  regexp::Flags flags;
   next().literal_chars.Start();
   while (IsIdentifierPart(c0_)) {
-    std::optional<RegExpFlag> maybe_flag = JSRegExp::FlagFromChar(c0_);
+    std::optional<regexp::Flag> maybe_flag = JSRegExp::FlagFromChar(c0_);
     if (!maybe_flag.has_value()) return {};
-    RegExpFlag flag = maybe_flag.value();
+    regexp::Flag flag = maybe_flag.value();
     if (flags & flag) return {};
     AddLiteralCharAdvance();
     flags |= flag;

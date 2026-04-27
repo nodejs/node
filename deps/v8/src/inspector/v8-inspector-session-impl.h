@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 
+#include "include/cppgc/macros.h"
 #include "include/cppgc/persistent.h"
 #include "include/v8-inspector.h"
 #include "src/base/macros.h"
@@ -155,6 +156,8 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   // deconstruct the V8 session until we return from the
   // "dispatchProtocolMessage" call (i.e. no freed "this" remains on the stack).
   class KeepSessionAliveScope {
+    CPPGC_STACK_ALLOCATED();
+
    public:
     explicit KeepSessionAliveScope(const V8InspectorSessionImpl& session)
         : m_this(session.m_weakThis.lock()) {}

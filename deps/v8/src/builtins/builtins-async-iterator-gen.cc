@@ -82,9 +82,10 @@ class AsyncFromSyncBuiltinsAssembler : public AsyncBuiltinsAssembler {
 };
 
 // This implements common steps found in various AsyncFromSyncIterator prototype
-// methods followed by ES#sec-asyncfromsynciteratorcontinuation. The differences
-// between the various prototype methods are handled by the get_method and
-// if_method_undefined callbacks.
+// methods followed by
+// https://tc39.es/ecma262/#sec-asyncfromsynciteratorcontinuation. The
+// differences between the various prototype methods are handled by the
+// get_method and if_method_undefined callbacks.
 void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
     CodeStubArguments* args, const TNode<Context> context,
     const TNode<Object> iterator, const TNode<Object> sent_value,
@@ -320,7 +321,7 @@ TNode<Context> AsyncFromSyncBuiltinsAssembler::
 
 }  // namespace
 
-// ES#sec-%asyncfromsynciteratorprototype%.next
+// https://tc39.es/ecma262/#sec-%asyncfromsynciteratorprototype%.next
 TF_BUILTIN(AsyncFromSyncIteratorPrototypeNext, AsyncFromSyncBuiltinsAssembler) {
   TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
       UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount));
@@ -339,7 +340,7 @@ TF_BUILTIN(AsyncFromSyncIteratorPrototypeNext, AsyncFromSyncBuiltinsAssembler) {
       "[Async-from-Sync Iterator].prototype.next", kCloseOnRejection);
 }
 
-// ES#sec-%asyncfromsynciteratorprototype%.return
+// https://tc39.es/ecma262/#sec-%asyncfromsynciteratorprototype%.return
 TF_BUILTIN(AsyncFromSyncIteratorPrototypeReturn,
            AsyncFromSyncBuiltinsAssembler) {
   TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
@@ -373,7 +374,7 @@ TF_BUILTIN(AsyncFromSyncIteratorPrototypeReturn,
       kDoNotCloseOnRejection);
 }
 
-// ES#sec-%asyncfromsynciteratorprototype%.throw
+// https://tc39.es/ecma262/#sec-%asyncfromsynciteratorprototype%.throw
 TF_BUILTIN(AsyncFromSyncIteratorPrototypeThrow,
            AsyncFromSyncBuiltinsAssembler) {
   TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
@@ -430,7 +431,7 @@ TF_BUILTIN(AsyncFromSyncIteratorPrototypeThrow,
 
 TF_BUILTIN(AsyncFromSyncIteratorCloseSyncAndRethrow,
            AsyncFromSyncBuiltinsAssembler) {
-  // #sec-asyncfromsynciteratorcontinuation
+  // https://tc39.es/ecma262/#sec-asyncfromsynciteratorcontinuation
   //
   // 13. [...]
   //   a. Let closeIterator be a new Abstract Closure with parameters (error)

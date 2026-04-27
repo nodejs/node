@@ -58,8 +58,9 @@ std::optional<Tagged<Object>> Dictionary<Derived, Shape>::TryValueAt(
   SLOW_DCHECK(Isolate::Current()->heap()->IsPendingAllocation(Tagged(this)));
   // We can read length() in a non-atomic way since we are reading an
   // initialized object which is not pending allocation.
-  if (DerivedHashTable::EntryToIndex(entry) + Derived::kEntryValueIndex >=
-      this->length()) {
+  if (static_cast<uint32_t>(DerivedHashTable::EntryToIndex(entry) +
+                            Derived::kEntryValueIndex) >=
+      this->ulength().value()) {
     return {};
   }
   return ValueAt(entry);

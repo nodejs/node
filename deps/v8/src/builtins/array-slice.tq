@@ -3,12 +3,21 @@
 // found in the LICENSE file.
 
 namespace array {
+
+const kJSArrayHeaderSizeSlots:
+    constexpr int31 generates 'JSArray::kHeaderSize / kTaggedSize';
+
 macro HandleSimpleArgumentsSlice(
     context: NativeContext, args: JSArgumentsObjectWithLength, start: Smi,
     count: Smi): JSArray
     labels Bailout {
   // If the resulting array doesn't fit in new space, use the slow path.
-  if (count >= kMaxNewSpaceFixedArrayElements) goto Bailout;
+  // We subtract the JSArray header size to ensure the JSArray and elements
+  // allocation can be safely folded together into a single object.
+  if (count >= kMaxNewSpaceFixedArrayElements - kJSArrayHeaderSizeSlots) {
+    goto Bailout;
+  }
+
 
   const end: Smi = start + count;
   const sourceElements: FixedArray =
@@ -32,7 +41,11 @@ macro HandleFastAliasedSloppyArgumentsSlice(
     count: Smi): JSArray
     labels Bailout {
   // If the resulting array doesn't fit in new space, use the slow path.
-  if (count >= kMaxNewSpaceFixedArrayElements) goto Bailout;
+  // We subtract the JSArray header size to ensure the JSArray and elements
+  // allocation can be safely folded together into a single object.
+  if (count >= kMaxNewSpaceFixedArrayElements - kJSArrayHeaderSizeSlots) {
+    goto Bailout;
+  }
 
   const sloppyElements: SloppyArgumentsElements =
       Cast<SloppyArgumentsElements>(args.elements) otherwise Bailout;
@@ -126,7 +139,7 @@ macro HandleFastSlice(
   }
 }
 
-// https://tc39.github.io/ecma262/#sec-array.prototype.slice
+// https://tc39.es/ecma262/#sec-array.prototype.slice
 transitioning javascript builtin ArrayPrototypeSlice(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   // 1. Let O be ? ToObject(this value).

@@ -76,7 +76,7 @@ class WasmTracingTest : public TestWithContextAndZone {
     WasmTracesForTesting& traces = GetWasmTracesForTesting();
     traces.should_store_trace = true;
 
-    NativeModule* native_module;
+    std::optional<Managed<NativeModule>::Ptr> native_module;
     CompileAndRun(sigs_.v_v(), code_a, &native_module);
 
     MemoryTrace memory_trace_a = std::move(traces.memory_trace);
@@ -94,13 +94,13 @@ class WasmTracingTest : public TestWithContextAndZone {
     if (should_trace_memory) {
       std::ostringstream memory_ss;
       fuzzing::CompareAndPrintMemoryTraces(memory_trace_a, memory_trace_b,
-                                           native_module, memory_ss);
+                                           native_module->raw(), memory_ss);
       result.memory_trace = memory_ss.str();
     }
     if (should_trace_globals) {
       std::ostringstream global_ss;
       fuzzing::CompareAndPrintGlobalTraces(global_trace_a, global_trace_b,
-                                           native_module, global_ss);
+                                           native_module->raw(), global_ss);
       result.global_trace = global_ss.str();
     }
 
@@ -112,20 +112,20 @@ class WasmTracingTest : public TestWithContextAndZone {
  private:
   DirectHandle<WasmInstanceObject> CompileAndRun(
       const FunctionSig* sig, base::Vector<const uint8_t> code,
-      NativeModule** native_module) {
+      std::optional<Managed<NativeModule>::Ptr>* native_module) {
     WasmModuleBuilder builder(zone());
 
     builder.AddMemory(1);
     ValueType i32 = ValueType::Primitive(kI32);
     builder.AddGlobal(i32, true, WasmInitExpr::DefaultValue(i32));
 
-    StructType::Builder<Zone> type_builder(zone(), 1, false, false);
+    StructType::Builder<Zone> type_builder(zone(), 1, false, SharedFlag::kNo);
     type_builder.AddField(i32, true);
     StructType* struct_type = type_builder.Build();
     ModuleTypeIndex struct_type_index =
         builder.AddStructType(struct_type, false);
-    ValueType struct_ref =
-        ValueType::Ref(struct_type_index, false, RefTypeKind::kStruct);
+    ValueType struct_ref = ValueType::Ref(struct_type_index, SharedFlag::kNo,
+                                          RefTypeKind::kStruct);
     builder.AddGlobal(struct_ref, true,
                       WasmInitExpr::StructNewDefault(struct_type_index));
 
@@ -147,7 +147,7 @@ class WasmTracingTest : public TestWithContextAndZone {
             .ToHandleChecked();
     CHECK(!module.is_null());
     if (native_module) {
-      *native_module = module->native_module();
+      native_module->emplace(module->native_module());
     }
 
     DirectHandle<WasmInstanceObject> instance =
@@ -290,7 +290,7 @@ TEST_F(WasmTracingTest, TestTracingGlobalRefValueDiff) {
               HasSubstr("Traces are identical (1 entries)"));
   EXPECT_THAT(
       result.global_trace,
-      HasSubstr("liftoff  func     0:0x5e   global.set 1 val: (ref 18)"));
+      HasSubstr("liftoff  func     0:0x5e   global.set 1 val: (ref 32)"));
 }
 
 TEST_F(WasmTracingTest, TestTracingManyMismatches) {

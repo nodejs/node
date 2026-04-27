@@ -16,7 +16,6 @@
 #include "src/objects/heap-number.h"
 #include "src/objects/string.h"
 #include "src/wasm/object-access.h"
-#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-subtyping.h"

@@ -167,11 +167,11 @@ void BuiltinPipeline::OptimizeBuiltin() {
 
   CHECK(Run<CsaMemoryOptimizationPhase>());
 
+  CHECK(Run<CodeEliminationAndSimplificationPhase>());
+
   if (v8_flags.turboshaft_enable_debug_features) {
     CHECK(Run<DebugFeatureLoweringPhase>());
   }
-
-  CHECK(Run<CodeEliminationAndSimplificationPhase>());
 }
 
 }  // namespace v8::internal::compiler::turboshaft

@@ -6,6 +6,7 @@
 #define V8_OBJECTS_JS_PROMISE_H_
 
 #include "include/v8-promise.h"
+#include "src/handles/handles.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/promise.h"
 #include "torque-generated/bit-fields.h"
@@ -57,16 +58,27 @@ class JSPromise
   V8_EXPORT_PRIVATE Promise::PromiseState status() const;
   void set_status(Promise::PromiseState status);
 
-  // ES section #sec-fulfillpromise
+  // https://tc39.es/ecma262/#sec-fulfillpromise
   V8_EXPORT_PRIVATE static Handle<Object> Fulfill(
       DirectHandle<JSPromise> promise, DirectHandle<Object> value);
-  // ES section #sec-rejectpromise
+  // https://tc39.es/ecma262/#sec-rejectpromise
   static Handle<Object> Reject(DirectHandle<JSPromise> promise,
                                DirectHandle<Object> reason,
                                bool debug_event = true);
-  // ES section #sec-promise-resolve-functions
+  // https://tc39.es/ecma262/#sec-promise-resolve-functions
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Resolve(
       DirectHandle<JSPromise> promise, DirectHandle<Object> resolution);
+
+  // This is intened to be used when we have an array of native promises, so the
+  // expectation is a call like PerformPromiseAll([native-promise, ...],
+  // %Promise%, NewPromiseCapability(%Promise%), %Promise.resolve%), following
+  // the expectation of native promise adoption.
+  // If https://github.com/tc39/proposal-defer-import-eval/pull/77/ lands, this
+  // function will be the implementation of
+  // https://tc39.es/ecma262/#sec-safe-perform-promise-all
+  // TODO(caiolima): update this comment after PR decision.
+  V8_EXPORT_PRIVATE static MaybeHandle<JSPromise> PerformPromiseAll(
+      Isolate* isolate, const DirectHandleVector<JSPromise>& promises);
 
   // Dispatched behavior.
   DECL_PRINTER(JSPromise)
@@ -83,7 +95,7 @@ class JSPromise
   static_assert(v8::Promise::kRejected == 2);
 
  private:
-  // ES section #sec-triggerpromisereactions
+  // https://tc39.es/ecma262/#sec-triggerpromisereactions
   static Handle<Object> TriggerPromiseReactions(Isolate* isolate,
                                                 DirectHandle<Object> reactions,
                                                 DirectHandle<Object> argument,

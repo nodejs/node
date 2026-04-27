@@ -234,10 +234,17 @@ class WasmMemoryContentTable
     return all_keys_.find(mem) != all_keys_.end();
   }
 
+  bool LoadLikeMutability(int offset_sentinel) {
+    // While strings themselves are immutable, their heap object representation
+    // could get rewritten into a ThinString or ExternalString, so we need
+    // to consider them mutable (and invalidate such values at calls).
+    if (offset_sentinel == kStringPrepareForGetCodeunitIndex) return true;
+    return false;
+  }
+
   OpIndex FindLoadLike(OpIndex op_idx, int offset_sentinel) {
-    static constexpr bool mutability = false;
     return FindImpl(ResolveBase(op_idx), offset_sentinel, kLoadLikeType,
-                    kLoadLikeSize, mutability);
+                    kLoadLikeSize, LoadLikeMutability(offset_sentinel));
   }
 
   OpIndex FindImpl(OpIndex object, int offset, wasm::ModuleTypeIndex type_index,
@@ -273,9 +280,8 @@ class WasmMemoryContentTable
   void InsertLoadLike(OpIndex base_idx, int offset_sentinel,
                       OpIndex value_idx) {
     OpIndex base = ResolveBase(base_idx);
-    static constexpr bool mutability = false;
-    Insert(base, offset_sentinel, kLoadLikeType, kLoadLikeSize, mutability,
-           value_idx);
+    Insert(base, offset_sentinel, kLoadLikeType, kLoadLikeSize,
+           LoadLikeMutability(offset_sentinel), value_idx);
   }
 
 #ifdef DEBUG
@@ -679,6 +685,7 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kWasmIncCoverageCounter:
       case Opcode::kParameter:
       case Opcode::kSetStackPointer:
+      case Opcode::kWasmFXArgBuffer:
         // We explicitly break for those operations that have can_write effects
         // but don't actually write, or cannot interfere with load elimination.
         break;
@@ -693,6 +700,7 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kDeoptimizeIf:
       case Opcode::kComparison:
       case Opcode::kTrapIf:
+      case Opcode::kWasmTrap:
         // We explicitly break for these opcodes so that we don't call
         // InvalidateAllNonAliasingInputs on their inputs, since they don't
         // really create aliases. (and also, they don't write so it's

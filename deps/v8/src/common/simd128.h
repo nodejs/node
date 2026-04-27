@@ -31,7 +31,7 @@ class alignas(double) Simd128 {
   constexpr Simd128() = default;
 
 #define DEFINE_SIMD_TYPE_SPECIFIC_METHODS(cType, sType, name, size) \
-  explicit constexpr Simd128(sType val)                             \
+  explicit constexpr Simd128(const sType val)                       \
       : val_(base::bit_cast<std::array<uint8_t, 16>>(val)) {}       \
   static constexpr Simd128 Splat(cType value) {                     \
     sType values;                                                   \

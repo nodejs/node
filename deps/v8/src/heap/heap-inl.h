@@ -146,6 +146,14 @@ void Heap::SetDoubleStringCache(Tagged<DoubleStringCache> cache) {
   set_double_string_cache(cache);
 }
 
+void Heap::SetCachedBigIntDivisor(Tagged<BigInt> divisor) {
+  set_cached_bigint_divisor(divisor);
+}
+
+void Heap::SetNextCachedBigIntDivisor(Tagged<BigInt> divisor) {
+  set_next_cached_bigint_divisor(divisor);
+}
+
 #if V8_ENABLE_WEBASSEMBLY
 void Heap::SetWasmCanonicalRtts(Tagged<WeakFixedArray> rtts) {
   set_wasm_canonical_rtts(rtts);

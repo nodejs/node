@@ -388,9 +388,11 @@ TF_BUILTIN(ShadowRealmImportValueFulfilled, ShadowRealmBuiltinsAssembler) {
   TNode<String> export_name_string = CAST(LoadContextElementNoCell(
       context, ImportValueFulfilledFunctionContextSlot::kExportNameSlot));
 
+  TNode<JSAny> exports_arg = Parameter<JSAny>(Descriptor::kExports);
   // 1. Assert: exports is a module namespace exotic object.
-  TNode<JSModuleNamespace> exports =
-      Parameter<JSModuleNamespace>(Descriptor::kExports);
+  // Spec issue: https://github.com/tc39/proposal-shadowrealm/issues/424
+  CSA_CHECK(this, IsJSModuleNamespace(exports_arg));
+  TNode<JSModuleNamespace> exports = CAST(exports_arg);
 
   // 5. Let hasOwn be ? HasOwnProperty(exports, string).
   // 6. If hasOwn is false, throw a TypeError exception.

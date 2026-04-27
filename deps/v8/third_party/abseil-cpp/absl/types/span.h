@@ -30,18 +30,17 @@
 // `Span<const T>` when such types may be difficult to identify due to issues
 // with implicit conversion.
 //
-// The C++20 draft standard includes a `std::span` type. As of June 2020, the
+// The C++20 standard includes a `std::span` type. As of January 2026, the
 // differences between `absl::Span` and `std::span` are:
 //    * `absl::Span` has `operator==` (which is likely a design bug,
 //       per https://abseil.io/blog/20180531-regular-types)
 //    * `absl::Span` has the factory functions `MakeSpan()` and
 //      `MakeConstSpan()`
 //    * bounds-checked access to `absl::Span` is accomplished with `at()`
+//      however `std::span` now supports the same as of the draft C++26 standard
 //    * `absl::Span` has compiler-provided move and copy constructors and
 //      assignment. This is due to them being specified as `constexpr`, but that
 //      implies const in C++11.
-//    * A read-only `absl::Span<const T>` can be implicitly constructed from an
-//      initializer list.
 //    * `absl::Span` has no `bytes()`, `size_bytes()`, `as_bytes()`, or
 //      `as_writable_bytes()` methods
 //    * `absl::Span` has no static extent template parameter, nor constructors
@@ -65,11 +64,11 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
-#include "absl/base/internal/throw_delegate.h"
 #include "absl/base/macros.h"
 #include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
 #include "absl/base/port.h"  // TODO(strel): remove this include
+#include "absl/base/throw_delegate.h"
 #include "absl/hash/internal/weakly_mixed_integer.h"
 #include "absl/meta/type_traits.h"
 #include "absl/types/internal/span.h"
@@ -346,8 +345,7 @@ class ABSL_ATTRIBUTE_VIEW Span {
   constexpr reference at(size_type i) const {
     return ABSL_PREDICT_TRUE(i < size())  //
                ? *(data() + i)
-               : (base_internal::ThrowStdOutOfRange(
-                      "Span::at failed bounds check"),
+               : (ThrowStdOutOfRange("Span::at failed bounds check"),
                   *(data() + i));
   }
 
@@ -466,9 +464,8 @@ class ABSL_ATTRIBUTE_VIEW Span {
   //   absl::MakeSpan(vec).subspan(4);     // {}
   //   absl::MakeSpan(vec).subspan(5);     // throws std::out_of_range
   constexpr Span subspan(size_type pos = 0, size_type len = npos) const {
-    return (pos <= size())
-               ? Span(data() + pos, (std::min)(size() - pos, len))
-               : (base_internal::ThrowStdOutOfRange("pos > size()"), Span());
+    return (pos <= size()) ? Span(data() + pos, (std::min)(size() - pos, len))
+                           : (ThrowStdOutOfRange("pos > size()"), Span());
   }
 
   // Span::first()
@@ -483,9 +480,8 @@ class ABSL_ATTRIBUTE_VIEW Span {
   //   absl::MakeSpan(vec).first(3);  // {10, 11, 12}
   //   absl::MakeSpan(vec).first(5);  // throws std::out_of_range
   constexpr Span first(size_type len) const {
-    return (len <= size())
-               ? Span(data(), len)
-               : (base_internal::ThrowStdOutOfRange("len > size()"), Span());
+    return (len <= size()) ? Span(data(), len)
+                           : (ThrowStdOutOfRange("len > size()"), Span());
   }
 
   // Span::last()
@@ -500,9 +496,8 @@ class ABSL_ATTRIBUTE_VIEW Span {
   //   absl::MakeSpan(vec).last(3);  // {11, 12, 13}
   //   absl::MakeSpan(vec).last(5);  // throws std::out_of_range
   constexpr Span last(size_type len) const {
-    return (len <= size())
-               ? Span(size() - len + data(), len)
-               : (base_internal::ThrowStdOutOfRange("len > size()"), Span());
+    return (len <= size()) ? Span(size() - len + data(), len)
+                           : (ThrowStdOutOfRange("len > size()"), Span());
   }
 
   // Support for absl::Hash.

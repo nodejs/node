@@ -65,7 +65,7 @@ bytecodes: [
                 B(StaCurrentContextSlotNoCell), C8(2),
   /*   44 S> */ B(LdaSmi), I8(20),
                 B(Star1),
-                B(LdaCurrentContextSlotNoCell), C8(2),
+                B(LdaImmutableCurrentContextSlot), C8(2),
   /*   47 E> */ B(ThrowReferenceErrorIfHole), U8(1:"x"),
                 B(CallRuntime), U16(Runtime::kThrowConstAssignError), R(0), RegCount8(0),
   /*   44 E> */ B(StaCurrentContextSlotNoCell), C8(2),

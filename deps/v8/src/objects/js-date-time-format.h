@@ -61,28 +61,28 @@ class JSDateTimeFormat
   V8_WARN_UNUSED_RESULT static DirectHandle<Object> TimeZone(
       Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format);
 
-  // ecma402/#sec-unwrapdatetimeformat
+  // https://tc39.es/ecma402/#sec-unwrapdatetimeformat
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSDateTimeFormat>
   UnwrapDateTimeFormat(Isolate* isolate, Handle<JSReceiver> format_holder);
 
-  // ecma402/#sec-datetime-format-functions
+  // https://tc39.es/ecma402/#sec-datetime-format-functions
   // DateTime Format Functions
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> DateTimeFormat(
       Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
       DirectHandle<Object> date, const char* method_name);
 
-  // ecma402/#sec-Intl.DateTimeFormat.prototype.formatToParts
+  // https://tc39.es/ecma402/#sec-Intl.DateTimeFormat.prototype.formatToParts
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSArray> FormatToParts(
       Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
       DirectHandle<Object> x, bool output_source, const char* method_name);
 
-  // ecma402/#sec-intl.datetimeformat.prototype.formatRange
+  // https://tc39.es/ecma402/#sec-intl.datetimeformat.prototype.formatRange
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> FormatRange(
       Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
       DirectHandle<Object> x_date_value, DirectHandle<Object> y_date_value,
       const char* method_name);
 
-  // ecma402/sec-Intl.DateTimeFormat.prototype.formatRangeToParts
+  // https://tc39.es/ecma402/sec-Intl.DateTimeFormat.prototype.formatRangeToParts
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSArray> FormatRangeToParts(
       Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
       DirectHandle<Object> x_date_value, DirectHandle<Object> y_date_value,

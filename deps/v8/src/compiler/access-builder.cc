@@ -254,11 +254,14 @@ FieldAccess AccessBuilder::ForJSExternalObjectPointerHandle() {
 
 // static
 FieldAccess AccessBuilder::ForJSFunctionPrototypeOrInitialMap() {
-  FieldAccess access = {
-      kTaggedBase,          JSFunction::kPrototypeOrInitialMapOffset,
-      MaybeHandle<Name>(),  OptionalMapRef(),
-      Type::Any(),          MachineType::TaggedPointer(),
-      kPointerWriteBarrier, "JSFunctionPrototypeOrInitialMap"};
+  FieldAccess access = {kTaggedBase,
+                        JSFunctionWithPrototype::kPrototypeOrInitialMapOffset,
+                        MaybeHandle<Name>(),
+                        OptionalMapRef(),
+                        Type::Any(),
+                        MachineType::TaggedPointer(),
+                        kPointerWriteBarrier,
+                        "JSFunctionPrototypeOrInitialMap"};
   return access;
 }
 
@@ -268,6 +271,7 @@ FieldAccess AccessBuilder::ForJSFunctionContext() {
                         MaybeHandle<Name>(),  OptionalMapRef(),
                         Type::Internal(),     MachineType::TaggedPointer(),
                         kPointerWriteBarrier, "JSFunctionContext"};
+  access.is_immutable = true;
   return access;
 }
 
@@ -287,6 +291,9 @@ FieldAccess AccessBuilder::ForJSFunctionFeedbackCell() {
                         Handle<Name>(),       OptionalMapRef(),
                         Type::Internal(),     MachineType::TaggedPointer(),
                         kPointerWriteBarrier, "JSFunctionFeedbackCell"};
+  // The feedback cell is only set when the JSFunction is allocated, or via
+  // LiveEdit, but that doesn't concern optimized code, so treat it as const.
+  access.is_immutable = true;
   return access;
 }
 
@@ -713,15 +720,6 @@ FieldAccess AccessBuilder::ForJSRegExpLastIndex() {
 }
 
 // static
-FieldAccess AccessBuilder::ForJSRegExpSource() {
-  FieldAccess access = {kTaggedBase,         JSRegExp::kSourceOffset,
-                        MaybeHandle<Name>(), OptionalMapRef(),
-                        Type::NonInternal(), MachineType::AnyTagged(),
-                        kFullWriteBarrier,   "JSRegExpSource"};
-  return access;
-}
-
-// static
 FieldAccess AccessBuilder::ForFixedArrayLength() {
   FieldAccess access = {kTaggedBase,
                         offsetof(FixedArray, length_),
@@ -869,7 +867,7 @@ FieldAccess AccessBuilder::ForMapNativeContext() {
 // static
 FieldAccess AccessBuilder::ForModuleRegularExports() {
   FieldAccess access = {
-      kTaggedBase,           SourceTextModule::kRegularExportsOffset,
+      kTaggedBase,           offsetof(SourceTextModule, regular_exports_),
       Handle<Name>(),        OptionalMapRef(),
       Type::OtherInternal(), MachineType::TaggedPointer(),
       kPointerWriteBarrier,  "ModuleRegularExports"};
@@ -879,7 +877,7 @@ FieldAccess AccessBuilder::ForModuleRegularExports() {
 // static
 FieldAccess AccessBuilder::ForModuleRegularImports() {
   FieldAccess access = {
-      kTaggedBase,           SourceTextModule::kRegularImportsOffset,
+      kTaggedBase,           offsetof(SourceTextModule, regular_imports_),
       Handle<Name>(),        OptionalMapRef(),
       Type::OtherInternal(), MachineType::TaggedPointer(),
       kPointerWriteBarrier,  "ModuleRegularImports"};
@@ -1147,7 +1145,7 @@ FieldAccess AccessBuilder::ForWeakFixedArraySlot(int index) {
 }
 // static
 FieldAccess AccessBuilder::ForCellValue() {
-  FieldAccess access = {kTaggedBase,       Cell::kValueOffset,
+  FieldAccess access = {kTaggedBase,       offsetof(Cell, maybe_value_),
                         Handle<Name>(),    OptionalMapRef(),
                         Type::Any(),       MachineType::AnyTagged(),
                         kFullWriteBarrier, "CellValue"};
@@ -1530,7 +1528,7 @@ FieldAccess AccessBuilder::ForNameDictionaryFlagsIndex() {
 // static
 FieldAccess AccessBuilder::ForFeedbackCellInterruptBudget() {
   FieldAccess access = {kTaggedBase,
-                        FeedbackCell::kInterruptBudgetOffset,
+                        offsetof(FeedbackCell, interrupt_budget_),
                         Handle<Name>(),
                         OptionalMapRef(),
                         TypeCache::Get()->kInt32,
@@ -1546,7 +1544,7 @@ FieldAccess AccessBuilder::ForFeedbackCellDispatchHandleNoWriteBarrier() {
   // they are marked as kNoWriteBarrier here (because the fields will not be
   // written to).
   FieldAccess access = {kTaggedBase,
-                        FeedbackCell::kDispatchHandleOffset,
+                        offsetof(FeedbackCell, dispatch_handle_),
                         Handle<Name>(),
                         OptionalMapRef(),
                         TypeCache::Get()->kInt32,

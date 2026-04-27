@@ -120,7 +120,7 @@ struct TypedArrayAccessor {
       value: JSAny): void {
     const storefn: StoreJSAnyFn = this.storeJSAnyFn;
     const result = storefn(context, array, index, value);
-    // ES#sec-typedarray-set
+    // https://tc39.es/ecma262/#sec-typedarray-set
     //
     // A [[Set]] on a TypedArray with a detached or out-of-bounds
     // underlying ArrayBuffer is a no-op.

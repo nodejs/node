@@ -103,10 +103,28 @@ class V8_EXPORT Template : public Data {
    */
   void SetNativeDataProperty(
       Local<Name> name, AccessorNameGetterCallback getter,
-      AccessorNameSetterCallback setter = nullptr,
-      Local<Value> data = Local<Value>(), PropertyAttribute attribute = None,
+      AccessorNameSetterCallbackV2 setter, Local<Value> data = Local<Value>(),
+      PropertyAttribute attribute = None,
       SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
       SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
+  void SetNativeDataProperty(
+      Local<Name> name, AccessorNameGetterCallback getter,
+      AccessorNameSetterCallback setter, Local<Value> data = Local<Value>(),
+      PropertyAttribute attribute = None,
+      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
+      SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
+  // TODO(https://crbug.com/348660658): remove once AccessorNameSetterCallback
+  // is removed.
+  void SetNativeDataProperty(
+      Local<Name> name, AccessorNameGetterCallback getter,
+      std::nullptr_t setter = nullptr, Local<Value> data = Local<Value>(),
+      PropertyAttribute attribute = None,
+      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
+      SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect) {
+    SetNativeDataProperty(
+        name, getter, static_cast<AccessorNameSetterCallbackV2>(setter), data,
+        attribute, getter_side_effect_type, setter_side_effect_type);
+  }
 
   /**
    * Like SetNativeDataProperty, but V8 will replace the native data property
@@ -213,6 +231,10 @@ using NamedPropertyGetterCallback = Intercepted (*)(
  *
  * See also `ObjectTemplate::SetHandler.`
  */
+using NamedPropertySetterCallbackV2 =
+    Intercepted (*)(Local<Name> property, Local<Value> value,
+                    const PropertyCallbackInfo<Boolean>& info);
+// TODO(https://crbug.com/348660658): deprecate and remove.
 using NamedPropertySetterCallback =
     Intercepted (*)(Local<Name> property, Local<Value> value,
                     const PropertyCallbackInfo<void>& info);
@@ -308,6 +330,10 @@ using NamedPropertyEnumeratorCallback =
  *
  * See also `ObjectTemplate::SetHandler`.
  */
+using NamedPropertyDefinerCallbackV2 =
+    Intercepted (*)(Local<Name> property, const PropertyDescriptor& desc,
+                    const PropertyCallbackInfo<Boolean>& info);
+// TODO(https://crbug.com/348660658): deprecate and remove.
 using NamedPropertyDefinerCallback =
     Intercepted (*)(Local<Name> property, const PropertyDescriptor& desc,
                     const PropertyCallbackInfo<void>& info);
@@ -336,33 +362,39 @@ using NamedPropertyDefinerCallback =
 using NamedPropertyDescriptorCallback = Intercepted (*)(
     Local<Name> property, const PropertyCallbackInfo<Value>& info);
 
-// TODO(ishell): Rename IndexedPropertyXxxCallbackV2 back to
-// IndexedPropertyXxxCallback once the old IndexedPropertyXxxCallback is
-// removed.
-
 /**
  * See `v8::NamedPropertyGetterCallback`.
  */
-using IndexedPropertyGetterCallbackV2 =
+using IndexedPropertyGetterCallback =
     Intercepted (*)(uint32_t index, const PropertyCallbackInfo<Value>& info);
+// TODO(https://crbug.com/348660658): deprecate and remove.
+using IndexedPropertyGetterCallbackV2 = IndexedPropertyGetterCallback;
 
 /**
  * See `v8::NamedPropertySetterCallback`.
  */
+using IndexedPropertySetterCallback =
+    Intercepted (*)(uint32_t index, Local<Value> value,
+                    const PropertyCallbackInfo<Boolean>& info);
+// TODO(https://crbug.com/348660658): deprecate and remove.
 using IndexedPropertySetterCallbackV2 = Intercepted (*)(
     uint32_t index, Local<Value> value, const PropertyCallbackInfo<void>& info);
 
 /**
  * See `v8::NamedPropertyQueryCallback`.
  */
-using IndexedPropertyQueryCallbackV2 =
+using IndexedPropertyQueryCallback =
     Intercepted (*)(uint32_t index, const PropertyCallbackInfo<Integer>& info);
+// TODO(https://crbug.com/348660658): deprecate and remove.
+using IndexedPropertyQueryCallbackV2 = IndexedPropertyQueryCallback;
 
 /**
  * See `v8::NamedPropertyDeleterCallback`.
  */
-using IndexedPropertyDeleterCallbackV2 =
+using IndexedPropertyDeleterCallback =
     Intercepted (*)(uint32_t index, const PropertyCallbackInfo<Boolean>& info);
+// TODO(https://crbug.com/348660658): deprecate and remove.
+using IndexedPropertyDeleterCallbackV2 = IndexedPropertyDeleterCallback;
 
 /**
  * Returns an array containing the indices of the properties the indexed
@@ -376,6 +408,10 @@ using IndexedPropertyEnumeratorCallback =
 /**
  * See `v8::NamedPropertyDefinerCallback`.
  */
+using IndexedPropertyDefinerCallback =
+    Intercepted (*)(uint32_t index, const PropertyDescriptor& desc,
+                    const PropertyCallbackInfo<Boolean>& info);
+// TODO(https://crbug.com/348660658): deprecate and remove.
 using IndexedPropertyDefinerCallbackV2 =
     Intercepted (*)(uint32_t index, const PropertyDescriptor& desc,
                     const PropertyCallbackInfo<void>& info);
@@ -383,8 +419,17 @@ using IndexedPropertyDefinerCallbackV2 =
 /**
  * See `v8::NamedPropertyDescriptorCallback`.
  */
-using IndexedPropertyDescriptorCallbackV2 =
+using IndexedPropertyDescriptorCallback =
     Intercepted (*)(uint32_t index, const PropertyCallbackInfo<Value>& info);
+// TODO(https://crbug.com/348660658): deprecate and remove.
+using IndexedPropertyDescriptorCallbackV2 = IndexedPropertyDescriptorCallback;
+
+/**
+ * Experimental API, do not use!
+ */
+using IndexedPropertyIndexOfCallback =
+    uint32_t (*)(Local<Value> value, uint32_t start_index, uint32_t end_index,
+                 uint32_t* out_length, const PropertyCallbackInfo<void>& info);
 
 /**
  * Returns true if the given context should be allowed to access the given
@@ -703,37 +748,77 @@ struct NamedPropertyHandlerConfiguration {
             PropertyHandlerFlags::kInternalNewCallbacksSignatures));
   }
 
+  static NamedPropertySetterCallbackV2 ConvertSetter(std::nullptr_t) {
+    return nullptr;
+  }
+  static NamedPropertySetterCallbackV2 ConvertSetter(
+      NamedPropertySetterCallbackV2 value) {
+    return value;
+  }
+  static NamedPropertySetterCallbackV2 ConvertSetter(
+      NamedPropertySetterCallback value) {
+    return NamedPropertySetterCallbackV2(value);
+  }
+
+  static NamedPropertyDefinerCallbackV2 ConvertDefiner(std::nullptr_t) {
+    return nullptr;
+  }
+  static NamedPropertyDefinerCallbackV2 ConvertDefiner(
+      NamedPropertyDefinerCallbackV2 value) {
+    return value;
+  }
+  static NamedPropertyDefinerCallbackV2 ConvertDefiner(
+      NamedPropertyDefinerCallback value) {
+    return NamedPropertyDefinerCallbackV2(value);
+  }
+
  public:
+  // TODO(https://crbug.com/348660658): cleanup once migration to
+  // NamedPropertySetterCallbackV2/NamedPropertyDefinerCallbackV2 is done.
+  template <typename TSetter = std::nullptr_t,
+            typename TDefiner = std::nullptr_t>
+    requires((std::is_same_v<TSetter, std::nullptr_t> ||
+              std::is_same_v<TSetter, NamedPropertySetterCallback> ||
+              std::is_same_v<TSetter, NamedPropertySetterCallbackV2>) &&
+             (std::is_same_v<TDefiner, std::nullptr_t> ||
+              std::is_same_v<TDefiner, NamedPropertyDefinerCallback> ||
+              std::is_same_v<TDefiner, NamedPropertyDefinerCallbackV2>))
   NamedPropertyHandlerConfiguration(
       NamedPropertyGetterCallback getter,          //
-      NamedPropertySetterCallback setter,          //
+      TSetter setter,                              //
       NamedPropertyQueryCallback query,            //
       NamedPropertyDeleterCallback deleter,        //
       NamedPropertyEnumeratorCallback enumerator,  //
-      NamedPropertyDefinerCallback definer,        //
+      TDefiner definer,                            //
       NamedPropertyDescriptorCallback descriptor,  //
       Local<Value> data = Local<Value>(),
       PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
       : getter(getter),
-        setter(setter),
+        setter(ConvertSetter(setter)),
         query(query),
         deleter(deleter),
         enumerator(enumerator),
-        definer(definer),
+        definer(ConvertDefiner(definer)),
         descriptor(descriptor),
         data(data),
         flags(flags) {}
 
+  // TODO(https://crbug.com/348660658): cleanup once migration to
+  // NamedPropertySetterCallbackV2/NamedPropertyDefinerCallbackV2 is done.
+  template <typename TSetter = std::nullptr_t>
+    requires(std::is_same_v<TSetter, std::nullptr_t> ||
+             std::is_same_v<TSetter, NamedPropertySetterCallback> ||
+             std::is_same_v<TSetter, NamedPropertySetterCallbackV2>)
   explicit NamedPropertyHandlerConfiguration(
-      NamedPropertyGetterCallback getter,
-      NamedPropertySetterCallback setter = nullptr,
-      NamedPropertyQueryCallback query = nullptr,
-      NamedPropertyDeleterCallback deleter = nullptr,
-      NamedPropertyEnumeratorCallback enumerator = nullptr,
+      NamedPropertyGetterCallback getter,                    //
+      TSetter setter = nullptr,                              //
+      NamedPropertyQueryCallback query = nullptr,            //
+      NamedPropertyDeleterCallback deleter = nullptr,        //
+      NamedPropertyEnumeratorCallback enumerator = nullptr,  //
       Local<Value> data = Local<Value>(),
       PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
       : getter(getter),
-        setter(setter),
+        setter(ConvertSetter(setter)),
         query(query),
         deleter(deleter),
         enumerator(enumerator),
@@ -742,31 +827,41 @@ struct NamedPropertyHandlerConfiguration {
         data(data),
         flags(flags) {}
 
+  // TODO(https://crbug.com/348660658): cleanup once migration to
+  // NamedPropertySetterCallbackV2/NamedPropertyDefinerCallbackV2 is done.
+  template <typename TSetter = std::nullptr_t,
+            typename TDefiner = std::nullptr_t>
+    requires((std::is_same_v<TSetter, std::nullptr_t> ||
+              std::is_same_v<TSetter, NamedPropertySetterCallback> ||
+              std::is_same_v<TSetter, NamedPropertySetterCallbackV2>) &&
+             (std::is_same_v<TDefiner, std::nullptr_t> ||
+              std::is_same_v<TDefiner, NamedPropertyDefinerCallback> ||
+              std::is_same_v<TDefiner, NamedPropertyDefinerCallbackV2>))
   NamedPropertyHandlerConfiguration(
       NamedPropertyGetterCallback getter,          //
-      NamedPropertySetterCallback setter,          //
+      TSetter setter,                              //
       NamedPropertyDescriptorCallback descriptor,  //
       NamedPropertyDeleterCallback deleter,        //
       NamedPropertyEnumeratorCallback enumerator,  //
-      NamedPropertyDefinerCallback definer,        //
+      TDefiner definer,                            //
       Local<Value> data = Local<Value>(),
       PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
       : getter(getter),
-        setter(setter),
+        setter(ConvertSetter(setter)),
         query(nullptr),
         deleter(deleter),
         enumerator(enumerator),
-        definer(definer),
+        definer(ConvertDefiner(definer)),
         descriptor(descriptor),
         data(data),
         flags(flags) {}
 
   NamedPropertyGetterCallback getter;
-  NamedPropertySetterCallback setter;
+  NamedPropertySetterCallbackV2 setter;
   NamedPropertyQueryCallback query;
   NamedPropertyDeleterCallback deleter;
   NamedPropertyEnumeratorCallback enumerator;
-  NamedPropertyDefinerCallback definer;
+  NamedPropertyDefinerCallbackV2 definer;
   NamedPropertyDescriptorCallback descriptor;
   Local<Value> data;
   PropertyHandlerFlags flags;
@@ -782,37 +877,77 @@ struct IndexedPropertyHandlerConfiguration {
             PropertyHandlerFlags::kInternalNewCallbacksSignatures));
   }
 
+  static IndexedPropertySetterCallback ConvertSetter(std::nullptr_t) {
+    return nullptr;
+  }
+  static IndexedPropertySetterCallback ConvertSetter(
+      IndexedPropertySetterCallback value) {
+    return value;
+  }
+  static IndexedPropertySetterCallback ConvertSetter(
+      IndexedPropertySetterCallbackV2 value) {
+    return IndexedPropertySetterCallback(value);
+  }
+
+  static IndexedPropertyDefinerCallback ConvertDefiner(std::nullptr_t) {
+    return nullptr;
+  }
+  static IndexedPropertyDefinerCallback ConvertDefiner(
+      IndexedPropertyDefinerCallback value) {
+    return value;
+  }
+  static IndexedPropertyDefinerCallback ConvertDefiner(
+      IndexedPropertyDefinerCallbackV2 value) {
+    return IndexedPropertyDefinerCallback(value);
+  }
+
  public:
+  // TODO(https://crbug.com/348660658): cleanup once migration to
+  // IndexedPropertySetterCallback/IndexedPropertyDefinerCallback is done.
+  template <typename TSetter = std::nullptr_t,
+            typename TDefiner = std::nullptr_t>
+    requires((std::is_same_v<TSetter, std::nullptr_t> ||
+              std::is_same_v<TSetter, IndexedPropertySetterCallback> ||
+              std::is_same_v<TSetter, IndexedPropertySetterCallbackV2>) &&
+             (std::is_same_v<TDefiner, std::nullptr_t> ||
+              std::is_same_v<TDefiner, IndexedPropertyDefinerCallback> ||
+              std::is_same_v<TDefiner, IndexedPropertyDefinerCallbackV2>))
   IndexedPropertyHandlerConfiguration(
-      IndexedPropertyGetterCallbackV2 getter,          //
-      IndexedPropertySetterCallbackV2 setter,          //
-      IndexedPropertyQueryCallbackV2 query,            //
-      IndexedPropertyDeleterCallbackV2 deleter,        //
-      IndexedPropertyEnumeratorCallback enumerator,    //
-      IndexedPropertyDefinerCallbackV2 definer,        //
-      IndexedPropertyDescriptorCallbackV2 descriptor,  //
+      IndexedPropertyGetterCallback getter,          //
+      TSetter setter,                                //
+      IndexedPropertyQueryCallback query,            //
+      IndexedPropertyDeleterCallback deleter,        //
+      IndexedPropertyEnumeratorCallback enumerator,  //
+      TDefiner definer,                              //
+      IndexedPropertyDescriptorCallback descriptor,  //
       Local<Value> data = Local<Value>(),
       PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
       : getter(getter),
-        setter(setter),
+        setter(ConvertSetter(setter)),
         query(query),
         deleter(deleter),
         enumerator(enumerator),
-        definer(definer),
+        definer(ConvertDefiner(definer)),
         descriptor(descriptor),
         data(data),
         flags(flags) {}
 
+  // TODO(https://crbug.com/348660658): cleanup once migration to
+  // IndexedPropertySetterCallback/IndexedPropertyDefinerCallback is done.
+  template <typename TSetter = std::nullptr_t>
+    requires(std::is_same_v<TSetter, std::nullptr_t> ||
+             std::is_same_v<TSetter, IndexedPropertySetterCallback> ||
+             std::is_same_v<TSetter, IndexedPropertySetterCallbackV2>)
   explicit IndexedPropertyHandlerConfiguration(
-      IndexedPropertyGetterCallbackV2 getter = nullptr,
-      IndexedPropertySetterCallbackV2 setter = nullptr,
-      IndexedPropertyQueryCallbackV2 query = nullptr,
-      IndexedPropertyDeleterCallbackV2 deleter = nullptr,
-      IndexedPropertyEnumeratorCallback enumerator = nullptr,
-      Local<Value> data = Local<Value>(),
+      IndexedPropertyGetterCallback getter = nullptr,          //
+      TSetter setter = nullptr,                                //
+      IndexedPropertyQueryCallback query = nullptr,            //
+      IndexedPropertyDeleterCallback deleter = nullptr,        //
+      IndexedPropertyEnumeratorCallback enumerator = nullptr,  //
+      Local<Value> data = Local<Value>(),                      //
       PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
       : getter(getter),
-        setter(setter),
+        setter(ConvertSetter(setter)),
         query(query),
         deleter(deleter),
         enumerator(enumerator),
@@ -821,32 +956,75 @@ struct IndexedPropertyHandlerConfiguration {
         data(data),
         flags(flags) {}
 
+  // TODO(https://crbug.com/348660658): cleanup once migration to
+  // IndexedPropertySetterCallback/IndexedPropertyDefinerCallback is done.
+  template <typename TSetter = std::nullptr_t,
+            typename TDefiner = std::nullptr_t>
+    requires((std::is_same_v<TSetter, std::nullptr_t> ||
+              std::is_same_v<TSetter, IndexedPropertySetterCallback> ||
+              std::is_same_v<TSetter, IndexedPropertySetterCallbackV2>) &&
+             (std::is_same_v<TDefiner, std::nullptr_t> ||
+              std::is_same_v<TDefiner, IndexedPropertyDefinerCallback> ||
+              std::is_same_v<TDefiner, IndexedPropertyDefinerCallbackV2>))
   IndexedPropertyHandlerConfiguration(
-      IndexedPropertyGetterCallbackV2 getter,
-      IndexedPropertySetterCallbackV2 setter,
-      IndexedPropertyDescriptorCallbackV2 descriptor,
-      IndexedPropertyDeleterCallbackV2 deleter,
-      IndexedPropertyEnumeratorCallback enumerator,
-      IndexedPropertyDefinerCallbackV2 definer,
+      IndexedPropertyGetterCallback getter,          //
+      TSetter setter,                                //
+      IndexedPropertyDescriptorCallback descriptor,  //
+      IndexedPropertyDeleterCallback deleter,        //
+      IndexedPropertyEnumeratorCallback enumerator,  //
+      TDefiner definer,                              //
       Local<Value> data = Local<Value>(),
       PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
       : getter(getter),
-        setter(setter),
+        setter(ConvertSetter(setter)),
         query(nullptr),
         deleter(deleter),
         enumerator(enumerator),
-        definer(definer),
+        definer(ConvertDefiner(definer)),
         descriptor(descriptor),
         data(data),
         flags(flags) {}
 
-  IndexedPropertyGetterCallbackV2 getter;
-  IndexedPropertySetterCallbackV2 setter;
-  IndexedPropertyQueryCallbackV2 query;
-  IndexedPropertyDeleterCallbackV2 deleter;
+  // TODO(https://crbug.com/348660658): cleanup once migration to
+  // IndexedPropertySetterCallback/IndexedPropertyDefinerCallback is done.
+  template <typename TSetter = std::nullptr_t,
+            typename TDefiner = std::nullptr_t>
+    requires((std::is_same_v<TSetter, std::nullptr_t> ||
+              std::is_same_v<TSetter, IndexedPropertySetterCallback> ||
+              std::is_same_v<TSetter, IndexedPropertySetterCallbackV2>) &&
+             (std::is_same_v<TDefiner, std::nullptr_t> ||
+              std::is_same_v<TDefiner, IndexedPropertyDefinerCallback> ||
+              std::is_same_v<TDefiner, IndexedPropertyDefinerCallbackV2>))
+  IndexedPropertyHandlerConfiguration(
+      IndexedPropertyGetterCallback getter,          //
+      TSetter setter,                                //
+      IndexedPropertyQueryCallback query,            //
+      IndexedPropertyDeleterCallback deleter,        //
+      IndexedPropertyEnumeratorCallback enumerator,  //
+      TDefiner definer,                              //
+      IndexedPropertyDescriptorCallback descriptor,  //
+      IndexedPropertyIndexOfCallback index_of,       //
+      Local<Value> data = Local<Value>(),
+      PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
+      : getter(getter),
+        setter(ConvertSetter(setter)),
+        query(query),
+        deleter(deleter),
+        enumerator(enumerator),
+        definer(ConvertDefiner(definer)),
+        descriptor(descriptor),
+        index_of(index_of),
+        data(data),
+        flags(flags) {}
+
+  IndexedPropertyGetterCallback getter;
+  IndexedPropertySetterCallback setter;
+  IndexedPropertyQueryCallback query;
+  IndexedPropertyDeleterCallback deleter;
   IndexedPropertyEnumeratorCallback enumerator;
-  IndexedPropertyDefinerCallbackV2 definer;
-  IndexedPropertyDescriptorCallbackV2 descriptor;
+  IndexedPropertyDefinerCallback definer;
+  IndexedPropertyDescriptorCallback descriptor;
+  IndexedPropertyIndexOfCallback index_of = nullptr;
   Local<Value> data;
   PropertyHandlerFlags flags;
 };

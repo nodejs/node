@@ -150,9 +150,7 @@ transitioning macro RegExpReplaceFastString(
     fastRegexp.lastIndex = 0;
 
     const data: RegExpData =
-        UnsafeCast<RegExpData>(LoadTrustedPointerFromObject(
-            fastRegexp, kJSRegExpRegExpDataOffset,
-            kRegExpDataIndirectPointerTag));
+        LoadRegExpDataFromObject(fastRegexp, kJSRegExpRegExpDataOffset);
     return RegExpReplaceGlobalSimpleString(regexp, string, data, replaceString);
   }
 

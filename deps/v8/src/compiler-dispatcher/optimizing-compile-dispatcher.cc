@@ -408,13 +408,19 @@ void OptimizingCompileInputQueue::Prioritize(
 }
 
 void OptimizingCompileInputQueue::FlushJobsForIsolate(Isolate* isolate) {
-  base::MutexGuard access(&mutex_);
-  std::erase_if(queue_, [isolate](TurbofanCompilationJob* job) {
-    if (job->isolate() != isolate) return false;
-    Compiler::DisposeTurbofanCompilationJob(isolate, job);
-    delete job;
-    return true;
-  });
+  // Destructing a Turbofan job may end up back in this queue via scheduling
+  // APIs. We use `to_delete` to ensure that jobs are deleted outside of the
+  // `mutex_` lock.
+  std::vector<std::unique_ptr<TurbofanCompilationJob>> to_delete;
+  {
+    base::MutexGuard access(&mutex_);
+    std::erase_if(queue_, [isolate, &to_delete](TurbofanCompilationJob* job) {
+      if (job->isolate() != isolate) return false;
+      Compiler::DisposeTurbofanCompilationJob(isolate, job);
+      to_delete.emplace_back(job);
+      return true;
+    });
+  }
 }
 
 bool OptimizingCompileInputQueue::HasJobForIsolate(Isolate* isolate) {

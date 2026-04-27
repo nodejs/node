@@ -6,10 +6,14 @@
 
 #include "src/builtins/builtins-inl.h"
 #include "src/codegen/external-reference.h"
+#include "src/codegen/register.h"
 #include "src/codegen/reglist.h"
 #include "src/maglev/maglev-assembler-inl.h"
 #include "src/maglev/maglev-code-generator.h"
 #include "src/numbers/conversions.h"
+#include "src/objects/fixed-array.h"
+#include "src/objects/instance-type.h"
+#include "src/objects/tagged-field.h"
 
 namespace v8 {
 namespace internal {
@@ -542,17 +546,38 @@ void MaglevAssembler::CheckAndEmitDeferredWriteBarrier(
         }
 
         __ PushAll(saved);
+        {
+          MaglevAssembler::TemporaryRegisterScope temp(masm);
 
-        if (object != stub_object_reg) {
-          __ Move(stub_object_reg, object);
-          object = stub_object_reg;
-        }
+          if constexpr (store_mode == kFixedArrayElement) {
+            if (offset == stub_object_reg || offset == slot_reg) {
+              // Move the offset into a scratch register before setting up
+              // stub_object_reg or slot_reg, in case it aliases one of them and
+              // is clobbered by the write to them.
+              // TODO(leszeks): We could instead be smarter in
+              // SetSlotAddressForFixedArrayElement and allow the slot_reg to
+              // alias either object or offset.
+              Register scratch = temp.AcquireScratch();
+              __ Move(scratch, offset);
+              offset = scratch;
+            }
+          }
 
-        if constexpr (store_mode == kElement) {
-          __ SetSlotAddressForFixedArrayElement(slot_reg, object, offset);
-        } else {
-          static_assert(store_mode == kField);
-          __ SetSlotAddressForTaggedField(slot_reg, object, offset);
+          if (object != stub_object_reg) {
+            // Move the object into the right register before setting the slot
+            // address, in case object == slot_reg and overridden by
+            // SetSlotAddress.
+            __ Move(stub_object_reg, object);
+            object = stub_object_reg;
+          }
+
+          if constexpr (store_mode == kFixedArrayElement) {
+            CHECK(!AreAliased(slot_reg, object, offset));
+            __ SetSlotAddressForFixedArrayElement(slot_reg, object, offset);
+          } else {
+            static_assert(store_mode == kField);
+            __ SetSlotAddressForTaggedField(slot_reg, object, offset);
+          }
         }
 
         SaveFPRegsMode const save_fp_mode =
@@ -674,12 +699,21 @@ void MaglevAssembler::StoreFixedArrayElementWithWriteBarrier(
     Register array, Register index, Register value,
     RegisterSnapshot register_snapshot) {
   if (v8_flags.debug_code) {
-    AssertObjectType(array, FIXED_ARRAY_TYPE, AbortReason::kUnexpectedValue);
+    Label ok;
+    // Allow WeakHomomorphicFixedArray down this FixedArray path since it has
+    // the same data start offset.
+    static_assert(OFFSET_OF_DATA_START(FixedArray) ==
+                  OFFSET_OF_DATA_START(WeakHomomorphicFixedArray));
+    JumpIfObjectType(array, WEAK_HOMOMORPHIC_FIXED_ARRAY_TYPE, &ok,
+                     Label::kNear);
+    AssertObjectType(array, FIXED_ARRAY_TYPE,
+                     AbortReason::kUnexpectedInstanceType);
+    bind(&ok);
     CompareInt32AndAssert(index, 0, kGreaterThanEqual,
                           AbortReason::kUnexpectedNegativeValue);
   }
   StoreFixedArrayElementNoWriteBarrier(array, index, value);
-  CheckAndEmitDeferredWriteBarrier<kElement>(
+  CheckAndEmitDeferredWriteBarrier<kFixedArrayElement>(
       array, index, value, register_snapshot, kValueIsDecompressed,
       kValueCanBeSmi);
 }
@@ -727,6 +761,7 @@ void MaglevAssembler::ResetLastYoungAllocation() {
       ExternalReference::last_young_allocation_address(isolate_);
   Move(last_young_allocation_address, 0);
 }
+#undef __
 
 }  // namespace maglev
 }  // namespace internal

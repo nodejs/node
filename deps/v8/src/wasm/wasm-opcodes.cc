@@ -44,6 +44,9 @@ bool IsJSCompatibleSignature(const CanonicalSig* sig) {
         default:
           break;
       }
+    } else if (type.has_index() &&
+               type.ref_type_kind() == i::wasm::RefTypeKind::kCont) {
+      return false;
     }
   }
   return true;

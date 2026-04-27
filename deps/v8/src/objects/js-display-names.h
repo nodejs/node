@@ -53,7 +53,7 @@ class JSDisplayNames
 
   // Style: identifying the display names style used.
   //
-  // ecma402/#sec-properties-of-intl-displaynames-instances
+  // https://tc39.es/ecma402/#sec-properties-of-intl-displaynames-instances
   enum class Style {
     kLong,   // Everything spelled out.
     kShort,  // Abbreviations used when possible.
@@ -64,7 +64,7 @@ class JSDisplayNames
 
   // Type: identifying the fallback of the display names.
   //
-  // ecma402/#sec-properties-of-intl-displaynames-instances
+  // https://tc39.es/ecma402/#sec-properties-of-intl-displaynames-instances
   enum class Fallback {
     kCode,
     kNone,

@@ -2767,6 +2767,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void eor3(const VRegister& vd, const VRegister& vn, const VRegister& vm,
             const VRegister& va);
 
+  // 64-bit exclusive-OR and rotate.
+  void xar(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+           unsigned imm);
+
+  // Gather lower bits from positions selected by bitmask
+  void bext(const ZRegister& zd, const ZRegister& zn, const ZRegister& zm);
+
   // Copy a string into the instruction stream, including the terminating
   // nullptr character. The instruction pointer (pc_) is then aligned correctly
   // for subsequent instructions.
@@ -3017,6 +3024,22 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
         return NEON_S;
       case 8:
         return NEON_D;
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  static Instr SVESize(const ZRegister& zd) {
+    DCHECK(zd.HasLaneSize());
+    switch (zd.LaneSizeInBytes()) {
+      case 1:
+        return SVE_B;
+      case 2:
+        return SVE_H;
+      case 4:
+        return SVE_S;
+      case 8:
+        return SVE_D;
       default:
         UNREACHABLE();
     }

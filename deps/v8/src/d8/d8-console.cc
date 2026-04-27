@@ -7,6 +7,8 @@
 #include <stdio.h>
 
 #include <fstream>
+#include <memory>
+#include <string>
 
 #include "include/v8-profiler.h"
 #include "src/d8/d8.h"
@@ -59,7 +61,7 @@ std::optional<std::string> GetTimerLabel(
 D8Console::D8Console(Isolate* isolate)
     : isolate_(isolate), origin_(base::TimeTicks::Now()) {}
 
-D8Console::~D8Console() { DCHECK_NULL(profiler_); }
+D8Console::~D8Console() { DisposeProfiler(); }
 
 void D8Console::DisposeProfiler() {
   if (profiler_) {
@@ -124,12 +126,26 @@ void D8Console::ProfileEnd(const debug::ConsoleCallArguments& args,
   if (Shell::HasOnProfileEndListener(isolate_)) {
     i::StringOutputStream out;
     profile->Serialize(&out);
-    Shell::TriggerOnProfileEndListener(isolate_, out.str());
+    std::string profile_str = out.str();
+    // Triggering the listener may cause recursion into `ProfileEnd`. To avoid
+    // use-after-free of `profile`, we delete it before triggering the
+    // listener. To avoid use-after-free of `profiler_`, we also dispose it
+    // before triggering the listener.
+    profile->Delete();
+    DisposeProfiler();
+    Shell::TriggerOnProfileEndListener(isolate_, std::move(profile_str));
   } else {
     i::FileOutputStream out(kCpuProfileOutputFilename);
     profile->Serialize(&out);
+    profile->Delete();
+    // Currently the profiler does not work correctly if it is started and
+    // stopped multiple times. One problem is that logged code gets cleared in
+    // `StopProfiling`, but builtins only get logged in the constructor and are
+    // therefore only available in the first profiling session.
+    // TODO(ahaas): Either fix the profiler to support multiple sessions, or
+    // introduce a CHECK that the profiler is only used once.
+    DisposeProfiler();
   }
-  profile->Delete();
 }
 
 void D8Console::Time(const debug::ConsoleCallArguments& args,

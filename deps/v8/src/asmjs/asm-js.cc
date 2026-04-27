@@ -423,8 +423,9 @@ MaybeDirectHandle<Object> AsmJs::InstantiateAsmWasm(
     if (isolate->is_execution_terminating()) return {};
     if (isolate->has_exception()) isolate->clear_exception();
     if (thrower.error()) {
-      base::ScopedVector<char> error_reason(100);
-      SNPrintF(error_reason, "Internal wasm failure: %s", thrower.error_msg());
+      auto error_reason = base::OwnedVector<char>::NewForOverwrite(100);
+      SNPrintF(error_reason.as_vector(), "Internal wasm failure: %s",
+               thrower.error_msg());
       ReportInstantiationFailure(script, position, error_reason.begin());
     } else {
       ReportInstantiationFailure(script, position, "Internal wasm failure");

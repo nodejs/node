@@ -690,11 +690,6 @@ class CompilationStateImpl {
     return compile_failed_.load(std::memory_order_relaxed);
   }
 
-  bool baseline_compilation_finished() const {
-    base::MutexGuard guard(&callbacks_mutex_);
-    return outstanding_baseline_units_ == 0;
-  }
-
   void SetWireBytesStorage(
       std::shared_ptr<WireBytesStorage> wire_bytes_storage) {
     base::MutexGuard guard(&mutex_);
@@ -931,10 +926,6 @@ void CompilationState::InitializeAfterDeserialization(
 
 bool CompilationState::failed() const { return Impl(this)->failed(); }
 
-bool CompilationState::baseline_compilation_finished() const {
-  return Impl(this)->baseline_compilation_finished();
-}
-
 void CompilationState::set_compilation_id(int compilation_id) {
   Impl(this)->set_compilation_id(compilation_id);
 }
@@ -1092,7 +1083,7 @@ DecodeResult ValidateSingleFunction(Zone* zone, const WasmModule* module,
   // is the case, and exit early if so.
   if (module->function_was_validated(func_index)) return {};
   const WasmFunction* func = &module->functions[func_index];
-  bool is_shared = module->type(func->sig_index).is_shared;
+  SharedFlag is_shared = module->type(func->sig_index).is_shared;
   FunctionBody body{func->sig, func->code.offset(), code.begin(), code.end(),
                     is_shared};
   DecodeResult result = ValidateFunctionBody(zone, enabled_features, module,
@@ -1113,20 +1104,17 @@ bool IsLazyModule(const WasmModule* module) {
 
 class CompileLazyTimingScope {
  public:
-  CompileLazyTimingScope(Counters* counters, NativeModule* native_module)
-      : counters_(counters), native_module_(native_module) {
+  explicit CompileLazyTimingScope(Counters* counters) : counters_(counters) {
     timer_.Start();
   }
 
   ~CompileLazyTimingScope() {
     base::TimeDelta elapsed = timer_.Elapsed();
-    native_module_->AddLazyCompilationTimeSample(elapsed.InMicroseconds());
     counters_->wasm_lazy_compile_time()->AddTimedSample(elapsed);
   }
 
  private:
   Counters* counters_;
-  NativeModule* native_module_;
   base::ElapsedTimer timer_;
 };
 
@@ -1142,7 +1130,7 @@ bool CompileLazy(Isolate* isolate, NativeModule* native_module,
   // function itself, which has constant overhead).
   std::optional<CompileLazyTimingScope> lazy_compile_time_scope;
   if (base::TimeTicks::IsHighResolution()) {
-    lazy_compile_time_scope.emplace(counters, native_module);
+    lazy_compile_time_scope.emplace(counters);
   }
 
   DCHECK(!native_module->lazy_compile_frozen());
@@ -1452,7 +1440,7 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
   // See {UpdateCallRefOrIndirectIC} in {wasm.tq} for how this is written.
   // Since this is combining untrusted data ({feedback} vector on the JS heap)
   // with trusted data ({call_targets}), make sure to avoid an OOB access.
-  int checked_feedback_length = feedback->length();
+  uint32_t checked_feedback_length = feedback->ulength().value();
   // The first slot is reserved for total invocation count.
   SBXCHECK_EQ(checked_feedback_length,
               call_targets.size() * FeedbackConstants::kSlotsPerInstruction +
@@ -1460,7 +1448,8 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
   FeedbackMaker fm(isolate_, instance_data_, func_index,
                    (checked_feedback_length - FeedbackConstants::kHeaderSlots) /
                        FeedbackConstants::kSlotsPerInstruction);
-  for (int i = FeedbackConstants::kHeaderSlots; i < checked_feedback_length;
+  for (uint32_t i = FeedbackConstants::kHeaderSlots;
+       i < checked_feedback_length;
        i += FeedbackConstants::kSlotsPerInstruction) {
     uint32_t sentinel_or_target =
         call_targets[(i - FeedbackConstants::kHeaderSlots) /
@@ -1499,11 +1488,11 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
       // Polymorphic call_ref or call_indirect.
       Tagged<FixedArray> polymorphic = Cast<FixedArray>(first_slot);
       DCHECK(IsUndefined(second_slot));
-      int checked_polymorphic_length = polymorphic->length();
+      uint32_t checked_polymorphic_length = polymorphic->ulength().value();
       SBXCHECK_LE(checked_polymorphic_length,
                   FeedbackConstants::kSlotsPerInstruction * kMaxPolymorphism);
       if (sentinel_or_target == FunctionTypeFeedback::kCallRef) {
-        for (int j = 0; j < checked_polymorphic_length;
+        for (uint32_t j = 0; j < checked_polymorphic_length;
              j += FeedbackConstants::kSlotsPerInstruction) {
           Tagged<WasmFuncRef> target = Cast<WasmFuncRef>(polymorphic->get(j));
           int count = Smi::ToInt(polymorphic->get(j + 1));
@@ -1511,7 +1500,7 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
         }
       } else {
         DCHECK_EQ(sentinel_or_target, FunctionTypeFeedback::kCallIndirect);
-        for (int j = 0; j < checked_polymorphic_length;
+        for (uint32_t j = 0; j < checked_polymorphic_length;
              j += FeedbackConstants::kSlotsPerInstruction) {
           Tagged<Object> target = polymorphic->get(j);
           int count = Smi::ToInt(polymorphic->get(j + 1));
@@ -1675,7 +1664,6 @@ void PublishDetectedFeatures(WasmDetectedFeatures detected_features,
       {WasmDetectedFeature::sign_extension_ops, Feature::kWasmSignExtensionOps},
       {WasmDetectedFeature::custom_descriptors,
        Feature::kWasmCustomDescriptors},
-      {WasmDetectedFeature::rab_integration, Feature::kWasmResizableBuffers},
   };
 
   // Check that every staging or shipping feature has a use counter as that is
@@ -1824,40 +1812,77 @@ WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
     break;                                                                    \
   }
 
+#define CHECK_MAYBE_SHARED_SIG(import_name, expected_sig, shared_expected_sig, \
+                               kEnumName, feature)                             \
+  if (name == base::StaticOneByteVector(#import_name)) {                       \
+    if (V8_LIKELY(sig ==                                                       \
+                  TypeCanonicalizer::kPredefinedSigIndex_##expected_sig)) {    \
+      status = WellKnownImport::kEnumName;                                     \
+      detected->add_##feature();                                               \
+      break;                                                                   \
+    } else if (V8_LIKELY(v8_flags.experimental_wasm_shared &&                  \
+                         sig ==                                                \
+                             TypeCanonicalizer::                               \
+                                 kPredefinedSigIndex_##shared_expected_sig)) { \
+      status = WellKnownImport::kEnumName##Shared;                             \
+      detected->add_##feature();                                               \
+      detected->add_shared();                                                  \
+      break;                                                                   \
+    } else {                                                                   \
+      uint32_t error_offset =                                                  \
+          ImportStartOffset(wire_bytes, import.module_name.offset());          \
+      return WasmError(                                                        \
+          error_offset,                                                        \
+          "Imported builtin function \"wasm:%s\" \"%s\" has incorrect "        \
+          "signature",                                                         \
+          std::string(collection.begin(), collection.end()).c_str(),           \
+          std::string(name.begin(), name.end()).c_str());                      \
+    }                                                                          \
+  }
+
     // Not a loop; we just want to use `break` instead of very long else-if
     // cascades.
     do {
       if (collection == base::StaticOneByteVector("js-string") &&
           imports.contains(CompileTimeImport::kJsString)) {
-        CHECK_SIG(cast, e_r, kStringCast, imported_strings)
-        CHECK_SIG(test, i_r, kStringTest, imported_strings)
-        CHECK_SIG(fromCharCode, e_i, kStringFromCharCode, imported_strings)
-        CHECK_SIG(fromCodePoint, e_i, kStringFromCodePoint, imported_strings)
-        CHECK_SIG(charCodeAt, i_ri, kStringCharCodeAt, imported_strings)
-        CHECK_SIG(codePointAt, i_ri, kStringCodePointAt, imported_strings)
-        CHECK_SIG(length, i_r, kStringLength, imported_strings)
-        CHECK_SIG(concat, e_rr, kStringConcat, imported_strings)
-        CHECK_SIG(substring, e_rii, kStringSubstring, imported_strings)
-        CHECK_SIG(equals, i_rr, kStringEquals, imported_strings)
-        CHECK_SIG(compare, i_rr, kStringCompare, imported_strings)
-        CHECK_SIG(fromCharCodeArray, e_a16ii, kStringFromWtf16Array,
-                  imported_strings)
-        CHECK_SIG(intoCharCodeArray, i_ra16i, kStringToWtf16Array,
-                  imported_strings)
+        CHECK_MAYBE_SHARED_SIG(cast, e_r, t_s, kStringCast, imported_strings)
+        CHECK_MAYBE_SHARED_SIG(test, i_r, i_s, kStringTest, imported_strings)
+        CHECK_MAYBE_SHARED_SIG(fromCharCode, e_i, t_i, kStringFromCharCode,
+                               imported_strings)
+        CHECK_MAYBE_SHARED_SIG(fromCodePoint, e_i, t_i, kStringFromCodePoint,
+                               imported_strings)
+        CHECK_MAYBE_SHARED_SIG(charCodeAt, i_ri, i_si, kStringCharCodeAt,
+                               imported_strings)
+        CHECK_MAYBE_SHARED_SIG(codePointAt, i_ri, i_si, kStringCodePointAt,
+                               imported_strings)
+        CHECK_MAYBE_SHARED_SIG(length, i_r, i_s, kStringLength,
+                               imported_strings)
+        CHECK_MAYBE_SHARED_SIG(concat, e_rr, t_ss, kStringConcat,
+                               imported_strings)
+        CHECK_MAYBE_SHARED_SIG(substring, e_rii, t_sii, kStringSubstring,
+                               imported_strings)
+        CHECK_MAYBE_SHARED_SIG(equals, i_rr, i_ss, kStringEquals,
+                               imported_strings)
+        CHECK_MAYBE_SHARED_SIG(compare, i_rr, i_ss, kStringCompare,
+                               imported_strings)
+        CHECK_MAYBE_SHARED_SIG(fromCharCodeArray, e_a16ii, t_as16ii,
+                               kStringFromWtf16Array, imported_strings)
+        CHECK_MAYBE_SHARED_SIG(intoCharCodeArray, i_ra16i, i_sas16i,
+                               kStringToWtf16Array, imported_strings)
 
       } else if (collection == base::StaticOneByteVector("text-encoder") &&
                  imports.contains(CompileTimeImport::kTextEncoder)) {
-        CHECK_SIG(measureStringAsUTF8, i_r, kStringMeasureUtf8,
-                  imported_strings_utf8)
-        CHECK_SIG(encodeStringIntoUTF8Array, i_ra8i, kStringIntoUtf8Array,
-                  imported_strings_utf8)
-        CHECK_SIG(encodeStringToUTF8Array, n8_r, kStringToUtf8Array,
-                  imported_strings_utf8)
+        CHECK_MAYBE_SHARED_SIG(measureStringAsUTF8, i_r, i_s,
+                               kStringMeasureUtf8, imported_strings_utf8)
+        CHECK_MAYBE_SHARED_SIG(encodeStringIntoUTF8Array, i_ra8i, i_sas8i,
+                               kStringIntoUtf8Array, imported_strings_utf8)
+        CHECK_MAYBE_SHARED_SIG(encodeStringToUTF8Array, n8_r, ns8_s,
+                               kStringToUtf8Array, imported_strings_utf8)
 
       } else if (collection == base::StaticOneByteVector("text-decoder") &&
                  imports.contains(CompileTimeImport::kTextDecoder)) {
-        CHECK_SIG(decodeStringFromUTF8Array, e_a8ii, kStringFromUtf8Array,
-                  imported_strings_utf8)
+        CHECK_MAYBE_SHARED_SIG(decodeStringFromUTF8Array, e_a8ii, t_as8ii,
+                               kStringFromUtf8Array, imported_strings_utf8)
 
       } else if (collection == base::StaticOneByteVector("js-prototypes") &&
                  imports.contains(CompileTimeImport::kJsPrototypes)) {
@@ -2570,7 +2595,7 @@ void AsyncCompileJob::CreateNativeModule(
     std::shared_ptr<const WasmModule> module, size_t code_size_estimate) {
   DCHECK_NULL(new_native_module_);
   new_native_module_ = GetWasmEngine()->NewUnownedNativeModule(
-      enabled_features_, detected_features_, std::move(compile_imports_),
+      enabled_features_, detected_features_, compile_imports_,
       std::move(module), code_size_estimate);
   new_native_module_->SetWireBytes(std::move(bytes_copy_));
   new_native_module_->compilation_state()->set_compilation_id(compilation_id_);

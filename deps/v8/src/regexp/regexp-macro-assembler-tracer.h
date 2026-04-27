@@ -11,9 +11,10 @@
 
 namespace v8 {
 namespace internal {
+namespace regexp {
 
 // Decorator on a RegExpMacroAssembler that write all calls.
-class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
+class RegExpMacroAssemblerTracer : public RegExpMacroAssembler {
  public:
   explicit RegExpMacroAssemblerTracer(
       std::unique_ptr<RegExpMacroAssembler>&& assembler);
@@ -85,8 +86,8 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
   void CheckSpecialClassRanges(StandardCharacterSet type,
                                Label* on_no_match) override;
   void Fail() override;
-  DirectHandle<HeapObject> GetCode(DirectHandle<String> source,
-                                   RegExpFlags flags) override;
+  DirectHandle<HeapObject> GetCode(DirectHandle<RegExpData> re_data,
+                                   Flags flags) override;
   void GoTo(Label* label) override;
   void IfRegisterGE(int reg, int comparand, Label* if_ge) override;
   void IfRegisterLT(int reg, int comparand, Label* if_lt) override;
@@ -124,6 +125,7 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
   std::unique_ptr<RegExpMacroAssembler> assembler_;
 };
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8
 #endif  // V8_ENABLE_REGEXP_DIAGNOSTICS

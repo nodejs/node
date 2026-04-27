@@ -16,6 +16,337 @@ transitioning macro ArrayIsArray_Inline(
   }
 }
 
+struct FlatVector {
+  macro CreateJSArray(implicit context: Context)(
+                         targetKind: ElementsKind): JSArray {
+    const map: Map =
+        LoadJSArrayElementsMap(targetKind, LoadNativeContext(context));
+    const a: JSArray = NewJSArray(map, this.fixedArray);
+    this.fixedArray = kEmptyFixedArray;
+    return a;
+  }
+
+  macro StoreResult(implicit context: Context)(index: Smi,
+                       result: JSAny): void {
+    this.fixedArray.objects[index] = result;
+  }
+
+  fixedArray: FixedArray;
+}
+
+macro NewFlatVector(implicit context: Context)(length: Smi): FlatVector {
+  const fixedArray = length > 0 ?
+      AllocateFixedArrayWithHoles(SmiUntag(length)) :
+      kEmptyFixedArray;
+  return FlatVector{fixedArray};
+}
+
+struct FlattenedLengthResult {
+  length: Smi;
+  targetKind: ElementsKind;
+}
+
+// Fast path safety valve: avoid unbounded explicit stack growth on
+// cyclic nesting by bailing out to the slow path after a fixed depth.
+// 3 entries per depth: array, index, depth (depth limit = 1024).
+const kMaxFlatFastStackEntries: intptr = 3072;
+
+transitioning macro CalculateFlattenedLengthFast(
+    implicit context: Context)(source: FastJSArray, sourceLength: Smi,
+    depth: Smi): FlattenedLengthResult labels Bailout {
+  PerformStackCheck();
+  let targetLength: Smi = 0;
+  const sourceKind: ElementsKind = source.map.elements_kind;
+
+  // Packed numeric source: the result has the same kind and length.
+  // Holey variants are excluded because (1) holes are skipped during
+  // flattening, so array.length overcounts actual elements, and (2) with
+  // V8_ENABLE_UNDEFINED_DOUBLE, FixedDoubleArray can store undefined which
+  // is not a Number and would crash the PACKED_DOUBLE second pass.
+  if (sourceKind == ElementsKind::PACKED_SMI_ELEMENTS ||
+      sourceKind == ElementsKind::PACKED_DOUBLE_ELEMENTS) {
+    return FlattenedLengthResult{length: sourceLength, targetKind: sourceKind};
+  }
+
+  // Track which leaf element types are present.
+  let seenSmi: bool = false;
+  let seenDouble: bool = false;
+  let seenObject: bool = false;
+  let stack = growable_fixed_array::NewGrowableFixedArray();
+  let currentArray: FastJSArrayForRead =
+      Cast<FastJSArrayForRead>(source) otherwise goto Bailout;
+  let currentDepth: Smi = depth;
+  let index: Smi = SmiConstant(0);
+  let currentLength: Smi = sourceLength;
+  let fastOW = NewFastJSArrayForReadWitness(currentArray);
+  let didDescend: bool = false;
+
+  while (true) {
+    while (index < currentLength) {
+      fastOW.Recheck() otherwise goto Bailout;
+      if (index >= fastOW.Get().length) goto Bailout;
+
+      let element: JSAny;
+      try {
+        element = fastOW.LoadElementNoHole(index) otherwise FoundHole;
+      } label FoundHole {
+        index++;
+        continue;
+      }
+
+      if (currentDepth > 0 && Is<JSArray>(element)) {
+        const elementArray: FastJSArrayForRead =
+            Cast<FastJSArrayForRead>(element) otherwise goto Bailout;
+        const rawKind: ElementsKind = elementArray.map.elements_kind;
+        const nextDepth: Smi =
+            math::TrySmiSub(currentDepth, 1) otherwise goto Bailout;
+
+        // Packed numeric arrays cannot contain sub-arrays or proxies, so add
+        // their length directly without scanning elements.
+        // Holey variants are excluded because holes are skipped during
+        // flattening, so array.length would overcount the actual elements.
+        if (rawKind == ElementsKind::PACKED_SMI_ELEMENTS) {
+          seenSmi = true;
+          const subLen: Smi =
+              Cast<Smi>(elementArray.length) otherwise goto Bailout;
+          targetLength =
+              math::TrySmiAdd(targetLength, subLen) otherwise goto Bailout;
+          index++;
+          continue;
+        }
+        if (rawKind == ElementsKind::PACKED_DOUBLE_ELEMENTS) {
+          seenDouble = true;
+          const subLen: Smi =
+              Cast<Smi>(elementArray.length) otherwise goto Bailout;
+          targetLength =
+              math::TrySmiAdd(targetLength, subLen) otherwise goto Bailout;
+          index++;
+          continue;
+        }
+
+        // Non-numeric sub-array: descend to determine leaf types.
+        const nextIndex: Smi = math::TrySmiAdd(index, 1) otherwise goto Bailout;
+        if (stack.length >= kMaxFlatFastStackEntries) goto Bailout;
+        stack.Push(currentArray);
+        stack.Push(nextIndex);
+        stack.Push(currentDepth);
+
+        currentArray = elementArray;
+        currentDepth = nextDepth;
+        index = SmiConstant(0);
+        currentLength = Cast<Smi>(currentArray.length) otherwise goto Bailout;
+        fastOW = NewFastJSArrayForReadWitness(currentArray);
+        didDescend = true;
+        break;
+      }
+
+      if (currentDepth > 0 && Is<JSProxy>(element)) goto Bailout;
+      if (!IsNumber(element)) {
+        seenObject = true;
+      } else if (!TaggedIsSmi(element)) {
+        seenDouble = true;
+      } else {
+        seenSmi = true;
+      }
+      targetLength = math::TrySmiAdd(targetLength, 1) otherwise goto Bailout;
+      index++;
+    }
+
+    if (didDescend) {
+      didDescend = false;
+      continue;
+    }
+    if (stack.length == 0) break;
+
+    stack.length = stack.length - 1;
+    currentDepth = UnsafeCast<Smi>(stack.array.objects[stack.length]);
+    stack.length = stack.length - 1;
+    index = UnsafeCast<Smi>(stack.array.objects[stack.length]);
+    stack.length = stack.length - 1;
+    currentArray = Cast<FastJSArrayForRead>(stack.array.objects[stack.length])
+        otherwise goto Bailout;
+    currentLength = Cast<Smi>(currentArray.length) otherwise goto Bailout;
+    fastOW = NewFastJSArrayForReadWitness(currentArray);
+  }
+
+  // Determine target kind from observed leaf types.
+  let targetKind: ElementsKind;
+  if (seenObject) {
+    targetKind = ElementsKind::PACKED_ELEMENTS;
+  } else if (seenDouble) {
+    targetKind = ElementsKind::PACKED_DOUBLE_ELEMENTS;
+  } else {
+    targetKind = ElementsKind::PACKED_SMI_ELEMENTS;
+  }
+  return FlattenedLengthResult{length: targetLength, targetKind: targetKind};
+}
+
+transitioning macro TryFastFlat(
+    implicit context: Context)(receiver: JSReceiver, sourceLength: Number,
+    depth: Smi): JSArray labels Bailout {
+  const fastLength: Smi = Cast<Smi>(sourceLength) otherwise goto Bailout;
+  const fastO: FastJSArrayForCopy =
+      Cast<FastJSArrayForCopy>(receiver) otherwise goto Bailout;
+  const info: FlattenedLengthResult = CalculateFlattenedLengthFast(
+      fastO, fastLength, depth) otherwise goto Bailout;
+  const flattenedLength: Smi = info.length;
+
+  if (flattenedLength == 0) {
+    const map: Map = LoadJSArrayElementsMap(
+        ElementsKind::PACKED_SMI_ELEMENTS, LoadNativeContext(context));
+    return NewJSArray(map, kEmptyFixedArray);
+  }
+
+  if (info.targetKind == ElementsKind::PACKED_DOUBLE_ELEMENTS) {
+    const doubleMap: Map = LoadJSArrayElementsMap(
+        ElementsKind::PACKED_DOUBLE_ELEMENTS, LoadNativeContext(context));
+    const doubleElements: FixedDoubleArray =
+        AllocateFixedDoubleArrayWithHoles(SmiUntag(flattenedLength));
+    let targetIndex: Smi = 0;
+    let stack = growable_fixed_array::NewGrowableFixedArray();
+    let currentArray: FastJSArrayForRead =
+        Cast<FastJSArrayForRead>(receiver) otherwise goto Bailout;
+    let currentDepth: Smi = depth;
+    let index: Smi = SmiConstant(0);
+    let currentLength: Smi = fastLength;
+    let fastOW = NewFastJSArrayForReadWitness(currentArray);
+    let didDescend: bool = false;
+
+    while (true) {
+      while (index < currentLength) {
+        fastOW.Recheck() otherwise goto Bailout;
+        if (index >= fastOW.Get().length) goto Bailout;
+
+        let element: JSAny;
+        try {
+          element = fastOW.LoadElementNoHole(index) otherwise FoundHole;
+        } label FoundHole {
+          index++;
+          continue;
+        }
+
+        if (currentDepth > 0 && Is<JSArray>(element)) {
+          const elementArray: FastJSArrayForRead =
+              Cast<FastJSArrayForRead>(element) otherwise goto Bailout;
+          const nextDepth: Smi =
+              math::TrySmiSub(currentDepth, 1) otherwise goto Bailout;
+          const nextIndex: Smi =
+              math::TrySmiAdd(index, 1) otherwise goto Bailout;
+          stack.Push(currentArray);
+          stack.Push(nextIndex);
+          stack.Push(currentDepth);
+
+          currentArray = elementArray;
+          currentDepth = nextDepth;
+          index = SmiConstant(0);
+          currentLength = Cast<Smi>(currentArray.length) otherwise goto Bailout;
+          fastOW = NewFastJSArrayForReadWitness(currentArray);
+          didDescend = true;
+          break;
+        }
+
+        if (currentDepth > 0 && Is<JSProxy>(element)) goto Bailout;
+        if (targetIndex >= doubleElements.length) goto Bailout;
+        doubleElements.values[targetIndex] =
+            Convert<float64_or_undefined_or_hole>(UnsafeCast<Number>(element));
+        targetIndex++;
+        index++;
+      }
+
+      if (didDescend) {
+        didDescend = false;
+        continue;
+      }
+      if (stack.length == 0) break;
+
+      stack.length = stack.length - 1;
+      currentDepth = UnsafeCast<Smi>(stack.array.objects[stack.length]);
+      stack.length = stack.length - 1;
+      index = UnsafeCast<Smi>(stack.array.objects[stack.length]);
+      stack.length = stack.length - 1;
+      currentArray = Cast<FastJSArrayForRead>(stack.array.objects[stack.length])
+          otherwise goto Bailout;
+      currentLength = Cast<Smi>(currentArray.length) otherwise goto Bailout;
+      fastOW = NewFastJSArrayForReadWitness(currentArray);
+    }
+
+    if (targetIndex != flattenedLength) goto Bailout;
+    return NewJSArray(doubleMap, doubleElements);
+  }
+
+  let vector = NewFlatVector(flattenedLength);
+  let targetIndex: Smi = 0;
+  let stack = growable_fixed_array::NewGrowableFixedArray();
+  let currentArray: FastJSArrayForRead =
+      Cast<FastJSArrayForRead>(receiver) otherwise goto Bailout;
+  let currentDepth: Smi = depth;
+  let index: Smi = SmiConstant(0);
+  let currentLength: Smi = fastLength;
+  let fastOW = NewFastJSArrayForReadWitness(currentArray);
+  let didDescend: bool = false;
+
+  while (true) {
+    while (index < currentLength) {
+      fastOW.Recheck() otherwise goto Bailout;
+      if (index >= fastOW.Get().length) goto Bailout;
+
+      let element: JSAny;
+      try {
+        element = fastOW.LoadElementNoHole(index) otherwise FoundHole;
+      } label FoundHole {
+        index++;
+        continue;
+      }
+
+      if (currentDepth > 0 && Is<JSArray>(element)) {
+        const elementArray: FastJSArrayForRead =
+            Cast<FastJSArrayForRead>(element) otherwise goto Bailout;
+        const nextDepth: Smi =
+            math::TrySmiSub(currentDepth, 1) otherwise goto Bailout;
+        const nextIndex: Smi = math::TrySmiAdd(index, 1) otherwise goto Bailout;
+        if (stack.length >= kMaxFlatFastStackEntries) goto Bailout;
+        stack.Push(currentArray);
+        stack.Push(nextIndex);
+        stack.Push(currentDepth);
+
+        currentArray = elementArray;
+        currentDepth = nextDepth;
+        index = SmiConstant(0);
+        currentLength = Cast<Smi>(currentArray.length) otherwise goto Bailout;
+        fastOW = NewFastJSArrayForReadWitness(currentArray);
+        didDescend = true;
+        break;
+      }
+
+      if (currentDepth > 0 && Is<JSProxy>(element)) goto Bailout;
+      if (targetIndex >= vector.fixedArray.length) goto Bailout;
+      vector.StoreResult(targetIndex, element);
+      targetIndex++;
+      index++;
+    }
+
+    if (didDescend) {
+      didDescend = false;
+      continue;
+    }
+    if (stack.length == 0) break;
+
+    stack.length = stack.length - 1;
+    currentDepth = UnsafeCast<Smi>(stack.array.objects[stack.length]);
+    stack.length = stack.length - 1;
+    index = UnsafeCast<Smi>(stack.array.objects[stack.length]);
+    stack.length = stack.length - 1;
+    currentArray = Cast<FastJSArrayForRead>(stack.array.objects[stack.length])
+        otherwise goto Bailout;
+    currentLength = Cast<Smi>(currentArray.length) otherwise goto Bailout;
+    fastOW = NewFastJSArrayForReadWitness(currentArray);
+  }
+
+  const endIndex: Smi = targetIndex;
+  if (endIndex != flattenedLength) goto Bailout;
+  return vector.CreateJSArray(info.targetKind);
+}
+
 transitioning macro FlattenIntoArrayFast(
     implicit context: Context)(target: JSReceiver, source: JSReceiver,
     sourceLength: Number, start: Number, depth: Smi, hasMapper: constexpr bool,
@@ -101,7 +432,7 @@ transitioning macro FlattenIntoArrayFast(
   return targetIndex;
 }
 
-// https://tc39.github.io/proposal-flatMap/#sec-FlattenIntoArray
+// https://tc39.es/proposal-flatMap/#sec-FlattenIntoArray
 transitioning macro FlattenIntoArraySlow(
     implicit context: Context)(target: JSReceiver, source: JSReceiver,
     sourceIndex: Number, sourceLength: Number, start: Number, depth: Smi,
@@ -197,7 +528,7 @@ transitioning builtin FlattenIntoArrayWithMapFn(
       target, source, sourceLength, start, depth, true, mapfn, thisArgs);
 }
 
-// https://tc39.github.io/proposal-flatMap/#sec-Array.prototype.flat
+// https://tc39.es/proposal-flatMap/#sec-Array.prototype.flat
 transitioning javascript builtin ArrayPrototypeFlat(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   // 1. Let O be ? ToObject(this value).
@@ -228,6 +559,11 @@ transitioning javascript builtin ArrayPrototypeFlat(
     }
   }
 
+  // Try fast path in Torque/CSA.
+  try {
+    return TryFastFlat(o, len, depthSmi) otherwise SlowFastPath;
+  } label SlowFastPath {}
+
   // 5. Let A be ? ArraySpeciesCreate(O, 0).
   const a: JSReceiver = ArraySpeciesCreate(context, o, 0);
 
@@ -238,7 +574,7 @@ transitioning javascript builtin ArrayPrototypeFlat(
   return a;
 }
 
-// https://tc39.github.io/proposal-flatMap/#sec-Array.prototype.flatMap
+// https://tc39.es/proposal-flatMap/#sec-Array.prototype.flatMap
 transitioning javascript builtin ArrayPrototypeFlatMap(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   // 1. Let O be ? ToObject(this value).

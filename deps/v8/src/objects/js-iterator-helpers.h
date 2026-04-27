@@ -22,11 +22,19 @@ enum class JSIteratorHelperState {
   kCompleted
 };
 
+enum class JSIteratorZipHelperMode { kShortest, kLongest, kStrict };
+
 V8_EXPORT_PRIVATE const char* JSIteratorHelperStateToString(
     JSIteratorHelperState state);
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            JSIteratorHelperState state);
+
+V8_EXPORT_PRIVATE const char* JSIteratorZipHelperModeToString(
+    JSIteratorZipHelperMode mode);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           JSIteratorZipHelperMode mode);
 
 #include "torque-generated/src/objects/js-iterator-helpers-tq.inc"
 
@@ -145,6 +153,17 @@ class JSIteratorConcatHelper
   DECL_VERIFIER(JSIteratorConcatHelper)
 
   TQ_OBJECT_CONSTRUCTORS(JSIteratorConcatHelper)
+};
+
+// The iterator helper returned by Iterator.zip and Iterator.zipKeyed.
+class JSIteratorZipHelper
+    : public TorqueGeneratedJSIteratorZipHelper<JSIteratorZipHelper,
+                                                JSIteratorHelper> {
+ public:
+  DECL_PRINTER(JSIteratorZipHelper)
+  DECL_VERIFIER(JSIteratorZipHelper)
+
+  TQ_OBJECT_CONSTRUCTORS(JSIteratorZipHelper)
 };
 
 }  // namespace internal

@@ -9,9 +9,9 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/objects/js-array-inl.h"
-#include "src/objects/objects-inl.h"  // Needed for write barriers
 #include "src/objects/smi.h"
 #include "src/objects/string.h"
+#include "src/objects/tagged-field-inl.h"
 #include "src/objects/trusted-pointer-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -22,20 +22,10 @@ namespace internal {
 
 #include "torque-generated/src/objects/js-regexp-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSRegExp)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSRegExpResult)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSRegExpResultIndices)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSRegExpResultWithIndices)
-
-OBJECT_CONSTRUCTORS_IMPL(RegExpData, ExposedTrustedObject)
-OBJECT_CONSTRUCTORS_IMPL(AtomRegExpData, RegExpData)
-OBJECT_CONSTRUCTORS_IMPL(IrRegExpData, RegExpData)
-OBJECT_CONSTRUCTORS_IMPL(RegExpDataWrapper, Struct)
-
 ACCESSORS(JSRegExp, last_index, Tagged<Object>, kLastIndexOffset)
 
-Tagged<String> JSRegExp::source() const {
-  return Cast<String>(TorqueGeneratedClass::source());
+Tagged<String> JSRegExp::source(IsolateForSandbox isolate) const {
+  return data(isolate)->escaped_source();
 }
 
 JSRegExp::Flags JSRegExp::flags() const {
@@ -58,11 +48,6 @@ const char* JSRegExp::FlagsToString(Flags flags, FlagsBuffer* out_buffer) {
   return buffer.begin();
 }
 
-Tagged<String> JSRegExp::EscapedPattern() {
-  DCHECK(IsString(source()));
-  return Cast<String>(source());
-}
-
 RegExpData::Type RegExpData::type_tag() const {
   Tagged<Smi> value = TaggedField<Smi, kTypeTagOffset>::load(*this);
   return Type(value.value());
@@ -73,7 +58,10 @@ void RegExpData::set_type_tag(Type type) {
       *this, Smi::FromInt(static_cast<uint8_t>(type)));
 }
 
-ACCESSORS(RegExpData, source, Tagged<String>, kSourceOffset)
+ACCESSORS_CHECKED(RegExpData, original_source, Tagged<String>,
+                  kOriginalSourceOffset, value->IsFlat())
+ACCESSORS_CHECKED(RegExpData, escaped_source, Tagged<String>,
+                  kEscapedSourceOffset, value->IsFlat())
 
 JSRegExp::Flags RegExpData::flags() const {
   Tagged<Smi> value = TaggedField<Smi, kFlagsOffset>::load(*this);
