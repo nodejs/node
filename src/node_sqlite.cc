@@ -100,9 +100,6 @@ void BindingData::CreatePerContextProperties(Local<Object> target,
   realm->AddBindingData<BindingData>(target);
 }
 
-void BindingData::RegisterExternalReferences(
-    ExternalReferenceRegistry* registry) {}
-
 #define CHECK_ERROR_OR_THROW(isolate, db, expr, expected, ret)                 \
   do {                                                                         \
     int r_ = (expr);                                                           \
@@ -4135,5 +4132,3 @@ static void Initialize(Local<Object> target,
 }  // namespace node
 
 NODE_BINDING_CONTEXT_AWARE_INTERNAL(sqlite, node::sqlite::Initialize)
-NODE_BINDING_EXTERNAL_REFERENCE(
-    sqlite, node::sqlite::BindingData::RegisterExternalReferences)
