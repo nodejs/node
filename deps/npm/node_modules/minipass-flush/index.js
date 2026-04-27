@@ -1,4 +1,4 @@
-const Minipass = require('minipass')
+const { Minipass } = require('minipass')
 const _flush = Symbol('_flush')
 const _flushed = Symbol('_flushed')
 const _flushing = Symbol('_flushing')
