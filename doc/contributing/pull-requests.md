@@ -187,7 +187,7 @@ A good commit message should describe what changed and why.
    `Fixes:` and `Refs:` trailers get automatically added to your commit message
    when the Pull Request lands as long as they are included in the
    Pull Request's description. If the Pull Request lands in several commits,
-   by default the trailers found in the description are added to each commits.
+   by default the trailers found in the description are added to each commit.
 
    Examples:
 
