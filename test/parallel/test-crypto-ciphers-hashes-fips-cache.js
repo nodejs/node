@@ -18,7 +18,13 @@ if (!testFipsCrypto())
 const assert = require('assert');
 const { getCiphers, getHashes, setFips, getFips } = require('crypto');
 
-// Record the full lists available when FIPS is off.
+const initialFips = getFips();
+
+// Ensure FIPS is off so we can capture the full algorithm lists as a baseline,
+// regardless of whether the system has FIPS on by default.
+if (initialFips)
+  setFips(false);
+
 const ciphersWithoutFips = getCiphers();
 const hashesWithoutFips = getHashes();
 
@@ -60,7 +66,7 @@ for (const hash of hashesWithFips) {
   );
 }
 
-// Restore; the cache must be evicted again so the full lists come back.
+// Turn FIPS back off; the cache must be evicted so the full lists come back.
 setFips(false);
 assert.strictEqual(getFips(), 0);
 
@@ -74,3 +80,7 @@ assert.deepStrictEqual(
   hashesWithoutFips,
   'getHashes() should match pre-FIPS list after setFips(false)'
 );
+
+// Restore the original FIPS state.
+if (initialFips)
+  setFips(true);
