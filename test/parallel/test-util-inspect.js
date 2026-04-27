@@ -3846,6 +3846,43 @@ assert.strictEqual(
   }
 }
 
+// Regression test for https://github.com/nodejs/node/issues/62981
+// numericSeparator should not corrupt scientific notation numbers
+{
+  // Test cases from the bug report
+  assert.strictEqual(
+    util.inspect(1e-7, { numericSeparator: true }),
+    '1e-7'
+  );
+  assert.strictEqual(
+    util.inspect(1.23e-7, { numericSeparator: true }),
+    '1.23e-7'
+  );
+  assert.strictEqual(
+    util.inspect(1.23e+7, { numericSeparator: true }),
+    '1.23e+7'
+  );
+  assert.strictEqual(
+    util.inspect(-1.23e-7, { numericSeparator: true }),
+    '-1.23e-7'
+  );
+  assert.strictEqual(
+    util.inspect(1e10, { numericSeparator: true }),
+    '1e10'
+  );
+  assert.strictEqual(
+    util.inspect(1.2345678901234567e+20, { numericSeparator: true }),
+    '1.2345678901234567e+20'
+  );
+
+  // With default numericSeparator: true
+  const { numericSeparator } = util.inspect.defaultOptions;
+  util.inspect.defaultOptions.numericSeparator = true;
+  assert.strictEqual(util.inspect(1e-7), '1e-7');
+  assert.strictEqual(util.inspect(1.5e-10), '1.5e-10');
+  util.inspect.defaultOptions.numericSeparator = numericSeparator;
+}
+
 // Regression test for https://github.com/nodejs/node/issues/41244
 {
   assert.strictEqual(util.inspect({
