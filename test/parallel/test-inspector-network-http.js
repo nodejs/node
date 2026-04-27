@@ -144,7 +144,7 @@ function verifyResponseReceived({ method, params }, expect) {
   if (expect.responseHeaders?.etag) {
     assert.strictEqual(params.response.headers.etag, expect.responseHeaders.etag);
   }
-  if (expect.responseHeaders?.setCookie) {
+  if (expect.responseHeaders?.['set-cookie']) {
     assert.strictEqual(params.response.headers['set-cookie'], expect.responseHeaders.setCookie);
   }
   if (expect.responseHeaders?.xHeader2) {
