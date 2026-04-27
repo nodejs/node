@@ -311,7 +311,10 @@ async function testHttpPostWithAbsoluteUrlPath() {
   await requestWillBeSentFuture;
   const responseReceived = await responseReceivedFuture;
   await loadingFinishedFuture;
-  await assertResponseBody(responseReceived, `{"method":"POST","body":"${requestBody}"}`);
+  await assertResponseBody(responseReceived, JSON.stringify({
+    method: 'POST',
+    body: requestBody,
+  }));
 }
 
 async function testHttpsGet() {
