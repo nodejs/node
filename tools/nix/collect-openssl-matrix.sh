@@ -24,42 +24,34 @@ here=$(cd -- "$(dirname -- "$0")" && pwd)
 #    repo-pinned nixpkgs. `tryEval` skips aliases that raise (e.g.
 #    `openssl_3_0` → renamed to `openssl_3`) so we only keep attributes
 #    that resolve to a real derivation with a `.version`.
-nix_json=$(nix-instantiate --eval --strict --json -E "
+nix-instantiate --eval --strict --json -E "
   let
     pkgs = import $here/pkgs.nix {};
-    names = builtins.filter
-      (n: builtins.match \"openssl_[0-9]+(_[0-9]+)?\" n != null)
-      (builtins.attrNames pkgs);
-    safe = builtins.filter (n:
-      let t = builtins.tryEval pkgs.\${n}; in
-      t.success && (builtins.tryEval t.value.version).success) names;
-  in map (n: { attr = n; version = pkgs.\${n}.version; }) safe
-")
+    attrs = builtins.filter
+      (n:
+        let t = builtins.tryEval pkgs.\${n}; in
+        t.success && (builtins.tryEval t.value.version).success
+      )
+      (
+        builtins.filter
+          (n: builtins.match \"openssl_[0-9]+(_[0-9]+)?\" n != null)
+          (builtins.attrNames pkgs)
+      );
+  in
+  {
+    inherit attrs;
+    permittedInsecurePackages = builtins.map (attr: pkgs.\${attr}.name) (
+      builtins.filter (attr: (pkgs.\${attr}.meta.insecure)) attrs
+    );
+  }
+" | jq -r '"{
+  pkgs ? import ./pkgs.nix {
+    config.permittedInsecurePackages = [ \(.permittedInsecurePackages | map(@json) | join(" ")) ];
+  },
+}:
 
-# 2. Fetch OpenSSL release versions from endoflife.date, keep entries that
-#    are either not past EOL or still under extended support, then pick the
-#    first nix attr whose `.version` starts with the release version
-#    followed by `.` / letter / end-of-string (so "3.6" matches "3.6.1",
-#    "1.1.1" matches "1.1.1w", and "1.1" does NOT swallow "1.1.1").
-#    Releases without a matching nix attr are dropped.
-curl -sf https://endoflife.date/api/openssl.json \
-  | jq -c \
-      --argjson nix "$nix_json" \
-      --arg supported "$SUPPORTED_OPENSSL_VERSION" '
-    (now | strftime("%Y-%m-%d")) as $today |
-    # Compare OpenSSL major.minor cycles as numeric tuples.
-    def cycle_tuple($v):
-      ($v | split(".") | map(tonumber));
-    [ .[]
-      | select(.eol == false or .eol > $today or .extendedSupport == true)
-      | .cycle as $v
-      | ($nix
-          | map(select(.version | test("^" + ($v | gsub("\\."; "\\.")) + "([.a-z]|$)")))
-          | first) as $m
-      | select($m != null)
-      | {
-          version: $m.version,
-          attr: $m.attr,
-          "continue-on-error": (cycle_tuple($v) > cycle_tuple($supported))
-        }
-    ]'
+{
+  inherit (pkgs)
+    \(.attrs | join("\n    "))
+    ;
+}"'
