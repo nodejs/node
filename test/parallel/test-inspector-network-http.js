@@ -148,7 +148,7 @@ function verifyResponseReceived({ method, params }, expect) {
     assert.strictEqual(params.response.headers['set-cookie'], expect.responseHeaders['set-cookie'],);
   }
   if (expect.responseHeaders?.['x-header2']) {
-    assert.strictEqual(params.response.headers['x-header2'], expect.responseHeaders.xHeader2);
+    assert.strictEqual(params.response.headers['x-header2'], expect.responseHeaders['x-header2']);
   }
   assert.strictEqual(params.response.mimeType, expect.mimeType);
   assert.strictEqual(params.response.charset, expect.charset);
