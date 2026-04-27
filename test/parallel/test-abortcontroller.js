@@ -225,6 +225,16 @@ test('AbortSignal with a timeout is not collected while there is an active liste
   assert.strictEqual(ref.deref(), undefined);
 });
 
+test('AbortSignal.timeout() correctly validates delay argument', () => {
+  for (const value of [0, -0, -0.9, Number.MAX_SAFE_INTEGER]) {
+    AbortSignal.timeout(value);
+  }
+
+  for (const value of [-1, Number.MAX_SAFE_INTEGER + 1, Number.NaN]) {
+    assert.throws(() => AbortSignal.timeout(value), { code: 'ERR_INVALID_ARG_VALUE' });
+  }
+});
+
 test('Setting a long timeout should not keep the process open', () => {
   AbortSignal.timeout(1_200_000);
 });
