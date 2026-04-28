@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.1](https://github.com/nodejs/gyp-next/compare/v0.22.0...v0.22.1) (2026-04-21)
+
+
+### Bug Fixes
+
+* use floor division when escaping command-line arguments ([#338](https://github.com/nodejs/gyp-next/issues/338)) ([cadca24](https://github.com/nodejs/gyp-next/commit/cadca2416dc13e117e035ad6dd2b471a86d0430f))
+
 ## [0.22.0](https://github.com/nodejs/gyp-next/compare/v0.21.1...v0.22.0) (2026-04-02)
 
 

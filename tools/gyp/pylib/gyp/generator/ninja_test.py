@@ -39,7 +39,7 @@ class TestPrefixesAndSuffixes(unittest.TestCase):
             "executable": ".exe",
             "shared_library": ".dll",
             "static_library": ".lib",
-        }:
+        }.items():
             self.assertTrue(writer.ComputeOutputFileName(spec, key).endswith(ext))
 
     def test_BinaryNamesLinux(self):
