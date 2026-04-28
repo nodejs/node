@@ -54,6 +54,11 @@ namespace http2 {
 namespace {
 
 const char zero_bytes_256[256] = {};
+// Small client-side control frame writes (e.g. WINDOW_UPDATE) should not
+// immediately force HTTP/2 input processing to become effectively sequential
+// if the write callback lingers for a short time.
+constexpr size_t kMaxReadWhileWriteInProgress = 1024;
+constexpr uint64_t kMinWriteAgeToKeepReading = 1'000'000;
 
 bool HasHttp2Observer(Environment* env) {
   AliasedUint32Array& observers = env->performance_state()->observers;
@@ -1396,7 +1401,11 @@ int Http2Session::OnDataChunkReceived(nghttp2_session* handle,
 
   // If we are currently waiting for a write operation to finish, we should
   // tell nghttp2 that we want to wait before we process more input data.
-  if (session->is_write_in_progress()) {
+  if (session->is_write_in_progress() &&
+      (session->session_type_ == NGHTTP2_SESSION_SERVER ||
+       session->current_write_size_ > kMaxReadWhileWriteInProgress ||
+       uv_hrtime() - session->current_write_start_time_ <
+           kMinWriteAgeToKeepReading)) {
     CHECK(session->is_reading_stopped());
     session->set_receive_paused();
     Debug(session, "receive paused");
@@ -1774,6 +1783,8 @@ void Http2Session::OnStreamAfterWrite(WriteWrap* w, int status) {
   MaybeNotifyGracefulCloseComplete();
   CHECK(is_write_in_progress());
   set_write_in_progress(false);
+  current_write_size_ = 0;
+  current_write_start_time_ = 0;
 
   // Inform all pending writes about their completion.
   ClearOutgoing(status);
@@ -1989,10 +2000,14 @@ uint8_t Http2Session::SendPendingData() {
   chunks_sent_since_last_write_++;
 
   CHECK(!is_write_in_progress());
+  current_write_size_ = outgoing_length_;
+  current_write_start_time_ = uv_hrtime();
   set_write_in_progress();
   StreamWriteResult res = underlying_stream()->Write(*bufs, count);
   if (!res.async) {
     set_write_in_progress(false);
+    current_write_size_ = 0;
+    current_write_start_time_ = 0;
     ClearOutgoing(res.err);
     MaybeNotifyGracefulCloseComplete();
   }
