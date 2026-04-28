@@ -28,9 +28,9 @@ const buf2 = Buffer.alloc(10, 1);
 
 // Creates an uninitialized buffer of length 10.
 // This is faster than calling Buffer.alloc() but the returned
-// Buffer instance might contain old data that needs to be
-// overwritten using fill(), write(), or other functions that fill the Buffer's
-// contents.
+// Buffer instance might contain old and potentially sensitive
+// data that needs to be overwritten using fill(), write(), or
+// other functions that fill the Buffer's contents.
 const buf3 = Buffer.allocUnsafe(10);
 
 // Creates a Buffer containing the bytes [1, 2, 3].
@@ -1542,7 +1542,7 @@ import { Buffer } from 'node:buffer';
 // `Buffer.from()` to perform this conversion.)
 
 const str = 'Node.js';
-const buf = Buffer.allocUnsafe(str.length);
+const buf = Buffer.alloc(str.length);
 
 for (let i = 0; i < str.length; i++) {
   buf[i] = str.charCodeAt(i);
@@ -1560,7 +1560,7 @@ const { Buffer } = require('node:buffer');
 // `Buffer.from()` to perform this conversion.)
 
 const str = 'Node.js';
-const buf = Buffer.allocUnsafe(str.length);
+const buf = Buffer.alloc(str.length);
 
 for (let i = 0; i < str.length; i++) {
   buf[i] = str.charCodeAt(i);
@@ -1775,8 +1775,8 @@ different function arguments.
 import { Buffer } from 'node:buffer';
 
 // Create two `Buffer` instances.
-const buf1 = Buffer.allocUnsafe(26);
-const buf2 = Buffer.allocUnsafe(26).fill('!');
+const buf1 = Buffer.alloc(26);
+const buf2 = Buffer.alloc(26).fill('!');
 
 for (let i = 0; i < 26; i++) {
   // 97 is the decimal ASCII value for 'a'.
@@ -1796,8 +1796,8 @@ console.log(buf2.toString('ascii', 0, 25));
 const { Buffer } = require('node:buffer');
 
 // Create two `Buffer` instances.
-const buf1 = Buffer.allocUnsafe(26);
-const buf2 = Buffer.allocUnsafe(26).fill('!');
+const buf1 = Buffer.alloc(26);
+const buf2 = Buffer.alloc(26).fill('!');
 
 for (let i = 0; i < 26; i++) {
   // 97 is the decimal ASCII value for 'a'.
@@ -1819,7 +1819,7 @@ import { Buffer } from 'node:buffer';
 // Create a `Buffer` and copy data from one region to an overlapping region
 // within the same `Buffer`.
 
-const buf = Buffer.allocUnsafe(26);
+const buf = Buffer.alloc(26);
 
 for (let i = 0; i < 26; i++) {
   // 97 is the decimal ASCII value for 'a'.
@@ -1838,7 +1838,7 @@ const { Buffer } = require('node:buffer');
 // Create a `Buffer` and copy data from one region to an overlapping region
 // within the same `Buffer`.
 
-const buf = Buffer.allocUnsafe(26);
+const buf = Buffer.alloc(26);
 
 for (let i = 0; i < 26; i++) {
   // 97 is the decimal ASCII value for 'a'.
@@ -1986,15 +1986,15 @@ import { Buffer } from 'node:buffer';
 
 // Fill a `Buffer` with the ASCII character 'h'.
 
-const b = Buffer.allocUnsafe(50).fill('h');
+const b = Buffer.alloc(5).fill('h');
 
 console.log(b.toString());
-// Prints: hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+// Prints: hhhhh
 
 // Fill a buffer with empty string
-const c = Buffer.allocUnsafe(5).fill('');
+b.fill('');
 
-console.log(c.fill(''));
+console.log(b);
 // Prints: <Buffer 00 00 00 00 00>
 ```
 
@@ -2003,15 +2003,15 @@ const { Buffer } = require('node:buffer');
 
 // Fill a `Buffer` with the ASCII character 'h'.
 
-const b = Buffer.allocUnsafe(50).fill('h');
+const b = Buffer.alloc(5).fill('h');
 
 console.log(b.toString());
-// Prints: hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+// Prints: hhhhh
 
 // Fill a buffer with empty string
-const c = Buffer.allocUnsafe(5).fill('');
+b.fill('');
 
-console.log(c.fill(''));
+console.log(b);
 // Prints: <Buffer 00 00 00 00 00>
 ```
 
@@ -2027,7 +2027,7 @@ import { Buffer } from 'node:buffer';
 
 // Fill a `Buffer` with character that takes up two bytes in UTF-8.
 
-console.log(Buffer.allocUnsafe(5).fill('\u0222'));
+console.log(Buffer.alloc(5).fill('\u0222'));
 // Prints: <Buffer c8 a2 c8 a2 c8>
 ```
 
@@ -2036,7 +2036,7 @@ const { Buffer } = require('node:buffer');
 
 // Fill a `Buffer` with character that takes up two bytes in UTF-8.
 
-console.log(Buffer.allocUnsafe(5).fill('\u0222'));
+console.log(Buffer.alloc(5).fill('\u0222'));
 // Prints: <Buffer c8 a2 c8 a2 c8>
 ```
 
@@ -2046,7 +2046,7 @@ fill data remains, an exception is thrown:
 ```mjs
 import { Buffer } from 'node:buffer';
 
-const buf = Buffer.allocUnsafe(5);
+const buf = Buffer.alloc(5);
 
 console.log(buf.fill('a'));
 // Prints: <Buffer 61 61 61 61 61>
@@ -2059,7 +2059,7 @@ console.log(buf.fill('zz', 'hex'));
 ```cjs
 const { Buffer } = require('node:buffer');
 
-const buf = Buffer.allocUnsafe(5);
+const buf = Buffer.alloc(5);
 
 console.log(buf.fill('a'));
 // Prints: <Buffer 61 61 61 61 61>
@@ -3446,7 +3446,7 @@ import { Buffer } from 'node:buffer';
 // Create a `Buffer` with the ASCII alphabet, take a slice, and modify one byte
 // from the original `Buffer`.
 
-const buf1 = Buffer.allocUnsafe(26);
+const buf1 = Buffer.alloc(26);
 
 for (let i = 0; i < 26; i++) {
   // 97 is the decimal ASCII value for 'a'.
@@ -3470,7 +3470,7 @@ const { Buffer } = require('node:buffer');
 // Create a `Buffer` with the ASCII alphabet, take a slice, and modify one byte
 // from the original `Buffer`.
 
-const buf1 = Buffer.allocUnsafe(26);
+const buf1 = Buffer.alloc(26);
 
 for (let i = 0; i < 26; i++) {
   // 97 is the decimal ASCII value for 'a'.
@@ -3855,7 +3855,7 @@ as [`buffer.constants.MAX_STRING_LENGTH`][].
 ```mjs
 import { Buffer } from 'node:buffer';
 
-const buf1 = Buffer.allocUnsafe(26);
+const buf1 = Buffer.alloc(26);
 
 for (let i = 0; i < 26; i++) {
   // 97 is the decimal ASCII value for 'a'.
@@ -3880,7 +3880,7 @@ console.log(buf2.toString(undefined, 0, 3));
 ```cjs
 const { Buffer } = require('node:buffer');
 
-const buf1 = Buffer.allocUnsafe(26);
+const buf1 = Buffer.alloc(26);
 
 for (let i = 0; i < 26; i++) {
   // 97 is the decimal ASCII value for 'a'.
@@ -4050,7 +4050,7 @@ Writes `value` to `buf` at the specified `offset` as big-endian.
 ```mjs
 import { Buffer } from 'node:buffer';
 
-const buf = Buffer.allocUnsafe(8);
+const buf = Buffer.alloc(8);
 
 buf.writeBigInt64BE(0x0102030405060708n, 0);
 
@@ -4061,7 +4061,7 @@ console.log(buf);
 ```cjs
 const { Buffer } = require('node:buffer');
 
-const buf = Buffer.allocUnsafe(8);
+const buf = Buffer.alloc(8);
 
 buf.writeBigInt64BE(0x0102030405060708n, 0);
 
@@ -4089,7 +4089,7 @@ Writes `value` to `buf` at the specified `offset` as little-endian.
 ```mjs
 import { Buffer } from 'node:buffer';
 
-const buf = Buffer.allocUnsafe(8);
+const buf = Buffer.alloc(8);
 
 buf.writeBigInt64LE(0x0102030405060708n, 0);
 
@@ -4100,7 +4100,7 @@ console.log(buf);
 ```cjs
 const { Buffer } = require('node:buffer');
 
-const buf = Buffer.allocUnsafe(8);
+const buf = Buffer.alloc(8);
 
 buf.writeBigInt64LE(0x0102030405060708n, 0);
 
@@ -4134,7 +4134,7 @@ This function is also available under the `writeBigUint64BE` alias.
 ```mjs
 import { Buffer } from 'node:buffer';
 
-const buf = Buffer.allocUnsafe(8);
+const buf = Buffer.alloc(8);
 
 buf.writeBigUInt64BE(0xdecafafecacefaden, 0);
 
@@ -4145,7 +4145,7 @@ console.log(buf);
 ```cjs
 const { Buffer } = require('node:buffer');
 
-const buf = Buffer.allocUnsafe(8);
+const buf = Buffer.alloc(8);
 
 buf.writeBigUInt64BE(0xdecafafecacefaden, 0);
 
@@ -4177,7 +4177,7 @@ Writes `value` to `buf` at the specified `offset` as little-endian
 ```mjs
 import { Buffer } from 'node:buffer';
 
-const buf = Buffer.allocUnsafe(8);
+const buf = Buffer.alloc(8);
 
 buf.writeBigUInt64LE(0xdecafafecacefaden, 0);
 
@@ -4188,7 +4188,7 @@ console.log(buf);
 ```cjs
 const { Buffer } = require('node:buffer');
 
-const buf = Buffer.allocUnsafe(8);
+const buf = Buffer.alloc(8);
 
 buf.writeBigUInt64LE(0xdecafafecacefaden, 0);
 
@@ -4221,7 +4221,7 @@ other than a JavaScript number.
 ```mjs
 import { Buffer } from 'node:buffer';
 
-const buf = Buffer.allocUnsafe(8);
+const buf = Buffer.alloc(8);
 
 buf.writeDoubleBE(123.456, 0);
 
@@ -4232,7 +4232,7 @@ console.log(buf);
 ```cjs
 const { Buffer } = require('node:buffer');
 
-const buf = Buffer.allocUnsafe(8);
+const buf = Buffer.alloc(8);
 
 buf.writeDoubleBE(123.456, 0);
 
@@ -4263,7 +4263,7 @@ other than a JavaScript number.
 ```mjs
 import { Buffer } from 'node:buffer';
 
-const buf = Buffer.allocUnsafe(8);
+const buf = Buffer.alloc(8);
 
 buf.writeDoubleLE(123.456, 0);
 
@@ -4274,7 +4274,7 @@ console.log(buf);
 ```cjs
 const { Buffer } = require('node:buffer');
 
-const buf = Buffer.allocUnsafe(8);
+const buf = Buffer.alloc(8);
 
 buf.writeDoubleLE(123.456, 0);
 
@@ -4304,7 +4304,7 @@ undefined when `value` is anything other than a JavaScript number.
 ```mjs
 import { Buffer } from 'node:buffer';
 
-const buf = Buffer.allocUnsafe(4);
+const buf = Buffer.alloc(4);
 
 buf.writeFloatBE(0xcafebabe, 0);
 
@@ -4315,7 +4315,7 @@ console.log(buf);
 ```cjs
 const { Buffer } = require('node:buffer');
 
-const buf = Buffer.allocUnsafe(4);
+const buf = Buffer.alloc(4);
 
 buf.writeFloatBE(0xcafebabe, 0);
 
@@ -4345,7 +4345,7 @@ undefined when `value` is anything other than a JavaScript number.
 ```mjs
 import { Buffer } from 'node:buffer';
 
-const buf = Buffer.allocUnsafe(4);
+const buf = Buffer.alloc(4);
 
 buf.writeFloatLE(0xcafebabe, 0);
 
@@ -4356,7 +4356,7 @@ console.log(buf);
 ```cjs
 const { Buffer } = require('node:buffer');
 
-const buf = Buffer.allocUnsafe(4);
+const buf = Buffer.alloc(4);
 
 buf.writeFloatLE(0xcafebabe, 0);
 
@@ -4389,7 +4389,7 @@ a signed 8-bit integer.
 ```mjs
 import { Buffer } from 'node:buffer';
 
-const buf = Buffer.allocUnsafe(2);
+const buf = Buffer.alloc(2);
 
 buf.writeInt8(2, 0);
 buf.writeInt8(-2, 1);
@@ -4401,7 +4401,7 @@ console.log(buf);
 ```cjs
 const { Buffer } = require('node:buffer');
 
-const buf = Buffer.allocUnsafe(2);
+const buf = Buffer.alloc(2);
 
 buf.writeInt8(2, 0);
 buf.writeInt8(-2, 1);
@@ -4435,7 +4435,7 @@ The `value` is interpreted and written as a two's complement signed integer.
 ```mjs
 import { Buffer } from 'node:buffer';
 
-const buf = Buffer.allocUnsafe(2);
+const buf = Buffer.alloc(2);
 
 buf.writeInt16BE(0x0102, 0);
 
@@ -4446,7 +4446,7 @@ console.log(buf);
 ```cjs
 const { Buffer } = require('node:buffer');
 
-const buf = Buffer.allocUnsafe(2);
+const buf = Buffer.alloc(2);
 
 buf.writeInt16BE(0x0102, 0);
 
@@ -4479,7 +4479,7 @@ The `value` is interpreted and written as a two's complement signed integer.
 ```mjs
 import { Buffer } from 'node:buffer';
 
-const buf = Buffer.allocUnsafe(2);
+const buf = Buffer.alloc(2);
 
 buf.writeInt16LE(0x0304, 0);
 
@@ -4490,7 +4490,7 @@ console.log(buf);
 ```cjs
 const { Buffer } = require('node:buffer');
 
-const buf = Buffer.allocUnsafe(2);
+const buf = Buffer.alloc(2);
 
 buf.writeInt16LE(0x0304, 0);
 
@@ -4523,7 +4523,7 @@ The `value` is interpreted and written as a two's complement signed integer.
 ```mjs
 import { Buffer } from 'node:buffer';
 
-const buf = Buffer.allocUnsafe(4);
+const buf = Buffer.alloc(4);
 
 buf.writeInt32BE(0x01020304, 0);
 
@@ -4534,7 +4534,7 @@ console.log(buf);
 ```cjs
 const { Buffer } = require('node:buffer');
 
-const buf = Buffer.allocUnsafe(4);
+const buf = Buffer.alloc(4);
 
 buf.writeInt32BE(0x01020304, 0);
 
@@ -4567,7 +4567,7 @@ The `value` is interpreted and written as a two's complement signed integer.
 ```mjs
 import { Buffer } from 'node:buffer';
 
-const buf = Buffer.allocUnsafe(4);
+const buf = Buffer.alloc(4);
 
 buf.writeInt32LE(0x05060708, 0);
 
@@ -4578,7 +4578,7 @@ console.log(buf);
 ```cjs
 const { Buffer } = require('node:buffer');
 
-const buf = Buffer.allocUnsafe(4);
+const buf = Buffer.alloc(4);
 
 buf.writeInt32LE(0x05060708, 0);
 
@@ -4611,7 +4611,7 @@ as big-endian. Supports up to 48 bits of accuracy. Behavior is undefined when
 ```mjs
 import { Buffer } from 'node:buffer';
 
-const buf = Buffer.allocUnsafe(6);
+const buf = Buffer.alloc(6);
 
 buf.writeIntBE(0x1234567890ab, 0, 6);
 
@@ -4622,7 +4622,7 @@ console.log(buf);
 ```cjs
 const { Buffer } = require('node:buffer');
 
-const buf = Buffer.allocUnsafe(6);
+const buf = Buffer.alloc(6);
 
 buf.writeIntBE(0x1234567890ab, 0, 6);
 
@@ -4655,7 +4655,7 @@ when `value` is anything other than a signed integer.
 ```mjs
 import { Buffer } from 'node:buffer';
 
-const buf = Buffer.allocUnsafe(6);
+const buf = Buffer.alloc(6);
 
 buf.writeIntLE(0x1234567890ab, 0, 6);
 
@@ -4666,7 +4666,7 @@ console.log(buf);
 ```cjs
 const { Buffer } = require('node:buffer');
 
-const buf = Buffer.allocUnsafe(6);
+const buf = Buffer.alloc(6);
 
 buf.writeIntLE(0x1234567890ab, 0, 6);
 
@@ -4704,7 +4704,7 @@ This function is also available under the `writeUint8` alias.
 ```mjs
 import { Buffer } from 'node:buffer';
 
-const buf = Buffer.allocUnsafe(4);
+const buf = Buffer.alloc(4);
 
 buf.writeUInt8(0x3, 0);
 buf.writeUInt8(0x4, 1);
@@ -4718,7 +4718,7 @@ console.log(buf);
 ```cjs
 const { Buffer } = require('node:buffer');
 
-const buf = Buffer.allocUnsafe(4);
+const buf = Buffer.alloc(4);
 
 buf.writeUInt8(0x3, 0);
 buf.writeUInt8(0x4, 1);
@@ -4759,7 +4759,7 @@ This function is also available under the `writeUint16BE` alias.
 ```mjs
 import { Buffer } from 'node:buffer';
 
-const buf = Buffer.allocUnsafe(4);
+const buf = Buffer.alloc(4);
 
 buf.writeUInt16BE(0xdead, 0);
 buf.writeUInt16BE(0xbeef, 2);
@@ -4771,7 +4771,7 @@ console.log(buf);
 ```cjs
 const { Buffer } = require('node:buffer');
 
-const buf = Buffer.allocUnsafe(4);
+const buf = Buffer.alloc(4);
 
 buf.writeUInt16BE(0xdead, 0);
 buf.writeUInt16BE(0xbeef, 2);
@@ -4810,7 +4810,7 @@ This function is also available under the `writeUint16LE` alias.
 ```mjs
 import { Buffer } from 'node:buffer';
 
-const buf = Buffer.allocUnsafe(4);
+const buf = Buffer.alloc(4);
 
 buf.writeUInt16LE(0xdead, 0);
 buf.writeUInt16LE(0xbeef, 2);
@@ -4822,7 +4822,7 @@ console.log(buf);
 ```cjs
 const { Buffer } = require('node:buffer');
 
-const buf = Buffer.allocUnsafe(4);
+const buf = Buffer.alloc(4);
 
 buf.writeUInt16LE(0xdead, 0);
 buf.writeUInt16LE(0xbeef, 2);
@@ -4861,7 +4861,7 @@ This function is also available under the `writeUint32BE` alias.
 ```mjs
 import { Buffer } from 'node:buffer';
 
-const buf = Buffer.allocUnsafe(4);
+const buf = Buffer.alloc(4);
 
 buf.writeUInt32BE(0xfeedface, 0);
 
@@ -4872,7 +4872,7 @@ console.log(buf);
 ```cjs
 const { Buffer } = require('node:buffer');
 
-const buf = Buffer.allocUnsafe(4);
+const buf = Buffer.alloc(4);
 
 buf.writeUInt32BE(0xfeedface, 0);
 
@@ -4910,7 +4910,7 @@ This function is also available under the `writeUint32LE` alias.
 ```mjs
 import { Buffer } from 'node:buffer';
 
-const buf = Buffer.allocUnsafe(4);
+const buf = Buffer.alloc(4);
 
 buf.writeUInt32LE(0xfeedface, 0);
 
@@ -4921,7 +4921,7 @@ console.log(buf);
 ```cjs
 const { Buffer } = require('node:buffer');
 
-const buf = Buffer.allocUnsafe(4);
+const buf = Buffer.alloc(4);
 
 buf.writeUInt32LE(0xfeedface, 0);
 
@@ -4961,7 +4961,7 @@ This function is also available under the `writeUintBE` alias.
 ```mjs
 import { Buffer } from 'node:buffer';
 
-const buf = Buffer.allocUnsafe(6);
+const buf = Buffer.alloc(6);
 
 buf.writeUIntBE(0x1234567890ab, 0, 6);
 
@@ -4972,7 +4972,7 @@ console.log(buf);
 ```cjs
 const { Buffer } = require('node:buffer');
 
-const buf = Buffer.allocUnsafe(6);
+const buf = Buffer.alloc(6);
 
 buf.writeUIntBE(0x1234567890ab, 0, 6);
 
@@ -5012,7 +5012,7 @@ This function is also available under the `writeUintLE` alias.
 ```mjs
 import { Buffer } from 'node:buffer';
 
-const buf = Buffer.allocUnsafe(6);
+const buf = Buffer.alloc(6);
 
 buf.writeUIntLE(0x1234567890ab, 0, 6);
 
@@ -5023,7 +5023,7 @@ console.log(buf);
 ```cjs
 const { Buffer } = require('node:buffer');
 
-const buf = Buffer.allocUnsafe(6);
+const buf = Buffer.alloc(6);
 
 buf.writeUIntLE(0x1234567890ab, 0, 6);
 
