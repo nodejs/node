@@ -50,7 +50,11 @@ test('dlopen resolves functions from definitions', () => {
     assert.strictEqual(functions.add_f32(1.25, 2.75), 4);
     assert.strictEqual(functions.add_u64(20n, 22n), 42n);
     assert.strictEqual(functions.add_i32.name, 'add_i32');
-    assert.strictEqual(functions.add_i32.length, 0);
+    // Shared-buffer wrapper sets `length` to the FFI signature's arity
+    // (see `inheritMetadata` in lib/internal/ffi-shared-buffer.js). The raw
+    // native function has length 0, but the wrapper exposes the parameter
+    // count so `fn.length` is useful for introspection.
+    assert.strictEqual(functions.add_i32.length, 2);
     assert.strictEqual(typeof functions.add_i32.pointer, 'bigint');
     assert.strictEqual(Object.getPrototypeOf(functions), null);
   } finally {
