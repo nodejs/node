@@ -7960,7 +7960,21 @@ added:
 
 * Type: {number|bigint}
 
-Free blocks available to unprivileged users.
+Free blocks available to unprivileged users. For example, to calculate the available space:
+
+```mjs
+import { statfs } from 'node:fs/promises';
+const stats = await statfs('/tmp');
+const availableBytes = stats.bsize * stats.bavail;
+```
+
+```cjs
+const { statfs } = require('node:fs/promises');
+(async () => {
+  const stats = await statfs('/tmp');
+  const availableBytes = stats.bsize * stats.bavail;
+})();
+```
 
 #### `statfs.bfree`
 
@@ -7972,7 +7986,21 @@ added:
 
 * Type: {number|bigint}
 
-Free blocks in file system.
+Free blocks in file system. For example, to calculate the free space:
+
+```mjs
+import { statfs } from 'node:fs/promises';
+const stats = await statfs('/tmp');
+const freeBytes = stats.bsize * stats.bfree;
+```
+
+```cjs
+const { statfs } = require('node:fs/promises');
+(async () => {
+  const stats = await statfs('/tmp');
+  const freeBytes = stats.bsize * stats.bfree;
+})();
+```
 
 #### `statfs.blocks`
 
@@ -7984,7 +8012,21 @@ added:
 
 * Type: {number|bigint}
 
-Total data blocks in file system.
+Total data blocks in file system. For example, to calculate the total space:
+
+```mjs
+import { statfs } from 'node:fs/promises';
+const stats = await statfs('/tmp');
+const totalBytes = stats.bsize * stats.blocks;
+```
+
+```cjs
+const { statfs } = require('node:fs/promises');
+(async () => {
+  const stats = await statfs('/tmp');
+  const totalBytes = stats.bsize * stats.blocks;
+})();
+```
 
 #### `statfs.bsize`
 
@@ -7996,7 +8038,7 @@ added:
 
 * Type: {number|bigint}
 
-Optimal transfer block size.
+Optimal transfer block size, in bytes.
 
 #### `statfs.frsize`
 
@@ -8030,7 +8072,23 @@ added:
 
 * Type: {number|bigint}
 
-Total file nodes in file system.
+Total file nodes in file system. For example, to get the percentage of used file nodes:
+
+```mjs
+import { statfs } from 'node:fs/promises';
+const stats = await statfs('/tmp');
+const usedFileNodes = stats.files - stats.ffree;
+const usedPercentage = (usedFileNodes / stats.files) * 100;
+```
+
+```cjs
+const { statfs } = require('node:fs/promises');
+(async () => {
+  const stats = await statfs('/tmp');
+  const usedFileNodes = stats.files - stats.ffree;
+  const usedPercentage = (usedFileNodes / stats.files) * 100;
+})();
+```
 
 #### `statfs.type`
 
@@ -8042,7 +8100,9 @@ added:
 
 * Type: {number|bigint}
 
-Type of file system.
+Type of file system. This is a magic number that identifies the file system type.
+Common values include `0xEF53` (ext4), `0x58465342` (xfs), `0x01021994` (tmpfs), etc.
+The exact values depend on the operating system and file system implementation.
 
 ### Class: `fs.Utf8Stream`
 
