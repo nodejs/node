@@ -1705,11 +1705,19 @@ are not guaranteed to reflect any correct state of the event loop.
 
 <!-- YAML
 added: v11.10.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62934
+    description: Added the `native` option.
 -->
 
 * `options` {Object}
   * `resolution` {number} The sampling rate in milliseconds. Must be greater
-    than zero. **Default:** `10`.
+    than zero. Only used when `native` is `false`. **Default:** `10`.
+  * `native` {boolean} When `true`, uses libuv's `uv_check_t` handle and
+    `uv_metrics_idle_time()` to measure the busy time of each event loop
+    iteration directly, instead of relying on a sampling timer. **Default:**
+    `false`.
 * Returns: {IntervalHistogram}
 
 _This property is an extension by Node.js. It is not available in Web browsers._
@@ -1717,11 +1725,20 @@ _This property is an extension by Node.js. It is not available in Web browsers._
 Creates an `IntervalHistogram` object that samples and reports the event loop
 delay over time. The delays will be reported in nanoseconds.
 
-Using a timer to detect approximate event loop delay works because the
-execution of timers is tied specifically to the lifecycle of the libuv
-event loop. That is, a delay in the loop will cause a delay in the execution
-of the timer, and those delays are specifically what this API is intended to
-detect.
+Two measurement strategies are available:
+
+**Timer-based (default, `native: false`):** Uses a repeating timer that fires
+every `resolution` milliseconds. A delay in the loop causes a corresponding
+delay in timer execution, and that difference is recorded. This approach
+samples the event loop at a fixed rate and is suitable for coarse-grained
+monitoring.
+
+**Native (`native: true`):** Registers a libuv `uv_check_t` handle that fires
+after every I/O poll phase. Each firing computes the busy time for that
+iteration as the total elapsed time minus the time spent waiting in the I/O
+poll (obtained from `uv_metrics_idle_time()`). This provides a per-iteration
+measurement without any sampling interval overhead. The `resolution` option
+has no effect in this mode.
 
 ```mjs
 import { monitorEventLoopDelay } from 'node:perf_hooks';
@@ -1751,6 +1768,33 @@ console.log(h.mean);
 console.log(h.stddev);
 console.log(h.percentiles);
 console.log(h.percentile(50));
+console.log(h.percentile(99));
+```
+
+Using the native mode:
+
+```mjs
+import { monitorEventLoopDelay } from 'node:perf_hooks';
+
+const h = monitorEventLoopDelay({ native: true });
+h.enable();
+// Do something.
+h.disable();
+console.log(h.min);
+console.log(h.max);
+console.log(h.mean);
+console.log(h.percentile(99));
+```
+
+```cjs
+const { monitorEventLoopDelay } = require('node:perf_hooks');
+const h = monitorEventLoopDelay({ native: true });
+h.enable();
+// Do something.
+h.disable();
+console.log(h.min);
+console.log(h.max);
+console.log(h.mean);
 console.log(h.percentile(99));
 ```
 

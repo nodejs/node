@@ -266,6 +266,51 @@ class IntervalHistogram final : public HandleWrap, public HistogramImpl {
   static v8::CFunction fast_stop_;
 };
 
+class ELDNativeHistogram final : public HandleWrap, public HistogramImpl {
+ public:
+  enum InternalFields {
+    kInternalFieldCount = std::max<uint32_t>(
+        HandleWrap::kInternalFieldCount, HistogramImpl::kInternalFieldCount),
+  };
+
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      Environment* env);
+
+  static BaseObjectPtr<ELDNativeHistogram> Create(Environment* env);
+
+  ELDNativeHistogram(Environment* env, v8::Local<v8::Object> wrap);
+
+  static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  static void FastStart(v8::Local<v8::Value> receiver, bool reset);
+  static void FastStop(v8::Local<v8::Value> receiver);
+
+  BaseObject::TransferMode GetTransferMode() const override {
+    return TransferMode::kCloneable;
+  }
+  std::unique_ptr<worker::TransferData> CloneForMessaging() const override;
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(ELDNativeHistogram)
+  SET_SELF_SIZE(ELDNativeHistogram)
+
+ private:
+  static void CheckCB(uv_check_t* handle);
+  void OnStart(bool reset);
+  void OnStop();
+
+  bool enabled_ = false;
+  uint64_t prev_hrtime_ = 0;
+  uint64_t prev_idle_time_ = 0;
+  uv_check_t check_;
+
+  static v8::CFunction fast_start_;
+  static v8::CFunction fast_stop_;
+};
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
