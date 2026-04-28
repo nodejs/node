@@ -2,7 +2,7 @@
 
 A class that handles redirection logic for HTTP requests.
 
-## `new RedirectHandler(dispatch, maxRedirections, opts, handler, redirectionLimitReached)`
+## `new RedirectHandler(dispatch, maxRedirections, opts, handler)`
 
 Arguments:
 
@@ -10,7 +10,6 @@ Arguments:
 - **maxRedirections** `number` - Maximum number of redirections allowed.
 - **opts** `object` - Options for handling redirection.
 - **handler** `object` - An object containing handlers for different stages of the request lifecycle.
-- **redirectionLimitReached** `boolean` (default: `false`) - A flag that the implementer can provide to enable or disable the feature. If set to `false`, it indicates that the caller doesn't want to use the feature and prefers the old behavior.
 
 Returns: `RedirectHandler`
 
@@ -20,7 +19,6 @@ Returns: `RedirectHandler`
 - **maxRedirections** `number` (required) - Maximum number of redirections allowed.
 - **opts** `object` (required) - Options for handling redirection.
 - **handler** `object` (required) - Handlers for different stages of the request lifecycle.
-- **redirectionLimitReached** `boolean` (default: `false`) - A flag that the implementer can provide to enable or disable the feature. If set to `false`, it indicates that the caller doesn't want to use the feature and prefers the old behavior.
 
 ### Properties
 
@@ -30,7 +28,6 @@ Returns: `RedirectHandler`
 - **maxRedirections** `number` - Maximum number of redirections allowed.
 - **handler** `object` - Handlers for different stages of the request lifecycle.
 - **history** `Array` - An array representing the history of URLs during redirection.
-- **redirectionLimitReached** `boolean` - Indicates whether the redirection limit has been reached.
 
 ### Methods
 
