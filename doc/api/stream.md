@@ -3036,6 +3036,11 @@ first stream and reads from the last. Each provided stream is piped into
 the next, using `stream.pipeline`. If any of the streams error then all
 are destroyed, including the outer `Duplex` stream.
 
+When composing multiple streams, all must be `Duplex` streams (e.g. transforms).
+Each stream is piped to the next: the first receives writes, the last provides
+reads. When combining a write-only stream with a read-only stream (without
+piping them), use [`stream.Duplex.from({ writable, readable })`][] instead.
+
 Because `stream.compose` returns a new stream that in turn can (and
 should) be piped into other streams, it enables composition. In contrast,
 when passing streams to `stream.pipeline`, typically the first stream is
@@ -3069,15 +3074,17 @@ console.log(res); // prints 'HELLOWORLD'
 ```
 
 `stream.compose` can be used to convert async iterables, generators and
-functions into streams.
+functions into streams. The resulting streams are `Duplex` instances with
+configurable `readable` and `writable` options; when only one side is used,
+they are described as "readable Duplex" or "writable Duplex" accordingly.
 
-* `AsyncIterable` converts into a readable `Duplex`. Cannot yield
-  `null`.
+* `AsyncIterable` converts into a readable `Duplex` (readable side only).
+  Cannot yield `null`.
 * `AsyncGeneratorFunction` converts into a readable/writable transform `Duplex`.
   Must take a source `AsyncIterable` as first parameter. Cannot yield
   `null`.
-* `AsyncFunction` converts into a writable `Duplex`. Must return
-  either `null` or `undefined`.
+* `AsyncFunction` converts into a writable `Duplex` (writable side only).
+  Must return either `null` or `undefined`.
 
 ```mjs
 import { compose } from 'node:stream';
@@ -5075,6 +5082,7 @@ contain multi-byte characters.
 [`stream.Readable.from()`]: #streamreadablefromiterable-options
 [`stream.addAbortSignal()`]: #streamaddabortsignalsignal-stream
 [`stream.compose(...streams)`]: #streamcomposestreams
+[`stream.Duplex.from({ writable, readable })`]: #streamduplexfromsrc
 [`stream.cork()`]: #writablecork
 [`stream.duplexPair()`]: #streamduplexpairoptions
 [`stream.finished()`]: #streamfinishedstream-options-callback
