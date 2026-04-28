@@ -42,6 +42,7 @@
 #include "node_main_instance.h"
 #include "node_options.h"
 #include "node_perf_common.h"
+#include "node_profiling.h"
 #include "node_realm.h"
 #include "node_snapshotable.h"
 #include "permission/permission.h"

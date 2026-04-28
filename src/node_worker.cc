@@ -8,6 +8,7 @@
 #include "node_external_reference.h"
 #include "node_options-inl.h"
 #include "node_perf.h"
+#include "node_profiling.h"
 #include "node_snapshot_builder.h"
 #include "permission/permission.h"
 #include "util-inl.h"
