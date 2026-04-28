@@ -63,6 +63,16 @@ const EXPECTED_EVENTS = {
       }
     },
     {
+      name: 'eventSourceMessageReceived',
+      params: {
+        requestId: 'request-id-1',
+        timestamp: 1000,
+        eventName: 'message',
+        eventId: 'event-id-1',
+        data: 'hello world',
+      }
+    },
+    {
       name: 'dataReceived',
       // Network.dataReceived is buffered until Network.streamResourceContent/Network.getResponseBody is invoked.
       skip: true,

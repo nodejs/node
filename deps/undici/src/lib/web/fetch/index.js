@@ -11,8 +11,15 @@ const {
   getResponseState
 } = require('./response')
 const { HeadersList } = require('./headers')
-const { Request, cloneRequest, getRequestDispatcher, getRequestState } = require('./request')
+const {
+  Request,
+  cloneRequest,
+  getRequestDispatcher,
+  getRequestState,
+  kOriginalRequest
+} = require('./request')
 const zlib = require('node:zlib')
+const { channels } = require('../../core/diagnostics')
 const {
   makePolicyContainer,
   clonePolicyContainer,
@@ -57,9 +64,10 @@ const {
   subresourceSet
 } = require('./constants')
 const EE = require('node:events')
-const { Readable, pipeline, finished, isErrored, isReadable } = require('node:stream')
+const { Readable, Transform, pipeline, finished, isErrored, isReadable } = require('node:stream')
 const { addAbortListener, bufferToLowerCasedHeaderName } = require('../../core/util')
 const { dataURLProcessor, serializeAMimeType, minimizeSupportedMimeType } = require('./data-url')
+const { EventSourceStream } = require('../eventsource/eventsource-stream')
 const { getGlobalDispatcher } = require('../../global')
 const { webidl } = require('../webidl')
 const { STATUS_CODES } = require('node:http')
@@ -74,6 +82,45 @@ const defaultUserAgent = typeof __UNDICI_IS_NODE__ !== 'undefined' || typeof esb
 
 /** @type {import('buffer').resolveObjectURL} */
 let resolveObjectURL
+
+function createEventSourceMessageTransform (request) {
+  const originalRequest = request[kOriginalRequest] ?? request
+  const parser = new EventSourceStream({
+    eventSourceSettings: { lastEventId: '' },
+    push (event) {
+      if (event === null) {
+        return false
+      }
+      channels.fetchEventSourceMessage.publish({
+        request: originalRequest,
+        eventName: event.type,
+        eventId: event.options.lastEventId,
+        data: event.options.data
+      })
+      return true
+    }
+  })
+
+  let transform
+  transform = new Transform({
+    transform (chunk, encoding, callback) {
+      parser.write(chunk, encoding, (err) => {
+        callback(err, chunk)
+      })
+    },
+    flush (callback) {
+      parser.end(callback)
+    },
+    destroy (err, callback) {
+      parser.destroy(err)
+      callback(err)
+    }
+  })
+
+  parser.on('error', (err) => transform.destroy(err))
+
+  return transform
+}
 
 class Fetch extends EE {
   constructor (dispatcher) {
@@ -2153,6 +2200,7 @@ async function httpNetworkFetch (
           method: request.method,
           body: agent.isMockActive ? request.body && (request.body.source || request.body.stream) : body,
           headers: request.headersList.entries,
+          fetchRequest: request[kOriginalRequest] ?? request,
           maxRedirections: 0,
           upgrade: request.mode === 'websocket' ? 'websocket' : undefined,
           ...(allowH2 === false ? { allowH2 } : null)
@@ -2213,6 +2261,7 @@ async function httpNetworkFetch (
               }
             }
             const location = headersList.get('location', true)
+            const mimeType = extractMimeType(headersList)
 
             this.body = new Readable({ read: () => controller.resume() })
 
@@ -2272,18 +2321,32 @@ async function httpNetworkFetch (
             }
 
             const onError = (err) => this.onResponseError(controller, err)
+            const originalRequest = request[kOriginalRequest] ?? request
+            const shouldPublishEventSourceMessages =
+              channels.fetchEventSourceMessage.hasSubscribers &&
+              originalRequest.eventSource !== true &&
+              mimeType !== 'failure' &&
+              mimeType.essence === 'text/event-stream'
+            const eventSourceMessageTransform = shouldPublishEventSourceMessages ?
+              createEventSourceMessageTransform(request) :
+              null
+            const responseBody = decoders.length || eventSourceMessageTransform ?
+              pipeline(
+                this.body,
+                ...decoders,
+                ...(eventSourceMessageTransform ? [eventSourceMessageTransform] : []),
+                (err) => {
+                  if (err) {
+                    this.onResponseError(controller, err)
+                  }
+                }).on('error', onError) :
+              this.body.on('error', onError)
 
             resolve({
               status,
               statusText,
               headersList,
-              body: decoders.length
-                ? pipeline(this.body, ...decoders, (err) => {
-                  if (err) {
-                    this.onResponseError(controller, err)
-                  }
-                }).on('error', onError)
-                : this.body.on('error', onError)
+              body: responseBody
             })
           },
 

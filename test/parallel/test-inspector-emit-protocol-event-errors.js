@@ -44,6 +44,17 @@ function networkResponse(overrides = {}) {
   };
 }
 
+function eventSourceMessageReceived(overrides = {}) {
+  return {
+    requestId: 'eventsource-id',
+    timestamp: 1000,
+    eventName: 'message',
+    eventId: 'event-id-1',
+    data: 'hello world',
+    ...overrides,
+  };
+}
+
 function loadingFailed(overrides = {}) {
   return {
     requestId: 'loading-failed-id',
@@ -220,6 +231,31 @@ const NETWORK_ERROR_CASES = [
       response: { ...networkResponse().response, headers: { host: 1 } },
     }),
     'Invalid header value in event',
+  ],
+  [
+    'eventSourceMessageReceived',
+    omit(eventSourceMessageReceived(), 'requestId'),
+    'Missing requestId in event',
+  ],
+  [
+    'eventSourceMessageReceived',
+    omit(eventSourceMessageReceived(), 'timestamp'),
+    'Missing timestamp in event',
+  ],
+  [
+    'eventSourceMessageReceived',
+    omit(eventSourceMessageReceived(), 'eventName'),
+    'Missing eventName in event',
+  ],
+  [
+    'eventSourceMessageReceived',
+    omit(eventSourceMessageReceived(), 'eventId'),
+    'Missing eventId in event',
+  ],
+  [
+    'eventSourceMessageReceived',
+    omit(eventSourceMessageReceived(), 'data'),
+    'Missing data in event',
   ],
 
   [
@@ -485,6 +521,9 @@ function startRequest(requestId) {
   await session.post('DOMStorage.enable');
 
   for (const [name, params, message] of NETWORK_ERROR_CASES) {
+    if (name === 'eventSourceMessageReceived' && params.requestId) {
+      startRequest(params.requestId);
+    }
     assertEventErrors('Network', name, params, message);
   }
 
