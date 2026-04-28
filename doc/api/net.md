@@ -1982,12 +1982,13 @@ added: v0.3.0
 * `input` {string}
 * Returns: {integer}
 
-Returns `6` if `input` is an IPv6 address. Returns `4` if `input` is an IPv4
-address in [dot-decimal notation][] with no leading zeroes. Otherwise, returns
-`0`.
+Returns `6` if `input` is an IPv6 address or an IPv4 address mapped to IPv6.
+Returns `4` if `input` is an IPv4 address in [dot-decimal notation][] with no
+leading zeroes. Otherwise, returns `0`.
 
 ```js
 net.isIP('::1'); // returns 6
+net.isIP('::ffff:127.0.0.1'); // returns 6
 net.isIP('127.0.0.1'); // returns 4
 net.isIP('127.000.000.001'); // returns 0
 net.isIP('127.0.0.1/24'); // returns 0
@@ -2022,10 +2023,12 @@ added: v0.3.0
 * `input` {string}
 * Returns: {boolean}
 
-Returns `true` if `input` is an IPv6 address. Otherwise, returns `false`.
+Returns `true` if `input` is an IPv6 address or an IPv4 address mapped to IPv6.
+Otherwise, returns `false`.
 
 ```js
 net.isIPv6('::1'); // returns true
+net.isIPv6('::ffff:127.0.0.1'); // returns true
 net.isIPv6('fhqwhgads'); // returns false
 ```
 
