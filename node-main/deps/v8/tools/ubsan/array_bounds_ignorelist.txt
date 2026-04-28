@@ -1,0 +1,25 @@
+#!special-case-list-v2
+
+#############################################################################
+# UBSan ignorelist.
+# Documentation: https://clang.llvm.org/docs/SanitizerSpecialCaseList.html
+
+# This exists to remove instrumentation from the (usually) defaulted
+# compiler config that enables `-fsanitize=array-bounds` in Chromium.
+# See also: https://crbug.com/386992829
+
+#############################################################################
+# V8
+#
+# These entries should be kept in sync with the corresponding section
+# of the same file in Chromium.
+#
+# Please link or file a tracking bug to discuss & document a new
+# exception. Use the following format for all entries:
+#
+# # https://crbug.com/NNNNNN
+# type:v8::something::to::Exclude
+
+# SmallVector<T>
+# See also: https://crbug.com/429783018
+type:v8::base::SmallVector*

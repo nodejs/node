@@ -1,0 +1,26 @@
+name: 🚀 Feature request
+description: Suggest an idea for this project
+labels: [feature request]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting an idea to make Node.js better.
+
+        Please fill in as much of the following form as you're able.
+
+        For more information on how the project manages feature
+        requests, see [Feature request management](https://github.com/nodejs/node/blob/HEAD/doc/contributing/feature-request-management.md).
+  - type: textarea
+    attributes:
+      label: What is the problem this feature will solve?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: What is the feature you are proposing to solve the problem?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: What alternatives have you considered?

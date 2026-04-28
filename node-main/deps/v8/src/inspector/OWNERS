@@ -1,0 +1,9 @@
+bmeurer@chromium.org
+caseq@chromium.org
+kimanh@chromium.org
+leese@chromium.org
+pfaffe@chromium.org
+szuend@chromium.org
+yangguo@chromium.org
+
+per-file PRESUBMIT.py=file:../../INFRA_OWNERS

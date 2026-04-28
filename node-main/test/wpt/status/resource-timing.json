@@ -1,0 +1,38 @@
+{
+  "cors-preflight.any.js": {
+    "skip": "Browser-specific test"
+  },
+  "resource_nested_dedicated_worker.worker.js": {
+    "skip": "Browser-specific test"
+  },
+  "resource_timing.worker.js": {
+    "skip": "Browser-specific test"
+  },
+  "sizes-cache.any.js": {
+    "skip": "Browser-specific test"
+  },
+  "sizes-redirect.any.js": {
+    "skip": "Browser-specific test"
+  },
+  "supported_resource_type.any.js": {
+    "skip": "Browser-specific test"
+  },
+  "buffered-flag.any.js": {
+    "skip": "Browser-specific test"
+  },
+  "idlharness.any.js": {
+    "fail": {
+      "expected": [
+        "PerformanceResourceTiming interface: attribute firstInterimResponseStart",
+        "PerformanceResourceTiming interface: attribute finalResponseHeadersStart",
+        "PerformanceResourceTiming interface: resource must inherit property \"finalResponseHeadersStart\" with the proper type",
+        "PerformanceResourceTiming interface: attribute renderBlockingStatus",
+        "PerformanceResourceTiming interface: attribute contentType",
+        "PerformanceResourceTiming interface: resource must inherit property \"firstInterimResponseStart\" with the proper type",
+        "PerformanceResourceTiming interface: resource must inherit property \"renderBlockingStatus\" with the proper type",
+        "PerformanceResourceTiming interface: resource must inherit property \"contentType\" with the proper type",
+        "PerformanceResourceTiming interface: default toJSON operation on resource"
+      ]
+    }
+  }
+}
