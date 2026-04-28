@@ -115,6 +115,27 @@ for (const { input, expected } of normalizeDeviceNameTests) {
                      `path.win32.normalize(${JSON.stringify(input)}) === ${JSON.stringify(expected)}, but got ${JSON.stringify(actual)}`);
 }
 
+const normalizeReservedDeviceRootTests = [
+  { input: '\\\\.\\CON', expected: '\\\\.\\CON' },
+  { input: '\\\\?\\PRN', expected: '\\\\?\\PRN' },
+  { input: '\\\\.\\AUX\\file.txt', expected: '\\\\.\\AUX\\file.txt' },
+  { input: '\\\\?\\COM1/folder/file', expected: '\\\\?\\COM1\\folder\\file' },
+  { input: '\\\\.\\CON\\file:ADS', expected: '\\\\.\\CON\\file:ADS' },
+  { input: '\\\\?\\PRN\\data:stream', expected: '\\\\?\\PRN\\data:stream' },
+  { input: '\\\\.\\CON-prefix', expected: '\\\\.\\CON-prefix' },
+  { input: '\\\\?\\PRN-suffix', expected: '\\\\?\\PRN-suffix' },
+  { input: '\\\\.\\NOT_A_DEVICE', expected: '\\\\.\\NOT_A_DEVICE' },
+];
+
+for (const { input, expected } of normalizeReservedDeviceRootTests) {
+  const actual = path.win32.normalize(input);
+  assert.strictEqual(
+    actual,
+    expected,
+    `path.win32.normalize(${JSON.stringify(input)}) === ${JSON.stringify(expected)}, but got ${JSON.stringify(actual)}`
+  );
+}
+
 assert.strictEqual(path.win32.normalize('CON:foo/../bar'), '.\\CON:bar');
 
 // This should NOT be prefixed because 'c:' is treated as a drive letter.
