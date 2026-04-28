@@ -440,19 +440,39 @@ function parseHeaders (headers, obj) {
     const key = headerNameToString(headers[i])
     let val = obj[key]
 
-    if (val) {
-      if (typeof val === 'string') {
-        val = [val]
-        obj[key] = val
-      }
-      val.push(headers[i + 1].toString('latin1'))
-    } else {
-      const headersValue = headers[i + 1]
-      if (typeof headersValue === 'string') {
-        obj[key] = headersValue
+    if (val !== undefined) {
+      if (!Object.hasOwn(obj, key)) {
+        const headersValue = typeof headers[i + 1] === 'string'
+          ? headers[i + 1]
+          : Array.isArray(headers[i + 1])
+            ? headers[i + 1].map(x => x.toString('latin1'))
+            : headers[i + 1].toString('latin1')
+
+        if (key === '__proto__') {
+          Object.defineProperty(obj, key, {
+            value: headersValue,
+            enumerable: true,
+            configurable: true,
+            writable: true
+          })
+        } else {
+          obj[key] = headersValue
+        }
       } else {
-        obj[key] = Array.isArray(headersValue) ? headersValue.map(x => x.toString('latin1')) : headersValue.toString('latin1')
+        if (typeof val === 'string') {
+          val = [val]
+          obj[key] = val
+        }
+        val.push(headers[i + 1].toString('latin1'))
       }
+    } else {
+      const headersValue = typeof headers[i + 1] === 'string'
+        ? headers[i + 1]
+        : Array.isArray(headers[i + 1])
+          ? headers[i + 1].map(x => x.toString('latin1'))
+          : headers[i + 1].toString('latin1')
+
+      obj[key] = headersValue
     }
   }
 

@@ -6,7 +6,8 @@ const {
   kMockAgent,
   kOriginalDispatch,
   kOrigin,
-  kGetNetConnect
+  kGetNetConnect,
+  kTotalDispatchCount
 } = require('./mock-symbols')
 const { serializePathWithQuery } = require('../core/util')
 const { STATUS_CODES } = require('node:http')
@@ -206,6 +207,8 @@ function addMockDispatch (mockDispatches, key, data, opts) {
   const replyData = typeof data === 'function' ? { callback: data } : { ...data }
   const newMockDispatch = { ...baseData, ...key, pending: true, data: { error: null, ...replyData } }
   mockDispatches.push(newMockDispatch)
+  // Track total number of intercepts ever registered for better error messages
+  mockDispatches[kTotalDispatchCount] = (mockDispatches[kTotalDispatchCount] || 0) + 1
   return newMockDispatch
 }
 
@@ -401,13 +404,16 @@ function buildMockDispatch () {
       } catch (error) {
         if (error.code === 'UND_MOCK_ERR_MOCK_NOT_MATCHED') {
           const netConnect = agent[kGetNetConnect]()
+          const totalInterceptsCount = this[kDispatches][kTotalDispatchCount] || this[kDispatches].length
+          const pendingInterceptsCount = this[kDispatches].filter(({ consumed }) => !consumed).length
+          const interceptsMessage = `, ${pendingInterceptsCount} interceptor(s) remaining out of ${totalInterceptsCount} defined`
           if (netConnect === false) {
-            throw new MockNotMatchedError(`${error.message}: subsequent request to origin ${origin} was not allowed (net.connect disabled)`)
+            throw new MockNotMatchedError(`${error.message}: subsequent request to origin ${origin} was not allowed (net.connect disabled)${interceptsMessage}`)
           }
           if (checkNetConnect(netConnect, origin)) {
             originalDispatch.call(this, opts, handler)
           } else {
-            throw new MockNotMatchedError(`${error.message}: subsequent request to origin ${origin} was not allowed (net.connect is not enabled for this origin)`)
+            throw new MockNotMatchedError(`${error.message}: subsequent request to origin ${origin} was not allowed (net.connect is not enabled for this origin)${interceptsMessage}`)
           }
         } else {
           throw error

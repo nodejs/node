@@ -2,7 +2,7 @@
 
 // Called from .github/workflows
 
-const generateReleaseNotes = async ({ github, owner, repo, versionTag, commitHash }) => {
+const generateReleaseNotes = async ({ github, owner, repo, versionTag, releaseBranch, commitHash }) => {
   const { data: releases } = await github.rest.repos.listReleases({
     owner,
     repo
@@ -14,7 +14,7 @@ const generateReleaseNotes = async ({ github, owner, repo, versionTag, commitHas
     owner,
     repo,
     tag_name: versionTag,
-    target_commitish: commitHash,
+    target_commitish: commitHash ?? releaseBranch,
     previous_tag_name: previousRelease?.tag_name
   })
 
@@ -25,33 +25,35 @@ const generateReleaseNotes = async ({ github, owner, repo, versionTag, commitHas
   return bodyWithoutReleasePr
 }
 
-const generatePr = async ({ github, context, defaultBranch, versionTag, commitHash }) => {
+const generatePr = async ({ github, context, releaseBranch, versionTag, commitHash }) => {
   const { owner, repo } = context.repo
-  const releaseNotes = await generateReleaseNotes({ github, owner, repo, versionTag, commitHash })
+  const releaseNotes = await generateReleaseNotes({ github, owner, repo, versionTag, releaseBranch, commitHash })
 
   await github.rest.pulls.create({
     owner,
     repo,
     head: `release/${versionTag}`,
-    base: defaultBranch,
+    base: releaseBranch,
     title: `[Release] ${versionTag}`,
     body: releaseNotes
   })
 }
 
-const release = async ({ github, context, versionTag, commitHash }) => {
+const release = async ({ github, context, releaseBranch, versionTag, commitHash }) => {
   const { owner, repo } = context.repo
-  const releaseNotes = await generateReleaseNotes({ github, owner, repo, versionTag, commitHash })
+  const releaseNotes = await generateReleaseNotes({ github, owner, repo, versionTag, releaseBranch, commitHash })
+  const makeLatest = releaseBranch === 'v7.x' ? 'false' : 'legacy'
 
   await github.rest.repos.createRelease({
     owner,
     repo,
     tag_name: versionTag,
-    target_commitish: commitHash,
+    target_commitish: commitHash ?? releaseBranch,
     name: versionTag,
     body: releaseNotes,
     draft: false,
     prerelease: false,
+    make_latest: makeLatest,
     generate_release_notes: false
   })
 
