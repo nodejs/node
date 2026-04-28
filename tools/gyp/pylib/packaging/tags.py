@@ -127,10 +127,8 @@ def _normalize_string(string: str) -> str:
 def _abi3_applies(python_version: PythonVersion) -> bool:
     """
     Determine if the Python version supports abi3.
-
-    PEP 384 was first implemented in Python 3.2.
     """
-    return len(python_version) > 1 and tuple(python_version) >= (3, 2)
+    return len(python_version) > 1
 
 
 def _cpython_abis(py_version: PythonVersion, warn: bool = False) -> List[str]:
@@ -146,17 +144,7 @@ def _cpython_abis(py_version: PythonVersion, warn: bool = False) -> List[str]:
     has_ext = "_d.pyd" in EXTENSION_SUFFIXES
     if with_debug or (with_debug is None and (has_refcount or has_ext)):
         debug = "d"
-    if py_version < (3, 8):
-        with_pymalloc = _get_config_var("WITH_PYMALLOC", warn)
-        if with_pymalloc or with_pymalloc is None:
-            pymalloc = "m"
-        if py_version < (3, 3):
-            unicode_size = _get_config_var("Py_UNICODE_SIZE", warn)
-            if unicode_size == 4 or (
-                unicode_size is None and sys.maxunicode == 0x10FFFF
-            ):
-                ucs4 = "u"
-    elif debug:
+    if debug:
         # Debug builds can also load "normal" extension modules.
         # We can also assume no UCS-4 or pymalloc requirement.
         abis.append(f"cp{version}")
