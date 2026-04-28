@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.34.7](https://github.com/nodejs/corepack/compare/v0.34.6...v0.34.7) (2026-04-17)
+
+
+### Bug Fixes
+
+* update package manager versions ([#790](https://github.com/nodejs/corepack/issues/790)) ([e8961d6](https://github.com/nodejs/corepack/commit/e8961d6bdc14b8141fbda008febdd3649022862c))
+
 ## [0.34.6](https://github.com/nodejs/corepack/compare/v0.34.5...v0.34.6) (2026-01-23)
 
 
