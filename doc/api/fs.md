@@ -7960,7 +7960,8 @@ added:
 
 * Type: {number|bigint}
 
-Free blocks available to unprivileged users.
+Free blocks available to unprivileged users. Multiply by `statfs.bsize`
+to get the value in bytes.
 
 #### `statfs.bfree`
 
@@ -7972,7 +7973,9 @@ added:
 
 * Type: {number|bigint}
 
-Free blocks in file system.
+Free blocks in file system. This includes blocks reserved for the
+superuser that are not reported by `statfs.bavail`. Multiply by
+`statfs.bsize` to get the value in bytes.
 
 #### `statfs.blocks`
 
@@ -7984,7 +7987,8 @@ added:
 
 * Type: {number|bigint}
 
-Total data blocks in file system.
+Total data blocks in file system. Multiply by `statfs.bsize` to get
+the total size in bytes.
 
 #### `statfs.bsize`
 
@@ -7996,7 +8000,8 @@ added:
 
 * Type: {number|bigint}
 
-Optimal transfer block size.
+Optimal transfer block size in bytes. This value is also the unit for
+the `statfs.blocks`, `statfs.bfree`, and `statfs.bavail` fields.
 
 #### `statfs.frsize`
 
@@ -8018,7 +8023,7 @@ added:
 
 * Type: {number|bigint}
 
-Free file nodes in file system.
+Free file nodes (inodes) in file system.
 
 #### `statfs.files`
 
@@ -8030,7 +8035,7 @@ added:
 
 * Type: {number|bigint}
 
-Total file nodes in file system.
+Total file nodes (inodes) in file system.
 
 #### `statfs.type`
 
@@ -8042,7 +8047,11 @@ added:
 
 * Type: {number|bigint}
 
-Type of file system.
+File system type as a numeric identifier. On Linux this is the
+file system magic number (e.g. `0xef53` for ext2/ext3/ext4,
+`0x01021994` for tmpfs). On other platforms the value is
+OS-dependent. See the `statfs(2)` man page on Linux or `statfs(2)`
+on macOS for platform-specific values.
 
 ### Class: `fs.Utf8Stream`
 
