@@ -2712,7 +2712,7 @@ bool StatementSync::BindValue(const Local<Value>& value, const int index) {
                               SQLITE_TRANSIENT,
                               SQLITE_UTF8);
     }
-  } else if (value->IsNull()) {
+  } else if (value->IsNull() || value->IsUndefined()) {
     r = sqlite3_bind_null(statement_, index);
   } else if (value->IsArrayBufferView()) {
     ArrayBufferViewContents<uint8_t> buf(value);
