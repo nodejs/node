@@ -1416,17 +1416,14 @@ port2.postMessage(new Foo());
 // Prints: { c: 3 }
 ```
 
-This limitation extends to many built-in objects, such as the global `URL`
-object:
+Some built-in objects cannot be cloned at all. For example, posting a
+`URL` object throws a `DataCloneError`:
 
 ```js
 const { port1, port2 } = new MessageChannel();
 
-port1.onmessage = ({ data }) => console.log(data);
-
 port2.postMessage(new URL('https://example.org'));
-
-// Prints: { }
+// Throws DataCloneError: Cannot clone object of unsupported type.
 ```
 
 ### `port.hasRef()`
