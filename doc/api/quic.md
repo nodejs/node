@@ -1198,7 +1198,7 @@ True to enable TLS keylogging output.
 <!-- YAML
 added: v23.8.0
 changes:
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/62335
     description: CryptoKey is no longer accepted.
 -->

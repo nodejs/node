@@ -709,7 +709,7 @@ npx codemod@latest @nodejs/repl-builtin-modules
 <!-- YAML
 added: v0.1.91
 changes:
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/62188
     description: The `handleError` parameter has been added.
   - version: v24.1.0
