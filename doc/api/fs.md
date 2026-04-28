@@ -7960,7 +7960,26 @@ added:
 
 * Type: {number|bigint}
 
-Free blocks available to unprivileged users.
+Free blocks available to unprivileged users. Multiply by [`statfs.bsize`][]
+to get the number of available bytes.
+
+```mjs
+import { statfs } from 'node:fs/promises';
+
+const stats = await statfs('/');
+const availableBytes = stats.bsize * stats.bavail;
+console.log(`Available space: ${availableBytes} bytes`);
+```
+
+```cjs
+const { statfs } = require('node:fs/promises');
+
+(async () => {
+  const stats = await statfs('/');
+  const availableBytes = stats.bsize * stats.bavail;
+  console.log(`Available space: ${availableBytes} bytes`);
+})();
+```
 
 #### `statfs.bfree`
 
@@ -7972,7 +7991,26 @@ added:
 
 * Type: {number|bigint}
 
-Free blocks in file system.
+Free blocks in file system. Multiply by [`statfs.bsize`][] to get the number
+of free bytes.
+
+```mjs
+import { statfs } from 'node:fs/promises';
+
+const stats = await statfs('/');
+const freeBytes = stats.bsize * stats.bfree;
+console.log(`Free space: ${freeBytes} bytes`);
+```
+
+```cjs
+const { statfs } = require('node:fs/promises');
+
+(async () => {
+  const stats = await statfs('/');
+  const freeBytes = stats.bsize * stats.bfree;
+  console.log(`Free space: ${freeBytes} bytes`);
+})();
+```
 
 #### `statfs.blocks`
 
@@ -7984,7 +8022,26 @@ added:
 
 * Type: {number|bigint}
 
-Total data blocks in file system.
+Total data blocks in file system. Multiply by [`statfs.bsize`][] to get the
+total size in bytes.
+
+```mjs
+import { statfs } from 'node:fs/promises';
+
+const stats = await statfs('/');
+const totalBytes = stats.bsize * stats.blocks;
+console.log(`Total space: ${totalBytes} bytes`);
+```
+
+```cjs
+const { statfs } = require('node:fs/promises');
+
+(async () => {
+  const stats = await statfs('/');
+  const totalBytes = stats.bsize * stats.blocks;
+  console.log(`Total space: ${totalBytes} bytes`);
+})();
+```
 
 #### `statfs.bsize`
 
@@ -7996,7 +8053,7 @@ added:
 
 * Type: {number|bigint}
 
-Optimal transfer block size.
+Optimal transfer block size in bytes.
 
 #### `statfs.frsize`
 
@@ -8042,7 +8099,11 @@ added:
 
 * Type: {number|bigint}
 
-Type of file system.
+Type of file system. A platform-specific numeric identifier for the type of
+file system. This value corresponds to the `f_type` field returned by
+`statfs(2)` on POSIX systems (for example, `0xEF53` for ext4 on Linux). Its
+meaning is OS-dependent and is not guaranteed to be consistent across
+platforms.
 
 ### Class: `fs.Utf8Stream`
 
@@ -9091,6 +9152,7 @@ the file contents.
 [`fsPromises.rm()`]: #fspromisesrmpath-options
 [`fsPromises.stat()`]: #fspromisesstatpath-options
 [`fsPromises.utimes()`]: #fspromisesutimespath-atime-mtime
+[`statfs.bsize`]: #statfsbsize
 [`inotify(7)`]: https://man7.org/linux/man-pages/man7/inotify.7.html
 [`kqueue(2)`]: https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2
 [`minimatch`]: https://github.com/isaacs/minimatch
