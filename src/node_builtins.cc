@@ -139,7 +139,10 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
 #ifndef OPENSSL_NO_QUIC
         "internal/quic/quic", "internal/quic/symbols", "internal/quic/stats",
         "internal/quic/state",
-#endif                  // !OPENSSL_NO_QUIC
+#endif  // !OPENSSL_NO_QUIC
+#if !HAVE_FFI
+        "internal/ffi-shared-buffer",
+#endif                  // !HAVE_FFI
         "ffi",          // Experimental.
         "quic",         // Experimental.
         "sqlite",       // Experimental.

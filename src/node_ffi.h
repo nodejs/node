@@ -25,11 +25,14 @@ struct FFIFunction {
   ffi_cif cif;
   std::vector<ffi_type*> args;
   ffi_type* return_type;
+  std::vector<std::string> arg_type_names;
+  std::string return_type_name;
 };
 
 struct FFIFunctionInfo {
   std::shared_ptr<FFIFunction> fn;
   v8::Global<v8::Function> self;
+  std::shared_ptr<v8::BackingStore> sb_backing;
 };
 
 struct FFICallback {
@@ -75,6 +78,7 @@ class DynamicLibrary : public BaseObject {
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void InvokeFunction(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void InvokeFunctionSB(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void InvokeCallback(ffi_cif* cif,
                              void* ret,
                              void** args,

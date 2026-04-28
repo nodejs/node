@@ -95,9 +95,6 @@ Maybe<FunctionSignature> ParseFunctionSignature(Environment* env,
   bool has_parameters;
   bool has_arguments;
 
-  ffi_type* return_type;
-  std::vector<ffi_type*> args;
-
   if (!signature->Has(context, returns_key).To(&has_returns) ||
       !signature->Has(context, return_key).To(&has_return) ||
       !signature->Has(context, result_key).To(&has_result) ||
@@ -125,7 +122,10 @@ Maybe<FunctionSignature> ParseFunctionSignature(Environment* env,
     return {};
   }
 
-  return_type = &ffi_type_void;
+  ffi_type* return_type = &ffi_type_void;
+  std::vector<ffi_type*> args;
+  std::string return_type_name = "void";
+  std::vector<std::string> arg_type_names;
 
   Isolate* isolate = env->isolate();
   if (has_returns || has_return || has_result) {
@@ -159,6 +159,7 @@ Maybe<FunctionSignature> ParseFunctionSignature(Environment* env,
     if (!ToFFIType(env, return_type_str.ToStringView()).To(&return_type)) {
       return {};
     }
+    return_type_name = return_type_str.ToString();
   }
 
   if (has_arguments || has_parameters) {
@@ -203,10 +204,14 @@ Maybe<FunctionSignature> ParseFunctionSignature(Environment* env,
       }
 
       args.push_back(arg_type);
+      arg_type_names.emplace_back(arg_str.ToString());
     }
   }
 
-  return Just(FunctionSignature{return_type, std::move(args)});
+  return Just(FunctionSignature{return_type,
+                                std::move(args),
+                                std::move(return_type_name),
+                                std::move(arg_type_names)});
 }
 
 bool SignaturesMatch(const FFIFunction& fn,
@@ -223,6 +228,102 @@ bool SignaturesMatch(const FFIFunction& fn,
   }
 
   return true;
+}
+
+bool IsSBEligibleFFIType(ffi_type* type) {
+  return type == &ffi_type_void || type == &ffi_type_sint8 ||
+         type == &ffi_type_uint8 || type == &ffi_type_sint16 ||
+         type == &ffi_type_uint16 || type == &ffi_type_sint32 ||
+         type == &ffi_type_uint32 || type == &ffi_type_sint64 ||
+         type == &ffi_type_uint64 || type == &ffi_type_float ||
+         type == &ffi_type_double || type == &ffi_type_pointer;
+}
+
+bool IsSBEligibleSignature(const FFIFunction& fn) {
+  // The JS wrapper writes and reads the shared buffer little-endian while
+  // the C++ side uses memcpy in host order. On big-endian hosts these
+  // disagree, so the fast path is disabled there.
+  if constexpr (IsBigEndian()) {
+    return false;
+  }
+  // Zero-argument functions gain nothing from the shared-buffer path
+  // (no argument packing to skip) and measurably lose on tight native
+  // calls like `uv_os_getpid` due to the wrapper's fixed overhead.
+  if (fn.args.empty()) return false;
+  if (!IsSBEligibleFFIType(fn.return_type)) return false;
+  for (ffi_type* arg : fn.args) {
+    if (!IsSBEligibleFFIType(arg)) return false;
+  }
+  return true;
+}
+
+bool SignatureHasPointerArgs(const FFIFunction& fn) {
+  for (ffi_type* arg : fn.args) {
+    if (arg == &ffi_type_pointer) return true;
+  }
+  return false;
+}
+
+void ReadFFIArgFromBuffer(ffi_type* type,
+                          const uint8_t* buffer,
+                          size_t offset,
+                          void* out) {
+  CHECK(IsSBEligibleFFIType(type));
+  CHECK_LE(type->size, sizeof(uint64_t));
+  // memcpy avoids the strict-aliasing violation that a direct typed load
+  // from the raw uint8_t buffer would incur.
+  const uint8_t* src = buffer + offset;
+  std::memcpy(out, src, type->size);
+}
+
+void WriteFFIReturnToBuffer(ffi_type* type,
+                            const void* result,
+                            uint8_t* buffer,
+                            size_t offset) {
+  CHECK(IsSBEligibleFFIType(type));
+  uint8_t* dst = buffer + offset;
+  std::memset(dst, 0, 8);
+
+  if (type == &ffi_type_void) {
+    return;
+  }
+
+  // libffi promotes small integer return values to ffi_arg size, so these
+  // branches read as ffi_arg or ffi_sarg and then truncate back down.
+  if (type == &ffi_type_sint8) {
+    int8_t tmp = static_cast<int8_t>(*static_cast<const ffi_sarg*>(result));
+    std::memcpy(dst, &tmp, sizeof(tmp));
+    return;
+  }
+  if (type == &ffi_type_uint8) {
+    uint8_t tmp = static_cast<uint8_t>(*static_cast<const ffi_arg*>(result));
+    std::memcpy(dst, &tmp, sizeof(tmp));
+    return;
+  }
+  if (type == &ffi_type_sint16) {
+    int16_t tmp = static_cast<int16_t>(*static_cast<const ffi_sarg*>(result));
+    std::memcpy(dst, &tmp, sizeof(tmp));
+    return;
+  }
+  if (type == &ffi_type_uint16) {
+    uint16_t tmp = static_cast<uint16_t>(*static_cast<const ffi_arg*>(result));
+    std::memcpy(dst, &tmp, sizeof(tmp));
+    return;
+  }
+  if (type == &ffi_type_sint32) {
+    int32_t tmp = static_cast<int32_t>(*static_cast<const ffi_sarg*>(result));
+    std::memcpy(dst, &tmp, sizeof(tmp));
+    return;
+  }
+  if (type == &ffi_type_uint32) {
+    uint32_t tmp = static_cast<uint32_t>(*static_cast<const ffi_arg*>(result));
+    std::memcpy(dst, &tmp, sizeof(tmp));
+    return;
+  }
+
+  // Remaining SB-eligible types (sint64, uint64, float, double, pointer)
+  // are not promoted by libffi and can be copied as-is.
+  std::memcpy(dst, result, type->size);
 }
 
 v8::Maybe<ffi_type*> ToFFIType(Environment* env, std::string_view type_str) {
@@ -263,6 +364,10 @@ v8::Maybe<ffi_type*> ToFFIType(Environment* env, std::string_view type_str) {
   }
 }
 
+// The JS fast path in lib/internal/ffi-shared-buffer.js mirrors the
+// validation below. `writeNumericArg` matches the numeric branches and
+// `writePointerArg` matches the pointer-BigInt branch. Error codes and
+// messages must stay identical across all three sites.
 Maybe<FFIArgumentCategory> ToFFIArgument(Environment* env,
                                          unsigned int index,
                                          ffi_type* type,
@@ -363,8 +468,8 @@ Maybe<FFIArgumentCategory> ToFFIArgument(Environment* env,
     if (arg->IsNullOrUndefined()) {
       *static_cast<uint64_t*>(ret) = reinterpret_cast<uint64_t>(nullptr);
     } else if (arg->IsString()) {
-      // This will handled in Invoke so that we can free the copied string after
-      // the call
+      // String arguments are handled in Invoke so the UTF-8 copy can be
+      // freed after the call.
       return Just(FFIArgumentCategory::String);
     } else if (arg->IsArrayBufferView()) {
       // Pointer-like ArrayBufferView arguments borrow backing-store memory
@@ -453,12 +558,11 @@ Local<Value> ToJSArgument(Isolate* isolate, ffi_type* type, void* data) {
   } else if (type == &ffi_type_double) {
     ret = Number::New(isolate, *static_cast<double*>(data));
   } else if (type == &ffi_type_pointer) {
-    // All others are treated as pointer (and thus bigint), the user will use
-    // other helpers to convert
+    // Pointers surface as BigInt. Callers decode them further with the
+    // ffi helpers.
     ret = BigInt::NewFromUnsigned(
         isolate, reinterpret_cast<uint64_t>(*static_cast<void**>(data)));
   } else {
-    // For anything else, return undefined to avoid problems
     ret = Undefined(isolate);
   }
 
@@ -621,7 +725,9 @@ bool ToFFIReturnValue(Local<Value> result, ffi_type* type, void* ret) {
 
       *static_cast<uint64_t*>(ret) = pointer;
     } else {
-      // Note that strings, buffer or ArrayBuffer are ignored
+      // Strings, Buffers, and ArrayBuffers are not accepted as pointer
+      // return values from a JS callback. The slot is zeroed before the
+      // false return so the caller sees a defined null pointer.
       *static_cast<uint64_t*>(ret) = reinterpret_cast<uint64_t>(nullptr);
       return false;
     }
