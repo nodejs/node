@@ -8,6 +8,8 @@ const server = http2.createServer(common.mustCall((req, res) => {
   const hwm = req.socket.writableHighWaterMark;
   assert.strictEqual(res.writableHighWaterMark, hwm);
   assert.strictEqual(res.writableLength, 0);
+  assert.strictEqual(typeof res.writableObjectMode, 'boolean');
+  assert.strictEqual(typeof res.writableNeedDrain, 'boolean');
   res.write('');
   const len = res.writableLength;
   res.write('asd');
