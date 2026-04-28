@@ -20,7 +20,8 @@ const path = require('path');
     throw error;
   }
 
-  return cli.waitForInitialBreak()
+  return cli.waitForPrompt()
+    .then(() => cli.waitForInitialBreak())
     .then(() => cli.waitForPrompt())
     .then(() => cli.command('sb("break.js", 3)'))
     .then(() => cli.command('sb("break.js", 9)'))

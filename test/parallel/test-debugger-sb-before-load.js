@@ -20,6 +20,7 @@ const otherScript = path.relative(process.cwd(), otherScriptFullPath);
 const cli = startCLI([script]);
 
 (async () => {
+  await cli.waitForPrompt();
   await cli.waitForInitialBreak();
   await cli.waitForPrompt();
   await cli.command('sb("other.js", 2)');
