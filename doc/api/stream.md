@@ -1539,10 +1539,12 @@ reader.on('end', () => {
 });
 ```
 
-One important caveat is that if the `Readable` stream emits an error during
-processing, the `Writable` destination _is not closed_ automatically. If an
-error occurs, it will be necessary to _manually_ close each stream in order
-to prevent memory leaks.
+One important caveat is that if the `Readable` stream is destroyed or emits an
+error during processing, the `Writable` destination _is not closed_
+automatically. It will be necessary to _manually_ close each stream in order
+to prevent memory leaks. The [`stream.pipeline()`][] method should be used
+instead when automatic cleanup of all streams on error or completion is
+desired.
 
 The [`process.stderr`][] and [`process.stdout`][] `Writable` streams are never
 closed until the Node.js process exits, regardless of the specified options.
@@ -4285,19 +4287,19 @@ methods only.
 All `Readable` stream implementations must provide an implementation of the
 [`readable._read()`][] method to fetch data from the underlying resource.
 
-When [`readable._read()`][] is called, if data is available from the resource,
-the implementation should begin pushing that data into the read queue using the
-[`this.push(dataChunk)`][stream-push] method. `_read()` will be called again
-after each call to [`this.push(dataChunk)`][stream-push] once the stream is
-ready to accept more data. `_read()` may continue reading from the resource and
-pushing data until `readable.push()` returns `false`. Only when `_read()` is
-called again after it has stopped should it resume pushing additional data into
-the queue.
+When [`readable._read()`][] is called, the implementation should push data
+into the read queue using [`this.push(dataChunk)`][stream-push]. This can be
+done synchronously or asynchronously. The implementation may call
+[`this.push()`][stream-push] multiple times to supply data, but should stop
+when [`readable.push()`][stream-push] returns `false`, which indicates the
+internal buffer has reached the `highWaterMark`. Once the implementation stops
+pushing, it should only resume when [`readable._read()`][] is called again.
 
-Once the [`readable._read()`][] method has been called, it will not be called
-again until more data is pushed through the [`readable.push()`][stream-push]
-method. Empty data such as empty buffers and strings will not cause
-[`readable._read()`][] to be called.
+If data is not immediately available from the underlying resource, the
+implementation should call [`this.push()`][stream-push] later, when data
+becomes available. [`readable._read()`][] will not be called again until
+[`readable.push()`][stream-push] is called with non-empty data (a non-empty
+{Buffer}, non-empty {string}, or any value in object mode).
 
 The `size` argument is advisory. For implementations where a "read" is a
 single operation that returns data can use the `size` argument to determine how
