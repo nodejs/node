@@ -3818,16 +3818,43 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
           }
           auto symlink_target_absolute = std::filesystem::weakly_canonical(
               std::filesystem::absolute(src / symlink_target));
-          if (dir_entry.is_directory()) {
+          if (dereference) {
+            // When dereference is true, copy the actual content the symlink
+            // points to rather than creating a new symlink at the destination.
+            error.clear();
+            if (std::filesystem::is_directory(symlink_target_absolute, error)) {
+              std::filesystem::create_directory(dest_file_path, error);
+              if (error) {
+                env->ThrowStdErrException(error, "cp", dest_str.c_str());
+                return false;
+              }
+              auto success =
+                  copy_dir_contents(symlink_target_absolute, dest_file_path);
+              if (!success) return false;
+            } else {
+              error.clear();
+              std::filesystem::copy_file(
+                  symlink_target_absolute, dest_file_path, file_copy_opts,
+                  error);
+              if (error) {
+                env->ThrowStdErrException(error, "cp", dest_str.c_str());
+                return false;
+              }
+            }
+          } else if (dir_entry.is_directory()) {
             std::filesystem::create_directory_symlink(
                 symlink_target_absolute, dest_file_path, error);
+            if (error) {
+              env->ThrowStdErrException(error, "cp", dest_str.c_str());
+              return false;
+            }
           } else {
             std::filesystem::create_symlink(
                 symlink_target_absolute, dest_file_path, error);
-          }
-          if (error) {
-            env->ThrowStdErrException(error, "cp", dest_str.c_str());
-            return false;
+            if (error) {
+              env->ThrowStdErrException(error, "cp", dest_str.c_str());
+              return false;
+            }
           }
         }
       } else if (dir_entry.is_directory()) {
