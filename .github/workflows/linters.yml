@@ -149,7 +149,7 @@ jobs:
           persist-credentials: false
           sparse-checkout: '*.nix'
           sparse-checkout-cone-mode: false
-      - uses: cachix/install-nix-action@96951a368ba55167b55f1c916f7d416bac6505fe  # v31.10.3
+      - uses: cachix/install-nix-action@ab739621df7a23f52766f9ccc97f38da6b7af14f  # v31.10.5
       - name: Lint Nix files
         run: |
           nix-shell -I nixpkgs=./tools/nix/pkgs.nix -p 'nixfmt-tree' --run '
