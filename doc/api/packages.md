@@ -945,7 +945,92 @@ $ node other.js
 
 ## Dual CommonJS/ES module packages
 
-See [the package examples repository][] for details.
+Prior to the introduction of [`"exports"`][], authors of packages that support
+both CommonJS and ES modules typically used the `"import"` and `"require"`
+conditions. However, using these conditions can lead to the _dual package
+hazard_, where the same package may be loaded twice (once as CommonJS and once
+as an ES module), causing issues with package state and object identity.
+
+For example, given a package with the following `package.json`:
+
+```json
+{
+  "name": "my-package",
+  "exports": {
+    "import": "./index.mjs",
+    "require": "./index.cjs"
+  }
+}
+```
+
+If one dependency `require()`s `my-package` while another `import`s it, two
+separate copies of the package are loaded. Any state or objects exported by the
+package will not be shared between the two copies.
+
+### Approach 1: Use a single format with `default`
+
+The simplest way to avoid the dual package hazard is to pick one format and
+export it using the `"default"` condition:
+
+```json
+{
+  "name": "my-package",
+  "exports": {
+    "default": "./index.cjs"
+  }
+}
+```
+
+If the package uses CommonJS, non-Node.js environments will need to bundle it.
+Alternatively, an ES module entry point can be used:
+
+```json
+{
+  "name": "my-package",
+  "exports": {
+    "default": "./index.mjs"
+  }
+}
+```
+
+In this case, CommonJS consumers can only use the package in Node.js versions
+that support [`require()` of ES modules][]. ESM consumers can always `import`
+it regardless of the format.
+
+### Approach 2: Use `node` and `default` conditions
+
+If the package needs to provide different entry points for Node.js and other
+environments, use the `"node"` and `"default"` conditions instead of
+`"require"` and `"import"`:
+
+```json
+{
+  "name": "my-package",
+  "exports": {
+    "node": "./index.cjs",
+    "default": "./index.mjs"
+  }
+}
+```
+
+With this configuration:
+
+* Node.js always loads the CommonJS version, regardless of whether the package
+  is `require()`d or `import`ed, avoiding the dual package hazard.
+* Other environments (such as browsers or bundlers configured for non-Node.js
+  targets) use the ES module version via the `"default"` condition.
+* Bundlers configured to target Node.js use the `"node"` condition.
+
+This approach ensures there is only one copy of the package loaded per
+environment, while still allowing non-Node.js environments to benefit from
+ES modules.
+
+### Approach 3: Isolate state in a CommonJS wrapper
+
+If the package must provide both true ESM and CJS entry points in Node.js (for
+example, to allow ESM consumers to use top-level `await`), the stateful parts
+can be isolated in a CommonJS module that is shared by both entry points. See
+[the package examples repository][] for details.
 
 ## Node.js `package.json` field definitions
 
@@ -1181,6 +1266,7 @@ This field defines [subpath imports][] for the current package.
 [`ERR_PACKAGE_PATH_NOT_EXPORTED`]: errors.md#err_package_path_not_exported
 [`ERR_UNKNOWN_FILE_EXTENSION`]: errors.md#err_unknown_file_extension
 [`package.json`]: #nodejs-packagejson-field-definitions
+[`require()` of ES modules]: modules.md#loading-ecmascript-modules-using-require
 [customization hooks]: module.md#customization-hooks
 [entry points]: #package-entry-points
 [folders as modules]: modules.md#folders-as-modules
