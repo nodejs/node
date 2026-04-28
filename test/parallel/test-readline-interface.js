@@ -1271,6 +1271,58 @@ for (let i = 0; i < 12; i++) {
     }
   }
 
+  // Do not paint the configured prompt on refresh until prompt() is called.
+  // https://github.com/nodejs/node/issues/12606
+  if (terminal) {
+    const fi = new FakeInput();
+    fi.isTTY = true;
+    fi.columns = 80;
+    const output = [];
+    fi.write = (chunk) => {
+      output.push(chunk.toString());
+      return true;
+    };
+
+    const rli = readline.createInterface({
+      input: fi,
+      output: fi,
+      terminal: true,
+    });
+
+    rli.write('a');
+    output.length = 0;
+    rli.write(undefined, { name: 'backspace' });
+    assert.strictEqual(output.join('').includes('> '), false);
+    rli.close();
+  }
+
+  // gh-12606: redraw each new line by calling `prompt()` from `'line'` (REPL pattern).
+  if (terminal) {
+    const fi = new FakeInput();
+    fi.isTTY = true;
+    fi.columns = 80;
+    const output = [];
+    fi.write = (chunk) => {
+      output.push(chunk.toString());
+      return true;
+    };
+
+    const rli = readline.createInterface({
+      input: fi,
+      output: fi,
+      terminal: true,
+    });
+
+    rli.prompt(false);
+    rli.on('line', () => {
+      rli.prompt(false);
+    });
+    output.length = 0;
+    fi.emit('data', 'x\n');
+    assert.strictEqual(output.join('').includes('> '), true);
+    rli.close();
+  }
+
   {
     const expected = terminal ?
       ['\u001b[1G', '\u001b[0J', '$ ', '\u001b[3G'] :

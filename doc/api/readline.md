@@ -321,6 +321,10 @@ location at which to provide input.
 When called, `rl.prompt()` will resume the `input` stream if it has been
 paused.
 
+To show the prompt on each new line of input, call `rl.prompt()` from your
+`'line'` event listener (the built-in REPL does this after evaluating each
+line).
+
 If the `InterfaceConstructor` was created with `output` set to `null` or
 `undefined` the prompt is not written.
 
@@ -710,6 +714,9 @@ added: v17.0.0
     to the history list duplicates an older one, this removes the older line
     from the list. **Default:** `false`.
   * `prompt` {string} The prompt string to use. **Default:** `'> '`.
+    For TTY interfaces, the default prompt is not written when the line is
+    redrawn until `rl.prompt()` has been called at least once (see
+    [`rl.prompt()`][]). A non-default `prompt` is written on redraw as before.
   * `crlfDelay` {number} If the delay between `\r` and `\n` exceeds
     `crlfDelay` milliseconds, both `\r` and `\n` will be treated as separate
     end-of-line input. `crlfDelay` will be coerced to a number no less than
@@ -975,6 +982,9 @@ changes:
     to the history list duplicates an older one, this removes the older line
     from the list. **Default:** `false`.
   * `prompt` {string} The prompt string to use. **Default:** `'> '`.
+    For TTY interfaces, the default prompt is not written when the line is
+    redrawn until `rl.prompt()` has been called at least once (see
+    [`rl.prompt()`][]). A non-default `prompt` is written on redraw as before.
   * `crlfDelay` {number} If the delay between `\r` and `\n` exceeds
     `crlfDelay` milliseconds, both `\r` and `\n` will be treated as separate
     end-of-line input. `crlfDelay` will be coerced to a number no less than
@@ -1492,4 +1502,5 @@ const { createInterface } = require('node:readline');
 [`process.stdin`]: process.md#processstdin
 [`process.stdout`]: process.md#processstdout
 [`rl.close()`]: #rlclose
+[`rl.prompt()`]: #rlpromptpreservecursor
 [reading files]: #example-read-file-stream-line-by-line
