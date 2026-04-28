@@ -42,7 +42,7 @@ assert.throws(
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "groups[0]" argument must be ' +
+      message: 'The "groups[0]" property must be ' +
                'one of type number or string.' +
                common.invalidArgTypeHelper(val)
     }
