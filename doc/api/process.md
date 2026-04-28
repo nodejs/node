@@ -1774,6 +1774,13 @@ unchanged, so a caller may handle the error and take another action.
 
 This function is not available on Windows or IBM i.
 
+For example, the following restarts the current process in the same way it started,
+modulo changes to `process.chdir(...)`, `process.env`, `process.argv`.
+
+```js
+  process.execve(process.argv0, process.argv);
+```
+
 ## `process.exit([code])`
 
 <!-- YAML
