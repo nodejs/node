@@ -52,6 +52,7 @@ using std::map;
 using std::pair;
 using std::string;
 
+using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::External;
@@ -153,7 +154,7 @@ class JsHttpRequestProcessor : public HttpRequestProcessor {
   static v8::Intercepted MapGet(Local<Name> name,
                                 const PropertyCallbackInfo<Value>& info);
   static v8::Intercepted MapSet(Local<Name> name, Local<Value> value,
-                                const PropertyCallbackInfo<void>& info);
+                                const PropertyCallbackInfo<Boolean>& info);
 
   // Utility methods for wrapping C++ objects as JavaScript objects,
   // and going back again.
@@ -429,7 +430,7 @@ v8::Intercepted JsHttpRequestProcessor::MapGet(
 
 v8::Intercepted JsHttpRequestProcessor::MapSet(
     Local<Name> name, Local<Value> value_obj,
-    const PropertyCallbackInfo<void>& info) {
+    const PropertyCallbackInfo<Boolean>& info) {
   if (name->IsSymbol()) return v8::Intercepted::kNo;
 
   // Fetch the map wrapped by this object.

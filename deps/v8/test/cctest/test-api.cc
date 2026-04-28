@@ -22562,7 +22562,7 @@ TEST(EscapableHandleScope) {
 }
 
 static void SetterWhichExpectsThisAndHolderToDiffer(
-    Local<Name>, Local<Value>, const v8::PropertyCallbackInfo<void>& info) {
+    Local<Name>, Local<Value>, const v8::PropertyCallbackInfo<Boolean>& info) {
   // Writes through prototypes do not trigger interceptor setter callback.
   UNREACHABLE();
 }
@@ -26881,7 +26881,7 @@ void ContextCheckGetter(Local<Name> name,
 }
 
 void ContextCheckSetter(Local<Name> name, Local<Value>,
-                        const v8::PropertyCallbackInfo<void>& info) {
+                        const v8::PropertyCallbackInfo<Boolean>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   CheckContexts(info.GetIsolate());
 }

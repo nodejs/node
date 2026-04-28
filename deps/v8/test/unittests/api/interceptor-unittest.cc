@@ -95,7 +95,7 @@ class InterceptorLoggingTest : public TestWithNativeContext {
 
   static v8::Intercepted NamedPropertySetter(
       Local<v8::Name> name, Local<v8::Value> value,
-      const v8::PropertyCallbackInfo<void>& info) {
+      const v8::PropertyCallbackInfo<v8::Boolean>& info) {
     LogCallback(info, "named setter");
     return v8::Intercepted::kNo;
   }
@@ -119,7 +119,7 @@ class InterceptorLoggingTest : public TestWithNativeContext {
 
   static v8::Intercepted NamedPropertyDefiner(
       Local<v8::Name> name, const v8::PropertyDescriptor& desc,
-      const v8::PropertyCallbackInfo<void>& info) {
+      const v8::PropertyCallbackInfo<v8::Boolean>& info) {
     LogCallback(info, "named definer");
     return v8::Intercepted::kNo;
   }
@@ -138,7 +138,7 @@ class InterceptorLoggingTest : public TestWithNativeContext {
 
   static v8::Intercepted IndexedPropertySetter(
       uint32_t index, Local<v8::Value> value,
-      const v8::PropertyCallbackInfo<void>& info) {
+      const v8::PropertyCallbackInfo<v8::Boolean>& info) {
     LogCallback(info, "indexed setter");
     return v8::Intercepted::kNo;
   }
@@ -162,7 +162,7 @@ class InterceptorLoggingTest : public TestWithNativeContext {
 
   static v8::Intercepted IndexedPropertyDefiner(
       uint32_t index, const v8::PropertyDescriptor& desc,
-      const v8::PropertyCallbackInfo<void>& info) {
+      const v8::PropertyCallbackInfo<v8::Boolean>& info) {
     LogCallback(info, "indexed definer");
     return v8::Intercepted::kNo;
   }

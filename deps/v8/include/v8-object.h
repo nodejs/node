@@ -410,6 +410,7 @@ class V8_EXPORT Object : public Value {
       Local<Value> data = Local<Value>(), PropertyAttribute attributes = None,
       SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
       SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
+  V8_DEPRECATE_SOON("Use AccessorNameSetterCallbackV2 setter instead")
   V8_WARN_UNUSED_RESULT Maybe<bool> SetNativeDataProperty(
       Local<Context> context, Local<Name> name,
       AccessorNameGetterCallback getter, AccessorNameSetterCallback setter,
