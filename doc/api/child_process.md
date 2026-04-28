@@ -2368,13 +2368,13 @@ or [`child_process.fork()`][].
 [`ChildProcess`]: #class-childprocess
 [`Error`]: errors.md#class-error
 [`EventEmitter`]: events.md#class-eventemitter
-[`child_process.exec()`]: #child_processexeccommand-options-callback
-[`child_process.execFile()`]: #child_processexecfilefile-args-options-callback
-[`child_process.execFileSync()`]: #child_processexecfilesyncfile-args-options
-[`child_process.execSync()`]: #child_processexecsynccommand-options
-[`child_process.fork()`]: #child_processforkmodulepath-args-options
-[`child_process.spawn()`]: #child_processspawncommand-args-options
-[`child_process.spawnSync()`]: #child_processspawnsynccommand-args-options
+[`child_process.exec()`]: #child-processexeccommand-options-callback
+[`child_process.execFile()`]: #child-processexecfilefile-args-options-callback
+[`child_process.execFileSync()`]: #child-processexecfilesyncfile-args-options
+[`child_process.execSync()`]: #child-processexecsynccommand-options
+[`child_process.fork()`]: #child-processforkmodulepath-args-options
+[`child_process.spawn()`]: #child-processspawncommand-args-options
+[`child_process.spawnSync()`]: #child-processspawnsynccommand-args-options
 [`dgram.Socket`]: dgram.md#class-dgramsocket
 [`maxBuffer` and Unicode]: #maxbuffer-and-unicode
 [`net.Server`]: net.md#class-netserver
