@@ -1,0 +1,20 @@
+{
+  "packages": {
+    "root": {
+      "path": "./root",
+      "dependencies": {"dep-a": "dep-a", "dep-b": "dep-b"}
+    },
+    "dep-a": {
+      "path": "./dep-a",
+      "dependencies": {}
+    },
+    "dep-b": {
+      "path": "./dep-b",
+      "dependencies": {"dep-a": "dep-a"}
+    },
+    "not-a-dep": {
+      "path": "./not-a-dep",
+      "dependencies": {}
+    }
+  }
+}

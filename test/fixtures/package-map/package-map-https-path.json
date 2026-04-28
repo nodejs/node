@@ -1,0 +1,12 @@
+{
+  "packages": {
+    "root": {
+      "path": "./root",
+      "dependencies": {"dep-a": "dep-a"}
+    },
+    "dep-a": {
+      "path": "https://example.com/dep-a",
+      "dependencies": {}
+    }
+  }
+}

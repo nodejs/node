@@ -1,0 +1,12 @@
+{
+  "packages": {
+    "pkg-a": {
+      "path": "./root",
+      "dependencies": {}
+    },
+    "pkg-b": {
+      "path": "./root",
+      "dependencies": {}
+    }
+  }
+}

@@ -357,8 +357,12 @@ require(X) from module at path Y
 4. If X begins with '#'
    a. LOAD_PACKAGE_IMPORTS(X, dirname(Y))
 5. LOAD_PACKAGE_SELF(X, dirname(Y))
-6. LOAD_NODE_MODULES(X, dirname(Y))
-7. THROW "not found"
+6. If a package map PACKAGE_MAP exists,
+   a. Find the package ID for the package owning Y
+        1. Let PARENT_PACKAGE_ID be FIND_PACKAGE_ID(dirname(Y), PACKAGE_MAP)
+   b. LOAD_PACKAGE_MAP(X, PARENT_PACKAGE_ID, PACKAGE_MAP)
+7. LOAD_NODE_MODULES(X, dirname(Y))
+8. THROW "not found"
 
 MAYBE_DETECT_AND_LOAD(X)
 1. If X parses as a CommonJS module, load X as a CommonJS module. STOP.
@@ -403,9 +407,11 @@ LOAD_AS_DIRECTORY(X)
 2. LOAD_INDEX(X)
 
 LOAD_NODE_MODULES(X, START)
-1. let DIRS = NODE_MODULES_PATHS(START)
-2. for each DIR in DIRS:
-   a. LOAD_PACKAGE_EXPORTS(X, DIR)
+1. Try to interpret X as a combination of NAME and SUBPATH where the name
+   may have a @scope/ prefix and the subpath begins with a slash (`/`).
+2. let DIRS = NODE_MODULES_PATHS(START)
+3. for each DIR in DIRS:
+   a. LOAD_PACKAGE_EXPORTS(SUBPATH, DIR/NAME)
    b. LOAD_AS_FILE(DIR/X)
    c. LOAD_AS_DIRECTORY(DIR/X)
 
@@ -420,6 +426,25 @@ NODE_MODULES_PATHS(START)
    d. let I = I - 1
 5. return DIRS + GLOBAL_FOLDERS
 
+FIND_PACKAGE_ID(PATH, PACKAGE_MAP)
+1. Find the PACKAGE_ID for the entry whose "path" is a parent directory of PATH
+2. If multiple entries are found, THROW "ambiguous resolution"
+3. If no entry was found, THROW "external file".
+4. return PACKAGE_ID
+
+LOAD_PACKAGE_MAP(X, PARENT_PACKAGE_ID, PACKAGE_MAP)
+1. Try to interpret X as a combination of NAME and SUBPATH where the name
+   may have a @scope/ prefix and the subpath begins with a slash (`/`).
+2. Find the package map entry for key PARENT_PACKAGE_ID
+3. Look up NAME in the entry's "dependencies" map.
+4. If NAME is not found, THROW "not found".
+5. Let TARGET be PACKAGE_MAP.packages[dependencies[name]]
+6. Let PACKAGE_PATH be the resolved path of TARGET.
+7. LOAD_PACKAGE_EXPORTS(SUBPATH, PACKAGE_PATH)
+8. LOAD_AS_FILE(PACKAGE_PATH/SUBPATH)
+9. LOAD_AS_DIRECTORY(PACKAGE_PATH/SUBPATH)
+10. THROW "not found"
+
 LOAD_PACKAGE_IMPORTS(X, DIR)
 1. Find the closest package scope SCOPE to DIR.
 2. If no scope was found, return.
@@ -431,19 +456,15 @@ LOAD_PACKAGE_IMPORTS(X, DIR)
   CONDITIONS) <a href="esm.md#resolver-algorithm-specification">defined in the ESM resolver</a>.
 6. RESOLVE_ESM_MATCH(MATCH).
 
-LOAD_PACKAGE_EXPORTS(X, DIR)
-1. Try to interpret X as a combination of NAME and SUBPATH where the name
-   may have a @scope/ prefix and the subpath begins with a slash (`/`).
-2. If X does not match this pattern or DIR/NAME/package.json is not a file,
-   return.
-3. Parse DIR/NAME/package.json, and look for "exports" field.
-4. If "exports" is null or undefined, return.
-5. If `--no-require-module` is not enabled
+LOAD_PACKAGE_EXPORTS(SUBPATH, PACKAGE_DIR)
+1. Parse PACKAGE_DIR/package.json, and look for "exports" field.
+2. If "exports" is null or undefined, return.
+3. If `--no-require-module` is not enabled
   a. let CONDITIONS = ["node", "require", "module-sync"]
   b. Else, let CONDITIONS = ["node", "require"]
-6. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(DIR/NAME), "." + SUBPATH,
+4. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(PACKAGE_DIR), "." + SUBPATH,
    `package.json` "exports", CONDITIONS) <a href="esm.md#resolver-algorithm-specification">defined in the ESM resolver</a>.
-7. RESOLVE_ESM_MATCH(MATCH)
+5. RESOLVE_ESM_MATCH(MATCH)
 
 LOAD_PACKAGE_SELF(X, DIR)
 1. Find the closest package scope SCOPE to DIR.

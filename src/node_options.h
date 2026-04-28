@@ -276,6 +276,7 @@ class EnvironmentOptions : public Options {
   bool report_exclude_env = false;
   bool report_exclude_network = false;
   std::string experimental_config_file_path;
+  std::string experimental_package_map_path;
 
   inline DebugOptions* get_debug_options() { return &debug_options_; }
   inline const DebugOptions& debug_options() const { return debug_options_; }

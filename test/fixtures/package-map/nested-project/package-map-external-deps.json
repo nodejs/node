@@ -1,0 +1,12 @@
+{
+  "packages": {
+    "app": {
+      "path": "./src",
+      "dependencies": {"dep-a": "dep-a"}
+    },
+    "dep-a": {
+      "path": "../dep-a",
+      "dependencies": {}
+    }
+  }
+}
