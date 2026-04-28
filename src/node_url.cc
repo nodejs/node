@@ -169,7 +169,10 @@ void BindingData::PathToFileURL(const FunctionCallbackInfo<Value>& args) {
       [[unlikely]] {
     CHECK(args[2]->IsString());
     Utf8Value hostname(isolate, args[2]);
-    CHECK(out->set_hostname(hostname.ToStringView()));
+    // Ada should validate chars in hostname
+    if (!out->set_hostname(hostname.ToStringView())) {
+      return ThrowInvalidURL(realm->env(), input.ToStringView(), std::nullopt);
+    }
   }
 
   binding_data->UpdateComponents(out->get_components(), out->type);
@@ -441,7 +444,10 @@ void BindingData::Update(const FunctionCallbackInfo<Value>& args) {
 
   std::string_view new_value_view = new_value.ToStringView();
   auto out = ada::parse<ada::url_aggregator>(input.ToStringView());
-  CHECK(out);
+  // If the href cannot be re-parsed, return original url
+  if (!out) {
+    return args.GetReturnValue().Set(false);
+  }
 
   bool result{true};
 
