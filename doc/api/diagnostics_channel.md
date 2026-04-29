@@ -1935,48 +1935,6 @@ This allows subscribers to observe every SQL statement executed without
 modifying the database code itself. Tracing is zero-cost when there are no
 subscribers.
 
-```cjs
-const dc = require('node:diagnostics_channel');
-const { DatabaseSync } = require('node:sqlite');
-
-function onQuery({ sql, database, duration }) {
-  console.log(sql, duration);
-}
-
-dc.subscribe('sqlite.db.query', onQuery);
-
-const db = new DatabaseSync(':memory:');
-db.exec('CREATE TABLE t (x INTEGER)');
-// Logs: CREATE TABLE t (x INTEGER) <duration>
-
-const stmt = db.prepare('INSERT INTO t VALUES (?)');
-stmt.run(42);
-// Logs: INSERT INTO t VALUES (42.0) <duration>
-
-dc.unsubscribe('sqlite.db.query', onQuery);
-```
-
-```mjs
-import dc from 'node:diagnostics_channel';
-import { DatabaseSync } from 'node:sqlite';
-
-function onQuery({ sql, database, duration }) {
-  console.log(sql, duration);
-}
-
-dc.subscribe('sqlite.db.query', onQuery);
-
-const db = new DatabaseSync(':memory:');
-db.exec('CREATE TABLE t (x INTEGER)');
-// Logs: CREATE TABLE t (x INTEGER) <duration>
-
-const stmt = db.prepare('INSERT INTO t VALUES (?)');
-stmt.run(42);
-// Logs: INSERT INTO t VALUES (42.0) <duration>
-
-dc.unsubscribe('sqlite.db.query', onQuery);
-```
-
 [BoundedChannel Channels]: #boundedchannel-channels
 [TracingChannel Channels]: #tracingchannel-channels
 [`'uncaughtException'`]: process.md#event-uncaughtexception
