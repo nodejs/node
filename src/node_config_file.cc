@@ -237,8 +237,8 @@ ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
   }
 
   {
-    static const ata::schema_ref compiled_schema = ata::compile(
-        options_parser::GenerateConfigJsonSchema(false));
+    static const ata::schema_ref compiled_schema =
+        ata::compile(options_parser::GenerateConfigJsonSchema(false));
     CHECK(compiled_schema);
     auto result = ata::validate(compiled_schema, file_content);
     if (!result.valid) {
