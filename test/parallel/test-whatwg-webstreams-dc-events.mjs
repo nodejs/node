@@ -38,7 +38,8 @@ import * as dc from 'diagnostics_channel';
   });
   channel.subscribe(subscriber);
 
-  for await (const _ of readable) {}
+  // eslint-disable-next-line no-unused-vars
+  for await (const _ of readable) { /* drain */ }
 
   channel.unsubscribe(subscriber);
 }
