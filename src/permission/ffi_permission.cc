@@ -14,6 +14,12 @@ void FFIPermission::Apply(Environment* env,
   deny_all_ = true;
 }
 
+void FFIPermission::Drop(Environment* env,
+                                  PermissionScope scope,
+                                  const std::string_view& param) {
+  deny_all_ = true;
+}
+
 bool FFIPermission::is_granted(Environment* env,
                                PermissionScope perm,
                                const std::string_view& param) const {

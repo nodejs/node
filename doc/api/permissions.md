@@ -98,6 +98,11 @@ API call to drop permissions at runtime. This operation is **irreversible**.
 
 When called without a reference, the entire scope is dropped. When called
 with a reference, only the permission for that specific resource is revoked.
+Dropping a permission only affects future access checks. It does not close or
+revoke access to resources that are already open, such as file descriptors,
+network sockets, child processes, or worker threads. Applications are
+responsible for closing or terminating those resources when they are no longer
+needed.
 
 You can only drop the exact resource that was explicitly granted. The
 reference passed to `drop()` must match the original grant. If a permission
