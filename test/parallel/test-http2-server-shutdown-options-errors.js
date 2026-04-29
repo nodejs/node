@@ -58,7 +58,7 @@ server.listen(
   common.mustCall(() => {
     const client = http2.connect(`http://localhost:${server.address().port}`);
     const req = client.request();
-    req.on('error', common.mustCallAtLeast(() => {}, 0));
+    req.on('error', common.mustCallAtLeast());
     req.resume();
     req.on('close', common.mustCall(() => {
       client.close();
