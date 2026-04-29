@@ -2311,11 +2311,9 @@ void GetOptionsAsFlags(const FunctionCallbackInfo<Value>& args) {
 }
 
 void GetConfigJsonSchema(const FunctionCallbackInfo<Value>& args) {
-  Isolate* isolate = args.GetIsolate();
-  std::string schema = options_parser::GenerateConfigJsonSchema(true);
-  Local<String> result;
-  if (!String::NewFromUtf8(
-           isolate, schema.data(), v8::NewStringType::kNormal, schema.size())
+  Local<Context> context = args.GetIsolate()->GetCurrentContext();
+  Local<Value> result;
+  if (!ToV8Value(context, options_parser::GenerateConfigJsonSchema(true))
            .ToLocal(&result)) {
     return;
   }
