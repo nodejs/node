@@ -5,7 +5,6 @@
 // Usage:
 //   node tools/gen_node_config_schema.mjs
 //   node tools/gen_node_config_schema.mjs --check
-//   node tools/gen_node_config_schema.mjs --json-out PATH
 
 import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -61,12 +60,7 @@ const stripped = stripAdditionalProperties(schema);
 const schemaJson = JSON.stringify(stripped, null, 2);
 const expectedHeader = buildHeader(schemaJson);
 
-const args = process.argv.slice(2);
-const checkMode = args.includes('--check');
-const jsonOutIdx = args.indexOf('--json-out');
-const jsonOutPath = jsonOutIdx >= 0 ? args[jsonOutIdx + 1] : null;
-
-if (checkMode) {
+if (process.argv.includes('--check')) {
   const actual = readFileSync(HEADER_PATH, 'utf8');
   if (actual !== expectedHeader) {
     console.error(
@@ -79,8 +73,4 @@ if (checkMode) {
 } else {
   writeFileSync(HEADER_PATH, expectedHeader);
   console.log(`Wrote ${relative(ROOT, HEADER_PATH)}`);
-  if (jsonOutPath) {
-    writeFileSync(jsonOutPath, schemaJson + '\n');
-    console.log(`Wrote ${jsonOutPath}`);
-  }
 }
