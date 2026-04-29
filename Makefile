@@ -863,7 +863,6 @@ doc: $(NODE_EXE) doc-only ## Build Node.js, and then build the documentation wit
 
 out/doc:
 	mkdir -p $@
-	$(NODE) tools/gen_node_config_schema.mjs --json-out $@/node-config-schema.json
 
 # If it's a source tarball, doc/api already contains the generated docs.
 # Just copy everything under doc/api over.
