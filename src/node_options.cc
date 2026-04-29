@@ -1718,7 +1718,8 @@ bool ShouldIncludeOption(OptionType type) {
   }
 }
 
-void AppendOptionProperty(std::string* out, OptionType type,
+void AppendOptionProperty(std::string* out,
+                          OptionType type,
                           std::string_view help_text) {
   *out += '{';
   switch (type) {
@@ -1757,8 +1758,9 @@ std::vector<std::pair<std::string, OptionMappingDetails>> SortedOptionEntries(
     if (clean_key.starts_with("--")) clean_key = clean_key.substr(2);
     sorted.emplace_back(std::move(clean_key), entry.second);
   }
-  std::sort(sorted.begin(), sorted.end(),
-            [](const auto& a, const auto& b) { return a.first < b.first; });
+  std::sort(sorted.begin(), sorted.end(), [](const auto& a, const auto& b) {
+    return a.first < b.first;
+  });
   return sorted;
 }
 
@@ -1841,8 +1843,8 @@ std::string GenerateConfigJsonSchema(bool include_additional_properties) {
     } else if (prop == "nodeOptions") {
       AppendNodeOptionsObject(&out, sorted_env, include_additional_properties);
     } else {
-      AppendNamespaceObject(&out, namespace_options.at(prop),
-                            include_additional_properties);
+      AppendNamespaceObject(
+          &out, namespace_options.at(prop), include_additional_properties);
     }
   }
 
