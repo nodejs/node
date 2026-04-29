@@ -1853,6 +1853,24 @@ Emitted when [`child_process.spawn()`][] encounters an error.
 
 Emitted when [`process.execve()`][] is invoked.
 
+#### Streams
+
+> Stability: 1 - Experimental
+
+<!-- YAML
+added: REPLACEME
+-->
+
+##### Event: `'stream.web.done'`
+
+* `stream` {ReadableStream} The stream that finished.
+
+Emitted when a [`ReadableStream`][] has finished, either because all data has
+been read or because the stream was cancelled. The event fires once per stream,
+after the stream has transitioned to the `'closed'` state. It is emitted for
+both the async iterator (`for await (...)`) and the direct reader
+(`reader.read()`, including BYOB readers) consumption paths.
+
 #### Web Locks
 
 > Stability: 1 - Experimental
@@ -1917,6 +1935,7 @@ Emitted when a new thread is created.
 [TracingChannel Channels]: #tracingchannel-channels
 [`'uncaughtException'`]: process.md#event-uncaughtexception
 [`BoundedChannel`]: #class-boundedchannel
+[`ReadableStream`]: webstreams.md#class-readablestream
 [`TracingChannel`]: #class-tracingchannel
 [`asyncEnd` event]: #asyncendevent
 [`asyncStart` event]: #asyncstartevent
