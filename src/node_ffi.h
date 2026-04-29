@@ -33,6 +33,8 @@ struct FFIFunctionInfo {
   std::shared_ptr<FFIFunction> fn;
   v8::Global<v8::Function> self;
   std::shared_ptr<v8::BackingStore> sb_backing;
+  // Keep the owning DynamicLibrary alive while the generated function is alive.
+  v8::Global<v8::Object> library;
 };
 
 struct FFICallback {
