@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Generates src/node_config_schema.h from generateConfigJsonSchema()
-// in lib/internal/options.js.
+// Generates src/node_config_schema.h and doc/node-config-schema.json from
+// generateConfigJsonSchema() in lib/internal/options.js.
 //
 // Usage:
 //   node tools/gen_node_config_schema.mjs
@@ -13,15 +13,22 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const HEADER_PATH = join(ROOT, 'src/node_config_schema.h');
+const JSON_PATH = join(ROOT, 'doc/node-config-schema.json');
 
 function getSchema() {
-  const result = spawnSync(process.execPath, [
-    '--expose-internals',
-    '-p',
-    'JSON.stringify(require("internal/options").generateConfigJsonSchema())',
-  ], { encoding: 'utf8' });
+  const result = spawnSync(
+    process.execPath,
+    [
+      '--expose-internals',
+      '-p',
+      'JSON.stringify(require("internal/options").generateConfigJsonSchema())',
+    ],
+    { encoding: 'utf8' },
+  );
   if (result.status !== 0) {
-    console.error(`Failed to read schema from option metadata:\n${result.stderr}`);
+    console.error(
+      `Failed to read schema from option metadata:\n${result.stderr}`,
+    );
     process.exit(1);
   }
   return JSON.parse(result.stdout.trim());
@@ -56,21 +63,33 @@ ${schemaJson}
 }
 
 const schema = getSchema();
-const stripped = stripAdditionalProperties(schema);
-const schemaJson = JSON.stringify(stripped, null, 2);
-const expectedHeader = buildHeader(schemaJson);
+// JSON keeps additionalProperties:false so IDEs validate strictly.
+const expectedJson = `${JSON.stringify(schema, null, 2)}\n`;
+// Header strips it so older Node versions tolerate forward-compat fields.
+const expectedHeader = buildHeader(
+  JSON.stringify(stripAdditionalProperties(schema), null, 2),
+);
 
-if (process.argv.includes('--check')) {
-  const actual = readFileSync(HEADER_PATH, 'utf8');
-  if (actual !== expectedHeader) {
+if (process.argv.slice(2).includes('--check')) {
+  let drift = false;
+  if (readFileSync(HEADER_PATH, 'utf8') !== expectedHeader) {
+    console.error(`${relative(ROOT, HEADER_PATH)} is out of date.`);
+    drift = true;
+  }
+  if (readFileSync(JSON_PATH, 'utf8') !== expectedJson) {
+    console.error(`${relative(ROOT, JSON_PATH)} is out of date.`);
+    drift = true;
+  }
+  if (drift) {
     console.error(
-      `${relative(ROOT, HEADER_PATH)} is out of date.\n` +
-      `Run \`node tools/gen_node_config_schema.mjs\` and commit the result.`,
+      'Run `node tools/gen_node_config_schema.mjs` and commit the result.',
     );
     process.exit(1);
   }
-  console.log(`${relative(ROOT, HEADER_PATH)} is up to date.`);
+  console.log('config schema files are up to date.');
 } else {
   writeFileSync(HEADER_PATH, expectedHeader);
   console.log(`Wrote ${relative(ROOT, HEADER_PATH)}`);
+  writeFileSync(JSON_PATH, expectedJson);
+  console.log(`Wrote ${relative(ROOT, JSON_PATH)}`);
 }

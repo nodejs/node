@@ -154,6 +154,8 @@ exlusiveLabels:
   # Specific map for typescript.md as it should be labeled 'strip-types'
   /^doc\/api\/typescript.md$/: doc, strip-types
 
+  /^doc\/node-config-schema.json$/: doc, config
+
   /^doc\//: doc
 
   # More specific benchmarks

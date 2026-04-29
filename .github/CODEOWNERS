@@ -218,6 +218,7 @@
 /tools/dep_updaters/update-sqlite.sh @nodejs/sqlite
 
 # Config
+/doc/node-config-schema.json @nodejs/config
 /src/node_config.* @nodejs/config
 /src/node_dotenv.* @nodejs/config
 /src/node_options.* @nodejs/config
