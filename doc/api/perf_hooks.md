@@ -139,7 +139,71 @@ changes:
 
 This is an alias of [`perf_hooks.eventLoopUtilization()`][].
 
+If bootstrapping has not yet finished on the main thread the properties have
+the value of `0`. The ELU is immediately available on [Worker threads][] since
+bootstrap happens within the event loop.
+
+Both `utilization1` and `utilization2` are optional parameters.
+
+If `utilization1` is passed, then the delta between the current call's `active`
+and `idle` times, as well as the corresponding `utilization` value are
+calculated and returned (similar to [`process.hrtime()`][]).
+
+If `utilization1` and `utilization2` are both passed, then the delta is
+calculated between the two arguments. This is a convenience option because,
+unlike [`process.hrtime()`][], calculating the ELU is more complex than a
+single subtraction.
+
+ELU is similar to CPU utilization, except that it only measures event loop
+statistics and not CPU usage. It represents the percentage of time the event
+loop has spent outside the event loop's event provider (e.g. `epoll_wait`).
+No other CPU idle time is taken into consideration. The following is an example
+of how a mostly idle process will have a high ELU.
+
+```mjs
+import { performance } from 'node:perf_hooks';
+import { spawnSync } from 'node:child_process';
+
+setImmediate(() => {
+  // Save the previous event loop utilization snapshot
+  const elu = performance.eventLoopUtilization();
+
+  // Simulate blocking work
+  spawnSync('sleep', ['5']);
+
+  // Compute new ELU since snapshot
+  console.log(performance.eventLoopUtilization(elu).utilization);
+});
+
+```
+
+```cjs
+'use strict';
+const { performance } = require('node:perf_hooks');
+const { spawnSync } = require('node:child_process');
+
+setImmediate(() => {
+  // Save the previous event loop utilization snapshot
+  const elu = performance.eventLoopUtilization();
+
+  // Simulate blocking work
+  spawnSync('sleep', ['5']);
+
+  // Compute new ELU since snapshot
+  console.log(performance.eventLoopUtilization(elu).utilization);
+});
+
+```
+
+Although the CPU is mostly idle while running this script, the value of
+`utilization` is `1`. This is because the call to
+[`child_process.spawnSync()`][] blocks the event loop from proceeding.
+
+Passing in a user-defined object instead of the result of a previous call to
+`eventLoopUtilization()` will lead to undefined behavior. The return values
+are not guaranteed to reflect any correct state of the event loop.
 _This property is an extension by Node.js. It is not available in Web browsers._
+
 
 ### `performance.getEntries()`
 
