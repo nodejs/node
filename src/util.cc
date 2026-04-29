@@ -125,13 +125,20 @@ static void MakeUtf8String(Isolate* isolate,
     return;
   }
 
-  // Add +1 for null termination.
-  size_t storage = (3 * value_length) + 1;
+  auto const_char16 = reinterpret_cast<const char16_t*>(value_view.data16());
+  size_t storage = static_cast<size_t>(value_length) * 3 + 1;
   target->AllocateSufficientStorage(storage);
 
-  size_t length = string->WriteUtf8V2(
-      isolate, target->out(), storage, String::WriteFlags::kReplaceInvalidUtf8);
-  target->SetLengthAndZeroTerminate(length);
+  size_t actual_length =
+      simdutf::convert_utf16_to_utf8(const_char16, value_length, target->out());
+  if (actual_length == 0) {
+    actual_length =
+        string->WriteUtf8V2(isolate,
+                            target->out(),
+                            storage,
+                            String::WriteFlags::kReplaceInvalidUtf8);
+  }
+  target->SetLengthAndZeroTerminate(actual_length);
 }
 
 Utf8Value::Utf8Value(Isolate* isolate, Local<Value> value) {
