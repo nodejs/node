@@ -112,7 +112,7 @@ The following callbacks can return `0` (proceed normally), `-1` (error) or `HPE_
 * `on_message_complete`: Invoked when a request/response has been completedly parsed.
 * `on_url_complete`: Invoked after the URL has been parsed.
 * `on_method_complete`: Invoked after the HTTP method has been parsed.
-* `on_protocol_complete`: Invoked after the HTTP version has been parsed.
+* `on_protocol_complete`: Invoked after the protocol has been parsed.
 * `on_version_complete`: Invoked after the HTTP version has been parsed.
 * `on_status_complete`: Invoked after the status code has been parsed.
 * `on_header_field_complete`: Invoked after a header name has been parsed.
@@ -396,6 +396,16 @@ Normally `llhttp` would error when after a chunk size is followed by one or more
 With this flag this check is disabled.
 
 **Enabling this flag can pose a security issue since you will be exposed to request smuggling attacks. USE WITH CAUTION!**
+
+### `void llhttp_set_lenient_header_value_relaxed(llhttp_t* parser, int enabled)`
+
+Enables/disables relaxed handling of control characters in header values.
+
+Normally `llhttp` would error when header values contain characters not in the valid set (HTAB, SP, VCHAR, OBS_TEXT). With
+this flag, control characters (except for NULL, CR & LF) will be accepted in header values.
+
+This does not create any known security issue, but does allow content considered 'invalid' by
+[RFC 9110](https://www.rfc-editor.org/rfc/rfc9110#name-field-values) and so should be avoided by default.
 
 ## Build Instructions
 
