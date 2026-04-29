@@ -182,6 +182,21 @@ The returned object contains:
 * `lib` {DynamicLibrary} The loaded library handle.
 * `functions` {Object} Callable wrappers for the requested symbols.
 
+The returned object also implements the explicit resource management protocol,
+so it can be used with the [`using`][] declaration. Disposing the returned
+object closes the library handle.
+
+```mjs
+import { dlopen } from 'node:ffi';
+
+{
+  using handle = dlopen('./mylib.so', {
+    add_i32: { parameters: ['i32', 'i32'], result: 'i32' },
+  });
+  console.log(handle.functions.add_i32(20, 22));
+} // handle.lib.close() is invoked automatically here.
+```
+
 ```mjs
 import { dlopen } from 'node:ffi';
 
@@ -275,6 +290,21 @@ An object containing previously resolved symbol addresses as `bigint` values.
 
 Closes the library handle.
 
+`DynamicLibrary` implements the explicit resource management protocol, so a
+library instance can be managed with the [`using`][] declaration. Leaving the
+enclosing scope invokes `library.close()` automatically.
+
+```mjs
+import { DynamicLibrary } from 'node:ffi';
+
+{
+  using lib = new DynamicLibrary('./mylib.so');
+  // Use `lib` here; `lib.close()` is called when the block exits.
+}
+```
+
+Calling `library.close()` (or disposing the library) more than once is a no-op.
+
 After a library has been closed:
 
 * Resolved function wrappers become invalid.
@@ -294,6 +324,16 @@ addresses before the library is closed or before the callback is unregistered.
 Calling `library.close()` from one of the library's active callbacks is
 unsupported and dangerous. The callback must return before the library is
 closed.
+
+### `library[Symbol.dispose]()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Calls `library.close()`. This allows `DynamicLibrary` instances to be used with
+the [`using`][] declaration for automatic cleanup when the enclosing scope
+exits. It is a no-op on a library that has already been closed.
 
 ### `library.getFunction(name, signature)`
 
@@ -684,3 +724,4 @@ and keep callback and pointer lifetimes explicit on the native side.
 [Permission Model]: permissions.md#permission-model
 [`--allow-ffi`]: cli.md#--allow-ffi
 [`ffi.toBuffer(pointer, length, copy)`]: #ffitobufferpointer-length-copy
+[`using`]: https://tc39.es/proposal-explicit-resource-management/#sec-using-declarations
