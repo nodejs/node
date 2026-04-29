@@ -38,7 +38,7 @@ test('should handle empty json', async () => {
     `--experimental-config-file=${fixtures.path('rc/empty.json')}`,
     '-p', '"Hello, World!"',
   ]);
-  assert.match(result.stderr, /Can't parse/);
+  assert.match(result.stderr, /invalid JSON document/);
   assert.match(result.stderr, /empty\.json: invalid content/);
   assert.strictEqual(result.stdout, '');
   assert.strictEqual(result.code, 9);
@@ -291,7 +291,7 @@ test('non object root', async () => {
     `--experimental-config-file=${fixtures.path('rc/non-object-root.json')}`,
     '-p', '"Hello, World!"',
   ]);
-  assert.match(result.stderr, /Root value unexpected not an object for/);
+  assert.match(result.stderr, /\/: expected type object, got array/);
   assert.strictEqual(result.stdout, '');
   assert.strictEqual(result.code, 9);
 });
@@ -313,7 +313,7 @@ test('should throw correct error when a json is broken', async () => {
     `--experimental-config-file=${fixtures.path('rc/broken.json')}`,
     '-p', '"Hello, World!"',
   ]);
-  assert.match(result.stderr, /Can't parse/);
+  assert.match(result.stderr, /invalid JSON document/);
   assert.match(result.stderr, /broken\.json: invalid content/);
   assert.strictEqual(result.stdout, '');
   assert.strictEqual(result.code, 9);
@@ -325,7 +325,7 @@ test('broken value in node_options', async () => {
     `--experimental-config-file=${fixtures.path('rc/broken-node-options.json')}`,
     '-p', '"Hello, World!"',
   ]);
-  assert.match(result.stderr, /Can't parse/);
+  assert.match(result.stderr, /invalid JSON document/);
   assert.match(result.stderr, /broken-node-options\.json: invalid content/);
   assert.strictEqual(result.stdout, '');
   assert.strictEqual(result.code, 9);
