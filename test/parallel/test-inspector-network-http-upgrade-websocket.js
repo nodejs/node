@@ -119,8 +119,8 @@ async function test() {
     host,
     port: server.port,
     headers: {
-      Connection: 'Upgrade',
-      Upgrade: 'websocket',
+      'Connection': 'Upgrade',
+      'Upgrade': 'websocket',
       'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==',
       'Sec-WebSocket-Version': '13',
     },

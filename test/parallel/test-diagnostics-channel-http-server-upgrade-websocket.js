@@ -164,9 +164,9 @@ server.listen(0, '127.0.0.1', common.mustCall(async () => {
                   'Upgrade: websocket\r\n' +
                   'Content-Length: 0\r\n' +
                   '\r\n', {
-    initialTail: completeHeadFrame,
-    closeFrame,
-  });
+                    initialTail: completeHeadFrame,
+                    closeFrame,
+                  });
 
   await runClient(port,
                   'POST /incomplete HTTP/1.1\r\n' +
@@ -176,12 +176,12 @@ server.listen(0, '127.0.0.1', common.mustCall(async () => {
                   'Transfer-Encoding: chunked\r\n' +
                   'Trailer: X-Test\r\n' +
                   '\r\n', {
-    secondWrite: Buffer.concat([
-      Buffer.from('4\r\nbody\r\n0\r\nX-Test: yes\r\n\r\n', 'latin1'),
-      incompleteBodyFrame,
-    ]),
-    closeFrame,
-  });
+                    secondWrite: Buffer.concat([
+                      Buffer.from('4\r\nbody\r\n0\r\nX-Test: yes\r\n\r\n', 'latin1'),
+                      incompleteBodyFrame,
+                    ]),
+                    closeFrame,
+                  });
 
   server.close();
 }));
