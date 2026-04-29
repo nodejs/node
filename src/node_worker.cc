@@ -559,7 +559,7 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
     THROW_ERR_OPERATION_FAILED(env, "Failed to copy environment variables");
   }
 
-  if (args[1]->IsObject() || args[2]->IsArray()) {
+  if (args[1]->IsNull() || args[1]->IsObject() || args[2]->IsArray()) {
     per_isolate_opts.reset(new PerIsolateOptions());
 
     HandleEnvOptions(per_isolate_opts->per_env, [&env_vars](const char* name) {
