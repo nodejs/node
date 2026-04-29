@@ -426,6 +426,11 @@ std::unordered_map<
 MapNamespaceOptionsAssociations();
 std::vector<std::string> MapAvailableNamespaces();
 
+// Builds the `node.config.json` JSON Schema from option metadata.
+// `include_additional_properties = false` drops `additionalProperties: false`
+// for forward-compat with older Node reading newer configs.
+std::string GenerateConfigJsonSchema(bool include_additional_properties);
+
 // Define all namespace entries
 #define OPTION_NAMESPACE_LIST(V)                                               \
   V(kNoNamespace, "")                                                          \
