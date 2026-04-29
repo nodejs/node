@@ -13,11 +13,6 @@
 
 set -eu
 
-# Latest OpenSSL major.minor cycle we support
-# running tests with. Newer cycles are emitted
-# with "continue-on-error": true.
-SUPPORTED_OPENSSL_VERSION=4.0
-
 here=$(cd -- "$(dirname -- "$0")" && pwd)
 
 # 1. Enumerate every `openssl_N` / `openssl_N_M` attribute exposed by the
