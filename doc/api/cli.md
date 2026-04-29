@@ -1064,7 +1064,8 @@ The alias `--experimental-default-config-file` is equivalent to
 `--experimental-config-file` without an argument.
 Node.js will read the configuration file and apply the settings. The
 configuration file should be a JSON file with the following structure. `vX.Y.Z`
-in the `$schema` must be replaced with the version of Node.js you are using.
+in the `$schema` must be replaced with the version of Node.js you are using or
+`latest-vX.x` for the latest version of that major release line.
 
 ```json
 {
