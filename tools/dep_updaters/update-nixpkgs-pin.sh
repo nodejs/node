@@ -26,7 +26,37 @@ TMP_FILE=$(mktemp)
 sed "s/$CURRENT_VERSION_SHA1/$NEW_UPSTREAM_SHA1/;s/$CURRENT_TARBALL_HASH/$NEW_TARBALL_HASH/" "$NIXPKGS_PIN_FILE" > "$TMP_FILE"
 mv "$TMP_FILE" "$NIXPKGS_PIN_FILE"
 
-"$BASE_DIR/tools/nix/collect-openssl-matrix.sh" > "$OPENSSL_MATRIX_FILE"
+nix-instantiate -I "nixpkgs=$NIXPKGS_PIN_FILE" --eval --strict --json -E "
+  let
+    pkgs = import <nixpkgs> {};
+    attrs = builtins.filter
+      (n:
+        let t = builtins.tryEval pkgs.\${n}; in
+        t.success && (builtins.tryEval t.value.version).success
+      )
+      (
+        builtins.filter
+          (n: builtins.match \"openssl_[0-9]+(_[0-9]+)?\" n != null)
+          (builtins.attrNames pkgs)
+      );
+  in
+  {
+    inherit attrs;
+    permittedInsecurePackages = builtins.map (attr: pkgs.\${attr}.name) (
+      builtins.filter (attr: (pkgs.\${attr}.meta.insecure)) attrs
+    );
+  }
+" | jq -r '"{
+  pkgs ? import ./pkgs.nix {
+    config.permittedInsecurePackages = [ \(.permittedInsecurePackages | map(@json) | join(" ")) ];
+  },
+}:
+
+{
+  inherit (pkgs)
+    \(.attrs | join("\n    "))
+    ;
+}"' > "$OPENSSL_MATRIX_FILE"
 
 cat -<<EOF
 All done!
