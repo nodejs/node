@@ -129,6 +129,65 @@ test('closed libraries reject subsequent operations', () => {
   assert.throws(() => lib.getSymbol('add_i32'), /Library is closed/);
 });
 
+test('DynamicLibrary supports Symbol.dispose', () => {
+  const lib = new ffi.DynamicLibrary(libraryPath);
+  const addI32 = lib.getFunction('add_i32', fixtureSymbols.add_i32);
+
+  assert.strictEqual(typeof lib[Symbol.dispose], 'function');
+  assert.strictEqual(addI32(20, 22), 42);
+
+  lib[Symbol.dispose]();
+
+  assert.throws(() => addI32(1, 2), /Library is closed/);
+  assert.throws(() => lib.getSymbol('add_i32'), /Library is closed/);
+
+  // Disposing twice is a no-op.
+  lib[Symbol.dispose]();
+  lib.close();
+});
+
+test('using declaration closes DynamicLibrary on scope exit', () => {
+  let captured;
+  {
+    using lib = new ffi.DynamicLibrary(libraryPath);
+    captured = lib.getFunction('add_i32', fixtureSymbols.add_i32);
+    assert.strictEqual(captured(20, 22), 42);
+  }
+
+  assert.throws(() => captured(1, 2), /Library is closed/);
+});
+
+test('dlopen return value is disposable', () => {
+  let capturedLib;
+  let capturedFn;
+  {
+    using handle = ffi.dlopen(libraryPath, {
+      add_i32: fixtureSymbols.add_i32,
+    });
+    assert.strictEqual(typeof handle[Symbol.dispose], 'function');
+    capturedLib = handle.lib;
+    capturedFn = handle.functions.add_i32;
+    assert.strictEqual(capturedFn(20, 22), 42);
+  }
+
+  assert.throws(() => capturedFn(1, 2), /Library is closed/);
+  assert.throws(() => capturedLib.getSymbol('add_i32'), /Library is closed/);
+});
+
+test('using still disposes DynamicLibrary when block throws', () => {
+  const sentinel = new Error('boom');
+  let captured;
+
+  assert.throws(() => {
+    using lib = new ffi.DynamicLibrary(libraryPath);
+    captured = lib.getFunction('add_i32', fixtureSymbols.add_i32);
+    assert.strictEqual(captured(20, 22), 42);
+    throw sentinel;
+  }, sentinel);
+
+  assert.throws(() => captured(1, 2), /Library is closed/);
+});
+
 test('dynamic library APIs validate failures and bad signatures', () => {
   assert.throws(() => {
     ffi.dlopen('missing-library-for-ffi-tests.so');
