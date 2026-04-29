@@ -1713,7 +1713,7 @@ closing the stream can be retrieved using the `stream.rstCode` property.
 
 > Stability: 1 - Experimental
 
-##### Event: `'module.require.start'`
+##### Event: `'tracing:module.require:start'`
 
 * `event` {Object} containing the following properties
   * `id` Argument passed to `require()`. Module name.
@@ -1721,7 +1721,7 @@ closing the stream can be retrieved using the `stream.rstCode` property.
 
 Emitted when `require()` is executed. See [`start` event][].
 
-##### Event: `'module.require.end'`
+##### Event: `'tracing:module.require:end'`
 
 * `event` {Object} containing the following properties
   * `id` Argument passed to `require()`. Module name.
@@ -1729,7 +1729,7 @@ Emitted when `require()` is executed. See [`start` event][].
 
 Emitted when a `require()` call returns. See [`end` event][].
 
-##### Event: `'module.require.error'`
+##### Event: `'tracing:module.require:error'`
 
 * `event` {Object} containing the following properties
   * `id` Argument passed to `require()`. Module name.
@@ -1738,7 +1738,7 @@ Emitted when a `require()` call returns. See [`end` event][].
 
 Emitted when a `require()` throws an error. See [`error` event][].
 
-##### Event: `'module.import.asyncStart'`
+##### Event: `'tracing:module.import:asyncStart'`
 
 * `event` {Object} containing the following properties
   * `id` Argument passed to `import()`. Module name.
@@ -1746,7 +1746,7 @@ Emitted when a `require()` throws an error. See [`error` event][].
 
 Emitted when `import()` is invoked. See [`asyncStart` event][].
 
-##### Event: `'module.import.asyncEnd'`
+##### Event: `'tracing:module.import:asyncEnd'`
 
 * `event` {Object} containing the following properties
   * `id` Argument passed to `import()`. Module name.
@@ -1754,7 +1754,7 @@ Emitted when `import()` is invoked. See [`asyncStart` event][].
 
 Emitted when `import()` has completed. See [`asyncEnd` event][].
 
-##### Event: `'module.import.error'`
+##### Event: `'tracing:module.import:error'`
 
 * `event` {Object} containing the following properties
   * `id` Argument passed to `import()`. Module name.
@@ -1845,7 +1845,7 @@ process has been created.
 
 Emitted when [`child_process.spawn()`][] encounters an error.
 
-##### Event: `'execve'`
+##### Event: `'process.execve'`
 
 * `execPath` {string}
 * `args` {string\[]}
