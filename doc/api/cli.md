@@ -1091,6 +1091,44 @@ The configuration file supports namespace-specific options:
 
 * Namespace fields like `test`, `watch`, and `permission` contain configuration specific to that subsystem.
 
+The configuration file can target a specific Node.js major version with
+`nodeVersion`:
+
+```json
+{
+  "nodeVersion": 25,
+  "nodeOptions": {
+    "watch-path": "src"
+  }
+}
+```
+
+To keep multiple version-specific configurations in the same file, use the
+`configs` array. Node.js will use the first entry whose `nodeVersion` matches
+the current Node.js major version:
+
+```json
+{
+  "$schema": "https://nodejs.org/dist/latest-v26.x/docs/node-config-schema.json",
+  "configs": [
+    {
+      "nodeVersion": 25,
+      "config": {
+        "$schema": "https://nodejs.org/dist/latest-v25.x/docs/node-config-schema.json",
+        "nodeOptions": {
+          "watch-path": "src"
+        }
+      }
+    }
+  ]
+}
+```
+
+When `configs` is used, the top level may only contain `$schema` and
+`configs`. Each `configs` item must define an integer `nodeVersion` and an
+object `config`. A single top-level config does not require `nodeVersion`, but
+if present it must match the current Node.js major version.
+
 When a namespace is present in the
 configuration file, Node.js automatically enables the corresponding flag
 (e.g., `--test`, `--watch`, `--permission`). This allows you to configure
