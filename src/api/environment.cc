@@ -6,6 +6,7 @@
 #include "node.h"
 #include "node_builtins.h"
 #include "node_context_data.h"
+#include "node_contextify.h"
 #include "node_debug.h"
 #include "node_errors.h"
 #include "node_exit_code.h"
@@ -1051,6 +1052,66 @@ Maybe<bool> InitializeContext(Local<Context> context) {
     return Nothing<bool>();
   }
   return Just(true);
+}
+
+ContextifyOptions::ContextifyOptions(Local<String> name,
+                                     Local<String> origin,
+                                     bool allow_code_gen_strings,
+                                     bool allow_code_gen_wasm,
+                                     MicrotaskMode microtask_mode)
+    : name_(name),
+      origin_(origin),
+      allow_code_gen_strings_(allow_code_gen_strings),
+      allow_code_gen_wasm_(allow_code_gen_wasm),
+      microtask_mode_(microtask_mode) {}
+
+MaybeLocal<Context> MakeContextify(Environment* env,
+                                   Local<Object> context_object,
+                                   const ContextifyOptions& options) {
+  Isolate* isolate = env->isolate();
+  EscapableHandleScope scope(isolate);
+  std::unique_ptr<v8::MicrotaskQueue> microtask_queue;
+  if (options.microtask_mode() ==
+      ContextifyOptions::MicrotaskMode::kAfterEvaluate) {
+    microtask_queue = v8::MicrotaskQueue::New(env->isolate(),
+                                              v8::MicrotasksPolicy::kExplicit);
+  }
+
+  contextify::ContextOptions ctxOptions{
+      .name = options.name(),
+      .origin = options.origin(),
+      .allow_code_gen_strings =
+          Boolean::New(isolate, options.allow_code_gen_strings()),
+      .allow_code_gen_wasm =
+          Boolean::New(isolate, options.allow_code_gen_wasm()),
+      .own_microtask_queue = std::move(microtask_queue),
+      .host_defined_options_id = env->vm_dynamic_import_no_callback(),
+      .vanilla = context_object.IsEmpty(),
+  };
+
+  TryCatchScope try_catch(env);
+  contextify::ContextifyContext* context_ptr =
+      contextify::ContextifyContext::New(env, context_object, &ctxOptions);
+
+  if (try_catch.HasCaught()) {
+    if (!try_catch.HasTerminated()) try_catch.ReThrow();
+    // Allocation failure, maximum call stack size reached, termination, etc.
+    return {};
+  }
+
+  return scope.Escape(context_ptr->context());
+}
+
+MaybeLocal<Context> GetContextified(Environment* env,
+                                    Local<Object> context_object) {
+  Isolate* isolate = env->isolate();
+  EscapableHandleScope scope(isolate);
+  contextify::ContextifyContext* context_ptr =
+      contextify::ContextifyContext::Get(context_object);
+  if (context_ptr == nullptr) {
+    return {};
+  }
+  return scope.Escape(context_ptr->context());
 }
 
 uv_loop_t* GetCurrentEventLoop(Isolate* isolate) {
