@@ -3518,7 +3518,8 @@ Reduction JSCallReducer::ReduceReflectGet(Node* node) {
   if (arity != 2 && arity != 3) return NoChange();
   Node* target = n.Argument(0);
   Node* key = n.Argument(1);
-  Node* receiver = arity == 3 ? n.Argument(2) : nullptr;
+  Node* receiver = nullptr;
+  if (arity == 3) receiver = n.Argument(2);
   Node* context = n.context();
   FrameState frame_state = n.frame_state();
   Effect effect = n.effect();
