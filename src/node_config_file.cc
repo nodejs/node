@@ -1,6 +1,9 @@
 #include "node_config_file.h"
 #include "debug_utils-inl.h"
+#include "node_version.h"
 #include "simdjson.h"
+
+#include <cinttypes>
 
 namespace node {
 
@@ -223,39 +226,115 @@ ParseResult ConfigReader::ParseOptions(
   return ParseResult::Valid;
 }
 
-ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
-  std::string file_content;
-  // Read the configuration file
-  int r = ReadFileSync(&file_content, config_path.data());
-  if (r != 0) {
-    const char* err = uv_strerror(r);
-    FPrintF(
-        stderr, "Cannot read configuration from %s: %s\n", config_path, err);
-    return ParseResult::FileError;
-  }
-
-  // Parse the configuration file
-  simdjson::ondemand::parser json_parser;
-  simdjson::ondemand::document document;
-  if (json_parser.iterate(file_content).get(document)) {
-    FPrintF(stderr, "Can't parse %s\n", config_path.data());
+ParseResult ConfigReader::ParseNodeVersion(
+    simdjson::ondemand::value* version_value,
+    const std::string_view& config_path) {
+  int64_t version;
+  if (version_value->get_int64().get(version)) {
+    FPrintF(stderr,
+            "\"nodeVersion\" value unexpected for %s "
+            "(should be an integer)\n",
+            config_path.data());
     return ParseResult::InvalidContent;
   }
 
-  // Validate config is an object
-  simdjson::ondemand::object main_object;
-  auto root_error = document.get_object().get(main_object);
-  if (root_error) {
-    if (root_error == simdjson::error_code::INCORRECT_TYPE) {
+  if (version != NODE_MAJOR_VERSION) {
+    FPrintF(stderr,
+            "\"nodeVersion\" %" PRId64
+            " does not match current Node.js version %d "
+            "for %s\n",
+            version,
+            NODE_MAJOR_VERSION,
+            config_path.data());
+    return ParseResult::InvalidContent;
+  }
+
+  return ParseResult::Valid;
+}
+
+ParseResult ConfigReader::ParseConfigs(simdjson::ondemand::array* configs,
+                                       const std::string_view& config_path) {
+  size_t index = 0;
+
+  for (auto raw_config : *configs) {
+    simdjson::ondemand::object config_wrapper;
+    if (raw_config.get_object().get(config_wrapper)) {
       FPrintF(stderr,
-              "Root value unexpected not an object for %s\n\n",
+              "\"configs[%zu]\" value unexpected for %s "
+              "(should be an object)\n",
+              index,
               config_path.data());
-    } else {
-      FPrintF(stderr, "Can't parse %s\n", config_path.data());
+      return ParseResult::InvalidContent;
     }
-    return ParseResult::InvalidContent;
+
+    simdjson::ondemand::value version_value;
+    auto version_error =
+        config_wrapper.find_field_unordered("nodeVersion").get(version_value);
+    if (version_error == simdjson::NO_SUCH_FIELD) {
+      FPrintF(stderr,
+              "\"configs[%zu].nodeVersion\" is required for %s\n",
+              index,
+              config_path.data());
+      return ParseResult::InvalidContent;
+    }
+    if (version_error) {
+      return ParseResult::InvalidContent;
+    }
+
+    int64_t version;
+    if (version_value.get_int64().get(version)) {
+      FPrintF(stderr,
+              "\"configs[%zu].nodeVersion\" value unexpected for %s "
+              "(should be an integer)\n",
+              index,
+              config_path.data());
+      return ParseResult::InvalidContent;
+    }
+
+    if (version != NODE_MAJOR_VERSION) {
+      index++;
+      continue;
+    }
+
+    simdjson::ondemand::value config_value;
+    auto config_error =
+        config_wrapper.find_field_unordered("config").get(config_value);
+    if (config_error == simdjson::NO_SUCH_FIELD) {
+      FPrintF(stderr,
+              "\"configs[%zu].config\" is required for %s\n",
+              index,
+              config_path.data());
+      return ParseResult::InvalidContent;
+    }
+    if (config_error) {
+      return ParseResult::InvalidContent;
+    }
+
+    simdjson::ondemand::object selected_config;
+    if (config_value.get_object().get(selected_config)) {
+      FPrintF(stderr,
+              "\"configs[%zu].config\" value unexpected for %s "
+              "(should be an object)\n",
+              index,
+              config_path.data());
+      return ParseResult::InvalidContent;
+    }
+
+    return ParseConfigObject(&selected_config, config_path, false);
   }
 
+  FPrintF(stderr,
+          "No config found for current Node.js version %d in "
+          "\"configs\" for %s\n",
+          NODE_MAJOR_VERSION,
+          config_path.data());
+  return ParseResult::InvalidContent;
+}
+
+ParseResult ConfigReader::ParseConfigObject(
+    simdjson::ondemand::object* config_object,
+    const std::string_view& config_path,
+    bool allow_version_selection) {
   // Get all available namespaces for validation
   std::vector<std::string> available_namespaces =
       options_parser::MapAvailableNamespaces();
@@ -271,13 +350,54 @@ ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
   std::unordered_set<std::string> namespaces_with_implicit_flags;
 
   // Iterate through the main object to find all namespaces
-  for (auto field : main_object) {
+  for (auto field : *config_object) {
     std::string_view field_name;
     if (field.unescaped_key().get(field_name)) {
       return ParseResult::InvalidContent;
     }
 
     std::string namespace_name(field_name);
+
+    if (namespace_name == "$schema") {
+      continue;
+    }
+
+    if (namespace_name == "nodeVersion") {
+      simdjson::ondemand::value version_value;
+      if (field.value().get(version_value)) {
+        return ParseResult::InvalidContent;
+      }
+      ParseResult result = ParseNodeVersion(&version_value, config_path);
+      if (result != ParseResult::Valid) {
+        return result;
+      }
+      continue;
+    }
+
+    if (namespace_name == "configs") {
+      if (!allow_version_selection) {
+        FPrintF(stderr,
+                "\"configs\" is not allowed inside a versioned config "
+                "for %s\n",
+                config_path.data());
+        return ParseResult::InvalidContent;
+      }
+
+      simdjson::ondemand::array configs;
+      auto field_error = field.value().get_array().get(configs);
+      if (field_error) {
+        FPrintF(stderr,
+                "\"configs\" value unexpected for %s "
+                "(should be an array)\n",
+                config_path.data());
+        return ParseResult::InvalidContent;
+      }
+      ParseResult result = ParseConfigs(&configs, config_path);
+      if (result != ParseResult::Valid) {
+        return result;
+      }
+      continue;
+    }
 
     // TODO(@marco-ippolito): Remove warning for testRunner namespace
     if (namespace_name == "testRunner") {
@@ -338,6 +458,81 @@ ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
   }
 
   return ParseResult::Valid;
+}
+
+ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
+  std::string file_content;
+  // Read the configuration file
+  int r = ReadFileSync(&file_content, config_path.data());
+  if (r != 0) {
+    const char* err = uv_strerror(r);
+    FPrintF(
+        stderr, "Cannot read configuration from %s: %s\n", config_path, err);
+    return ParseResult::FileError;
+  }
+
+  // Parse the configuration file
+  simdjson::ondemand::parser json_parser;
+  simdjson::ondemand::document document;
+  if (json_parser.iterate(file_content).get(document)) {
+    FPrintF(stderr, "Can't parse %s\n", config_path.data());
+    return ParseResult::InvalidContent;
+  }
+
+  // Validate config is an object
+  simdjson::ondemand::object main_object;
+  auto root_error = document.get_object().get(main_object);
+  if (root_error) {
+    if (root_error == simdjson::error_code::INCORRECT_TYPE) {
+      FPrintF(stderr,
+              "Root value unexpected not an object for %s\n\n",
+              config_path.data());
+    } else {
+      FPrintF(stderr, "Can't parse %s\n", config_path.data());
+    }
+    return ParseResult::InvalidContent;
+  }
+
+  bool has_configs = false;
+  bool has_other_fields = false;
+  for (auto field : main_object) {
+    std::string_view field_name;
+    if (field.unescaped_key().get(field_name)) {
+      return ParseResult::InvalidContent;
+    }
+
+    if (field_name == "$schema") {
+      continue;
+    }
+
+    if (field_name == "configs") {
+      has_configs = true;
+    } else {
+      has_other_fields = true;
+    }
+  }
+
+  if (has_configs && has_other_fields) {
+    FPrintF(stderr,
+            "\"configs\" cannot be mixed with other configuration fields "
+            "for %s\n",
+            config_path.data());
+    return ParseResult::InvalidContent;
+  }
+
+  simdjson::ondemand::parser config_parser;
+  simdjson::ondemand::document config_document;
+  if (config_parser.iterate(file_content).get(config_document)) {
+    FPrintF(stderr, "Can't parse %s\n", config_path.data());
+    return ParseResult::InvalidContent;
+  }
+
+  simdjson::ondemand::object config_object;
+  if (config_document.get_object().get(config_object)) {
+    return ParseResult::InvalidContent;
+  }
+
+  return ParseConfigObject(&config_object, config_path, true);
 }
 
 std::string ConfigReader::GetNodeOptions() {
