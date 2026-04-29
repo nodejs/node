@@ -7420,7 +7420,7 @@ bool FunctionTemplate::HasInstance(v8::Local<v8::Value> value) {
     return true;
   }
   if (i::IsJSGlobalProxy(*obj)) {
-    auto jsobj = Cast<i::JSGlobalProxy>(*obj);
+    auto jsobj = i::Cast<i::JSGlobalProxy>(*obj);
     if (jsobj->IsDetached()) return false;
     // If it's a global proxy, then test with the global object. Note that the
     // inner global object may not necessarily be a JSGlobalObject.
