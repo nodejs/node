@@ -1,5 +1,3 @@
-/* auto-generated on 2026-04-18 10:54:35 +0100. Do not edit! */
-/* begin file src/ata.cpp */
 #include "ata.h"
 
 // mimalloc: faster new/delete for small allocations.
@@ -1362,8 +1360,10 @@ static void validate_node(const schema_node_ptr& node,
           expected += json_type_name(static_cast<json_type>(b));
         }
       }
+      std::string actual = std::string(type_of_sv(value));
       errors.push_back({error_code::type_mismatch, path,
-                        "expected type " + expected + ", got " + std::string(type_of_sv(value))});
+                        "expected type " + expected + ", got " + actual,
+                        expected, actual});
       ATA_CHECK_EARLY();
     }
   }
@@ -2807,4 +2807,3 @@ bool is_valid_buf(const schema_ref& schema, const uint8_t* data, size_t length) 
 }
 
 }  // namespace ata
-/* end file src/ata.cpp */
