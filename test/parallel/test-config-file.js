@@ -302,7 +302,7 @@ test('non object node options', async () => {
     `--experimental-config-file=${fixtures.path('rc/non-object-node-options.json')}`,
     '-p', '"Hello, World!"',
   ]);
-  assert.match(result.stderr, /Invalid configuration/);
+  assert.match(result.stderr, /\/nodeOptions: expected type object, got string/);
   assert.strictEqual(result.stdout, '');
   assert.strictEqual(result.code, 9);
 });
