@@ -255,9 +255,13 @@ ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
 
   simdjson::ondemand::parser json_parser;
   simdjson::ondemand::document document;
-  CHECK_EQ(json_parser.iterate(file_content).get(document), simdjson::SUCCESS);
+  if (json_parser.iterate(file_content).get(document)) {
+    return ParseResult::InvalidContent;
+  }
   simdjson::ondemand::object main_object;
-  CHECK_EQ(document.get_object().get(main_object), simdjson::SUCCESS);
+  if (document.get_object().get(main_object)) {
+    return ParseResult::InvalidContent;
+  }
 
   // Get all available namespaces for validation
   std::vector<std::string> available_namespaces =
@@ -309,8 +313,9 @@ ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
     }
 
     simdjson::ondemand::object namespace_object;
-    CHECK_EQ(field.value().get_object().get(namespace_object),
-             simdjson::SUCCESS);
+    if (field.value().get_object().get(namespace_object)) {
+      return ParseResult::InvalidContent;
+    }
 
     // Process options for this namespace using the unified method
     ParseResult result =
