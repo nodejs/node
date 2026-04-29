@@ -1670,6 +1670,186 @@ MapNamespaceOptionsAssociations() {
   return namespace_option_mapping;
 }
 
+namespace {
+
+void AppendJsonString(std::string* out, std::string_view value) {
+  *out += '"';
+  for (char c : value) {
+    switch (c) {
+      case '"':
+        *out += "\\\"";
+        break;
+      case '\\':
+        *out += "\\\\";
+        break;
+      case '\n':
+        *out += "\\n";
+        break;
+      case '\r':
+        *out += "\\r";
+        break;
+      case '\t':
+        *out += "\\t";
+        break;
+      default:
+        if (static_cast<unsigned char>(c) < 0x20) {
+          char buf[8];
+          snprintf(buf, sizeof(buf), "\\u%04x", c);
+          *out += buf;
+        } else {
+          *out += c;
+        }
+    }
+  }
+  *out += '"';
+}
+
+bool ShouldIncludeOption(OptionType type) {
+  switch (type) {
+    case OptionType::kBoolean:
+    case OptionType::kInteger:
+    case OptionType::kUInteger:
+    case OptionType::kHostPort:
+    case OptionType::kString:
+    case OptionType::kStringList:
+      return true;
+    default:
+      return false;  // No-op or V8 flags
+  }
+}
+
+void AppendOptionProperty(std::string* out, OptionType type,
+                          std::string_view help_text) {
+  *out += '{';
+  switch (type) {
+    case OptionType::kBoolean:
+      *out += R"("type":"boolean")";
+      break;
+    case OptionType::kInteger:
+    case OptionType::kUInteger:
+    case OptionType::kHostPort:
+      *out += R"("type":"number")";
+      break;
+    case OptionType::kString:
+      *out += R"("type":"string")";
+      break;
+    case OptionType::kStringList:
+      *out += R"("oneOf":[)";
+      *out += R"({"type":"string"},)";
+      *out += R"({"type":"array","minItems":1,"items":{"type":"string"}})";
+      *out += ']';
+      break;
+    default:
+      break;
+  }
+  *out += R"(,"description":)";
+  AppendJsonString(out, help_text);
+  *out += '}';
+}
+
+std::vector<std::pair<std::string, OptionMappingDetails>> SortedOptionEntries(
+    const std::unordered_map<std::string, OptionMappingDetails>& options) {
+  std::vector<std::pair<std::string, OptionMappingDetails>> sorted;
+  sorted.reserve(options.size());
+  for (const auto& entry : options) {
+    if (!ShouldIncludeOption(entry.second.type)) continue;
+    std::string clean_key = entry.first;
+    if (clean_key.starts_with("--")) clean_key = clean_key.substr(2);
+    sorted.emplace_back(std::move(clean_key), entry.second);
+  }
+  std::sort(sorted.begin(), sorted.end(),
+            [](const auto& a, const auto& b) { return a.first < b.first; });
+  return sorted;
+}
+
+void AppendNodeOptionsObject(
+    std::string* out,
+    const std::vector<std::pair<std::string, OptionMappingDetails>>& sorted_env,
+    bool include_additional_properties) {
+  *out += '{';
+  if (include_additional_properties) {
+    *out += R"("additionalProperties":false,)";
+  }
+  *out += R"("required":[],"properties":{)";
+  bool first = true;
+  for (const auto& entry : sorted_env) {
+    if (!first) *out += ',';
+    first = false;
+    AppendJsonString(out, entry.first);
+    *out += ':';
+    AppendOptionProperty(out, entry.second.type, entry.second.help_text);
+  }
+  *out += R"(},"type":"object"})";
+}
+
+void AppendNamespaceObject(
+    std::string* out,
+    const std::unordered_map<std::string, OptionMappingDetails>& options,
+    bool include_additional_properties) {
+  auto sorted = SortedOptionEntries(options);
+  *out += R"({"type":"object",)";
+  if (include_additional_properties) {
+    *out += R"("additionalProperties":false,)";
+  }
+  *out += R"("required":[],"properties":{)";
+  bool first = true;
+  for (const auto& entry : sorted) {
+    if (!first) *out += ',';
+    first = false;
+    AppendJsonString(out, entry.first);
+    *out += ':';
+    AppendOptionProperty(out, entry.second.type, entry.second.help_text);
+  }
+  *out += "}}";
+}
+
+}  // namespace
+
+std::string GenerateConfigJsonSchema(bool include_additional_properties) {
+  Mutex::ScopedLock lock(per_process::cli_options_mutex);
+
+  auto env_options = MapEnvOptionsFlagInputType();
+  auto namespace_options = MapNamespaceOptionsAssociations();
+
+  auto sorted_env = SortedOptionEntries(env_options);
+
+  std::vector<std::string> top_level_props = {"$schema", "nodeOptions"};
+  for (const auto& entry : namespace_options) {
+    top_level_props.push_back(entry.first);
+  }
+  std::sort(top_level_props.begin(), top_level_props.end());
+
+  std::string out;
+  out.reserve(50000);
+
+  out += '{';
+  out += R"("$schema":"https://json-schema.org/draft/2020-12/schema",)";
+  if (include_additional_properties) {
+    out += R"("additionalProperties":false,)";
+  }
+  out += R"("required":[],"properties":{)";
+
+  bool first_prop = true;
+  for (const auto& prop : top_level_props) {
+    if (!first_prop) out += ',';
+    first_prop = false;
+    AppendJsonString(&out, prop);
+    out += ':';
+
+    if (prop == "$schema") {
+      out += R"({"type":"string"})";
+    } else if (prop == "nodeOptions") {
+      AppendNodeOptionsObject(&out, sorted_env, include_additional_properties);
+    } else {
+      AppendNamespaceObject(&out, namespace_options.at(prop),
+                            include_additional_properties);
+    }
+  }
+
+  out += R"(},"type":"object"})";
+  return out;
+}
+
 struct IterateCLIOptionsScope {
   explicit IterateCLIOptionsScope(Environment* env) {
     // Temporarily act as if the current Environment's/IsolateData's options
@@ -2128,6 +2308,18 @@ void GetOptionsAsFlags(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
+void GetConfigJsonSchema(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  std::string schema = options_parser::GenerateConfigJsonSchema(true);
+  Local<String> result;
+  if (!String::NewFromUtf8(
+           isolate, schema.data(), v8::NewStringType::kNormal, schema.size())
+           .ToLocal(&result)) {
+    return;
+  }
+  args.GetReturnValue().Set(result);
+}
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -2148,6 +2340,8 @@ void Initialize(Local<Object> target,
                         target,
                         "getNamespaceOptionsInputType",
                         GetNamespaceOptionsInputType);
+  SetMethodNoSideEffect(
+      context, target, "getConfigJsonSchema", GetConfigJsonSchema);
   Local<Object> env_settings = Object::New(isolate);
   NODE_DEFINE_CONSTANT(env_settings, kAllowedInEnvvar);
   NODE_DEFINE_CONSTANT(env_settings, kDisallowedInEnvvar);
@@ -2176,6 +2370,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetEmbedderOptions);
   registry->Register(GetEnvOptionsInputType);
   registry->Register(GetNamespaceOptionsInputType);
+  registry->Register(GetConfigJsonSchema);
 }
 }  // namespace options_parser
 

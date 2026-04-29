@@ -1,7 +1,7 @@
 #include "node_config_file.h"
 #include "ata.h"
 #include "debug_utils-inl.h"
-#include "node_config_schema.h"
+#include "node_options.h"
 #include "simdjson.h"
 
 namespace node {
@@ -237,8 +237,8 @@ ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
   }
 
   {
-    static const ata::schema_ref compiled_schema =
-        ata::compile(kNodeConfigSchema);
+    static const ata::schema_ref compiled_schema = ata::compile(
+        options_parser::GenerateConfigJsonSchema(false));
     CHECK(compiled_schema);
     auto result = ata::validate(compiled_schema, file_content);
     if (!result.valid) {
