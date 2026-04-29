@@ -5861,6 +5861,10 @@ added: REPLACEME
     random data to generate up to 128 random UUIDs. To generate a UUID
     without using the cache, set `disableEntropyCache` to `true`.
     **Default:** `false`.
+  * `monotonic` {boolean} When `true`, guarantees that UUIDs generated
+    within the same millisecond are strictly increasing by using a counter
+    in the `rand_a` field, as described in [RFC 9562][] Section 6.2.
+    **Default:** `false`.
 * Returns: {string}
 
 Generates a random [RFC 9562][] version 7 UUID. The UUID contains a millisecond

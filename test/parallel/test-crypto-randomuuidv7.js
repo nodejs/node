@@ -60,17 +60,30 @@ const {
 }
 
 {
-  let prev = randomUUIDv7();
+  const opts = { monotonic: true };
+  let prev = randomUUIDv7(opts);
   for (let i = 0; i < 100; i++) {
-    const curr = randomUUIDv7();
-    // UUIDs with later timestamps must sort after earlier ones.
-    // Within the same millisecond, ordering depends on random bits,
-    // so we only assert >= on the timestamp portion.
-    const prevTs = parseInt(prev.replace(/-/g, '').slice(0, 12), 16);
-    const currTs = parseInt(curr.replace(/-/g, '').slice(0, 12), 16);
-    assert(currTs >= prevTs,
-           `Timestamp went backwards: ${currTs} < ${prevTs}`);
+    const curr = randomUUIDv7(opts);
+    // With a monotonic counter in rand_a, each UUID must be strictly greater
+    // than the previous regardless of whether the timestamp changed.
+    assert(curr > prev,
+           `UUID ordering violated: ${curr} <= ${prev}`);
     prev = curr;
+  }
+}
+
+// Sub-millisecond ordering: a tight synchronous burst exercises the counter
+// increment path and must also produce strictly increasing UUIDs.
+{
+  const opts = { monotonic: true };
+  const burst = [];
+  for (let i = 0; i < 500; i++) {
+    burst.push(randomUUIDv7(opts));
+  }
+  for (let i = 1; i < burst.length; i++) {
+    assert(burst[i] > burst[i - 1],
+           `Sub-millisecond ordering violated at index ${i}: ` +
+           `${burst[i]} <= ${burst[i - 1]}`);
   }
 }
 
@@ -92,11 +105,20 @@ const {
   assert.match(randomUUIDv7({ disableEntropyCache: true }), uuidv7Regex);
   assert.match(randomUUIDv7({ disableEntropyCache: true }), uuidv7Regex);
 
+  // monotonic: false — rand_a is random; UUIDs must still be valid but are not
+  // guaranteed to be strictly ordered within the same millisecond.
+  assert.match(randomUUIDv7({ monotonic: false }), uuidv7Regex);
+  assert.match(randomUUIDv7({ monotonic: false, disableEntropyCache: true }), uuidv7Regex);
+
   assert.throws(() => randomUUIDv7(1), {
     code: 'ERR_INVALID_ARG_TYPE',
   });
 
   assert.throws(() => randomUUIDv7({ disableEntropyCache: '' }), {
+    code: 'ERR_INVALID_ARG_TYPE',
+  });
+
+  assert.throws(() => randomUUIDv7({ monotonic: 1 }), {
     code: 'ERR_INVALID_ARG_TYPE',
   });
 }
