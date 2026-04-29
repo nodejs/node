@@ -2751,6 +2751,14 @@ validation_result validate(const schema_ref& schema, std::string_view json,
   return {errors.empty(), std::move(errors)};
 }
 
+std::string format_prose(const validation_error& err) {
+  std::string path = err.path.empty() ? "/" : err.path;
+  if (err.code == error_code::type_mismatch && !err.expected.empty()) {
+    return path + " should be " + err.expected + ", got " + err.actual;
+  }
+  return path + " " + err.message;
+}
+
 validation_result validate(std::string_view schema_json,
                            std::string_view json,
                            const validate_options& opts) {

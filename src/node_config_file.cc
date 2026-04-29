@@ -244,16 +244,7 @@ ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
     if (!result.valid) {
       FPrintF(stderr, "Invalid configuration in %s:\n", config_path.data());
       for (const auto& err : result.errors) {
-        const char* path = err.path.empty() ? "/" : err.path.c_str();
-        if (err.code == ata::error_code::type_mismatch) {
-          FPrintF(stderr,
-                  "  %s should be %s, got %s\n",
-                  path,
-                  err.expected,
-                  err.actual);
-        } else {
-          FPrintF(stderr, "  %s: %s\n", path, err.message);
-        }
+        FPrintF(stderr, "  %s\n", ata::format_prose(err));
       }
       return ParseResult::InvalidContent;
     }

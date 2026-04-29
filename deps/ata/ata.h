@@ -8,16 +8,16 @@
 #include <variant>
 #include <vector>
 
-#define ATA_VERSION "0.10.4"
+#define ATA_VERSION "0.10.5"
 
 namespace ata {
 
 inline constexpr uint32_t VERSION_MAJOR = 0;
 inline constexpr uint32_t VERSION_MINOR = 10;
-inline constexpr uint32_t VERSION_REVISION = 4;
+inline constexpr uint32_t VERSION_REVISION = 5;
 
 inline constexpr std::string_view version() noexcept {
-  return "0.10.4";
+  return "0.10.5";
 }
 
 enum class error_code : uint8_t {
@@ -90,6 +90,9 @@ schema_ref compile(std::string_view schema_json);
 // Validate a JSON document against a compiled schema.
 validation_result validate(const schema_ref& schema, std::string_view json,
                            const validate_options& opts = {});
+
+// Format a validation_error as a single-line prose sentence.
+std::string format_prose(const validation_error& err);
 
 // Validate a JSON document against a schema (compiles schema each time).
 validation_result validate(std::string_view schema_json,
