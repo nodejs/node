@@ -236,33 +236,6 @@ ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
     return ParseResult::FileError;
   }
 
-  // Parse the configuration file
-  simdjson::ondemand::parser json_parser;
-  simdjson::ondemand::document document;
-  if (json_parser.iterate(file_content).get(document)) {
-    FPrintF(stderr, "Can't parse %s\n", config_path.data());
-    return ParseResult::InvalidContent;
-  }
-
-  // Validate config is an object
-  simdjson::ondemand::object main_object;
-  auto root_error = document.get_object().get(main_object);
-  if (root_error) {
-    if (root_error == simdjson::error_code::INCORRECT_TYPE) {
-      FPrintF(stderr,
-              "Root value unexpected not an object for %s\n\n",
-              config_path.data());
-    } else {
-      FPrintF(stderr, "Can't parse %s\n", config_path.data());
-    }
-    return ParseResult::InvalidContent;
-  }
-
-  // Validate against JSON Schema after basic parsing succeeds. This catches
-  // unknown namespaces and type errors in properties before the option parsing
-  // loop, which would otherwise produce less clear messages (or silently skip
-  // unknown top-level keys). kNodeConfigSchema is a compile-time constant, so
-  // compile it once on first call.
   {
     static const ata::schema_ref compiled_schema =
         ata::compile(kNodeConfigSchema);
@@ -279,6 +252,12 @@ ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
       return ParseResult::InvalidContent;
     }
   }
+
+  simdjson::ondemand::parser json_parser;
+  simdjson::ondemand::document document;
+  CHECK_EQ(json_parser.iterate(file_content).get(document), simdjson::SUCCESS);
+  simdjson::ondemand::object main_object;
+  CHECK_EQ(document.get_object().get(main_object), simdjson::SUCCESS);
 
   // Get all available namespaces for validation
   std::vector<std::string> available_namespaces =
@@ -329,18 +308,9 @@ ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
       }
     }
 
-    // Get the namespace object
     simdjson::ondemand::object namespace_object;
-    auto field_error = field.value().get_object().get(namespace_object);
-
-    // If namespace value is not an object
-    if (field_error) {
-      FPrintF(stderr,
-              "\"%s\" value unexpected for %s (should be an object)\n",
-              namespace_name,
-              config_path.data());
-      return ParseResult::InvalidContent;
-    }
+    CHECK_EQ(field.value().get_object().get(namespace_object),
+             simdjson::SUCCESS);
 
     // Process options for this namespace using the unified method
     ParseResult result =
