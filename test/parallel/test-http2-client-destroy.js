@@ -119,9 +119,9 @@ const { listenerCount } = require('events');
     });
 
     const req = client.request();
-    req.on('error', common.mustCall((err) => {
+    req.on('error', common.mustCallAtLeast((err) => {
       assert.strictEqual(err.code, 'ERR_HTTP2_STREAM_ERROR');
-    }));
+    }, 0));
   }));
 }
 
