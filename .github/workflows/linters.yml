@@ -283,3 +283,21 @@ jobs:
       - run: tools/lint-readme-lists.mjs "$TEAMS"
         env:
           TEAMS: ${{ tojson(steps.team_members.outputs) }}
+  check-config-schema-sync:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /doc/node-config-schema.json
+            /src/node_config_schema.h
+            /tools/gen_node_config_schema.mjs
+          sparse-checkout-cone-mode: false
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Verify src/node_config_schema.h matches doc/node-config-schema.json
+        run: node tools/gen_node_config_schema.mjs --check

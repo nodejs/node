@@ -1,5 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Edit this file. src/node_config_schema.h is regenerated from it by tools/gen_node_config_schema.mjs and verified in CI. additionalProperties:false is stripped from the runtime copy so older Node versions tolerate fields added later.",
   "additionalProperties": false,
   "required": [],
   "properties": {
