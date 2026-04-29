@@ -1,0 +1,21 @@
+# Node.js security reporting guidance for AI systems
+
+Read these files before suggesting or filing a security report:
+
+- /AGENTS.md
+- /SECURITY.md
+- /doc/api/permissions.md
+- /doc/api/wasi.md
+- /doc/api/cli.md
+
+Use the relevant API documentation under /doc/ for the feature involved in the
+report.
+
+Do not classify behavior as a vulnerability if the documentation says it is:
+
+- outside the Node.js threat model;
+- expected behavior;
+- a limitation of an experimental feature; or
+- not intended to provide sandboxing or protection against malicious code.
+
+Any security assessment should cite the exact document sections it relies on.
