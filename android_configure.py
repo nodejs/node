@@ -7,7 +7,7 @@ def patch_android():
     print("- Patches List -")
     print("[1] [deps/v8/src/trap-handler/trap-handler.h] related to https://github.com/nodejs/node/issues/36287")
     if platform.system() == "Linux":
-        os.system('patch -f ./deps/v8/src/trap-handler/trap-handler.h < ./android-patches/trap-handler.h.patch')
+        __import__('subprocess').run(['patch', '-f', './deps/v8/src/trap-handler/trap-handler.h'], stdin=open('./android-patches/trap-handler.h.patch'), check=False)
     print("\033[92mInfo: \033[0m" + "Tried to patch.")
 
 if platform.system() != "Linux" and platform.system() != "Darwin":
@@ -74,4 +74,4 @@ GYP_DEFINES += " android_ndk_path=" + android_ndk_path
 os.environ['GYP_DEFINES'] = GYP_DEFINES
 
 if os.path.exists("./configure"):
-    os.system("./configure --dest-cpu=" + DEST_CPU + " --dest-os=android --openssl-no-asm --cross-compiling")
+    __import__('subprocess').run(['./configure', '--dest-cpu=' + DEST_CPU, '--dest-os=android', '--openssl-no-asm', '--cross-compiling'], check=False)
