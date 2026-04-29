@@ -517,14 +517,26 @@ describe('namespace-scoped options', () => {
     assert.strictEqual(result.code, 9);
   });
 
-  it('should not throw an error when a namespace is not recognised', async () => {
+  it('should throw an error when a namespace is not recognised', async () => {
     const result = await spawnPromisified(process.execPath, [
       '--no-warnings',
       `--experimental-config-file=${fixtures.path('rc/unknown-namespace.json')}`,
       '-p', '"Hello, World!"',
     ]);
+    assert.match(result.stderr, /Unknown namespace an-invalid-namespace/);
+    assert.match(result.stderr, /unknown-namespace\.json: invalid content/);
+    assert.strictEqual(result.stdout, '');
+    assert.strictEqual(result.code, 9);
+  });
+
+  it('should allow the $schema field', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      `--experimental-config-file=${fixtures.path('rc/schema.json')}`,
+      '-p', 'http.maxHeaderSize',
+    ]);
     assert.strictEqual(result.stderr, '');
-    assert.strictEqual(result.stdout, 'Hello, World!\n');
+    assert.strictEqual(result.stdout, '10\n');
     assert.strictEqual(result.code, 0);
   });
 
