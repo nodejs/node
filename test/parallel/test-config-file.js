@@ -291,7 +291,7 @@ test('non object root', async () => {
     `--experimental-config-file=${fixtures.path('rc/non-object-root.json')}`,
     '-p', '"Hello, World!"',
   ]);
-  assert.match(result.stderr, /\/: expected type object, got array/);
+  assert.match(result.stderr, /\/ should be object, got array/);
   assert.strictEqual(result.stdout, '');
   assert.strictEqual(result.code, 9);
 });
@@ -302,7 +302,7 @@ test('non object node options', async () => {
     `--experimental-config-file=${fixtures.path('rc/non-object-node-options.json')}`,
     '-p', '"Hello, World!"',
   ]);
-  assert.match(result.stderr, /\/nodeOptions: expected type object, got string/);
+  assert.match(result.stderr, /\/nodeOptions should be object, got string/);
   assert.strictEqual(result.stdout, '');
   assert.strictEqual(result.code, 9);
 });
