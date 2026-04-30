@@ -1175,6 +1175,8 @@ endif
 			| sed -E "s/\\{npmversion\\}/$(NPMVERSION)/g"  \
 		>$(MACOSOUTDIR)/installer/productbuild/Resources/$$lang/conclusion.html ; \
 	done
+	# TODO(richardlau) remove once target is added to the underlying macOS VMs. 
+	rustup target add x86_64-apple-darwin
 	CC_host="cc -arch x86_64" CXX_host="c++ -arch x86_64"  \
 	CC_target="cc -arch x86_64" CXX_target="c++ -arch x86_64" \
 	CC="cc -arch x86_64" CXX="c++ -arch x86_64" $(PYTHON) ./configure \
