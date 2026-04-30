@@ -191,6 +191,58 @@ This behavior also applies to `child_process.spawn()`, but in that case, the
 flags are propagated via the `NODE_OPTIONS` environment variable rather than
 directly through the process arguments.
 
+### `--allow-env`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+When using the [Permission Model][], access to environment variables is
+restricted by default. Reading a restricted variable silently returns
+`undefined`, while writing or deleting throws `ERR_ACCESS_DENIED`.
+Enumerating (`Object.keys(process.env)`) only returns allowed variables.
+
+The valid arguments for the `--allow-env` flag are:
+
+* `*` - To allow access to all environment variables.
+* Specific environment variable names can be allowed using a comma-separated
+  list. Example: `--allow-env=HOME,PATH,NODE_ENV`
+
+Examples:
+
+```console
+$ node --permission --allow-fs-read=* -p 'process.env.HOME'
+undefined
+$ node --permission --allow-env=HOME --allow-fs-read=* -p 'process.env.HOME'
+/Users/user
+$ node --permission --allow-env=* --allow-fs-read=* -p 'process.env.HOME'
+/Users/user
+```
+
+Environment variable permissions can be checked programmatically:
+
+```js
+process.permission.has('env'); // True if any env access is allowed
+process.permission.has('env', 'HOME'); // True if HOME is allowed
+```
+
+Attempting to write a restricted variable throws:
+
+```console
+$ node --permission --allow-fs-read=* -e "process.env.FOO = 'bar'"
+node:internal/process/per_thread:12
+  throw new ERR_ACCESS_DENIED('EnvVar', name);
+  ^
+
+Error: Access to this API has been restricted
+    at node:internal/main/run_main_module:17:47 {
+  code: 'ERR_ACCESS_DENIED',
+  permission: 'EnvVar'
+}
+```
+
 ### `--allow-ffi`
 
 <!-- YAML
@@ -2224,6 +2276,7 @@ following permissions are restricted:
 * Worker Threads - manageable through [`--allow-worker`][] flag
 * WASI - manageable through [`--allow-wasi`][] flag
 * Addons - manageable through [`--allow-addons`][] flag
+* Environment Variables - manageable through [`--allow-env`][] flag
 * FFI - manageable through [`--allow-ffi`](#--allow-ffi) flag
 
 ### `--permission-audit`
@@ -3671,6 +3724,7 @@ one is included in the list below.
 
 * `--allow-addons`
 * `--allow-child-process`
+* `--allow-env`
 * `--allow-ffi`
 * `--allow-fs-read`
 * `--allow-fs-write`
@@ -4309,6 +4363,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`"type"`]: packages.md#type
 [`--allow-addons`]: #--allow-addons
 [`--allow-child-process`]: #--allow-child-process
+[`--allow-env`]: #--allow-env
 [`--allow-fs-read`]: #--allow-fs-read
 [`--allow-fs-write`]: #--allow-fs-write
 [`--allow-net`]: #--allow-net
