@@ -946,7 +946,7 @@ parser.add_argument('--write-snapshot-as-array-literals',
 parser.add_argument('--without-node-snapshot',
     action='store_true',
     dest='without_node_snapshot',
-    default=None,
+    default=True,
     help='Turn off V8 snapshot integration. Currently experimental.')
 
 parser.add_argument('--without-node-code-cache',
