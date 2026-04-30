@@ -666,12 +666,6 @@ std::optional<std::string> GenerateCodeCache(std::string_view main_path,
     Local<UnboundModuleScript> unbound = module->GetUnboundModuleScript();
     cache.reset(ScriptCompiler::CreateCodeCache(unbound));
   } else {
-    // TODO(RaisinTen): Using the V8 code cache prevents us from using
-    // `import()` in the SEA code. Support it. Refs:
-    // https://github.com/nodejs/node/pull/48191#discussion_r1213271430
-    // TODO(joyeecheung): this likely has been fixed by
-    // https://chromium-review.googlesource.com/c/v8/v8/+/5401780 - add a test
-    // and update docs.
     LocalVector<String> parameters(
         isolate,
         {
