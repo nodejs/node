@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
@@ -15,6 +16,7 @@ const EE = require('events');
 const fs = require('fs');
 const { promisify } = require('util');
 const http = require('http');
+const { kEosNodeSynchronousCallback } = require('internal/streams/end-of-stream');
 
 {
   const rs = new Readable({
@@ -95,13 +97,20 @@ const http = require('http');
 
 {
   // Check pre-cancelled
-  const signal = new EventTarget();
-  signal.aborted = true;
+  const signal = AbortSignal.abort();
 
   const rs = Readable.from((function* () {})());
-  finished(rs, { signal }, common.mustCall((err) => {
+  const cleanup = finished(rs, { signal }, common.mustCall((err) => {
     assert.strictEqual(err.name, 'AbortError');
+    cleanup();
   }));
+  const unset = Symbol('unset');
+  let cleanup2 = unset;
+  cleanup2 = finished(rs, { signal, [kEosNodeSynchronousCallback]: true }, common.mustCall((err) => {
+    assert.strictEqual(err.name, 'AbortError');
+    assert.strictEqual(cleanup2, unset);
+  }));
+  cleanup2();
 }
 
 {
@@ -160,8 +169,7 @@ const http = require('http');
   // Promisified pre-aborted works
   const finishedPromise = promisify(finished);
   async function run() {
-    const signal = new EventTarget();
-    signal.aborted = true;
+    const signal = AbortSignal.abort();
     const rs = Readable.from((function* () {})());
     await finishedPromise(rs, { signal });
   }
@@ -589,6 +597,29 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
       method: 'GET',
       port: this.address().port
     }).end().on('error', common.mustCall());
+  }));
+}
+
+{
+  let serverRes;
+  const server = http.createServer(common.mustCall((req, res) => {
+    serverRes = res;
+    res.write('hello');
+  })).listen(0, common.mustCall(function() {
+    http.get({ port: this.address().port }, common.mustCall((res) => {
+      res.on('aborted', common.mustCall(() => {
+        finished(res, common.mustCall((err) => {
+          assert.strictEqual(err.code, 'ECONNRESET');
+          assert.strictEqual(err.message, 'aborted');
+          server.close();
+        }));
+      }));
+      res.on('error', common.expectsError({
+        code: 'ECONNRESET',
+        message: 'aborted',
+      }));
+      serverRes.destroy();
+    })).on('error', common.mustNotCall());
   }));
 }
 
