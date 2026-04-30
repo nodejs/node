@@ -284,7 +284,7 @@ void CreateELDHistogram(const FunctionCallbackInfo<Value>& args) {
   CHECK_GT(interval, 0);
   if (args[1]->IsTrue()) {
     BaseObjectPtr<ELDHistogram> histogram =
-        ELDHistogram::Create(env, Histogram::Options { 1 });
+        ELDHistogram::Create(env, Histogram::Options{1});
     args.GetReturnValue().Set(histogram->object());
     return;
   }

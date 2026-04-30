@@ -68,10 +68,8 @@ CFunction IntervalHistogram::fast_start_(
     CFunction::Make(&IntervalHistogram::FastStart));
 CFunction IntervalHistogram::fast_stop_(
     CFunction::Make(&IntervalHistogram::FastStop));
-CFunction ELDHistogram::fast_start_(
-    CFunction::Make(&ELDHistogram::FastStart));
-CFunction ELDHistogram::fast_stop_(
-    CFunction::Make(&ELDHistogram::FastStop));
+CFunction ELDHistogram::fast_start_(CFunction::Make(&ELDHistogram::FastStart));
+CFunction ELDHistogram::fast_stop_(CFunction::Make(&ELDHistogram::FastStop));
 
 void HistogramImpl::AddMethods(Isolate* isolate, Local<FunctionTemplate> tmpl) {
   // TODO(@jasnell): The bigint API variations do not yet support fast
@@ -448,8 +446,7 @@ void IntervalHistogram::FastStop(Local<Value> receiver) {
   histogram->OnStop();
 }
 
-Local<FunctionTemplate> ELDHistogram::GetConstructorTemplate(
-    Environment* env) {
+Local<FunctionTemplate> ELDHistogram::GetConstructorTemplate(Environment* env) {
   Local<FunctionTemplate> tmpl = env->eldhistogram_constructor_template();
   if (tmpl.IsEmpty()) {
     Isolate* isolate = env->isolate();
@@ -475,16 +472,12 @@ void ELDHistogram::RegisterExternalReferences(
   HistogramImpl::RegisterExternalReferences(registry);
 }
 
-ELDHistogram::ELDHistogram(
-    Environment* env,
-    Local<Object> wrap,
-    AsyncWrap::ProviderType type,
-    const Histogram::Options& options)
+ELDHistogram::ELDHistogram(Environment* env,
+                           Local<Object> wrap,
+                           AsyncWrap::ProviderType type,
+                           const Histogram::Options& options)
     : HandleWrap(
-          env,
-          wrap,
-          reinterpret_cast<uv_handle_t*>(&check_handle_),
-          type),
+          env, wrap, reinterpret_cast<uv_handle_t*>(&check_handle_), type),
       HistogramImpl(options) {
   MakeWeak();
   wrap->SetAlignedPointerInInternalField(
@@ -499,20 +492,17 @@ ELDHistogram::ELDHistogram(
 }
 
 BaseObjectPtr<ELDHistogram> ELDHistogram::Create(
-    Environment* env,
-    const Histogram::Options& options) {
+    Environment* env, const Histogram::Options& options) {
   Local<Object> obj;
   if (!GetConstructorTemplate(env)
-          ->InstanceTemplate()
-          ->NewInstance(env->context()).ToLocal(&obj)) {
+           ->InstanceTemplate()
+           ->NewInstance(env->context())
+           .ToLocal(&obj)) {
     return nullptr;
   }
 
   return MakeBaseObject<ELDHistogram>(
-      env,
-      obj,
-      AsyncWrap::PROVIDER_ELDHISTOGRAM,
-      options);
+      env, obj, AsyncWrap::PROVIDER_ELDHISTOGRAM, options);
 }
 
 void ELDHistogram::PrepareCB(uv_prepare_t* handle) {
@@ -523,8 +513,7 @@ void ELDHistogram::PrepareCB(uv_prepare_t* handle) {
 }
 
 void ELDHistogram::CheckCB(uv_check_t* handle) {
-  ELDHistogram* self =
-      ContainerOf(&ELDHistogram::check_handle_, handle);
+  ELDHistogram* self = ContainerOf(&ELDHistogram::check_handle_, handle);
   if (!self->enabled_) return;
 
   uint64_t check_time = uv_hrtime();
@@ -549,8 +538,7 @@ void ELDHistogram::MemoryInfo(MemoryTracker* tracker) const {
 void ELDHistogram::OnStart(StartFlags flags) {
   if (enabled_ || IsHandleClosing()) return;
   enabled_ = true;
-  if (flags == StartFlags::RESET)
-    histogram()->Reset();
+  if (flags == StartFlags::RESET) histogram()->Reset();
   check_time_ = uv_hrtime();
   prepare_time_ = check_time_;
   timeout_ = 0;
@@ -580,13 +568,12 @@ void ELDHistogram::Close(Local<Value> close_callback) {
 
   if (!close_callback.IsEmpty() && close_callback->IsFunction() &&
       !persistent().IsEmpty()) {
-    object()->Set(env()->context(),
-                  env()->handle_onclose_symbol(),
-                  close_callback).Check();
+    object()
+        ->Set(env()->context(), env()->handle_onclose_symbol(), close_callback)
+        .Check();
   }
 
-  uv_close(reinterpret_cast<uv_handle_t*>(&prepare_handle_),
-           PrepareCloseCB);
+  uv_close(reinterpret_cast<uv_handle_t*>(&prepare_handle_), PrepareCloseCB);
 }
 
 void ELDHistogram::Start(const FunctionCallbackInfo<Value>& args) {
@@ -778,8 +765,7 @@ HistogramImpl* HistogramImpl::FromJSObject(Local<Value> value) {
       HistogramImpl::kImplField, EmbedderDataTag::kDefault));
 }
 
-std::unique_ptr<worker::TransferData>
-ELDHistogram::CloneForMessaging() const {
+std::unique_ptr<worker::TransferData> ELDHistogram::CloneForMessaging() const {
   return std::make_unique<HistogramBase::HistogramTransferData>(histogram());
 }
 

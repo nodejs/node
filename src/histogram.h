@@ -273,25 +273,20 @@ class ELDHistogram final : public HandleWrap, public HistogramImpl {
         HandleWrap::kInternalFieldCount, HistogramImpl::kInternalFieldCount),
   };
 
-  enum class StartFlags {
-    NONE,
-    RESET
-  };
+  enum class StartFlags { NONE, RESET };
 
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
 
-  static BaseObjectPtr<ELDHistogram> Create(
-      Environment* env,
-      const Histogram::Options& options);
+  static BaseObjectPtr<ELDHistogram> Create(Environment* env,
+                                            const Histogram::Options& options);
 
-  ELDHistogram(
-      Environment* env,
-      v8::Local<v8::Object> wrap,
-      AsyncWrap::ProviderType type,
-      const Histogram::Options& options = Histogram::Options {});
+  ELDHistogram(Environment* env,
+               v8::Local<v8::Object> wrap,
+               AsyncWrap::ProviderType type,
+               const Histogram::Options& options = Histogram::Options{});
 
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -304,8 +299,8 @@ class ELDHistogram final : public HandleWrap, public HistogramImpl {
   }
   std::unique_ptr<worker::TransferData> CloneForMessaging() const override;
 
-  void Close(v8::Local<v8::Value> close_callback =
-                 v8::Local<v8::Value>()) override;
+  void Close(
+      v8::Local<v8::Value> close_callback = v8::Local<v8::Value>()) override;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(ELDHistogram)
