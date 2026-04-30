@@ -596,7 +596,7 @@ void ELDHistogram::Start(const FunctionCallbackInfo<Value>& args) {
 }
 
 void ELDHistogram::FastStart(Local<Value> receiver, bool reset) {
-  TRACK_V8_FAST_API_CALL("histogram.start");
+  TRACK_V8_FAST_API_CALL("histogram.eventLoopDelay.start");
   ELDHistogram* histogram;
   ASSIGN_OR_RETURN_UNWRAP(&histogram, receiver);
   histogram->OnStart(reset ? StartFlags::RESET : StartFlags::NONE);
@@ -609,7 +609,7 @@ void ELDHistogram::Stop(const FunctionCallbackInfo<Value>& args) {
 }
 
 void ELDHistogram::FastStop(Local<Value> receiver) {
-  TRACK_V8_FAST_API_CALL("histogram.stop");
+  TRACK_V8_FAST_API_CALL("histogram.eventLoopDelay.stop");
   ELDHistogram* histogram;
   ASSIGN_OR_RETURN_UNWRAP(&histogram, receiver);
   histogram->OnStop();
