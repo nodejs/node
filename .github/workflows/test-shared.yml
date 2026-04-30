@@ -172,6 +172,8 @@ jobs:
     name: 'aarch64-linux: Cache V8 build'
     outputs:
       local-cache: ${{ steps.upload.outcome != 'skipped' && 'true' || '' }}
+    env:
+      HAS_CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN && 'true' }}
     steps:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
         with:
@@ -188,44 +190,37 @@ jobs:
         with:
           extra_nix_config: sandbox = true
 
-      - name: Evaluate V8 derivation
+      - name: Evaluate V8 derivation, check its cache status
         id: v8-drv
         run: |
           V8_DRV=$(
             nix-instantiate -E "builtins.filter (p: p.pname == ''v8'') (import $TAR_DIR/shell.nix { useSeparateDerivationForV8=true; }).buildInputs"
           )
+          V8_STORE_PATH=$(nix-store -q --outputs "$V8_DRV")
           echo "V8_DRV=$V8_DRV" >> "$GITHUB_OUTPUT"
-          echo "STORE_PATH=$(nix-store -q --outputs "$V8_DRV")" >> "$GITHUB_OUTPUT"
-
-      - name: Check if available on Cachix
-        id: cachix-check
-        run: |
-          echo 'HAS_WRITE_TOKEN=${{ secrets.CACHIX_AUTH_TOKEN && 'true' }}' >> "$GITHUB_OUTPUT"
           set -x
           [ "$(curl -ISsw "%{http_code}" -o /dev/null "https://nodejs.cachix.org/$(basename ${V8_STORE_PATH%-v8-*}).narinfo")" != "200" ] ||
             echo "ALREADY_CACHED=true" >> "$GITHUB_OUTPUT"
-        env:
-          V8_STORE_PATH: ${{ steps.v8-drv.outputs.STORE_PATH }}
 
       - uses: cachix/cachix-action@1eb2ef646ac0255473d23a5907ad7b04ce94065c  # v17
-        if: ${{ steps.cachix-check.outputs.ALREADY_CACHED != 'true' }}
+        if: ${{ steps.v8-drv.outputs.ALREADY_CACHED != 'true' }}
         with:
           name: nodejs
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
-      - name: Build V8 derivation
-        if: ${{ steps.cachix-check.outputs.ALREADY_CACHED != 'true' }}
-        run: nix-store --export "$(nix-build "$V8_DRV")" > libv8
+      - name: Build V8 to cache it
+        if: ${{ steps.v8-drv.outputs.ALREADY_CACHED != 'true' }}
+        run: nix-store --export "$(nix-build "$V8_DRV")" > libv8-aarch64-linux.nar
         env:
           V8_DRV: ${{ steps.v8-drv.outputs.V8_DRV }}
 
-      - name: Upload libv8
-        if: ${{ steps.cachix-check.outputs.ALREADY_CACHED != 'true' && steps.cachix-check.outputs.HAS_WRITE_TOKEN != 'true' }}
+      - name: Upload libv8-aarch64-linux.nar
+        if: ${{ steps.v8-drv.outputs.ALREADY_CACHED != 'true' && env.HAS_CACHIX_AUTH_TOKEN != 'true' }}
         id: upload
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
         with:
-          name: libv8
-          path: libv8
+          name: libv8-aarch64-linux.nar
+          path: libv8-aarch64-linux.nar
 
   # Builds the matrix for `build-openssl` from tools/nix/openssl-matrix.json.
   # Output shape:
@@ -278,7 +273,7 @@ jobs:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
         if: ${{ needs.build-aarch64-linux-v8.outputs.local-cache }}
         with:
-          name: libv8
+          name: libv8-aarch64-linux.nar
 
       - uses: ./.github/actions/build-shared
         name: Build and test Node.js
@@ -291,7 +286,7 @@ jobs:
           # release (e.g. `openssl-1.1.1w`) so EOL-with-extended-support
           # cycles evaluate without relaxing nixpkgs' meta check globally.
           extra-nix-flags: |
-            --arg useSeparateDerivationForV8 ${{ needs.build-aarch64-linux-v8.outputs.local-cache && '"$(nix-store --import < libv8)"' || 'true' }} \
+            --arg useSeparateDerivationForV8 ${{ needs.build-aarch64-linux-v8.outputs.local-cache && '"$(nix-store --import < libv8-aarch64-linux.nar)"' || 'true' }} \
             --arg sharedLibDeps "(import $TAR_DIR/tools/nix/sharedLibDeps.nix {}) // {
                 openssl = (import $TAR_DIR/tools/nix/pkgs.nix { config.permittedInsecurePackages = [ \"openssl-$OPENSSL_VERSION\" ]; }).$OPENSSL_ATTR;
               }" \
