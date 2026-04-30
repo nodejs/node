@@ -587,9 +587,9 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
 
 void CopyImpl(Local<Value> source_obj,
               Local<Value> target_obj,
-              const uint32_t target_start,
-              const uint32_t source_start,
-              const uint32_t to_copy) {
+              const size_t target_start,
+              const size_t source_start,
+              const size_t to_copy) {
   ArrayBufferViewContents<char> source(source_obj);
   SPREAD_BUFFER_ARG(target_obj, target);
 
@@ -598,15 +598,29 @@ void CopyImpl(Local<Value> source_obj,
 
 // Assume caller has properly validated args.
 void SlowCopy(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   Local<Value> source_obj = args[0];
   Local<Value> target_obj = args[1];
-  const uint32_t target_start = args[2].As<Uint32>()->Value();
-  const uint32_t source_start = args[3].As<Uint32>()->Value();
-  const uint32_t to_copy = args[4].As<Uint32>()->Value();
+  // Use IntegerValue() rather than Uint32Value() so that values larger than
+  // 2**32 are not silently truncated. The JS layer is responsible for
+  // ensuring these are non-negative safe integers.
+  const int64_t target_start =
+      args[2]->IntegerValue(env->context()).ToChecked();
+  const int64_t source_start =
+      args[3]->IntegerValue(env->context()).ToChecked();
+  const int64_t to_copy = args[4]->IntegerValue(env->context()).ToChecked();
 
-  CopyImpl(source_obj, target_obj, target_start, source_start, to_copy);
+  CHECK_GE(target_start, 0);
+  CHECK_GE(source_start, 0);
+  CHECK_GE(to_copy, 0);
 
-  args.GetReturnValue().Set(to_copy);
+  CopyImpl(source_obj,
+           target_obj,
+           static_cast<size_t>(target_start),
+           static_cast<size_t>(source_start),
+           static_cast<size_t>(to_copy));
+
+  args.GetReturnValue().Set(static_cast<double>(to_copy));
 }
 
 // Assume caller has properly validated args.
@@ -1480,11 +1494,12 @@ void CopyArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   // args[3] == Source ArrayBuffer Offset
   // args[4] == bytesToCopy
 
+  Environment* env = Environment::GetCurrent(args);
   CHECK(args[0]->IsArrayBuffer() || args[0]->IsSharedArrayBuffer());
-  CHECK(args[1]->IsUint32());
+  CHECK(args[1]->IsNumber());
   CHECK(args[2]->IsArrayBuffer() || args[2]->IsSharedArrayBuffer());
-  CHECK(args[3]->IsUint32());
-  CHECK(args[4]->IsUint32());
+  CHECK(args[3]->IsNumber());
+  CHECK(args[4]->IsNumber());
 
   void* destination;
   size_t destination_byte_length;
@@ -1495,9 +1510,19 @@ void CopyArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   size_t source_byte_length;
   std::tie(source, source_byte_length) = DecomposeBufferToParts(args[2]);
 
-  uint32_t destination_offset = args[1].As<Uint32>()->Value();
-  uint32_t source_offset = args[3].As<Uint32>()->Value();
-  size_t bytes_to_copy = args[4].As<Uint32>()->Value();
+  // Use IntegerValue() so offsets larger than 2**32 are not truncated.
+  const int64_t destination_offset_signed =
+      args[1]->IntegerValue(env->context()).ToChecked();
+  const int64_t source_offset_signed =
+      args[3]->IntegerValue(env->context()).ToChecked();
+  const int64_t bytes_to_copy_signed =
+      args[4]->IntegerValue(env->context()).ToChecked();
+  CHECK_GE(destination_offset_signed, 0);
+  CHECK_GE(source_offset_signed, 0);
+  CHECK_GE(bytes_to_copy_signed, 0);
+  size_t destination_offset = static_cast<size_t>(destination_offset_signed);
+  size_t source_offset = static_cast<size_t>(source_offset_signed);
+  size_t bytes_to_copy = static_cast<size_t>(bytes_to_copy_signed);
 
   CHECK_GE(destination_byte_length - destination_offset, bytes_to_copy);
   CHECK_GE(source_byte_length - source_offset, bytes_to_copy);
