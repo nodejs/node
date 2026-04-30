@@ -1,3 +1,5 @@
+/* auto-generated on 2026-04-30 21:36:25 +0300. Do not edit! */
+/* begin file src/ata.cpp */
 #include "ata.h"
 
 // mimalloc: faster new/delete for small allocations.
@@ -1016,6 +1018,69 @@ static schema_node_ptr find_anchor_in_resource(const compiled_schema& ctx,
   return nullptr;
 }
 
+// Returns cap + 1 once the running row minimum exceeds cap (early reject).
+static size_t lev_capped(std::string_view a, std::string_view b, size_t cap) {
+  if (a == b) return 0;
+  size_t la = a.size();
+  size_t lb = b.size();
+  if (la > lb) {
+    std::swap(a, b);
+    std::swap(la, lb);
+  }
+  if (lb - la > cap) return cap + 1;
+
+  std::vector<size_t> prev(la + 1);
+  std::vector<size_t> curr(la + 1);
+  for (size_t i = 0; i <= la; ++i) prev[i] = i;
+
+  for (size_t j = 1; j <= lb; ++j) {
+    curr[0] = j;
+    size_t row_min = j;
+    for (size_t i = 1; i <= la; ++i) {
+      size_t cost = (a[i - 1] == b[j - 1]) ? 0 : 1;
+      size_t v = std::min({prev[i] + 1, curr[i - 1] + 1, prev[i - 1] + cost});
+      curr[i] = v;
+      if (v < row_min) row_min = v;
+    }
+    if (row_min > cap) return cap + 1;
+    std::swap(prev, curr);
+  }
+  return prev[la];
+}
+
+// Edit-distance up to 2 wins; otherwise fall back to a common-prefix match
+// (covers renames like "testRunner" vs "test" where edit distance is large).
+static std::string suggest_property(
+    std::string_view rejected,
+    const std::unordered_map<std::string, schema_node_ptr>& properties) {
+  if (properties.empty() || rejected.empty()) return "";
+
+  std::string best;
+  size_t best_dist = 3;
+  size_t best_prefix = 0;
+
+  for (const auto& [key, _] : properties) {
+    if (key.empty()) continue;
+    size_t d = lev_capped(rejected, key, 2);
+    if (d <= 2 && d < best_dist) {
+      best = key;
+      best_dist = d;
+      continue;
+    }
+    if (best_dist > 2) {
+      size_t maxp = std::min(rejected.size(), key.size());
+      size_t pl = 0;
+      while (pl < maxp && rejected[pl] == key[pl]) ++pl;
+      size_t shorter = std::min(rejected.size(), key.size());
+      if (pl >= 3 && pl * 2 >= shorter && pl > best_prefix) {
+        best = key;
+        best_prefix = pl;
+      }
+    }
+  }
+  return best;
+}
+
 static void validate_node(const schema_node_ptr& node,
                            dom::element value,
                            const std::string& path,
@@ -1619,9 +1684,13 @@ static void validate_node(const schema_node_ptr& node,
       if (!matched) {
         if (node->additional_properties_bool.has_value() &&
             !node->additional_properties_bool.value()) {
+          std::string msg = "additional property not allowed: " + key_str;
+          std::string suggestion = suggest_property(key_str, node->properties);
+          if (!suggestion.empty()) {
+            msg += ". did you mean \"" + suggestion + "\"?";
+          }
           errors.push_back(
-              {error_code::additional_property_not_allowed, path,
-               "additional property not allowed: " + key_str});
+              {error_code::additional_property_not_allowed, path, msg});
         } else if (node->additional_properties_schema) {
           validate_node(node->additional_properties_schema, val,
                         path + "/" + key_str, ctx, errors, all_errors, dynamic_scope);
@@ -2815,3 +2884,4 @@ bool is_valid_buf(const schema_ref& schema, const uint8_t* data, size_t length) 
 }
 
 }  // namespace ata
+/* end file src/ata.cpp */

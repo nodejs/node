@@ -1766,13 +1766,9 @@ std::vector<std::pair<std::string, OptionMappingDetails>> SortedOptionEntries(
 
 void AppendNodeOptionsObject(
     std::string* out,
-    const std::vector<std::pair<std::string, OptionMappingDetails>>& sorted_env,
-    bool include_additional_properties) {
-  *out += '{';
-  if (include_additional_properties) {
-    *out += R"("additionalProperties":false,)";
-  }
-  *out += R"("required":[],"properties":{)";
+    const std::vector<std::pair<std::string, OptionMappingDetails>>&
+        sorted_env) {
+  *out += R"({"additionalProperties":false,"required":[],"properties":{)";
   bool first = true;
   for (const auto& entry : sorted_env) {
     if (!first) *out += ',';
@@ -1786,13 +1782,9 @@ void AppendNodeOptionsObject(
 
 void AppendNamespaceObject(
     std::string* out,
-    const std::unordered_map<std::string, OptionMappingDetails>& options,
-    bool include_additional_properties) {
+    const std::unordered_map<std::string, OptionMappingDetails>& options) {
   auto sorted = SortedOptionEntries(options);
-  *out += R"({"type":"object",)";
-  if (include_additional_properties) {
-    *out += R"("additionalProperties":false,)";
-  }
+  *out += R"({"type":"object","additionalProperties":false,)";
   *out += R"("required":[],"properties":{)";
   bool first = true;
   for (const auto& entry : sorted) {
@@ -1807,7 +1799,7 @@ void AppendNamespaceObject(
 
 }  // namespace
 
-std::string GenerateConfigJsonSchema(bool include_additional_properties) {
+std::string GenerateConfigJsonSchema() {
   Mutex::ScopedLock lock(per_process::cli_options_mutex);
 
   auto env_options = MapEnvOptionsFlagInputType();
@@ -1826,9 +1818,7 @@ std::string GenerateConfigJsonSchema(bool include_additional_properties) {
 
   out += '{';
   out += R"("$schema":"https://json-schema.org/draft/2020-12/schema",)";
-  if (include_additional_properties) {
-    out += R"("additionalProperties":false,)";
-  }
+  out += R"("additionalProperties":false,)";
   out += R"("required":[],"properties":{)";
 
   bool first_prop = true;
@@ -1841,10 +1831,9 @@ std::string GenerateConfigJsonSchema(bool include_additional_properties) {
     if (prop == "$schema") {
       out += R"({"type":"string"})";
     } else if (prop == "nodeOptions") {
-      AppendNodeOptionsObject(&out, sorted_env, include_additional_properties);
+      AppendNodeOptionsObject(&out, sorted_env);
     } else {
-      AppendNamespaceObject(
-          &out, namespace_options.at(prop), include_additional_properties);
+      AppendNamespaceObject(&out, namespace_options.at(prop));
     }
   }
 
@@ -2313,7 +2302,7 @@ void GetOptionsAsFlags(const FunctionCallbackInfo<Value>& args) {
 void GetConfigJsonSchema(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = args.GetIsolate()->GetCurrentContext();
   Local<Value> result;
-  if (!ToV8Value(context, options_parser::GenerateConfigJsonSchema(true))
+  if (!ToV8Value(context, options_parser::GenerateConfigJsonSchema())
            .ToLocal(&result)) {
     return;
   }

@@ -1,3 +1,5 @@
+/* auto-generated on 2026-04-30 21:36:25 +0300. Do not edit! */
+/* begin file include/ata.h */
 #pragma once
 
 #include <cstdint>
@@ -8,16 +10,16 @@
 #include <variant>
 #include <vector>
 
-#define ATA_VERSION "0.10.5"
+#define ATA_VERSION "0.10.6"
 
 namespace ata {
 
 inline constexpr uint32_t VERSION_MAJOR = 0;
 inline constexpr uint32_t VERSION_MINOR = 10;
-inline constexpr uint32_t VERSION_REVISION = 5;
+inline constexpr uint32_t VERSION_REVISION = 6;
 
 inline constexpr std::string_view version() noexcept {
-  return "0.10.5";
+  return "0.10.6";
 }
 
 enum class error_code : uint8_t {
@@ -112,3 +114,4 @@ bool is_valid_buf(const schema_ref& schema, const uint8_t* data, size_t length);
 inline constexpr size_t REQUIRED_PADDING = 64;
 
 }  // namespace ata
+/* end file include/ata.h */

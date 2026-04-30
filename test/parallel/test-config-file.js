@@ -165,7 +165,7 @@ test('should throw at unknown flag', async () => {
     `--experimental-config-file=${fixtures.path('rc/unknown-flag.json')}`,
     '-p', '"Hello, World!"',
   ]);
-  assert.match(result.stderr, /Unknown or not allowed option some-unknown-flag for namespace nodeOptions/);
+  assert.match(result.stderr, /\/nodeOptions additional property not allowed: some-unknown-flag/);
   assert.strictEqual(result.stdout, '');
   assert.strictEqual(result.code, 9);
 });
@@ -176,7 +176,7 @@ test('should throw at flag not available in NODE_OPTIONS', async () => {
     `--experimental-config-file=${fixtures.path('rc/not-node-options-flag.json')}`,
     '-p', '"Hello, World!"',
   ]);
-  assert.match(result.stderr, /Unknown or not allowed option test for namespace nodeOptions/);
+  assert.match(result.stderr, /\/nodeOptions additional property not allowed: test/);
   assert.strictEqual(result.stdout, '');
   assert.strictEqual(result.code, 9);
 });
@@ -210,7 +210,7 @@ test('v8 flag should not be allowed in config file', async () => {
     `--experimental-config-file=${fixtures.path('rc/v8-flag.json')}`,
     '-p', '"Hello, World!"',
   ]);
-  assert.match(result.stderr, /V8 flag --abort-on-uncaught-exception is currently not supported/);
+  assert.match(result.stderr, /\/nodeOptions additional property not allowed: abort-on-uncaught-exception/);
   assert.strictEqual(result.stdout, '');
   assert.strictEqual(result.code, 9);
 });
@@ -268,7 +268,7 @@ test('no op flag should throw', async () => {
     `--experimental-config-file=${fixtures.path('rc/no-op.json')}`,
     '-p', '"Hello, World!"',
   ]);
-  assert.match(result.stderr, /No-op flag --http-parser is currently not supported/);
+  assert.match(result.stderr, /\/nodeOptions additional property not allowed: http-parser/);
   assert.match(result.stderr, /no-op\.json: invalid content/);
   assert.strictEqual(result.stdout, '');
   assert.strictEqual(result.code, 9);
@@ -512,7 +512,7 @@ describe('namespace-scoped options', () => {
       `--experimental-config-file=${fixtures.path('rc/unknown-flag-namespace.json')}`,
       '-p', '"Hello, World!"',
     ]);
-    assert.match(result.stderr, /Unknown or not allowed option unknown-flag for namespace test/);
+    assert.match(result.stderr, /\/test additional property not allowed: unknown-flag/);
     assert.strictEqual(result.stdout, '');
     assert.strictEqual(result.code, 9);
   });
@@ -523,7 +523,7 @@ describe('namespace-scoped options', () => {
       `--experimental-config-file=${fixtures.path('rc/unknown-namespace.json')}`,
       '-p', '"Hello, World!"',
     ]);
-    assert.match(result.stderr, /Unknown namespace an-invalid-namespace/);
+    assert.match(result.stderr, /additional property not allowed: an-invalid-namespace/);
     assert.match(result.stderr, /unknown-namespace\.json: invalid content/);
     assert.strictEqual(result.stdout, '');
     assert.strictEqual(result.code, 9);
@@ -648,7 +648,7 @@ describe('namespace-scoped options', () => {
       `--experimental-config-file=${fixtures.path('rc/deprecated-testrunner-namespace.json')}`,
       '-p', '"Hello, World!"',
     ]);
-    assert.match(result.stderr, /the "testRunner" namespace has been removed\. Use "test" instead\./);
+    assert.match(result.stderr, /additional property not allowed: testRunner\. did you mean "test"\?/);
     assert.strictEqual(result.stdout, '');
     assert.strictEqual(result.code, 9);
   });
