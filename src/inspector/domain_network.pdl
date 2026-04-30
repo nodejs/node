@@ -170,6 +170,20 @@ experimental domain Network
       # Response data.
       Response response
 
+  # Fired when EventSource message is received.
+  event eventSourceMessageReceived
+    parameters
+      # Request identifier.
+      RequestId requestId
+      # Timestamp.
+      MonotonicTime timestamp
+      # Message type.
+      string eventName
+      # Message identifier.
+      string eventId
+      # Message content.
+      string data
+
   event loadingFailed
     parameters
       # Request identifier.

@@ -60,6 +60,9 @@ class NetworkAgent : public protocol::Network::Backend {
   void responseReceived(v8::Local<v8::Context> context,
                         v8::Local<v8::Object> params);
 
+  void eventSourceMessageReceived(v8::Local<v8::Context> context,
+                                  v8::Local<v8::Object> params);
+
   void loadingFailed(v8::Local<v8::Context> context,
                      v8::Local<v8::Object> params);
 
