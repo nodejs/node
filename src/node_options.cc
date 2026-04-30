@@ -953,6 +953,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::test_coverage_lines,
             kAllowedInEnvvar,
             OptionNamespaces::kTestRunnerNamespace);
+  AddOption("--test-coverage-statements",
+            "the statement coverage minimum threshold",
+            &EnvironmentOptions::test_coverage_statements,
+            kAllowedInEnvvar,
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-isolation",
             "configures the type of test isolation used in the test runner",
             &EnvironmentOptions::test_isolation,
