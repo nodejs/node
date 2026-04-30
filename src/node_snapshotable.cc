@@ -536,7 +536,7 @@ size_t SnapshotSerializer::Write(const EnvSerializeInfo& data) {
 // [    ...    ]  |length| bytes of node arch
 // [ 4/8 bytes ]  length of the node platform string
 // [    ...    ]  |length| bytes of node platform
-// [  4 bytes  ]  v8 cache version tag
+// [  4 bytes  ]  SnapshotFlags
 template <>
 SnapshotMetadata SnapshotDeserializer::Read() {
   Debug("Read<SnapshotMetadata>()\n");
@@ -669,6 +669,37 @@ bool SnapshotData::FromBlob(SnapshotData* out, std::string_view in) {
   return true;
 }
 
+SnapshotFlags operator|(SnapshotFlags x, SnapshotFlags y) {
+  return static_cast<SnapshotFlags>(static_cast<uint32_t>(x) |
+                                    static_cast<uint32_t>(y));
+}
+
+SnapshotFlags operator&(SnapshotFlags x, SnapshotFlags y) {
+  return static_cast<SnapshotFlags>(static_cast<uint32_t>(x) &
+                                    static_cast<uint32_t>(y));
+}
+
+SnapshotFlags operator|=(/* NOLINT (runtime/references) */ SnapshotFlags& x,
+                         SnapshotFlags y) {
+  return x = x | y;
+}
+
+// Compute SnapshotFlags from the current EnvironmentOptions by iterating over
+// all options marked affects_snapshot=true, sorted alphabetically.
+// Bit 0 (kWithoutCodeCache) is reserved for the config-level flag.
+// Env flags occupy bits 1..N where N is the index in the sorted list.
+static SnapshotFlags ComputeEnvSnapshotFlags(const EnvironmentOptions& opts) {
+  auto options = GetSnapshotAffectingOptions(opts);
+  DCHECK_LE(options.size(), 31u);
+  SnapshotFlags flags = SnapshotFlags::kDefault;
+  for (size_t i = 0; i < options.size(); i++) {
+    if (options[i].value) {
+      flags = flags | static_cast<SnapshotFlags>(1u << (i + 1));
+    }
+  }
+  return flags;
+}
+
 bool SnapshotData::Check() const {
   if (metadata.node_version != per_process::metadata.versions.node) {
     fprintf(stderr,
@@ -697,7 +728,43 @@ bool SnapshotData::Check() const {
     return false;
   }
 
-  // TODO(joyeecheung): check incompatible Node.js flags.
+  // For fully customized snapshots, check that Node.js flags affecting the
+  // snapshot were the same when the snapshot was built.
+  if (metadata.type == SnapshotMetadata::Type::kFullyCustomized) {
+    const auto options = GetSnapshotAffectingOptions(
+        *per_process::cli_options->per_isolate->per_env);
+    DCHECK_LE(options.size(), 31u);
+    bool all_matched = true;
+    for (size_t i = 0; i < options.size(); i++) {
+      SnapshotFlags bit = static_cast<SnapshotFlags>(1u << (i + 1));
+      bool in_snapshot = static_cast<bool>(metadata.flags & bit);
+      bool in_current = options[i].value;
+      if (in_snapshot != in_current) {
+        const char* flag_name = options[i].name.c_str();
+        std::string snap_desc, curr_desc;
+        if (options[i].default_is_true) {
+          // --no-<flag> form is what's passed when the feature is off.
+          std::string negated = std::string("--no-") + (flag_name + 2);
+          snap_desc = in_snapshot ? (std::string("with ") + flag_name)
+                                  : (std::string("with ") + negated);
+          curr_desc = in_current ? (std::string("with ") + flag_name)
+                                 : (std::string("with ") + negated);
+        } else {
+          snap_desc = in_snapshot ? (std::string("with ") + flag_name)
+                                  : (std::string("without ") + flag_name);
+          curr_desc = in_current ? (std::string("with ") + flag_name)
+                                 : (std::string("without ") + flag_name);
+        }
+        fprintf(stderr,
+                "Failed to load the startup snapshot because it was built "
+                "%s but the current process is run %s.\n",
+                snap_desc.c_str(),
+                curr_desc.c_str());
+        all_matched = false;
+      }
+    }
+    if (!all_matched) return false;
+  }
   return true;
 }
 
@@ -874,21 +941,6 @@ void SnapshotBuilder::InitializeIsolateParams(const SnapshotData* data,
   }
   params->snapshot_blob =
       const_cast<v8::StartupData*>(&(data->v8_snapshot_blob_data));
-}
-
-SnapshotFlags operator|(SnapshotFlags x, SnapshotFlags y) {
-  return static_cast<SnapshotFlags>(static_cast<uint32_t>(x) |
-                                    static_cast<uint32_t>(y));
-}
-
-SnapshotFlags operator&(SnapshotFlags x, SnapshotFlags y) {
-  return static_cast<SnapshotFlags>(static_cast<uint32_t>(x) &
-                                    static_cast<uint32_t>(y));
-}
-
-SnapshotFlags operator|=(/* NOLINT (runtime/references) */ SnapshotFlags& x,
-                         SnapshotFlags y) {
-  return x = x | y;
 }
 
 bool WithoutCodeCache(const SnapshotFlags& flags) {
@@ -1255,11 +1307,13 @@ ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
     return ExitCode::kStartupSnapshotFailure;
   }
 
+  SnapshotFlags flags =
+      config->flags | ComputeEnvSnapshotFlags(*env->options());
   out->metadata = SnapshotMetadata{snapshot_type,
                                    per_process::metadata.versions.node,
                                    per_process::metadata.arch,
                                    per_process::metadata.platform,
-                                   config->flags};
+                                   flags};
 
   // We cannot resurrect the handles from the snapshot, so make sure that
   // no handles are left open in the environment after the blob is created

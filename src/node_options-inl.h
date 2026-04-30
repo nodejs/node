@@ -34,14 +34,16 @@ void OptionsParser<Options>::AddOption(const char* name,
                                        bool Options::*field,
                                        OptionEnvvarSettings env_setting,
                                        bool default_is_true,
-                                       OptionNamespaces namespace_id) {
+                                       OptionNamespaces namespace_id,
+                                       bool affects_snapshot) {
   options_.emplace(name,
                    OptionInfo{kBoolean,
                               std::make_shared<SimpleOptionField<bool>>(field),
                               env_setting,
                               help_text,
                               default_is_true,
-                              NamespaceEnumToString(namespace_id)});
+                              NamespaceEnumToString(namespace_id),
+                              affects_snapshot});
 }
 
 template <typename Options>
@@ -229,7 +231,8 @@ auto OptionsParser<Options>::Convert(
                     original.env_setting,
                     original.help_text,
                     original.default_is_true,
-                    original.namespace_id};
+                    original.namespace_id,
+                    original.affects_snapshot};
 }
 
 template <typename Options>

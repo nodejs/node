@@ -476,13 +476,15 @@ class OptionsParser {
   // default_is_true is only a hint in printing help text, it does not
   // affect the default value of the option. Set the default value in the
   // Options struct instead.
-  void AddOption(
-      const char* name,
-      const char* help_text,
-      bool Options::*field,
-      OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
-      bool default_is_true = false,
-      OptionNamespaces namespace_id = OptionNamespaces::kNoNamespace);
+  // affects_snapshot marks that the flag's effective value must match between
+  // snapshot build and load time.
+  void AddOption(const char* name,
+                 const char* help_text,
+                 bool Options::*field,
+                 OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
+                 bool default_is_true = false,
+                 OptionNamespaces namespace_id = OptionNamespaces::kNoNamespace,
+                 bool affects_snapshot = false);
   void AddOption(
       const char* name,
       const char* help_text,
@@ -573,6 +575,18 @@ class OptionsParser {
              OptionEnvvarSettings required_env_settings,
              std::vector<std::string>* const errors) const;
 
+  // Calls fn(name, value, default_is_true) for every boolean option that has
+  // affects_snapshot=true, in unspecified order.
+  template <typename Fn>
+  void ForEachSnapshotAffecting(Options* options, Fn&& fn) const {
+    for (const auto& [name, info] : options_) {
+      if (info.affects_snapshot && info.type == kBoolean && info.field) {
+        bool val = *Lookup<bool>(info.field, options);
+        fn(name, val, info.default_is_true);
+      }
+    }
+  }
+
  private:
   // We support the wide variety of different option types by remembering
   // how to access them, given a certain `Options` struct.
@@ -622,6 +636,7 @@ class OptionsParser {
     std::string help_text;
     bool default_is_true = false;
     std::string namespace_id;
+    bool affects_snapshot = false;
   };
 
   // An implied option is composed of the information on where to store a
@@ -693,6 +708,20 @@ void HandleEnvOptions(std::shared_ptr<EnvironmentOptions> env_options,
 
 std::vector<std::string> ParseNodeOptionsEnvVar(
     const std::string& node_options, std::vector<std::string>* errors);
+
+// Describes one snapshot-affecting boolean option.
+struct SnapshotFlagInfo {
+  std::string name;      // canonical CLI flag name
+  bool value;            // current effective value
+  bool default_is_true;  // true if the flag defaults to on (--no-* form)
+};
+
+// Returns every boolean EnvironmentOption marked affects_snapshot=true,
+// sorted alphabetically by name.  The sort order determines bit positions
+// in SnapshotFlags (bit 1 = index 0, bit 2 = index 1, ...).
+std::vector<SnapshotFlagInfo> GetSnapshotAffectingOptions(
+    const EnvironmentOptions& opts);
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
